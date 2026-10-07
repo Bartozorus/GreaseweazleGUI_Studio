@@ -27,7 +27,7 @@ param(
 )
 
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
-$script:Version = '11.5'
+$script:Version = '11.6'
 
 # --- Langue de l interface -------------------------------------------------------
 # Deux langues : francais et anglais. Choix automatique d apres la langue
@@ -427,6 +427,10 @@ $script:I18n["Profil {0} calibré le {1} sur le lecteur {2} : {3}"] = "{0} profi
 $script:I18n["Calibration terminée : profil {0} = {1}"] = "Calibration complete: {0} profile = {1}"
 $script:I18n["Profil enregistré dans la configuration et appliqué par le mode Auto à toute image {0}."] = "Profile saved to the configuration and applied by Auto mode to any {0} image."
 $script:I18n['Calibration precomp interrompue.'] = 'Precomp calibration aborted.'
+$script:I18n['écriture'] = 'writing'
+$script:I18n['relecture'] = 'reading back'
+$script:I18n["Calibration : passe {0}/{1}, {2} ns, {3}  -  {4} %  -  reste environ {5}"] = "Calibration: pass {0}/{1}, {2} ns, {3}  -  {4} %  -  about {5} left"
+$script:I18n["Calibration terminée en {0}"] = "Calibration completed in {0}"
 function T([string]$s) {
     if ($script:Lang -eq 'fr') { return $s }
     $t = $script:I18n[$s]
@@ -445,8 +449,18 @@ if ($PSScriptRoot) {
 } elseif ($MyInvocation.MyCommand.Path) {
     $script:AppDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 } else {
-    $script:AppDir = (Get-Location).Path
+    # Exe PS2EXE : repertoire de l executable (gw.exe est a cote), jamais le repertoire courant,
+    # qui depend du raccourci et qui, sur un partage UNC, est rendu sous forme qualifiee par le
+    # fournisseur (Microsoft.PowerShell.Core\FileSystem::\\serveur\...), inconnue de Process.Start.
+    $exePath = $null
+    try { $exePath = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName } catch { }
+    if ($exePath -and $exePath -notmatch '(^|\\)(powershell|powershell_ise|pwsh)\.exe$') {
+        $script:AppDir = Split-Path -Parent $exePath
+    } else {
+        $script:AppDir = (Get-Location).ProviderPath
+    }
 }
+$script:AppDir = $script:AppDir -replace '^[^:]+::', ''   # retire un eventuel prefixe de fournisseur PowerShell
 $script:GwExe      = Join-Path $script:AppDir 'gw.exe'
 $script:ConfigFile = Join-Path $script:AppDir 'GreaseweazleGUI.json'
 $script:TempDir    = Join-Path $env:TEMP 'GreaseweazleGUI'
@@ -1132,7 +1146,7 @@ $grpWImage.Controls.AddRange(@((New-Label (T 'Image :') '12,23'), $txtWFile, $bt
     (New-Label (T 'Format :') '12,55'), $cmbWFmt, (New-Label (T 'Profil précomp. :') '320,55'), $cmbWProfile))
 
 # --- Groupe 2 : options d'ecriture courantes
-$grpWOpt = New-Group (T 'Options d''écriture') '10,98' '762,108'
+$grpWOpt = New-Group (T 'Options d''écriture') '10,98' '762,134'
 
 $chkWPreErase = New-Object System.Windows.Forms.CheckBox
 $chkWPreErase.Text = (T 'Pré-effacer chaque piste'); $chkWPreErase.Location = '12,24'; $chkWPreErase.Width = 170
@@ -1170,11 +1184,17 @@ $btnWCalib.Text = (T 'Calibrer'); $btnWCalib.Location = '425,76'; $btnWCalib.Siz
 $tip.SetToolTip($btnWCalib, (T "Calibre la précompensation pour ce lecteur d'écriture : chaque passe écrit les cylindres de test de l'image avec une valeur de precomp, les relit en flux et note le placement des transitions. La meilleure valeur par cylindre forme le profil, enregistré pour la famille de l'image (standard ou long track) et appliqué ensuite par le mode Auto. La disquette insérée est écrasée. Test standard : un cylindre sur 10, quelques minutes. Test fin : tous les cylindres, environ une heure."))
 $btnWCalib.Add_Click({ Start-PrecompCalib })
 
+# --- Ligne 4 : progression globale de la calibration (toutes passes), visible pendant et apres
+$pbWCal = New-Object System.Windows.Forms.ProgressBar
+$pbWCal.Location = '12,108'; $pbWCal.Size = '300,16'; $pbWCal.Minimum = 0; $pbWCal.Maximum = 100; $pbWCal.Visible = $false
+$lblWCal = New-Object System.Windows.Forms.Label
+$lblWCal.Location = '320,109'; $lblWCal.AutoSize = $true; $lblWCal.ForeColor = 'DimGray'; $lblWCal.Visible = $false
+
 $grpWOpt.Controls.AddRange(@($chkWPreErase, $chkWEraseEmpty, $chkWNoVerify, (New-Label (T 'Retries :') '500,26'), $numWRetries, $chkWPrecomp, $txtWPrecomp, $chkWPostCheck,
-    (New-Label (T 'Calibration précomp :') '12,81'), $cmbWCalMode, $btnWCalib))
+    (New-Label (T 'Calibration précomp :') '12,81'), $cmbWCalMode, $btnWCalib, $pbWCal, $lblWCal))
 
 # --- Groupe 3 : options avancees (rarement utiles)
-$grpWAdv = New-Group (T 'Options avancées') '10,212' '762,74'
+$grpWAdv = New-Group (T 'Options avancées') '10,238' '762,74'
 
 $txtWTracks = New-Object System.Windows.Forms.TextBox
 $txtWTracks.Location = '70,20'; $txtWTracks.Width = 150
@@ -1208,7 +1228,7 @@ $grpWAdv.Controls.AddRange(@((New-Label (T 'Pistes :') '12,23'), $txtWTracks, (N
 
 # --- Action
 $btnWrite = New-Object System.Windows.Forms.Button
-$btnWrite.Text = (T 'ÉCRIRE LA DISQUETTE'); $btnWrite.Location = '10,294'; $btnWrite.Size = '250,40'; $btnWrite.Font = $bold
+$btnWrite.Text = (T 'ÉCRIRE LA DISQUETTE'); $btnWrite.Location = '10,320'; $btnWrite.Size = '250,40'; $btnWrite.Font = $bold
 # Options "comment ecrire" communes a l ecriture et a la calibration precomp
 function Get-WriteFormatArgs {
     $a = @()
@@ -1247,7 +1267,7 @@ $btnWrite.Add_Click({
 })
 
 $lblWProfileInfo = New-Object System.Windows.Forms.Label
-$lblWProfileInfo.Location = '270,294'; $lblWProfileInfo.Size = '502,40'; $lblWProfileInfo.Anchor = 'Top,Left,Right'
+$lblWProfileInfo.Location = '270,320'; $lblWProfileInfo.Size = '502,40'; $lblWProfileInfo.Anchor = 'Top,Left,Right'
 $lblWProfileInfo.ForeColor = 'DimGray'; $lblWProfileInfo.Text = (T 'Choisis une image : le format et la précompensation seront déduits automatiquement.')
 
 $tabW.Controls.AddRange(@($grpWImage, $grpWOpt, $grpWAdv, $btnWrite, $lblWProfileInfo))
@@ -1818,7 +1838,7 @@ $btnStop.Add_Click({
         try { $script:GwProc.Kill($true) } catch { try { $script:GwProc.Kill() } catch { } }
         $script:Chain.Clear()
         $script:PostWriteMode = $false
-        if ($script:Cal) { $script:Cal = $null; Append-Log (T 'Calibration precomp interrompue.') }
+        if ($script:Cal) { Stop-PrecompCalib }
         Append-Log (T '*** Interrompu par l''utilisateur ***')
     }
     if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; Append-Log (T 'Mesure continue arrêtée.') }
@@ -3002,11 +3022,53 @@ function Start-PrecompCalib {
         Image = $img; Drive = $cmbDrive.Text; TSpec = "c=${cylList}:h=0-1"
         Stage = 'coarse'; Values = @($script:CalCoarse); Index = 0; Value = 0; Results = @{}
         Scp = (Join-Path $script:TempDir 'precomp-calib.scp'); WriteArgs = @(); ReadArgs = @()
+        # Progression globale : passes faites / prevues, durees mesurees par phase, estimation initiale 0,7 s par piste et par phase
+        StartTime = (Get-Date); PassStart = (Get-Date); PhaseStart = (Get-Date); Phase = 'write'
+        PassesDone = 0; TotalPasses = ($script:CalCoarse.Count + 8); WriteDurs = @(); ReadDurs = @(); EstTrack = 0.7
     }
     foreach ($c in $cyls) { $script:Cal.Results[[int]$c] = @{} }
     Append-Log ((T "=== Calibration precomp : lecteur {0}, image {1} ({2}, {3}) ===") -f "$($cmbDrive.Text)", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$modeTxt")
     Append-Log ((T "Cylindres de test : {0} ({1})") -f "$cylList", "$cylSrc")
+    $pbWCal.Value = 0; $pbWCal.Visible = $true; $lblWCal.Visible = $true
+    Update-CalibProgress
     New-CalibPass
+}
+
+function Format-CalDuration([double]$sec) {
+    if ($sec -lt 0) { $sec = 0 }
+    $m = [math]::Floor($sec / 60); $s = [math]::Round($sec - 60 * $m, 0)
+    if ($m -gt 0) { return "$m min $('{0:00}' -f $s) s" }
+    return "$s s"
+}
+
+function Update-CalibProgress {
+    # Barre globale : passes terminees + fraction de la passe en cours, d apres les durees moyennes
+    # mesurees (ecriture et relecture separees) ; avant toute mesure, 0,7 s par piste et par phase.
+    $cal = $script:Cal
+    if (-not $cal) { return }
+    $nTracks = $cal.Cyls.Count * 2
+    $avgW = if ($cal.WriteDurs.Count -gt 0) { ($cal.WriteDurs | Measure-Object -Average).Average } else { $nTracks * $cal.EstTrack }
+    $avgR = if ($cal.ReadDurs.Count -gt 0)  { ($cal.ReadDurs  | Measure-Object -Average).Average } else { $nTracks * $cal.EstTrack }
+    if ($avgW -lt 1) { $avgW = 1 }; if ($avgR -lt 1) { $avgR = 1 }
+    $pass = $avgW + $avgR
+    $elapsed = ((Get-Date) - $cal.PhaseStart).TotalSeconds
+    $frac = if ($cal.Phase -eq 'write') { [math]::Min(0.98, $elapsed / $avgW) * ($avgW / $pass) }
+            else { ($avgW / $pass) + [math]::Min(0.98, $elapsed / $avgR) * ($avgR / $pass) }
+    $total = [math]::Max(1, [int]$cal.TotalPasses)
+    $done = [math]::Min($total, $cal.PassesDone + $frac)
+    $pct = [int][math]::Floor(100 * $done / $total)
+    $remaining = $pass * ($total - $done)
+    $phaseTxt = if ($cal.Phase -eq 'write') { (T 'écriture') } else { (T 'relecture') }
+    $pbWCal.Value = [math]::Max(0, [math]::Min(100, $pct))
+    $lblWCal.Text = ((T "Calibration : passe {0}/{1}, {2} ns, {3}  -  {4} %  -  reste environ {5}") -f "$([math]::Min($total, $cal.PassesDone + 1))", "$total", "$($cal.Value)", "$phaseTxt", "$pct", (Format-CalDuration $remaining))
+}
+
+function Stop-PrecompCalib {
+    # Abandon (bouton Arreter, erreur gw, fichier manquant) : etat remis a zero, barre masquee
+    $script:Cal = $null
+    $pbWCal.Visible = $false
+    $lblWCal.Text = (T 'Calibration precomp interrompue.')
+    Append-Log (T 'Calibration precomp interrompue.')
 }
 
 function New-CalibPass {
@@ -3017,9 +3079,15 @@ function New-CalibPass {
     $cal.ReadArgs  = @('read') + (Get-CommonArgs) + @('--revs=3', "--tracks=$($cal.TSpec)", "`"$($cal.Scp)`"")
     $stageTxt = if ($cal.Stage -eq 'coarse') { (T 'grossière') } else { (T 'fine') }
     Append-Log ((T "Calibration : passe {0} {1}/{2}, precomp {3} ns") -f "$stageTxt", "$($cal.Index + 1)", "$($cal.Values.Count)", "$($cal.Value)")
+    $cal.PassStart = Get-Date; $cal.PhaseStart = $cal.PassStart; $cal.Phase = 'write'
+    Update-CalibProgress
     $script:Chain.Clear()
     $script:Chain.Enqueue({ Start-Gw $script:Cal.WriteArgs })
-    $script:Chain.Enqueue({ Start-Gw $script:Cal.ReadArgs })
+    $script:Chain.Enqueue({
+        $script:Cal.WriteDurs += ((Get-Date) - $script:Cal.PhaseStart).TotalSeconds
+        $script:Cal.Phase = 'read'; $script:Cal.PhaseStart = Get-Date
+        Start-Gw $script:Cal.ReadArgs
+    })
     $script:Chain.Enqueue({ Invoke-CalibAnalysis })
     Invoke-NextChainStep
 }
@@ -3027,8 +3095,10 @@ function New-CalibPass {
 function Invoke-CalibAnalysis {
     $cal = $script:Cal
     if (-not $cal) { return }
-    if (-not (Test-Path -LiteralPath $cal.Scp)) { Append-Log (T 'Calibration : fichier SCP absent, analyse impossible.'); $script:Cal = $null; return }
-    try { $tracks = Read-ScpFile $cal.Scp } catch { Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)"); $script:Cal = $null; return }
+    if (-not (Test-Path -LiteralPath $cal.Scp)) { Append-Log (T 'Calibration : fichier SCP absent, analyse impossible.'); Stop-PrecompCalib; return }
+    try { $tracks = Read-ScpFile $cal.Scp } catch { Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)"); Stop-PrecompCalib; return }
+    $cal.ReadDurs += ((Get-Date) - $cal.PhaseStart).TotalSeconds
+    $cal.PassesDone++
     $v = [int]$cal.Value; $sum = 0.0; $n = 0; $bad = @()
     foreach ($c in $cal.Cyls) {
         $scores = @()
@@ -3059,17 +3129,22 @@ function Invoke-CalibAnalysis {
             if ($cands.Count -gt 10) { $cands = @($cands | Where-Object { $_ % 20 -eq 0 }) }
             if ($cands.Count -gt 0) {
                 $cal.Stage = 'fine'; $cal.Values = $cands; $cal.Index = 0
+                $cal.TotalPasses = $cal.PassesDone + $cands.Count
                 Append-Log ((T "Passes fines : {0} valeur(s) entre {1} et {2} ns") -f "$($cands.Count)", "$($cands[0])", "$($cands[-1])")
                 New-CalibPass; return
             }
         }
     }
+    $cal.TotalPasses = $cal.PassesDone
     Complete-PrecompCalib
 }
 
 function Complete-PrecompCalib {
     $cal = $script:Cal; $script:Cal = $null
     if (-not $cal) { return }
+    $pbWCal.Value = 100
+    $elapsedTotal = if ($cal.StartTime -is [datetime]) { ((Get-Date) - $cal.StartTime).TotalSeconds } else { 0 }
+    $lblWCal.Text = ((T "Calibration terminée en {0}") -f (Format-CalDuration $elapsedTotal))
     $xs = @(); $ys = @()
     foreach ($c in $cal.Cyls) {
         $r = $cal.Results[[int]$c]
@@ -3605,13 +3680,15 @@ $timer.Add_Tick({
                     if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : gw a retourné le code {0}. Voir le journal.") -f "$code") }
                     if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; $lblAlVerdict.Text = (T 'Mesure interrompue (erreur gw)') }
                     $script:PostWriteMode = $false
-                    if ($script:Cal) { $script:Cal = $null; Append-Log (T 'Calibration precomp interrompue.') }
+                    if ($script:Cal) { Stop-PrecompCalib }
                 }
             }
         } else {
             Read-GwOutput $false
         }
     }
+    # Calibration precomp : barre globale et temps restant
+    if ($script:Cal) { Update-CalibProgress }
     # Alignement : passe suivante en mode continu
     if ($script:AlignLoop -and $script:AlignNextAt -and -not $script:GwProc -and (Get-Date) -ge $script:AlignNextAt) {
         $script:AlignNextAt = $null

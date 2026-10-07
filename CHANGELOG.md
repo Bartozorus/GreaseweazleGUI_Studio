@@ -3,6 +3,13 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Le numéro de version est celui de `$script:Version` dans `src/GreaseweazleGUI.ps1` ; chaque release GitHub porte le tag `vX.Y` correspondant.
 
+## [11.6] - 2026-10-07
+
+- Calibration precomp : barre de progression globale sur l'ensemble des passes, avec passe en cours, phase, pourcentage et temps restant estimé d'après les durées mesurées des passes précédentes.
+- Build-Exe.ps1 : signature systématique de l'exe, y compris sur un poste joint à un domaine ; `-Sign:$false` reste le seul moyen de compiler sans signer. Règle du projet : tout exe livré est signé.
+- Workflow : l'exe de release est signé en CI si le certificat est fourni en secrets (`CODESIGN_PFX_BASE64`, `CODESIGN_PFX_PASSWORD`), avec horodatage ; sans secrets, il reste non signé et le journal le dit.
+- Exe lancé depuis un partage réseau (chemin UNC) : gw.exe était signalé présent mais son lancement échouait, le répertoire de l'application étant pris sur le répertoire courant sous sa forme qualifiée par le fournisseur PowerShell. Le répertoire est désormais celui de l'exécutable, quel que soit le répertoire courant.
+
 ## [11.5] - 2026-10-07
 
 - Interface bilingue français / anglais : choix automatique d'après la langue d'affichage de Windows (anglais pour toute langue autre que le français), paramètre `-Language fr|en` pour forcer. Les textes français restent la référence dans le code, la table anglaise est embarquée dans le script.

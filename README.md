@@ -82,11 +82,11 @@ powershell -ExecutionPolicy Bypass -File .\Build-Exe.ps1
 
 Le script lit la version dans `src/GreaseweazleGUI.ps1` (variable `$script:Version`), supprime l'exe précédent, compile `src/GreaseweazleGUI.ps1` avec l'icône `src/GreaseweazleGUI.ico`, écrit `dist/GreaseweazleGUI.exe` puis le signe (voir ci-dessous). Si PS2EXE ne produit rien, le script échoue au lieu de réutiliser un ancien exe. Le dossier `dist/` est ignoré par git.
 
-### Signature (par défaut sur un PC personnel)
+### Signature
 
-Par défaut, `Build-Exe.ps1` signe l'exécutable avec un certificat auto-signé `CN=Greaseweazle Studio`, créé à la première exécution dans les magasins utilisateur (`My`, `Root`, `TrustedPublisher`, sans droits administrateur) et horodaté chez DigiCert. `-Sign:$false` désactive la signature.
+Règle du projet : tout exécutable livré est signé. `Build-Exe.ps1` signe l'exécutable avec le certificat de signature de code `CN=Greaseweazle Studio`, créé auto-signé à la première exécution dans les magasins utilisateur (`My`, `Root`, `TrustedPublisher`, sans droits administrateur) et horodaté chez DigiCert. `-Sign:$false` est le seul moyen de compiler sans signer, pour un test ou sur un poste où l'on ne veut pas créer de certificat.
 
-Cette signature n'est de confiance que sur la machine qui a créé le certificat. Sur un poste joint à un domaine Active Directory ou à Entra ID, le script ne signe pas, sauf si `-Sign` est passé explicitement : déclarer de confiance un certificat auto-signé sur un poste d'entreprise contourne sa politique de sécurité. Demandez plutôt une signature avec le certificat interne à votre équipe sécurité.
+Un certificat auto-signé n'est reconnu que sur les machines qui lui font confiance : la signature identifie l'auteur et garantit l'intégrité du fichier, mais SmartScreen avertit quand même sur un poste tiers. Sur un poste d'entreprise managé, déclarer de confiance un certificat auto-signé contourne sa politique de sécurité : compilez-y avec `-Sign:$false` ou faites signer avec le certificat interne.
 
 ## Publication d'une version
 
@@ -96,13 +96,22 @@ Le workflow GitHub Actions [release.yml](.github/workflows/release.yml) compile 
 2. Commit, puis tag et push :
 
    ```powershell
-   git tag v11.6
+   git tag v11.7
    git push origin main --tags
    ```
 
 3. Le workflow vérifie que le tag correspond à `$script:Version`, compile, puis attache `GreaseweazleGUI.exe` et `GreaseweazleGUI.ps1` à la release.
 
-L'exécutable produit en CI n'est pas signé : le workflow appelle `Build-Exe.ps1 -Sign:$false`.
+Le workflow signe l'exécutable avec le même certificat si deux secrets existent dans le dépôt, sinon il le publie non signé et le dit dans son journal. Pour les créer, sur le PC qui possède le certificat, exporter la clé privée en PFX puis l'encoder en base64 :
+
+```powershell
+$cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Where-Object Subject -eq 'CN=Greaseweazle Studio' | Sort-Object NotAfter -Descending | Select-Object -First 1
+$pwd = Read-Host -AsSecureString 'Mot de passe du PFX'
+Export-PfxCertificate -Cert $cert -FilePath .\codesign.pfx -Password $pwd | Out-Null
+[Convert]::ToBase64String([IO.File]::ReadAllBytes('.\codesign.pfx')) | Set-Clipboard
+```
+
+Dans GitHub, Settings, Secrets and variables, Actions : créer `CODESIGN_PFX_BASE64` avec le contenu du presse-papiers et `CODESIGN_PFX_PASSWORD` avec le mot de passe choisi, puis supprimer le fichier `codesign.pfx` local. Le certificat ne quitte pas le dépôt : les secrets ne sont lisibles que par le workflow.
 
 ## Structure du dépôt
 

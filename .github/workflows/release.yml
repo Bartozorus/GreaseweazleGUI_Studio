@@ -4,7 +4,8 @@
 # release existante depuis le CHANGELOG de la branche courante, sans toucher aux
 # fichiers attachés. Tag visé : celui saisi dans le formulaire, sinon le dernier
 # tag de la branche. Sans aucun tag : simple compilation de test (artefact).
-# L'exe produit ici n'est PAS signé : Build-Exe.ps1 est appelé avec -Sign:$false.
+# L'exe est signé avec le certificat du projet si les secrets CODESIGN_PFX_BASE64 et
+# CODESIGN_PFX_PASSWORD existent ; sinon il est publié non signé.
 name: Release
 
 on:
@@ -25,6 +26,8 @@ jobs:
   build:
     name: Compiler et publier
     runs-on: windows-latest
+    env:
+      HAS_CERT: ${{ secrets.CODESIGN_PFX_BASE64 != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -89,10 +92,36 @@ jobs:
           if ($src -ne $tag) { throw "Version du script ($src) différente du tag ($tag)." }
           "Version $src"
 
-      - name: Compiler (PS2EXE, Windows PowerShell 5.1, sans signature)
+      - name: Compiler (PS2EXE, Windows PowerShell 5.1)
         if: steps.mode.outputs.mode != 'notes'
         shell: powershell
         run: .\Build-Exe.ps1 -Sign:$false
+
+      # Signature avec le certificat du projet, fourni en secrets du depot :
+      #   CODESIGN_PFX_BASE64   : le fichier .pfx (certificat + cle privee) encode en base64
+      #   CODESIGN_PFX_PASSWORD : son mot de passe
+      # Un certificat auto-signe donne le statut UnknownError (signe, mais chaine non reconnue
+      # par le runner) : c est attendu. Sans secrets, l exe est publie non signe.
+      - name: Signer l'exe (certificat fourni en secrets)
+        if: steps.mode.outputs.mode != 'notes' && env.HAS_CERT == 'true'
+        shell: powershell
+        env:
+          CODESIGN_PFX_BASE64: ${{ secrets.CODESIGN_PFX_BASE64 }}
+          CODESIGN_PFX_PASSWORD: ${{ secrets.CODESIGN_PFX_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP 'codesign.pfx'
+          [System.IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CODESIGN_PFX_BASE64))
+          try {
+            $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($pfx, $env:CODESIGN_PFX_PASSWORD, 'Exportable')
+            $sig = Set-AuthenticodeSignature -FilePath 'dist\GreaseweazleGUI.exe' -Certificate $cert -TimestampServer 'http://timestamp.digicert.com' -HashAlgorithm SHA256
+          } finally { Remove-Item $pfx -Force -ErrorAction SilentlyContinue }
+          "Signature : $($sig.Status) - $($sig.SignerCertificate.Subject) - $($sig.StatusMessage)"
+          if (@('Valid', 'UnknownError') -notcontains "$($sig.Status)") { throw "Signature en echec : $($sig.StatusMessage)" }
+
+      - name: Exe non signé (aucun certificat en secrets)
+        if: steps.mode.outputs.mode != 'notes' && env.HAS_CERT != 'true'
+        shell: powershell
+        run: Write-Host 'Aucun secret CODESIGN_PFX_BASE64 dans le depot : exe publie NON signe. Voir README, section Signature.'
 
       - name: Publier l'artefact de build
         if: steps.mode.outputs.mode != 'notes'

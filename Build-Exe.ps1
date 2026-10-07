@@ -7,10 +7,9 @@
 #   La signature auto-signée n'est de confiance QUE sur une machine où tu es
 #   légitime à définir ce qui est approuvé (ton PC personnel). Sur un poste
 #   d'entreprise managé, faire accepter un binaire auto-signé en l'ajoutant aux
-#   autorités de confiance contourne la politique de sécurité. Le script détecte
-#   un poste joint à un domaine ou à Entra ID et n'y signe pas, sauf si -Sign est
-#   passé explicitement. Sur un tel poste, demande une signature au certificat
-#   interne via ton équipe sécurité.
+#   autorités de confiance contourne la politique de sécurité : sur un tel poste,
+#   compile avec -Sign:$false ou demande une signature au certificat interne via
+#   ton équipe sécurité. Règle du projet : tout exe livré est signé.
 #
 # Prérequis : Windows PowerShell 5.1 et module PS2EXE
 #             (Install-Module -Name ps2exe -Scope CurrentUser).
@@ -18,12 +17,10 @@
 #             Windows PowerShell 5.1, que PS2EXE exige pour compiler.
 #
 # Usage :
-#   Compiler + signer (comportement par défaut sur un PC personnel) :
+#   Compiler + signer (comportement par défaut) :
 #     powershell -ExecutionPolicy Bypass -File .\Build-Exe.ps1
-#   Compiler sans signer :
+#   Compiler sans signer (poste managé, test) :
 #     powershell -ExecutionPolicy Bypass -File .\Build-Exe.ps1 -Sign:$false
-#   Forcer la signature sur un poste joint à un domaine (déconseillé) :
-#     powershell -ExecutionPolicy Bypass -File .\Build-Exe.ps1 -Sign
 #   La 1re signature crée le certificat et le déclare de confiance
 #   (magasins utilisateur, pas besoin d'admin). Les suivantes le réutilisent.
 #
@@ -69,19 +66,6 @@ $m = Select-String -LiteralPath $src -Pattern '^\$script:Version\s*=\s*''([0-9.]
 if (-not $m) { throw "Version introuvable dans $src (attendu : `$script:Version = 'X.Y')." }
 $version     = $m.Matches[0].Groups[1].Value
 $fileVersion = ((($version -split '\.') + @('0','0','0','0'))[0..3]) -join '.'   # X.Y -> X.Y.0.0 (format PS2EXE)
-
-# --- Poste managé : pas de signature implicite ---------------------------------
-if ($Sign -and -not $PSBoundParameters.ContainsKey('Sign')) {
-    $managed = $false
-    try { $managed = [bool](Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop).PartOfDomain } catch { }
-    if (-not $managed) {
-        try { $managed = [bool]((& "$env:SystemRoot\System32\dsregcmd.exe" /status) -match '^\s*AzureAdJoined\s*:\s*YES') } catch { }
-    }
-    if ($managed) {
-        Write-Warning 'Poste joint à un domaine ou à Entra ID : signature auto-signée ignorée. Passer -Sign explicitement pour forcer.'
-        $Sign = $false
-    }
-}
 
 # --- Compilation -------------------------------------------------------------
 if (-not (Get-Command Invoke-ps2exe -ErrorAction SilentlyContinue)) {
