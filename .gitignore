@@ -1,0 +1,24 @@
+# Sortie de compilation : l exe est distribue via GitHub Releases, pas via git
+dist/
+*.exe
+
+# Fichiers crees a l execution (a cote de gw.exe, jamais dans le depot)
+GreaseweazleGUI.json
+*.tsv
+
+# Greaseweazle host tools deposes localement pour tester
+gw.exe
+greaseweazle-*/
+
+# Images et flux de test
+*.adf
+*.ipf
+*.scp
+*.hfe
+
+# OS / editeurs
+Thumbs.db
+desktop.ini
+.vs/
+.vscode/
+*.swp

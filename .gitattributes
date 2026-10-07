@@ -1,0 +1,18 @@
+* text=auto
+
+# Scripts PowerShell : CRLF, comme attendu par Windows PowerShell 5.1
+*.ps1 text eol=crlf
+
+# Fichiers texte multiplateformes
+*.md   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+.editorconfig text eol=lf
+LICENSE text eol=lf
+
+# Binaires
+*.ico binary
+*.exe binary
+*.png binary
