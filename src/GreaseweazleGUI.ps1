@@ -414,23 +414,27 @@ $script:I18n['test standard, un cylindre sur 10'] = 'standard test, one cylinder
 $script:I18n["Calibration de la précompensation sur le lecteur {0} ({1}).`n`nImage : {2}, famille {3}, {4}.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes.`n`nInsère une disquette vierge ou sans valeur, puis confirme."] = "Precompensation calibration on drive {0} ({1}).`n`nImage: {2}, family {3}, {4}.`nTest cylinders: {5} (both sides), OVERWRITTEN on every pass. Estimated time: {6} min for {7} passes.`n`nInsert a blank or worthless disk, then confirm."
 $script:I18n["=== Calibration precomp : lecteur {0}, image {1} ({2}, {3}) ==="] = "=== Precomp calibration: drive {0}, image {1} ({2}, {3}) ==="
 $script:I18n["Cylindres de test : {0} ({1})"] = "Test cylinders: {0} ({1})"
-$script:I18n['grossière'] = 'coarse'
-$script:I18n['fine'] = 'fine'
-$script:I18n["Calibration : passe {0} {1}/{2}, precomp {3} ns"] = "Calibration: {0} pass {1}/{2}, precomp {3} ns"
+$script:I18n["Calibration : passe de mesure {0}/{1}, precomp {2} ns"] = "Calibration: measurement pass {0}/{1}, precomp {2} ns"
+$script:I18n["Calibration : passe de vérification {0}/{1}, profil {2}"] = "Calibration: verification pass {0}/{1}, profile {2}"
+$script:I18n['profil'] = 'profile'
 $script:I18n['Calibration : fichier SCP absent, analyse impossible.'] = 'Calibration: SCP file missing, cannot analyse.'
 $script:I18n["Calibration : {0}"] = "Calibration: {0}"
 $script:I18n[", illisibles : {0}"] = ", unreadable: {0}"
-$script:I18n["  {0} ns : score moyen {1} sur {2} cylindre(s){3}"] = "  {0} ns: average score {1} over {2} cylinder(s){3}"
-$script:I18n["Passes fines : {0} valeur(s) entre {1} et {2} ns"] = "Fine passes: {0} value(s) between {1} and {2} ns"
+$script:I18n["  {0} : décalage résiduel moyen {1} ns (de {2} à {3}), score jitter moyen {4}, {5} cylindre(s){6}"] = "  {0}: average residual shift {1} ns (from {2} to {3}), average jitter score {4}, {5} cylinder(s){6}"
+$script:I18n["  {0} : aucun cylindre mesurable{1}"] = "  {0}: no measurable cylinder{1}"
+$script:I18n['Calibration : aucune mesure exploitable pour estimer la précompensation.'] = 'Calibration: no usable measurement to estimate precompensation.'
+$script:I18n["Pente moyenne : {0} ns de décalage par ns de precomp ; estimation par cylindre : {1}"] = "Average slope: {0} ns of shift per ns of precomp; estimate per cylinder: {1}"
+$script:I18n["Profil estimé : {0}"] = "Estimated profile: {0}"
+$script:I18n["{0} cylindre(s) corrigé(s) de plus de {1} ns de résidu, nouveau profil : {2}"] = "{0} cylinder(s) corrected for more than {1} ns of residual, new profile: {2}"
+$script:I18n["Résidu après vérification (ns, tolérance {0}) : {1}"] = "Residual after verification (ns, tolerance {0}): {1}"
 $script:I18n['Calibration precomp : aucune mesure exploitable, profil inchangé.'] = 'Precomp calibration: no usable measurement, profile unchanged.'
-$script:I18n["Meilleure valeur par cylindre : {0}"] = "Best value per cylinder: {0}"
 $script:I18n["Profil {0} calibré le {1} sur le lecteur {2} : {3}"] = "{0} profile calibrated on {1} for drive {2}: {3}"
 $script:I18n["Calibration terminée : profil {0} = {1}"] = "Calibration complete: {0} profile = {1}"
 $script:I18n["Profil enregistré dans la configuration et appliqué par le mode Auto à toute image {0}."] = "Profile saved to the configuration and applied by Auto mode to any {0} image."
 $script:I18n['Calibration precomp interrompue.'] = 'Precomp calibration aborted.'
 $script:I18n['écriture'] = 'writing'
 $script:I18n['relecture'] = 'reading back'
-$script:I18n["Calibration : passe {0}/{1}, {2} ns, {3}  -  {4} %  -  reste environ {5}"] = "Calibration: pass {0}/{1}, {2} ns, {3}  -  {4} %  -  about {5} left"
+$script:I18n["Calibration : passe {0}/{1}, {2}, {3}  -  {4} %  -  reste environ {5}"] = "Calibration: pass {0}/{1}, {2}, {3}  -  {4} %  -  about {5} left"
 $script:I18n["Calibration terminée en {0}"] = "Calibration completed in {0}"
 function T([string]$s) {
     if ($script:Lang -eq 'fr') { return $s }
@@ -523,10 +527,11 @@ public class ScpRev {
     public double IndexMs; public int NFlux; public double Cell;
     public double Jitter; public double R3; public double R4;
     public int OutOfClass; public int Dropouts;
+    public double Shift; public int ShiftN;   // decalage de pic residuel (ns, > 0 = sous-compense) et effectif minimal
 }
 public static class ScpStats {
     public static ScpRev Analyze(int[] flux, double indexNs) {
-        var r = new ScpRev(); r.IndexMs = indexNs / 1e6; r.NFlux = flux.Length;
+        var r = new ScpRev(); r.IndexMs = indexNs / 1e6; r.NFlux = flux.Length; r.Shift = double.NaN; r.ShiftN = 0;
         // 1) estimation de la cellule : mediane des intervalles de 2 cellules.
         //    Fenetre large (3,0 - 5,0 us) valable pour 2 us (AmigaDOS) comme pour 1,89 us (long tracks).
         var c2raw = new List<double>();
@@ -535,14 +540,17 @@ public static class ScpStats {
         c2raw.Sort(); double cell = c2raw[c2raw.Count / 2] / 2.0;
         // 2) classement de chaque intervalle par son nombre de cellules (arrondi), relatif a la cellule mesuree.
         //    2, 3, 4 cellules = MFM standard ; 5 cellules = marqueur de format (long tracks, syncs speciaux) : pas une erreur.
+        //    cls[i] : 2, 3, 4 (MFM), 5 (marqueur tolere), 0 (hors classe ou trou).
         var c2 = new List<double>(); var c3 = new List<double>(); var c4 = new List<double>();
+        int n = flux.Length; int[] cls = new int[n];
         int ooc = 0, drop = 0;
-        foreach (int f in flux) {
+        for (int i = 0; i < n; i++) {
+            int f = flux[i]; cls[i] = 0;
             if (f >= 20000) { drop++; continue; }
-            double n = f / cell; int k = (int)Math.Round(n);
-            if (Math.Abs(n - k) > 0.35) { ooc++; continue; }        // trop loin d un multiple entier : erreur
-            if (k == 2) c2.Add(f); else if (k == 3) c3.Add(f); else if (k == 4) c4.Add(f);
-            else if (k == 5) { /* marqueur, tolere */ } else ooc++;
+            double q = f / cell; int k = (int)Math.Round(q);
+            if (Math.Abs(q - k) > 0.35) { ooc++; continue; }        // trop loin d un multiple entier : erreur
+            if (k == 2) { c2.Add(f); cls[i] = 2; } else if (k == 3) { c3.Add(f); cls[i] = 3; } else if (k == 4) { c4.Add(f); cls[i] = 4; }
+            else if (k == 5) { cls[i] = 5; /* marqueur, tolere */ } else ooc++;
         }
         r.OutOfClass = ooc; r.Dropouts = drop;
         if (c2.Count < 50) { r.Cell = cell; r.Jitter = double.NaN; r.R3 = double.NaN; r.R4 = double.NaN; return r; }
@@ -552,6 +560,25 @@ public static class ScpStats {
         double m3 = 0; foreach (double v in c3) m3 += v; m3 = c3.Count > 0 ? m3 / c3.Count : double.NaN;
         double m4 = 0; foreach (double v in c4) m4 += v; m4 = c4.Count > 0 ? m4 / c4.Count : double.NaN;
         r.R3 = m3 / m2; r.R4 = m4 / m2;
+        // 3) decalage de pic residuel (ce que corrige la precompensation) : a la lecture, une transition
+        //    est repoussee par sa voisine la plus proche. Un 2T encadre par deux intervalles longs (3T/4T)
+        //    est donc lu plus long qu un 2T encadre par deux 2T ; un 3T encadre par deux 2T est lu plus
+        //    court qu un 3T encadre par deux longs. Shift = demi-somme des deux ecarts (ns) : > 0 sous-
+        //    compense, < 0 sur-compense, 0 = reglage ideal. Lineaire en la precomp ecrite.
+        double sSL = 0, sSS = 0, sLS = 0, sLL = 0; int nSL = 0, nSS = 0, nLS = 0, nLL = 0;
+        for (int i = 1; i < n - 1; i++) {
+            int k = cls[i]; if (k != 2 && k != 3) continue;
+            int a = cls[i - 1], b = cls[i + 1];
+            if (a < 2 || a > 4 || b < 2 || b > 4) continue;
+            bool aL = a >= 3, bL = b >= 3;
+            if (k == 2) { if (aL && bL) { sSL += flux[i]; nSL++; } else if (!aL && !bL) { sSS += flux[i]; nSS++; } }
+            else        { if (!aL && !bL) { sLS += flux[i]; nLS++; } else if (aL && bL) { sLL += flux[i]; nLL++; } }
+        }
+        bool okS = nSL >= 30 && nSS >= 30, okL = nLS >= 30 && nLL >= 30;
+        double shS = okS ? sSL / nSL - sSS / nSS : 0, shL = okL ? sLS / nLS - sLL / nLL : 0;
+        if (okS && okL) { r.Shift = (shS - shL) / 2; r.ShiftN = Math.Min(Math.Min(nSL, nSS), Math.Min(nLS, nLL)); }
+        else if (okS) { r.Shift = shS; r.ShiftN = Math.Min(nSL, nSS); }
+        else if (okL) { r.Shift = -shL; r.ShiftN = Math.Min(nLS, nLL); }
         return r;
     }
     public static int[] Decode(byte[] data, int offset, int count, int resNs) {
@@ -2891,22 +2918,27 @@ function Update-PrecompForImage([string]$path) {
 }
 
 # ============================== CALIBRATION PRECOMP ============================
-# Principe : chaque passe ecrit TOUS les cylindres de test de l image avec une meme
-# valeur de precomp (une commande gw write, --precomp 0=V), les relit en flux (gw read,
-# 3 tours) et note chaque cylindre : jitter des intervalles 2T + asymetrie des classes
-# 3T/4T + intervalles hors classe, moyenne des deux faces ; plus bas = transitions
-# mieux placees. Passes grossieres 0..250 ns par pas de 50, puis passes fines par pas
-# de 10 (20 si trop nombreuses) autour des meilleures valeurs. Pour chaque cylindre la
-# meilleure valeur est retenue ; la courbe est lissee en croissante (la precomp
-# necessaire augmente vers l interieur), arrondie a 10 ns et convertie en seuils c=ns.
-# Le profil remplace celui de la famille de l image (standard 2 us / long track) et
-# est enregistre dans la configuration : le mode Auto l applique ensuite.
+# Principe. La precompensation corrige le decalage de pic (peak shift) : a la lecture,
+# une transition est repoussee par sa voisine la plus proche, donc un intervalle court
+# (2T) encadre par deux longs est lu trop long et un 3T encadre par deux courts trop
+# court. ScpStats.Analyze mesure ce decalage residuel signe (Shift, ns) : > 0 = sous-
+# compense, < 0 = sur-compense, 0 = reglage ideal. Il est lineaire en la precomp
+# ecrite : trois passes de mesure (0, 100, 200 ns) suffisent pour ajuster une droite par
+# cylindre et en deduire la valeur qui annule le decalage. Une passe de verification
+# ecrit ensuite le profil obtenu et mesure le residu ; les cylindres hors tolerance
+# sont corriges et une derniere passe verifie. Chaque passe = une commande gw write
+# (tous les cylindres de test, --precomp unique ou profil) puis gw read en flux, 3 tours.
+# Profil : valeurs lissees croissantes vers l interieur, arrondies a 5 ns, seuils c=ns.
+# Le profil remplace celui de la famille de l image (standard 2 us / long track) et est
+# enregistre dans la configuration : le mode Auto l applique ensuite.
 # Test standard : un cylindre sur 10 plus le dernier ; test fin : tous les cylindres.
-# Cylindres deduits de l image (ADF : taille ; IPF : enregistrements IMGE ; HFE :
-# en-tete), 80 par defaut. gw n applique la precomp qu aux pistes a bits (images
-# secteur ou bitcell), jamais aux flux SCP/RAW.
+# Cylindres deduits de l image (ADF, IPF, HFE), 80 par defaut. gw n applique la precomp
+# qu aux pistes a bits (images secteur ou bitcell), jamais aux flux SCP/RAW.
 $script:Cal = $null
-$script:CalCoarse = @(0, 50, 100, 150, 200, 250)
+$script:CalCoarse    = @(0, 100, 200)   # passes de mesure : trois points pour la droite
+$script:CalMaxNs     = 300              # borne haute d une valeur de precomp
+$script:CalResidual  = 4.0              # residu (ns) au-dela duquel un cylindre est corrige
+$script:CalMaxVerify = 2                # passes de verification au plus
 
 function Get-ImageCylinders([string]$path) {
     # Nombre de cylindres de l image, $null si non determinable
@@ -2967,7 +2999,7 @@ function Format-CylList([int[]]$cyls) {
 }
 
 function Get-CalibTrackScore($st) {
-    # $st : liste de ScpRev (un par tour) ; 9999 = piste illisible
+    # Score de qualite (jitter 2T + asymetrie 3T/4T + hors classe) sur les tours lisibles ; 9999 = illisible
     foreach ($x in $st) { if ([double]::IsNaN($x.Jitter) -or [double]::IsNaN($x.R3) -or [double]::IsNaN($x.R4)) { return 9999 } }
     $j   = ($st | Measure-Object -Property Jitter -Average).Average
     $r3  = ($st | Measure-Object -Property R3 -Average).Average
@@ -2976,9 +3008,53 @@ function Get-CalibTrackScore($st) {
     return ($j + 2000 * ([math]::Abs($r3 - 1.5) + [math]::Abs($r4 - 2.0)) + 5 * $ooc)
 }
 
+function Get-CalibTrackShift($st) {
+    # Decalage de pic residuel moyen (ns) sur les tours ou il est mesurable ; NaN sinon
+    $vals = @()
+    foreach ($x in $st) { if (-not [double]::IsNaN($x.Shift)) { $vals += [double]$x.Shift } }
+    if ($vals.Count -eq 0) { return [double]::NaN }
+    return ($vals | Measure-Object -Average).Average
+}
+
 function Get-CalibFamilyName([string]$family) {
     if ($family -eq 'long') { return (T 'Long track 1,89 us') }
     return (T 'Standard 2 us')
+}
+
+function Get-SpecValue([string]$spec, [int]$cyl) {
+    # Valeur de precomp appliquee par gw au cylindre : derniere entree c=ns dont c <= cylindre (entrees croissantes)
+    $v = 0
+    foreach ($m in [regex]::Matches($spec, '(\d+)\s*=\s*(\d+)')) { if ([int]$m.Groups[1].Value -le $cyl) { $v = [int]$m.Groups[2].Value } }
+    return $v
+}
+
+function Build-CalibProfile([hashtable]$est) {
+    # Estimation par cylindre (ns, reels) -> profil c=ns : lissage croissant (pool adjacent violators,
+    # la precomp necessaire ne diminue pas vers l interieur), arrondi a 5 ns, une entree par changement.
+    $xs = @($est.Keys | Sort-Object); $ys = @($xs | ForEach-Object { [double]$est[$_] })
+    if ($xs.Count -eq 0) { return '' }
+    $blocks = New-Object System.Collections.Generic.List[object]
+    foreach ($y in $ys) {
+        $blocks.Add(@{ Sum = [double]$y; Count = 1 })
+        while ($blocks.Count -ge 2) {
+            $a = $blocks[$blocks.Count - 2]; $b = $blocks[$blocks.Count - 1]
+            if ($a.Sum / $a.Count -le $b.Sum / $b.Count) { break }
+            $blocks.RemoveAt($blocks.Count - 1); $blocks.RemoveAt($blocks.Count - 1)
+            $blocks.Add(@{ Sum = $a.Sum + $b.Sum; Count = $a.Count + $b.Count })
+        }
+    }
+    $smooth = @()
+    foreach ($b in $blocks) {
+        $m = [int]([math]::Round($b.Sum / $b.Count / 5.0, 0) * 5)
+        $m = [math]::Max(0, [math]::Min($script:CalMaxNs, $m))
+        for ($k = 0; $k -lt $b.Count; $k++) { $smooth += $m }
+    }
+    $parts = @(); $prev = $null
+    for ($i = 0; $i -lt $xs.Count; $i++) {
+        if ($null -eq $prev -or $smooth[$i] -ne $prev) { $parts += "$($xs[$i])=$($smooth[$i])"; $prev = $smooth[$i] }
+    }
+    if ([int]$xs[0] -ne 0) { $parts[0] = "0=$($smooth[0])" }
+    return ($parts -join ':')
 }
 
 function Start-PrecompCalib {
@@ -3008,7 +3084,7 @@ function Start-PrecompCalib {
     if ($fine) { $cyls = @(0..$maxCyl) }
     else { $cyls = @(0..$maxCyl | Where-Object { $_ % 10 -eq 0 }); if ($cyls -notcontains $maxCyl) { $cyls += $maxCyl } }
     $cyls = @($cyls | Sort-Object -Unique)
-    $nPassEst = $script:CalCoarse.Count + 8
+    $nPassEst = $script:CalCoarse.Count + $script:CalMaxVerify
     $minutes = [math]::Max(1, [math]::Round($cyls.Count * 2 * 1.4 * $nPassEst / 60, 0))
     $modeTxt = if ($fine) { (T 'test fin, tous les cylindres') } else { (T 'test standard, un cylindre sur 10') }
     $famTxt = Get-CalibFamilyName $family
@@ -3021,11 +3097,12 @@ function Start-PrecompCalib {
     $script:Cal = @{
         Mode = $(if ($fine) { 'fine' } else { 'std' }); Cyls = $cyls; MaxCyl = $maxCyl; Family = $family
         Image = $img; Drive = $cmbDrive.Text; TSpec = "c=${cylList}:h=0-1"
-        Stage = 'coarse'; Values = @($script:CalCoarse); Index = 0; Value = 0; Results = @{}
+        Stage = 'coarse'; Values = @($script:CalCoarse); Index = 0; Value = 0; ValueTxt = ''; Spec = ''
+        Results = @{}; Est = @{}; Slope = $null; Profile = ''; Verify = @{}; VerifyCount = 0
         Scp = (Join-Path $script:TempDir 'precomp-calib.scp'); WriteArgs = @(); ReadArgs = @()
         # Progression globale : passes faites / prevues, durees mesurees par phase, estimation initiale 0,7 s par piste et par phase
         StartTime = (Get-Date); PassStart = (Get-Date); PhaseStart = (Get-Date); Phase = 'write'
-        PassesDone = 0; TotalPasses = ($script:CalCoarse.Count + 8); WriteDurs = @(); ReadDurs = @(); EstTrack = 0.7
+        PassesDone = 0; TotalPasses = $nPassEst; WriteDurs = @(); ReadDurs = @(); EstTrack = 0.7
     }
     foreach ($c in $cyls) { $script:Cal.Results[[int]$c] = @{} }
     Append-Log ((T "=== Calibration precomp : lecteur {0}, image {1} ({2}, {3}) ===") -f "$($cmbDrive.Text)", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$modeTxt")
@@ -3061,7 +3138,7 @@ function Update-CalibProgress {
     $remaining = $pass * ($total - $done)
     $phaseTxt = if ($cal.Phase -eq 'write') { (T 'écriture') } else { (T 'relecture') }
     $pbWCal.Value = [math]::Max(0, [math]::Min(100, $pct))
-    $lblWCal.Text = ((T "Calibration : passe {0}/{1}, {2} ns, {3}  -  {4} %  -  reste environ {5}") -f "$([math]::Min($total, $cal.PassesDone + 1))", "$total", "$($cal.Value)", "$phaseTxt", "$pct", (Format-CalDuration $remaining))
+    $lblWCal.Text = ((T "Calibration : passe {0}/{1}, {2}, {3}  -  {4} %  -  reste environ {5}") -f "$([math]::Min($total, $cal.PassesDone + 1))", "$total", "$($cal.ValueTxt)", "$phaseTxt", "$pct", (Format-CalDuration $remaining))
 }
 
 function Stop-PrecompCalib {
@@ -3074,12 +3151,16 @@ function Stop-PrecompCalib {
 
 function New-CalibPass {
     $cal = $script:Cal
-    $cal.Value = [int]$cal.Values[$cal.Index]
+    if ($cal.Stage -eq 'coarse') {
+        $cal.Value = [int]$cal.Values[$cal.Index]; $cal.Spec = "0=$($cal.Value)"; $cal.ValueTxt = "$($cal.Value) ns"
+        Append-Log ((T "Calibration : passe de mesure {0}/{1}, precomp {2} ns") -f "$($cal.Index + 1)", "$($cal.Values.Count)", "$($cal.Value)")
+    } else {
+        $cal.Spec = $cal.Profile; $cal.ValueTxt = (T 'profil')
+        Append-Log ((T "Calibration : passe de vérification {0}/{1}, profil {2}") -f "$($cal.VerifyCount)", "$($script:CalMaxVerify)", "$($cal.Profile)")
+    }
     if (Test-Path -LiteralPath $cal.Scp) { Remove-Item -LiteralPath $cal.Scp -Force }
-    $cal.WriteArgs = @('write') + (Get-CommonArgs) + @('--pre-erase', '--no-verify') + (Get-WriteFormatArgs) + @("--tracks=$($cal.TSpec)", '--precomp', "0=$($cal.Value)", "`"$($cal.Image)`"")
+    $cal.WriteArgs = @('write') + (Get-CommonArgs) + @('--pre-erase', '--no-verify') + (Get-WriteFormatArgs) + @("--tracks=$($cal.TSpec)", '--precomp', $cal.Spec, "`"$($cal.Image)`"")
     $cal.ReadArgs  = @('read') + (Get-CommonArgs) + @('--revs=3', "--tracks=$($cal.TSpec)", "`"$($cal.Scp)`"")
-    $stageTxt = if ($cal.Stage -eq 'coarse') { (T 'grossière') } else { (T 'fine') }
-    Append-Log ((T "Calibration : passe {0} {1}/{2}, precomp {3} ns") -f "$stageTxt", "$($cal.Index + 1)", "$($cal.Values.Count)", "$($cal.Value)")
     $cal.PassStart = Get-Date; $cal.PhaseStart = $cal.PassStart; $cal.Phase = 'write'
     Update-CalibProgress
     $script:Chain.Clear()
@@ -3093,6 +3174,40 @@ function New-CalibPass {
     Invoke-NextChainStep
 }
 
+function Set-CalibEstimates {
+    # Droite decalage = b + a * precomp par cylindre (moindres carres sur les passes de mesure) ;
+    # pente mise en commun (mediane) pour les cylindres dont la pente propre n est pas fiable.
+    $cal = $script:Cal
+    $fits = @{}; $slopes = @()
+    foreach ($c in $cal.Cyls) {
+        $r = $cal.Results[[int]$c]
+        if ($r.Count -lt 2) { continue }
+        $xs = @($r.Keys | Sort-Object); $ys = @($xs | ForEach-Object { [double]$r[$_].Shift })
+        $mx = ($xs | Measure-Object -Average).Average; $my = ($ys | Measure-Object -Average).Average
+        $sxx = 0.0; $sxy = 0.0
+        for ($i = 0; $i -lt $xs.Count; $i++) { $sxx += ($xs[$i] - $mx) * ($xs[$i] - $mx); $sxy += ($xs[$i] - $mx) * ($ys[$i] - $my) }
+        if ($sxx -le 0) { continue }
+        $a = $sxy / $sxx
+        $fits[[int]$c] = @{ A = $a; Mx = $mx; My = $my }
+        if ($a -lt -0.2) { $slopes += $a }
+    }
+    if ($fits.Count -eq 0) { Append-Log (T 'Calibration : aucune mesure exploitable pour estimer la précompensation.'); return $false }
+    $pooled = $null
+    if ($slopes.Count -gt 0) { $s = @($slopes | Sort-Object); $pooled = $s[[int][math]::Floor($s.Count / 2)] }
+    $cal.Slope = if ($null -ne $pooled) { $pooled } else { -2.0 }   # -2 : valeur theorique (deux transitions par intervalle)
+    $cal.Est = @{}
+    foreach ($c in @($fits.Keys)) {
+        $f = $fits[$c]
+        $a = if ($f.A -lt -0.2) { $f.A } else { $cal.Slope }
+        $b = $f.My - $a * $f.Mx
+        $v0 = -$b / $a
+        $cal.Est[[int]$c] = [math]::Max(0, [math]::Min($script:CalMaxNs, $v0))
+    }
+    $estTxt = (@($cal.Est.Keys | Sort-Object | ForEach-Object { "c$_=$([math]::Round($cal.Est[$_], 0))" })) -join ' '
+    Append-Log ((T "Pente moyenne : {0} ns de décalage par ns de precomp ; estimation par cylindre : {1}") -f "$([math]::Round($cal.Slope, 2))", "$estTxt")
+    return $true
+}
+
 function Invoke-CalibAnalysis {
     $cal = $script:Cal
     if (-not $cal) { return }
@@ -3100,40 +3215,55 @@ function Invoke-CalibAnalysis {
     try { $tracks = Read-ScpFile $cal.Scp } catch { Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)"); Stop-PrecompCalib; return }
     $cal.ReadDurs += ((Get-Date) - $cal.PhaseStart).TotalSeconds
     $cal.PassesDone++
-    $v = [int]$cal.Value; $sum = 0.0; $n = 0; $bad = @()
+    $shifts = @(); $scores = @(); $bad = @()
     foreach ($c in $cal.Cyls) {
-        $scores = @()
+        $sv = @(); $jv = @()
         foreach ($h in 0, 1) {
             $tn = [int]$c * 2 + $h
-            if ($tracks.ContainsKey($tn)) { $scores += (Get-CalibTrackScore $tracks[$tn]) } else { $scores += 9999 }
+            if (-not $tracks.ContainsKey($tn)) { continue }
+            $s = Get-CalibTrackShift $tracks[$tn]; if (-not [double]::IsNaN($s)) { $sv += $s }
+            $j = Get-CalibTrackScore $tracks[$tn]; if ($j -lt 9999) { $jv += $j }
         }
-        $sc = [math]::Round(($scores | Measure-Object -Average).Average, 0)
-        if ($sc -ge 9999) { $bad += $c; continue }
-        $cal.Results[[int]$c][$v] = $sc; $sum += $sc; $n++
+        if ($sv.Count -eq 0) { $bad += $c; continue }
+        $sh = ($sv | Measure-Object -Average).Average
+        $jt = if ($jv.Count -gt 0) { ($jv | Measure-Object -Average).Average } else { [double]::NaN }
+        if ($cal.Stage -eq 'coarse') { $cal.Results[[int]$c][[int]$cal.Value] = @{ Shift = $sh; Score = $jt } }
+        else { $cal.Verify[[int]$c] = @{ Shift = $sh; Score = $jt } }
+        $shifts += $sh; if (-not [double]::IsNaN($jt)) { $scores += $jt }
     }
-    $avgTxt = if ($n -gt 0) { "$([math]::Round($sum / $n, 0))" } else { '-' }
     $badTxt = if ($bad.Count -gt 0) { ((T ", illisibles : {0}") -f "$($bad -join ',')") } else { '' }
-    Append-Log ((T "  {0} ns : score moyen {1} sur {2} cylindre(s){3}") -f "$v", "$avgTxt", "$n", "$badTxt")
-    $cal.Index++
-    if ($cal.Index -lt $cal.Values.Count) { New-CalibPass; return }
+    if ($shifts.Count -gt 0) {
+        $st = $shifts | Measure-Object -Average -Minimum -Maximum
+        $scTxt = if ($scores.Count -gt 0) { "$([math]::Round(($scores | Measure-Object -Average).Average, 0))" } else { '-' }
+        Append-Log ((T "  {0} : décalage résiduel moyen {1} ns (de {2} à {3}), score jitter moyen {4}, {5} cylindre(s){6}") -f "$($cal.ValueTxt)", "$([math]::Round($st.Average, 1))", "$([math]::Round($st.Minimum, 1))", "$([math]::Round($st.Maximum, 1))", "$scTxt", "$($shifts.Count)", "$badTxt")
+    } else {
+        Append-Log ((T "  {0} : aucun cylindre mesurable{1}") -f "$($cal.ValueTxt)", "$badTxt")
+    }
     if ($cal.Stage -eq 'coarse') {
-        $bests = @()
-        foreach ($c in $cal.Cyls) {
-            $r = $cal.Results[[int]$c]
-            if ($r.Count -gt 0) { $bests += [int](($r.GetEnumerator() | Sort-Object Value, Key | Select-Object -First 1).Key) }
-        }
-        if ($bests.Count -gt 0) {
-            $lo = [math]::Max(0, ($bests | Measure-Object -Minimum).Minimum - 30)
-            $hi = ($bests | Measure-Object -Maximum).Maximum + 30
-            $measured = @($cal.Values)
-            $cands = @(); for ($x = $lo; $x -le $hi; $x += 10) { if ($measured -notcontains $x) { $cands += $x } }
-            if ($cands.Count -gt 10) { $cands = @($cands | Where-Object { $_ % 20 -eq 0 }) }
-            if ($cands.Count -gt 0) {
-                $cal.Stage = 'fine'; $cal.Values = $cands; $cal.Index = 0
-                $cal.TotalPasses = $cal.PassesDone + $cands.Count
-                Append-Log ((T "Passes fines : {0} valeur(s) entre {1} et {2} ns") -f "$($cands.Count)", "$($cands[0])", "$($cands[-1])")
-                New-CalibPass; return
-            }
+        $cal.Index++
+        if ($cal.Index -lt $cal.Values.Count) { New-CalibPass; return }
+        if (-not (Set-CalibEstimates)) { $cal.TotalPasses = $cal.PassesDone; Complete-PrecompCalib; return }
+        $cal.Profile = Build-CalibProfile $cal.Est
+        Append-Log ((T "Profil estimé : {0}") -f "$($cal.Profile)")
+        $cal.Stage = 'verify'; $cal.VerifyCount = 1; $cal.Verify = @{}
+        New-CalibPass; return
+    }
+    # Verification : les cylindres dont le residu depasse la tolerance sont corriges d apres la pente
+    $corr = 0
+    foreach ($c in @($cal.Verify.Keys)) {
+        $res = [double]$cal.Verify[$c].Shift
+        if ([math]::Abs($res) -le $script:CalResidual) { continue }
+        $applied = Get-SpecValue $cal.Profile ([int]$c)
+        $cal.Est[[int]$c] = [math]::Max(0, [math]::Min($script:CalMaxNs, $applied + $res / [math]::Abs($cal.Slope)))
+        $corr++
+    }
+    if ($corr -gt 0 -and $cal.VerifyCount -lt $script:CalMaxVerify) {
+        $newProfile = Build-CalibProfile $cal.Est
+        if ($newProfile -ne $cal.Profile) {
+            $cal.Profile = $newProfile
+            Append-Log ((T "{0} cylindre(s) corrigé(s) de plus de {1} ns de résidu, nouveau profil : {2}") -f "$corr", "$($script:CalResidual)", "$($cal.Profile)")
+            $cal.VerifyCount++; $cal.Verify = @{}
+            New-CalibPass; return
         }
     }
     $cal.TotalPasses = $cal.PassesDone
@@ -3146,34 +3276,12 @@ function Complete-PrecompCalib {
     $pbWCal.Value = 100
     $elapsedTotal = if ($cal.StartTime -is [datetime]) { ((Get-Date) - $cal.StartTime).TotalSeconds } else { 0 }
     $lblWCal.Text = ((T "Calibration terminée en {0}") -f (Format-CalDuration $elapsedTotal))
-    $xs = @(); $ys = @()
-    foreach ($c in $cal.Cyls) {
-        $r = $cal.Results[[int]$c]
-        if ($r.Count -eq 0) { continue }
-        $xs += [int]$c; $ys += [int](($r.GetEnumerator() | Sort-Object Value, Key | Select-Object -First 1).Key)
+    if (-not $cal.Profile) { Append-Log (T 'Calibration precomp : aucune mesure exploitable, profil inchangé.'); return }
+    if ($cal.Verify.Count -gt 0) {
+        $resTxt = (@($cal.Verify.Keys | Sort-Object | ForEach-Object { "c$_=$('{0:+0.0;-0.0;0.0}' -f [double]$cal.Verify[$_].Shift)" })) -join ' '
+        Append-Log ((T "Résidu après vérification (ns, tolérance {0}) : {1}") -f "$($script:CalResidual)", "$resTxt")
     }
-    if ($xs.Count -eq 0) { Append-Log (T 'Calibration precomp : aucune mesure exploitable, profil inchangé.'); return }
-    Append-Log ((T "Meilleure valeur par cylindre : {0}") -f "$((@(0..($xs.Count - 1) | ForEach-Object { "c$($xs[$_])=$($ys[$_])" })) -join ' ')")
-    # Lissage croissant (pool adjacent violators) : la precomp necessaire ne diminue pas vers l interieur
-    $blocks = New-Object System.Collections.Generic.List[object]
-    foreach ($y in $ys) {
-        $blocks.Add(@{ Sum = [double]$y; Count = 1 })
-        while ($blocks.Count -ge 2) {
-            $a = $blocks[$blocks.Count - 2]; $b = $blocks[$blocks.Count - 1]
-            if ($a.Sum / $a.Count -le $b.Sum / $b.Count) { break }
-            $blocks.RemoveAt($blocks.Count - 1); $blocks.RemoveAt($blocks.Count - 1)
-            $blocks.Add(@{ Sum = $a.Sum + $b.Sum; Count = $a.Count + $b.Count })
-        }
-    }
-    $smooth = @()
-    foreach ($b in $blocks) { $m = [int]([math]::Round($b.Sum / $b.Count / 10.0, 0) * 10); for ($k = 0; $k -lt $b.Count; $k++) { $smooth += $m } }
-    # Seuils : une entree a chaque changement de valeur ; la premiere zone commence a 0
-    $parts = @(); $prev = $null
-    for ($i = 0; $i -lt $xs.Count; $i++) {
-        if ($null -eq $prev -or $smooth[$i] -ne $prev) { $parts += "$($xs[$i])=$($smooth[$i])"; $prev = $smooth[$i] }
-    }
-    if ($xs[0] -ne 0) { $parts[0] = "0=$($smooth[0])" }
-    $spec = $parts -join ':'
+    $spec = $cal.Profile
     $famTxt = Get-CalibFamilyName $cal.Family
     if ($cal.Family -eq 'long') { $script:PrecompLong = $spec } else { $script:PrecompStd = $spec }
     $cmbWProfile.SelectedIndex = 0                 # Auto : applique le profil de la famille de l image

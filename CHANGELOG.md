@@ -3,6 +3,10 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Le numéro de version est celui de `$script:Version` dans `src/GreaseweazleGUI.ps1` ; chaque release GitHub porte le tag `vX.Y` correspondant.
 
+## [Non publié]
+
+- Calibration precomp : nouvelle méthode de mesure. L'analyse de flux mesure directement le décalage de pic résiduel, signé, par moyennes conditionnelles au contexte (2T entre deux longs contre 2T entre deux courts, 3T entre deux courts contre 3T entre deux longs), au lieu d'un score de jitter. Trois passes de mesure à 0, 100 et 200 ns, droite par cylindre, valeur qui annule le décalage, puis passe de vérification sur le profil obtenu avec correction des cylindres hors tolérance. Quatre à cinq passes au lieu de quatorze, profil arrondi à 5 ns, résidus affichés dans le journal.
+
 ## [11.7] - 2026-10-07
 
 - Sortie de gw : les dernières lignes avant la fin du processus n'étaient pas toujours lues, ce qui masquait notamment « Command Failed: WriteProtected » sur une disquette protégée en écriture, gw se terminant alors avec le code 0. L'application attend désormais la fin des deux flux avant de conclure, affiche la durée et le nombre de lignes reçues, colore « Command Failed » en erreur, et signale une opération incomplète quand gw rend le code 0 après moins de la moitié des pistes annoncées, sans lancer le contrôle post-écriture.
