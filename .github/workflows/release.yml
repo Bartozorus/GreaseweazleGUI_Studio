@@ -121,7 +121,8 @@ jobs:
       - name: Exe non signé (aucun certificat en secrets)
         if: steps.mode.outputs.mode != 'notes' && env.HAS_CERT != 'true'
         shell: powershell
-        run: Write-Host 'Aucun secret CODESIGN_PFX_BASE64 dans le depot : exe publie NON signe. Voir README, section Signature.'
+        run: |
+          Write-Host 'Aucun secret CODESIGN_PFX_BASE64 dans le depot : exe publie NON signe. Voir README, section Signature.'
 
       - name: Publier l'artefact de build
         if: steps.mode.outputs.mode != 'notes'
