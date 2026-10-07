@@ -61,13 +61,13 @@ Install-Module -Name ps2exe -Scope CurrentUser
 powershell -ExecutionPolicy Bypass -File .\Build-Exe.ps1
 ```
 
-Le script lit la version dans `src/GreaseweazleGUI.ps1` (variable `$script:Version`), compile `src/GreaseweazleGUI.ps1` avec l'icône `src/GreaseweazleGUI.ico` et écrit `dist/GreaseweazleGUI.exe`. Le dossier `dist/` est ignoré par git.
+Le script lit la version dans `src/GreaseweazleGUI.ps1` (variable `$script:Version`), compile `src/GreaseweazleGUI.ps1` avec l'icône `src/GreaseweazleGUI.ico`, écrit `dist/GreaseweazleGUI.exe` puis le signe (voir ci-dessous). Le dossier `dist/` est ignoré par git.
 
-### Signature (optionnelle, PC personnel uniquement)
+### Signature (par défaut, PC personnel uniquement)
 
-`.\Build-Exe.ps1 -Sign` signe l'exécutable avec un certificat auto-signé `CN=Greaseweazle Studio`, créé à la première exécution dans les magasins utilisateur (`My`, `Root`, `TrustedPublisher`, sans droits administrateur) et horodaté chez DigiCert.
+Par défaut, `Build-Exe.ps1` signe l'exécutable avec un certificat auto-signé `CN=Greaseweazle Studio`, créé à la première exécution dans les magasins utilisateur (`My`, `Root`, `TrustedPublisher`, sans droits administrateur) et horodaté chez DigiCert.
 
-Cette signature n'est de confiance que sur la machine qui a créé le certificat. N'utilisez pas `-Sign` sur un poste d'entreprise managé : déclarer de confiance un certificat auto-signé contourne la politique de sécurité du poste. Demandez une signature avec le certificat interne à votre équipe sécurité.
+Cette signature n'est de confiance que sur la machine qui a créé le certificat. Sur un poste d'entreprise managé, compilez avec `.\Build-Exe.ps1 -Sign:$false` : déclarer de confiance un certificat auto-signé contourne la politique de sécurité du poste. Demandez une signature avec le certificat interne à votre équipe sécurité.
 
 ## Publication d'une version
 
@@ -83,7 +83,7 @@ Le workflow GitHub Actions [release.yml](.github/workflows/release.yml) compile 
 
 3. Le workflow vérifie que le tag correspond à `$script:Version`, compile, puis attache `GreaseweazleGUI.exe` et `GreaseweazleGUI.ps1` à la release.
 
-L'exécutable produit en CI n'est pas signé.
+L'exécutable produit en CI n'est pas signé : le workflow appelle `Build-Exe.ps1 -Sign:$false`.
 
 ## Structure du dépôt
 
@@ -94,7 +94,7 @@ L'exécutable produit en CI n'est pas signé.
 │   ├── GreaseweazleGUI.ps1         Application (script unique)
 │   └── GreaseweazleGUI.ico         Icône de l'exécutable
 ├── dist/                           Sortie de Build-Exe.ps1 (ignoré par git)
-├── Build-Exe.ps1                   Compilation PS2EXE, signature optionnelle
+├── Build-Exe.ps1                   Compilation PS2EXE et signature auto-signée
 ├── CHANGELOG.md
 ├── LICENSE
 └── README.md

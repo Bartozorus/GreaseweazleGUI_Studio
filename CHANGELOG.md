@@ -11,7 +11,7 @@ Première publication sur GitHub.
 - Onglets Bibliothèque, Écriture, Lecture, Conversion, Comparaison, Qualité & Alignement, Outils, Délais, Commande libre.
 - Bibliothèque : index persistant construit dans un thread .NET, recherche instantanée en mémoire, archives ZIP parsées, ouverture des documents associés.
 - Profils de précompensation (standard 2 µs / long track 1,89 µs) détectés d'après l'image (IPF, SCP, HFE).
-- Compilation en exécutable avec PS2EXE (`Build-Exe.ps1`), signature auto-signée optionnelle.
+- Compilation en exécutable avec PS2EXE (`Build-Exe.ps1`), signature auto-signée par défaut, désactivable avec `-Sign:$false`.
 - Dépôt : sources dans `src/`, sortie de build dans `dist/`, workflow GitHub Actions de release.
 
 ## Versions antérieures

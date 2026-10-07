@@ -1,36 +1,37 @@
 ﻿# =============================================================================
-# Build-Exe.ps1 - Compile src\GreaseweazleGUI.ps1 en executable (PS2EXE) dans dist\,
-#                 avec l icone src\GreaseweazleGUI.ico, puis signe l exe en option
-#                 avec un certificat auto-signe.
+# Build-Exe.ps1 - Compile src\GreaseweazleGUI.ps1 en exécutable (PS2EXE) dans dist\,
+#                 avec l'icône src\GreaseweazleGUI.ico, puis signe l'exe avec un
+#                 certificat auto-signé (comportement par défaut).
 #
-# ATTENTION - CADRE D USAGE DE -Sign :
-#   La signature auto-signee n'est de confiance QUE sur une machine ou tu es
-#   legitime a definir ce qui est approuve (ton PC personnel). Sur un poste
-#   d'entreprise manage, faire accepter un binaire auto-signe en l'ajoutant aux
-#   autorites de confiance contourne la politique de securite : n'utilise PAS
-#   le mode -Sign sur un tel poste ; demande une signature au certificat interne
-#   via ton equipe securite.
+# ATTENTION - CADRE D'USAGE DE LA SIGNATURE :
+#   La signature auto-signée n'est de confiance QUE sur une machine où tu es
+#   légitime à définir ce qui est approuvé (ton PC personnel). Sur un poste
+#   d'entreprise managé, faire accepter un binaire auto-signé en l'ajoutant aux
+#   autorités de confiance contourne la politique de sécurité : sur un tel poste,
+#   compile avec -Sign:$false et demande une signature au certificat interne
+#   via ton équipe sécurité.
 #
-# Prerequis : Windows PowerShell 5.1 et module PS2EXE
+# Prérequis : Windows PowerShell 5.1 et module PS2EXE
 #             (Install-Module -Name ps2exe -Scope CurrentUser).
 #
 # Usage :
-#   Compiler seulement (comportement par defaut) :
+#   Compiler + signer (comportement par défaut, PC personnel uniquement) :
 #     powershell -ExecutionPolicy Bypass -File .\Build-Exe.ps1
-#   Compiler + signer (PC personnel uniquement) :
-#     powershell -ExecutionPolicy Bypass -File .\Build-Exe.ps1 -Sign
-#   La 1re execution avec -Sign cree le certificat et le declare de confiance
-#   (magasins utilisateur, pas besoin d'admin). Les suivantes le reutilisent.
+#   Compiler seulement (poste managé, intégration continue) :
+#     powershell -ExecutionPolicy Bypass -File .\Build-Exe.ps1 -Sign:$false
+#   La 1re exécution avec signature crée le certificat et le déclare de confiance
+#   (magasins utilisateur, pas besoin d'admin). Les suivantes le réutilisent.
 #
-# La version de l exe est lue dans src\GreaseweazleGUI.ps1 ($script:Version = 'X.Y').
+# La version de l'exe est lue dans src\GreaseweazleGUI.ps1 ($script:Version = 'X.Y').
 # =============================================================================
 param(
-    [switch]$Sign,                                   # signer l'exe apres compilation
-    [string]$CertSubject = 'CN=Greaseweazle Studio', # sujet du certificat auto-signe
+    [switch]$Sign = $true,                           # signer l'exe après compilation (-Sign:$false pour désactiver)
+    [string]$CertSubject = 'CN=Greaseweazle Studio', # sujet du certificat auto-signé
     [string]$TimestampServer = 'http://timestamp.digicert.com'
 )
 
 $ErrorActionPreference = 'Stop'
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 if ($PSScriptRoot) { $here = $PSScriptRoot } else { $here = (Get-Location).Path }
 
 $src    = Join-Path $here 'src\GreaseweazleGUI.ps1'
@@ -57,28 +58,28 @@ $common = @{
     InputFile = $src; OutputFile = $out
     noConsole = $true; STA = $true
     title = 'Greaseweazle Studio'
-    description = 'Preservation, ecriture et controle de disquettes Amiga'
+    description = 'Préservation, écriture et contrôle de disquettes Amiga'
     product = 'Greaseweazle Studio'; version = $fileVersion
 }
-if (Test-Path -LiteralPath $ico) { $common.iconFile = $ico } else { Write-Warning "Icone absente : compilation sans icone." }
+if (Test-Path -LiteralPath $ico) { $common.iconFile = $ico } else { Write-Warning "Icône absente : compilation sans icône." }
 Invoke-ps2exe @common
 
 if (-not (Test-Path -LiteralPath $out)) { throw "La compilation n'a pas produit $out." }
 $size = [math]::Round((Get-Item -LiteralPath $out).Length / 1KB, 0)
 Write-Host "OK -> $out ($size Ko)" -ForegroundColor Green
 
-# --- Signature (optionnelle, PC personnel) -----------------------------------
+# --- Signature (par défaut, PC personnel) ------------------------------------
 if ($Sign) {
     Write-Host ''
-    Write-Host 'Signature de code (certificat auto-signe, confiance locale uniquement).' -ForegroundColor Yellow
+    Write-Host 'Signature de code (certificat auto-signé, confiance locale uniquement).' -ForegroundColor Yellow
 
-    # 1. Recupere un certificat de signature de code existant pour ce sujet, ou en cree un.
+    # 1. Récupère un certificat de signature de code existant pour ce sujet, ou en crée un.
     $cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert -ErrorAction SilentlyContinue |
             Where-Object { $_.Subject -eq $CertSubject -and $_.NotAfter -gt (Get-Date) } |
             Sort-Object NotAfter -Descending | Select-Object -First 1
 
     if (-not $cert) {
-        Write-Host "Creation d'un certificat auto-signe : $CertSubject" -ForegroundColor Cyan
+        Write-Host "Création d'un certificat auto-signé : $CertSubject" -ForegroundColor Cyan
         $cert = New-SelfSignedCertificate `
             -Subject $CertSubject `
             -Type CodeSigningCert -KeyUsage DigitalSignature `
@@ -86,32 +87,31 @@ if ($Sign) {
             -CertStoreLocation 'Cert:\CurrentUser\My' `
             -NotAfter (Get-Date).AddYears(5)
 
-        # Declare le certificat de confiance sur CETTE machine (magasins utilisateur).
+        # Déclare le certificat de confiance sur CETTE machine (magasins utilisateur).
         $store = Get-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)"
         foreach ($name in 'Root','TrustedPublisher') {
             $s = New-Object System.Security.Cryptography.X509Certificates.X509Store($name,'CurrentUser')
             $s.Open('ReadWrite'); $s.Add($store); $s.Close()
         }
-        Write-Host "Certificat cree et declare de confiance (Root + TrustedPublisher, utilisateur)." -ForegroundColor Green
+        Write-Host "Certificat créé et déclaré de confiance (Root + TrustedPublisher, utilisateur)." -ForegroundColor Green
         Write-Host "Empreinte : $($cert.Thumbprint)" -ForegroundColor Gray
     } else {
-        Write-Host "Certificat existant reutilise (empreinte $($cert.Thumbprint))." -ForegroundColor Gray
+        Write-Host "Certificat existant réutilisé (empreinte $($cert.Thumbprint))." -ForegroundColor Gray
     }
 
-    # 2. Signe l'exe (horodatage pour une validite au-dela de l'expiration du certificat).
+    # 2. Signe l'exe (horodatage pour une validité au-delà de l'expiration du certificat).
     $sig = Set-AuthenticodeSignature -FilePath $out -Certificate $cert `
                -TimestampServer $TimestampServer -HashAlgorithm SHA256
 
     if ($sig.Status -eq 'Valid') {
         Write-Host "Signature : VALIDE ($($sig.SignerCertificate.Subject))" -ForegroundColor Green
     } else {
-        Write-Warning "Signature : etat $($sig.Status) - $($sig.StatusMessage)"
+        Write-Warning "Signature : état $($sig.Status) - $($sig.StatusMessage)"
         Write-Warning "Sans horodatage accessible (proxy ?), relance sans -TimestampServer : la signature reste valide mais expire avec le certificat."
     }
+} else {
+    Write-Host 'Signature désactivée (-Sign:$false) : exe non signé.' -ForegroundColor Gray
 }
 
 Write-Host ''
-Write-Host "Deploiement : copier dist\GreaseweazleGUI.exe dans le repertoire de gw.exe." -ForegroundColor Gray
-if (-not $Sign) {
-    Write-Host "Pour signer (PC personnel uniquement) : .\Build-Exe.ps1 -Sign" -ForegroundColor Gray
-}
+Write-Host "Déploiement : copier dist\GreaseweazleGUI.exe dans le répertoire de gw.exe." -ForegroundColor Gray

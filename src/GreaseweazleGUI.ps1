@@ -587,7 +587,7 @@ $btnLibRoot = New-Object System.Windows.Forms.Button
 $btnLibRoot.Text = 'Choisir le dossier racine'; $btnLibRoot.Location = '700,10'; $btnLibRoot.Width = 36; $btnLibRoot.Anchor = 'Top,Right'
 $btnLibRoot.Add_Click({
     $d = New-Object System.Windows.Forms.FolderBrowserDialog
-    $d.Description = 'Repertoire racine de la bibliotheque d images'
+    $d.Description = 'Répertoire racine de la bibliothèque d''images'
     if ($txtLibRoot.Text -and (Test-Path -LiteralPath $txtLibRoot.Text)) { $d.SelectedPath = $txtLibRoot.Text }
     if ($d.ShowDialog() -eq 'OK') { $txtLibRoot.Text = $d.SelectedPath; Update-Library }
 })
@@ -639,11 +639,11 @@ $btnLibToWrite.Add_Click({
     $sel = Resolve-LibSelection
     if (-not $sel) { return }
     if (-not $sel.IsImage) {
-        [void][System.Windows.Forms.MessageBox]::Show('Ce fichier n est pas un format image reconnu par gw.','Type non pris en charge','OK','Information'); return
+        [void][System.Windows.Forms.MessageBox]::Show('Ce fichier n''est pas un format image reconnu par gw.','Type non pris en charge','OK','Information'); return
     }
     $txtWFile.Text = $sel.Path
     if ($sel.Path -match '\.adf$') { $cmbWFmt.SelectedItem = 'amiga.amigados' } else { $cmbWFmt.SelectedIndex = 0 }
-    Append-Log "Image selectionnee : $($sel.Path)"
+    Append-Log "Image sélectionnée : $($sel.Path)"
     Update-PrecompForImage $sel.Path
     $tabs.SelectedTab = $tabW
 })
@@ -839,7 +839,7 @@ $cmbRFmt.Location = '90,43'; $cmbRFmt.Width = 200
 
 $btnRFile.Add_Click({
     $d = New-Object System.Windows.Forms.SaveFileDialog
-    $d.Filter = 'Flux SCP (preservation)|*.scp|ADF (AmigaDOS)|*.adf|Kryoflux stream|*.raw|HFE|*.hfe|Tous|*.*'
+    $d.Filter = 'Flux SCP (préservation)|*.scp|ADF (AmigaDOS)|*.adf|Kryoflux stream|*.raw|HFE|*.hfe|Tous|*.*'
     if ($txtRFile.Text) { $p = Split-Path -Parent $txtRFile.Text; if ($p -and (Test-Path -LiteralPath $p)) { $d.InitialDirectory = $p } }
     elseif ($txtLibRoot.Text -and (Test-Path -LiteralPath $txtLibRoot.Text)) { $d.InitialDirectory = $txtLibRoot.Text }
     if ($d.ShowDialog() -eq 'OK') {
@@ -851,7 +851,7 @@ $btnRFile.Add_Click({
 $numRevs = New-Object System.Windows.Forms.NumericUpDown
 $numRevs.Location = '110,74'; $numRevs.Width = 55
 $numRevs.Minimum = 1; $numRevs.Maximum = 30
-$tip.SetToolTip($numRevs, 'Tours lus par piste. 5 recommande pour l archivage flux (SCP).')
+$tip.SetToolTip($numRevs, 'Tours lus par piste. 5 recommandés pour l''archivage flux (SCP).')
 
 $numRRetries = New-Object System.Windows.Forms.NumericUpDown
 $numRRetries.Location = '255,74'; $numRRetries.Width = 55
@@ -900,7 +900,7 @@ $btnRead.Add_Click({
 
 $tabR.Controls.AddRange(@((New-Label 'Sortie :' '10,17'), $txtRFile, $btnRFile,
     (New-Label 'Format :' '10,47'), $cmbRFmt,
-    (New-Label 'Revolutions :' '10,77'), $numRevs,
+    (New-Label 'Révolutions :' '10,77'), $numRevs,
     (New-Label 'Retries :' '190,77'), $numRRetries,
     (New-Label 'Tracks :' '355,77'), $txtRTracks,
     $chkRRaw, $chkRRev,
@@ -925,7 +925,7 @@ $btnCvIn.Add_Click({
 $cmbCvFmt = New-Object System.Windows.Forms.ComboBox
 $cmbCvFmt.Location = '90,75'; $cmbCvFmt.Width = 200
 [void]$cmbCvFmt.Items.AddRange($Formats)
-$tip.SetToolTip($cmbCvFmt, 'Format de decodage. Necessaire pour passer d un flux (SCP/RAW) a un format secteur (ADF).')
+$tip.SetToolTip($cmbCvFmt, 'Format de décodage. Nécessaire pour passer d''un flux (SCP/RAW) à un format secteur (ADF).')
 
 $txtCvOut = New-Object System.Windows.Forms.TextBox
 $txtCvOut.Location = '90,43'; $txtCvOut.Width = 650; $txtCvOut.Anchor = 'Top,Left,Right'
@@ -983,7 +983,7 @@ $btnCmpRef.Add_Click({
 $cmbCmpFmt = New-Object System.Windows.Forms.ComboBox
 $cmbCmpFmt.Location = '90,43'; $cmbCmpFmt.Width = 200
 [void]$cmbCmpFmt.Items.AddRange(($Formats | Where-Object { $_ -ne '(auto)' }))
-$tip.SetToolTip($cmbCmpFmt, "Format de decodage commun : la reference est convertie dans ce format,`nla disquette est lue dans ce format, puis les deux sont comparees octet par octet.")
+$tip.SetToolTip($cmbCmpFmt, "Format de décodage commun : la référence est convertie dans ce format,`nla disquette est lue dans ce format, puis les deux sont comparées octet par octet.")
 
 $numCmpRetries = New-Object System.Windows.Forms.NumericUpDown
 $numCmpRetries.Location = '365,43'; $numCmpRetries.Width = 55
@@ -1009,7 +1009,7 @@ $txtCmpResult.Multiline = $true; $txtCmpResult.ReadOnly = $true; $txtCmpResult.F
 $txtCmpResult.ScrollBars = 'Vertical'; $txtCmpResult.WordWrap = $false
 $txtCmpResult.BackColor = [System.Drawing.SystemColors]::Control
 
-$tabCmp.Controls.AddRange(@((New-Label 'Reference :' '10,17'), $txtCmpRef, $btnCmpRef,
+$tabCmp.Controls.AddRange(@((New-Label 'Référence :' '10,17'), $txtCmpRef, $btnCmpRef,
     (New-Label 'Format :' '10,47'), $cmbCmpFmt, (New-Label 'Retries :' '305,47'), $numCmpRetries, $btnCmpFromWrite,
     $btnCompare, $txtCmpResult))
 
@@ -1209,14 +1209,14 @@ function New-ToolButton($text, $loc, $onClick) {
     return $b
 }
 
-$btnInfo  = New-ToolButton 'Info peripherique'        '15,15'  { Start-Gw @('info') }
+$btnInfo  = New-ToolButton 'Info périphérique'        '15,15'  { Start-Gw @('info') }
 $btnRpm   = New-ToolButton 'Mesurer la vitesse (rpm)' '15,52'  { Start-Gw (@('rpm') + (Get-CommonArgs)) }
 $btnBw    = New-ToolButton 'Bande passante USB'       '15,89'  { Start-Gw @('bandwidth') }
-$btnReset = New-ToolButton 'Reset du peripherique'    '15,126' { Start-Gw @('reset') }
+$btnReset = New-ToolButton 'Reset du périphérique'    '15,126' { Start-Gw @('reset') }
 
-$btnUpdate = New-ToolButton 'Mise a jour firmware' '15,163' {
+$btnUpdate = New-ToolButton 'Mise à jour firmware' '15,163' {
     $r = [System.Windows.Forms.MessageBox]::Show(
-        "Mettre a jour le firmware du Greaseweazle ?`nNe pas debrancher pendant l operation.",
+        "Mettre à jour le firmware du Greaseweazle ?`nNe pas débrancher pendant l'opération.",
         'gw update', 'YesNo', 'Warning')
     if ($r -eq 'Yes') { Start-Gw @('update') }
 }
@@ -1224,7 +1224,7 @@ $btnUpdate = New-ToolButton 'Mise a jour firmware' '15,163' {
 $numSeek = New-Object System.Windows.Forms.NumericUpDown
 $numSeek.Location = '355,18'; $numSeek.Width = 60
 $numSeek.Minimum = -8; $numSeek.Maximum = 85
-$tip.SetToolTip($numSeek, 'Cylindre cible. Valeurs negatives possibles sur lecteur flippy.')
+$tip.SetToolTip($numSeek, 'Cylindre cible. Valeurs négatives possibles sur lecteur flippy.')
 
 $btnSeek = New-Object System.Windows.Forms.Button
 $btnSeek.Text = 'Seek'; $btnSeek.Location = '425,17'; $btnSeek.Size = '80,26'
@@ -1239,7 +1239,7 @@ $btnErase.Text = 'EFFACER'; $btnErase.Location = '515,54'; $btnErase.Size = '100
 $btnErase.Add_Click({
     $scope = if ($txtEraseTracks.Text.Trim()) { "les pistes $($txtEraseTracks.Text.Trim())" } else { "TOUTE la disquette" }
     $r = [System.Windows.Forms.MessageBox]::Show(
-        "Operation IRREVERSIBLE : $scope dans le lecteur $($cmbDrive.Text) sera effacee.`n`nContinuer ?",
+        "Opération IRRÉVERSIBLE : $scope dans le lecteur $($cmbDrive.Text) sera effacée.`n`nContinuer ?",
         'Confirmation effacement', 'YesNo', 'Warning')
     if ($r -eq 'Yes') {
         $a = @('erase') + (Get-CommonArgs)
@@ -1261,8 +1261,8 @@ $btnClean = New-Object System.Windows.Forms.Button
 $btnClean.Text = 'NETTOYER'; $btnClean.Location = '540,91'; $btnClean.Size = '100,26'
 $btnClean.Add_Click({
     $r = [System.Windows.Forms.MessageBox]::Show(
-        "Insere une DISQUETTE DE NETTOYAGE (jamais une disquette de donnees) puis valide.",
-        'Nettoyage des tetes', 'OKCancel', 'Information')
+        "Insère une DISQUETTE DE NETTOYAGE (jamais une disquette de données) puis valide.",
+        'Nettoyage des têtes', 'OKCancel', 'Information')
     if ($r -eq 'OK') {
         Start-Gw (@('clean') + (Get-CommonArgs) + @("--passes=$($numPasses.Value)", "--linger=$($numLinger.Value)"))
     }
@@ -1317,11 +1317,11 @@ foreach ($d in $delayDefs) {
 }
 
 $btnDelaysShow = New-Object System.Windows.Forms.Button
-$btnDelaysShow.Text = 'Afficher les delais actuels'; $btnDelaysShow.Location = '330,15'; $btnDelaysShow.Size = '230,32'
+$btnDelaysShow.Text = 'Afficher les délais actuels'; $btnDelaysShow.Location = '330,15'; $btnDelaysShow.Size = '230,32'
 $btnDelaysShow.Add_Click({ Start-Gw @('delays') })
 
 $btnDelaysSet = New-Object System.Windows.Forms.Button
-$btnDelaysSet.Text = 'Appliquer les valeurs cochees'; $btnDelaysSet.Location = '330,55'; $btnDelaysSet.Size = '230,32'
+$btnDelaysSet.Text = 'Appliquer les valeurs cochées'; $btnDelaysSet.Location = '330,55'; $btnDelaysSet.Size = '230,32'
 $btnDelaysSet.Add_Click({
     $a = @('delays')
     foreach ($k in $script:DelayCtrls.Keys) {
@@ -1329,18 +1329,18 @@ $btnDelaysSet.Add_Click({
         if ($c.Chk.Checked) { $a += "--$k=$($c.Num.Value)" }
     }
     if ($a.Count -eq 1) {
-        [void][System.Windows.Forms.MessageBox]::Show('Coche au moins un parametre a modifier.','Rien a faire','OK','Information'); return
+        [void][System.Windows.Forms.MessageBox]::Show('Coche au moins un paramètre à modifier.','Rien à faire','OK','Information'); return
     }
     Start-Gw $a
 })
 
 $lblDelayNote = New-Object System.Windows.Forms.Label
-$lblDelayNote.Text = "Valeurs pre-remplies = defauts usine, a titre indicatif.`n" +
-                     "Coche une case pour transmettre le parametre a gw.`n`n" +
-                     "Seek en echec / Track 0 not found : augmenter Step`n" +
-                     "(20000 a 40000 us) puis Settle (40 ms).`n`n" +
-                     "Les modifications ne survivent pas a un reset ni a un`n" +
-                     "debranchement du Greaseweazle."
+$lblDelayNote.Text = "Valeurs pré-remplies = défauts usine, à titre indicatif.`n" +
+                     "Coche une case pour transmettre le paramètre à gw.`n`n" +
+                     "Seek en échec / Track 0 not found : augmenter Step`n" +
+                     "(20000 à 40000 us) puis Settle (40 ms).`n`n" +
+                     "Les modifications ne survivent pas à un reset ni à un`n" +
+                     "débranchement du Greaseweazle."
 $lblDelayNote.Location = '330,100'; $lblDelayNote.Size = '400,150'
 
 $tabD.Controls.AddRange(@($btnDelaysShow,$btnDelaysSet,$lblDelayNote))
@@ -1367,7 +1367,7 @@ $btnHelpAct = New-Object System.Windows.Forms.Button
 $btnHelpAct.Text = '--help'; $btnHelpAct.Location = '440,75'; $btnHelpAct.Size = '90,34'
 $btnHelpAct.Add_Click({ Start-Gw @($cmbHelpAct.Text, '--help') })
 
-$tabC.Controls.AddRange(@((New-Label 'Arguments passes a gw (sans "gw") :' '10,17'), $txtC, $btnC,
+$tabC.Controls.AddRange(@((New-Label 'Arguments passés à gw (sans "gw") :' '10,17'), $txtC, $btnC,
     $btnHelp, $cmbHelpAct, $btnHelpAct))
 
 $tabs.TabPages.AddRange(@($tabL,$tabW,$tabR,$tabCv,$tabCmp,$tabAl,$tabT,$tabD,$tabC))
@@ -1717,7 +1717,7 @@ function Complete-LibSearch {
             $list.Add($n)
         }
         if ($list.Count -gt 0) { $treeLib.Nodes.AddRange($list.ToArray()) }
-        $lblLibCount.Text = "$($list.Count) resultat(s)"
+        $lblLibCount.Text = "$($list.Count) résultat(s)"
     } finally { $treeLib.EndUpdate() }
 }
 
@@ -1835,11 +1835,11 @@ function Show-LibSelection($node) {
             $lines += "$(Format-Size $t.Size)"
             $lines += $t.Path
             $lines += ''
-            $lines += 'Deplier le noeud pour lister le contenu.'
+            $lines += 'Déplier le nœud pour lister le contenu.'
         }
         'zipentry' {
-            $lines += "Dans l archive : $([System.IO.Path]::GetFileName($t.ZipPath))"
-            $lines += "Entree  : $($t.Entry)"
+            $lines += "Dans l'archive : $([System.IO.Path]::GetFileName($t.ZipPath))"
+            $lines += "Entrée  : $($t.Entry)"
             $lines += "Taille  : $(Format-Size $t.Size)"
             $lines += ''
             $lines += 'Extrait dans un dossier temporaire avant usage.'
@@ -1872,7 +1872,7 @@ function Expand-ZipEntry([string]$zipPath, [string]$entry) {
     $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
     try {
         $e = $zip.Entries | Where-Object { $_.FullName -eq $entry } | Select-Object -First 1
-        if (-not $e) { throw "Entree introuvable dans l archive : $entry" }
+        if (-not $e) { throw "Entrée introuvable dans l'archive : $entry" }
         [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, $dest, $true)
     } finally { $zip.Dispose() }
     return $dest
@@ -1907,8 +1907,8 @@ function Invoke-NextChainStep {
         & $step
     } catch {
         $script:Chain.Clear()
-        Append-Log "ERREUR etape : $($_.Exception.Message)"
-        if ($txtCmpResult.Text -like 'Comparaison en cours*') { $txtCmpResult.Text = "ECHEC : $($_.Exception.Message)" }
+        Append-Log "ERREUR étape : $($_.Exception.Message)"
+        if ($txtCmpResult.Text -like 'Comparaison en cours*') { $txtCmpResult.Text = "ÉCHEC : $($_.Exception.Message)" }
     }
 }
 
@@ -1933,11 +1933,11 @@ function Get-SectorsPerTrack([string]$fmt) {
 function Start-Compare {
     $ref = $txtCmpRef.Text
     if (-not $ref -or -not (Test-Path -LiteralPath $ref)) {
-        [void][System.Windows.Forms.MessageBox]::Show('Image de reference introuvable.','Erreur','OK','Warning'); return
+        [void][System.Windows.Forms.MessageBox]::Show('Image de référence introuvable.','Erreur','OK','Warning'); return
     }
     $fmt = $cmbCmpFmt.Text
     if (-not $fmt) {
-        [void][System.Windows.Forms.MessageBox]::Show('Choisis un format de decodage.','Erreur','OK','Warning'); return
+        [void][System.Windows.Forms.MessageBox]::Show('Choisis un format de décodage.','Erreur','OK','Warning'); return
     }
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
 
@@ -1962,7 +1962,7 @@ function Start-Compare {
     if ([System.IO.Path]::GetExtension($ref).ToLower() -eq $ext) {
         $script:Chain.Enqueue({
             Copy-Item -LiteralPath $script:CmpRefPath -Destination $script:CmpRefDecoded -Force
-            Append-Log 'Reference deja au format decode : copiee sans conversion.'
+            Append-Log 'Référence déjà au format décodé : copiée sans conversion.'
             Invoke-NextChainStep
         })
     } else {
@@ -1982,8 +1982,8 @@ function Compare-Images {
     $dskPath = $script:CmpDiskRead
     $fmt     = $script:CmpFmt
     if (-not (Test-Path -LiteralPath $refPath) -or -not (Test-Path -LiteralPath $dskPath)) {
-        $txtCmpResult.Text = "ECHEC : un des deux fichiers decodes est absent.`r`n$refPath`r`n$dskPath"
-        Append-Log 'Comparaison impossible : fichier decode manquant.'
+        $txtCmpResult.Text = "ÉCHEC : un des deux fichiers décodés est absent.`r`n$refPath`r`n$dskPath"
+        Append-Log 'Comparaison impossible : fichier décodé manquant.'
         return
     }
     $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
@@ -2008,20 +2008,20 @@ function Compare-Images {
         }
 
         $lines = New-Object System.Collections.Generic.List[string]
-        $lines.Add("Reference : $($script:CmpRefName)")
+        $lines.Add("Référence : $($script:CmpRefName)")
         $lines.Add("Format    : $fmt")
-        $lines.Add("Taille    : reference $($a.Length) o / disquette $($b.Length) o")
+        $lines.Add("Taille    : référence $($a.Length) o / disquette $($b.Length) o")
         $lines.Add("SHA1 ref  : $ha")
         $lines.Add("SHA1 disq : $hb")
         $lines.Add('')
         if ($ha -eq $hb) {
-            $lines.Add('RESULTAT : IDENTIQUE - la disquette correspond octet pour octet a la reference')
-            $lines.Add("           sur l ensemble des pistes decodables au format $fmt.")
+            $lines.Add('RÉSULTAT : IDENTIQUE - la disquette correspond octet pour octet à la référence')
+            $lines.Add("           sur l'ensemble des pistes décodables au format $fmt.")
             Append-Log "Comparaison : IDENTIQUE ($($a.Length) octets)"
         } else {
             $totalSectors = [Math]::Ceiling([Math]::Max($a.Length, $b.Length) / $sectorSize)
-            $lines.Add("RESULTAT : DIFFERENT - $diffBytes octet(s) sur $($diffSectors.Count) secteur(s) / $totalSectors")
-            if ($a.Length -ne $b.Length) { $lines.Add('           (tailles differentes : verifier le format de decodage)') }
+            $lines.Add("RÉSULTAT : DIFFÉRENT - $diffBytes octet(s) sur $($diffSectors.Count) secteur(s) / $totalSectors")
+            if ($a.Length -ne $b.Length) { $lines.Add('           (tailles différentes : vérifier le format de décodage)') }
             $lines.Add('')
             $spt = Get-SectorsPerTrack $fmt
             $shown = 0
@@ -2038,7 +2038,7 @@ function Compare-Images {
                 }
             }
             if ($spt -gt 0) {
-                $lines.Add("Pistes en ecart ($($byTrack.Count)) :")
+                $lines.Add("Pistes en écart ($($byTrack.Count)) :")
                 foreach ($k in $byTrack.Keys) {
                     if ($shown -ge 60) { $lines.Add('  ...'); break }
                     $secs = $byTrack[$k]
@@ -2047,14 +2047,14 @@ function Compare-Images {
                 }
                 if ($byTrack.Count -gt 0) {
                     $lines.Add('')
-                    $lines.Add('Une piste dont TOUS les secteurs differerent est probablement illisible')
-                    $lines.Add('ou non-AmigaDOS (protection) ; quelques secteurs isoles = support marginal.')
+                    $lines.Add('Une piste dont TOUS les secteurs diffèrent est probablement illisible')
+                    $lines.Add('ou non-AmigaDOS (protection) ; quelques secteurs isolés = support marginal.')
                 }
             } elseif ($shown -gt 40) { $lines.Add("  ... $($shown - 40) autre(s)") }
-            Append-Log "Comparaison : DIFFERENT - $diffBytes octet(s), $($diffSectors.Count) secteur(s)"
+            Append-Log "Comparaison : DIFFÉRENT - $diffBytes octet(s), $($diffSectors.Count) secteur(s)"
         }
         $lines.Add('')
-        $lines.Add("Fichiers decodes conserves :")
+        $lines.Add("Fichiers décodés conservés :")
         $lines.Add("  $refPath")
         $lines.Add("  $dskPath")
         $txtCmpResult.Text = ($lines -join "`r`n")
@@ -2132,7 +2132,7 @@ function Draw-AlignBars($g, $size) {
     $g.Clear([System.Drawing.Color]::White)
     $font = New-Object System.Drawing.Font('Segoe UI', 8)
     if (-not $script:AlignLast -or $script:AlignLast.Count -eq 0) {
-        $g.DrawString('Barres de score par cylindre : apparaissent apres la premiere mesure.', $font, [System.Drawing.Brushes]::Gray, 8, 26); return
+        $g.DrawString('Barres de score par cylindre : apparaissent après la première mesure.', $font, [System.Drawing.Brushes]::Gray, 8, 26); return
     }
     $keys = @($script:AlignLast.Keys | Sort-Object { [double]$_ })
     $n = $keys.Count; $left = 44; $w = [math]::Max(10, ($size.Width - $left - 10) / $n); $h = $size.Height
@@ -2186,29 +2186,29 @@ function Update-AlignGuide([double]$avg) {
     $color = 'DimGray'; $txt = ''
     if ($script:AlLastMove -eq 0) {
         if ($script:AlPosScores.Count -le 1) {
-            $txt = "Position 0 mesuree (score $([math]::Round($avg,0))). Tourne le stepper d UN PETIT cran dans un sens, puis clique le bouton correspondant."
+            $txt = "Position 0 mesurée (score $([math]::Round($avg,0))). Tourne le stepper d'UN PETIT cran dans un sens, puis clique le bouton correspondant."
             $color = 'RoyalBlue'
         } else {
-            $txt = "Position $pos re-mesuree. Meilleure position connue : $bestPos."
+            $txt = "Position $pos re-mesurée. Meilleure position connue : $bestPos."
             if ($pos -ne $bestPos) { $txt += " Reviens de $([math]::Abs($pos-$bestPos)) cran(s) vers le sens $($sens[[math]::Sign($bestPos-$pos)]) pour la retrouver." }
         }
     } else {
         $prev = $pos - $script:AlLastMove
         $prevScore = if ($script:AlPosScores.ContainsKey($prev)) { $script:AlPosScores[$prev] } else { $null }
         if ($null -eq $prevScore) {
-            $txt = "Position $pos mesuree. Pas de mesure a la position precedente : impossible de conclure, continue."
+            $txt = "Position $pos mesurée. Pas de mesure à la position précédente : impossible de conclure, continue."
         } elseif ($avg -lt $prevScore * 0.97) {
-            $txt = "AMELIORATION ($([math]::Round($prevScore,0)) -> $([math]::Round($avg,0))) : CONTINUE dans le sens $($sens[$script:AlLastMove]), encore un cran, puis mesure."
+            $txt = "AMÉLIORATION ($([math]::Round($prevScore,0)) -> $([math]::Round($avg,0))) : CONTINUE dans le sens $($sens[$script:AlLastMove]), encore un cran, puis mesure."
             $color = 'Green'
         } elseif ($avg -gt $prevScore * 1.03) {
             # le pas precedent etait-il un optimum (moins bon des deux cotes) ?
             $other = $prev - $script:AlLastMove
             $otherWorse = $script:AlPosScores.ContainsKey($other) -and ($script:AlPosScores[$other] -gt $prevScore * 1.03)
             if ($otherWorse -and $prev -eq $bestPos) {
-                $txt = "OPTIMUM TROUVE a la position $prev (score $([math]::Round($prevScore,0))) : RECULE d un cran (sens $($sens[-$script:AlLastMove])), resserre les vis, re-mesure pour controle."
+                $txt = "OPTIMUM TROUVÉ à la position $prev (score $([math]::Round($prevScore,0))) : RECULE d'un cran (sens $($sens[-$script:AlLastMove])), resserre les vis, re-mesure pour contrôle."
                 $color = 'DarkGreen'
             } else {
-                $txt = "DEGRADATION ($([math]::Round($prevScore,0)) -> $([math]::Round($avg,0))) : RECULE d un cran (sens $($sens[-$script:AlLastMove])) pour revenir a la position $prev, puis essaie l autre sens."
+                $txt = "DÉGRADATION ($([math]::Round($prevScore,0)) -> $([math]::Round($avg,0))) : RECULE d'un cran (sens $($sens[-$script:AlLastMove])) pour revenir à la position $prev, puis essaie l'autre sens."
                 $color = 'DarkOrange'
             }
         } else {
@@ -2375,7 +2375,7 @@ function Get-IpfCellInfo([string]$path) {
         }
         $pos += $ln
     }
-    if ($bits.Count -eq 0) { throw 'Aucune piste formatee dans l IPF' }
+    if ($bits.Count -eq 0) { throw 'Aucune piste formatée dans l''IPF' }
     $sorted = $bits | Sort-Object
     $med = [int64]$sorted[[int]($sorted.Count / 2)]
     return @{ CellNs = [double](200000000.0 / $med); Bits = $med; Tracks = $n; DosTracks = $dos; Source = 'IPF (bits par piste)' }
@@ -2396,7 +2396,7 @@ function Get-ScpCellInfo([string]$path) {
     }
     if ($cells.Count -eq 0) { throw 'Aucune piste analysable dans le SCP' }
     $avg = ($cells | Measure-Object -Average).Average
-    return @{ CellNs = $avg; Bits = [int64](200000000.0 / $avg); Tracks = $cells.Count; DosTracks = -1; Source = 'SCP (flux mesure)' }
+    return @{ CellNs = $avg; Bits = [int64](200000000.0 / $avg); Tracks = $cells.Count; DosTracks = -1; Source = 'SCP (flux mesuré)' }
 }
 
 # HFE : debit binaire declare dans l en-tete (kbit/s) -> cellule = 500 000 / debit
@@ -2405,15 +2405,15 @@ function Get-HfeCellInfo([string]$path) {
     try { $h = New-Object byte[] 32; [void]$fs.Read($h, 0, 32) } finally { $fs.Dispose() }
     if ([System.Text.Encoding]::ASCII.GetString($h, 0, 8) -notmatch '^HXCPICFE|^HXCHFEV3') { throw 'Signature HFE absente' }
     $rate = [BitConverter]::ToUInt16($h, 24)
-    if ($rate -le 0) { throw 'Debit HFE nul' }
-    return @{ CellNs = [double](500000.0 / $rate); Bits = [int64](200000000.0 / (500000.0 / $rate)); Tracks = -1; DosTracks = -1; Source = "HFE (debit $rate kbit/s)" }
+    if ($rate -le 0) { throw 'Débit HFE nul' }
+    return @{ CellNs = [double](500000.0 / $rate); Bits = [int64](200000000.0 / (500000.0 / $rate)); Tracks = -1; DosTracks = -1; Source = "HFE (débit $rate kbit/s)" }
 }
 
 function Update-PrecompForImage([string]$path) {
     $mode = $cmbWProfile.Text
-    if ($mode -eq 'Manuel') { $lblWProfileInfo.Text = 'Profil manuel : --precomp non modifie.'; return }
-    if ($mode -eq 'Standard 2 us')      { $txtWPrecomp.Text = $script:PrecompStd;  $chkWPrecomp.Checked = $true; $lblWProfileInfo.Text = "Profil force : standard 2 us ($($script:PrecompStd))"; return }
-    if ($mode -eq 'Long track 1,89 us') { $txtWPrecomp.Text = $script:PrecompLong; $chkWPrecomp.Checked = $true; $lblWProfileInfo.Text = "Profil force : long track ($($script:PrecompLong))"; return }
+    if ($mode -eq 'Manuel') { $lblWProfileInfo.Text = 'Profil manuel : --precomp non modifié.'; return }
+    if ($mode -eq 'Standard 2 us')      { $txtWPrecomp.Text = $script:PrecompStd;  $chkWPrecomp.Checked = $true; $lblWProfileInfo.Text = "Profil forcé : standard 2 us ($($script:PrecompStd))"; return }
+    if ($mode -eq 'Long track 1,89 us') { $txtWPrecomp.Text = $script:PrecompLong; $chkWPrecomp.Checked = $true; $lblWProfileInfo.Text = "Profil forcé : long track ($($script:PrecompLong))"; return }
     # Auto
     if (-not $path -or -not (Test-Path -LiteralPath $path)) { $lblWProfileInfo.Text = ''; return }
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
@@ -2424,7 +2424,7 @@ function Update-PrecompForImage([string]$path) {
             '.scp' { if ($script:ScpStatsOk) { $info = Get-ScpCellInfo $path } }
             '.hfe' { $info = Get-HfeCellInfo $path }
         }
-    } catch { Append-Log "Detection du profil impossible ($ext) : $($_.Exception.Message)"; $info = $null }
+    } catch { Append-Log "Détection du profil impossible ($ext) : $($_.Exception.Message)"; $info = $null }
     if ($null -eq $info) {
         # formats secteur (ADF, IMG, ST...) : cellule standard par definition
         $txtWPrecomp.Text = $script:PrecompStd; $chkWPrecomp.Checked = $true
@@ -2495,12 +2495,12 @@ function Set-Defaults {
     $txtCmpRef.Text = ''
     Set-Combo $cmbCmpFmt 'amiga.amigados'
     $numCmpRetries.Value = 10
-    $txtCmpResult.Text = "Compare le contenu physique d une disquette a une image de reference (IPF, ADF, SCP, HFE...).`r`n`r`n" +
-                         "Principe : la reference est convertie par gw dans le format de decodage choisi, la disquette est`r`n" +
-                         "lue dans ce meme format, puis les deux fichiers sont compares octet par octet, secteur par secteur.`r`n`r`n" +
-                         "Limite : seules les pistes decodables dans ce format sont comparees. Les pistes de protection`r`n" +
-                         "(non-AmigaDOS) d un IPF n apparaissent pas dans la comparaison. Le flux brut (SCP) n est jamais`r`n" +
-                         "identique d une lecture a l autre : il n existe pas de comparaison bit a bit au niveau flux."
+    $txtCmpResult.Text = "Compare le contenu physique d'une disquette à une image de référence (IPF, ADF, SCP, HFE...).`r`n`r`n" +
+                         "Principe : la référence est convertie par gw dans le format de décodage choisi, la disquette est`r`n" +
+                         "lue dans ce même format, puis les deux fichiers sont comparés octet par octet, secteur par secteur.`r`n`r`n" +
+                         "Limite : seules les pistes décodables dans ce format sont comparées. Les pistes de protection`r`n" +
+                         "(non-AmigaDOS) d'un IPF n'apparaissent pas dans la comparaison. Le flux brut (SCP) n'est jamais`r`n" +
+                         "identique d'une lecture à l'autre : il n'existe pas de comparaison bit à bit au niveau flux."
 
     $numSeek.Value = 0
     $txtEraseTracks.Text = ''
@@ -2526,7 +2526,7 @@ function Save-Config {
         $delays[$k] = @{ on = [bool]$c.Chk.Checked; val = [int]$c.Num.Value }
     }
     $cfg = [ordered]@{
-        _comment = 'Configuration GreaseweazleGUI - regeneree automatiquement. Supprimable sans risque.'
+        _comment = 'Configuration GreaseweazleGUI - régénérée automatiquement. Supprimable sans risque.'
         _saved   = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
         window   = @{
             width  = $(if ($form.WindowState -eq 'Normal') { $form.Width }  else { $form.RestoreBounds.Width })
@@ -2602,7 +2602,7 @@ function Load-Config {
     try {
         $cfg = Get-Content -LiteralPath $script:ConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json
     } catch {
-        Append-Log "Configuration illisible, valeurs par defaut conservees : $($_.Exception.Message)"
+        Append-Log "Configuration illisible, valeurs par défaut conservées : $($_.Exception.Message)"
         return $false
     }
 
@@ -2726,7 +2726,7 @@ function Set-Busy([bool]$busy) {
 function Get-LogColor([string]$line) {
     if ($line -match '^>>>') { return $script:LogColors.cmd }
     if ($line -match 'FATAL|ERREUR|ECHEC|ÉCHEC|Failed|CRITIQUE|ILLISIBLE|introuvable|code retour : [1-9]') { return $script:LogColors.err }
-    if ($line -match 'Verify Failure|Retry #|retries|À SURVEILLER|marginal|DIFFERENT|Interrompu') { return $script:LogColors.warn }
+    if ($line -match 'Verify Failure|Retry #|retries|À SURVEILLER|marginal|DIFF[EÉ]RENT|Interrompu') { return $script:LogColors.warn }
     if ($line -match 'All tracks verified|code retour : 0|SAIN|IDENTIQUE|EXCELLENT|aucune piste n') { return $script:LogColors.ok }
     if ($line -match '^T\d+\.\d+:') { return $script:LogColors.dim }
     return $script:LogColors.std
@@ -2797,7 +2797,7 @@ function Stop-Progress([int]$code) {
 function Start-Gw([string[]]$gwArgs) {
     $exe = $script:GwExe
     if (-not (Test-Path -LiteralPath $exe)) {
-        [void][System.Windows.Forms.MessageBox]::Show("gw.exe introuvable : $exe`n`nPlace ce script dans le meme repertoire que gw.exe.",'Erreur','OK','Error'); return
+        [void][System.Windows.Forms.MessageBox]::Show("gw.exe introuvable : $exe`n`nPlace ce script dans le même répertoire que gw.exe.",'Erreur','OK','Error'); return
     }
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
 
@@ -2922,7 +2922,7 @@ $timer.Add_Tick({
                 } elseif ($code -eq 0) { Append-Log 'Écriture : aucune piste n''a nécessité de retry.' }
                 $script:GwIsWrite = $false
             }
-            Append-Log "<<< Termine (code retour : $code)"
+            Append-Log "<<< Terminé (code retour : $code)"
             Append-Log ''
             $script:GwProc = $null
             Set-Busy $false
@@ -2931,8 +2931,8 @@ $timer.Add_Tick({
                     Invoke-NextChainStep
                 } else {
                     $script:Chain.Clear()
-                    Append-Log 'Sequence interrompue : gw a retourne une erreur.'
-                    if ($txtCmpResult.Text -like 'Comparaison en cours*') { $txtCmpResult.Text = "ECHEC : gw a retourne le code $code. Voir le journal." }
+                    Append-Log 'Séquence interrompue : gw a retourné une erreur.'
+                    if ($txtCmpResult.Text -like 'Comparaison en cours*') { $txtCmpResult.Text = "ÉCHEC : gw a retourné le code $code. Voir le journal." }
                     if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; $lblAlVerdict.Text = 'Mesure interrompue (erreur gw)' }
                     $script:PostWriteMode = $false
                 }
@@ -3000,11 +3000,11 @@ Set-Defaults
 $loaded = Load-Config
 
 Append-Log "Greaseweazle Studio v$($script:Version)"
-Append-Log "Repertoire  : $($script:AppDir)"
-if (Test-Path -LiteralPath $script:GwExe) { Append-Log 'gw.exe      : trouve' }
-else { Append-Log 'gw.exe      : ABSENT - place ce script dans le repertoire de gw.exe' }
-if ($loaded) { Append-Log 'Config      : chargee depuis GreaseweazleGUI.json' }
-else         { Append-Log 'Config      : aucune, valeurs par defaut' }
+Append-Log "Répertoire  : $($script:AppDir)"
+if (Test-Path -LiteralPath $script:GwExe) { Append-Log 'gw.exe      : trouvé' }
+else { Append-Log 'gw.exe      : ABSENT - place ce script dans le répertoire de gw.exe' }
+if ($loaded) { Append-Log 'Config      : chargée depuis GreaseweazleGUI.json' }
+else         { Append-Log 'Config      : aucune, valeurs par défaut' }
 Append-Log "Extraction  : $($script:TempDir)"
 Append-Log "Index       : $(if ($script:FastIndexOk) { $script:IndexDir } else { 'module indisponible, recherche directe' })"
 Append-Log ''
