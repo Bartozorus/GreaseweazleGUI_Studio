@@ -27,7 +27,7 @@ param(
 )
 
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
-$script:Version = '11.6'
+$script:Version = '11.7'
 
 # --- Langue de l interface -------------------------------------------------------
 # Deux langues : francais et anglais. Choix automatique d apres la langue
@@ -374,7 +374,8 @@ $script:I18n['Contrôle post-écriture : module d''analyse SCP indisponible.'] =
 $script:I18n["Contrôle post-écriture : pistes avec retries : {0}. Relecture des cylindres {1} (2 faces)."] = "Post-write check: tracks with retries: {0}. Reading back cylinders {1} (2 sides)."
 $script:I18n["Pistes ayant nécessité des retries : "] = "Tracks that needed retries: "
 $script:I18n['Écriture : aucune piste n''a nécessité de retry.'] = 'Write: no track needed a retry.'
-$script:I18n["<<< Terminé (code retour : {0})"] = "<<< Done (exit code: {0})"
+$script:I18n["<<< Terminé (code retour : {0}, {1} s, {2} ligne(s) reçues)"] = "<<< Done (exit code: {0}, {1} s, {2} line(s) received)"
+$script:I18n["ERREUR : opération incomplète, gw s'est arrêté après {0} piste(s) sur {1} annoncées avec le code 0. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer."] = "ERROR: incomplete operation, gw stopped after {0} track(s) of {1} announced with exit code 0. Check the drive, the USB cable and the power supply, then retry."
 $script:I18n['Séquence interrompue : gw a retourné une erreur.'] = 'Sequence aborted: gw returned an error.'
 $script:I18n["ÉCHEC : gw a retourné le code {0}. Voir le journal."] = "FAILED: gw returned code {0}. See the log."
 $script:I18n['Mesure interrompue (erreur gw)'] = 'Measurement aborted (gw error)'
@@ -3470,7 +3471,7 @@ function Set-Busy([bool]$busy) {
 
 function Get-LogColor([string]$line) {
     if ($line -match '^>>>') { return $script:LogColors.cmd }
-    if ($line -match 'FATAL|ERREUR|ERROR|ECHEC|ÉCHEC|FAILED|Failed|CRITIQUE|CRITICAL|ILLISIBLE|UNREADABLE|introuvable|not found|code retour : [1-9]|exit code: [1-9]') { return $script:LogColors.err }
+    if ($line -match 'FATAL|ERREUR|ERROR|ECHEC|ÉCHEC|FAILED|Failed|Command Failed|Write ?Protect|CRITIQUE|CRITICAL|ILLISIBLE|UNREADABLE|introuvable|not found|code retour : [1-9]|exit code: [1-9]') { return $script:LogColors.err }
     if ($line -match 'Verify Failure|Retry #|retries|À SURVEILLER|TO WATCH|marginal|DIFF[EÉ]RENT|Interrompu|Interrupted|aborted') { return $script:LogColors.warn }
     if ($line -match 'All tracks verified|code retour : 0|exit code: 0|SAIN|HEALTHY|IDENTIQUE|IDENTICAL|EXCELLENT|aucune piste n|no track needed') { return $script:LogColors.ok }
     if ($line -match '^T\d+\.\d+:') { return $script:LogColors.dim }
@@ -3556,6 +3557,7 @@ function Start-Gw([string[]]$gwArgs) {
     if ($chkTime.Checked) { $gwArgs = @('--time') + $gwArgs }
     $argLine = $gwArgs -join ' '
     Append-Log ">>> gw $argLine"
+    $script:GwStart = Get-Date; $script:GwLines = 0
 
     # gw.exe est appele directement (aucun cmd.exe intermediaire) ; sa sortie est redirigee
     # dans le processus et lue par des gestionnaires d'evenements qui remplissent une file
@@ -3610,6 +3612,21 @@ function Drain-GwReader($reader, [ref]$task) {
 
 function Read-GwOutput([bool]$flush) {
     if (-not $script:OutQueue) { return }
+    if ($flush) {
+        # Processus termine : attendre la fin de flux (EOF) de stdout puis stderr, sinon les dernieres
+        # lignes (dont un eventuel message d erreur de gw) restent dans le tube et sont perdues.
+        $deadline = (Get-Date).AddSeconds(5)
+        foreach ($which in 'out', 'err') {
+            while ((Get-Date) -lt $deadline) {
+                $t = if ($which -eq 'out') { $script:OutStdoutTask } else { $script:OutStderrTask }
+                if ($null -eq $t) { break }
+                try { [void]$t.Wait(500) } catch { break }
+                if (-not $t.IsCompleted) { continue }
+                if ($which -eq 'out') { Drain-GwReader $script:OutStdoutReader ([ref]$script:OutStdoutTask) }
+                else                  { Drain-GwReader $script:OutStderrReader ([ref]$script:OutStderrTask) }
+            }
+        }
+    }
     Drain-GwReader $script:OutStdoutReader ([ref]$script:OutStdoutTask)
     Drain-GwReader $script:OutStderrReader ([ref]$script:OutStderrTask)
     $lines = @()
@@ -3618,6 +3635,7 @@ function Read-GwOutput([bool]$flush) {
         if ($l -ne '') { $lines += $l }
     }
     if ($lines.Count -eq 0) { return }
+    $script:GwLines += $lines.Count
     foreach ($l in $lines) { Update-Progress $l }
     if ($script:GwIsWrite) {
         foreach ($l in $lines) {
@@ -3664,10 +3682,19 @@ $timer.Add_Tick({
             if ($script:GwIsWrite) {
                 if ($script:WriteRetries.Count -gt 0) {
                     Append-Log ((T "Pistes ayant nécessité des retries : ") + (($script:WriteRetries.Keys | Sort-Object | ForEach-Object { ((T "{0} (x{1})") -f "$_", "$($script:WriteRetries[$_])") }) -join ', '))
-                } elseif ($code -eq 0) { Append-Log (T 'Écriture : aucune piste n''a nécessité de retry.') }
+                } elseif ($code -eq 0 -and -not ($script:ProgTotal -gt 0 -and $script:ProgSeen.Count * 2 -lt $script:ProgTotal)) { Append-Log (T 'Écriture : aucune piste n''a nécessité de retry.') }
                 $script:GwIsWrite = $false
             }
-            Append-Log ((T "<<< Terminé (code retour : {0})") -f "$code")
+            $elapsed = if ($script:GwStart -is [datetime]) { [math]::Round(((Get-Date) - $script:GwStart).TotalSeconds, 1) } else { 0 }
+            Append-Log ((T "<<< Terminé (code retour : {0}, {1} s, {2} ligne(s) reçues)") -f "$code", "$elapsed", "$($script:GwLines)")
+            # Arret silencieux : code 0 mais moins de la moitie des pistes annoncees traitees
+            # (une image incomplete n explique pas un tel ecart). Pas de controle post-ecriture
+            # ni d etape suivante : ils masqueraient le probleme.
+            if ($code -eq 0 -and $script:ProgTotal -gt 0 -and $script:ProgSeen.Count * 2 -lt $script:ProgTotal) {
+                Append-Log ((T "ERREUR : opération incomplète, gw s'est arrêté après {0} piste(s) sur {1} annoncées avec le code 0. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer.") -f "$($script:ProgSeen.Count)", "$($script:ProgTotal)")
+                $script:Chain.Clear(); $script:PostWriteMode = $false
+                if ($script:Cal) { Stop-PrecompCalib }
+            }
             Append-Log ''
             $script:GwProc = $null
             Set-Busy $false

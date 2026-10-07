@@ -3,6 +3,10 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Le numéro de version est celui de `$script:Version` dans `src/GreaseweazleGUI.ps1` ; chaque release GitHub porte le tag `vX.Y` correspondant.
 
+## [11.7] - 2026-10-07
+
+- Sortie de gw : les dernières lignes avant la fin du processus n'étaient pas toujours lues, ce qui masquait notamment « Command Failed: WriteProtected » sur une disquette protégée en écriture, gw se terminant alors avec le code 0. L'application attend désormais la fin des deux flux avant de conclure, affiche la durée et le nombre de lignes reçues, colore « Command Failed » en erreur, et signale une opération incomplète quand gw rend le code 0 après moins de la moitié des pistes annoncées, sans lancer le contrôle post-écriture.
+
 ## [11.6] - 2026-10-07
 
 - Calibration precomp : barre de progression globale sur l'ensemble des passes, avec passe en cours, phase, pourcentage et temps restant estimé d'après les durées mesurées des passes précédentes.

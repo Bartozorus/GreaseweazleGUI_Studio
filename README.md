@@ -96,7 +96,7 @@ Le workflow GitHub Actions [release.yml](.github/workflows/release.yml) compile 
 2. Commit, puis tag et push :
 
    ```powershell
-   git tag v11.7
+   git tag v11.8
    git push origin main --tags
    ```
 
