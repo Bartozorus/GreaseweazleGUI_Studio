@@ -1,9 +1,9 @@
 # Compile GreaseweazleGUI.exe (PS2EXE) sur un runner Windows et l'attache à une
 # release GitHub à chaque tag vX.Y, avec pour notes la section correspondante du
-# CHANGELOG. Lancement manuel (workflow_dispatch) :
-#   - sans tag : compilation de test, exe publié comme artefact, pas de release ;
-#   - avec un tag existant (ex. v11.5) : régénère les notes de cette release depuis
-#     le CHANGELOG de la branche courante, sans toucher aux fichiers attachés.
+# CHANGELOG. Lancement manuel (workflow_dispatch) : régénère les notes d'une
+# release existante depuis le CHANGELOG de la branche courante, sans toucher aux
+# fichiers attachés. Tag visé : celui saisi dans le formulaire, sinon le dernier
+# tag de la branche. Sans aucun tag : simple compilation de test (artefact).
 # L'exe produit ici n'est PAS signé : Build-Exe.ps1 est appelé avec -Sign:$false.
 name: Release
 
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag existant dont régénérer les notes depuis le CHANGELOG (ex. v11.5). Vide = compilation de test sans release."
+        description: "Tag dont régénérer les notes depuis le CHANGELOG (ex. v11.4). Vide = dernier tag de la branche."
         required: false
         default: ''
 
@@ -25,17 +25,36 @@ jobs:
   build:
     name: Compiler et publier
     runs-on: windows-latest
-    env:
-      TAG: ${{ github.event.inputs.tag || github.ref_name }}
-      NOTES_ONLY: ${{ github.event.inputs.tag != '' }}
-      IS_TAG_PUSH: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Déterminer le tag et le mode
+        id: mode
+        shell: powershell
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          REF: ${{ github.ref }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          $mode = 'test'; $tag = ''
+          if ($env:REF -like 'refs/tags/*') { $mode = 'release'; $tag = $env:REF_NAME }
+          else {
+            $tag = "$env:INPUT_TAG".Trim()
+            if (-not $tag) { $tag = (git describe --tags --abbrev=0 2>$null); if ($LASTEXITCODE -ne 0) { $tag = '' } }
+            if ($tag) { $mode = 'notes' }
+          }
+          "mode=$mode" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "tag=$tag"   | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "Mode : $mode / tag : $tag"
 
       - name: Extraire les notes de release du CHANGELOG
-        if: env.IS_TAG_PUSH == 'true' || env.NOTES_ONLY == 'true'
+        if: steps.mode.outputs.mode != 'test'
         shell: powershell
+        env:
+          TAG: ${{ steps.mode.outputs.tag }}
         run: |
           $ver = $env:TAG.TrimStart('v')
           $lines = Get-Content -LiteralPath 'CHANGELOG.md' -Encoding UTF8
@@ -50,7 +69,7 @@ jobs:
           Get-Content release-notes.md
 
       - name: Installer PS2EXE
-        if: env.NOTES_ONLY != 'true'
+        if: steps.mode.outputs.mode != 'notes'
         shell: powershell
         run: |
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
@@ -58,8 +77,10 @@ jobs:
           Get-Module -ListAvailable ps2exe | Select-Object Name, Version
 
       - name: Vérifier que le tag correspond à la version du script
-        if: env.IS_TAG_PUSH == 'true'
+        if: steps.mode.outputs.mode == 'release'
         shell: powershell
+        env:
+          TAG: ${{ steps.mode.outputs.tag }}
         run: |
           $m = Select-String -LiteralPath 'src\GreaseweazleGUI.ps1' -Pattern '^\$script:Version\s*=\s*''([0-9.]+)''' | Select-Object -First 1
           if (-not $m) { throw 'Version introuvable dans src\GreaseweazleGUI.ps1' }
@@ -69,12 +90,12 @@ jobs:
           "Version $src"
 
       - name: Compiler (PS2EXE, Windows PowerShell 5.1, sans signature)
-        if: env.NOTES_ONLY != 'true'
+        if: steps.mode.outputs.mode != 'notes'
         shell: powershell
         run: .\Build-Exe.ps1 -Sign:$false
 
       - name: Publier l'artefact de build
-        if: env.NOTES_ONLY != 'true'
+        if: steps.mode.outputs.mode != 'notes'
         uses: actions/upload-artifact@v7
         with:
           name: GreaseweazleGUI-${{ github.ref_name }}
@@ -84,10 +105,10 @@ jobs:
           if-no-files-found: error
 
       - name: Créer la release GitHub (tag poussé)
-        if: env.IS_TAG_PUSH == 'true'
+        if: steps.mode.outputs.mode == 'release'
         uses: softprops/action-gh-release@v3
         with:
-          name: Greaseweazle Studio ${{ github.ref_name }}
+          name: Greaseweazle Studio ${{ steps.mode.outputs.tag }}
           body_path: release-notes.md
           generate_release_notes: true
           files: |
@@ -95,10 +116,10 @@ jobs:
             src/GreaseweazleGUI.ps1
 
       - name: Mettre à jour les notes d'une release existante (lancement manuel)
-        if: env.NOTES_ONLY == 'true'
+        if: steps.mode.outputs.mode == 'notes'
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.event.inputs.tag }}
-          name: Greaseweazle Studio ${{ github.event.inputs.tag }}
+          tag_name: ${{ steps.mode.outputs.tag }}
+          name: Greaseweazle Studio ${{ steps.mode.outputs.tag }}
           body_path: release-notes.md
           generate_release_notes: true
