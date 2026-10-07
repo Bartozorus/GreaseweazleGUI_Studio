@@ -1,25 +1,30 @@
 ﻿# =============================================================================
 # Build-Exe.ps1 - Compile src\GreaseweazleGUI.ps1 en exécutable (PS2EXE) dans dist\,
 #                 avec l'icône src\GreaseweazleGUI.ico, puis signe l'exe avec un
-#                 certificat auto-signé (comportement par défaut).
+#                 certificat auto-signé (comportement par défaut sur un PC personnel).
 #
 # ATTENTION - CADRE D'USAGE DE LA SIGNATURE :
 #   La signature auto-signée n'est de confiance QUE sur une machine où tu es
 #   légitime à définir ce qui est approuvé (ton PC personnel). Sur un poste
 #   d'entreprise managé, faire accepter un binaire auto-signé en l'ajoutant aux
-#   autorités de confiance contourne la politique de sécurité : sur un tel poste,
-#   compile avec -Sign:$false et demande une signature au certificat interne
-#   via ton équipe sécurité.
+#   autorités de confiance contourne la politique de sécurité. Le script détecte
+#   un poste joint à un domaine ou à Entra ID et n'y signe pas, sauf si -Sign est
+#   passé explicitement. Sur un tel poste, demande une signature au certificat
+#   interne via ton équipe sécurité.
 #
 # Prérequis : Windows PowerShell 5.1 et module PS2EXE
 #             (Install-Module -Name ps2exe -Scope CurrentUser).
+#             Lancé depuis PowerShell 7, le script se relance seul sous
+#             Windows PowerShell 5.1, que PS2EXE exige pour compiler.
 #
 # Usage :
-#   Compiler + signer (comportement par défaut, PC personnel uniquement) :
+#   Compiler + signer (comportement par défaut sur un PC personnel) :
 #     powershell -ExecutionPolicy Bypass -File .\Build-Exe.ps1
-#   Compiler seulement (poste managé, intégration continue) :
+#   Compiler sans signer :
 #     powershell -ExecutionPolicy Bypass -File .\Build-Exe.ps1 -Sign:$false
-#   La 1re exécution avec signature crée le certificat et le déclare de confiance
+#   Forcer la signature sur un poste joint à un domaine (déconseillé) :
+#     powershell -ExecutionPolicy Bypass -File .\Build-Exe.ps1 -Sign
+#   La 1re signature crée le certificat et le déclare de confiance
 #   (magasins utilisateur, pas besoin d'admin). Les suivantes le réutilisent.
 #
 # La version de l'exe est lue dans src\GreaseweazleGUI.ps1 ($script:Version = 'X.Y').
@@ -32,6 +37,23 @@ param(
 
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+
+# --- PowerShell 7 : relance sous Windows PowerShell 5.1 (exigé par PS2EXE) -----
+# PS2EXE relance lui-même Windows PowerShell depuis PowerShell 7, mais sans
+# -ExecutionPolicy Bypass : sur un poste en policy Restricted, son module ne se
+# charge pas. On relance donc ici, en transmettant les paramètres explicites.
+if ($PSVersionTable.PSEdition -eq 'Core') {
+    Write-Host 'PowerShell 7 détecté : relance sous Windows PowerShell 5.1 (requis par PS2EXE).' -ForegroundColor Yellow
+    $winPS = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $fwd = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath)
+    foreach ($k in $PSBoundParameters.Keys) {
+        $v = $PSBoundParameters[$k]
+        if ($v -is [switch]) { $fwd += "-${k}:`$$([bool]$v)" } else { $fwd += "-$k"; $fwd += [string]$v }
+    }
+    & $winPS @fwd
+    exit $LASTEXITCODE
+}
+
 if ($PSScriptRoot) { $here = $PSScriptRoot } else { $here = (Get-Location).Path }
 
 $src    = Join-Path $here 'src\GreaseweazleGUI.ps1'
@@ -48,9 +70,28 @@ if (-not $m) { throw "Version introuvable dans $src (attendu : `$script:Version 
 $version     = $m.Matches[0].Groups[1].Value
 $fileVersion = ((($version -split '\.') + @('0','0','0','0'))[0..3]) -join '.'   # X.Y -> X.Y.0.0 (format PS2EXE)
 
+# --- Poste managé : pas de signature implicite ---------------------------------
+if ($Sign -and -not $PSBoundParameters.ContainsKey('Sign')) {
+    $managed = $false
+    try { $managed = [bool](Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop).PartOfDomain } catch { }
+    if (-not $managed) {
+        try { $managed = [bool]((& "$env:SystemRoot\System32\dsregcmd.exe" /status) -match '^\s*AzureAdJoined\s*:\s*YES') } catch { }
+    }
+    if ($managed) {
+        Write-Warning 'Poste joint à un domaine ou à Entra ID : signature auto-signée ignorée. Passer -Sign explicitement pour forcer.'
+        $Sign = $false
+    }
+}
+
 # --- Compilation -------------------------------------------------------------
 if (-not (Get-Command Invoke-ps2exe -ErrorAction SilentlyContinue)) {
     Import-Module ps2exe -ErrorAction Stop
+}
+
+# Jamais de faux positif sur un exe précédent : on repart d'un dist\ vide.
+if (Test-Path -LiteralPath $out) {
+    try { Remove-Item -LiteralPath $out -Force -ErrorAction Stop }
+    catch { throw "Impossible de supprimer $out : l'application est probablement ouverte. Ferme-la puis relance. ($($_.Exception.Message))" }
 }
 
 Write-Host "Compilation de src\GreaseweazleGUI.ps1 (version $version) ..." -ForegroundColor Cyan
@@ -64,11 +105,11 @@ $common = @{
 if (Test-Path -LiteralPath $ico) { $common.iconFile = $ico } else { Write-Warning "Icône absente : compilation sans icône." }
 Invoke-ps2exe @common
 
-if (-not (Test-Path -LiteralPath $out)) { throw "La compilation n'a pas produit $out." }
+if (-not (Test-Path -LiteralPath $out)) { throw "PS2EXE n'a produit aucun exécutable (voir les messages ci-dessus)." }
 $size = [math]::Round((Get-Item -LiteralPath $out).Length / 1KB, 0)
 Write-Host "OK -> $out ($size Ko)" -ForegroundColor Green
 
-# --- Signature (par défaut, PC personnel) ------------------------------------
+# --- Signature (par défaut sur PC personnel) ---------------------------------
 if ($Sign) {
     Write-Host ''
     Write-Host 'Signature de code (certificat auto-signé, confiance locale uniquement).' -ForegroundColor Yellow
@@ -110,7 +151,7 @@ if ($Sign) {
         Write-Warning "Sans horodatage accessible (proxy ?), relance sans -TimestampServer : la signature reste valide mais expire avec le certificat."
     }
 } else {
-    Write-Host 'Signature désactivée (-Sign:$false) : exe non signé.' -ForegroundColor Gray
+    Write-Host 'Exe non signé.' -ForegroundColor Gray
 }
 
 Write-Host ''

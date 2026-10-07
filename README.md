@@ -51,7 +51,7 @@ L'exécutable est produit par PS2EXE, qui embarque le script dans un hôte .NET.
 
 ## Compilation de l'exécutable
 
-Prérequis : module [PS2EXE](https://www.powershellgallery.com/packages/ps2exe) sous Windows PowerShell 5.1.
+Prérequis : module [PS2EXE](https://www.powershellgallery.com/packages/ps2exe) sous Windows PowerShell 5.1. Lancé depuis PowerShell 7, le script se relance seul sous Windows PowerShell 5.1 avec `-ExecutionPolicy Bypass`, car PS2EXE exige cette édition pour compiler.
 
 ```powershell
 Install-Module -Name ps2exe -Scope CurrentUser
@@ -61,13 +61,13 @@ Install-Module -Name ps2exe -Scope CurrentUser
 powershell -ExecutionPolicy Bypass -File .\Build-Exe.ps1
 ```
 
-Le script lit la version dans `src/GreaseweazleGUI.ps1` (variable `$script:Version`), compile `src/GreaseweazleGUI.ps1` avec l'icône `src/GreaseweazleGUI.ico`, écrit `dist/GreaseweazleGUI.exe` puis le signe (voir ci-dessous). Le dossier `dist/` est ignoré par git.
+Le script lit la version dans `src/GreaseweazleGUI.ps1` (variable `$script:Version`), supprime l'exe précédent, compile `src/GreaseweazleGUI.ps1` avec l'icône `src/GreaseweazleGUI.ico`, écrit `dist/GreaseweazleGUI.exe` puis le signe (voir ci-dessous). Si PS2EXE ne produit rien, le script échoue au lieu de réutiliser un ancien exe. Le dossier `dist/` est ignoré par git.
 
-### Signature (par défaut, PC personnel uniquement)
+### Signature (par défaut sur un PC personnel)
 
-Par défaut, `Build-Exe.ps1` signe l'exécutable avec un certificat auto-signé `CN=Greaseweazle Studio`, créé à la première exécution dans les magasins utilisateur (`My`, `Root`, `TrustedPublisher`, sans droits administrateur) et horodaté chez DigiCert.
+Par défaut, `Build-Exe.ps1` signe l'exécutable avec un certificat auto-signé `CN=Greaseweazle Studio`, créé à la première exécution dans les magasins utilisateur (`My`, `Root`, `TrustedPublisher`, sans droits administrateur) et horodaté chez DigiCert. `-Sign:$false` désactive la signature.
 
-Cette signature n'est de confiance que sur la machine qui a créé le certificat. Sur un poste d'entreprise managé, compilez avec `.\Build-Exe.ps1 -Sign:$false` : déclarer de confiance un certificat auto-signé contourne la politique de sécurité du poste. Demandez une signature avec le certificat interne à votre équipe sécurité.
+Cette signature n'est de confiance que sur la machine qui a créé le certificat. Sur un poste joint à un domaine Active Directory ou à Entra ID, le script ne signe pas, sauf si `-Sign` est passé explicitement : déclarer de confiance un certificat auto-signé sur un poste d'entreprise contourne sa politique de sécurité. Demandez plutôt une signature avec le certificat interne à votre équipe sécurité.
 
 ## Publication d'une version
 
@@ -77,7 +77,7 @@ Le workflow GitHub Actions [release.yml](.github/workflows/release.yml) compile 
 2. Commit, puis tag et push :
 
    ```powershell
-   git tag v11.4
+   git tag v11.5
    git push origin main --tags
    ```
 

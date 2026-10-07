@@ -23,7 +23,7 @@
 # =============================================================================
 
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
-$script:Version = '11.3'
+$script:Version = '11.4'
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
