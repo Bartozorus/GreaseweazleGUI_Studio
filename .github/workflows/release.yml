@@ -52,7 +52,7 @@ jobs:
 
       - name: Extraire les notes de release du CHANGELOG
         if: steps.mode.outputs.mode != 'test'
-        shell: powershell
+        shell: pwsh
         env:
           TAG: ${{ steps.mode.outputs.tag }}
         run: |
