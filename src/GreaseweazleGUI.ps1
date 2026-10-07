@@ -22,8 +22,417 @@
 # Lancement : powershell -ExecutionPolicy Bypass -File .\GreaseweazleGUI.ps1
 # =============================================================================
 
+param(
+    [ValidateSet('auto','fr','en')][string]$Language = 'auto'   # auto = langue d affichage de Windows (fr -> francais, sinon anglais)
+)
+
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
-$script:Version = '11.4'
+$script:Version = '11.5'
+
+# --- Langue de l interface -------------------------------------------------------
+# Deux langues : francais et anglais. Choix automatique d apres la langue
+# d affichage de Windows (CurrentUICulture) : fr -> francais, toute autre -> anglais.
+# -Language fr|en force le choix. Le francais est la cle de la table, l anglais la
+# valeur ; une cle absente est affichee telle quelle (francais).
+$script:Lang = $Language
+if ($script:Lang -eq 'auto') {
+    $script:Lang = if ([System.Globalization.CultureInfo]::CurrentUICulture.TwoLetterISOLanguageName -eq 'fr') { 'fr' } else { 'en' }
+}
+$script:I18n = [System.Collections.Hashtable]::new([System.StringComparer]::Ordinal)
+$script:I18n['Préservation, écriture et contrôle de disquettes'] = 'Floppy disk preservation, writing and checking'
+$script:I18n['●  gw.exe prêt'] = '●  gw.exe ready'
+$script:I18n['●  gw.exe introuvable'] = '●  gw.exe not found'
+$script:I18n["A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0/1/2 = bus Shugart (nappe droite) - typiquement le lecteur Amiga"] = "A/B = IBM-PC bus (twisted cable) - typically the PC drive`n0/1/2 = Shugart bus (straight cable) - typically the Amiga drive"
+$script:I18n['Port COM du Greaseweazle. Vide = détection automatique.'] = 'Greaseweazle COM port. Empty = auto-detect.'
+$script:I18n['Affiche le temps écoulé après chaque commande gw.'] = 'Shows the elapsed time after each gw command.'
+$script:I18n['Lecteur :'] = 'Drive:'
+$script:I18n['COM :'] = 'COM:'
+$script:I18n['Bibliothèque'] = 'Library'
+$script:I18n['Choisir le dossier racine'] = 'Choose the root folder'
+$script:I18n['Répertoire racine de la bibliothèque d''images'] = 'Root folder of the image library'
+$script:I18n['Actualiser l''arborescence'] = 'Refresh the tree'
+$script:I18n["Recherche dans l'index : plusieurs mots = tous requis (ex. : monkey 2 fr).`nRésultats au fil de la frappe une fois l'index construit. Vide = arborescence."] = "Search the index: several words = all required (e.g. monkey 2 fr).`nResults as you type once the index is built. Empty = tree view."
+$script:I18n['Chercher'] = 'Search'
+$script:I18n['Images seulement'] = 'Images only'
+$script:I18n['Réindexer'] = 'Reindex'
+$script:I18n["Reconstruit l'index de la racine (en arrière-plan). À faire après l'ajout ou le déplacement de fichiers."] = "Rebuilds the root index (in the background). Do this after adding or moving files."
+$script:I18n['Envoyer vers Écriture'] = 'Send to Write'
+$script:I18n['Ce fichier n''est pas un format image reconnu par gw.'] = 'This file is not an image format recognised by gw.'
+$script:I18n['Type non pris en charge'] = 'Unsupported type'
+$script:I18n["Image sélectionnée : {0}"] = "Selected image: {0}"
+$script:I18n['Ouvrir (application par défaut)'] = 'Open (default application)'
+$script:I18n["Ouverture impossible : {0}"] = "Cannot open: {0}"
+$script:I18n['Ouvrir le dossier'] = 'Open folder'
+$script:I18n['Racine :'] = 'Root:'
+$script:I18n['Recherche :'] = 'Search:'
+$script:I18n['Écriture'] = 'Write'
+$script:I18n['Image à écrire'] = 'Image to write'
+$script:I18n['Choisir une image (IPF, ADF, SCP, HFE...). Le format et le profil de précompensation sont déduits automatiquement.'] = 'Choose an image (IPF, ADF, SCP, HFE...). The format and the precompensation profile are detected automatically.'
+$script:I18n["(auto) = aucun --format transmis : obligatoire pour IPF, SCP, HFE.`nUn ADF a besoin de amiga.amigados (rempli automatiquement). Saisie libre possible."] = "(auto) = no --format passed: required for IPF, SCP, HFE.`nAn ADF needs amiga.amigados (filled in automatically). Free input allowed."
+$script:I18n['Auto (selon image)'] = 'Auto (from image)'
+$script:I18n['Long track 1,89 us'] = 'Long track 1.89 us'
+$script:I18n['Manuel'] = 'Manual'
+$script:I18n["Auto : la cellule de l'image est mesurée (IPF : bits par piste ; SCP : flux ; HFE : débit)`net le profil --precomp correspondant est appliqué.`nManuel : le champ --precomp n'est jamais modifié."] = "Auto: the image bit cell is measured (IPF: bits per track; SCP: flux; HFE: bitrate)`nand the matching --precomp profile is applied.`nManual: the --precomp field is never changed."
+$script:I18n['Images disquette|*.ipf;*.adf;*.scp;*.hfe;*.img;*.st;*.dsk;*.raw;*.d64;*.imd|Tous|*.*'] = 'Disk images|*.ipf;*.adf;*.scp;*.hfe;*.img;*.st;*.dsk;*.raw;*.d64;*.imd|All files|*.*'
+$script:I18n['Image :'] = 'Image:'
+$script:I18n['Format :'] = 'Format:'
+$script:I18n['Profil précomp. :'] = 'Precomp profile:'
+$script:I18n['Options d''écriture'] = 'Write options'
+$script:I18n['Pré-effacer chaque piste'] = 'Pre-erase each track'
+$script:I18n['--pre-erase : efface la piste juste avant de l''écrire. Recommandé sur une disquette déjà utilisée.'] = '--pre-erase: erases the track just before writing it. Recommended on a previously used disk.'
+$script:I18n['Effacer les pistes vides'] = 'Erase empty tracks'
+$script:I18n['--erase-empty : efface les pistes vides de l''image au lieu de les sauter. Supprime les résidus de l''ancien contenu.'] = '--erase-empty: erases tracks that are empty in the image instead of skipping them. Removes remnants of old content.'
+$script:I18n['Sans vérification'] = 'No verification'
+$script:I18n['--no-verify : DÉCONSEILLÉ. Supprime la relecture de contrôle de chaque piste.'] = '--no-verify: NOT RECOMMENDED. Skips the verification read of each track.'
+$script:I18n['--retries : nombre de réécritures d''une piste dont la vérification échoue.'] = '--retries: number of rewrites of a track whose verification fails.'
+$script:I18n['Précompensation (--precomp) :'] = 'Precompensation (--precomp):'
+$script:I18n["--precomp : cylindre=nanosecondes, paliers séparés par ':'.`nRempli automatiquement selon le profil ; modifiable en mode Manuel."] = "--precomp: cylinder=nanoseconds, steps separated by ':'.`nFilled in automatically from the profile; editable in Manual mode."
+$script:I18n['Transmet --precomp à gw. Coché automatiquement quand un profil est appliqué.'] = 'Passes --precomp to gw. Checked automatically when a profile is applied.'
+$script:I18n['Mesurer la disquette après l''écriture'] = 'Measure the disk after writing'
+$script:I18n["Après une écriture réussie, relit la disquette et évalue l'état du support :`nles pistes qui ont nécessité des retries à l'écriture sont relues en priorité,`nplus un échantillon de contrôle (cylindres 0, 40, 79). Résultat dans l'onglet Qualité & alignement."] = "After a successful write, reads the disk back and assesses the media condition:`ntracks that needed retries while writing are read first,`nplus a control sample (cylinders 0, 40, 79). Result in the Quality & alignment tab."
+$script:I18n['Retries :'] = 'Retries:'
+$script:I18n['Options avancées'] = 'Advanced options'
+$script:I18n["--tracks : sous-ensemble de pistes, ex : c=0-79:h=0-1`nc=0:h=0 pour réécrire uniquement la piste 0 face 0."] = "--tracks: subset of tracks, e.g. c=0-79:h=0-1`nc=0:h=0 to rewrite only track 0 side 0."
+$script:I18n['--densel : force le signal density select (pin 2) sur les lecteurs qui l''exploitent.'] = '--densel: forces the density select signal (pin 2) on drives that use it.'
+$script:I18n['--fake-index : simule des impulsions d''index, ex : 300rpm ou 200ms (lecteurs sans capteur d''index).'] = '--fake-index: simulates index pulses, e.g. 300rpm or 200ms (drives without an index sensor).'
+$script:I18n['Secteurs durs (--hard-sectors)'] = 'Hard sectors (--hard-sectors)'
+$script:I18n['TG43 lecteur 8 pouces (--gen-tg43)'] = 'TG43 for 8-inch drives (--gen-tg43)'
+$script:I18n['Pistes :'] = 'Tracks:'
+$script:I18n['Densel :'] = 'Densel:'
+$script:I18n['Fake index :'] = 'Fake index:'
+$script:I18n['Diskdefs :'] = 'Diskdefs:'
+$script:I18n['ÉCRIRE LA DISQUETTE'] = 'WRITE THE DISK'
+$script:I18n['Fichier image introuvable.'] = 'Image file not found.'
+$script:I18n['Erreur'] = 'Error'
+$script:I18n['Choisis une image : le format et la précompensation seront déduits automatiquement.'] = 'Choose an image: the format and precompensation will be detected automatically.'
+$script:I18n['Lecture / Dump'] = 'Read / Dump'
+$script:I18n['Flux SCP (préservation)|*.scp|ADF (AmigaDOS)|*.adf|Kryoflux stream|*.raw|HFE|*.hfe|Tous|*.*'] = 'SCP flux (preservation)|*.scp|ADF (AmigaDOS)|*.adf|Kryoflux stream|*.raw|HFE|*.hfe|All files|*.*'
+$script:I18n['Tours lus par piste. 5 recommandés pour l''archivage flux (SCP).'] = 'Revolutions read per track. 5 recommended for flux archiving (SCP).'
+$script:I18n['--raw (cumuler le flux entre les retries)'] = '--raw (accumulate flux across retries)'
+$script:I18n['LIRE LA DISQUETTE'] = 'READ THE DISK'
+$script:I18n['Indique un fichier de sortie.'] = 'Specify an output file.'
+$script:I18n['Sortie :'] = 'Output:'
+$script:I18n['Révolutions :'] = 'Revolutions:'
+$script:I18n['Tracks :'] = 'Tracks:'
+$script:I18n['Images disquette|*.scp;*.raw;*.ipf;*.adf;*.hfe;*.img;*.st;*.dsk|Tous|*.*'] = 'Disk images|*.scp;*.raw;*.ipf;*.adf;*.hfe;*.img;*.st;*.dsk|All files|*.*'
+$script:I18n['Format de décodage. Nécessaire pour passer d''un flux (SCP/RAW) à un format secteur (ADF).'] = 'Decoding format. Required to go from a flux file (SCP/RAW) to a sector format (ADF).'
+$script:I18n['CONVERTIR'] = 'CONVERT'
+$script:I18n['Fichier source introuvable.'] = 'Source file not found.'
+$script:I18n['Indique un fichier de destination.'] = 'Specify a destination file.'
+$script:I18n['Source :'] = 'Source:'
+$script:I18n['Destination :'] = 'Destination:'
+$script:I18n['Comparaison'] = 'Compare'
+$script:I18n["Format de décodage commun : la référence est convertie dans ce format,`nla disquette est lue dans ce format, puis les deux sont comparées octet par octet."] = "Common decoding format: the reference is converted to this format,`nthe disk is read in this format, then both are compared byte by byte."
+$script:I18n['Reprendre l''image de l''onglet Écriture'] = 'Use the image from the Write tab'
+$script:I18n['COMPARER LA DISQUETTE'] = 'COMPARE THE DISK'
+$script:I18n["ERREUR comparaison : {0}"] = "Compare ERROR: {0}"
+$script:I18n['Référence :'] = 'Reference:'
+$script:I18n['Qualité & alignement'] = 'Quality & alignment'
+$script:I18n['BON'] = 'GOOD'
+$script:I18n['MOYEN'] = 'AVERAGE'
+$script:I18n['MAUVAIS'] = 'POOR'
+$script:I18n['Rapide (5 cylindres)'] = 'Quick (5 cylinders)'
+$script:I18n['Standard (0-70 pas 10)'] = 'Standard (0-70 by 10)'
+$script:I18n['Complet (0-79)'] = 'Full (0-79)'
+$script:I18n['Personnalisé'] = 'Custom'
+$script:I18n["Rapide : contrôle en 30 s. Standard : tri de collection. Complet : état exhaustif d'une disquette (2-3 min)."] = "Quick: 30 s check. Standard: collection sorting. Full: exhaustive condition of one disk (2-3 min)."
+$script:I18n['Cylindres mesurés (0-83), séparés par des virgules.'] = 'Measured cylinders (0-83), comma-separated.'
+$script:I18n['Tours lus par piste. 3 suffit ; 5 pour une disquette douteuse.'] = 'Revolutions read per track. 3 is enough; 5 for a doubtful disk.'
+$script:I18n['Continu'] = 'Loop'
+$script:I18n['Répète la mesure en boucle (réglage mécanique). STOP pour arrêter.'] = 'Repeats the measurement in a loop (mechanical adjustment). STOP to end.'
+$script:I18n['MESURER LA DISQUETTE'] = 'MEASURE THE DISK'
+$script:I18n['Lit les cylindres choisis avec le lecteur sélectionné en haut et évalue l''état du support et la qualité de lecture.'] = 'Reads the chosen cylinders with the drive selected above and assesses media condition and read quality.'
+$script:I18n['Le module d''analyse SCP n''a pas pu être compilé (Add-Type).'] = 'The SCP analysis module could not be compiled (Add-Type).'
+$script:I18n['Mesure'] = 'Measurement'
+$script:I18n['Fixer comme référence'] = 'Set as reference'
+$script:I18n["Mémorise la dernière mesure comme référence (ex. : lecteur Amiga sur la même disquette).`nLes mesures suivantes affichent l'écart en %."] = "Stores the last measurement as the reference (e.g. Amiga drive on the same disk).`nLater measurements show the difference in %."
+$script:I18n['Fais d''abord une mesure.'] = 'Run a measurement first.'
+$script:I18n['Référence'] = 'Reference'
+$script:I18n["lecteur {0}, tête {1}, {2}"] = "drive {0}, head {1}, {2}"
+$script:I18n["Référence : {0} ({1} piste(s))"] = "Reference: {0} ({1} track(s))"
+$script:I18n["Mesure : référence fixée ({0})."] = "Measurement: reference set ({0})."
+$script:I18n['Réinitialiser'] = 'Reset'
+$script:I18n['Efface le meilleur score, la tendance, la référence et le guide.'] = 'Clears the best score, the trend, the reference and the guide.'
+$script:I18n['Aucune référence'] = 'No reference'
+$script:I18n['Lance une mesure'] = 'Run a measurement'
+$script:I18n['Mode réglage du lecteur (guide)'] = 'Drive adjustment mode (guide)'
+$script:I18n['Affiche les boutons du guide d''alignement (positions du stepper, recommandations avancer/reculer).'] = 'Shows the alignment guide buttons (stepper positions, forward/back recommendations).'
+$script:I18n['Repère (position 0)'] = 'Mark (position 0)'
+$script:I18n["Point de départ : stepper à sa position d'origine (trait de repère). Mesure la position 0 et démarre le guide."] = "Starting point: stepper at its original position (reference mark). Measures position 0 and starts the guide."
+$script:I18n["J'ai tourné +1 cran"] = "I turned +1 notch"
+$script:I18n["À cliquer APRÈS avoir tourné le stepper d'un petit cran dans le sens '+'. Lance la mesure."] = "Click AFTER turning the stepper one small notch in the '+' direction. Runs the measurement."
+$script:I18n["J'ai tourné -1 cran"] = "I turned -1 notch"
+$script:I18n["À cliquer APRÈS avoir tourné le stepper d'un petit cran dans le sens '-'. Lance la mesure."] = "Click AFTER turning the stepper one small notch in the '-' direction. Runs the measurement."
+$script:I18n["État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter.`nIndépendant du contenu : comparable d'une disquette à l'autre."] = "Media condition: based only on errors, signal dropouts, revolution-to-revolution stability and jitter.`nContent-independent: comparable from one disk to another."
+$script:I18n["Score de qualité de lecture (plus bas = mieux). Dépend du contenu : à comparer uniquement sur une même image`n(deux lecteurs, deux précompensations, deux réglages)."] = "Read quality score (lower = better). Content-dependent: only compare on the same image`n(two drives, two precompensations, two adjustments)."
+$script:I18n['Score par cylindre : barre courte = bon. Trait noir = référence, trait bleu = meilleur vu.'] = 'Score per cylinder: short bar = good. Black line = reference, blue line = best seen.'
+$script:I18n['vs réf'] = 'vs ref'
+$script:I18n["État par piste : SAIN / À SURVEILLER / CRITIQUE (erreurs, trous, stabilité, jitter).`nSeuils jitter : <60 / <120 / <200 ns. Asymétrie : <0,02 / <0,05 / <0,10."] = "Per-track status: HEALTHY / TO WATCH / CRITICAL (errors, dropouts, stability, jitter).`nJitter thresholds: <60 / <120 / <200 ns. Asymmetry: <0.02 / <0.05 / <0.10."
+$script:I18n['Mesure :'] = 'Measure:'
+$script:I18n['Cylindres :'] = 'Cylinders:'
+$script:I18n['Têtes :'] = 'Heads:'
+$script:I18n['Tours :'] = 'Revs:'
+$script:I18n['Outils'] = 'Tools'
+$script:I18n['Info périphérique'] = 'Device info'
+$script:I18n['Mesurer la vitesse (rpm)'] = 'Measure speed (rpm)'
+$script:I18n['Bande passante USB'] = 'USB bandwidth'
+$script:I18n['Reset du périphérique'] = 'Reset device'
+$script:I18n['Mise à jour firmware'] = 'Firmware update'
+$script:I18n["Mettre à jour le firmware du Greaseweazle ?`nNe pas débrancher pendant l'opération."] = "Update the Greaseweazle firmware?`nDo not unplug during the operation."
+$script:I18n['Cylindre cible. Valeurs négatives possibles sur lecteur flippy.'] = 'Target cylinder. Negative values possible on a flippy drive.'
+$script:I18n['TSPEC optionnel. Vide = toute la disquette.'] = 'Optional TSPEC. Empty = whole disk.'
+$script:I18n['EFFACER'] = 'ERASE'
+$script:I18n["les pistes {0}"] = "tracks {0}"
+$script:I18n["TOUTE la disquette"] = "the WHOLE disk"
+$script:I18n["Opération IRRÉVERSIBLE : {0} dans le lecteur {1} sera effacée.`n`nContinuer ?"] = "IRREVERSIBLE operation: {0} in drive {1} will be erased.`n`nContinue?"
+$script:I18n['Confirmation effacement'] = 'Confirm erase'
+$script:I18n['Temps de contact par pas, en millisecondes.'] = 'Contact time per step, in milliseconds.'
+$script:I18n['NETTOYER'] = 'CLEAN'
+$script:I18n["Insère une DISQUETTE DE NETTOYAGE (jamais une disquette de données) puis valide."] = "Insert a CLEANING DISK (never a data disk), then confirm."
+$script:I18n['Nettoyage des têtes'] = 'Head cleaning'
+$script:I18n['Appliquer'] = 'Apply'
+$script:I18n['Seek cylindre :'] = 'Seek cylinder:'
+$script:I18n['Erase tracks :'] = 'Erase tracks:'
+$script:I18n['Clean passes :'] = 'Clean passes:'
+$script:I18n['linger :'] = 'linger:'
+$script:I18n['Pin :'] = 'Pin:'
+$script:I18n['Délais'] = 'Delays'
+$script:I18n['Select Delay (us) :'] = 'Select Delay (us):'
+$script:I18n['Step Delay (us) :'] = 'Step Delay (us):'
+$script:I18n['Settle Time (ms) :'] = 'Settle Time (ms):'
+$script:I18n['Motor Delay (ms) :'] = 'Motor Delay (ms):'
+$script:I18n['Watchdog (ms) :'] = 'Watchdog (ms):'
+$script:I18n['Pre-Write (us) :'] = 'Pre-Write (us):'
+$script:I18n['Post-Write (us) :'] = 'Post-Write (us):'
+$script:I18n['Index Mask (us) :'] = 'Index Mask (us):'
+$script:I18n['Afficher les délais actuels'] = 'Show current delays'
+$script:I18n['Appliquer les valeurs cochées'] = 'Apply checked values'
+$script:I18n['Coche au moins un paramètre à modifier.'] = 'Check at least one parameter to change.'
+$script:I18n['Rien à faire'] = 'Nothing to do'
+$script:I18n["Valeurs pré-remplies = défauts usine, à titre indicatif.`n"] = "Pre-filled values = factory defaults, for reference.`n"
+$script:I18n["Coche une case pour transmettre le paramètre à gw.`n`n"] = "Tick a box to pass the parameter to gw.`n`n"
+$script:I18n["Seek en échec / Track 0 not found : augmenter Step`n"] = "Seek failing / Track 0 not found: increase Step`n"
+$script:I18n["(20000 à 40000 us) puis Settle (40 ms).`n`n"] = "(20000 to 40000 us) then Settle (40 ms).`n`n"
+$script:I18n["Les modifications ne survivent pas à un reset ni à un`n"] = "Changes do not survive a reset or`n"
+$script:I18n["débranchement du Greaseweazle."] = "unplugging the Greaseweazle."
+$script:I18n['Commande libre'] = 'Free command'
+$script:I18n['EXÉCUTER'] = 'RUN'
+$script:I18n['Arguments passés à gw (sans "gw") :'] = 'Arguments passed to gw (without "gw"):'
+$script:I18n['Arrêter'] = 'Stop'
+$script:I18n['*** Interrompu par l''utilisateur ***'] = '*** Interrupted by user ***'
+$script:I18n['Mesure continue arrêtée.'] = 'Continuous measurement stopped.'
+$script:I18n['Masquer journal'] = 'Hide log'
+$script:I18n['Exporter'] = 'Export'
+$script:I18n['Texte|*.txt'] = 'Text|*.txt'
+$script:I18n['Paramètres'] = 'Settings'
+$script:I18n["Paramètres enregistrés : {0}"] = "Settings saved: {0}"
+$script:I18n["Remettre tous les paramètres de l'interface à leurs valeurs par défaut et supprimer le fichier de configuration ?`n`n(Aucun effet sur le Greaseweazle, ni sur tes fichiers image, ni sur l'index de la bibliothèque.)"] = "Reset all interface settings to their defaults and delete the configuration file?`n`n(No effect on the Greaseweazle, your image files or the library index.)"
+$script:I18n['Réinitialiser les paramètres'] = 'Reset settings'
+$script:I18n['Configuration supprimée, valeurs par défaut restaurées.'] = 'Configuration deleted, defaults restored.'
+$script:I18n["Impossible de supprimer la configuration : {0}"] = "Cannot delete the configuration: {0}"
+$script:I18n['Valeurs par défaut restaurées.'] = 'Defaults restored.'
+$script:I18n['Prêt.'] = 'Ready.'
+$script:I18n['Effacer le contenu du journal.'] = 'Clear the log.'
+$script:I18n['Exporter le journal dans un fichier texte.'] = 'Export the log to a text file.'
+$script:I18n['Enregistrer maintenant tous les paramètres de l''interface.'] = 'Save all interface settings now.'
+$script:I18n['Remettre les paramètres de l''interface à leurs valeurs par défaut.'] = 'Reset interface settings to their defaults.'
+$script:I18n['Afficher journal'] = 'Show log'
+$script:I18n['{0:N1} Mo'] = '{0:N1} MB'
+$script:I18n['{0:N0} Ko'] = '{0:N0} KB'
+$script:I18n["{0} o"] = "{0} B"
+$script:I18n["ZIP illisible ({0}) : {1}"] = "Unreadable ZIP ({0}): {1}"
+$script:I18n['(chargement...)'] = '(loading...)'
+$script:I18n['(aucune image)'] = '(no image)'
+$script:I18n["Lecture impossible de {0} : {1}"] = "Cannot read {0}: {1}"
+$script:I18n['recherche en cours...'] = 'searching...'
+$script:I18n["Recherche : {0}"] = "Search: {0}"
+$script:I18n["{0} résultat(s)"] = "{0} result(s)"
+$script:I18n["Index illisible, reconstruction : {0}"] = "Unreadable index, rebuilding: {0}"
+$script:I18n["Bibliothèque : indexation de {0} en arrière-plan..."] = "Library: indexing {0} in the background..."
+$script:I18n["Index : {0} fichiers, construit le {1}."] = "Index: {0} files, built on {1}."
+$script:I18n["Index : {0} fichiers"] = "Index: {0} files"
+$script:I18n["{0} premiers sur {1}"] = "first {0} of {1}"
+$script:I18n['racine introuvable'] = 'root not found'
+$script:I18n["Pour commencer :`r`n1. Choisis le dossier racine de tes images (bouton ...).`r`n2. Déplie l'arborescence ou utilise la recherche.`r`n3. Sélectionne une image puis « Envoyer vers Écriture »."] = "To get started:`r`n1. Choose the root folder of your images (... button).`r`n2. Expand the tree or use the search.`r`n3. Select an image, then ""Send to Write""."
+$script:I18n['indexation en cours...'] = 'indexing...'
+$script:I18n["{0} élément(s)"] = "{0} item(s)"
+$script:I18n['Archive ZIP'] = 'ZIP archive'
+$script:I18n['Déplier le nœud pour lister le contenu.'] = 'Expand the node to list its contents.'
+$script:I18n["Dans l'archive : {0}"] = "In archive: {0}"
+$script:I18n["Entrée  : {0}"] = "Entry  : {0}"
+$script:I18n["Taille  : {0}"] = "Size   : {0}"
+$script:I18n['Extrait dans un dossier temporaire avant usage.'] = 'Extracted to a temporary folder before use.'
+$script:I18n["Image disquette ({0})"] = "Disk image ({0})"
+$script:I18n["Taille : {0}"] = "Size: {0}"
+$script:I18n['Fichier non pris en charge'] = 'Unsupported file'
+$script:I18n["Entrée introuvable dans l'archive : {0}"] = "Entry not found in archive: {0}"
+$script:I18n["Extrait : {0} -> {1}"] = "Extracted: {0} -> {1}"
+$script:I18n["Extraction impossible : {0}"] = "Extraction failed: {0}"
+$script:I18n["ERREUR étape : {0}"] = "Step ERROR: {0}"
+$script:I18n["ÉCHEC : {0}"] = "FAILED: {0}"
+$script:I18n['Image de référence introuvable.'] = 'Reference image not found.'
+$script:I18n['Choisis un format de décodage.'] = 'Choose a decoding format.'
+$script:I18n['Comparaison en cours'] = 'Comparison in progress'
+$script:I18n["Comparaison en cours...`r`nReference : {0}`r`nFormat    : {1}"] = "Comparison in progress...`r`nReference : {0}`r`nFormat    : {1}"
+$script:I18n["=== Comparaison : {0} ({1}) ==="] = "=== Compare: {0} ({1}) ==="
+$script:I18n['Référence déjà au format décodé : copiée sans conversion.'] = 'Reference already in the decoded format: copied without conversion.'
+$script:I18n["ÉCHEC : un des deux fichiers décodés est absent.`r`n{0}`r`n{1}"] = "FAILED: one of the two decoded files is missing.`r`n{0}`r`n{1}"
+$script:I18n['Comparaison impossible : fichier décodé manquant.'] = 'Cannot compare: decoded file missing.'
+$script:I18n["Référence : {0}"] = "Reference : {0}"
+$script:I18n["Taille    : référence {0} o / disquette {1} o"] = "Size      : reference {0} B / disk {1} B"
+$script:I18n["SHA1 disq : {0}"] = "SHA1 disk : {0}"
+$script:I18n['RÉSULTAT : IDENTIQUE - la disquette correspond octet pour octet à la référence'] = 'RESULT: IDENTICAL - the disk matches the reference byte for byte'
+$script:I18n["           sur l'ensemble des pistes décodables au format {0}."] = "           across all tracks decodable in the {0} format."
+$script:I18n["Comparaison : IDENTIQUE ({0} octets)"] = "Compare: IDENTICAL ({0} bytes)"
+$script:I18n["RÉSULTAT : DIFFÉRENT - {0} octet(s) sur {1} secteur(s) / {2}"] = "RESULT: DIFFERENT - {0} byte(s) in {1} sector(s) / {2}"
+$script:I18n['           (tailles différentes : vérifier le format de décodage)'] = '           (different sizes: check the decoding format)'
+$script:I18n["Cyl {0} Head {1} (piste {2})"] = "Cyl {0} Head {1} (track {2})"
+$script:I18n["secteur logique {0} (offset 0x{1:X})"] = "logical sector {0} (offset 0x{1:X})"
+$script:I18n["Pistes en écart ({0}) :"] = "Differing tracks ({0}):"
+$script:I18n["  {0,-28} secteurs : {1}"] = "  {0,-28} sectors: {1}"
+$script:I18n['Une piste dont TOUS les secteurs diffèrent est probablement illisible'] = 'A track where ALL sectors differ is probably unreadable'
+$script:I18n['ou non-AmigaDOS (protection) ; quelques secteurs isolés = support marginal.'] = 'or non-AmigaDOS (protection); a few isolated sectors = marginal media.'
+$script:I18n["  ... {0} autre(s)"] = "  ... {0} more"
+$script:I18n["Comparaison : DIFFÉRENT - {0} octet(s), {1} secteur(s)"] = "Compare: DIFFERENT - {0} byte(s), {1} sector(s)"
+$script:I18n["Fichiers décodés conservés :"] = "Decoded files kept:"
+$script:I18n["ERREUR pendant la comparaison : {0}"] = "ERROR during comparison: {0}"
+$script:I18n["Comparaison : erreur {0}"] = "Compare: error {0}"
+$script:I18n['Fichier SCP invalide'] = 'Invalid SCP file'
+$script:I18n['Indique au moins un cylindre valide (0-83).'] = 'Specify at least one valid cylinder (0-83).'
+$script:I18n['Barres de score par cylindre : apparaissent après la première mesure.'] = 'Score bars per cylinder: shown after the first measurement.'
+$script:I18n["Position {0}  |  meilleure position : {1} (score {2})"] = "Position {0}  |  best position: {1} (score {2})"
+$script:I18n["Position 0 mesurée (score {0}). Tourne le stepper d'UN PETIT cran dans un sens, puis clique le bouton correspondant."] = "Position 0 measured (score {0}). Turn the stepper ONE SMALL notch in one direction, then click the matching button."
+$script:I18n["Position {0} re-mesurée. Meilleure position connue : {1}."] = "Position {0} measured again. Best known position: {1}."
+$script:I18n[" Reviens de {0} cran(s) vers le sens {1} pour la retrouver."] = " Go back {0} notch(es) in direction {1} to return to it."
+$script:I18n["Position {0} mesurée. Pas de mesure à la position précédente : impossible de conclure, continue."] = "Position {0} measured. No measurement at the previous position: cannot conclude, keep going."
+$script:I18n["AMÉLIORATION ({0} -> {1}) : CONTINUE dans le sens {2}, encore un cran, puis mesure."] = "IMPROVEMENT ({0} -> {1}): KEEP GOING in direction {2}, one more notch, then measure."
+$script:I18n["OPTIMUM TROUVÉ à la position {0} (score {1}) : RECULE d'un cran (sens {2}), resserre les vis, re-mesure pour contrôle."] = "OPTIMUM FOUND at position {0} (score {1}): GO BACK one notch (direction {2}), tighten the screws, measure again to check."
+$script:I18n["DÉGRADATION ({0} -> {1}) : RECULE d'un cran (sens {2}) pour revenir à la position {3}, puis essaie l'autre sens."] = "DEGRADATION ({0} -> {1}): GO BACK one notch (direction {2}) to return to position {3}, then try the other direction."
+$script:I18n["Pas de changement net ({0} -> {1}) : cran trop petit ou plateau. Encore un cran dans le sens {2}."] = "No clear change ({0} -> {1}): notch too small or plateau. One more notch in direction {2}."
+$script:I18n["  (Meilleur connu : position {0}.)"] = "  (Best known: position {0}.)"
+$script:I18n["Guide alignement : {0}"] = "Alignment guide: {0}"
+$script:I18n['Mesure : fichier SCP absent, analyse impossible.'] = 'Measurement: SCP file missing, cannot analyse.'
+$script:I18n["Mesure : {0}"] = "Measurement: {0}"
+$script:I18n['SAIN'] = 'HEALTHY'
+$script:I18n['À SURVEILLER'] = 'TO WATCH'
+$script:I18n['CRITIQUE'] = 'CRITICAL'
+$script:I18n['ILLISIBLE'] = 'UNREADABLE'
+$script:I18n["{0} (illisible)"] = "{0} (unreadable)"
+$script:I18n["{0} ({1} err/tour)"] = "{0} ({1} err/rev)"
+$script:I18n["SUPPORT CRITIQUE  -  {0} piste(s) en erreur : {1}   ->  dump flux immédiat conseillé"] = "MEDIA CRITICAL  -  {0} track(s) in error: {1}   ->  immediate flux dump advised"
+$script:I18n["SUPPORT À SURVEILLER  -  {0}/{1} piste(s) marginale(s) : {2}   ->  dump flux recommandé"] = "MEDIA TO WATCH  -  {0}/{1} marginal track(s): {2}   ->  flux dump recommended"
+$script:I18n["SUPPORT SAIN  -  {0}/{1} pistes propres (erreurs, trous, stabilité, jitter dans les normes)"] = "MEDIA HEALTHY  -  {0}/{1} clean tracks (errors, dropouts, stability, jitter within limits)"
+$script:I18n["CONTRÔLE POST-ÉCRITURE : "] = "POST-WRITE CHECK: "
+$script:I18n["  (aucun retry à l'écriture)"] = "  (no retry while writing)"
+$script:I18n["CONTRÔLE POST-ÉCRITURE : pistes difficiles ({0}) relues SAINES  -  "] = "POST-WRITE CHECK: difficult tracks ({0}) read back HEALTHY  -  "
+$script:I18n["CONTRÔLE POST-ÉCRITURE : pistes difficiles encore marginales : {0}  ->  réécrire sur un autre support"] = "POST-WRITE CHECK: difficult tracks still marginal: {0}  ->  rewrite on another disk"
+$script:I18n['   MIEUX (v)'] = '   BETTER (v)'
+$script:I18n['   MOINS BIEN (^)'] = '   WORSE (^)'
+$script:I18n["   |   référence {0}"] = "   |   reference {0}"
+$script:I18n["Qualité de lecture : score {0} - {1}{2}{3}   |   meilleur {4}"] = "Read quality: score {0} - {1}{2}{3}   |   best {4}"
+$script:I18n["Mesure : score moyen {0} ({1}){2}"] = "Measurement: average score {0} ({1}){2}"
+$script:I18n['Aucune piste analysable'] = 'No analysable track'
+$script:I18n['Signature IPF absente'] = 'IPF signature missing'
+$script:I18n['Aucune piste formatée dans l''IPF'] = 'No formatted track in the IPF'
+$script:I18n['IPF (bits par piste)'] = 'IPF (bits per track)'
+$script:I18n['Signature SCP absente'] = 'SCP signature missing'
+$script:I18n['Aucune piste analysable dans le SCP'] = 'No analysable track in the SCP'
+$script:I18n['SCP (flux mesuré)'] = 'SCP (measured flux)'
+$script:I18n['Signature HFE absente'] = 'HFE signature missing'
+$script:I18n['Débit HFE nul'] = 'HFE bitrate is zero'
+$script:I18n["HFE (débit {0} kbit/s)"] = "HFE (bitrate {0} kbit/s)"
+$script:I18n['Profil manuel : --precomp non modifié.'] = 'Manual profile: --precomp unchanged.'
+$script:I18n["Profil forcé : standard 2 us ({0})"] = "Forced profile: standard 2 us ({0})"
+$script:I18n["Profil forcé : long track ({0})"] = "Forced profile: long track ({0})"
+$script:I18n["Détection du profil impossible ({0}) : {1}"] = "Profile detection failed ({0}): {1}"
+$script:I18n["Auto : image secteur ({0}) -> standard 2 us ({1})"] = "Auto: sector image ({0}) -> standard 2 us ({1})"
+$script:I18n["cellule {0} ns, {1} bits/piste"] = "cell {0} ns, {1} bits/track"
+$script:I18n[", {0}/{1} pistes DOS"] = ", {0}/{1} DOS tracks"
+$script:I18n["Auto : {0} : {1} -> "] = "Auto: {0}: {1} -> "
+$script:I18n["Profil precomp : {0}"] = "Precomp profile: {0}"
+$script:I18n["Compare le contenu physique d'une disquette à une image de référence (IPF, ADF, SCP, HFE...).`r`n`r`n"] = "Compares the physical contents of a disk with a reference image (IPF, ADF, SCP, HFE...).`r`n`r`n"
+$script:I18n["Principe : la référence est convertie par gw dans le format de décodage choisi, la disquette est`r`n"] = "Principle: gw converts the reference to the chosen decoding format, the disk is`r`n"
+$script:I18n["lue dans ce même format, puis les deux fichiers sont comparés octet par octet, secteur par secteur.`r`n`r`n"] = "read in that same format, then both files are compared byte by byte, sector by sector.`r`n`r`n"
+$script:I18n["Limite : seules les pistes décodables dans ce format sont comparées. Les pistes de protection`r`n"] = "Limit: only tracks decodable in that format are compared. Protection tracks`r`n"
+$script:I18n["(non-AmigaDOS) d'un IPF n'apparaissent pas dans la comparaison. Le flux brut (SCP) n'est jamais`r`n"] = "(non-AmigaDOS) of an IPF do not appear in the comparison. Raw flux (SCP) is never`r`n"
+$script:I18n["identique d'une lecture à l'autre : il n'existe pas de comparaison bit à bit au niveau flux."] = "identical from one read to the next: there is no bit-for-bit comparison at flux level."
+$script:I18n['Configuration GreaseweazleGUI - régénérée automatiquement. Supprimable sans risque.'] = 'GreaseweazleGUI configuration - regenerated automatically. Safe to delete.'
+$script:I18n["ERREUR sauvegarde configuration : {0}"] = "ERROR saving configuration: {0}"
+$script:I18n["Configuration illisible, valeurs par défaut conservées : {0}"] = "Unreadable configuration, defaults kept: {0}"
+$script:I18n["{0} en cours..."] = "{0} in progress..."
+$script:I18n["piste {0}  ({1}/{2}, {3} %)"] = "track {0}  ({1}/{2}, {3} %)"
+$script:I18n["piste {0}"] = "track {0}"
+$script:I18n["{0} terminé(e)  -  {1}"] = "{0} done  -  {1}"
+$script:I18n["{0} en échec (code {1})  -  {2}"] = "{0} failed (code {1})  -  {2}"
+$script:I18n["gw.exe introuvable : {0}`n`nPlace ce script dans le même répertoire que gw.exe."] = "gw.exe not found: {0}`n`nPut this script in the same folder as gw.exe."
+$script:I18n['Lecture'] = 'Read'
+$script:I18n['Effacement'] = 'Erase'
+$script:I18n['Nettoyage'] = 'Clean'
+$script:I18n['Mesure de vitesse'] = 'Speed measurement'
+$script:I18n["ERREUR lancement : {0}"] = "Launch ERROR: {0}"
+$script:I18n['Contrôle post-écriture : module d''analyse SCP indisponible.'] = 'Post-write check: SCP analysis module unavailable.'
+$script:I18n["Contrôle post-écriture : pistes avec retries : {0}. Relecture des cylindres {1} (2 faces)."] = "Post-write check: tracks with retries: {0}. Reading back cylinders {1} (2 sides)."
+$script:I18n["Pistes ayant nécessité des retries : "] = "Tracks that needed retries: "
+$script:I18n['Écriture : aucune piste n''a nécessité de retry.'] = 'Write: no track needed a retry.'
+$script:I18n["<<< Terminé (code retour : {0})"] = "<<< Done (exit code: {0})"
+$script:I18n['Séquence interrompue : gw a retourné une erreur.'] = 'Sequence aborted: gw returned an error.'
+$script:I18n["ÉCHEC : gw a retourné le code {0}. Voir le journal."] = "FAILED: gw returned code {0}. See the log."
+$script:I18n['Mesure interrompue (erreur gw)'] = 'Measurement aborted (gw error)'
+$script:I18n["indexation : {0} fichiers..."] = "indexing: {0} files..."
+$script:I18n["Indexation : ERREUR {0}"] = "Indexing: ERROR {0}"
+$script:I18n["Bibliothèque : index construit, {0} fichiers en {1} s."] = "Library: index built, {0} files in {1} s."
+$script:I18n["Répertoire  : {0}"] = "Folder      : {0}"
+$script:I18n['gw.exe      : trouvé'] = 'gw.exe      : found'
+$script:I18n['gw.exe      : ABSENT - place ce script dans le répertoire de gw.exe'] = 'gw.exe      : MISSING - put this script in the gw.exe folder'
+$script:I18n['Config      : chargée depuis GreaseweazleGUI.json'] = 'Config      : loaded from GreaseweazleGUI.json'
+$script:I18n['Config      : aucune, valeurs par défaut'] = 'Config      : none, using defaults'
+$script:I18n['module indisponible, recherche directe'] = 'module unavailable, direct search'
+$script:I18n['Effacer'] = 'Clear'
+$script:I18n['Piste'] = 'Track'
+$script:I18n['État'] = 'Status'
+$script:I18n['Erreurs'] = 'Errors'
+$script:I18n['Trous'] = 'Dropouts'
+$script:I18n['Dossier'] = 'Folder'
+$script:I18n['Alignement'] = 'Alignment'
+$script:I18n['aucune'] = 'none'
+$script:I18n['diskdefs|*.cfg|Tous|*.*'] = 'diskdefs|*.cfg|All files|*.*'
+$script:I18n['ADF|*.adf|SCP|*.scp|HFE|*.hfe|IMG|*.img|Tous|*.*'] = 'ADF|*.adf|SCP|*.scp|HFE|*.hfe|IMG|*.img|All files|*.*'
+$script:I18n['Calibration précomp :'] = 'Precomp calibration:'
+$script:I18n['Test standard : 1 cylindre sur 10'] = 'Standard test: 1 cylinder in 10'
+$script:I18n['Test fin : tous les cylindres'] = 'Fine test: every cylinder'
+$script:I18n['Calibrer'] = 'Calibrate'
+$script:I18n["Calibre la précompensation pour ce lecteur d'écriture : chaque passe écrit les cylindres de test de l'image avec une valeur de precomp, les relit en flux et note le placement des transitions. La meilleure valeur par cylindre forme le profil, enregistré pour la famille de l'image (standard ou long track) et appliqué ensuite par le mode Auto. La disquette insérée est écrasée. Test standard : un cylindre sur 10, quelques minutes. Test fin : tous les cylindres, environ une heure."] = "Calibrates precompensation for this write drive: each pass writes the image's test cylinders with one precomp value, reads them back as flux and scores transition placement. The best value per cylinder forms the profile, saved for the image family (standard or long track) and applied by Auto mode from then on. The inserted disk is overwritten. Standard test: one cylinder in 10, a few minutes. Fine test: every cylinder, about an hour."
+$script:I18n['Calibration : module d''analyse SCP indisponible (Add-Type).'] = 'Calibration: SCP analysis module unavailable (Add-Type).'
+$script:I18n['Choisis d''abord l''image à écrire : ses pistes servent de motif de test.'] = 'Choose the image to write first: its tracks are used as the test pattern.'
+$script:I18n["Calibration impossible sur un flux ({0}) : gw n'applique la précompensation qu'aux images à bits ou secteurs (ADF, IPF, HFE, IMG...)."] = "Cannot calibrate with a flux image ({0}): gw only applies precompensation to bit-cell or sector images (ADF, IPF, HFE, IMG...)."
+$script:I18n['Calibration precomp'] = 'Precomp calibration'
+$script:I18n["{0} cylindres d'après l'image"] = "{0} cylinders from the image"
+$script:I18n['80 cylindres par défaut (nombre non lisible dans l''image)'] = '80 cylinders by default (count not readable from the image)'
+$script:I18n['test fin, tous les cylindres'] = 'fine test, every cylinder'
+$script:I18n['test standard, un cylindre sur 10'] = 'standard test, one cylinder in 10'
+$script:I18n["Calibration de la précompensation sur le lecteur {0} ({1}).`n`nImage : {2}, famille {3}, {4}.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes.`n`nInsère une disquette vierge ou sans valeur, puis confirme."] = "Precompensation calibration on drive {0} ({1}).`n`nImage: {2}, family {3}, {4}.`nTest cylinders: {5} (both sides), OVERWRITTEN on every pass. Estimated time: {6} min for {7} passes.`n`nInsert a blank or worthless disk, then confirm."
+$script:I18n["=== Calibration precomp : lecteur {0}, image {1} ({2}, {3}) ==="] = "=== Precomp calibration: drive {0}, image {1} ({2}, {3}) ==="
+$script:I18n["Cylindres de test : {0} ({1})"] = "Test cylinders: {0} ({1})"
+$script:I18n['grossière'] = 'coarse'
+$script:I18n['fine'] = 'fine'
+$script:I18n["Calibration : passe {0} {1}/{2}, precomp {3} ns"] = "Calibration: {0} pass {1}/{2}, precomp {3} ns"
+$script:I18n['Calibration : fichier SCP absent, analyse impossible.'] = 'Calibration: SCP file missing, cannot analyse.'
+$script:I18n["Calibration : {0}"] = "Calibration: {0}"
+$script:I18n[", illisibles : {0}"] = ", unreadable: {0}"
+$script:I18n["  {0} ns : score moyen {1} sur {2} cylindre(s){3}"] = "  {0} ns: average score {1} over {2} cylinder(s){3}"
+$script:I18n["Passes fines : {0} valeur(s) entre {1} et {2} ns"] = "Fine passes: {0} value(s) between {1} and {2} ns"
+$script:I18n['Calibration precomp : aucune mesure exploitable, profil inchangé.'] = 'Precomp calibration: no usable measurement, profile unchanged.'
+$script:I18n["Meilleure valeur par cylindre : {0}"] = "Best value per cylinder: {0}"
+$script:I18n["Profil {0} calibré le {1} sur le lecteur {2} : {3}"] = "{0} profile calibrated on {1} for drive {2}: {3}"
+$script:I18n["Calibration terminée : profil {0} = {1}"] = "Calibration complete: {0} profile = {1}"
+$script:I18n["Profil enregistré dans la configuration et appliqué par le mode Auto à toute image {0}."] = "Profile saved to the configuration and applied by Auto mode to any {0} image."
+$script:I18n['Calibration precomp interrompue.'] = 'Precomp calibration aborted.'
+function T([string]$s) {
+    if ($script:Lang -eq 'fr') { return $s }
+    $t = $script:I18n[$s]
+    if ($null -ne $t) { return $t }
+    return $s
+}
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -521,7 +930,7 @@ function Render-Banner {
     $fTitle = New-Object System.Drawing.Font('Segoe UI Semibold', 15)
     $fSub   = New-Object System.Drawing.Font('Segoe UI', 9)
     $g.DrawString('Greaseweazle Studio', $fTitle, [System.Drawing.Brushes]::White, 68, 7)
-    $g.DrawString('Préservation, écriture et contrôle de disquettes', $fSub, (New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(205, 220, 240))), 70, 37)
+    $g.DrawString((T 'Préservation, écriture et contrôle de disquettes'), $fSub, (New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(205, 220, 240))), 70, 37)
     $g.Dispose()
     $old = $pnlTop.BackgroundImage
     $pnlTop.BackgroundImage = $bmp
@@ -539,9 +948,9 @@ function New-BannerLabel($text, $loc) {
 $lblGwStatus = New-BannerLabel '' '556,10'
 $lblGwStatus.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 9)
 if (Test-Path -LiteralPath $script:GwExe) {
-    $lblGwStatus.Text = '●  gw.exe prêt'; $lblGwStatus.ForeColor = [System.Drawing.Color]::FromArgb(150, 235, 160)
+    $lblGwStatus.Text = (T '●  gw.exe prêt'); $lblGwStatus.ForeColor = [System.Drawing.Color]::FromArgb(150, 235, 160)
 } else {
-    $lblGwStatus.Text = '●  gw.exe introuvable'; $lblGwStatus.ForeColor = [System.Drawing.Color]::FromArgb(255, 160, 150)
+    $lblGwStatus.Text = (T '●  gw.exe introuvable'); $lblGwStatus.ForeColor = [System.Drawing.Color]::FromArgb(255, 160, 150)
 }
 $tip.SetToolTip($lblGwStatus, $script:GwExe)
 
@@ -549,19 +958,19 @@ $cmbDrive = New-Object System.Windows.Forms.ComboBox
 $cmbDrive.Location = '556,34'; $cmbDrive.Width = 45; $cmbDrive.DropDownStyle = 'DropDownList'
 $cmbDrive.Anchor = 'Top,Right'
 [void]$cmbDrive.Items.AddRange(@('A','B','0','1','2'))
-$tip.SetToolTip($cmbDrive, "A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0/1/2 = bus Shugart (nappe droite) - typiquement le lecteur Amiga")
+$tip.SetToolTip($cmbDrive, (T "A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0/1/2 = bus Shugart (nappe droite) - typiquement le lecteur Amiga"))
 
 $txtDev = New-Object System.Windows.Forms.TextBox
 $txtDev.Location = '652,34'; $txtDev.Width = 50; $txtDev.Anchor = 'Top,Right'
-$tip.SetToolTip($txtDev, 'Port COM du Greaseweazle. Vide = détection automatique.')
+$tip.SetToolTip($txtDev, (T 'Port COM du Greaseweazle. Vide = détection automatique.'))
 
 $chkTime = New-Object System.Windows.Forms.CheckBox
 $chkTime.Text = '--time'; $chkTime.Location = '712,35'; $chkTime.Width = 70; $chkTime.Anchor = 'Top,Right'
 $chkTime.BackColor = [System.Drawing.Color]::Transparent; $chkTime.ForeColor = [System.Drawing.Color]::White
-$tip.SetToolTip($chkTime, 'Affiche le temps écoulé après chaque commande gw.')
+$tip.SetToolTip($chkTime, (T 'Affiche le temps écoulé après chaque commande gw.'))
 
-$pnlTop.Controls.AddRange(@($lblGwStatus, (New-BannerLabel 'Lecteur :' '500,37'), $cmbDrive,
-    (New-BannerLabel 'COM :' '612,37'), $txtDev, $chkTime))
+$pnlTop.Controls.AddRange(@($lblGwStatus, (New-BannerLabel (T 'Lecteur :') '500,37'), $cmbDrive,
+    (New-BannerLabel (T 'COM :') '612,37'), $txtDev, $chkTime))
 
 # --- Separateur onglets / journal ----------------------------------------------
 $split = New-Object System.Windows.Forms.SplitContainer
@@ -578,44 +987,44 @@ $tabs.Dock = 'Fill'
 $tabs.Padding = New-Object System.Drawing.Point(12, 5)
 
 # ============================== BIBLIOTHEQUE ===================================
-$tabL = New-TabPage 'Bibliothèque'
+$tabL = New-TabPage (T 'Bibliothèque')
 
 $txtLibRoot = New-Object System.Windows.Forms.TextBox
 $txtLibRoot.Location = '85,11'; $txtLibRoot.Width = 610; $txtLibRoot.Anchor = 'Top,Left,Right'
 
 $btnLibRoot = New-Object System.Windows.Forms.Button
-$btnLibRoot.Text = 'Choisir le dossier racine'; $btnLibRoot.Location = '700,10'; $btnLibRoot.Width = 36; $btnLibRoot.Anchor = 'Top,Right'
+$btnLibRoot.Text = (T 'Choisir le dossier racine'); $btnLibRoot.Location = '700,10'; $btnLibRoot.Width = 36; $btnLibRoot.Anchor = 'Top,Right'
 $btnLibRoot.Add_Click({
     $d = New-Object System.Windows.Forms.FolderBrowserDialog
-    $d.Description = 'Répertoire racine de la bibliothèque d''images'
+    $d.Description = (T 'Répertoire racine de la bibliothèque d''images')
     if ($txtLibRoot.Text -and (Test-Path -LiteralPath $txtLibRoot.Text)) { $d.SelectedPath = $txtLibRoot.Text }
     if ($d.ShowDialog() -eq 'OK') { $txtLibRoot.Text = $d.SelectedPath; Update-Library }
 })
 
 $btnLibRefresh = New-Object System.Windows.Forms.Button
-$btnLibRefresh.Text = 'Actualiser l''arborescence'; $btnLibRefresh.Location = '742,10'; $btnLibRefresh.Width = 36; $btnLibRefresh.Anchor = 'Top,Right'
+$btnLibRefresh.Text = (T 'Actualiser l''arborescence'); $btnLibRefresh.Location = '742,10'; $btnLibRefresh.Width = 36; $btnLibRefresh.Anchor = 'Top,Right'
 $btnLibRefresh.Add_Click({ Update-Library })
 
 $txtLibFilter = New-Object System.Windows.Forms.TextBox
 $txtLibFilter.Location = '85,41'; $txtLibFilter.Width = 230
-$tip.SetToolTip($txtLibFilter, "Recherche dans l'index : plusieurs mots = tous requis (ex. : monkey 2 fr).`nRésultats au fil de la frappe une fois l'index construit. Vide = arborescence.")
+$tip.SetToolTip($txtLibFilter, (T "Recherche dans l'index : plusieurs mots = tous requis (ex. : monkey 2 fr).`nRésultats au fil de la frappe une fois l'index construit. Vide = arborescence."))
 $txtLibFilter.Add_KeyDown({ if ($_.KeyCode -eq 'Enter') { $script:LibSearchAt = $null; Update-Library } })
 $txtLibFilter.Add_TextChanged({ $script:LibSearchAt = (Get-Date).AddMilliseconds(350) })
 
 $btnLibFilter = New-Object System.Windows.Forms.Button
-$btnLibFilter.Text = 'Chercher'; $btnLibFilter.Location = '320,40'; $btnLibFilter.Width = 36
+$btnLibFilter.Text = (T 'Chercher'); $btnLibFilter.Location = '320,40'; $btnLibFilter.Width = 36
 $btnLibFilter.Add_Click({ $script:LibSearchAt = $null; Update-Library })
 
 $chkLibImgOnly = New-Object System.Windows.Forms.CheckBox
-$chkLibImgOnly.Text = 'Images seulement'; $chkLibImgOnly.Location = '398,42'; $chkLibImgOnly.Width = 130
+$chkLibImgOnly.Text = (T 'Images seulement'); $chkLibImgOnly.Location = '398,42'; $chkLibImgOnly.Width = 130
 $chkLibImgOnly.Add_CheckedChanged({ Update-Library })
 
 $lblLibCount = New-Object System.Windows.Forms.Label
 $lblLibCount.Location = '530,44'; $lblLibCount.Size = '148,18'; $lblLibCount.Anchor = 'Top,Left,Right'; $lblLibCount.Text = ''; $lblLibCount.ForeColor = 'DimGray'
 
 $btnLibReindex = New-Object System.Windows.Forms.Button
-$btnLibReindex.Text = 'Réindexer'; $btnLibReindex.Location = '683,40'; $btnLibReindex.Width = 95; $btnLibReindex.Anchor = 'Top,Right'
-$tip.SetToolTip($btnLibReindex, "Reconstruit l'index de la racine (en arrière-plan). À faire après l'ajout ou le déplacement de fichiers.")
+$btnLibReindex.Text = (T 'Réindexer'); $btnLibReindex.Location = '683,40'; $btnLibReindex.Width = 95; $btnLibReindex.Anchor = 'Top,Right'
+$tip.SetToolTip($btnLibReindex, (T "Reconstruit l'index de la racine (en arrière-plan). À faire après l'ajout ou le déplacement de fichiers."))
 $btnLibReindex.Add_Click({ Start-LibIndex $true })
 
 $treeLib = New-Object System.Windows.Forms.TreeView
@@ -633,32 +1042,32 @@ $txtLibInfo.ScrollBars = 'Vertical'
 $txtLibInfo.BackColor = [System.Drawing.SystemColors]::Control
 
 $btnLibToWrite = New-Object System.Windows.Forms.Button
-$btnLibToWrite.Text = 'Envoyer vers Écriture'; $btnLibToWrite.Location = '465,213'; $btnLibToWrite.Size = '313,38'; $btnLibToWrite.Font = $bold
+$btnLibToWrite.Text = (T 'Envoyer vers Écriture'); $btnLibToWrite.Location = '465,213'; $btnLibToWrite.Size = '313,38'; $btnLibToWrite.Font = $bold
 $btnLibToWrite.Anchor = 'Bottom,Right'; $btnLibToWrite.Enabled = $false
 $btnLibToWrite.Add_Click({
     $sel = Resolve-LibSelection
     if (-not $sel) { return }
     if (-not $sel.IsImage) {
-        [void][System.Windows.Forms.MessageBox]::Show('Ce fichier n''est pas un format image reconnu par gw.','Type non pris en charge','OK','Information'); return
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Ce fichier n''est pas un format image reconnu par gw.'),(T 'Type non pris en charge'),'OK','Information'); return
     }
     $txtWFile.Text = $sel.Path
     if ($sel.Path -match '\.adf$') { $cmbWFmt.SelectedItem = 'amiga.amigados' } else { $cmbWFmt.SelectedIndex = 0 }
-    Append-Log "Image sélectionnée : $($sel.Path)"
+    Append-Log ((T "Image sélectionnée : {0}") -f "$($sel.Path)")
     Update-PrecompForImage $sel.Path
     $tabs.SelectedTab = $tabW
 })
 
 $btnLibOpen = New-Object System.Windows.Forms.Button
-$btnLibOpen.Text = 'Ouvrir (application par défaut)'; $btnLibOpen.Location = '465,250'; $btnLibOpen.Size = '313,32'
+$btnLibOpen.Text = (T 'Ouvrir (application par défaut)'); $btnLibOpen.Location = '465,250'; $btnLibOpen.Size = '313,32'
 $btnLibOpen.Anchor = 'Bottom,Right'; $btnLibOpen.Enabled = $false
 $btnLibOpen.Add_Click({
     $sel = Resolve-LibSelection
     if (-not $sel) { return }
-    try { Start-Process -FilePath $sel.Path } catch { Append-Log "Ouverture impossible : $($_.Exception.Message)" }
+    try { Start-Process -FilePath $sel.Path } catch { Append-Log ((T "Ouverture impossible : {0}") -f "$($_.Exception.Message)") }
 })
 
 $btnLibExplore = New-Object System.Windows.Forms.Button
-$btnLibExplore.Text = 'Ouvrir le dossier'; $btnLibExplore.Location = '465,287'; $btnLibExplore.Size = '313,32'
+$btnLibExplore.Text = (T 'Ouvrir le dossier'); $btnLibExplore.Location = '465,287'; $btnLibExplore.Size = '313,32'
 $btnLibExplore.Anchor = 'Bottom,Right'
 $btnLibExplore.Add_Click({
     $n = $treeLib.SelectedNode
@@ -671,12 +1080,12 @@ $btnLibExplore.Add_Click({
     }
 })
 
-$tabL.Controls.AddRange(@((New-Label 'Racine :' '10,14'), $txtLibRoot, $btnLibRoot, $btnLibRefresh,
-    (New-Label 'Recherche :' '10,44'), $txtLibFilter, $btnLibFilter, $chkLibImgOnly, $lblLibCount, $btnLibReindex,
+$tabL.Controls.AddRange(@((New-Label (T 'Racine :') '10,14'), $txtLibRoot, $btnLibRoot, $btnLibRefresh,
+    (New-Label (T 'Recherche :') '10,44'), $txtLibFilter, $btnLibFilter, $chkLibImgOnly, $lblLibCount, $btnLibReindex,
     $treeLib, $txtLibInfo, $btnLibToWrite, $btnLibOpen, $btnLibExplore))
 
 # ============================== ECRITURE =======================================
-$tabW = New-TabPage 'Écriture'
+$tabW = New-TabPage (T 'Écriture')
 
 function New-Group($text, $loc, $size) {
     $g = New-Object System.Windows.Forms.GroupBox
@@ -688,28 +1097,28 @@ $script:BtnFont     = New-Object System.Drawing.Font('Segoe UI', 9.75)
 $script:BtnFontBold = New-Object System.Drawing.Font('Segoe UI', 9.75, [System.Drawing.FontStyle]::Bold)
 
 # --- Groupe 1 : image et profil
-$grpWImage = New-Group 'Image à écrire' '10,6' '762,86'
+$grpWImage = New-Group (T 'Image à écrire') '10,6' '762,86'
 
 $txtWFile = New-Object System.Windows.Forms.TextBox
 $txtWFile.Location = '80,20'; $txtWFile.Width = 630; $txtWFile.Anchor = 'Top,Left,Right'
 $btnWFile = New-Object System.Windows.Forms.Button
 $btnWFile.Text = '...'; $btnWFile.Location = '715,19'; $btnWFile.Width = 36; $btnWFile.Anchor = 'Top,Right'
-$tip.SetToolTip($btnWFile, 'Choisir une image (IPF, ADF, SCP, HFE...). Le format et le profil de précompensation sont déduits automatiquement.')
+$tip.SetToolTip($btnWFile, (T 'Choisir une image (IPF, ADF, SCP, HFE...). Le format et le profil de précompensation sont déduits automatiquement.'))
 
 $cmbWFmt = New-Object System.Windows.Forms.ComboBox
 $cmbWFmt.Location = '80,52'; $cmbWFmt.Width = 200
 [void]$cmbWFmt.Items.AddRange($Formats)
-$tip.SetToolTip($cmbWFmt, "(auto) = aucun --format transmis : obligatoire pour IPF, SCP, HFE.`nUn ADF a besoin de amiga.amigados (rempli automatiquement). Saisie libre possible.")
+$tip.SetToolTip($cmbWFmt, (T "(auto) = aucun --format transmis : obligatoire pour IPF, SCP, HFE.`nUn ADF a besoin de amiga.amigados (rempli automatiquement). Saisie libre possible."))
 
 $cmbWProfile = New-Object System.Windows.Forms.ComboBox
 $cmbWProfile.Location = '440,52'; $cmbWProfile.Width = 170; $cmbWProfile.DropDownStyle = 'DropDownList'
-[void]$cmbWProfile.Items.AddRange(@('Auto (selon image)','Standard 2 us','Long track 1,89 us','Manuel'))
-$tip.SetToolTip($cmbWProfile, "Auto : la cellule de l'image est mesurée (IPF : bits par piste ; SCP : flux ; HFE : débit)`net le profil --precomp correspondant est appliqué.`nManuel : le champ --precomp n'est jamais modifié.")
+[void]$cmbWProfile.Items.AddRange(@((T 'Auto (selon image)'),(T 'Standard 2 us'),(T 'Long track 1,89 us'),(T 'Manuel')))
+$tip.SetToolTip($cmbWProfile, (T "Auto : la cellule de l'image est mesurée (IPF : bits par piste ; SCP : flux ; HFE : débit)`net le profil --precomp correspondant est appliqué.`nManuel : le champ --precomp n'est jamais modifié."))
 $cmbWProfile.Add_SelectedIndexChanged({ Update-PrecompForImage $txtWFile.Text })
 
 $btnWFile.Add_Click({
     $d = New-Object System.Windows.Forms.OpenFileDialog
-    $d.Filter = 'Images disquette|*.ipf;*.adf;*.scp;*.hfe;*.img;*.st;*.dsk;*.raw;*.d64;*.imd|Tous|*.*'
+    $d.Filter = (T 'Images disquette|*.ipf;*.adf;*.scp;*.hfe;*.img;*.st;*.dsk;*.raw;*.d64;*.imd|Tous|*.*')
     if ($txtWFile.Text) { $p = Split-Path -Parent $txtWFile.Text; if ($p -and (Test-Path -LiteralPath $p)) { $d.InitialDirectory = $p } }
     if ($d.ShowDialog() -eq 'OK') {
         $txtWFile.Text = $d.FileName
@@ -719,94 +1128,112 @@ $btnWFile.Add_Click({
 })
 $txtWFile.Add_Leave({ Update-PrecompForImage $txtWFile.Text })
 
-$grpWImage.Controls.AddRange(@((New-Label 'Image :' '12,23'), $txtWFile, $btnWFile,
-    (New-Label 'Format :' '12,55'), $cmbWFmt, (New-Label 'Profil précomp. :' '320,55'), $cmbWProfile))
+$grpWImage.Controls.AddRange(@((New-Label (T 'Image :') '12,23'), $txtWFile, $btnWFile,
+    (New-Label (T 'Format :') '12,55'), $cmbWFmt, (New-Label (T 'Profil précomp. :') '320,55'), $cmbWProfile))
 
 # --- Groupe 2 : options d'ecriture courantes
-$grpWOpt = New-Group 'Options d''écriture' '10,98' '762,82'
+$grpWOpt = New-Group (T 'Options d''écriture') '10,98' '762,108'
 
 $chkWPreErase = New-Object System.Windows.Forms.CheckBox
-$chkWPreErase.Text = 'Pré-effacer chaque piste'; $chkWPreErase.Location = '12,24'; $chkWPreErase.Width = 170
-$tip.SetToolTip($chkWPreErase, '--pre-erase : efface la piste juste avant de l''écrire. Recommandé sur une disquette déjà utilisée.')
+$chkWPreErase.Text = (T 'Pré-effacer chaque piste'); $chkWPreErase.Location = '12,24'; $chkWPreErase.Width = 170
+$tip.SetToolTip($chkWPreErase, (T '--pre-erase : efface la piste juste avant de l''écrire. Recommandé sur une disquette déjà utilisée.'))
 $chkWEraseEmpty = New-Object System.Windows.Forms.CheckBox
-$chkWEraseEmpty.Text = 'Effacer les pistes vides'; $chkWEraseEmpty.Location = '190,24'; $chkWEraseEmpty.Width = 165
-$tip.SetToolTip($chkWEraseEmpty, '--erase-empty : efface les pistes vides de l''image au lieu de les sauter. Supprime les résidus de l''ancien contenu.')
+$chkWEraseEmpty.Text = (T 'Effacer les pistes vides'); $chkWEraseEmpty.Location = '190,24'; $chkWEraseEmpty.Width = 165
+$tip.SetToolTip($chkWEraseEmpty, (T '--erase-empty : efface les pistes vides de l''image au lieu de les sauter. Supprime les résidus de l''ancien contenu.'))
 $chkWNoVerify = New-Object System.Windows.Forms.CheckBox
-$chkWNoVerify.Text = 'Sans vérification'; $chkWNoVerify.Location = '365,24'; $chkWNoVerify.Width = 130
-$tip.SetToolTip($chkWNoVerify, '--no-verify : DÉCONSEILLÉ. Supprime la relecture de contrôle de chaque piste.')
+$chkWNoVerify.Text = (T 'Sans vérification'); $chkWNoVerify.Location = '365,24'; $chkWNoVerify.Width = 130
+$tip.SetToolTip($chkWNoVerify, (T '--no-verify : DÉCONSEILLÉ. Supprime la relecture de contrôle de chaque piste.'))
 
 $numWRetries = New-Object System.Windows.Forms.NumericUpDown
 $numWRetries.Location = '560,22'; $numWRetries.Width = 50
 $numWRetries.Minimum = 0; $numWRetries.Maximum = 50
-$tip.SetToolTip($numWRetries, '--retries : nombre de réécritures d''une piste dont la vérification échoue.')
+$tip.SetToolTip($numWRetries, (T '--retries : nombre de réécritures d''une piste dont la vérification échoue.'))
 
 $chkWPrecomp = New-Object System.Windows.Forms.CheckBox
-$chkWPrecomp.Text = 'Précompensation (--precomp) :'; $chkWPrecomp.Location = '12,50'; $chkWPrecomp.Width = 210
+$chkWPrecomp.Text = (T 'Précompensation (--precomp) :'); $chkWPrecomp.Location = '12,50'; $chkWPrecomp.Width = 210
 $txtWPrecomp = New-Object System.Windows.Forms.TextBox
 $txtWPrecomp.Location = '225,48'; $txtWPrecomp.Width = 260
-$tip.SetToolTip($txtWPrecomp, "--precomp : cylindre=nanosecondes, paliers séparés par ':'.`nRempli automatiquement selon le profil ; modifiable en mode Manuel.")
-$tip.SetToolTip($chkWPrecomp, 'Transmet --precomp à gw. Coché automatiquement quand un profil est appliqué.')
+$tip.SetToolTip($txtWPrecomp, (T "--precomp : cylindre=nanosecondes, paliers séparés par ':'.`nRempli automatiquement selon le profil ; modifiable en mode Manuel."))
+$tip.SetToolTip($chkWPrecomp, (T 'Transmet --precomp à gw. Coché automatiquement quand un profil est appliqué.'))
 
 $chkWPostCheck = New-Object System.Windows.Forms.CheckBox
-$chkWPostCheck.Text = 'Mesurer la disquette après l''écriture'; $chkWPostCheck.Location = '500,50'; $chkWPostCheck.Width = 255
-$tip.SetToolTip($chkWPostCheck, "Après une écriture réussie, relit la disquette et évalue l'état du support :`nles pistes qui ont nécessité des retries à l'écriture sont relues en priorité,`nplus un échantillon de contrôle (cylindres 0, 40, 79). Résultat dans l'onglet Qualité & alignement.")
+$chkWPostCheck.Text = (T 'Mesurer la disquette après l''écriture'); $chkWPostCheck.Location = '500,50'; $chkWPostCheck.Width = 255
+$tip.SetToolTip($chkWPostCheck, (T "Après une écriture réussie, relit la disquette et évalue l'état du support :`nles pistes qui ont nécessité des retries à l'écriture sont relues en priorité,`nplus un échantillon de contrôle (cylindres 0, 40, 79). Résultat dans l'onglet Qualité & alignement."))
 
-$grpWOpt.Controls.AddRange(@($chkWPreErase, $chkWEraseEmpty, $chkWNoVerify, (New-Label 'Retries :' '500,26'), $numWRetries, $chkWPrecomp, $txtWPrecomp, $chkWPostCheck))
+# --- Ligne 3 : calibration automatique de la precompensation pour le lecteur d ecriture
+$cmbWCalMode = New-Object System.Windows.Forms.ComboBox
+$cmbWCalMode.Location = '165,77'; $cmbWCalMode.Width = 250; $cmbWCalMode.DropDownStyle = 'DropDownList'
+[void]$cmbWCalMode.Items.AddRange(@((T 'Test standard : 1 cylindre sur 10'), (T 'Test fin : tous les cylindres')))
+$cmbWCalMode.SelectedIndex = 0
+$btnWCalib = New-Object System.Windows.Forms.Button
+$btnWCalib.Text = (T 'Calibrer'); $btnWCalib.Location = '425,76'; $btnWCalib.Size = '120,26'
+$tip.SetToolTip($btnWCalib, (T "Calibre la précompensation pour ce lecteur d'écriture : chaque passe écrit les cylindres de test de l'image avec une valeur de precomp, les relit en flux et note le placement des transitions. La meilleure valeur par cylindre forme le profil, enregistré pour la famille de l'image (standard ou long track) et appliqué ensuite par le mode Auto. La disquette insérée est écrasée. Test standard : un cylindre sur 10, quelques minutes. Test fin : tous les cylindres, environ une heure."))
+$btnWCalib.Add_Click({ Start-PrecompCalib })
+
+$grpWOpt.Controls.AddRange(@($chkWPreErase, $chkWEraseEmpty, $chkWNoVerify, (New-Label (T 'Retries :') '500,26'), $numWRetries, $chkWPrecomp, $txtWPrecomp, $chkWPostCheck,
+    (New-Label (T 'Calibration précomp :') '12,81'), $cmbWCalMode, $btnWCalib))
 
 # --- Groupe 3 : options avancees (rarement utiles)
-$grpWAdv = New-Group 'Options avancées' '10,186' '762,74'
+$grpWAdv = New-Group (T 'Options avancées') '10,212' '762,74'
 
 $txtWTracks = New-Object System.Windows.Forms.TextBox
 $txtWTracks.Location = '70,20'; $txtWTracks.Width = 150
-$tip.SetToolTip($txtWTracks, "--tracks : sous-ensemble de pistes, ex : c=0-79:h=0-1`nc=0:h=0 pour réécrire uniquement la piste 0 face 0.")
+$tip.SetToolTip($txtWTracks, (T "--tracks : sous-ensemble de pistes, ex : c=0-79:h=0-1`nc=0:h=0 pour réécrire uniquement la piste 0 face 0."))
 $cmbWDensel = New-Object System.Windows.Forms.ComboBox
 $cmbWDensel.Location = '290,20'; $cmbWDensel.Width = 60; $cmbWDensel.DropDownStyle = 'DropDownList'
 [void]$cmbWDensel.Items.AddRange(@('(non)','H','L'))
-$tip.SetToolTip($cmbWDensel, '--densel : force le signal density select (pin 2) sur les lecteurs qui l''exploitent.')
+$tip.SetToolTip($cmbWDensel, (T '--densel : force le signal density select (pin 2) sur les lecteurs qui l''exploitent.'))
 $txtWFakeIdx = New-Object System.Windows.Forms.TextBox
 $txtWFakeIdx.Location = '445,20'; $txtWFakeIdx.Width = 80
-$tip.SetToolTip($txtWFakeIdx, '--fake-index : simule des impulsions d''index, ex : 300rpm ou 200ms (lecteurs sans capteur d''index).')
+$tip.SetToolTip($txtWFakeIdx, (T '--fake-index : simule des impulsions d''index, ex : 300rpm ou 200ms (lecteurs sans capteur d''index).'))
 $txtWDiskdefs = New-Object System.Windows.Forms.TextBox
 $txtWDiskdefs.Location = '605,20'; $txtWDiskdefs.Width = 110
 $btnWDiskdefs = New-Object System.Windows.Forms.Button
 $btnWDiskdefs.Text = '...'; $btnWDiskdefs.Location = '718,19'; $btnWDiskdefs.Width = 32
 $btnWDiskdefs.Add_Click({
     $d = New-Object System.Windows.Forms.OpenFileDialog
-    $d.Filter = 'diskdefs|*.cfg|Tous|*.*'; $d.InitialDirectory = $script:AppDir
+    $d.Filter = (T 'diskdefs|*.cfg|Tous|*.*'); $d.InitialDirectory = $script:AppDir
     if ($d.ShowDialog() -eq 'OK') { $txtWDiskdefs.Text = $d.FileName }
 })
 $chkWReverse = New-Object System.Windows.Forms.CheckBox
-$chkWReverse.Text = 'Flippy (--reverse)'; $chkWReverse.Location = '12,46'; $chkWReverse.Width = 150
+$chkWReverse.Text = (T 'Flippy (--reverse)'); $chkWReverse.Location = '12,46'; $chkWReverse.Width = 150
 $chkWHard = New-Object System.Windows.Forms.CheckBox
-$chkWHard.Text = 'Secteurs durs (--hard-sectors)'; $chkWHard.Location = '170,46'; $chkWHard.Width = 210
+$chkWHard.Text = (T 'Secteurs durs (--hard-sectors)'); $chkWHard.Location = '170,46'; $chkWHard.Width = 210
 $chkWTG43 = New-Object System.Windows.Forms.CheckBox
-$chkWTG43.Text = 'TG43 lecteur 8 pouces (--gen-tg43)'; $chkWTG43.Location = '390,46'; $chkWTG43.Width = 250
+$chkWTG43.Text = (T 'TG43 lecteur 8 pouces (--gen-tg43)'); $chkWTG43.Location = '390,46'; $chkWTG43.Width = 250
 
-$grpWAdv.Controls.AddRange(@((New-Label 'Pistes :' '12,23'), $txtWTracks, (New-Label 'Densel :' '232,23'), $cmbWDensel,
-    (New-Label 'Fake index :' '365,23'), $txtWFakeIdx, (New-Label 'Diskdefs :' '540,23'), $txtWDiskdefs, $btnWDiskdefs,
+$grpWAdv.Controls.AddRange(@((New-Label (T 'Pistes :') '12,23'), $txtWTracks, (New-Label (T 'Densel :') '232,23'), $cmbWDensel,
+    (New-Label (T 'Fake index :') '365,23'), $txtWFakeIdx, (New-Label (T 'Diskdefs :') '540,23'), $txtWDiskdefs, $btnWDiskdefs,
     $chkWReverse, $chkWHard, $chkWTG43))
 
 # --- Action
 $btnWrite = New-Object System.Windows.Forms.Button
-$btnWrite.Text = 'ÉCRIRE LA DISQUETTE'; $btnWrite.Location = '10,268'; $btnWrite.Size = '250,40'; $btnWrite.Font = $bold
+$btnWrite.Text = (T 'ÉCRIRE LA DISQUETTE'); $btnWrite.Location = '10,294'; $btnWrite.Size = '250,40'; $btnWrite.Font = $bold
+# Options "comment ecrire" communes a l ecriture et a la calibration precomp
+function Get-WriteFormatArgs {
+    $a = @()
+    if ($chkWReverse.Checked)    { $a += '--reverse' }
+    if ($chkWHard.Checked)       { $a += '--hard-sectors' }
+    if ($chkWTG43.Checked)       { $a += '--gen-tg43' }
+    if ($cmbWFmt.Text -and $cmbWFmt.Text -ne '(auto)')      { $a += "--format=$($cmbWFmt.Text)" }
+    if ($cmbWDensel.Text -ne '(non)') { $a += "--densel=$($cmbWDensel.Text)" }
+    if ($txtWFakeIdx.Text.Trim())     { $a += "--fake-index=$($txtWFakeIdx.Text.Trim())" }
+    if ($txtWDiskdefs.Text.Trim())    { $a += "--diskdefs=`"$($txtWDiskdefs.Text.Trim())`"" }
+    return $a
+}
+
 $btnWrite.Add_Click({
     if (-not (Test-Path -LiteralPath $txtWFile.Text)) {
-        [void][System.Windows.Forms.MessageBox]::Show('Fichier image introuvable.','Erreur','OK','Warning'); return
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Fichier image introuvable.'),(T 'Erreur'),'OK','Warning'); return
     }
     $a = @('write') + (Get-CommonArgs)
     if ($chkWPreErase.Checked)   { $a += '--pre-erase' }
     if ($chkWEraseEmpty.Checked) { $a += '--erase-empty' }
     if ($chkWNoVerify.Checked)   { $a += '--no-verify' }
-    if ($chkWReverse.Checked)    { $a += '--reverse' }
-    if ($chkWHard.Checked)       { $a += '--hard-sectors' }
-    if ($chkWTG43.Checked)       { $a += '--gen-tg43' }
     $a += "--retries=$($numWRetries.Value)"
     if ($chkWPrecomp.Checked -and $txtWPrecomp.Text.Trim()) { $a += '--precomp'; $a += $txtWPrecomp.Text.Trim() }
-    if ($cmbWFmt.Text -and $cmbWFmt.Text -ne '(auto)')      { $a += "--format=$($cmbWFmt.Text)" }
+    $a += Get-WriteFormatArgs
     if ($txtWTracks.Text.Trim())      { $a += "--tracks=$($txtWTracks.Text.Trim())" }
-    if ($cmbWDensel.Text -ne '(non)') { $a += "--densel=$($cmbWDensel.Text)" }
-    if ($txtWFakeIdx.Text.Trim())     { $a += "--fake-index=$($txtWFakeIdx.Text.Trim())" }
-    if ($txtWDiskdefs.Text.Trim())    { $a += "--diskdefs=`"$($txtWDiskdefs.Text.Trim())`"" }
     $a += "`"$($txtWFile.Text)`""
     if ($chkWPostCheck.Checked) {
         $script:WriteArgs = $a
@@ -820,13 +1247,13 @@ $btnWrite.Add_Click({
 })
 
 $lblWProfileInfo = New-Object System.Windows.Forms.Label
-$lblWProfileInfo.Location = '270,268'; $lblWProfileInfo.Size = '502,40'; $lblWProfileInfo.Anchor = 'Top,Left,Right'
-$lblWProfileInfo.ForeColor = 'DimGray'; $lblWProfileInfo.Text = 'Choisis une image : le format et la précompensation seront déduits automatiquement.'
+$lblWProfileInfo.Location = '270,294'; $lblWProfileInfo.Size = '502,40'; $lblWProfileInfo.Anchor = 'Top,Left,Right'
+$lblWProfileInfo.ForeColor = 'DimGray'; $lblWProfileInfo.Text = (T 'Choisis une image : le format et la précompensation seront déduits automatiquement.')
 
 $tabW.Controls.AddRange(@($grpWImage, $grpWOpt, $grpWAdv, $btnWrite, $lblWProfileInfo))
 
 # ============================== LECTURE ========================================
-$tabR = New-TabPage 'Lecture / Dump'
+$tabR = New-TabPage (T 'Lecture / Dump')
 
 $txtRFile = New-Object System.Windows.Forms.TextBox
 $txtRFile.Location = '90,13'; $txtRFile.Width = 650; $txtRFile.Anchor = 'Top,Left,Right'
@@ -839,7 +1266,7 @@ $cmbRFmt.Location = '90,43'; $cmbRFmt.Width = 200
 
 $btnRFile.Add_Click({
     $d = New-Object System.Windows.Forms.SaveFileDialog
-    $d.Filter = 'Flux SCP (préservation)|*.scp|ADF (AmigaDOS)|*.adf|Kryoflux stream|*.raw|HFE|*.hfe|Tous|*.*'
+    $d.Filter = (T 'Flux SCP (préservation)|*.scp|ADF (AmigaDOS)|*.adf|Kryoflux stream|*.raw|HFE|*.hfe|Tous|*.*')
     if ($txtRFile.Text) { $p = Split-Path -Parent $txtRFile.Text; if ($p -and (Test-Path -LiteralPath $p)) { $d.InitialDirectory = $p } }
     elseif ($txtLibRoot.Text -and (Test-Path -LiteralPath $txtLibRoot.Text)) { $d.InitialDirectory = $txtLibRoot.Text }
     if ($d.ShowDialog() -eq 'OK') {
@@ -851,7 +1278,7 @@ $btnRFile.Add_Click({
 $numRevs = New-Object System.Windows.Forms.NumericUpDown
 $numRevs.Location = '110,74'; $numRevs.Width = 55
 $numRevs.Minimum = 1; $numRevs.Maximum = 30
-$tip.SetToolTip($numRevs, 'Tours lus par piste. 5 recommandés pour l''archivage flux (SCP).')
+$tip.SetToolTip($numRevs, (T 'Tours lus par piste. 5 recommandés pour l''archivage flux (SCP).'))
 
 $numRRetries = New-Object System.Windows.Forms.NumericUpDown
 $numRRetries.Location = '255,74'; $numRRetries.Width = 55
@@ -861,7 +1288,7 @@ $txtRTracks = New-Object System.Windows.Forms.TextBox
 $txtRTracks.Location = '415,74'; $txtRTracks.Width = 160
 
 $chkRRaw = New-Object System.Windows.Forms.CheckBox
-$chkRRaw.Text = '--raw (cumuler le flux entre les retries)'; $chkRRaw.Location = '90,105'; $chkRRaw.Width = 290
+$chkRRaw.Text = (T '--raw (cumuler le flux entre les retries)'); $chkRRaw.Location = '90,105'; $chkRRaw.Width = 290
 $chkRRev = New-Object System.Windows.Forms.CheckBox
 $chkRRev.Text = '--reverse'; $chkRRev.Location = '390,105'; $chkRRev.Width = 100
 
@@ -875,15 +1302,15 @@ $btnRDiskdefs = New-Object System.Windows.Forms.Button
 $btnRDiskdefs.Text = '...'; $btnRDiskdefs.Location = '580,134'; $btnRDiskdefs.Width = 30
 $btnRDiskdefs.Add_Click({
     $d = New-Object System.Windows.Forms.OpenFileDialog
-    $d.Filter = 'diskdefs|*.cfg|Tous|*.*'; $d.InitialDirectory = $script:AppDir
+    $d.Filter = (T 'diskdefs|*.cfg|Tous|*.*'); $d.InitialDirectory = $script:AppDir
     if ($d.ShowDialog() -eq 'OK') { $txtRDiskdefs.Text = $d.FileName }
 })
 
 $btnRead = New-Object System.Windows.Forms.Button
-$btnRead.Text = 'LIRE LA DISQUETTE'; $btnRead.Location = '90,175'; $btnRead.Size = '250,40'; $btnRead.Font = $bold
+$btnRead.Text = (T 'LIRE LA DISQUETTE'); $btnRead.Location = '90,175'; $btnRead.Size = '250,40'; $btnRead.Font = $bold
 $btnRead.Add_Click({
     if (-not $txtRFile.Text.Trim()) {
-        [void][System.Windows.Forms.MessageBox]::Show('Indique un fichier de sortie.','Erreur','OK','Warning'); return
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Indique un fichier de sortie.'),(T 'Erreur'),'OK','Warning'); return
     }
     $a = @('read') + (Get-CommonArgs)
     $a += "--revs=$($numRevs.Value)"
@@ -898,14 +1325,14 @@ $btnRead.Add_Click({
     Start-Gw $a
 })
 
-$tabR.Controls.AddRange(@((New-Label 'Sortie :' '10,17'), $txtRFile, $btnRFile,
-    (New-Label 'Format :' '10,47'), $cmbRFmt,
-    (New-Label 'Révolutions :' '10,77'), $numRevs,
-    (New-Label 'Retries :' '190,77'), $numRRetries,
-    (New-Label 'Tracks :' '355,77'), $txtRTracks,
+$tabR.Controls.AddRange(@((New-Label (T 'Sortie :') '10,17'), $txtRFile, $btnRFile,
+    (New-Label (T 'Format :') '10,47'), $cmbRFmt,
+    (New-Label (T 'Révolutions :') '10,77'), $numRevs,
+    (New-Label (T 'Retries :') '190,77'), $numRRetries,
+    (New-Label (T 'Tracks :') '355,77'), $txtRTracks,
     $chkRRaw, $chkRRev,
-    (New-Label 'Densel :' '10,138'), $cmbRDensel,
-    (New-Label 'Diskdefs :' '165,138'), $txtRDiskdefs, $btnRDiskdefs,
+    (New-Label (T 'Densel :') '10,138'), $cmbRDensel,
+    (New-Label (T 'Diskdefs :') '165,138'), $txtRDiskdefs, $btnRDiskdefs,
     $btnRead))
 
 # ============================== CONVERSION =====================================
@@ -917,7 +1344,7 @@ $btnCvIn = New-Object System.Windows.Forms.Button
 $btnCvIn.Text = '...'; $btnCvIn.Location = '745,12'; $btnCvIn.Width = 30; $btnCvIn.Anchor = 'Top,Right'
 $btnCvIn.Add_Click({
     $d = New-Object System.Windows.Forms.OpenFileDialog
-    $d.Filter = 'Images disquette|*.scp;*.raw;*.ipf;*.adf;*.hfe;*.img;*.st;*.dsk|Tous|*.*'
+    $d.Filter = (T 'Images disquette|*.scp;*.raw;*.ipf;*.adf;*.hfe;*.img;*.st;*.dsk|Tous|*.*')
     if ($txtCvIn.Text) { $p = Split-Path -Parent $txtCvIn.Text; if ($p -and (Test-Path -LiteralPath $p)) { $d.InitialDirectory = $p } }
     if ($d.ShowDialog() -eq 'OK') { $txtCvIn.Text = $d.FileName }
 })
@@ -925,7 +1352,7 @@ $btnCvIn.Add_Click({
 $cmbCvFmt = New-Object System.Windows.Forms.ComboBox
 $cmbCvFmt.Location = '90,75'; $cmbCvFmt.Width = 200
 [void]$cmbCvFmt.Items.AddRange($Formats)
-$tip.SetToolTip($cmbCvFmt, 'Format de décodage. Nécessaire pour passer d''un flux (SCP/RAW) à un format secteur (ADF).')
+$tip.SetToolTip($cmbCvFmt, (T 'Format de décodage. Nécessaire pour passer d''un flux (SCP/RAW) à un format secteur (ADF).'))
 
 $txtCvOut = New-Object System.Windows.Forms.TextBox
 $txtCvOut.Location = '90,43'; $txtCvOut.Width = 650; $txtCvOut.Anchor = 'Top,Left,Right'
@@ -933,7 +1360,7 @@ $btnCvOut = New-Object System.Windows.Forms.Button
 $btnCvOut.Text = '...'; $btnCvOut.Location = '745,42'; $btnCvOut.Width = 30; $btnCvOut.Anchor = 'Top,Right'
 $btnCvOut.Add_Click({
     $d = New-Object System.Windows.Forms.SaveFileDialog
-    $d.Filter = 'ADF|*.adf|SCP|*.scp|HFE|*.hfe|IMG|*.img|Tous|*.*'
+    $d.Filter = (T 'ADF|*.adf|SCP|*.scp|HFE|*.hfe|IMG|*.img|Tous|*.*')
     if ($d.ShowDialog() -eq 'OK') {
         $txtCvOut.Text = $d.FileName
         if ($d.FileName -match '\.adf$') { $cmbCvFmt.SelectedItem = 'amiga.amigados' }
@@ -944,13 +1371,13 @@ $txtCvTracks = New-Object System.Windows.Forms.TextBox
 $txtCvTracks.Location = '415,75'; $txtCvTracks.Width = 160
 
 $btnConvert = New-Object System.Windows.Forms.Button
-$btnConvert.Text = 'CONVERTIR'; $btnConvert.Location = '90,120'; $btnConvert.Size = '250,40'; $btnConvert.Font = $bold
+$btnConvert.Text = (T 'CONVERTIR'); $btnConvert.Location = '90,120'; $btnConvert.Size = '250,40'; $btnConvert.Font = $bold
 $btnConvert.Add_Click({
     if (-not (Test-Path -LiteralPath $txtCvIn.Text)) {
-        [void][System.Windows.Forms.MessageBox]::Show('Fichier source introuvable.','Erreur','OK','Warning'); return
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Fichier source introuvable.'),(T 'Erreur'),'OK','Warning'); return
     }
     if (-not $txtCvOut.Text.Trim()) {
-        [void][System.Windows.Forms.MessageBox]::Show('Indique un fichier de destination.','Erreur','OK','Warning'); return
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Indique un fichier de destination.'),(T 'Erreur'),'OK','Warning'); return
     }
     # convert ne pilote pas le lecteur : pas de --drive ni --device
     $a = @('convert')
@@ -961,13 +1388,13 @@ $btnConvert.Add_Click({
     Start-Gw $a
 })
 
-$tabCv.Controls.AddRange(@((New-Label 'Source :' '10,17'), $txtCvIn, $btnCvIn,
-    (New-Label 'Destination :' '10,47'), $txtCvOut, $btnCvOut,
-    (New-Label 'Format :' '10,78'), $cmbCvFmt,
-    (New-Label 'Tracks :' '355,78'), $txtCvTracks, $btnConvert))
+$tabCv.Controls.AddRange(@((New-Label (T 'Source :') '10,17'), $txtCvIn, $btnCvIn,
+    (New-Label (T 'Destination :') '10,47'), $txtCvOut, $btnCvOut,
+    (New-Label (T 'Format :') '10,78'), $cmbCvFmt,
+    (New-Label (T 'Tracks :') '355,78'), $txtCvTracks, $btnConvert))
 
 # ============================== COMPARAISON ====================================
-$tabCmp = New-TabPage 'Comparaison'
+$tabCmp = New-TabPage (T 'Comparaison')
 
 $txtCmpRef = New-Object System.Windows.Forms.TextBox
 $txtCmpRef.Location = '90,13'; $txtCmpRef.Width = 650; $txtCmpRef.Anchor = 'Top,Left,Right'
@@ -975,7 +1402,7 @@ $btnCmpRef = New-Object System.Windows.Forms.Button
 $btnCmpRef.Text = '...'; $btnCmpRef.Location = '745,12'; $btnCmpRef.Width = 30; $btnCmpRef.Anchor = 'Top,Right'
 $btnCmpRef.Add_Click({
     $d = New-Object System.Windows.Forms.OpenFileDialog
-    $d.Filter = 'Images disquette|*.ipf;*.adf;*.scp;*.hfe;*.img;*.st;*.dsk;*.raw;*.d64;*.imd|Tous|*.*'
+    $d.Filter = (T 'Images disquette|*.ipf;*.adf;*.scp;*.hfe;*.img;*.st;*.dsk;*.raw;*.d64;*.imd|Tous|*.*')
     if ($txtCmpRef.Text) { $p = Split-Path -Parent $txtCmpRef.Text; if ($p -and (Test-Path -LiteralPath $p)) { $d.InitialDirectory = $p } }
     if ($d.ShowDialog() -eq 'OK') { $txtCmpRef.Text = $d.FileName }
 })
@@ -983,14 +1410,14 @@ $btnCmpRef.Add_Click({
 $cmbCmpFmt = New-Object System.Windows.Forms.ComboBox
 $cmbCmpFmt.Location = '90,43'; $cmbCmpFmt.Width = 200
 [void]$cmbCmpFmt.Items.AddRange(($Formats | Where-Object { $_ -ne '(auto)' }))
-$tip.SetToolTip($cmbCmpFmt, "Format de décodage commun : la référence est convertie dans ce format,`nla disquette est lue dans ce format, puis les deux sont comparées octet par octet.")
+$tip.SetToolTip($cmbCmpFmt, (T "Format de décodage commun : la référence est convertie dans ce format,`nla disquette est lue dans ce format, puis les deux sont comparées octet par octet."))
 
 $numCmpRetries = New-Object System.Windows.Forms.NumericUpDown
 $numCmpRetries.Location = '365,43'; $numCmpRetries.Width = 55
 $numCmpRetries.Minimum = 0; $numCmpRetries.Maximum = 50
 
 $btnCmpFromWrite = New-Object System.Windows.Forms.Button
-$btnCmpFromWrite.Text = 'Reprendre l''image de l''onglet Écriture'; $btnCmpFromWrite.Location = '440,41'; $btnCmpFromWrite.Size = '280,26'
+$btnCmpFromWrite.Text = (T 'Reprendre l''image de l''onglet Écriture'); $btnCmpFromWrite.Location = '440,41'; $btnCmpFromWrite.Size = '280,26'
 $btnCmpFromWrite.Add_Click({
     if ($txtWFile.Text) {
         $txtCmpRef.Text = $txtWFile.Text
@@ -999,8 +1426,8 @@ $btnCmpFromWrite.Add_Click({
 })
 
 $btnCompare = New-Object System.Windows.Forms.Button
-$btnCompare.Text = 'COMPARER LA DISQUETTE'; $btnCompare.Location = '90,80'; $btnCompare.Size = '250,40'; $btnCompare.Font = $bold
-$btnCompare.Add_Click({ try { Start-Compare } catch { Append-Log "ERREUR comparaison : $($_.Exception.Message)" } })
+$btnCompare.Text = (T 'COMPARER LA DISQUETTE'); $btnCompare.Location = '90,80'; $btnCompare.Size = '250,40'; $btnCompare.Font = $bold
+$btnCompare.Add_Click({ try { Start-Compare } catch { Append-Log ((T "ERREUR comparaison : {0}") -f "$($_.Exception.Message)") } })
 
 $txtCmpResult = New-Object System.Windows.Forms.TextBox
 $txtCmpResult.Location = '10,130'; $txtCmpResult.Size = '768,190'
@@ -1009,12 +1436,12 @@ $txtCmpResult.Multiline = $true; $txtCmpResult.ReadOnly = $true; $txtCmpResult.F
 $txtCmpResult.ScrollBars = 'Vertical'; $txtCmpResult.WordWrap = $false
 $txtCmpResult.BackColor = [System.Drawing.SystemColors]::Control
 
-$tabCmp.Controls.AddRange(@((New-Label 'Référence :' '10,17'), $txtCmpRef, $btnCmpRef,
-    (New-Label 'Format :' '10,47'), $cmbCmpFmt, (New-Label 'Retries :' '305,47'), $numCmpRetries, $btnCmpFromWrite,
+$tabCmp.Controls.AddRange(@((New-Label (T 'Référence :') '10,17'), $txtCmpRef, $btnCmpRef,
+    (New-Label (T 'Format :') '10,47'), $cmbCmpFmt, (New-Label (T 'Retries :') '305,47'), $numCmpRetries, $btnCmpFromWrite,
     $btnCompare, $txtCmpResult))
 
 # ============================== QUALITE & ALIGNEMENT ===========================
-$tabAl = New-TabPage 'Qualité & alignement'
+$tabAl = New-TabPage (T 'Qualité & alignement')
 
 $script:AlColors = @{
     0 = [System.Drawing.Color]::FromArgb(86, 196, 108)    # excellent (vert franc)
@@ -1029,12 +1456,12 @@ $script:AlFg = @{
     2 = [System.Drawing.Color]::FromArgb(54, 32, 0)
     3 = [System.Drawing.Color]::White
 }
-$script:AlNames = @{ 0='EXCELLENT'; 1='BON'; 2='MOYEN'; 3='MAUVAIS' }
+$script:AlNames = @{ 0='EXCELLENT'; 1=(T 'BON'); 2=(T 'MOYEN'); 3=(T 'MAUVAIS') }
 
 $cmbAlPreset = New-Object System.Windows.Forms.ComboBox
 $cmbAlPreset.Location = '70,11'; $cmbAlPreset.Width = 160; $cmbAlPreset.DropDownStyle = 'DropDownList'
-[void]$cmbAlPreset.Items.AddRange(@('Rapide (5 cylindres)','Standard (0-70 pas 10)','Complet (0-79)','Personnalisé'))
-$tip.SetToolTip($cmbAlPreset, "Rapide : contrôle en 30 s. Standard : tri de collection. Complet : état exhaustif d'une disquette (2-3 min).")
+[void]$cmbAlPreset.Items.AddRange(@((T 'Rapide (5 cylindres)'),(T 'Standard (0-70 pas 10)'),(T 'Complet (0-79)'),(T 'Personnalisé')))
+$tip.SetToolTip($cmbAlPreset, (T "Rapide : contrôle en 30 s. Standard : tri de collection. Complet : état exhaustif d'une disquette (2-3 min)."))
 $cmbAlPreset.Add_SelectedIndexChanged({
     switch ($cmbAlPreset.SelectedIndex) {
         0 { $txtAlCyls.Text = '0,20,40,60,79' }
@@ -1045,7 +1472,7 @@ $cmbAlPreset.Add_SelectedIndexChanged({
 
 $txtAlCyls = New-Object System.Windows.Forms.TextBox
 $txtAlCyls.Location = '305,11'; $txtAlCyls.Width = 170
-$tip.SetToolTip($txtAlCyls, 'Cylindres mesurés (0-83), séparés par des virgules.')
+$tip.SetToolTip($txtAlCyls, (T 'Cylindres mesurés (0-83), séparés par des virgules.'))
 $txtAlCyls.Add_TextChanged({ if ($cmbAlPreset.SelectedIndex -ne 3 -and $txtAlCyls.Focused) { $cmbAlPreset.SelectedIndex = 3 } })
 
 $cmbAlHead = New-Object System.Windows.Forms.ComboBox
@@ -1055,21 +1482,21 @@ $cmbAlHead.Location = '530,11'; $cmbAlHead.Width = 55; $cmbAlHead.DropDownStyle 
 $numAlRevs = New-Object System.Windows.Forms.NumericUpDown
 $numAlRevs.Location = '645,11'; $numAlRevs.Width = 45
 $numAlRevs.Minimum = 1; $numAlRevs.Maximum = 10
-$tip.SetToolTip($numAlRevs, 'Tours lus par piste. 3 suffit ; 5 pour une disquette douteuse.')
+$tip.SetToolTip($numAlRevs, (T 'Tours lus par piste. 3 suffit ; 5 pour une disquette douteuse.'))
 
 $chkAlLoop = New-Object System.Windows.Forms.CheckBox
-$chkAlLoop.Text = 'Continu'; $chkAlLoop.Location = '700,12'; $chkAlLoop.Width = 75
-$tip.SetToolTip($chkAlLoop, 'Répète la mesure en boucle (réglage mécanique). STOP pour arrêter.')
+$chkAlLoop.Text = (T 'Continu'); $chkAlLoop.Location = '700,12'; $chkAlLoop.Width = 75
+$tip.SetToolTip($chkAlLoop, (T 'Répète la mesure en boucle (réglage mécanique). STOP pour arrêter.'))
 $numAlPause = New-Object System.Windows.Forms.NumericUpDown
 $numAlPause.Location = '700,36'; $numAlPause.Width = 45; $numAlPause.Visible = $false
 $numAlPause.Minimum = 0; $numAlPause.Maximum = 60
 
 $btnAlStart = New-Object System.Windows.Forms.Button
-$btnAlStart.Text = 'MESURER LA DISQUETTE'; $btnAlStart.Location = '10,40'; $btnAlStart.Size = '220,40'; $btnAlStart.Font = $bold
-$tip.SetToolTip($btnAlStart, 'Lit les cylindres choisis avec le lecteur sélectionné en haut et évalue l''état du support et la qualité de lecture.')
+$btnAlStart.Text = (T 'MESURER LA DISQUETTE'); $btnAlStart.Location = '10,40'; $btnAlStart.Size = '220,40'; $btnAlStart.Font = $bold
+$tip.SetToolTip($btnAlStart, (T 'Lit les cylindres choisis avec le lecteur sélectionné en haut et évalue l''état du support et la qualité de lecture.'))
 $btnAlStart.Add_Click({
     if (-not $script:ScpStatsOk) {
-        [void][System.Windows.Forms.MessageBox]::Show('Le module d''analyse SCP n''a pas pu être compilé (Add-Type).','Mesure','OK','Warning'); return
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Le module d''analyse SCP n''a pas pu être compilé (Add-Type).'),(T 'Mesure'),'OK','Warning'); return
     }
     $script:AlignLoop = [bool]$chkAlLoop.Checked
     $script:AlLastMove = 0
@@ -1077,33 +1504,33 @@ $btnAlStart.Add_Click({
 })
 
 $btnAlRef = New-Object System.Windows.Forms.Button
-$btnAlRef.Text = 'Fixer comme référence'; $btnAlRef.Location = '240,40'; $btnAlRef.Size = '175,40'
-$tip.SetToolTip($btnAlRef, "Mémorise la dernière mesure comme référence (ex. : lecteur Amiga sur la même disquette).`nLes mesures suivantes affichent l'écart en %.")
+$btnAlRef.Text = (T 'Fixer comme référence'); $btnAlRef.Location = '240,40'; $btnAlRef.Size = '175,40'
+$tip.SetToolTip($btnAlRef, (T "Mémorise la dernière mesure comme référence (ex. : lecteur Amiga sur la même disquette).`nLes mesures suivantes affichent l'écart en %."))
 $btnAlRef.Add_Click({
-    if (-not $script:AlignLast) { [void][System.Windows.Forms.MessageBox]::Show('Fais d''abord une mesure.','Référence','OK','Information'); return }
+    if (-not $script:AlignLast) { [void][System.Windows.Forms.MessageBox]::Show((T 'Fais d''abord une mesure.'),(T 'Référence'),'OK','Information'); return }
     $script:AlignRef = $script:AlignLast.Clone()
-    $script:AlignRefLabel = "lecteur $($cmbDrive.Text), tête $($cmbAlHead.Text), $(Get-Date -Format 'dd/MM HH:mm')"
-    $lblAlRef.Text = "Référence : $($script:AlignRefLabel) ($($script:AlignRef.Count) piste(s))"
-    Append-Log "Mesure : référence fixée ($($script:AlignRefLabel))."
+    $script:AlignRefLabel = ((T "lecteur {0}, tête {1}, {2}") -f "$($cmbDrive.Text)", "$($cmbAlHead.Text)", "$(Get-Date -Format 'dd/MM HH:mm')")
+    $lblAlRef.Text = ((T "Référence : {0} ({1} piste(s))") -f "$($script:AlignRefLabel)", "$($script:AlignRef.Count)")
+    Append-Log ((T "Mesure : référence fixée ({0}).") -f "$($script:AlignRefLabel)")
     [void](Save-Config)
     Render-AlignBars
 })
 
 $btnAlReset = New-Object System.Windows.Forms.Button
-$btnAlReset.Text = 'Réinitialiser'; $btnAlReset.Location = '424,40'; $btnAlReset.Size = '120,40'
-$tip.SetToolTip($btnAlReset, 'Efface le meilleur score, la tendance, la référence et le guide.')
+$btnAlReset.Text = (T 'Réinitialiser'); $btnAlReset.Location = '424,40'; $btnAlReset.Size = '120,40'
+$tip.SetToolTip($btnAlReset, (T 'Efface le meilleur score, la tendance, la référence et le guide.'))
 $btnAlReset.Add_Click({
     $script:AlignBest = @{}; $script:AlignPrev = $null; $script:AlignRef = $null; $script:AlignLast = $null
     $script:AlPos = $null; $script:AlLastMove = 0; $script:AlPosScores = @{}; $script:AlignRefLabel = ''
-    $lblAlRef.Text = 'Aucune référence'; $lblAlHealth.Text = 'Lance une mesure'; $lblAlHealth.BackColor = [System.Drawing.SystemColors]::Control
+    $lblAlRef.Text = (T 'Aucune référence'); $lblAlHealth.Text = (T 'Lance une mesure'); $lblAlHealth.BackColor = [System.Drawing.SystemColors]::Control
     $lblAlVerdict.Text = ''; $lblAlVerdict.BackColor = [System.Drawing.SystemColors]::Control
     $lblAlPos.Text = ''; $lblAlReco.Text = ''
     $lvAl.Items.Clear(); $pnlAlBars.Invalidate()
 })
 
 $chkAlGuide = New-Object System.Windows.Forms.CheckBox
-$chkAlGuide.Text = 'Mode réglage du lecteur (guide)'; $chkAlGuide.Location = '556,48'; $chkAlGuide.Width = 220
-$tip.SetToolTip($chkAlGuide, 'Affiche les boutons du guide d''alignement (positions du stepper, recommandations avancer/reculer).')
+$chkAlGuide.Text = (T 'Mode réglage du lecteur (guide)'); $chkAlGuide.Location = '556,48'; $chkAlGuide.Width = 220
+$tip.SetToolTip($chkAlGuide, (T 'Affiche les boutons du guide d''alignement (positions du stepper, recommandations avancer/reculer).'))
 $chkAlGuide.Add_CheckedChanged({
     $v = $chkAlGuide.Checked
     $btnAlPos0.Visible = $v; $btnAlPlus.Visible = $v; $btnAlMinus.Visible = $v; $lblAlPos.Visible = $v; $lblAlReco.Visible = $v
@@ -1111,20 +1538,20 @@ $chkAlGuide.Add_CheckedChanged({
 })
 
 $lblAlRef = New-Object System.Windows.Forms.Label
-$lblAlRef.Location = '10,78'; $lblAlRef.AutoSize = $true; $lblAlRef.Text = 'Aucune référence'; $lblAlRef.ForeColor = 'Gray'
+$lblAlRef.Location = '10,78'; $lblAlRef.AutoSize = $true; $lblAlRef.Text = (T 'Aucune référence'); $lblAlRef.ForeColor = 'Gray'
 
 # --- Guide (visible en mode reglage)
 $btnAlPos0 = New-Object System.Windows.Forms.Button
-$btnAlPos0.Text = 'Repère (position 0)'; $btnAlPos0.Location = '10,96'; $btnAlPos0.Size = '155,26'; $btnAlPos0.Visible = $false
-$tip.SetToolTip($btnAlPos0, "Point de départ : stepper à sa position d'origine (trait de repère). Mesure la position 0 et démarre le guide.")
+$btnAlPos0.Text = (T 'Repère (position 0)'); $btnAlPos0.Location = '10,96'; $btnAlPos0.Size = '155,26'; $btnAlPos0.Visible = $false
+$tip.SetToolTip($btnAlPos0, (T "Point de départ : stepper à sa position d'origine (trait de repère). Mesure la position 0 et démarre le guide."))
 $btnAlPos0.Add_Click({ $script:AlPos = 0; $script:AlLastMove = 0; $script:AlPosScores = @{}; $script:AlignLoop = $false; Start-AlignCycle })
 $btnAlPlus = New-Object System.Windows.Forms.Button
-$btnAlPlus.Text = "J'ai tourné +1 cran"; $btnAlPlus.Location = '172,96'; $btnAlPlus.Size = '160,26'; $btnAlPlus.Visible = $false
-$tip.SetToolTip($btnAlPlus, "À cliquer APRÈS avoir tourné le stepper d'un petit cran dans le sens '+'. Lance la mesure.")
+$btnAlPlus.Text = (T "J'ai tourné +1 cran"); $btnAlPlus.Location = '172,96'; $btnAlPlus.Size = '160,26'; $btnAlPlus.Visible = $false
+$tip.SetToolTip($btnAlPlus, (T "À cliquer APRÈS avoir tourné le stepper d'un petit cran dans le sens '+'. Lance la mesure."))
 $btnAlPlus.Add_Click({ if ($null -eq $script:AlPos) { $script:AlPos = 0 }; $script:AlPos += 1; $script:AlLastMove = 1; $script:AlignLoop = $false; Start-AlignCycle })
 $btnAlMinus = New-Object System.Windows.Forms.Button
-$btnAlMinus.Text = "J'ai tourné -1 cran"; $btnAlMinus.Location = '339,96'; $btnAlMinus.Size = '160,26'; $btnAlMinus.Visible = $false
-$tip.SetToolTip($btnAlMinus, "À cliquer APRÈS avoir tourné le stepper d'un petit cran dans le sens '-'. Lance la mesure.")
+$btnAlMinus.Text = (T "J'ai tourné -1 cran"); $btnAlMinus.Location = '339,96'; $btnAlMinus.Size = '160,26'; $btnAlMinus.Visible = $false
+$tip.SetToolTip($btnAlMinus, (T "À cliquer APRÈS avoir tourné le stepper d'un petit cran dans le sens '-'. Lance la mesure."))
 $btnAlMinus.Add_Click({ if ($null -eq $script:AlPos) { $script:AlPos = 0 }; $script:AlPos -= 1; $script:AlLastMove = -1; $script:AlignLoop = $false; Start-AlignCycle })
 $lblAlPos = New-Object System.Windows.Forms.Label
 $lblAlPos.Location = '508,101'; $lblAlPos.AutoSize = $true; $lblAlPos.Text = ''; $lblAlPos.ForeColor = 'Gray'; $lblAlPos.Visible = $false
@@ -1134,8 +1561,8 @@ $lblAlHealth = New-Object System.Windows.Forms.Label
 $lblAlHealth.Location = '10,126'; $lblAlHealth.Size = '768,34'; $lblAlHealth.Anchor = 'Top,Left,Right'
 $lblAlHealth.Font = New-Object System.Drawing.Font('Segoe UI', 13, [System.Drawing.FontStyle]::Bold)
 $lblAlHealth.TextAlign = 'MiddleCenter'; $lblAlHealth.BorderStyle = 'FixedSingle'
-$lblAlHealth.Text = 'Lance une mesure'
-$tip.SetToolTip($lblAlHealth, "État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter.`nIndépendant du contenu : comparable d'une disquette à l'autre.")
+$lblAlHealth.Text = (T 'Lance une mesure')
+$tip.SetToolTip($lblAlHealth, (T "État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter.`nIndépendant du contenu : comparable d'une disquette à l'autre."))
 
 # --- Verdict 2 : qualite de lecture (score, pour comparer lecteurs et reglages)
 $lblAlVerdict = New-Object System.Windows.Forms.Label
@@ -1143,7 +1570,7 @@ $lblAlVerdict.Location = '10,163'; $lblAlVerdict.Size = '768,24'; $lblAlVerdict.
 $lblAlVerdict.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Bold)
 $lblAlVerdict.TextAlign = 'MiddleCenter'
 $lblAlVerdict.Text = ''
-$tip.SetToolTip($lblAlVerdict, "Score de qualité de lecture (plus bas = mieux). Dépend du contenu : à comparer uniquement sur une même image`n(deux lecteurs, deux précompensations, deux réglages).")
+$tip.SetToolTip($lblAlVerdict, (T "Score de qualité de lecture (plus bas = mieux). Dépend du contenu : à comparer uniquement sur une même image`n(deux lecteurs, deux précompensations, deux réglages)."))
 
 $lblAlReco = New-Object System.Windows.Forms.Label
 $lblAlReco.Location = '10,188'; $lblAlReco.Size = '768,20'; $lblAlReco.Anchor = 'Top,Left,Right'
@@ -1155,7 +1582,7 @@ $pnlAlBars.Location = '10,210'; $pnlAlBars.Size = '768,50'; $pnlAlBars.Anchor = 
 $pnlAlBars.BackColor = 'White'; $pnlAlBars.BorderStyle = 'FixedSingle'
 $pnlAlBars.Add_Paint({ Draw-AlignBars $_.Graphics $pnlAlBars.ClientSize })
 $pnlAlBars.Add_Resize({ $pnlAlBars.Invalidate() })
-$tip.SetToolTip($pnlAlBars, 'Score par cylindre : barre courte = bon. Trait noir = référence, trait bleu = meilleur vu.')
+$tip.SetToolTip($pnlAlBars, (T 'Score par cylindre : barre courte = bon. Trait noir = référence, trait bleu = meilleur vu.'))
 
 $lvAl = New-Object System.Windows.Forms.ListView
 $lvAl.Location = '10,266'; $lvAl.Size = '768,60'; $lvAl.Anchor = 'Top,Bottom,Left,Right'
@@ -1189,18 +1616,18 @@ $lvAl.Add_DrawSubItem({
 $imgRow = New-Object System.Windows.Forms.ImageList
 $imgRow.ImageSize = New-Object System.Drawing.Size(1, 24)
 $lvAl.SmallImageList = $imgRow
-foreach ($c in @(@('Piste',60),@('État',140),@('Erreurs',70),@('Trous',60),@('Stab',55),@('Jitter ns',80),@('Score',65),@('vs réf',70),@('Asym.',70),@('Cell ns',75))) {
+foreach ($c in @(@((T 'Piste'),60),@((T 'État'),140),@((T 'Erreurs'),70),@((T 'Trous'),78),@('Stab',55),@((T 'Jitter ns'),80),@('Score',65),@((T 'vs réf'),70),@('Asym.',70),@((T 'Cell ns'),75))) {
     [void]$lvAl.Columns.Add($c[0], $c[1])
 }
-$tip.SetToolTip($lvAl, "État par piste : SAIN / À SURVEILLER / CRITIQUE (erreurs, trous, stabilité, jitter).`nSeuils jitter : <60 / <120 / <200 ns. Asymétrie : <0,02 / <0,05 / <0,10.")
+$tip.SetToolTip($lvAl, (T "État par piste : SAIN / À SURVEILLER / CRITIQUE (erreurs, trous, stabilité, jitter).`nSeuils jitter : <60 / <120 / <200 ns. Asymétrie : <0,02 / <0,05 / <0,10."))
 
-$tabAl.Controls.AddRange(@((New-Label 'Mesure :' '10,14'), $cmbAlPreset, (New-Label 'Cylindres :' '238,14'), $txtAlCyls,
-    (New-Label 'Têtes :' '488,14'), $cmbAlHead, (New-Label 'Tours :' '598,14'), $numAlRevs, $chkAlLoop, $numAlPause,
+$tabAl.Controls.AddRange(@((New-Label (T 'Mesure :') '10,14'), $cmbAlPreset, (New-Label (T 'Cylindres :') '238,14'), $txtAlCyls,
+    (New-Label (T 'Têtes :') '488,14'), $cmbAlHead, (New-Label (T 'Tours :') '598,14'), $numAlRevs, $chkAlLoop, $numAlPause,
     $btnAlStart, $btnAlRef, $btnAlReset, $chkAlGuide, $lblAlRef,
     $btnAlPos0, $btnAlPlus, $btnAlMinus, $lblAlPos, $lblAlHealth, $lblAlVerdict, $lblAlReco, $pnlAlBars, $lvAl))
 
 # ============================== OUTILS =========================================
-$tabT = New-TabPage 'Outils'
+$tabT = New-TabPage (T 'Outils')
 
 function New-ToolButton($text, $loc, $onClick) {
     $b = New-Object System.Windows.Forms.Button
@@ -1209,14 +1636,14 @@ function New-ToolButton($text, $loc, $onClick) {
     return $b
 }
 
-$btnInfo  = New-ToolButton 'Info périphérique'        '15,15'  { Start-Gw @('info') }
-$btnRpm   = New-ToolButton 'Mesurer la vitesse (rpm)' '15,52'  { Start-Gw (@('rpm') + (Get-CommonArgs)) }
-$btnBw    = New-ToolButton 'Bande passante USB'       '15,89'  { Start-Gw @('bandwidth') }
-$btnReset = New-ToolButton 'Reset du périphérique'    '15,126' { Start-Gw @('reset') }
+$btnInfo  = New-ToolButton (T 'Info périphérique')        '15,15'  { Start-Gw @('info') }
+$btnRpm   = New-ToolButton (T 'Mesurer la vitesse (rpm)') '15,52'  { Start-Gw (@('rpm') + (Get-CommonArgs)) }
+$btnBw    = New-ToolButton (T 'Bande passante USB')       '15,89'  { Start-Gw @('bandwidth') }
+$btnReset = New-ToolButton (T 'Reset du périphérique')    '15,126' { Start-Gw @('reset') }
 
-$btnUpdate = New-ToolButton 'Mise à jour firmware' '15,163' {
+$btnUpdate = New-ToolButton (T 'Mise à jour firmware') '15,163' {
     $r = [System.Windows.Forms.MessageBox]::Show(
-        "Mettre à jour le firmware du Greaseweazle ?`nNe pas débrancher pendant l'opération.",
+        (T "Mettre à jour le firmware du Greaseweazle ?`nNe pas débrancher pendant l'opération."),
         'gw update', 'YesNo', 'Warning')
     if ($r -eq 'Yes') { Start-Gw @('update') }
 }
@@ -1224,7 +1651,7 @@ $btnUpdate = New-ToolButton 'Mise à jour firmware' '15,163' {
 $numSeek = New-Object System.Windows.Forms.NumericUpDown
 $numSeek.Location = '355,18'; $numSeek.Width = 60
 $numSeek.Minimum = -8; $numSeek.Maximum = 85
-$tip.SetToolTip($numSeek, 'Cylindre cible. Valeurs négatives possibles sur lecteur flippy.')
+$tip.SetToolTip($numSeek, (T 'Cylindre cible. Valeurs négatives possibles sur lecteur flippy.'))
 
 $btnSeek = New-Object System.Windows.Forms.Button
 $btnSeek.Text = 'Seek'; $btnSeek.Location = '425,17'; $btnSeek.Size = '80,26'
@@ -1232,15 +1659,15 @@ $btnSeek.Add_Click({ Start-Gw (@('seek') + (Get-CommonArgs) + @("$($numSeek.Valu
 
 $txtEraseTracks = New-Object System.Windows.Forms.TextBox
 $txtEraseTracks.Location = '355,55'; $txtEraseTracks.Width = 150
-$tip.SetToolTip($txtEraseTracks, 'TSPEC optionnel. Vide = toute la disquette.')
+$tip.SetToolTip($txtEraseTracks, (T 'TSPEC optionnel. Vide = toute la disquette.'))
 
 $btnErase = New-Object System.Windows.Forms.Button
-$btnErase.Text = 'EFFACER'; $btnErase.Location = '515,54'; $btnErase.Size = '100,26'
+$btnErase.Text = (T 'EFFACER'); $btnErase.Location = '515,54'; $btnErase.Size = '100,26'
 $btnErase.Add_Click({
-    $scope = if ($txtEraseTracks.Text.Trim()) { "les pistes $($txtEraseTracks.Text.Trim())" } else { "TOUTE la disquette" }
+    $scope = if ($txtEraseTracks.Text.Trim()) { ((T "les pistes {0}") -f "$($txtEraseTracks.Text.Trim())") } else { (T "TOUTE la disquette") }
     $r = [System.Windows.Forms.MessageBox]::Show(
-        "Opération IRRÉVERSIBLE : $scope dans le lecteur $($cmbDrive.Text) sera effacée.`n`nContinuer ?",
-        'Confirmation effacement', 'YesNo', 'Warning')
+        ((T "Opération IRRÉVERSIBLE : {0} dans le lecteur {1} sera effacée.`n`nContinuer ?") -f "$scope", "$($cmbDrive.Text)"),
+        (T 'Confirmation effacement'), 'YesNo', 'Warning')
     if ($r -eq 'Yes') {
         $a = @('erase') + (Get-CommonArgs)
         if ($txtEraseTracks.Text.Trim()) { $a += "--tracks=$($txtEraseTracks.Text.Trim())" }
@@ -1255,14 +1682,14 @@ $numPasses.Minimum = 1; $numPasses.Maximum = 20
 $numLinger = New-Object System.Windows.Forms.NumericUpDown
 $numLinger.Location = '470,92'; $numLinger.Width = 60
 $numLinger.Minimum = 0; $numLinger.Maximum = 5000
-$tip.SetToolTip($numLinger, 'Temps de contact par pas, en millisecondes.')
+$tip.SetToolTip($numLinger, (T 'Temps de contact par pas, en millisecondes.'))
 
 $btnClean = New-Object System.Windows.Forms.Button
-$btnClean.Text = 'NETTOYER'; $btnClean.Location = '540,91'; $btnClean.Size = '100,26'
+$btnClean.Text = (T 'NETTOYER'); $btnClean.Location = '540,91'; $btnClean.Size = '100,26'
 $btnClean.Add_Click({
     $r = [System.Windows.Forms.MessageBox]::Show(
-        "Insère une DISQUETTE DE NETTOYAGE (jamais une disquette de données) puis valide.",
-        'Nettoyage des têtes', 'OKCancel', 'Information')
+        (T "Insère une DISQUETTE DE NETTOYAGE (jamais une disquette de données) puis valide."),
+        (T 'Nettoyage des têtes'), 'OKCancel', 'Information')
     if ($r -eq 'OK') {
         Start-Gw (@('clean') + (Get-CommonArgs) + @("--passes=$($numPasses.Value)", "--linger=$($numLinger.Value)"))
     }
@@ -1277,27 +1704,27 @@ $cmbPinLvl.Location = '420,129'; $cmbPinLvl.Width = 55; $cmbPinLvl.DropDownStyle
 [void]$cmbPinLvl.Items.AddRange(@('H','L'))
 
 $btnPin = New-Object System.Windows.Forms.Button
-$btnPin.Text = 'Appliquer'; $btnPin.Location = '485,128'; $btnPin.Size = '100,26'
+$btnPin.Text = (T 'Appliquer'); $btnPin.Location = '485,128'; $btnPin.Size = '100,26'
 $btnPin.Add_Click({ Start-Gw (@('pin') + (Get-CommonArgs) + @("$($numPin.Value)", $cmbPinLvl.Text)) })
 
 $tabT.Controls.AddRange(@($btnInfo,$btnRpm,$btnBw,$btnReset,$btnUpdate,
-    (New-Label 'Seek cylindre :' '250,21'), $numSeek, $btnSeek,
-    (New-Label 'Erase tracks :' '250,58'), $txtEraseTracks, $btnErase,
-    (New-Label 'Clean passes :' '250,95'), $numPasses, (New-Label 'linger :' '415,95'), $numLinger, $btnClean,
-    (New-Label 'Pin :' '250,132'), $numPin, $cmbPinLvl, $btnPin))
+    (New-Label (T 'Seek cylindre :') '250,21'), $numSeek, $btnSeek,
+    (New-Label (T 'Erase tracks :') '250,58'), $txtEraseTracks, $btnErase,
+    (New-Label (T 'Clean passes :') '250,95'), $numPasses, (New-Label (T 'linger :') '415,95'), $numLinger, $btnClean,
+    (New-Label (T 'Pin :') '250,132'), $numPin, $cmbPinLvl, $btnPin))
 
 # ============================== DELAIS =========================================
-$tabD = New-TabPage 'Délais'
+$tabD = New-TabPage (T 'Délais')
 
 $delayDefs = @(
-    @{Key='select';     Label='Select Delay (us) :'; Def=10},
-    @{Key='step';       Label='Step Delay (us) :';   Def=10000},
-    @{Key='settle';     Label='Settle Time (ms) :';  Def=15},
-    @{Key='motor';      Label='Motor Delay (ms) :';  Def=750},
-    @{Key='watchdog';   Label='Watchdog (ms) :';     Def=10000},
-    @{Key='pre-write';  Label='Pre-Write (us) :';    Def=100},
-    @{Key='post-write'; Label='Post-Write (us) :';   Def=1000},
-    @{Key='index-mask'; Label='Index Mask (us) :';   Def=200}
+    @{Key='select';     Label=(T 'Select Delay (us) :'); Def=10},
+    @{Key='step';       Label=(T 'Step Delay (us) :');   Def=10000},
+    @{Key='settle';     Label=(T 'Settle Time (ms) :');  Def=15},
+    @{Key='motor';      Label=(T 'Motor Delay (ms) :');  Def=750},
+    @{Key='watchdog';   Label=(T 'Watchdog (ms) :');     Def=10000},
+    @{Key='pre-write';  Label=(T 'Pre-Write (us) :');    Def=100},
+    @{Key='post-write'; Label=(T 'Post-Write (us) :');   Def=1000},
+    @{Key='index-mask'; Label=(T 'Index Mask (us) :');   Def=200}
 )
 $script:DelayCtrls = [ordered]@{}
 $y = 15
@@ -1317,11 +1744,11 @@ foreach ($d in $delayDefs) {
 }
 
 $btnDelaysShow = New-Object System.Windows.Forms.Button
-$btnDelaysShow.Text = 'Afficher les délais actuels'; $btnDelaysShow.Location = '330,15'; $btnDelaysShow.Size = '230,32'
+$btnDelaysShow.Text = (T 'Afficher les délais actuels'); $btnDelaysShow.Location = '330,15'; $btnDelaysShow.Size = '230,32'
 $btnDelaysShow.Add_Click({ Start-Gw @('delays') })
 
 $btnDelaysSet = New-Object System.Windows.Forms.Button
-$btnDelaysSet.Text = 'Appliquer les valeurs cochées'; $btnDelaysSet.Location = '330,55'; $btnDelaysSet.Size = '230,32'
+$btnDelaysSet.Text = (T 'Appliquer les valeurs cochées'); $btnDelaysSet.Location = '330,55'; $btnDelaysSet.Size = '230,32'
 $btnDelaysSet.Add_Click({
     $a = @('delays')
     foreach ($k in $script:DelayCtrls.Keys) {
@@ -1329,30 +1756,30 @@ $btnDelaysSet.Add_Click({
         if ($c.Chk.Checked) { $a += "--$k=$($c.Num.Value)" }
     }
     if ($a.Count -eq 1) {
-        [void][System.Windows.Forms.MessageBox]::Show('Coche au moins un paramètre à modifier.','Rien à faire','OK','Information'); return
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Coche au moins un paramètre à modifier.'),(T 'Rien à faire'),'OK','Information'); return
     }
     Start-Gw $a
 })
 
 $lblDelayNote = New-Object System.Windows.Forms.Label
-$lblDelayNote.Text = "Valeurs pré-remplies = défauts usine, à titre indicatif.`n" +
-                     "Coche une case pour transmettre le paramètre à gw.`n`n" +
-                     "Seek en échec / Track 0 not found : augmenter Step`n" +
-                     "(20000 à 40000 us) puis Settle (40 ms).`n`n" +
-                     "Les modifications ne survivent pas à un reset ni à un`n" +
-                     "débranchement du Greaseweazle."
+$lblDelayNote.Text = (T "Valeurs pré-remplies = défauts usine, à titre indicatif.`n") +
+                     (T "Coche une case pour transmettre le paramètre à gw.`n`n") +
+                     (T "Seek en échec / Track 0 not found : augmenter Step`n") +
+                     (T "(20000 à 40000 us) puis Settle (40 ms).`n`n") +
+                     (T "Les modifications ne survivent pas à un reset ni à un`n") +
+                     (T "débranchement du Greaseweazle.")
 $lblDelayNote.Location = '330,100'; $lblDelayNote.Size = '400,150'
 
 $tabD.Controls.AddRange(@($btnDelaysShow,$btnDelaysSet,$lblDelayNote))
 
 # ============================== COMMANDE LIBRE =================================
-$tabC = New-TabPage 'Commande libre'
+$tabC = New-TabPage (T 'Commande libre')
 
 $txtC = New-Object System.Windows.Forms.TextBox
 $txtC.Location = '10,40'; $txtC.Width = 768; $txtC.Font = $mono; $txtC.Anchor = 'Top,Left,Right'
 
 $btnC = New-Object System.Windows.Forms.Button
-$btnC.Text = 'EXÉCUTER'; $btnC.Location = '10,75'; $btnC.Size = '150,40'; $btnC.Font = $bold
+$btnC.Text = (T 'EXÉCUTER'); $btnC.Location = '10,75'; $btnC.Size = '150,40'; $btnC.Font = $bold
 $btnC.Add_Click({ if ($txtC.Text.Trim()) { Start-Gw @($txtC.Text.Trim()) } })
 
 $btnHelp = New-Object System.Windows.Forms.Button
@@ -1367,7 +1794,7 @@ $btnHelpAct = New-Object System.Windows.Forms.Button
 $btnHelpAct.Text = '--help'; $btnHelpAct.Location = '440,75'; $btnHelpAct.Size = '90,34'
 $btnHelpAct.Add_Click({ Start-Gw @($cmbHelpAct.Text, '--help') })
 
-$tabC.Controls.AddRange(@((New-Label 'Arguments passés à gw (sans "gw") :' '10,17'), $txtC, $btnC,
+$tabC.Controls.AddRange(@((New-Label (T 'Arguments passés à gw (sans "gw") :') '10,17'), $txtC, $btnC,
     $btnHelp, $cmbHelpAct, $btnHelpAct))
 
 $tabs.TabPages.AddRange(@($tabL,$tabW,$tabR,$tabCv,$tabCmp,$tabAl,$tabT,$tabD,$tabC))
@@ -1384,47 +1811,48 @@ function New-BarButton($text, $width) {
     return $b
 }
 
-$btnStop = New-BarButton 'Arrêter' 105
+$btnStop = New-BarButton (T 'Arrêter') 105
 $btnStop.Enabled = $false; $btnStop.Font = $bold
 $btnStop.Add_Click({
     if ($script:GwProc -and -not $script:GwProc.HasExited) {
         try { $script:GwProc.Kill($true) } catch { try { $script:GwProc.Kill() } catch { } }
         $script:Chain.Clear()
         $script:PostWriteMode = $false
-        Append-Log '*** Interrompu par l''utilisateur ***'
+        if ($script:Cal) { $script:Cal = $null; Append-Log (T 'Calibration precomp interrompue.') }
+        Append-Log (T '*** Interrompu par l''utilisateur ***')
     }
-    if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; Append-Log 'Mesure continue arrêtée.' }
+    if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; Append-Log (T 'Mesure continue arrêtée.') }
 })
 
-$btnLogToggle = New-BarButton 'Masquer journal' 140
+$btnLogToggle = New-BarButton (T 'Masquer journal') 140
 $btnLogToggle.Add_Click({ Set-LogVisible ($split.Panel2Collapsed) })
 
-$btnClear = New-BarButton 'Effacer' 95
+$btnClear = New-BarButton (T 'Effacer') 95
 $btnClear.Add_Click({ $txtLog.Clear() })
 
-$btnSaveLog = New-BarButton 'Exporter' 100
+$btnSaveLog = New-BarButton (T 'Exporter') 100
 $btnSaveLog.Add_Click({
     $d = New-Object System.Windows.Forms.SaveFileDialog
-    $d.Filter = 'Texte|*.txt'; $d.InitialDirectory = $script:AppDir
+    $d.Filter = (T 'Texte|*.txt'); $d.InitialDirectory = $script:AppDir
     $d.FileName = "gw-log-$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
     if ($d.ShowDialog() -eq 'OK') { $txtLog.Text | Set-Content -LiteralPath $d.FileName -Encoding UTF8 }
 })
 
-$btnCfgSave = New-BarButton 'Paramètres' 115
-$btnCfgSave.Add_Click({ if (Save-Config) { Append-Log "Paramètres enregistrés : $($script:ConfigFile)" } })
+$btnCfgSave = New-BarButton (T 'Paramètres') 115
+$btnCfgSave.Add_Click({ if (Save-Config) { Append-Log ((T "Paramètres enregistrés : {0}") -f "$($script:ConfigFile)") } })
 
-$btnCfgReset = New-BarButton 'Réinitialiser' 120
+$btnCfgReset = New-BarButton (T 'Réinitialiser') 120
 $btnCfgReset.Add_Click({
     $r = [System.Windows.Forms.MessageBox]::Show(
-        "Remettre tous les paramètres de l'interface à leurs valeurs par défaut et supprimer le fichier de configuration ?`n`n(Aucun effet sur le Greaseweazle, ni sur tes fichiers image, ni sur l'index de la bibliothèque.)",
-        'Réinitialiser les paramètres', 'YesNo', 'Question')
+        (T "Remettre tous les paramètres de l'interface à leurs valeurs par défaut et supprimer le fichier de configuration ?`n`n(Aucun effet sur le Greaseweazle, ni sur tes fichiers image, ni sur l'index de la bibliothèque.)"),
+        (T 'Réinitialiser les paramètres'), 'YesNo', 'Question')
     if ($r -eq 'Yes') {
         Set-Defaults
         Update-Library
         if (Test-Path -LiteralPath $script:ConfigFile) {
-            try { Remove-Item -LiteralPath $script:ConfigFile -Force; Append-Log 'Configuration supprimée, valeurs par défaut restaurées.' }
-            catch { Append-Log "Impossible de supprimer la configuration : $($_.Exception.Message)" }
-        } else { Append-Log 'Valeurs par défaut restaurées.' }
+            try { Remove-Item -LiteralPath $script:ConfigFile -Force; Append-Log (T 'Configuration supprimée, valeurs par défaut restaurées.') }
+            catch { Append-Log ((T "Impossible de supprimer la configuration : {0}") -f "$($_.Exception.Message)") }
+        } else { Append-Log (T 'Valeurs par défaut restaurées.') }
     }
 })
 
@@ -1437,7 +1865,7 @@ $status.Font = New-Object System.Drawing.Font('Segoe UI', 9.75)
 $status.ImageScalingSize = New-Object System.Drawing.Size(18, 18)
 $status.Padding = New-Object System.Windows.Forms.Padding(6, 0, 6, 0)
 $stOp = New-Object System.Windows.Forms.ToolStripStatusLabel
-$stOp.Spring = $true; $stOp.TextAlign = 'MiddleLeft'; $stOp.Text = 'Prêt.'
+$stOp.Spring = $true; $stOp.TextAlign = 'MiddleLeft'; $stOp.Text = (T 'Prêt.')
 $stOp.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 9.75)
 $stTrack = New-Object System.Windows.Forms.ToolStripStatusLabel
 $stTrack.Text = ''; $stTrack.AutoSize = $true; $stTrack.ForeColor = $script:Theme.Accent2
@@ -1500,6 +1928,7 @@ Set-Btn $btnLibExplore 'FolderOpen'
 Set-Btn $btnWFile      'FolderOpen' -IconOnly
 Set-Btn $btnWDiskdefs  'FolderOpen' -IconOnly
 Set-Btn $btnWrite      'Save' 'primary'
+Set-Btn $btnWCalib     'Diagnostic'
 Set-Btn $btnRFile      'FolderOpen' -IconOnly
 Set-Btn $btnRDiskdefs  'FolderOpen' -IconOnly
 Set-Btn $btnRead       'Download' 'primary'
@@ -1535,10 +1964,10 @@ Set-Btn $btnClear      'Delete'
 Set-Btn $btnSaveLog    'Save'
 Set-Btn $btnCfgSave    'Setting'
 Set-Btn $btnCfgReset   'Refresh'
-$tip.SetToolTip($btnClear,   'Effacer le contenu du journal.')
-$tip.SetToolTip($btnSaveLog, 'Exporter le journal dans un fichier texte.')
-$tip.SetToolTip($btnCfgSave, 'Enregistrer maintenant tous les paramètres de l''interface.')
-$tip.SetToolTip($btnCfgReset,'Remettre les paramètres de l''interface à leurs valeurs par défaut.')
+$tip.SetToolTip($btnClear,   (T 'Effacer le contenu du journal.'))
+$tip.SetToolTip($btnSaveLog, (T 'Exporter le journal dans un fichier texte.'))
+$tip.SetToolTip($btnCfgSave, (T 'Enregistrer maintenant tous les paramètres de l''interface.'))
+$tip.SetToolTip($btnCfgReset,(T 'Remettre les paramètres de l''interface à leurs valeurs par défaut.'))
 
 # Barre d'etat : pictogramme d'etat
 $script:StIcons = @{
@@ -1557,14 +1986,14 @@ $split.BringToFront()
 
 function Set-LogVisible([bool]$visible) {
     $split.Panel2Collapsed = -not $visible
-    $btnLogToggle.Text = if ($visible) { 'Masquer journal' } else { 'Afficher journal' }
+    $btnLogToggle.Text = if ($visible) { (T 'Masquer journal') } else { (T 'Afficher journal') }
 }
 
 # ============================== BIBLIOTHEQUE : LOGIQUE =========================
 function Format-Size([long]$bytes) {
-    if ($bytes -ge 1048576) { return ('{0:N1} Mo' -f ($bytes / 1MB)) }
-    if ($bytes -ge 1024)    { return ('{0:N0} Ko' -f ($bytes / 1KB)) }
-    return "$bytes o"
+    if ($bytes -ge 1048576) { return ((T '{0:N1} Mo') -f ($bytes / 1MB)) }
+    if ($bytes -ge 1024)    { return ((T '{0:N0} Ko') -f ($bytes / 1KB)) }
+    return ((T "{0} o") -f "$bytes")
 }
 
 function Get-FileKind([string]$name) {
@@ -1588,7 +2017,7 @@ function Get-ZipEntries([string]$zipPath) {
             }
         } finally { $zip.Dispose() }
     } catch {
-        Append-Log "ZIP illisible ($([System.IO.Path]::GetFileName($zipPath))) : $($_.Exception.Message)"
+        Append-Log ((T "ZIP illisible ({0}) : {1}") -f "$([System.IO.Path]::GetFileName($zipPath))", "$($_.Exception.Message)")
     }
     return $out
 }
@@ -1604,7 +2033,7 @@ function New-LibNode([string]$text, $tagHash) {
     return $n
 }
 
-function New-Placeholder { return (New-LibNode '(chargement...)' @{ Kind='placeholder' }) }
+function New-Placeholder { return (New-LibNode (T '(chargement...)') @{ Kind='placeholder' }) }
 
 function Expand-LibNode($node) {
     if (-not $node -or -not $node.Tag) { return }
@@ -1623,7 +2052,7 @@ function Expand-LibNode($node) {
                 $list.Add((New-LibNode "$(Get-KindPrefix $e.Kind)$($e.FullName)  ($(Format-Size $e.Length))" `
                     @{ Kind='zipentry'; ZipPath=$node.Tag.Path; Entry=$e.FullName; Size=$e.Length; FileKind=$e.Kind }))
             }
-            if ($list.Count -eq 0) { $list.Add((New-LibNode '(aucune image)' @{ Kind='none' })) }
+            if ($list.Count -eq 0) { $list.Add((New-LibNode (T '(aucune image)') @{ Kind='none' })) }
             $node.Nodes.AddRange($list.ToArray())
         }
     } finally {
@@ -1649,7 +2078,7 @@ function Populate-LibDir($node) {
             $list.Add($n)
         }
     } catch {
-        Append-Log "Lecture impossible de $path : $($_.Exception.Message)"
+        Append-Log ((T "Lecture impossible de {0} : {1}") -f "$path", "$($_.Exception.Message)")
     }
     if ($list.Count -gt 0) { $node.Nodes.AddRange($list.ToArray()) }
 }
@@ -1689,7 +2118,7 @@ function Start-LibSearch([string]$root, [string]$filter, [bool]$imgOnly) {
     $script:LibPS = $ps
     $script:LibAsync = $ps.BeginInvoke()
 
-    $lblLibCount.Text = 'recherche en cours...'
+    $lblLibCount.Text = (T 'recherche en cours...')
     $btnLibFilter.Enabled = $false
     $btnLibRefresh.Enabled = $false
     $form.Cursor = [System.Windows.Forms.Cursors]::AppStarting
@@ -1698,7 +2127,7 @@ function Start-LibSearch([string]$root, [string]$filter, [bool]$imgOnly) {
 function Complete-LibSearch {
     $root = $txtLibRoot.Text
     $results = @()
-    try { $results = @($script:LibPS.EndInvoke($script:LibAsync)) } catch { Append-Log "Recherche : $($_.Exception.Message)" }
+    try { $results = @($script:LibPS.EndInvoke($script:LibAsync)) } catch { Append-Log ((T "Recherche : {0}") -f "$($_.Exception.Message)") }
     Stop-LibSearch
     $btnLibFilter.Enabled = $true
     $btnLibRefresh.Enabled = $true
@@ -1717,7 +2146,7 @@ function Complete-LibSearch {
             $list.Add($n)
         }
         if ($list.Count -gt 0) { $treeLib.Nodes.AddRange($list.ToArray()) }
-        $lblLibCount.Text = "$($list.Count) résultat(s)"
+        $lblLibCount.Text = ((T "{0} résultat(s)") -f "$($list.Count)")
     } finally { $treeLib.EndUpdate() }
 }
 
@@ -1740,18 +2169,18 @@ function Start-LibIndex([bool]$force) {
     $file = Get-LibIndexFile $root
     if (-not $force -and (Test-LibIndexReady $root)) { return }
     if (-not $force -and (Test-Path -LiteralPath $file)) {
-        try { if ([FastIndex]::Load($file, $root)) { Show-LibIndexStatus; return } } catch { Append-Log "Index illisible, reconstruction : $($_.Exception.Message)" }
+        try { if ([FastIndex]::Load($file, $root)) { Show-LibIndexStatus; return } } catch { Append-Log ((T "Index illisible, reconstruction : {0}") -f "$($_.Exception.Message)") }
     }
     [FastIndex]::StartBuild($root, $file)
     $script:LibIndexing = $true
     $btnLibReindex.Enabled = $false
-    Append-Log "Bibliothèque : indexation de $root en arrière-plan..."
+    Append-Log ((T "Bibliothèque : indexation de {0} en arrière-plan...") -f "$root")
 }
 
 function Show-LibIndexStatus {
     if (-not $script:FastIndexOk -or [FastIndex]::Count -eq 0) { return }
-    $tip.SetToolTip($lblLibCount, "Index : $([FastIndex]::Count) fichiers, construit le $([FastIndex]::Built.ToString('dd/MM/yyyy HH:mm')).")
-    if (-not $txtLibFilter.Text.Trim()) { $lblLibCount.Text = "Index : $('{0:N0}' -f [FastIndex]::Count) fichiers" }
+    $tip.SetToolTip($lblLibCount, ((T "Index : {0} fichiers, construit le {1}.") -f "$([FastIndex]::Count)", "$([FastIndex]::Built.ToString('dd/MM/yyyy HH:mm'))"))
+    if (-not $txtLibFilter.Text.Trim()) { $lblLibCount.Text = ((T "Index : {0} fichiers") -f "$('{0:N0}' -f [FastIndex]::Count)") }
 }
 
 function Show-LibIndexResults([string]$root, [string]$filter) {
@@ -1771,7 +2200,7 @@ function Show-LibIndexResults([string]$root, [string]$filter) {
         if ($list.Count -gt 0) { $treeLib.Nodes.AddRange($list.ToArray()) }
     } finally { $treeLib.EndUpdate() }
     $tot = [FastIndex]::LastTotal
-    $lblLibCount.Text = if ($tot -gt $max) { "$max premiers sur $('{0:N0}' -f $tot)" } else { "$('{0:N0}' -f $tot) résultat(s)" }
+    $lblLibCount.Text = if ($tot -gt $max) { ((T "{0} premiers sur {1}") -f "$max", "$('{0:N0}' -f $tot)") } else { ((T "{0} résultat(s)") -f "$('{0:N0}' -f $tot)") }
 }
 
 function Update-Library {
@@ -1787,8 +2216,8 @@ function Update-Library {
 
     $root = $txtLibRoot.Text
     if (-not $root -or -not (Test-Path -LiteralPath $root)) {
-        if ($root) { $lblLibCount.Text = 'racine introuvable' }
-        $txtLibInfo.Text = "Pour commencer :`r`n1. Choisis le dossier racine de tes images (bouton ...).`r`n2. Déplie l'arborescence ou utilise la recherche.`r`n3. Sélectionne une image puis « Envoyer vers Écriture »."
+        if ($root) { $lblLibCount.Text = (T 'racine introuvable') }
+        $txtLibInfo.Text = (T "Pour commencer :`r`n1. Choisis le dossier racine de tes images (bouton ...).`r`n2. Déplie l'arborescence ou utilise la recherche.`r`n3. Sélectionne une image puis « Envoyer vers Écriture ».")
         return
     }
 
@@ -1799,7 +2228,7 @@ function Update-Library {
             Start-LibIndex $false
             if (Test-LibIndexReady $root) { Show-LibIndexResults $root $filter; return }
             $script:LibPendingSearch = $true
-            $lblLibCount.Text = 'indexation en cours...'
+            $lblLibCount.Text = (T 'indexation en cours...')
             return
         }
         Start-LibSearch $root $filter ([bool]$chkLibImgOnly.Checked)
@@ -1814,7 +2243,7 @@ function Update-Library {
         [void]$treeLib.Nodes.Add($rootNode)
         Populate-LibDir $rootNode
         $rootNode.Expand()
-        $lblLibCount.Text = "$($rootNode.Nodes.Count) élément(s)"
+        $lblLibCount.Text = ((T "{0} élément(s)") -f "$($rootNode.Nodes.Count)")
     } finally { $treeLib.EndUpdate() }
     Show-LibIndexStatus
 }
@@ -1827,39 +2256,39 @@ function Show-LibSelection($node) {
     $lines = @()
     switch ($t.Kind) {
         'dir' {
-            $lines += 'Dossier'
+            $lines += (T 'Dossier')
             $lines += $t.Path
         }
         'zip' {
-            $lines += 'Archive ZIP'
+            $lines += (T 'Archive ZIP')
             $lines += "$(Format-Size $t.Size)"
             $lines += $t.Path
             $lines += ''
-            $lines += 'Déplier le nœud pour lister le contenu.'
+            $lines += (T 'Déplier le nœud pour lister le contenu.')
         }
         'zipentry' {
-            $lines += "Dans l'archive : $([System.IO.Path]::GetFileName($t.ZipPath))"
-            $lines += "Entrée  : $($t.Entry)"
-            $lines += "Taille  : $(Format-Size $t.Size)"
+            $lines += ((T "Dans l'archive : {0}") -f "$([System.IO.Path]::GetFileName($t.ZipPath))")
+            $lines += ((T "Entrée  : {0}") -f "$($t.Entry)")
+            $lines += ((T "Taille  : {0}") -f "$(Format-Size $t.Size)")
             $lines += ''
-            $lines += 'Extrait dans un dossier temporaire avant usage.'
+            $lines += (T 'Extrait dans un dossier temporaire avant usage.')
             $btnLibToWrite.Enabled = ($t.FileKind -eq 'image')
             $btnLibOpen.Enabled    = ($t.FileKind -eq 'doc')
         }
         'image' {
-            $lines += "Image disquette ($([System.IO.Path]::GetExtension($t.Path)))"
-            $lines += "Taille : $(Format-Size $t.Size)"
+            $lines += ((T "Image disquette ({0})") -f "$([System.IO.Path]::GetExtension($t.Path))")
+            $lines += ((T "Taille : {0}") -f "$(Format-Size $t.Size)")
             $lines += $t.Path
             $btnLibToWrite.Enabled = $true
         }
         'doc' {
-            $lines += "Document ($([System.IO.Path]::GetExtension($t.Path)))"
-            $lines += "Taille : $(Format-Size $t.Size)"
+            $lines += ((T "Document ({0})") -f "$([System.IO.Path]::GetExtension($t.Path))")
+            $lines += ((T "Taille : {0}") -f "$(Format-Size $t.Size)")
             $lines += $t.Path
             $btnLibOpen.Enabled = $true
         }
         default {
-            $lines += 'Fichier non pris en charge'
+            $lines += (T 'Fichier non pris en charge')
             if ($t.Path) { $lines += $t.Path }
         }
     }
@@ -1872,7 +2301,7 @@ function Expand-ZipEntry([string]$zipPath, [string]$entry) {
     $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
     try {
         $e = $zip.Entries | Where-Object { $_.FullName -eq $entry } | Select-Object -First 1
-        if (-not $e) { throw "Entrée introuvable dans l'archive : $entry" }
+        if (-not $e) { throw ((T "Entrée introuvable dans l'archive : {0}") -f "$entry") }
         [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, $dest, $true)
     } finally { $zip.Dispose() }
     return $dest
@@ -1886,10 +2315,10 @@ function Resolve-LibSelection {
         $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
         try {
             $p = Expand-ZipEntry $t.ZipPath $t.Entry
-            Append-Log "Extrait : $($t.Entry) -> $p"
+            Append-Log ((T "Extrait : {0} -> {1}") -f "$($t.Entry)", "$p")
             return @{ Path = $p; IsImage = ($t.FileKind -eq 'image') }
         } catch {
-            Append-Log "Extraction impossible : $($_.Exception.Message)"
+            Append-Log ((T "Extraction impossible : {0}") -f "$($_.Exception.Message)")
             return $null
         } finally { $form.Cursor = [System.Windows.Forms.Cursors]::Default }
     }
@@ -1907,8 +2336,8 @@ function Invoke-NextChainStep {
         & $step
     } catch {
         $script:Chain.Clear()
-        Append-Log "ERREUR étape : $($_.Exception.Message)"
-        if ($txtCmpResult.Text -like 'Comparaison en cours*') { $txtCmpResult.Text = "ÉCHEC : $($_.Exception.Message)" }
+        Append-Log ((T "ERREUR étape : {0}") -f "$($_.Exception.Message)")
+        if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : {0}") -f "$($_.Exception.Message)") }
     }
 }
 
@@ -1933,11 +2362,11 @@ function Get-SectorsPerTrack([string]$fmt) {
 function Start-Compare {
     $ref = $txtCmpRef.Text
     if (-not $ref -or -not (Test-Path -LiteralPath $ref)) {
-        [void][System.Windows.Forms.MessageBox]::Show('Image de référence introuvable.','Erreur','OK','Warning'); return
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Image de référence introuvable.'),(T 'Erreur'),'OK','Warning'); return
     }
     $fmt = $cmbCmpFmt.Text
     if (-not $fmt) {
-        [void][System.Windows.Forms.MessageBox]::Show('Choisis un format de décodage.','Erreur','OK','Warning'); return
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Choisis un format de décodage.'),(T 'Erreur'),'OK','Warning'); return
     }
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
 
@@ -1950,8 +2379,8 @@ function Start-Compare {
     $script:CmpRefName    = [System.IO.Path]::GetFileName($ref)
     $retries = [int]$numCmpRetries.Value
 
-    $txtCmpResult.Text = "Comparaison en cours...`r`nReference : $ref`r`nFormat    : $fmt"
-    Append-Log "=== Comparaison : $script:CmpRefName ($fmt) ==="
+    $txtCmpResult.Text = ((T "Comparaison en cours...`r`nReference : {0}`r`nFormat    : {1}") -f "$ref", "$fmt")
+    Append-Log ((T "=== Comparaison : {0} ({1}) ===") -f "$script:CmpRefName", "$fmt")
 
     $script:CmpRefPath = $ref
     $script:CmpRetries = $retries
@@ -1962,7 +2391,7 @@ function Start-Compare {
     if ([System.IO.Path]::GetExtension($ref).ToLower() -eq $ext) {
         $script:Chain.Enqueue({
             Copy-Item -LiteralPath $script:CmpRefPath -Destination $script:CmpRefDecoded -Force
-            Append-Log 'Référence déjà au format décodé : copiée sans conversion.'
+            Append-Log (T 'Référence déjà au format décodé : copiée sans conversion.')
             Invoke-NextChainStep
         })
     } else {
@@ -1982,8 +2411,8 @@ function Compare-Images {
     $dskPath = $script:CmpDiskRead
     $fmt     = $script:CmpFmt
     if (-not (Test-Path -LiteralPath $refPath) -or -not (Test-Path -LiteralPath $dskPath)) {
-        $txtCmpResult.Text = "ÉCHEC : un des deux fichiers décodés est absent.`r`n$refPath`r`n$dskPath"
-        Append-Log 'Comparaison impossible : fichier décodé manquant.'
+        $txtCmpResult.Text = ((T "ÉCHEC : un des deux fichiers décodés est absent.`r`n{0}`r`n{1}") -f "$refPath", "$dskPath")
+        Append-Log (T 'Comparaison impossible : fichier décodé manquant.')
         return
     }
     $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
@@ -2008,20 +2437,20 @@ function Compare-Images {
         }
 
         $lines = New-Object System.Collections.Generic.List[string]
-        $lines.Add("Référence : $($script:CmpRefName)")
-        $lines.Add("Format    : $fmt")
-        $lines.Add("Taille    : référence $($a.Length) o / disquette $($b.Length) o")
-        $lines.Add("SHA1 ref  : $ha")
-        $lines.Add("SHA1 disq : $hb")
+        $lines.Add(((T "Référence : {0}") -f "$($script:CmpRefName)"))
+        $lines.Add(((T "Format    : {0}") -f "$fmt"))
+        $lines.Add(((T "Taille    : référence {0} o / disquette {1} o") -f "$($a.Length)", "$($b.Length)"))
+        $lines.Add(((T "SHA1 ref  : {0}") -f "$ha"))
+        $lines.Add(((T "SHA1 disq : {0}") -f "$hb"))
         $lines.Add('')
         if ($ha -eq $hb) {
-            $lines.Add('RÉSULTAT : IDENTIQUE - la disquette correspond octet pour octet à la référence')
-            $lines.Add("           sur l'ensemble des pistes décodables au format $fmt.")
-            Append-Log "Comparaison : IDENTIQUE ($($a.Length) octets)"
+            $lines.Add((T 'RÉSULTAT : IDENTIQUE - la disquette correspond octet pour octet à la référence'))
+            $lines.Add(((T "           sur l'ensemble des pistes décodables au format {0}.") -f "$fmt"))
+            Append-Log ((T "Comparaison : IDENTIQUE ({0} octets)") -f "$($a.Length)")
         } else {
             $totalSectors = [Math]::Ceiling([Math]::Max($a.Length, $b.Length) / $sectorSize)
-            $lines.Add("RÉSULTAT : DIFFÉRENT - $diffBytes octet(s) sur $($diffSectors.Count) secteur(s) / $totalSectors")
-            if ($a.Length -ne $b.Length) { $lines.Add('           (tailles différentes : vérifier le format de décodage)') }
+            $lines.Add(((T "RÉSULTAT : DIFFÉRENT - {0} octet(s) sur {1} secteur(s) / {2}") -f "$diffBytes", "$($diffSectors.Count)", "$totalSectors"))
+            if ($a.Length -ne $b.Length) { $lines.Add((T '           (tailles différentes : vérifier le format de décodage)')) }
             $lines.Add('')
             $spt = Get-SectorsPerTrack $fmt
             $shown = 0
@@ -2029,39 +2458,39 @@ function Compare-Images {
             foreach ($sIdx in $diffSectors) {
                 if ($spt -gt 0) {
                     $trk = [int][Math]::Floor($sIdx / $spt); $sec = $sIdx % $spt
-                    $key = "Cyl $([int][Math]::Floor($trk / 2)) Head $($trk % 2) (piste $trk)"
+                    $key = ((T "Cyl {0} Head {1} (piste {2})") -f "$([int][Math]::Floor($trk / 2))", "$($trk % 2)", "$trk")
                     if (-not $byTrack.Contains($key)) { $byTrack[$key] = New-Object System.Collections.Generic.List[int] }
                     $byTrack[$key].Add($sec)
                 } else {
-                    if ($shown -lt 40) { $lines.Add(("secteur logique {0} (offset 0x{1:X})" -f $sIdx, ($sIdx * $sectorSize))) }
+                    if ($shown -lt 40) { $lines.Add(((T "secteur logique {0} (offset 0x{1:X})") -f $sIdx, ($sIdx * $sectorSize))) }
                     $shown++
                 }
             }
             if ($spt -gt 0) {
-                $lines.Add("Pistes en écart ($($byTrack.Count)) :")
+                $lines.Add(((T "Pistes en écart ({0}) :") -f "$($byTrack.Count)"))
                 foreach ($k in $byTrack.Keys) {
                     if ($shown -ge 60) { $lines.Add('  ...'); break }
                     $secs = $byTrack[$k]
-                    $lines.Add(("  {0,-28} secteurs : {1}" -f $k, (($secs | Sort-Object) -join ',')))
+                    $lines.Add(((T "  {0,-28} secteurs : {1}") -f $k, (($secs | Sort-Object) -join ',')))
                     $shown++
                 }
                 if ($byTrack.Count -gt 0) {
                     $lines.Add('')
-                    $lines.Add('Une piste dont TOUS les secteurs diffèrent est probablement illisible')
-                    $lines.Add('ou non-AmigaDOS (protection) ; quelques secteurs isolés = support marginal.')
+                    $lines.Add((T 'Une piste dont TOUS les secteurs diffèrent est probablement illisible'))
+                    $lines.Add((T 'ou non-AmigaDOS (protection) ; quelques secteurs isolés = support marginal.'))
                 }
-            } elseif ($shown -gt 40) { $lines.Add("  ... $($shown - 40) autre(s)") }
-            Append-Log "Comparaison : DIFFÉRENT - $diffBytes octet(s), $($diffSectors.Count) secteur(s)"
+            } elseif ($shown -gt 40) { $lines.Add(((T "  ... {0} autre(s)") -f "$($shown - 40)")) }
+            Append-Log ((T "Comparaison : DIFFÉRENT - {0} octet(s), {1} secteur(s)") -f "$diffBytes", "$($diffSectors.Count)")
         }
         $lines.Add('')
-        $lines.Add("Fichiers décodés conservés :")
+        $lines.Add((T "Fichiers décodés conservés :"))
         $lines.Add("  $refPath")
         $lines.Add("  $dskPath")
         $txtCmpResult.Text = ($lines -join "`r`n")
         $tabs.SelectedTab = $tabCmp
     } catch {
-        $txtCmpResult.Text = "ERREUR pendant la comparaison : $($_.Exception.Message)"
-        Append-Log "Comparaison : erreur $($_.Exception.Message)"
+        $txtCmpResult.Text = ((T "ERREUR pendant la comparaison : {0}") -f "$($_.Exception.Message)")
+        Append-Log ((T "Comparaison : erreur {0}") -f "$($_.Exception.Message)")
     } finally {
         $form.Cursor = [System.Windows.Forms.Cursors]::Default
     }
@@ -2070,7 +2499,7 @@ function Compare-Images {
 # ============================== ALIGNEMENT : LOGIQUE ===========================
 function Read-ScpFile([string]$path) {
     $d = [System.IO.File]::ReadAllBytes($path)
-    if ([System.Text.Encoding]::ASCII.GetString($d, 0, 3) -ne 'SCP') { throw 'Fichier SCP invalide' }
+    if ([System.Text.Encoding]::ASCII.GetString($d, 0, 3) -ne 'SCP') { throw (T 'Fichier SCP invalide') }
     $revs = $d[5]; $res = ($d[11] + 1) * 25
     $tracks = @{}
     for ($t = 0; $t -lt 168; $t++) {
@@ -2101,7 +2530,7 @@ function Start-AlignCycle {
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     $cyls = Get-AlignCyls
     if (-not $cyls -or $cyls.Count -eq 0) {
-        [void][System.Windows.Forms.MessageBox]::Show('Indique au moins un cylindre valide (0-83).','Alignement','OK','Warning')
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Indique au moins un cylindre valide (0-83).'),(T 'Alignement'),'OK','Warning')
         $script:AlignLoop = $false; return
     }
     if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
@@ -2132,7 +2561,7 @@ function Draw-AlignBars($g, $size) {
     $g.Clear([System.Drawing.Color]::White)
     $font = New-Object System.Drawing.Font('Segoe UI', 8)
     if (-not $script:AlignLast -or $script:AlignLast.Count -eq 0) {
-        $g.DrawString('Barres de score par cylindre : apparaissent après la première mesure.', $font, [System.Drawing.Brushes]::Gray, 8, 26); return
+        $g.DrawString((T 'Barres de score par cylindre : apparaissent après la première mesure.'), $font, [System.Drawing.Brushes]::Gray, 8, 26); return
     }
     $keys = @($script:AlignLast.Keys | Sort-Object { [double]$_ })
     $n = $keys.Count; $left = 44; $w = [math]::Max(10, ($size.Width - $left - 10) / $n); $h = $size.Height
@@ -2180,47 +2609,47 @@ function Update-AlignGuide([double]$avg) {
     if (-not $script:AlPosScores.ContainsKey($pos) -or $avg -lt $script:AlPosScores[$pos]) { $script:AlPosScores[$pos] = $avg }
     $bestPos = $pos; $bestScore = [double]::PositiveInfinity
     foreach ($k in $script:AlPosScores.Keys) { if ($script:AlPosScores[$k] -lt $bestScore) { $bestScore = $script:AlPosScores[$k]; $bestPos = [int]$k } }
-    $lblAlPos.Text = "Position $pos  |  meilleure position : $bestPos (score $([math]::Round($bestScore,0)))"
+    $lblAlPos.Text = ((T "Position {0}  |  meilleure position : {1} (score {2})") -f "$pos", "$bestPos", "$([math]::Round($bestScore,0))")
 
     $sens = @{ 1 = "'+'"; -1 = "'-'" }
     $color = 'DimGray'; $txt = ''
     if ($script:AlLastMove -eq 0) {
         if ($script:AlPosScores.Count -le 1) {
-            $txt = "Position 0 mesurée (score $([math]::Round($avg,0))). Tourne le stepper d'UN PETIT cran dans un sens, puis clique le bouton correspondant."
+            $txt = ((T "Position 0 mesurée (score {0}). Tourne le stepper d'UN PETIT cran dans un sens, puis clique le bouton correspondant.") -f "$([math]::Round($avg,0))")
             $color = 'RoyalBlue'
         } else {
-            $txt = "Position $pos re-mesurée. Meilleure position connue : $bestPos."
-            if ($pos -ne $bestPos) { $txt += " Reviens de $([math]::Abs($pos-$bestPos)) cran(s) vers le sens $($sens[[math]::Sign($bestPos-$pos)]) pour la retrouver." }
+            $txt = ((T "Position {0} re-mesurée. Meilleure position connue : {1}.") -f "$pos", "$bestPos")
+            if ($pos -ne $bestPos) { $txt += ((T " Reviens de {0} cran(s) vers le sens {1} pour la retrouver.") -f "$([math]::Abs($pos-$bestPos))", "$($sens[[math]::Sign($bestPos-$pos)])") }
         }
     } else {
         $prev = $pos - $script:AlLastMove
         $prevScore = if ($script:AlPosScores.ContainsKey($prev)) { $script:AlPosScores[$prev] } else { $null }
         if ($null -eq $prevScore) {
-            $txt = "Position $pos mesurée. Pas de mesure à la position précédente : impossible de conclure, continue."
+            $txt = ((T "Position {0} mesurée. Pas de mesure à la position précédente : impossible de conclure, continue.") -f "$pos")
         } elseif ($avg -lt $prevScore * 0.97) {
-            $txt = "AMÉLIORATION ($([math]::Round($prevScore,0)) -> $([math]::Round($avg,0))) : CONTINUE dans le sens $($sens[$script:AlLastMove]), encore un cran, puis mesure."
+            $txt = ((T "AMÉLIORATION ({0} -> {1}) : CONTINUE dans le sens {2}, encore un cran, puis mesure.") -f "$([math]::Round($prevScore,0))", "$([math]::Round($avg,0))", "$($sens[$script:AlLastMove])")
             $color = 'Green'
         } elseif ($avg -gt $prevScore * 1.03) {
             # le pas precedent etait-il un optimum (moins bon des deux cotes) ?
             $other = $prev - $script:AlLastMove
             $otherWorse = $script:AlPosScores.ContainsKey($other) -and ($script:AlPosScores[$other] -gt $prevScore * 1.03)
             if ($otherWorse -and $prev -eq $bestPos) {
-                $txt = "OPTIMUM TROUVÉ à la position $prev (score $([math]::Round($prevScore,0))) : RECULE d'un cran (sens $($sens[-$script:AlLastMove])), resserre les vis, re-mesure pour contrôle."
+                $txt = ((T "OPTIMUM TROUVÉ à la position {0} (score {1}) : RECULE d'un cran (sens {2}), resserre les vis, re-mesure pour contrôle.") -f "$prev", "$([math]::Round($prevScore,0))", "$($sens[-$script:AlLastMove])")
                 $color = 'DarkGreen'
             } else {
-                $txt = "DÉGRADATION ($([math]::Round($prevScore,0)) -> $([math]::Round($avg,0))) : RECULE d'un cran (sens $($sens[-$script:AlLastMove])) pour revenir à la position $prev, puis essaie l'autre sens."
+                $txt = ((T "DÉGRADATION ({0} -> {1}) : RECULE d'un cran (sens {2}) pour revenir à la position {3}, puis essaie l'autre sens.") -f "$([math]::Round($prevScore,0))", "$([math]::Round($avg,0))", "$($sens[-$script:AlLastMove])", "$prev")
                 $color = 'DarkOrange'
             }
         } else {
-            $txt = "Pas de changement net ($([math]::Round($prevScore,0)) -> $([math]::Round($avg,0))) : cran trop petit ou plateau. Encore un cran dans le sens $($sens[$script:AlLastMove])."
+            $txt = ((T "Pas de changement net ({0} -> {1}) : cran trop petit ou plateau. Encore un cran dans le sens {2}.") -f "$([math]::Round($prevScore,0))", "$([math]::Round($avg,0))", "$($sens[$script:AlLastMove])")
             $color = 'DimGray'
         }
         if ($pos -ne $bestPos -and $color -ne 'DarkGreen' -and $avg -gt $bestScore * 1.10) {
-            $txt += "  (Meilleur connu : position $bestPos.)"
+            $txt += ((T "  (Meilleur connu : position {0}.)") -f "$bestPos")
         }
     }
     $lblAlReco.Text = $txt; $lblAlReco.ForeColor = $color
-    Append-Log "Guide alignement : $txt"
+    Append-Log ((T "Guide alignement : {0}") -f "$txt")
 }
 
 function Render-AlignBars { $pnlAlBars.Invalidate() }
@@ -2233,11 +2662,11 @@ function Get-HealthLevel([double]$err, [double]$drop, [double]$stab, [double]$ji
 
 function Invoke-AlignAnalysis {
     if (-not $script:AlignTmp -or -not (Test-Path -LiteralPath $script:AlignTmp)) {
-        Append-Log 'Mesure : fichier SCP absent, analyse impossible.'; $script:AlignLoop = $false; return
+        Append-Log (T 'Mesure : fichier SCP absent, analyse impossible.'); $script:AlignLoop = $false; return
     }
-    try { $tracks = Read-ScpFile $script:AlignTmp } catch { Append-Log "Mesure : $($_.Exception.Message)"; $script:AlignLoop = $false; return }
+    try { $tracks = Read-ScpFile $script:AlignTmp } catch { Append-Log ((T "Mesure : {0}") -f "$($_.Exception.Message)"); $script:AlignLoop = $false; return }
 
-    $healthNames = @{ 0='SAIN'; 1='À SURVEILLER'; 2='CRITIQUE' }
+    $healthNames = @{ 0=(T 'SAIN'); 1=(T 'À SURVEILLER'); 2=(T 'CRITIQUE') }
     $healthColor = @{ 0=$script:AlColors[0]; 1=$script:AlColors[2]; 2=$script:AlColors[3] }
     $last = @{}; $watch = @(); $crit = @(); $hardTracks = @()
     $lvAl.BeginUpdate()
@@ -2252,11 +2681,11 @@ function Invoke-AlignAnalysis {
             $it = New-Object System.Windows.Forms.ListViewItem($lab)
             $it.UseItemStyleForSubItems = $false
             if ($bad) {
-                foreach ($v in @('ILLISIBLE','-','-','-','-','-','-','-','-')) { [void]$it.SubItems.Add([string]$v) }
+                foreach ($v in @((T 'ILLISIBLE'),'-','-','-','-','-','-','-','-')) { [void]$it.SubItems.Add([string]$v) }
                 $it.SubItems[1].BackColor = $script:AlColors[3]; $it.SubItems[1].ForeColor = [System.Drawing.Color]::White; $it.SubItems[1].Font = $bold
                 [void]$lvAl.Items.Add($it)
                 $last[$key] = @{ Score = 9999; Jitter = 0; Asym = 0; Err = 0; Stab = 0; Cell = 0 }
-                $crit += "$lab (illisible)"; continue
+                $crit += ((T "{0} (illisible)") -f "$lab"); continue
             }
             $j   = ($st | Measure-Object -Property Jitter -Average).Average
             $r3  = ($st | Measure-Object -Property R3 -Average).Average
@@ -2271,9 +2700,9 @@ function Invoke-AlignAnalysis {
             if (-not $script:AlignBest.ContainsKey($key) -or $sc -lt $script:AlignBest[$key]) { $script:AlignBest[$key] = $sc }
             $last[$key] = @{ Score = $sc; Jitter = $j; Asym = $asym; Err = $ooc; Stab = $stab; Cell = $cell }
             $hl = Get-HealthLevel $ooc $dr $stab $j
-            if ($hl -eq 1) { $watch += $lab } elseif ($hl -eq 2) { $crit += "$lab ($([math]::Round($ooc,0)) err/tour)" }
+            if ($hl -eq 1) { $watch += $lab } elseif ($hl -eq 2) { $crit += ((T "{0} ({1} err/tour)") -f "$lab", "$([math]::Round($ooc,0))") }
             $retryMark = ''
-            if ($script:PostWriteMode -and $script:WriteRetries.ContainsKey($key)) { $retryMark = " (retries x$($script:WriteRetries[$key]))"; $hardTracks += @{ Key = $key; Level = $hl } }
+            if ($script:PostWriteMode -and $script:WriteRetries.ContainsKey($key)) { $retryMark = ((T " (retries x{0})") -f "$($script:WriteRetries[$key])"); $hardTracks += @{ Key = $key; Level = $hl } }
 
             $delta = '-'; $deltaLvl = -1
             if ($script:AlignRef -and $script:AlignRef.ContainsKey($key) -and $script:AlignRef[$key].Score -gt 0) {
@@ -2298,30 +2727,30 @@ function Invoke-AlignAnalysis {
 
         # --- Verdict 1 : etat du support
         if ($crit.Count -gt 0) {
-            $lblAlHealth.Text = "SUPPORT CRITIQUE  -  $($crit.Count) piste(s) en erreur : $($crit -join ', ')   ->  dump flux immédiat conseillé"
+            $lblAlHealth.Text = ((T "SUPPORT CRITIQUE  -  {0} piste(s) en erreur : {1}   ->  dump flux immédiat conseillé") -f "$($crit.Count)", "$($crit -join ', ')")
             $lblAlHealth.BackColor = $script:AlColors[3]; $lblAlHealth.ForeColor = $script:AlFg[3]
         } elseif ($watch.Count -gt 0) {
-            $lblAlHealth.Text = "SUPPORT À SURVEILLER  -  $($watch.Count)/$nTracks piste(s) marginale(s) : $($watch -join ', ')   ->  dump flux recommandé"
+            $lblAlHealth.Text = ((T "SUPPORT À SURVEILLER  -  {0}/{1} piste(s) marginale(s) : {2}   ->  dump flux recommandé") -f "$($watch.Count)", "$nTracks", "$($watch -join ', ')")
             $lblAlHealth.BackColor = $script:AlColors[2]; $lblAlHealth.ForeColor = $script:AlFg[2]
         } else {
-            $lblAlHealth.Text = "SUPPORT SAIN  -  $nTracks/$nTracks pistes propres (erreurs, trous, stabilité, jitter dans les normes)"
+            $lblAlHealth.Text = ((T "SUPPORT SAIN  -  {0}/{1} pistes propres (erreurs, trous, stabilité, jitter dans les normes)") -f "$nTracks", "$nTracks")
             $lblAlHealth.BackColor = $script:AlColors[0]; $lblAlHealth.ForeColor = $script:AlFg[0]
         }
         if ($script:PostWriteMode) {
             if ($script:WriteRetries.Count -eq 0) {
-                $lblAlHealth.Text = "CONTRÔLE POST-ÉCRITURE : " + $lblAlHealth.Text + "  (aucun retry à l'écriture)"
+                $lblAlHealth.Text = (T "CONTRÔLE POST-ÉCRITURE : ") + $lblAlHealth.Text + (T "  (aucun retry à l'écriture)")
             } else {
                 $badHard = @($hardTracks | Where-Object { $_.Level -ge 1 } | ForEach-Object { $_.Key })
                 if ($badHard.Count -eq 0) {
-                    $lblAlHealth.Text = "CONTRÔLE POST-ÉCRITURE : pistes difficiles ($(($hardTracks | ForEach-Object { $_.Key }) -join ', ')) relues SAINES  -  " + $lblAlHealth.Text
+                    $lblAlHealth.Text = ((T "CONTRÔLE POST-ÉCRITURE : pistes difficiles ({0}) relues SAINES  -  ") -f "$(($hardTracks | ForEach-Object { $_.Key }) -join ', ')") + $lblAlHealth.Text
                 } else {
-                    $lblAlHealth.Text = "CONTRÔLE POST-ÉCRITURE : pistes difficiles encore marginales : $($badHard -join ', ')  ->  réécrire sur un autre support"
+                    $lblAlHealth.Text = ((T "CONTRÔLE POST-ÉCRITURE : pistes difficiles encore marginales : {0}  ->  réécrire sur un autre support") -f "$($badHard -join ', ')")
                     $lblAlHealth.BackColor = $script:AlColors[3]; $lblAlHealth.ForeColor = $script:AlFg[3]
                 }
             }
             $script:PostWriteMode = $false
         }
-        Append-Log "Mesure : $($lblAlHealth.Text)"
+        Append-Log ((T "Mesure : {0}") -f "$($lblAlHealth.Text)")
 
         # --- Verdict 2 : score de lecture
         if ($count -gt 0) {
@@ -2329,21 +2758,21 @@ function Invoke-AlignAnalysis {
             if (-not $script:AlignBest.ContainsKey('_global') -or $avg -lt $script:AlignBest['_global']) { $script:AlignBest['_global'] = $avg }
             $trend = ''
             if ($null -ne $script:AlignPrev) {
-                if ($avg -lt $script:AlignPrev - 2) { $trend = '   MIEUX (v)' } elseif ($avg -gt $script:AlignPrev + 2) { $trend = '   MOINS BIEN (^)' } else { $trend = '   stable' }
+                if ($avg -lt $script:AlignPrev - 2) { $trend = (T '   MIEUX (v)') } elseif ($avg -gt $script:AlignPrev + 2) { $trend = (T '   MOINS BIEN (^)') } else { $trend = (T '   stable') }
             }
             $script:AlignPrev = $avg
             $lvlAvg = Get-AlLevel 'score' $avg
             $refTxt = ''
             if ($script:AlignRef) {
                 $refScores = @($script:AlignRef.Values | ForEach-Object { $_.Score } | Where-Object { $_ -lt 9999 })
-                if ($refScores.Count -gt 0) { $refAvg = [math]::Round(($refScores | Measure-Object -Average).Average, 0); $refTxt = "   |   référence $refAvg" }
+                if ($refScores.Count -gt 0) { $refAvg = [math]::Round(($refScores | Measure-Object -Average).Average, 0); $refTxt = ((T "   |   référence {0}") -f "$refAvg") }
             }
-            $lblAlVerdict.Text = "Qualité de lecture : score $avg - $($script:AlNames[$lvlAvg])$trend$refTxt   |   meilleur $($script:AlignBest['_global'])"
+            $lblAlVerdict.Text = ((T "Qualité de lecture : score {0} - {1}{2}{3}   |   meilleur {4}") -f "$avg", "$($script:AlNames[$lvlAvg])", "$trend", "$refTxt", "$($script:AlignBest['_global'])")
             $lblAlVerdict.BackColor = $script:AlColors[$lvlAvg]; $lblAlVerdict.ForeColor = $script:AlFg[$lvlAvg]
-            Append-Log "Mesure : score moyen $avg ($($script:AlNames[$lvlAvg]))$trend"
+            Append-Log ((T "Mesure : score moyen {0} ({1}){2}") -f "$avg", "$($script:AlNames[$lvlAvg])", "$trend")
             Update-AlignGuide $avg
         } else {
-            $lblAlVerdict.Text = 'Aucune piste analysable'; $lblAlVerdict.BackColor = $script:AlColors[3]; $lblAlVerdict.ForeColor = $script:AlFg[3]
+            $lblAlVerdict.Text = (T 'Aucune piste analysable'); $lblAlVerdict.BackColor = $script:AlColors[3]; $lblAlVerdict.ForeColor = $script:AlFg[3]
         }
     } finally { $lvAl.EndUpdate() }
     Render-AlignBars
@@ -2359,7 +2788,7 @@ function Get-BE32([byte[]]$b, [int]$o) {
 # IPF : mediane des bits par piste (enregistrements IMGE) -> cellule nominale a 300 tr/min
 function Get-IpfCellInfo([string]$path) {
     $d = [System.IO.File]::ReadAllBytes($path)
-    if ([System.Text.Encoding]::ASCII.GetString($d, 0, 4) -ne 'CAPS') { throw 'Signature IPF absente' }
+    if ([System.Text.Encoding]::ASCII.GetString($d, 0, 4) -ne 'CAPS') { throw (T 'Signature IPF absente') }
     $bits = New-Object System.Collections.Generic.List[int64]; $dos = 0; $n = 0
     $pos = 0
     while ($pos + 12 -le $d.Length) {
@@ -2375,16 +2804,16 @@ function Get-IpfCellInfo([string]$path) {
         }
         $pos += $ln
     }
-    if ($bits.Count -eq 0) { throw 'Aucune piste formatée dans l''IPF' }
+    if ($bits.Count -eq 0) { throw (T 'Aucune piste formatée dans l''IPF') }
     $sorted = $bits | Sort-Object
     $med = [int64]$sorted[[int]($sorted.Count / 2)]
-    return @{ CellNs = [double](200000000.0 / $med); Bits = $med; Tracks = $n; DosTracks = $dos; Source = 'IPF (bits par piste)' }
+    return @{ CellNs = [double](200000000.0 / $med); Bits = $med; Tracks = $n; DosTracks = $dos; Source = (T 'IPF (bits par piste)') }
 }
 
 # SCP : cellule mesuree sur les premieres pistes presentes (revolution 0)
 function Get-ScpCellInfo([string]$path) {
     $d = [System.IO.File]::ReadAllBytes($path)
-    if ([System.Text.Encoding]::ASCII.GetString($d, 0, 3) -ne 'SCP') { throw 'Signature SCP absente' }
+    if ([System.Text.Encoding]::ASCII.GetString($d, 0, 3) -ne 'SCP') { throw (T 'Signature SCP absente') }
     $res = ($d[11] + 1) * 25; $cells = @(); $t = 0
     while ($t -lt 168 -and $cells.Count -lt 4) {
         $o = [BitConverter]::ToUInt32($d, 16 + 4 * $t); $t++
@@ -2394,26 +2823,26 @@ function Get-ScpCellInfo([string]$path) {
         $st = [ScpStats]::Analyze($flux, 0)
         if (-not [double]::IsNaN($st.Cell)) { $cells += $st.Cell }
     }
-    if ($cells.Count -eq 0) { throw 'Aucune piste analysable dans le SCP' }
+    if ($cells.Count -eq 0) { throw (T 'Aucune piste analysable dans le SCP') }
     $avg = ($cells | Measure-Object -Average).Average
-    return @{ CellNs = $avg; Bits = [int64](200000000.0 / $avg); Tracks = $cells.Count; DosTracks = -1; Source = 'SCP (flux mesuré)' }
+    return @{ CellNs = $avg; Bits = [int64](200000000.0 / $avg); Tracks = $cells.Count; DosTracks = -1; Source = (T 'SCP (flux mesuré)') }
 }
 
 # HFE : debit binaire declare dans l en-tete (kbit/s) -> cellule = 500 000 / debit
 function Get-HfeCellInfo([string]$path) {
     $fs = [System.IO.File]::OpenRead($path)
     try { $h = New-Object byte[] 32; [void]$fs.Read($h, 0, 32) } finally { $fs.Dispose() }
-    if ([System.Text.Encoding]::ASCII.GetString($h, 0, 8) -notmatch '^HXCPICFE|^HXCHFEV3') { throw 'Signature HFE absente' }
+    if ([System.Text.Encoding]::ASCII.GetString($h, 0, 8) -notmatch '^HXCPICFE|^HXCHFEV3') { throw (T 'Signature HFE absente') }
     $rate = [BitConverter]::ToUInt16($h, 24)
-    if ($rate -le 0) { throw 'Débit HFE nul' }
-    return @{ CellNs = [double](500000.0 / $rate); Bits = [int64](200000000.0 / (500000.0 / $rate)); Tracks = -1; DosTracks = -1; Source = "HFE (débit $rate kbit/s)" }
+    if ($rate -le 0) { throw (T 'Débit HFE nul') }
+    return @{ CellNs = [double](500000.0 / $rate); Bits = [int64](200000000.0 / (500000.0 / $rate)); Tracks = -1; DosTracks = -1; Source = ((T "HFE (débit {0} kbit/s)") -f "$rate") }
 }
 
 function Update-PrecompForImage([string]$path) {
     $mode = $cmbWProfile.Text
-    if ($mode -eq 'Manuel') { $lblWProfileInfo.Text = 'Profil manuel : --precomp non modifié.'; return }
-    if ($mode -eq 'Standard 2 us')      { $txtWPrecomp.Text = $script:PrecompStd;  $chkWPrecomp.Checked = $true; $lblWProfileInfo.Text = "Profil forcé : standard 2 us ($($script:PrecompStd))"; return }
-    if ($mode -eq 'Long track 1,89 us') { $txtWPrecomp.Text = $script:PrecompLong; $chkWPrecomp.Checked = $true; $lblWProfileInfo.Text = "Profil forcé : long track ($($script:PrecompLong))"; return }
+    if ($mode -eq (T 'Manuel')) { $lblWProfileInfo.Text = (T 'Profil manuel : --precomp non modifié.'); return }
+    if ($mode -eq (T 'Standard 2 us'))      { $txtWPrecomp.Text = $script:PrecompStd;  $chkWPrecomp.Checked = $true; $lblWProfileInfo.Text = ((T "Profil forcé : standard 2 us ({0})") -f "$($script:PrecompStd)"); return }
+    if ($mode -eq (T 'Long track 1,89 us')) { $txtWPrecomp.Text = $script:PrecompLong; $chkWPrecomp.Checked = $true; $lblWProfileInfo.Text = ((T "Profil forcé : long track ({0})") -f "$($script:PrecompLong)"); return }
     # Auto
     if (-not $path -or -not (Test-Path -LiteralPath $path)) { $lblWProfileInfo.Text = ''; return }
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
@@ -2424,20 +2853,259 @@ function Update-PrecompForImage([string]$path) {
             '.scp' { if ($script:ScpStatsOk) { $info = Get-ScpCellInfo $path } }
             '.hfe' { $info = Get-HfeCellInfo $path }
         }
-    } catch { Append-Log "Détection du profil impossible ($ext) : $($_.Exception.Message)"; $info = $null }
+    } catch { Append-Log ((T "Détection du profil impossible ({0}) : {1}") -f "$ext", "$($_.Exception.Message)"); $info = $null }
     if ($null -eq $info) {
         # formats secteur (ADF, IMG, ST...) : cellule standard par definition
         $txtWPrecomp.Text = $script:PrecompStd; $chkWPrecomp.Checked = $true
-        $lblWProfileInfo.Text = "Auto : image secteur ($ext) -> standard 2 us ($($script:PrecompStd))"
+        $lblWProfileInfo.Text = ((T "Auto : image secteur ({0}) -> standard 2 us ({1})") -f "$ext", "$($script:PrecompStd)")
         return
     }
     $long = $info.CellNs -lt $script:PrecompThresholdNs
     $txtWPrecomp.Text = if ($long) { $script:PrecompLong } else { $script:PrecompStd }
     $chkWPrecomp.Checked = $true
-    $detail = "cellule $([math]::Round($info.CellNs,0)) ns, $($info.Bits) bits/piste"
-    if ($info.DosTracks -ge 0 -and $info.Tracks -gt 0) { $detail += ", $($info.DosTracks)/$($info.Tracks) pistes DOS" }
-    $lblWProfileInfo.Text = "Auto : $($info.Source) : $detail -> " + $(if ($long) { "LONG TRACK ($($script:PrecompLong))" } else { "standard 2 us ($($script:PrecompStd))" })
-    Append-Log "Profil precomp : $($lblWProfileInfo.Text)"
+    $detail = ((T "cellule {0} ns, {1} bits/piste") -f "$([math]::Round($info.CellNs,0))", "$($info.Bits)")
+    if ($info.DosTracks -ge 0 -and $info.Tracks -gt 0) { $detail += ((T ", {0}/{1} pistes DOS") -f "$($info.DosTracks)", "$($info.Tracks)") }
+    $lblWProfileInfo.Text = ((T "Auto : {0} : {1} -> ") -f "$($info.Source)", "$detail") + $(if ($long) { ((T "LONG TRACK ({0})") -f "$($script:PrecompLong)") } else { ((T "standard 2 us ({0})") -f "$($script:PrecompStd)") })
+    Append-Log ((T "Profil precomp : {0}") -f "$($lblWProfileInfo.Text)")
+}
+
+# ============================== CALIBRATION PRECOMP ============================
+# Principe : chaque passe ecrit TOUS les cylindres de test de l image avec une meme
+# valeur de precomp (une commande gw write, --precomp 0=V), les relit en flux (gw read,
+# 3 tours) et note chaque cylindre : jitter des intervalles 2T + asymetrie des classes
+# 3T/4T + intervalles hors classe, moyenne des deux faces ; plus bas = transitions
+# mieux placees. Passes grossieres 0..250 ns par pas de 50, puis passes fines par pas
+# de 10 (20 si trop nombreuses) autour des meilleures valeurs. Pour chaque cylindre la
+# meilleure valeur est retenue ; la courbe est lissee en croissante (la precomp
+# necessaire augmente vers l interieur), arrondie a 10 ns et convertie en seuils c=ns.
+# Le profil remplace celui de la famille de l image (standard 2 us / long track) et
+# est enregistre dans la configuration : le mode Auto l applique ensuite.
+# Test standard : un cylindre sur 10 plus le dernier ; test fin : tous les cylindres.
+# Cylindres deduits de l image (ADF : taille ; IPF : enregistrements IMGE ; HFE :
+# en-tete), 80 par defaut. gw n applique la precomp qu aux pistes a bits (images
+# secteur ou bitcell), jamais aux flux SCP/RAW.
+$script:Cal = $null
+$script:CalCoarse = @(0, 50, 100, 150, 200, 250)
+
+function Get-ImageCylinders([string]$path) {
+    # Nombre de cylindres de l image, $null si non determinable
+    $ext = [System.IO.Path]::GetExtension($path).ToLower()
+    try {
+        switch ($ext) {
+            '.adf' {
+                $len = (Get-Item -LiteralPath $path).Length
+                if ($len % 11264 -eq 0) {                                   # 11264 = 2 faces x 11 secteurs x 512 (DD)
+                    $c = $len / 11264
+                    if ($c -gt 84 -and $len % 22528 -eq 0) { $c = $len / 22528 }   # HD : 22 secteurs
+                    return [int]$c
+                }
+            }
+            '.ipf' {
+                $d = [System.IO.File]::ReadAllBytes($path); $max = -1; $pos = 0
+                while ($pos + 12 -le $d.Length) {
+                    $id = [System.Text.Encoding]::ASCII.GetString($d, $pos, 4); $ln = Get-BE32 $d ($pos + 4)
+                    if ($ln -lt 12) { break }
+                    if ($id -eq 'IMGE' -and $pos + 16 -le $d.Length) {
+                        $t = Get-BE32 $d ($pos + 12)                       # champ track = cylindre
+                        if ($t -gt $max -and $t -lt 200) { $max = $t }
+                    } elseif ($id -eq 'DATA' -and $pos + 16 -le $d.Length) { $ln += Get-BE32 $d ($pos + 12) }
+                    $pos += $ln
+                }
+                if ($max -ge 0) { return [int]($max + 1) }
+            }
+            '.hfe' {
+                $fs = [System.IO.File]::OpenRead($path)
+                try { $h = New-Object byte[] 16; [void]$fs.Read($h, 0, 16) } finally { $fs.Dispose() }
+                if ($h[9] -gt 0) { return [int]$h[9] }                     # number_of_track
+            }
+        }
+    } catch { }
+    return $null
+}
+
+function Get-ImageFamily([string]$path) {
+    # 'long' si la cellule de l image est sous le seuil (long tracks), 'std' sinon : meme logique que le mode Auto
+    $ext = [System.IO.Path]::GetExtension($path).ToLower()
+    $info = $null
+    try {
+        switch ($ext) {
+            '.ipf' { $info = Get-IpfCellInfo $path }
+            '.hfe' { $info = Get-HfeCellInfo $path }
+        }
+    } catch { $info = $null }
+    if ($null -ne $info -and $info.CellNs -lt $script:PrecompThresholdNs) { return 'long' }
+    return 'std'
+}
+
+function Format-CylList([int[]]$cyls) {
+    $s = @($cyls | Sort-Object -Unique)
+    $contig = $true
+    for ($i = 1; $i -lt $s.Count; $i++) { if ($s[$i] -ne $s[$i - 1] + 1) { $contig = $false; break } }
+    if ($contig -and $s.Count -gt 1) { return "$($s[0])-$($s[-1])" }
+    return ($s -join ',')
+}
+
+function Get-CalibTrackScore($st) {
+    # $st : liste de ScpRev (un par tour) ; 9999 = piste illisible
+    foreach ($x in $st) { if ([double]::IsNaN($x.Jitter) -or [double]::IsNaN($x.R3) -or [double]::IsNaN($x.R4)) { return 9999 } }
+    $j   = ($st | Measure-Object -Property Jitter -Average).Average
+    $r3  = ($st | Measure-Object -Property R3 -Average).Average
+    $r4  = ($st | Measure-Object -Property R4 -Average).Average
+    $ooc = ($st | Measure-Object -Property OutOfClass -Average).Average
+    return ($j + 2000 * ([math]::Abs($r3 - 1.5) + [math]::Abs($r4 - 2.0)) + 5 * $ooc)
+}
+
+function Get-CalibFamilyName([string]$family) {
+    if ($family -eq 'long') { return (T 'Long track 1,89 us') }
+    return (T 'Standard 2 us')
+}
+
+function Start-PrecompCalib {
+    if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
+    $script:Cal = $null
+    if (-not $script:ScpStatsOk) {
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Calibration : module d''analyse SCP indisponible (Add-Type).'),(T 'Calibration precomp'),'OK','Warning'); return
+    }
+    if (-not (Test-Path -LiteralPath $script:GwExe)) {
+        [void][System.Windows.Forms.MessageBox]::Show(((T "gw.exe introuvable : {0}`n`nPlace ce script dans le même répertoire que gw.exe.") -f "$($script:GwExe)"),(T 'Erreur'),'OK','Error'); return
+    }
+    $img = $txtWFile.Text
+    if (-not $img -or -not (Test-Path -LiteralPath $img)) {
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Choisis d''abord l''image à écrire : ses pistes servent de motif de test.'),(T 'Calibration precomp'),'OK','Warning'); return
+    }
+    $ext = [System.IO.Path]::GetExtension($img).ToLower()
+    if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) {
+        [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration impossible sur un flux ({0}) : gw n'applique la précompensation qu'aux images à bits ou secteurs (ADF, IPF, HFE, IMG...).") -f "$ext"),(T 'Calibration precomp'),'OK','Warning'); return
+    }
+    $family = Get-ImageFamily $img
+    $nCyl = Get-ImageCylinders $img
+    $cylSrc = if ($null -ne $nCyl) { ((T "{0} cylindres d'après l'image") -f "$nCyl") } else { (T '80 cylindres par défaut (nombre non lisible dans l''image)') }
+    if ($null -eq $nCyl) { $nCyl = 80 }
+    $nCyl = [math]::Max(2, [math]::Min(84, [int]$nCyl))
+    $maxCyl = $nCyl - 1
+    $fine = ($cmbWCalMode.SelectedIndex -eq 1)
+    if ($fine) { $cyls = @(0..$maxCyl) }
+    else { $cyls = @(0..$maxCyl | Where-Object { $_ % 10 -eq 0 }); if ($cyls -notcontains $maxCyl) { $cyls += $maxCyl } }
+    $cyls = @($cyls | Sort-Object -Unique)
+    $nPassEst = $script:CalCoarse.Count + 8
+    $minutes = [math]::Max(1, [math]::Round($cyls.Count * 2 * 1.4 * $nPassEst / 60, 0))
+    $modeTxt = if ($fine) { (T 'test fin, tous les cylindres') } else { (T 'test standard, un cylindre sur 10') }
+    $famTxt = Get-CalibFamilyName $family
+    $cylList = Format-CylList $cyls
+    $r = [System.Windows.Forms.MessageBox]::Show(
+        ((T "Calibration de la précompensation sur le lecteur {0} ({1}).`n`nImage : {2}, famille {3}, {4}.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes.`n`nInsère une disquette vierge ou sans valeur, puis confirme.") -f "$($cmbDrive.Text)", "$modeTxt", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$cylSrc", "$cylList", "$minutes", "$nPassEst"),
+        (T 'Calibration precomp'), 'OKCancel', 'Warning')
+    if ($r -ne 'OK') { return }
+    if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
+    $script:Cal = @{
+        Mode = $(if ($fine) { 'fine' } else { 'std' }); Cyls = $cyls; MaxCyl = $maxCyl; Family = $family
+        Image = $img; Drive = $cmbDrive.Text; TSpec = "c=${cylList}:h=0-1"
+        Stage = 'coarse'; Values = @($script:CalCoarse); Index = 0; Value = 0; Results = @{}
+        Scp = (Join-Path $script:TempDir 'precomp-calib.scp'); WriteArgs = @(); ReadArgs = @()
+    }
+    foreach ($c in $cyls) { $script:Cal.Results[[int]$c] = @{} }
+    Append-Log ((T "=== Calibration precomp : lecteur {0}, image {1} ({2}, {3}) ===") -f "$($cmbDrive.Text)", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$modeTxt")
+    Append-Log ((T "Cylindres de test : {0} ({1})") -f "$cylList", "$cylSrc")
+    New-CalibPass
+}
+
+function New-CalibPass {
+    $cal = $script:Cal
+    $cal.Value = [int]$cal.Values[$cal.Index]
+    if (Test-Path -LiteralPath $cal.Scp) { Remove-Item -LiteralPath $cal.Scp -Force }
+    $cal.WriteArgs = @('write') + (Get-CommonArgs) + @('--pre-erase', '--no-verify') + (Get-WriteFormatArgs) + @("--tracks=$($cal.TSpec)", '--precomp', "0=$($cal.Value)", "`"$($cal.Image)`"")
+    $cal.ReadArgs  = @('read') + (Get-CommonArgs) + @('--revs=3', "--tracks=$($cal.TSpec)", "`"$($cal.Scp)`"")
+    $stageTxt = if ($cal.Stage -eq 'coarse') { (T 'grossière') } else { (T 'fine') }
+    Append-Log ((T "Calibration : passe {0} {1}/{2}, precomp {3} ns") -f "$stageTxt", "$($cal.Index + 1)", "$($cal.Values.Count)", "$($cal.Value)")
+    $script:Chain.Clear()
+    $script:Chain.Enqueue({ Start-Gw $script:Cal.WriteArgs })
+    $script:Chain.Enqueue({ Start-Gw $script:Cal.ReadArgs })
+    $script:Chain.Enqueue({ Invoke-CalibAnalysis })
+    Invoke-NextChainStep
+}
+
+function Invoke-CalibAnalysis {
+    $cal = $script:Cal
+    if (-not $cal) { return }
+    if (-not (Test-Path -LiteralPath $cal.Scp)) { Append-Log (T 'Calibration : fichier SCP absent, analyse impossible.'); $script:Cal = $null; return }
+    try { $tracks = Read-ScpFile $cal.Scp } catch { Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)"); $script:Cal = $null; return }
+    $v = [int]$cal.Value; $sum = 0.0; $n = 0; $bad = @()
+    foreach ($c in $cal.Cyls) {
+        $scores = @()
+        foreach ($h in 0, 1) {
+            $tn = [int]$c * 2 + $h
+            if ($tracks.ContainsKey($tn)) { $scores += (Get-CalibTrackScore $tracks[$tn]) } else { $scores += 9999 }
+        }
+        $sc = [math]::Round(($scores | Measure-Object -Average).Average, 0)
+        if ($sc -ge 9999) { $bad += $c; continue }
+        $cal.Results[[int]$c][$v] = $sc; $sum += $sc; $n++
+    }
+    $avgTxt = if ($n -gt 0) { "$([math]::Round($sum / $n, 0))" } else { '-' }
+    $badTxt = if ($bad.Count -gt 0) { ((T ", illisibles : {0}") -f "$($bad -join ',')") } else { '' }
+    Append-Log ((T "  {0} ns : score moyen {1} sur {2} cylindre(s){3}") -f "$v", "$avgTxt", "$n", "$badTxt")
+    $cal.Index++
+    if ($cal.Index -lt $cal.Values.Count) { New-CalibPass; return }
+    if ($cal.Stage -eq 'coarse') {
+        $bests = @()
+        foreach ($c in $cal.Cyls) {
+            $r = $cal.Results[[int]$c]
+            if ($r.Count -gt 0) { $bests += [int](($r.GetEnumerator() | Sort-Object Value, Key | Select-Object -First 1).Key) }
+        }
+        if ($bests.Count -gt 0) {
+            $lo = [math]::Max(0, ($bests | Measure-Object -Minimum).Minimum - 30)
+            $hi = ($bests | Measure-Object -Maximum).Maximum + 30
+            $measured = @($cal.Values)
+            $cands = @(); for ($x = $lo; $x -le $hi; $x += 10) { if ($measured -notcontains $x) { $cands += $x } }
+            if ($cands.Count -gt 10) { $cands = @($cands | Where-Object { $_ % 20 -eq 0 }) }
+            if ($cands.Count -gt 0) {
+                $cal.Stage = 'fine'; $cal.Values = $cands; $cal.Index = 0
+                Append-Log ((T "Passes fines : {0} valeur(s) entre {1} et {2} ns") -f "$($cands.Count)", "$($cands[0])", "$($cands[-1])")
+                New-CalibPass; return
+            }
+        }
+    }
+    Complete-PrecompCalib
+}
+
+function Complete-PrecompCalib {
+    $cal = $script:Cal; $script:Cal = $null
+    if (-not $cal) { return }
+    $xs = @(); $ys = @()
+    foreach ($c in $cal.Cyls) {
+        $r = $cal.Results[[int]$c]
+        if ($r.Count -eq 0) { continue }
+        $xs += [int]$c; $ys += [int](($r.GetEnumerator() | Sort-Object Value, Key | Select-Object -First 1).Key)
+    }
+    if ($xs.Count -eq 0) { Append-Log (T 'Calibration precomp : aucune mesure exploitable, profil inchangé.'); return }
+    Append-Log ((T "Meilleure valeur par cylindre : {0}") -f "$((@(0..($xs.Count - 1) | ForEach-Object { "c$($xs[$_])=$($ys[$_])" })) -join ' ')")
+    # Lissage croissant (pool adjacent violators) : la precomp necessaire ne diminue pas vers l interieur
+    $blocks = New-Object System.Collections.Generic.List[object]
+    foreach ($y in $ys) {
+        $blocks.Add(@{ Sum = [double]$y; Count = 1 })
+        while ($blocks.Count -ge 2) {
+            $a = $blocks[$blocks.Count - 2]; $b = $blocks[$blocks.Count - 1]
+            if ($a.Sum / $a.Count -le $b.Sum / $b.Count) { break }
+            $blocks.RemoveAt($blocks.Count - 1); $blocks.RemoveAt($blocks.Count - 1)
+            $blocks.Add(@{ Sum = $a.Sum + $b.Sum; Count = $a.Count + $b.Count })
+        }
+    }
+    $smooth = @()
+    foreach ($b in $blocks) { $m = [int]([math]::Round($b.Sum / $b.Count / 10.0, 0) * 10); for ($k = 0; $k -lt $b.Count; $k++) { $smooth += $m } }
+    # Seuils : une entree a chaque changement de valeur ; la premiere zone commence a 0
+    $parts = @(); $prev = $null
+    for ($i = 0; $i -lt $xs.Count; $i++) {
+        if ($null -eq $prev -or $smooth[$i] -ne $prev) { $parts += "$($xs[$i])=$($smooth[$i])"; $prev = $smooth[$i] }
+    }
+    if ($xs[0] -ne 0) { $parts[0] = "0=$($smooth[0])" }
+    $spec = $parts -join ':'
+    $famTxt = Get-CalibFamilyName $cal.Family
+    if ($cal.Family -eq 'long') { $script:PrecompLong = $spec } else { $script:PrecompStd = $spec }
+    $cmbWProfile.SelectedIndex = 0                 # Auto : applique le profil de la famille de l image
+    Update-PrecompForImage $txtWFile.Text
+    $lblWProfileInfo.Text = ((T "Profil {0} calibré le {1} sur le lecteur {2} : {3}") -f "$famTxt", "$(Get-Date -Format 'dd/MM/yyyy HH:mm')", "$($cal.Drive)", "$spec")
+    Append-Log ((T "Calibration terminée : profil {0} = {1}") -f "$famTxt", "$spec")
+    Append-Log ((T "Profil enregistré dans la configuration et appliqué par le mode Auto à toute image {0}.") -f "$famTxt")
+    [void](Save-Config)
 }
 
 # --- Configuration -------------------------------------------------------------
@@ -2463,6 +3131,7 @@ function Set-Defaults {
     $txtWPrecomp.Text = $script:PrecompStd
     $chkWPostCheck.Checked = $true
     $cmbWProfile.SelectedIndex = 0
+    $cmbWCalMode.SelectedIndex = 0
     $lblWProfileInfo.Text = ''
     $txtWTracks.Text = ''
     $cmbWDensel.SelectedIndex = 0
@@ -2495,12 +3164,12 @@ function Set-Defaults {
     $txtCmpRef.Text = ''
     Set-Combo $cmbCmpFmt 'amiga.amigados'
     $numCmpRetries.Value = 10
-    $txtCmpResult.Text = "Compare le contenu physique d'une disquette à une image de référence (IPF, ADF, SCP, HFE...).`r`n`r`n" +
-                         "Principe : la référence est convertie par gw dans le format de décodage choisi, la disquette est`r`n" +
-                         "lue dans ce même format, puis les deux fichiers sont comparés octet par octet, secteur par secteur.`r`n`r`n" +
-                         "Limite : seules les pistes décodables dans ce format sont comparées. Les pistes de protection`r`n" +
-                         "(non-AmigaDOS) d'un IPF n'apparaissent pas dans la comparaison. Le flux brut (SCP) n'est jamais`r`n" +
-                         "identique d'une lecture à l'autre : il n'existe pas de comparaison bit à bit au niveau flux."
+    $txtCmpResult.Text = (T "Compare le contenu physique d'une disquette à une image de référence (IPF, ADF, SCP, HFE...).`r`n`r`n") +
+                         (T "Principe : la référence est convertie par gw dans le format de décodage choisi, la disquette est`r`n") +
+                         (T "lue dans ce même format, puis les deux fichiers sont comparés octet par octet, secteur par secteur.`r`n`r`n") +
+                         (T "Limite : seules les pistes décodables dans ce format sont comparées. Les pistes de protection`r`n") +
+                         (T "(non-AmigaDOS) d'un IPF n'apparaissent pas dans la comparaison. Le flux brut (SCP) n'est jamais`r`n") +
+                         (T "identique d'une lecture à l'autre : il n'existe pas de comparaison bit à bit au niveau flux.")
 
     $numSeek.Value = 0
     $txtEraseTracks.Text = ''
@@ -2526,7 +3195,7 @@ function Save-Config {
         $delays[$k] = @{ on = [bool]$c.Chk.Checked; val = [int]$c.Num.Value }
     }
     $cfg = [ordered]@{
-        _comment = 'Configuration GreaseweazleGUI - régénérée automatiquement. Supprimable sans risque.'
+        _comment = (T 'Configuration GreaseweazleGUI - régénérée automatiquement. Supprimable sans risque.')
         _saved   = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
         window   = @{
             width  = $(if ($form.WindowState -eq 'Normal') { $form.Width }  else { $form.RestoreBounds.Width })
@@ -2543,7 +3212,7 @@ function Save-Config {
             hardSectors = [bool]$chkWHard.Checked; genTg43 = [bool]$chkWTG43.Checked
             retries = [int]$numWRetries.Value
             precompOn = [bool]$chkWPrecomp.Checked; precomp = $txtWPrecomp.Text
-            precompProfile = $cmbWProfile.Text; postCheck = [bool]$chkWPostCheck.Checked
+            precompProfile = $cmbWProfile.Text; postCheck = [bool]$chkWPostCheck.Checked; calMode = [int]$cmbWCalMode.SelectedIndex
             precompStd = $script:PrecompStd; precompLong = $script:PrecompLong; precompThresholdNs = [int]$script:PrecompThresholdNs
             tracks = $txtWTracks.Text; densel = $cmbWDensel.Text
             fakeIndex = $txtWFakeIdx.Text; diskdefs = $txtWDiskdefs.Text
@@ -2572,7 +3241,7 @@ function Save-Config {
         $cfg | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $script:ConfigFile -Encoding UTF8
         return $true
     } catch {
-        Append-Log "ERREUR sauvegarde configuration : $($_.Exception.Message)"
+        Append-Log ((T "ERREUR sauvegarde configuration : {0}") -f "$($_.Exception.Message)")
         return $false
     }
 }
@@ -2602,7 +3271,7 @@ function Load-Config {
     try {
         $cfg = Get-Content -LiteralPath $script:ConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json
     } catch {
-        Append-Log "Configuration illisible, valeurs par défaut conservées : $($_.Exception.Message)"
+        Append-Log ((T "Configuration illisible, valeurs par défaut conservées : {0}") -f "$($_.Exception.Message)")
         return $false
     }
 
@@ -2638,8 +3307,9 @@ function Load-Config {
     $script:PrecompStd  = [string](Get-Cfg $w 'precompStd' $script:PrecompStd)
     $script:PrecompLong = [string](Get-Cfg $w 'precompLong' $script:PrecompLong)
     $script:PrecompThresholdNs = [int](Get-Cfg $w 'precompThresholdNs' $script:PrecompThresholdNs)
-    Set-Combo $cmbWProfile (Get-Cfg $w 'precompProfile' 'Auto (selon image)')
+    Set-Combo $cmbWProfile (Get-Cfg $w 'precompProfile' (T 'Auto (selon image)'))
     $chkWPostCheck.Checked = [bool](Get-Cfg $w 'postCheck' $true)
+    $cm = [int](Get-Cfg $w 'calMode' 0); if ($cm -ge 0 -and $cm -lt $cmbWCalMode.Items.Count) { $cmbWCalMode.SelectedIndex = $cm }
     $txtWPrecomp.Text  = [string](Get-Cfg $w 'precomp' $script:PrecompStd)
     $txtWTracks.Text   = [string](Get-Cfg $w 'tracks' '')
     Set-Combo $cmbWDensel (Get-Cfg $w 'densel' '(non)')
@@ -2669,9 +3339,9 @@ function Load-Config {
         $script:AlignRef = @{}
         foreach ($prop in $ref.PSObject.Properties) { $script:AlignRef[[string]$prop.Name] = @{ Score = [double]$prop.Value } }
         $script:AlignRefLabel = [string](Get-Cfg $al 'referenceLabel' '')
-        $lblAlRef.Text = "Référence : $($script:AlignRefLabel) ($($script:AlignRef.Count) piste(s))"
+        $lblAlRef.Text = ((T "Référence : {0} ({1} piste(s))") -f "$($script:AlignRefLabel)", "$($script:AlignRef.Count)")
     }
-    Set-Combo $cmbAlPreset (Get-Cfg $al 'preset' 'Standard (0-70 pas 10)')
+    Set-Combo $cmbAlPreset (Get-Cfg $al 'preset' (T 'Standard (0-70 pas 10)'))
     Set-Combo $cmbAlHead (Get-Cfg $al 'head' '0+1')
     $txtAlCyls.Text = [string](Get-Cfg $al 'cyls' '0,10,20,30,40,50,60,70')
     $chkAlGuide.Checked = [bool](Get-Cfg $al 'guide' $false)
@@ -2725,9 +3395,9 @@ function Set-Busy([bool]$busy) {
 
 function Get-LogColor([string]$line) {
     if ($line -match '^>>>') { return $script:LogColors.cmd }
-    if ($line -match 'FATAL|ERREUR|ECHEC|ÉCHEC|Failed|CRITIQUE|ILLISIBLE|introuvable|code retour : [1-9]') { return $script:LogColors.err }
-    if ($line -match 'Verify Failure|Retry #|retries|À SURVEILLER|marginal|DIFF[EÉ]RENT|Interrompu') { return $script:LogColors.warn }
-    if ($line -match 'All tracks verified|code retour : 0|SAIN|IDENTIQUE|EXCELLENT|aucune piste n') { return $script:LogColors.ok }
+    if ($line -match 'FATAL|ERREUR|ERROR|ECHEC|ÉCHEC|FAILED|Failed|CRITIQUE|CRITICAL|ILLISIBLE|UNREADABLE|introuvable|not found|code retour : [1-9]|exit code: [1-9]') { return $script:LogColors.err }
+    if ($line -match 'Verify Failure|Retry #|retries|À SURVEILLER|TO WATCH|marginal|DIFF[EÉ]RENT|Interrompu|Interrupted|aborted') { return $script:LogColors.warn }
+    if ($line -match 'All tracks verified|code retour : 0|exit code: 0|SAIN|HEALTHY|IDENTIQUE|IDENTICAL|EXCELLENT|aucune piste n|no track needed') { return $script:LogColors.ok }
     if ($line -match '^T\d+\.\d+:') { return $script:LogColors.dim }
     return $script:LogColors.std
 }
@@ -2759,7 +3429,7 @@ function Get-SpecCount([string]$spec) {
 function Start-Progress([string]$verb) {
     $script:ProgOp = $verb; $script:ProgTotal = 0
     $script:ProgSeen = New-Object 'System.Collections.Generic.HashSet[string]'
-    $stOp.Text = "$verb en cours..."; $stTrack.Text = ''; $stOp.Image = $script:StIcons.run
+    $stOp.Text = ((T "{0} en cours...") -f "$verb"); $stTrack.Text = ''; $stOp.Image = $script:StIcons.run
     $stBar.Style = 'Marquee'; $stBar.Visible = $true
 }
 
@@ -2776,9 +3446,9 @@ function Update-Progress([string]$line) {
             $v = [math]::Min($script:ProgSeen.Count, $script:ProgTotal)
             $stBar.Value = $v
             $pct = [math]::Round(100 * $v / $script:ProgTotal, 0)
-            $stTrack.Text = "piste $key  ($v/$($script:ProgTotal), $pct %)"
-        } else { $stTrack.Text = "piste $key" }
-        if ($line -match 'Retry #(\d+)') { $stTrack.Text += "  -  retry $($Matches[1])" }
+            $stTrack.Text = ((T "piste {0}  ({1}/{2}, {3} %)") -f "$key", "$v", "$($script:ProgTotal)", "$pct")
+        } else { $stTrack.Text = ((T "piste {0}") -f "$key") }
+        if ($line -match 'Retry #(\d+)') { $stTrack.Text += ((T "  -  retry {0}") -f "$($Matches[1])") }
     }
 }
 
@@ -2786,9 +3456,9 @@ function Stop-Progress([int]$code) {
     $stBar.Style = 'Continuous'
     if ($code -eq 0) {
         if ($script:ProgTotal -gt 0) { $stBar.Value = $stBar.Maximum }
-        $stOp.Text = "$($script:ProgOp) terminé(e)  -  $(Get-Date -Format 'HH:mm:ss')"; $stOp.Image = $script:StIcons.ok
+        $stOp.Text = ((T "{0} terminé(e)  -  {1}") -f "$($script:ProgOp)", "$(Get-Date -Format 'HH:mm:ss')"); $stOp.Image = $script:StIcons.ok
     } else {
-        $stOp.Text = "$($script:ProgOp) en échec (code $code)  -  $(Get-Date -Format 'HH:mm:ss')"; $stOp.Image = $script:StIcons.err
+        $stOp.Text = ((T "{0} en échec (code {1})  -  {2}") -f "$($script:ProgOp)", "$code", "$(Get-Date -Format 'HH:mm:ss')"); $stOp.Image = $script:StIcons.err
     }
     $stBar.Visible = ($code -eq 0 -and $script:ProgTotal -gt 0)
 }
@@ -2797,14 +3467,14 @@ function Stop-Progress([int]$code) {
 function Start-Gw([string[]]$gwArgs) {
     $exe = $script:GwExe
     if (-not (Test-Path -LiteralPath $exe)) {
-        [void][System.Windows.Forms.MessageBox]::Show("gw.exe introuvable : $exe`n`nPlace ce script dans le même répertoire que gw.exe.",'Erreur','OK','Error'); return
+        [void][System.Windows.Forms.MessageBox]::Show(((T "gw.exe introuvable : {0}`n`nPlace ce script dans le même répertoire que gw.exe.") -f "$exe"),(T 'Erreur'),'OK','Error'); return
     }
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
 
     [void](Save-Config)
 
     $script:GwIsWrite = ($gwArgs.Count -gt 0 -and $gwArgs[0] -eq 'write')
-    $verbs = @{ write='Écriture'; read='Lecture'; erase='Effacement'; convert='Conversion'; clean='Nettoyage'; rpm='Mesure de vitesse'; update='Mise à jour firmware' }
+    $verbs = @{ write=(T 'Écriture'); read=(T 'Lecture'); erase=(T 'Effacement'); convert='Conversion'; clean=(T 'Nettoyage'); rpm=(T 'Mesure de vitesse'); update=(T 'Mise à jour firmware') }
     $first = if ($gwArgs.Count -gt 0) { ($gwArgs[0] -split ' ')[0] } else { '' }
     Start-Progress $(if ($verbs.ContainsKey($first)) { $verbs[$first] } else { "gw $first" })
     if ($script:GwIsWrite) { $script:WriteRetries = @{} }
@@ -2845,7 +3515,7 @@ function Start-Gw([string[]]$gwArgs) {
         $script:OutStderrTask = $script:OutStderrReader.ReadLineAsync()
         Set-Busy $true
     } catch {
-        Append-Log "ERREUR lancement : $($_.Exception.Message)"
+        Append-Log ((T "ERREUR lancement : {0}") -f "$($_.Exception.Message)")
         $script:GwProc = $null
         Set-Busy $false
     }
@@ -2887,7 +3557,7 @@ function Read-GwOutput([bool]$flush) {
 
 # Controle post-ecriture : relit les pistes difficiles + un echantillon, puis analyse dans l onglet Qualite
 function Start-PostWriteCheck {
-    if (-not $script:ScpStatsOk) { Append-Log 'Contrôle post-écriture : module d''analyse SCP indisponible.'; return }
+    if (-not $script:ScpStatsOk) { Append-Log (T 'Contrôle post-écriture : module d''analyse SCP indisponible.'); return }
     $cyls = @(0, 40, 79)
     foreach ($k in $script:WriteRetries.Keys) { $cyls += [int]($k -split '\.')[0] }
     $cyls = @($cyls | Where-Object { $_ -ge 0 -and $_ -le 83 } | Sort-Object -Unique)
@@ -2897,8 +3567,8 @@ function Start-PostWriteCheck {
     $script:AlignArgs = @('read') + (Get-CommonArgs) + @('--revs=3', "--tracks=c=$($cyls -join ','):h=0-1", "`"$($script:AlignTmp)`"")
     $script:PostWriteMode = $true
     $script:AlignLoop = $false; $script:AlLastMove = 0
-    $retryTxt = if ($script:WriteRetries.Count -gt 0) { ($script:WriteRetries.Keys | Sort-Object | ForEach-Object { "$_ (x$($script:WriteRetries[$_]))" }) -join ', ' } else { 'aucune' }
-    Append-Log "Contrôle post-écriture : pistes avec retries : $retryTxt. Relecture des cylindres $($cyls -join ',') (2 faces)."
+    $retryTxt = if ($script:WriteRetries.Count -gt 0) { ($script:WriteRetries.Keys | Sort-Object | ForEach-Object { ((T "{0} (x{1})") -f "$_", "$($script:WriteRetries[$_])") }) -join ', ' } else { (T 'aucune') }
+    Append-Log ((T "Contrôle post-écriture : pistes avec retries : {0}. Relecture des cylindres {1} (2 faces).") -f "$retryTxt", "$($cyls -join ',')")
     $script:Chain.Clear()
     $script:Chain.Enqueue({ Start-Gw $script:AlignArgs })
     $script:Chain.Enqueue({ Invoke-AlignAnalysis; $tabs.SelectedTab = $tabAl })
@@ -2918,11 +3588,11 @@ $timer.Add_Tick({
             Stop-Progress $code
             if ($script:GwIsWrite) {
                 if ($script:WriteRetries.Count -gt 0) {
-                    Append-Log ("Pistes ayant nécessité des retries : " + (($script:WriteRetries.Keys | Sort-Object | ForEach-Object { "$_ (x$($script:WriteRetries[$_]))" }) -join ', '))
-                } elseif ($code -eq 0) { Append-Log 'Écriture : aucune piste n''a nécessité de retry.' }
+                    Append-Log ((T "Pistes ayant nécessité des retries : ") + (($script:WriteRetries.Keys | Sort-Object | ForEach-Object { ((T "{0} (x{1})") -f "$_", "$($script:WriteRetries[$_])") }) -join ', '))
+                } elseif ($code -eq 0) { Append-Log (T 'Écriture : aucune piste n''a nécessité de retry.') }
                 $script:GwIsWrite = $false
             }
-            Append-Log "<<< Terminé (code retour : $code)"
+            Append-Log ((T "<<< Terminé (code retour : {0})") -f "$code")
             Append-Log ''
             $script:GwProc = $null
             Set-Busy $false
@@ -2931,10 +3601,11 @@ $timer.Add_Tick({
                     Invoke-NextChainStep
                 } else {
                     $script:Chain.Clear()
-                    Append-Log 'Séquence interrompue : gw a retourné une erreur.'
-                    if ($txtCmpResult.Text -like 'Comparaison en cours*') { $txtCmpResult.Text = "ÉCHEC : gw a retourné le code $code. Voir le journal." }
-                    if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; $lblAlVerdict.Text = 'Mesure interrompue (erreur gw)' }
+                    Append-Log (T 'Séquence interrompue : gw a retourné une erreur.')
+                    if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : gw a retourné le code {0}. Voir le journal.") -f "$code") }
+                    if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; $lblAlVerdict.Text = (T 'Mesure interrompue (erreur gw)') }
                     $script:PostWriteMode = $false
+                    if ($script:Cal) { $script:Cal = $null; Append-Log (T 'Calibration precomp interrompue.') }
                 }
             }
         } else {
@@ -2951,11 +3622,11 @@ $timer.Add_Tick({
     # Indexation en cours / terminee
     if ($script:LibIndexing) {
         if ([FastIndex]::Busy) {
-            $lblLibCount.Text = "indexation : $('{0:N0}' -f [FastIndex]::Scanned) fichiers..."
+            $lblLibCount.Text = ((T "indexation : {0} fichiers...") -f "$('{0:N0}' -f [FastIndex]::Scanned)")
         } else {
             $script:LibIndexing = $false; $btnLibReindex.Enabled = $true
-            if ([FastIndex]::Error) { Append-Log "Indexation : ERREUR $([FastIndex]::Error)" }
-            else { Append-Log "Bibliothèque : index construit, $('{0:N0}' -f [FastIndex]::Count) fichiers en $([math]::Round([FastIndex]::LastBuildSeconds,0)) s." }
+            if ([FastIndex]::Error) { Append-Log ((T "Indexation : ERREUR {0}") -f "$([FastIndex]::Error)") }
+            else { Append-Log ((T "Bibliothèque : index construit, {0} fichiers en {1} s.") -f "$('{0:N0}' -f [FastIndex]::Count)", "$([math]::Round([FastIndex]::LastBuildSeconds,0))") }
             Show-LibIndexStatus
             if ($script:LibPendingSearch) { $script:LibPendingSearch = $false; Update-Library }
         }
@@ -2995,18 +3666,39 @@ $form.Add_Shown({
     try { Update-Library; if ($txtWFile.Text) { Update-PrecompForImage $txtWFile.Text } } finally { $form.Cursor = [System.Windows.Forms.Cursors]::Default }
 })
 
+# --- Largeurs ajustees au texte (police, langue) : plus de libelles tronques --------
+function Fit-ControlText($parent) {
+    foreach ($c in @($parent.Controls)) {
+        if ($c -is [System.Windows.Forms.CheckBox] -or $c -is [System.Windows.Forms.RadioButton]) {
+            if ($c.Text) { $c.AutoSize = $true }
+        } elseif ($c -is [System.Windows.Forms.Button] -and $c.Text -and $c.Text -ne '...') {
+            $extra = if ($c.Image) { 46 } else { 24 }
+            $need = [System.Windows.Forms.TextRenderer]::MeasureText($c.Text, $c.Font).Width + $extra
+            if ($c.Width -lt $need) {
+                $delta = $need - $c.Width
+                $right = [bool]($c.Anchor -band [System.Windows.Forms.AnchorStyles]::Right)
+                $left  = [bool]($c.Anchor -band [System.Windows.Forms.AnchorStyles]::Left)
+                if ($right -and -not $left) { $c.Left -= $delta }
+                $c.Width = $need
+            }
+        }
+        if ($c.Controls.Count -gt 0) { Fit-ControlText $c }
+    }
+}
+Fit-ControlText $form
+
 # --- Demarrage -----------------------------------------------------------------
 Set-Defaults
 $loaded = Load-Config
 
 Append-Log "Greaseweazle Studio v$($script:Version)"
-Append-Log "Répertoire  : $($script:AppDir)"
-if (Test-Path -LiteralPath $script:GwExe) { Append-Log 'gw.exe      : trouvé' }
-else { Append-Log 'gw.exe      : ABSENT - place ce script dans le répertoire de gw.exe' }
-if ($loaded) { Append-Log 'Config      : chargée depuis GreaseweazleGUI.json' }
-else         { Append-Log 'Config      : aucune, valeurs par défaut' }
-Append-Log "Extraction  : $($script:TempDir)"
-Append-Log "Index       : $(if ($script:FastIndexOk) { $script:IndexDir } else { 'module indisponible, recherche directe' })"
+Append-Log ((T "Répertoire  : {0}") -f "$($script:AppDir)")
+if (Test-Path -LiteralPath $script:GwExe) { Append-Log (T 'gw.exe      : trouvé') }
+else { Append-Log (T 'gw.exe      : ABSENT - place ce script dans le répertoire de gw.exe') }
+if ($loaded) { Append-Log (T 'Config      : chargée depuis GreaseweazleGUI.json') }
+else         { Append-Log (T 'Config      : aucune, valeurs par défaut') }
+Append-Log ((T "Extraction  : {0}") -f "$($script:TempDir)")
+Append-Log ((T "Index       : {0}") -f "$(if ($script:FastIndexOk) { $script:IndexDir } else { (T 'module indisponible, recherche directe') })")
 Append-Log ''
 
 [void]$form.ShowDialog()

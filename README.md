@@ -9,12 +9,14 @@ L'application tient dans un seul script, `GreaseweazleGUI.ps1`, sans dépendance
 - Les 13 actions de `gw` : `info`, `read`, `write`, `convert`, `erase`, `clean`, `seek`, `delays`, `update`, `pin`, `reset`, `bandwidth`, `rpm`.
 - **Bibliothèque** : arborescence d'images disque, archives ZIP parsées à la volée, index persistant construit en arrière-plan avec recherche instantanée, ouverture des documents associés (txt, pdf, jpg, png, gif, nfo, md) dans l'application par défaut.
 - **Écriture** : choix de l'image, profil de précompensation détecté automatiquement d'après l'image (IPF : bits par piste, SCP : flux, HFE : débit), options courantes et avancées, contrôle après écriture.
+- **Calibration de la précompensation** : mesure automatique du meilleur `--precomp` pour le lecteur d'écriture, voir ci-dessous.
 - **Lecture** et **Conversion** : options de `gw read` et `gw convert`.
 - **Comparaison** : convert (référence) + read (disquette), puis diff secteur par secteur.
 - **Qualité & Alignement** : mesure continue de la qualité de lecture (cellule mesurée, jitter, asymétrie, dropouts) sur une disquette pressée, pour régler l'alignement d'un lecteur.
 - **Outils** et **Délais** : erase, clean, seek, rpm, bandwidth, pin, reset, update, delays.
 - **Commande libre** : n'importe quelle ligne de commande `gw`.
 - Journal repliable avec coloration, barre de progression, fenêtre entièrement redimensionnable.
+- Interface en français ou en anglais : la langue est choisie d'après la langue d'affichage de Windows, toute autre langue que le français donnant l'anglais. `-Language fr` ou `-Language en` force le choix.
 
 ## Prérequis
 
@@ -37,9 +39,26 @@ L'application tient dans un seul script, `GreaseweazleGUI.ps1`, sans dépendance
 
 `gw.exe` est résolu depuis le répertoire du script ou de l'exécutable. S'il est absent, le journal le signale au démarrage.
 
+Pour forcer la langue de l'interface, ajouter `-Language en` ou `-Language fr` à la commande, avec l'exécutable comme avec le script :
+
+```powershell
+.\GreaseweazleGUI.exe -Language en
+```
+
 ### Avertissements SmartScreen et antivirus
 
 L'exécutable est produit par PS2EXE, qui embarque le script dans un hôte .NET. Ce type de binaire déclenche fréquemment SmartScreen et des faux positifs antivirus. L'exécutable publié dans les releases n'est pas signé par une autorité reconnue. En cas de doute, utilisez directement le script `.ps1`, lisible et fonctionnellement identique.
+
+## Calibration de la précompensation
+
+Dans l'onglet Écriture, la ligne « Calibration précomp » détermine le profil `--precomp` adapté au lecteur d'écriture, sans réglage manuel :
+
+1. Choisir l'image à écrire : ses pistes servent de motif de test et son nombre de cylindres est lu dans le fichier (taille d'un ADF, enregistrements d'un IPF, en-tête d'un HFE ; 80 à défaut). Il faut une image à bits ou secteurs (ADF, IPF, HFE, IMG...), car gw n'applique pas la précompensation aux flux SCP ou RAW.
+2. Choisir le test : « standard » écrit un cylindre sur dix plus le dernier, en quelques minutes ; « fin » écrit tous les cylindres, pour un profil précis, en une heure environ.
+3. Insérer une disquette vierge ou sans valeur dans le lecteur sélectionné, cliquer « Calibrer » et confirmer. Chaque passe écrit les cylindres de test avec une même valeur de précompensation, en une seule commande, puis les relit en flux sur trois tours. Le score d'un cylindre combine le jitter des intervalles courts, l'asymétrie des classes d'intervalles et les intervalles hors classe : plus il est bas, mieux les transitions sont placées.
+4. Passes de 0 à 250 ns par pas de 50, puis passes fines par pas de 10 autour des meilleures valeurs. La meilleure valeur de chaque cylindre est retenue, la courbe est lissée en croissante, arrondie à 10 ns et convertie en seuils `c=ns`.
+
+Le profil obtenu remplace celui de la famille de l'image, standard 2 µs ou long track 1,89 µs, est enregistré dans la configuration et appliqué ensuite par le profil Auto à toute image de la même famille. Le journal détaille chaque passe. Les cylindres de test, deux faces, sont écrasés à chaque passe. Le bouton Arrêter interrompt la calibration sans modifier le profil.
 
 ## Fichiers créés à l'exécution
 
@@ -77,7 +96,7 @@ Le workflow GitHub Actions [release.yml](.github/workflows/release.yml) compile 
 2. Commit, puis tag et push :
 
    ```powershell
-   git tag v11.5
+   git tag v11.6
    git push origin main --tags
    ```
 

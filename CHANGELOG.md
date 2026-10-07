@@ -3,6 +3,13 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Le numéro de version est celui de `$script:Version` dans `src/GreaseweazleGUI.ps1` ; chaque release GitHub porte le tag `vX.Y` correspondant.
 
+## [11.5] - 2026-10-07
+
+- Interface bilingue français / anglais : choix automatique d'après la langue d'affichage de Windows (anglais pour toute langue autre que le français), paramètre `-Language fr|en` pour forcer. Les textes français restent la référence dans le code, la table anglaise est embarquée dans le script.
+- Libellés tronqués corrigés (« Images seulement », « Masquer journal », « Réindexer ») : la largeur des boutons et des cases à cocher s'ajuste au texte et à la police au démarrage.
+- Coloration du journal reconnue dans les deux langues.
+- Écriture : calibration automatique de la précompensation. Écrit les cylindres de test de l'image avec une même valeur de precomp par passe sur une disquette vierge, les relit en flux, note chaque cylindre d'après le jitter et l'asymétrie des intervalles, affine autour des meilleures valeurs, lisse la courbe en croissante et enregistre le profil pour la famille de l'image (standard ou long track), appliqué ensuite par le mode Auto. Test standard, un cylindre sur dix, ou test fin, tous les cylindres ; nombre de cylindres lu dans l'image.
+
 ## [11.4] - 2026-10-07
 
 Aucun changement fonctionnel dans l'application. Version de maintenance de la chaîne de build.
