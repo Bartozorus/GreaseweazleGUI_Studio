@@ -16,7 +16,7 @@
 # v8 : onglet Alignement - mesure de qualite de lecture (jitter, asymetrie, dropouts)
 #      sur une disquette pressee, en continu pendant le reglage du stepper.
 # v9 : profils de precompensation (standard 2 us / long track 1,89 us) choisis
-#      automatiquement d apres l image (IPF : bits par piste, SCP : flux, HFE : debit).
+#      automatiquement d apres l image (IPF et HFE : bits par piste, SCP : flux).
 #
 # Compatible Windows PowerShell 5.1+ / PowerShell 7
 # Lancement : powershell -ExecutionPolicy Bypass -File .\GreaseweazleGUI.ps1
@@ -56,7 +56,20 @@ $script:I18n['Chercher'] = 'Search'
 $script:I18n['Images seulement'] = 'Images only'
 $script:I18n['Réindexer'] = 'Reindex'
 $script:I18n["Reconstruit l'index de la racine (en arrière-plan). À faire après l'ajout ou le déplacement de fichiers."] = "Rebuilds the root index (in the background). Do this after adding or moving files."
-$script:I18n['Envoyer vers Écriture'] = 'Send to Write'
+$script:I18n['Écriture rapide'] = 'Fast write'
+$script:I18n["Écrit l'image sélectionnée en une passe, les deux têtes ensemble : image entière, profil de précompensation Auto,`npré-effacement, effacement des pistes vides, vérification gw, 10 retries, sans contrôle complet des pistes.`nSans calibration commune pour la famille de l'image, le lecteur est d'abord calibré : la disquette reçoit le motif de test, puis l'image."] = "Writes the selected image in one pass, both heads together: whole image, Auto precompensation profile,`npre-erase, erase empty tracks, gw verification, 10 retries, no full track check.`nWithout a common calibration for the image family, the drive is calibrated first: the disk receives the test pattern, then the image."
+$script:I18n["Écrit la tête 0 puis la tête 1, chacune avec sa précompensation, puis contrôle toutes les pistes`net réécrit les pistes faibles, 3 passes au plus. Mêmes paramètres que l'écriture rapide.`nSans calibration par tête pour la famille de l'image, chaque tête est d'abord calibrée : la disquette reçoit le motif de test, puis l'image."] = "Writes head 0 then head 1, each with its own precompensation, then checks every track`nand rewrites weak tracks, 3 passes at most. Same settings as the fast write.`nWithout a per-head calibration for the image family, each head is calibrated first: the disk receives the test pattern, then the image."
+$script:I18n['Écriture lente : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 retries, tête 0 puis tête 1, contrôle de toutes les pistes, 3 passes de réécriture.'] = 'Slow write: whole image, Auto profile, pre-erase, erase empty tracks, gw verification, 10 retries, head 0 then head 1, full track check, 3 rewrite passes.'
+$script:I18n['Écriture rapide : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 retries, les deux têtes ensemble, sans contrôle complet des pistes.'] = 'Fast write: whole image, Auto profile, pre-erase, erase empty tracks, gw verification, 10 retries, both heads together, no full track check.'
+$script:I18n['par tête'] = 'per-head'
+$script:I18n['commune'] = 'common'
+$script:I18n["La calibration {0} de la famille {1} a été mesurée sur le contenu d'une image, avant le motif de test : elle est refaite."] = "The {0} calibration of the {1} family was measured on an image's content, before the test pattern: it is redone."
+$script:I18n["Aucune calibration {0} pour la famille {1} : calibration automatique, puis écriture."] = "No {0} calibration for the {1} family: automatic calibration, then write."
+$script:I18n['Écriture annulée : la calibration n''a pas été lancée.'] = 'Write cancelled: the calibration was not started.'
+$script:I18n["Calibration automatique avant l'écriture : la disquette insérée reçoit d'abord le motif de test, puis l'image."] = "Automatic calibration before writing: the inserted disk first receives the test pattern, then the image."
+$script:I18n['Écriture annulée : calibration interrompue.'] = 'Write cancelled: calibration aborted.'
+$script:I18n['Écriture annulée : calibration sans mesure exploitable.'] = 'Write cancelled: calibration without usable measurement.'
+$script:I18n['Calibration terminée : écriture de l''image avec le profil obtenu.'] = 'Calibration complete: writing the image with the resulting profile.'
 $script:I18n['Ce fichier n''est pas un format image reconnu par gw.'] = 'This file is not an image format recognised by gw.'
 $script:I18n['Type non pris en charge'] = 'Unsupported type'
 $script:I18n["Image sélectionnée : {0}"] = "Selected image: {0}"
@@ -72,7 +85,7 @@ $script:I18n["(auto) = aucun --format transmis : obligatoire pour IPF, SCP, HFE.
 $script:I18n['Auto (selon image)'] = 'Auto (from image)'
 $script:I18n['Long track 1,89 us'] = 'Long track 1.89 us'
 $script:I18n['Manuel'] = 'Manual'
-$script:I18n["Auto : la cellule de l'image est mesurée (IPF : bits par piste ; SCP : flux ; HFE : débit)`net le profil --precomp correspondant est appliqué.`nManuel : le champ --precomp n'est jamais modifié."] = "Auto: the image bit cell is measured (IPF: bits per track; SCP: flux; HFE: bitrate)`nand the matching --precomp profile is applied.`nManual: the --precomp field is never changed."
+$script:I18n["Auto : la cellule de l'image est mesurée (IPF et HFE : bits par piste ; SCP : flux)`net le profil --precomp correspondant est appliqué.`nManuel : le champ --precomp n'est jamais modifié."] = "Auto: the image bit cell is measured (IPF and HFE: bits per track; SCP: flux)`nand the matching --precomp profile is applied.`nManual: the --precomp field is never changed."
 $script:I18n['Images disquette|*.ipf;*.adf;*.scp;*.hfe;*.img;*.st;*.dsk;*.raw;*.d64;*.imd|Tous|*.*'] = 'Disk images|*.ipf;*.adf;*.scp;*.hfe;*.img;*.st;*.dsk;*.raw;*.d64;*.imd|All files|*.*'
 $script:I18n['Image :'] = 'Image:'
 $script:I18n['Format :'] = 'Format:'
@@ -251,7 +264,7 @@ $script:I18n["Index : {0} fichiers, construit le {1}."] = "Index: {0} files, bui
 $script:I18n["Index : {0} fichiers"] = "Index: {0} files"
 $script:I18n["{0} premiers sur {1}"] = "first {0} of {1}"
 $script:I18n['racine introuvable'] = 'root not found'
-$script:I18n["Pour commencer :`r`n1. Choisis le dossier racine de tes images (bouton ...).`r`n2. Déplie l'arborescence ou utilise la recherche.`r`n3. Sélectionne une image puis « Envoyer vers Écriture »."] = "To get started:`r`n1. Choose the root folder of your images (... button).`r`n2. Expand the tree or use the search.`r`n3. Select an image, then ""Send to Write""."
+$script:I18n["Pour commencer :`r`n1. Choisis le dossier racine de tes images (bouton ...).`r`n2. Déplie l'arborescence ou utilise la recherche.`r`n3. Sélectionne une image puis « Écriture rapide » ou « Écriture lente »."] = "To get started:`r`n1. Choose the root folder of your images (... button).`r`n2. Expand the tree or use the search.`r`n3. Select an image, then ""Fast write"" or ""Slow write""."
 $script:I18n['indexation en cours...'] = 'indexing...'
 $script:I18n["{0} élément(s)"] = "{0} item(s)"
 $script:I18n['Archive ZIP'] = 'ZIP archive'
@@ -393,16 +406,16 @@ $script:I18n['Calibration précomp :'] = 'Precomp calibration:'
 $script:I18n['Test standard : 1 cylindre sur 10'] = 'Standard test: 1 cylinder in 10'
 $script:I18n['Test fin : tous les cylindres'] = 'Fine test: every cylinder'
 $script:I18n['Calibrer'] = 'Calibrate'
-$script:I18n["Calibre la précompensation pour ce lecteur d'écriture : chaque passe écrit les cylindres de test de l'image avec une valeur de precomp, les relit en flux et note le placement des transitions. La meilleure valeur par cylindre forme le profil, enregistré pour la famille de l'image (standard ou long track) et appliqué ensuite par le mode Auto. La disquette insérée est écrasée. Test standard : un cylindre sur 10, quelques minutes. Test fin : tous les cylindres, environ une heure."] = "Calibrates precompensation for this write drive: each pass writes the image's test cylinders with one precomp value, reads them back as flux and scores transition placement. The best value per cylinder forms the profile, saved for the image family (standard or long track) and applied by Auto mode from then on. The inserted disk is overwritten. Standard test: one cylinder in 10, a few minutes. Fine test: every cylinder, about an hour."
+$script:I18n["Calibre la précompensation pour ce lecteur d'écriture : chaque passe écrit sur les cylindres de test un motif de test pseudo-aléatoire, à la densité de l'image, avec une valeur de precomp puis, en vérification, le profil obtenu ; elle le relit en flux et mesure le décalage de pic. Une courbe donne ensuite une valeur par cylindre ; le profil est enregistré pour la famille de l'image (standard ou long track) et appliqué ensuite par le mode Auto. Le contenu de l'image n'est pas écrit. La disquette insérée est écrasée. Test standard : un cylindre sur 10, quelques minutes. Test fin : tous les cylindres, un quart d'heure environ."] = "Calibrates precompensation for this write drive: each pass writes a pseudo-random test pattern on the test cylinders, at the image's density, with one precomp value then, for verification, the resulting profile; it reads it back as flux and measures the peak shift. A curve then gives one value per cylinder; the profile is saved for the image family (standard or long track) and applied by Auto mode from then on. The image content is not written. The inserted disk is overwritten. Standard test: one cylinder in 10, a few minutes. Fine test: every cylinder, about a quarter of an hour."
 $script:I18n['Calibration : module d''analyse SCP indisponible (Add-Type).'] = 'Calibration: SCP analysis module unavailable (Add-Type).'
-$script:I18n['Choisis d''abord l''image à écrire : ses pistes servent de motif de test.'] = 'Choose the image to write first: its tracks are used as the test pattern.'
-$script:I18n["Calibration impossible sur un flux ({0}) : gw n'applique la précompensation qu'aux images à bits ou secteurs (ADF, IPF, HFE, IMG...)."] = "Cannot calibrate with a flux image ({0}): gw only applies precompensation to bit-cell or sector images (ADF, IPF, HFE, IMG...)."
+$script:I18n['Choisis d''abord l''image à écrire : elle fixe la famille (cellule) et le nombre de cylindres de la calibration.'] = 'Choose the image to write first: it sets the family (cell) and the number of cylinders of the calibration.'
+$script:I18n["Calibration impossible sur un flux ({0}) : la calibration ne détermine la densité que d'une image à bits ou secteurs (ADF, IPF, HFE, IMG...)."] = "Cannot calibrate with a flux image ({0}): the calibration only determines the density of a bit-cell or sector image (ADF, IPF, HFE, IMG...)."
 $script:I18n['Calibration precomp'] = 'Precomp calibration'
 $script:I18n["{0} cylindres d'après l'image"] = "{0} cylinders from the image"
 $script:I18n['80 cylindres par défaut (nombre non lisible dans l''image)'] = '80 cylinders by default (count not readable from the image)'
 $script:I18n['test fin, tous les cylindres'] = 'fine test, every cylinder'
 $script:I18n['test standard, un cylindre sur 10'] = 'standard test, one cylinder in 10'
-$script:I18n["Calibration de la précompensation sur le lecteur {0} ({1}).`n`nImage : {2}, famille {3}, {4}.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes.`n`nInsère une disquette vierge ou sans valeur, puis confirme."] = "Precompensation calibration on drive {0} ({1}).`n`nImage: {2}, family {3}, {4}.`nTest cylinders: {5} (both sides), OVERWRITTEN on every pass. Estimated time: {6} min for {7} passes.`n`nInsert a blank or worthless disk, then confirm."
+$script:I18n["Calibration de la précompensation sur le lecteur {0} ({1}).`n`nImage : {2}, famille {3}, {4}.`nMotif de test : données pseudo-aléatoires générées à la densité de l'image, son contenu n'est pas écrit.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes.`n`nInsère une disquette vierge ou sans valeur, puis confirme."] = "Precompensation calibration on drive {0} ({1}).`n`nImage: {2}, family {3}, {4}.`nTest pattern: pseudo-random data generated at the image's density, its content is not written.`nTest cylinders: {5} (both sides), OVERWRITTEN on every pass. Estimated time: {6} min for {7} passes.`n`nInsert a blank or worthless disk, then confirm."
 $script:I18n["=== Calibration precomp : lecteur {0}, image {1} ({2}, {3}) ==="] = "=== Precomp calibration: drive {0}, image {1} ({2}, {3}) ==="
 $script:I18n["Cylindres de test : {0} ({1})"] = "Test cylinders: {0} ({1})"
 $script:I18n["Calibration : passe de mesure {0}/{1}, precomp {2} ns"] = "Calibration: measurement pass {0}/{1}, precomp {2} ns"
@@ -415,8 +428,8 @@ $script:I18n["  {0} : décalage résiduel moyen {1} ns (de {2} à {3}), score ji
 $script:I18n["  {0} : aucun cylindre mesurable{1}"] = "  {0}: no measurable cylinder{1}"
 $script:I18n['Calibration : aucune mesure exploitable pour estimer la précompensation.'] = 'Calibration: no usable measurement to estimate precompensation.'
 $script:I18n["Pente moyenne : {0} ns de décalage par ns de precomp ; estimation par cylindre : {1}"] = "Average slope: {0} ns of shift per ns of precomp; estimate per cylinder: {1}"
-$script:I18n["{0} cylindre(s) corrigé(s) de plus de {1} ns de résidu, nouveau profil : {2}"] = "{0} cylinder(s) corrected for more than {1} ns of residual, new profile: {2}"
-$script:I18n["Résidu après vérification (ns, tolérance {0}) : {1}"] = "Residual after verification (ns, tolerance {0}): {1}"
+$script:I18n["{0} cylindre(s) corrigé(s), résidu hors tolérance, nouveau profil : {1}"] = "{0} cylinder(s) corrected, residual out of tolerance, new profile: {1}"
+$script:I18n["Résidu après vérification (ns, tolérance {0}, élargie à 3 erreurs-types si la mesure est plus bruitée) : {1}"] = "Residual after verification (ns, tolerance {0}, widened to 3 standard errors when the measurement is noisier): {1}"
 $script:I18n['Calibration precomp : aucune mesure exploitable, profil inchangé.'] = 'Precomp calibration: no usable measurement, profile unchanged.'
 $script:I18n["Calibration terminée : profil {0} = {1}"] = "Calibration complete: {0} profile = {1}"
 $script:I18n["Profil enregistré dans la configuration et appliqué par le mode Auto à toute image {0}."] = "Profile saved to the configuration and applied by Auto mode to any {0} image."
@@ -474,10 +487,29 @@ $script:I18n['1/rayon²'] = '1/radius²'
 $script:I18n['monotone interpolée'] = 'monotone interpolated'
 $script:I18n[' + corrections locales'] = ' + local corrections'
 $script:I18n["Profil --precomp : {0}"] = "--precomp profile: {0}"
-$script:I18n["Mesures (cylindre : estimation ± incertitude, ns) :"] = "Measurements (cylinder: estimate ± uncertainty, ns):"
+$script:I18n["Mesures (cylindre : estimation ± incertitude en ns, origine, courbe retenue et écart, résidu de vérification) :"] = "Measurements (cylinder: estimate ± uncertainty in ns, origin, curve value and deviation, verification residual):"
+$script:I18n['  * extrapolée au-delà des mesures, ^ plafonnée à 0 ou 300 ns : valeur peu fiable.'] = '  * extrapolated beyond the measurements, ^ capped at 0 or 300 ns: unreliable value.'
+$script:I18n['encadrement'] = 'bracketing'
+$script:I18n["Calibration : passe d'encadrement des cylindres {0}, encore sous-compensés à {1} ns : precomp {2}"] = "Calibration: bracketing pass for cylinders {0}, still under-compensated at {1} ns: precomp {2}"
+$script:I18n['Après encadrement : '] = 'After bracketing: '
+$script:I18n["Vérification {0} : "] = "Verification {0}: "
+$script:I18n["Calibration non convergée aux cylindres {0} : résidu hors tolérance après la dernière vérification, la courbe ne suit pas la mesure à ces cylindres. Refaire un test fin sur cette zone, ou essayer une autre disquette."] = "Calibration not converged at cylinders {0}: residual out of tolerance after the last verification, the curve does not follow the measurement there. Run a fine test over this area again, or try another disk."
+$script:I18n["Écart à la courbe de plus de 15 ns et de trois incertitudes (courbe moins mesure) : {0}. Besoin non croissant lissé par la contrainte croissante."] = "Deviation from the curve above both 15 ns and three uncertainties (curve minus measurement): {0}. Non-increasing need smoothed by the increasing constraint."
+$script:I18n["Valeurs peu fiables : {0} extrapolée(s) au-delà des mesures ({1}), {2} plafonnée(s) à 0 ou {3} ns ({4})."] = "Unreliable values: {0} extrapolated beyond the measurements ({1}), {2} capped at 0 or {3} ns ({4})."
+$script:I18n[' NON CONVERGÉE : voir le journal et la fenêtre Courbe.'] = ' NOT CONVERGED: see the log and the Curve window.'
+$script:I18n['encadrée'] = 'bracketed'
+$script:I18n['extrapolée'] = 'extrapolated'
+$script:I18n['plafonnée'] = 'capped'
+$script:I18n['NON CONVERGÉE : résidu hors tolérance après la dernière vérification (voir « résidu »).'] = 'NOT CONVERGED: residual out of tolerance after the last verification (see "residual").'
+$script:I18n["résidu {0}"] = "residual {0}"
+$script:I18n['courbe'] = 'curve'
+$script:I18n['NON CONVERGÉE'] = 'NOT CONVERGED'
+$script:I18n['mesure encadrée'] = 'bracketed measurement'
+$script:I18n['écart > 15 ns et > 3 incertitudes'] = 'deviation > 15 ns and > 3 uncertainties'
+$script:I18n['au-delà des mesures'] = 'beyond the measurements'
 $script:I18n['cylindre'] = 'cylinder'
 $script:I18n["{0} : lecteur {1}, {2}, courbe {3}, de {4} à {5} ns"] = "{0}: drive {1}, {2}, {3} curve, from {4} to {5} ns"
-$script:I18n['mesure par cylindre testé (± incertitude)'] = 'measurement per tested cylinder (± uncertainty)'
+
 $script:I18n['précompensation retenue par cylindre'] = 'precompensation used per cylinder'
 $script:I18n["Courbe de précompensation - {0}"] = "Precompensation curve - {0}"
 $script:I18n["Courbe ajustée : {0} (écart réduit {1}), de {2} ns au cylindre 0 à {3} ns au cylindre {4} ; profil : {5}"] = "Fitted curve: {0} (reduced deviation {1}), from {2} ns at cylinder 0 to {3} ns at cylinder {4}; profile: {5}"
@@ -506,8 +538,41 @@ $script:I18n[' ; écriture lente : profils calibrés tête 0 et tête 1 appliqu�
 $script:I18n[' ; écriture lente : même profil pour les deux têtes (aucune calibration par tête pour cette famille)'] = '; slow write: same profile for both heads (no per-head calibration for this family)'
 $script:I18n["Écriture lente : image à une seule face, seule la tête {0} est écrite."] = "Slow write: single-sided image, only head {0} is written."
 $script:I18n["Écriture lente : nombre de faces de l'image inconnu ({0}).`nIndiquer les têtes dans le champ Pistes (h=0-1 pour une image double face, h=0 pour une simple face)`nou décocher « Effacer les pistes vides » : la tête 1 d'un format simple face serait effacée."] = "Slow write: number of sides of the image unknown ({0}).`nSpecify the heads in the Tracks field (h=0-1 for a double-sided image, h=0 for a single-sided one)`nor uncheck ""Erase empty tracks"": head 1 of a single-sided format would be erased."
-$script:I18n["Calibration par tête impossible : l'image n'a qu'une face, gw n'écrirait pas la tête 1.`nDécocher « Écriture lente » pour une calibration commune."] = "Per-head calibration impossible: the image has a single side, gw would not write head 1.`nUncheck ""Slow write"" for a common calibration."
-$script:I18n['Calibration : le décalage ne varie pas avec la précompensation écrite, cette face n''a pas été écrite (format simple face ?).'] = 'Calibration: the shift does not vary with the written precompensation, this side was not written (single-sided format?).'
+$script:I18n["Calibration : motif de test impossible à créer : {0}"] = "Calibration: unable to create the test pattern: {0}"
+$script:I18n['format à secteurs, 2 µs par cellule'] = 'sector format, 2 µs per cell'
+$script:I18n['Effacer les calibrations'] = 'Clear calibrations'
+$script:I18n["Efface toutes les calibrations de précompensation : courbes communes et par tête des familles standard et long track.`nLes profils de famille reprennent leurs valeurs d'origine. Une écriture rapide ou lente recalibre ensuite automatiquement."] = "Clears every precompensation calibration: common and per-head curves of the standard and long-track families.`nThe family profiles return to their original values. A fast or slow write then recalibrates automatically."
+$script:I18n["tête {0}"] = "head {0}"
+$script:I18n['Opération en cours : attendre la fin de la calibration ou de l''écriture.'] = 'Operation in progress: wait for the calibration or the write to finish.'
+$script:I18n['Aucune calibration enregistrée : les profils sont déjà ceux d''origine.'] = 'No calibration saved: the profiles are already the original ones.'
+$script:I18n["Effacer toutes les calibrations de précompensation ?`n`nCourbes : {0}.`nProfils de famille remis aux valeurs d'origine : standard {1}, long track {2}.`n`nOpération irréversible. Le mode Auto applique ensuite ces profils ; une écriture rapide ou lente recalibre automatiquement."] = "Clear every precompensation calibration?`n`nCurves: {0}.`nFamily profiles reset to their original values: standard {1}, long track {2}.`n`nThis cannot be undone. Auto mode then applies these profiles; a fast or slow write recalibrates automatically."
+$script:I18n['Calibrations effacées.'] = 'Calibrations cleared.'
+$script:I18n["Calibrations effacées : {0} courbe(s) ({1}) ; profils standard et long track remis aux valeurs d'origine ({2} ; {3})."] = "Calibrations cleared: {0} curve(s) ({1}); standard and long-track profiles reset to their original values ({2}; {3})."
+$script:I18n["Calibration non prise en charge pour une image haute densité ({0}) : les profils calibrés sont ceux des familles double densité (standard 2 µs, long track 1,89 µs)."] = "Calibration not supported for a high-density image ({0}): calibrated profiles belong to the double-density families (standard 2 µs, long track 1.89 µs)."
+$script:I18n["Image haute densité ({0}) : pas de calibration automatique, écriture avec le profil courant."] = "High-density image ({0}): no automatic calibration, writing with the current profile."
+$script:I18n['ADF haute densité, horloge AmigaDOS de gw'] = 'high-density ADF, gw AmigaDOS clock'
+$script:I18n['ADF, horloge AmigaDOS de gw'] = 'ADF, gw AmigaDOS clock'
+$script:I18n['IPF, bits par piste de l''image'] = 'IPF, bits per track of the image'
+$script:I18n['HFE, bits par piste de l''image'] = 'HFE, bits per track of the image'
+$script:I18n["HFE ({0} bits par piste, débit {1} kbit/s)"] = "HFE ({0} bits per track, bitrate {1} kbit/s)"
+$script:I18n["image secteur de {0} octets"] = "sector image of {0} bytes"
+$script:I18n['image IMD à 500 kbit/s'] = 'IMD image at 500 kbit/s'
+$script:I18n["Image secteur sans géométrie ({0}) : gw exige le format.`nChoisir le format dans l'onglet Écriture, puis relancer l'écriture."] = "Sector image without geometry ({0}): gw requires the format.`nChoose the format in the Write tab, then start the write again."
+$script:I18n['Format requis'] = 'Format required'
+$script:I18n["Densité de l'image non établie ({0}, format déduit par gw) : pas de calibration automatique, écriture avec le profil courant."] = "Image density not established ({0}, format deduced by gw): no automatic calibration, writing with the current profile."
+$script:I18n["Module d'analyse SCP indisponible : pas de calibration automatique, écriture avec le profil courant."] = "SCP analysis module unavailable: no automatic calibration, writing with the current profile."
+$script:I18n["Courbes par tête de la famille {0} antérieures à la calibration commune : elles sont refaites."] = "Per-head curves of the {0} family are older than the common calibration: they are redone."
+$script:I18n["Nombre de faces de l'image inconnu : effacement des pistes vides désactivé (seules les pistes présentes dans l'image sont écrites)."] = "The image's number of sides is unknown: erasing empty tracks disabled (only the tracks present in the image are written)."
+$script:I18n["Image à une seule face : seule la tête {0} est écrite (h={0} dans Pistes)."] = "Single-sided image: only head {0} is written (h={0} in Tracks)."
+$script:I18n["Champ Pistes : éléments de lecteur conservés ({0})."] = "Tracks field: drive elements kept ({0})."
+$script:I18n['Secteurs durs ou lecteur 8 pouces (TG43) : pas de calibration automatique, écriture avec le profil courant.'] = 'Hard sectors or 8-inch drive (TG43): no automatic calibration, writing with the current profile.'
+$script:I18n["Cellule de l'image hors de la plage mesurable ({0} ns, de 1 700 à 2 300 ns en MFM double densité) : pas de calibration automatique, écriture avec le profil courant."] = "Image bit cell outside the measurable range ({0} ns, 1,700 to 2,300 ns in double-density MFM): no automatic calibration, writing with the current profile."
+$script:I18n['Calibration non prise en charge avec secteurs durs ou lecteur 8 pouces (TG43) : l''analyse de flux est calibrée pour le MFM double densité.'] = 'Calibration not supported with hard sectors or an 8-inch drive (TG43): the flux analysis is calibrated for double-density MFM.'
+$script:I18n["Calibration non prise en charge : cellule de l'image de {0} ns, hors de la plage mesurable (1 700 à 2 300 ns, MFM double densité)."] = "Calibration not supported: image bit cell of {0} ns, outside the measurable range (1,700 to 2,300 ns, double-density MFM)."
+$script:I18n['non relu'] = 'not read back'
+$script:I18n['long track, 1,89 µs par cellule'] = 'long track, 1.89 µs per cell'
+$script:I18n["Motif de test : HFE de données pseudo-aléatoires généré, {0} cylindres, {1} cellules par piste ({2}), soit {3} ns par cellule à 300 tr/min. L'image ne fixe que la densité et le nombre de cylindres, son contenu n'est pas écrit."] = "Test pattern: pseudo-random HFE generated, {0} cylinders, {1} cells per track ({2}), i.e. {3} ns per cell at 300 rpm. The image only sets the density and the number of cylinders, its content is not written."
+$script:I18n['Calibration : le décalage ne varie pas avec la précompensation écrite, cette face n''a pas été écrite (tête ou circuit d''écriture défaillant ?).'] = 'Calibration: the shift does not vary with the written precompensation, this side was not written (faulty head or write circuit?).'
 $script:I18n[' ; écriture lente : courbes par tête antérieures au profil commun, profil commun pour les deux têtes'] = '; slow write: per-head curves older than the common profile, common profile for both heads'
 function T([string]$s) {
     if ($script:Lang -eq 'fr') { return $s }
@@ -601,16 +666,22 @@ public class ScpRev {
     public double Jitter; public double R3; public double R4;
     public int OutOfClass; public int Dropouts;
     public double Shift; public int ShiftN;   // decalage de pic residuel (ns, > 0 = sous-compense) et effectif minimal
+    public double ShiftSE;                    // erreur-type du decalage (ns), d apres la dispersion dans les quatre contextes
+    public int NSL, NSS, NLS, NLL;            // effectifs : 2T entre deux longs / deux courts, 3T entre deux courts / deux longs
 }
 public static class ScpStats {
-    public static ScpRev Analyze(int[] flux, double indexNs) {
-        var r = new ScpRev(); r.IndexMs = indexNs / 1e6; r.NFlux = flux.Length; r.Shift = double.NaN; r.ShiftN = 0;
+    public static ScpRev Analyze(int[] flux, double indexNs) { return Analyze(flux, indexNs, 0); }
+    // cellsPerRev > 0 : motif connu (calibration) -> cellule = duree du tour / nombre de cellules. La mediane des
+    // intervalles de deux cellules derive sinon quand le decalage residuel est grand, et fait sortir des intervalles
+    // de leur classe (simulation : jusqu a +37 ns sur le decalage mesure a 200 ns de precomp).
+    public static ScpRev Analyze(int[] flux, double indexNs, int cellsPerRev) {
+        var r = new ScpRev(); r.IndexMs = indexNs / 1e6; r.NFlux = flux.Length; r.Shift = double.NaN; r.ShiftN = 0; r.ShiftSE = double.NaN;
         // 1) estimation de la cellule : mediane des intervalles de 2 cellules.
         //    Fenetre large (3,0 - 5,0 us) valable pour 2 us (AmigaDOS) comme pour 1,89 us (long tracks).
         var c2raw = new List<double>();
         foreach (int f in flux) if (f > 3000 && f < 5000) c2raw.Add(f);
         if (c2raw.Count < 50) { r.Cell = double.NaN; r.Jitter = double.NaN; r.R3 = double.NaN; r.R4 = double.NaN; r.OutOfClass = flux.Length; r.Dropouts = 0; return r; }
-        c2raw.Sort(); double cell = c2raw[c2raw.Count / 2] / 2.0;
+        c2raw.Sort(); double cell = (cellsPerRev > 0 && indexNs > 0) ? indexNs / cellsPerRev : c2raw[c2raw.Count / 2] / 2.0;
         // 2) classement de chaque intervalle par son nombre de cellules (arrondi), relatif a la cellule mesuree.
         //    2, 3, 4 cellules = MFM standard ; 5 cellules = marqueur de format (long tracks, syncs speciaux) : pas une erreur.
         //    cls[i] : 2, 3, 4 (MFM), 5 (marqueur tolere), 0 (hors classe ou trou).
@@ -638,20 +709,26 @@ public static class ScpStats {
         //    est donc lu plus long qu un 2T encadre par deux 2T ; un 3T encadre par deux 2T est lu plus
         //    court qu un 3T encadre par deux longs. Shift = demi-somme des deux ecarts (ns) : > 0 sous-
         //    compense, < 0 sur-compense, 0 = reglage ideal. Lineaire en la precomp ecrite.
-        double sSL = 0, sSS = 0, sLS = 0, sLL = 0; int nSL = 0, nSS = 0, nLS = 0, nLL = 0;
+        //    Les quatre contextes doivent compter au moins 30 occurrences : un estimateur a un seul contexte est
+        //    biaise (simulations : de -55 a +27 ns). Erreur-type = demi-racine de la somme des variances des moyennes.
+        double sSL = 0, sSS = 0, sLS = 0, sLL = 0, qSL = 0, qSS = 0, qLS = 0, qLL = 0; int nSL = 0, nSS = 0, nLS = 0, nLL = 0;
         for (int i = 1; i < n - 1; i++) {
             int k = cls[i]; if (k != 2 && k != 3) continue;
             int a = cls[i - 1], b = cls[i + 1];
             if (a < 2 || a > 4 || b < 2 || b > 4) continue;
-            bool aL = a >= 3, bL = b >= 3;
-            if (k == 2) { if (aL && bL) { sSL += flux[i]; nSL++; } else if (!aL && !bL) { sSS += flux[i]; nSS++; } }
-            else        { if (!aL && !bL) { sLS += flux[i]; nLS++; } else if (aL && bL) { sLL += flux[i]; nLL++; } }
+            bool aL = a >= 3, bL = b >= 3; double f = flux[i];
+            if (k == 2) { if (aL && bL) { sSL += f; qSL += f * f; nSL++; } else if (!aL && !bL) { sSS += f; qSS += f * f; nSS++; } }
+            else        { if (!aL && !bL) { sLS += f; qLS += f * f; nLS++; } else if (aL && bL) { sLL += f; qLL += f * f; nLL++; } }
         }
-        bool okS = nSL >= 30 && nSS >= 30, okL = nLS >= 30 && nLL >= 30;
-        double shS = okS ? sSL / nSL - sSS / nSS : 0, shL = okL ? sLS / nLS - sLL / nLL : 0;
-        if (okS && okL) { r.Shift = (shS - shL) / 2; r.ShiftN = Math.Min(Math.Min(nSL, nSS), Math.Min(nLS, nLL)); }
-        else if (okS) { r.Shift = shS; r.ShiftN = Math.Min(nSL, nSS); }
-        else if (okL) { r.Shift = -shL; r.ShiftN = Math.Min(nLS, nLL); }
+        r.NSL = nSL; r.NSS = nSS; r.NLS = nLS; r.NLL = nLL;
+        r.ShiftN = Math.Min(Math.Min(nSL, nSS), Math.Min(nLS, nLL));
+        if (r.ShiftN >= 30) {
+            double mSL = sSL / nSL, mSS = sSS / nSS, mLS = sLS / nLS, mLL = sLL / nLL;
+            r.Shift = ((mSL - mSS) - (mLS - mLL)) / 2;
+            double v = Math.Max(0, qSL / nSL - mSL * mSL) / nSL + Math.Max(0, qSS / nSS - mSS * mSS) / nSS
+                     + Math.Max(0, qLS / nLS - mLS * mLS) / nLS + Math.Max(0, qLL / nLL - mLL * mLL) / nLL;
+            r.ShiftSE = Math.Sqrt(v) / 2;
+        }
         return r;
     }
     public static int[] Decode(byte[] data, int offset, int count, int resNs) {
@@ -662,6 +739,56 @@ public static class ScpStats {
             outp.Add((int)((v + carry) * resNs)); carry = 0;
         }
         return outp.ToArray();
+    }
+}
+public static class CalibPattern {
+    // Motif de test de la calibration precomp : image HFE v1 telle que gw la lit (image/hfe.py). En-tete de 512 octets
+    // (debit en kbit/s a l offset 12), table des pistes au bloc 1 (decalage en blocs de 512 octets, longueur des deux
+    // faces en octets), donnees des le bloc 2 en blocs de 256 octets alternes face 0 / face 1, premiere cellule dans le
+    // bit de poids faible. Chaque piste : un tour a 300 tr/min (2000 x debit cellules par seconde) de donnees
+    // pseudo-aleatoires codees MFM, sans structure de secteur : meme statistique de motifs sur toutes les pistes.
+    public static void WriteHfe(string path, int nCyl, int nBits, int rate, int seed) {
+        // nBits : cellules par piste (multiple de 16). gw cale chaque piste ecrite sur un tour du lecteur : c est ce nombre,
+        // et non le debit de l en-tete, qui fixe la densite ecrite. Longueur des deux faces sur 16 bits dans la table.
+        if (nCyl < 1 || nCyl > 255 || nBits < 16 || nBits % 16 != 0 || nBits / 4 > 0xFFFF || rate < 1 || rate > 0xFFFF)
+            throw new ArgumentOutOfRangeException("nBits", "HFE : " + nCyl + " cylindres, " + nBits + " cellules par piste hors limites");
+        int nBytes = nBits / 8, nBlocks = (nBytes + 255) / 256;
+        byte[] head = new byte[512]; for (int i = 0; i < 512; i++) head[i] = 0xFF;
+        Array.Copy(System.Text.Encoding.ASCII.GetBytes("HXCPICFE"), head, 8);
+        head[8] = 0; head[9] = (byte)nCyl; head[10] = 2; head[11] = 0xFF;   // revision, cylindres, faces, codage inconnu
+        head[12] = (byte)(rate & 0xFF); head[13] = (byte)(rate >> 8);       // debit (kbit/s)
+        head[14] = 0; head[15] = 0; head[16] = 0xFF; head[17] = 1;          // tr/min inutilise, interface inconnue, reserve
+        head[18] = 1; head[19] = 0; head[20] = 0xFF; head[21] = 0xFF;       // table au bloc 1, ecriture permise, pas simple
+        byte[] tlut = new byte[512]; for (int i = 0; i < 512; i++) tlut[i] = 0xFF;
+        for (int c = 0; c < nCyl; c++) {
+            int off = 2 + c * nBlocks, len = 2 * nBytes;
+            tlut[c * 4] = (byte)(off & 0xFF); tlut[c * 4 + 1] = (byte)(off >> 8);
+            tlut[c * 4 + 2] = (byte)(len & 0xFF); tlut[c * 4 + 3] = (byte)(len >> 8);
+        }
+        var rnd = new Random(seed);
+        using (var fs = new System.IO.FileStream(path, System.IO.FileMode.Create, System.IO.FileAccess.Write)) {
+            fs.Write(head, 0, 512); fs.Write(tlut, 0, 512);
+            byte[] blk = new byte[256];
+            for (int c = 0; c < nCyl; c++) {
+                byte[][] side = new byte[][] { Track(rnd, nBits), Track(rnd, nBits) };
+                for (int b = 0; b < nBlocks; b++)
+                    for (int s = 0; s < 2; s++) {
+                        for (int i = 0; i < 256; i++) { int k = b * 256 + i; blk[i] = k < nBytes ? side[s][k] : (byte)0x88; }
+                        fs.Write(blk, 0, 256);
+                    }
+            }
+        }
+    }
+    static byte[] Track(Random rnd, int nBits) {
+        // MFM : une cellule d horloge puis une de donnee par bit ; horloge a 1 seulement entre deux bits de donnee a 0
+        byte[] t = new byte[nBits / 8]; int prev = 0;
+        for (int i = 0; i < nBits; i += 2) {
+            int d = rnd.Next(2), clk = (prev == 0 && d == 0) ? 1 : 0;
+            if (clk == 1) t[i >> 3] |= (byte)(1 << (i & 7));
+            if (d == 1) t[(i + 1) >> 3] |= (byte)(1 << ((i + 1) & 7));
+            prev = d;
+        }
+        return t;
     }
 }
 '@ -ErrorAction Stop
@@ -820,6 +947,8 @@ $script:AlignRef    = $null     # reference memorisee (meme structure)
 # Profils de precompensation (mesures le 06/10/2026, lecteur A600 en ecriture, relecture A600)
 $script:PrecompStd  = '0=70:40=100:65=140'          # cellule 2 us : AmigaDOS, ADF, formats IBM/Atari
 $script:PrecompLong = '0=85:20=110:40=120:65=140'   # cellule ~1,89 us : long tracks (formats proprietaires)
+$script:PrecompStdDefault  = $script:PrecompStd     # profils d origine, retablis par « Effacer les calibrations »
+$script:PrecompLongDefault = $script:PrecompLong
 $script:PrecompThresholdNs = 1950                   # cellule < seuil -> profil long track
 $script:AlignRefLabel = ''
 
@@ -1157,21 +1286,34 @@ $txtLibInfo.Multiline = $true; $txtLibInfo.ReadOnly = $true; $txtLibInfo.Font = 
 $txtLibInfo.ScrollBars = 'Vertical'
 $txtLibInfo.BackColor = [System.Drawing.SystemColors]::Control
 
-$btnLibToWrite = New-Object System.Windows.Forms.Button
-$btnLibToWrite.Text = (T 'Envoyer vers Écriture'); $btnLibToWrite.Location = '465,213'; $btnLibToWrite.Size = '313,38'; $btnLibToWrite.Font = $bold
-$btnLibToWrite.Anchor = 'Bottom,Right'; $btnLibToWrite.Enabled = $false
-$btnLibToWrite.Add_Click({
+function Start-LibWrite([string]$mode) {
+    # Ecriture rapide ou lente de l image selectionnee : parametres de l onglet Ecriture appliques, calibration
+    # automatique si elle manque pour la famille de l image, puis ecriture (onglet Ecriture affiche pour le suivi)
+    if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     $sel = Resolve-LibSelection
     if (-not $sel) { return }
     if (-not $sel.IsImage) {
         [void][System.Windows.Forms.MessageBox]::Show((T 'Ce fichier n''est pas un format image reconnu par gw.'),(T 'Type non pris en charge'),'OK','Information'); return
     }
-    $txtWFile.Text = $sel.Path
-    if ($sel.Path -match '\.adf$') { $cmbWFmt.SelectedItem = 'amiga.amigados' } else { $cmbWFmt.SelectedIndex = 0 }
     Append-Log ((T "Image sélectionnée : {0}") -f "$($sel.Path)")
+    Set-WritePreset $mode $sel.Path $sel.Source
     Update-PrecompForImage $sel.Path
     $tabs.SelectedTab = $tabW
-})
+    Start-PresetWrite $mode
+}
+
+function Set-LibWriteEnabled([bool]$on) { $btnLibFast.Enabled = $on; $btnLibSlow.Enabled = $on }
+
+$btnLibFast = New-Object System.Windows.Forms.Button
+$btnLibFast.Text = (T 'Écriture rapide'); $btnLibFast.Location = '465,213'; $btnLibFast.Size = '154,38'; $btnLibFast.Font = $bold
+$btnLibFast.Anchor = 'Bottom,Right'; $btnLibFast.Enabled = $false
+$tip.SetToolTip($btnLibFast, (T "Écrit l'image sélectionnée en une passe, les deux têtes ensemble : image entière, profil de précompensation Auto,`npré-effacement, effacement des pistes vides, vérification gw, 10 retries, sans contrôle complet des pistes.`nSans calibration commune pour la famille de l'image, le lecteur est d'abord calibré : la disquette reçoit le motif de test, puis l'image."))
+$btnLibFast.Add_Click({ Start-LibWrite 'fast' })
+$btnLibSlow = New-Object System.Windows.Forms.Button
+$btnLibSlow.Text = (T 'Écriture lente'); $btnLibSlow.Location = '624,213'; $btnLibSlow.Size = '154,38'; $btnLibSlow.Font = $bold
+$btnLibSlow.Anchor = 'Bottom,Right'; $btnLibSlow.Enabled = $false
+$tip.SetToolTip($btnLibSlow, (T "Écrit la tête 0 puis la tête 1, chacune avec sa précompensation, puis contrôle toutes les pistes`net réécrit les pistes faibles, 3 passes au plus. Mêmes paramètres que l'écriture rapide.`nSans calibration par tête pour la famille de l'image, chaque tête est d'abord calibrée : la disquette reçoit le motif de test, puis l'image."))
+$btnLibSlow.Add_Click({ Start-LibWrite 'slow' })
 
 $btnLibOpen = New-Object System.Windows.Forms.Button
 $btnLibOpen.Text = (T 'Ouvrir (application par défaut)'); $btnLibOpen.Location = '465,250'; $btnLibOpen.Size = '313,32'
@@ -1198,7 +1340,7 @@ $btnLibExplore.Add_Click({
 
 $tabL.Controls.AddRange(@((New-Label (T 'Racine :') '10,14'), $txtLibRoot, $btnLibRoot, $btnLibRefresh,
     (New-Label (T 'Recherche :') '10,44'), $txtLibFilter, $btnLibFilter, $chkLibImgOnly, $lblLibCount, $btnLibReindex,
-    $treeLib, $txtLibInfo, $btnLibToWrite, $btnLibOpen, $btnLibExplore))
+    $treeLib, $txtLibInfo, $btnLibFast, $btnLibSlow, $btnLibOpen, $btnLibExplore))
 
 # ============================== ECRITURE =======================================
 $tabW = New-TabPage (T 'Écriture')
@@ -1229,7 +1371,7 @@ $tip.SetToolTip($cmbWFmt, (T "(auto) = aucun --format transmis : obligatoire pou
 $cmbWProfile = New-Object System.Windows.Forms.ComboBox
 $cmbWProfile.Location = '440,52'; $cmbWProfile.Width = 170; $cmbWProfile.DropDownStyle = 'DropDownList'
 [void]$cmbWProfile.Items.AddRange(@((T 'Auto (selon image)'),(T 'Standard 2 us'),(T 'Long track 1,89 us'),(T 'Manuel')))
-$tip.SetToolTip($cmbWProfile, (T "Auto : la cellule de l'image est mesurée (IPF : bits par piste ; SCP : flux ; HFE : débit)`net le profil --precomp correspondant est appliqué.`nManuel : le champ --precomp n'est jamais modifié."))
+$tip.SetToolTip($cmbWProfile, (T "Auto : la cellule de l'image est mesurée (IPF et HFE : bits par piste ; SCP : flux)`net le profil --precomp correspondant est appliqué.`nManuel : le champ --precomp n'est jamais modifié."))
 $cmbWProfile.Add_SelectedIndexChanged({ Update-PrecompForImage $txtWFile.Text })
 
 $btnWCurve = New-Object System.Windows.Forms.Button
@@ -1242,8 +1384,8 @@ $btnWFile.Add_Click({
     $d.Filter = (T 'Images disquette|*.ipf;*.adf;*.scp;*.hfe;*.img;*.st;*.dsk;*.raw;*.d64;*.imd|Tous|*.*')
     if ($txtWFile.Text) { $p = Split-Path -Parent $txtWFile.Text; if ($p -and (Test-Path -LiteralPath $p)) { $d.InitialDirectory = $p } }
     if ($d.ShowDialog() -eq 'OK') {
-        $txtWFile.Text = $d.FileName
-        if ($d.FileName -match '\.adf$') { $cmbWFmt.SelectedItem = 'amiga.amigados' } else { $cmbWFmt.SelectedIndex = 0 }
+        $txtWFile.Text = $d.FileName; $script:PresetSource = $d.FileName
+        if ($d.FileName -match '\.adf$') { $cmbWFmt.SelectedItem = $(if (Test-AdfHd $d.FileName) { 'amiga.amigados_hd' } else { 'amiga.amigados' }) } else { $cmbWFmt.SelectedIndex = 0 }
         Update-PrecompForImage $d.FileName
     }
 })
@@ -1309,9 +1451,13 @@ $cmbWCalMode.Location = '165,105'; $cmbWCalMode.Width = 250; $cmbWCalMode.DropDo
 $cmbWCalMode.SelectedIndex = 0
 $btnWCalib = New-Object System.Windows.Forms.Button
 $btnWCalib.Text = (T 'Calibrer'); $btnWCalib.Location = '425,104'; $btnWCalib.Size = '120,26'
-$tip.SetToolTip($btnWCalib, (T "Calibre la précompensation pour ce lecteur d'écriture : chaque passe écrit les cylindres de test de l'image avec une valeur de precomp, les relit en flux et note le placement des transitions. La meilleure valeur par cylindre forme le profil, enregistré pour la famille de l'image (standard ou long track) et appliqué ensuite par le mode Auto. La disquette insérée est écrasée. Test standard : un cylindre sur 10, quelques minutes. Test fin : tous les cylindres, environ une heure."))
+$tip.SetToolTip($btnWCalib, (T "Calibre la précompensation pour ce lecteur d'écriture : chaque passe écrit sur les cylindres de test un motif de test pseudo-aléatoire, à la densité de l'image, avec une valeur de precomp puis, en vérification, le profil obtenu ; elle le relit en flux et mesure le décalage de pic. Une courbe donne ensuite une valeur par cylindre ; le profil est enregistré pour la famille de l'image (standard ou long track) et appliqué ensuite par le mode Auto. Le contenu de l'image n'est pas écrit. La disquette insérée est écrasée. Test standard : un cylindre sur 10, quelques minutes. Test fin : tous les cylindres, un quart d'heure environ."))
 $tip.SetToolTip($btnWCalib, $tip.GetToolTip($btnWCalib) + "`n" + (T 'Écriture lente cochée : une courbe par tête, vérifiée en écrivant la tête 0 puis la tête 1, chacune avec son profil.'))
-$btnWCalib.Add_Click({ Start-PrecompCalib })
+$btnWCalib.Add_Click({ $script:AfterCalib = ''; Start-PrecompCalib })
+$btnWCalReset = New-Object System.Windows.Forms.Button
+$btnWCalReset.Text = (T 'Effacer les calibrations'); $btnWCalReset.Location = '555,104'; $btnWCalReset.Size = '195,26'
+$tip.SetToolTip($btnWCalReset, (T "Efface toutes les calibrations de précompensation : courbes communes et par tête des familles standard et long track.`nLes profils de famille reprennent leurs valeurs d'origine. Une écriture rapide ou lente recalibre ensuite automatiquement."))
+$btnWCalReset.Add_Click({ Reset-CalibProfiles })
 
 # --- Ligne 4 : progression globale de la calibration (toutes passes), visible pendant et apres
 $pbWCal = New-Object System.Windows.Forms.ProgressBar
@@ -1320,7 +1466,7 @@ $lblWCal = New-Object System.Windows.Forms.Label
 $lblWCal.Location = '320,137'; $lblWCal.AutoSize = $true; $lblWCal.ForeColor = 'DimGray'; $lblWCal.Visible = $false
 
 $grpWOpt.Controls.AddRange(@($chkWPreErase, $chkWEraseEmpty, $chkWNoVerify, (New-Label (T 'Retries :') '500,26'), $numWRetries, $chkWSlow, $chkWPrecomp, $txtWPrecomp, $chkWPostCheck,
-    $lblWPrecomp1, $txtWPrecomp1, (New-Label (T 'Calibration précomp :') '12,109'), $cmbWCalMode, $btnWCalib, $pbWCal, $lblWCal, $lblWRepair, $numWRepair))
+    $lblWPrecomp1, $txtWPrecomp1, (New-Label (T 'Calibration précomp :') '12,109'), $cmbWCalMode, $btnWCalib, $btnWCalReset, $pbWCal, $lblWCal, $lblWRepair, $numWRepair))
 
 # --- Groupe 3 : options avancees (rarement utiles)
 $grpWAdv = New-Group (T 'Options avancées') '10,266' '762,74'
@@ -1358,7 +1504,7 @@ $grpWAdv.Controls.AddRange(@((New-Label (T 'Pistes :') '12,23'), $txtWTracks, (N
 # --- Action
 $btnWrite = New-Object System.Windows.Forms.Button
 $btnWrite.Text = (T 'ÉCRIRE LA DISQUETTE'); $btnWrite.Location = '10,348'; $btnWrite.Size = '250,40'; $btnWrite.Font = $bold
-# Options "comment ecrire" communes a l ecriture et a la calibration precomp
+# Options "comment ecrire" de l ecriture ; la calibration les reprend sans --format ni --diskdefs (Get-CalibDriveArgs, motif HFE)
 function Get-WriteFormatArgs {
     $a = @()
     if ($chkWReverse.Checked)    { $a += '--reverse' }
@@ -1371,7 +1517,8 @@ function Get-WriteFormatArgs {
     return $a
 }
 
-$btnWrite.Add_Click({
+function Start-ImageWrite {
+    # Ecriture de l image avec les parametres de l onglet (bouton ECRIRE, ecriture rapide ou lente, fin de calibration automatique)
     if (-not (Test-Path -LiteralPath $txtWFile.Text)) {
         [void][System.Windows.Forms.MessageBox]::Show((T 'Fichier image introuvable.'),(T 'Erreur'),'OK','Warning'); return
     }
@@ -1433,10 +1580,7 @@ $btnWrite.Add_Click({
     }
     if ($chkWPostCheck.Checked -and -not $blocker) {
         # Options de lecteur reprises par les relectures de controle (gw read les accepte toutes)
-        $readOpts = @()
-        if ($chkWReverse.Checked)         { $readOpts += '--reverse' }
-        if ($cmbWDensel.Text -ne '(non)') { $readOpts += "--densel=$($cmbWDensel.Text)" }
-        if ($txtWFakeIdx.Text.Trim())     { $readOpts += "--fake-index=$($txtWFakeIdx.Text.Trim())" }
+        $readOpts = @(Get-DriveReadArgs)
         New-WriteCheck $base $txtWFile.Text $userTs ([int]$numWRepair.Value) $readOpts $headPc
         $script:Chain.Clear()
         if ($slow) { for ($i = 0; $i -lt $script:WriteQueue.Count; $i++) { $script:Chain.Enqueue({ Invoke-WriteQueueNext }) } }
@@ -1450,7 +1594,116 @@ $btnWrite.Add_Click({
     } else {
         Start-Gw $a
     }
-})
+}
+
+function Get-CalibState([string]$fam, [bool]$heads) {
+    # Etat de la calibration utilisee par l ecriture rapide (courbe commune) ou lente (courbes par tete) :
+    #  'ok'      : mesuree sur le motif de test (Method = 'motif') et, par tete, au moins aussi recente que la courbe
+    #              commune : sinon Get-FamilyCurves applique la courbe commune aux deux tetes ;
+    #  'content' : courbe anterieure au motif, mesuree sur le contenu d une image (biaisee) : refaite ;
+    #  'stale'   : courbes par tete anterieures a la calibration commune ;
+    #  'none'    : absente ou incomplete.
+    $keys = if ($heads) { @("${fam}_h0", "${fam}_h1") } else { @($fam) }
+    $missing = $false
+    foreach ($k in $keys) {
+        $cv = $script:PrecompCurves[$k]
+        if (-not $cv) { $missing = $true } elseif ($cv.Method -ne 'motif') { return 'content' }
+    }
+    if ($missing) { return 'none' }
+    if ($heads -and -not (Test-HeadCurvesCurrent $fam)) { return 'stale' }
+    return 'ok'
+}
+
+function Test-CalibCurrent([string]$fam, [bool]$heads) {
+    # Calibration utilisable telle quelle par l ecriture rapide ou lente (voir Get-CalibState)
+    return ((Get-CalibState $fam $heads) -eq 'ok')
+}
+
+function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
+    # Parametres d une ecriture rapide ou lente : image entiere, profil Auto, pre-effacement, effacement des pistes vides,
+    # verification gw, 10 retries, precomp transmise. Rapide : une commande pour les deux tetes, sans controle complet.
+    # Lente : tete 0 puis tete 1 (profils par tete), controle de toutes les pistes, 3 passes de reecriture. Les options
+    # de lecteur (flippy, densel, fake index, diskdefs, secteurs durs, TG43) decrivent le materiel : conservees, comme
+    # les elements step, h0.off, h1.off et hswap du champ Pistes (seuls c= et h= sont retires : image entiere).
+    # Format : ADF -> amiga.amigados, ou amiga.amigados_hd d apres la taille ; image secteur brute (IMG, IMA, ST, DSK
+    # sans signature CPC) : format conserve si la meme source (fichier, ou entree d archive : deux ZIP peuvent extraire
+    # le meme nom) est deja celle de l onglet Ecriture, sinon (auto) et Start-PresetWrite demande de le choisir ;
+    # autres images : (auto), gw deduit le format.
+    if (-not $source) { $source = $path }
+    $same = ($txtWFile.Text -eq $path -and $script:PresetSource -eq $source)
+    $txtWFile.Text = $path; $script:PresetSource = $source
+    if ($path -match '\.adf$') { $cmbWFmt.SelectedItem = $(if (Test-AdfHd $path) { 'amiga.amigados_hd' } else { 'amiga.amigados' }) }
+    elseif (-not ($same -and (Test-NeedsFormat $path))) { $cmbWFmt.SelectedIndex = 0 }
+    $cmbWProfile.SelectedIndex = 0
+    # Faces de l image (Get-ImageTrackSet) : inconnues -> pas d effacement des pistes vides, qui effacerait la face 1
+    # d une image simple face (gw n ecrit alors que les pistes presentes) ; une seule face en ecriture rapide -> h= de
+    # cette face dans Pistes (en lente, Start-ImageWrite n ecrit deja que les faces de l image).
+    $extras = Get-TSpecExtras $txtWTracks.Text
+    $set = Get-ImageTrackSet $path
+    $facesUnknown = ($null -eq $set)
+    $oneHead = $null
+    if (-not $facesUnknown) {
+        $hs = @(@($set.Keys) | ForEach-Object { [int](([string]$_ -split '\.')[1]) } | Sort-Object -Unique)
+        if ($hs.Count -eq 1) { $oneHead = $hs[0] }
+    }
+    $chkWPreErase.Checked = $true; $chkWEraseEmpty.Checked = (-not $facesUnknown); $chkWNoVerify.Checked = $false
+    $numWRetries.Value = 10; $chkWPrecomp.Checked = $true
+    $txtWTracks.Text = $(if ($mode -ne 'slow' -and $null -ne $oneHead) { "h=$oneHead" + $extras } else { $extras.TrimStart(':') })
+    $chkWSlow.Checked = ($mode -eq 'slow')
+    if ($mode -eq 'slow') {
+        $chkWPostCheck.Checked = $true; $numWRepair.Value = 3
+        Append-Log (T 'Écriture lente : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 retries, tête 0 puis tête 1, contrôle de toutes les pistes, 3 passes de réécriture.')
+    } else {
+        $chkWPostCheck.Checked = $false
+        Append-Log (T 'Écriture rapide : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 retries, les deux têtes ensemble, sans contrôle complet des pistes.')
+        if ($null -ne $oneHead) { Append-Log ((T "Image à une seule face : seule la tête {0} est écrite (h={0} dans Pistes).") -f "$oneHead") }
+    }
+    if ($facesUnknown) { Append-Log (T "Nombre de faces de l'image inconnu : effacement des pistes vides désactivé (seules les pistes présentes dans l'image sont écrites).") }
+    if ($extras) { Append-Log ((T "Champ Pistes : éléments de lecteur conservés ({0}).") -f $extras.TrimStart(':')) }
+}
+
+function Start-PresetWrite([string]$mode) {
+    # Calibration automatique si elle manque pour la famille de l image (commune en rapide, par tete en lente), puis
+    # ecriture. Ecriture directe, sans calibration automatique : flux ecrit tel quel (sans --format, gw ne lui applique
+    # pas la precompensation), image haute densite, secteurs durs ou lecteur 8 pouces, densite non etablie (conteneur
+    # a geometrie libre : IMD, TD0, D88, D64... ; IPF ou HFE dont la cellule sort de la plage mesurable), module
+    # d analyse SCP indisponible.
+    $img = $txtWFile.Text
+    if (-not $img -or -not (Test-Path -LiteralPath $img)) {
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Fichier image introuvable.'),(T 'Erreur'),'OK','Warning'); return
+    }
+    $ext = [System.IO.Path]::GetExtension($img).ToLower()
+    $fmt = $cmbWFmt.Text
+    $explicit = ($fmt -and $fmt -ne '(auto)')
+    if ((Test-NeedsFormat $img) -and -not $explicit) {
+        # Avant toute calibration : gw refuserait l ecriture apres coup (« Sector image requires a disk format »)
+        [void][System.Windows.Forms.MessageBox]::Show(((T "Image secteur sans géométrie ({0}) : gw exige le format.`nChoisir le format dans l'onglet Écriture, puis relancer l'écriture.") -f "$ext"),(T 'Format requis'),'OK','Warning'); return
+    }
+    if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) { Start-ImageWrite; return }
+    $hd = Get-HighDensityReason $img $fmt
+    if ($hd) { Append-Log ((T "Image haute densité ({0}) : pas de calibration automatique, écriture avec le profil courant.") -f "$hd"); Start-ImageWrite; return }
+    if ($chkWHard.Checked -or $chkWTG43.Checked) { Append-Log (T 'Secteurs durs ou lecteur 8 pouces (TG43) : pas de calibration automatique, écriture avec le profil courant.'); Start-ImageWrite; return }
+    $ddKnown = (@('.adf', '.ipf', '.hfe') -contains $ext) -or ($explicit -and $fmt -notmatch '^(commodore\.15[47]1|mac\.|apple2\.)')
+    if (-not $ddKnown) { Append-Log ((T "Densité de l'image non établie ({0}, format déduit par gw) : pas de calibration automatique, écriture avec le profil courant.") -f "$ext"); Start-ImageWrite; return }
+    $oor = Get-CellOutOfRange $img
+    if ($null -ne $oor) { Append-Log ((T "Cellule de l'image hors de la plage mesurable ({0} ns, de 1 700 à 2 300 ns en MFM double densité) : pas de calibration automatique, écriture avec le profil courant.") -f "$oor"); Start-ImageWrite; return }
+    if (-not $script:ScpStatsOk) { Append-Log (T "Module d'analyse SCP indisponible : pas de calibration automatique, écriture avec le profil courant."); Start-ImageWrite; return }
+    $fam = Get-ImageFamily $img
+    $heads = ($mode -eq 'slow')
+    $state = Get-CalibState $fam $heads
+    if ($state -eq 'ok') { Start-ImageWrite; return }
+    $kind = if ($heads) { (T 'par tête') } else { (T 'commune') }
+    switch ($state) {
+        'content' { Append-Log ((T "La calibration {0} de la famille {1} a été mesurée sur le contenu d'une image, avant le motif de test : elle est refaite.") -f "$kind", (Get-CalibFamilyName $fam)) }
+        'stale'   { Append-Log ((T "Courbes par tête de la famille {0} antérieures à la calibration commune : elles sont refaites.") -f (Get-CalibFamilyName $fam)) }
+        default   { Append-Log ((T "Aucune calibration {0} pour la famille {1} : calibration automatique, puis écriture.") -f "$kind", (Get-CalibFamilyName $fam)) }
+    }
+    $script:AfterCalib = 'write'
+    Start-PrecompCalib
+    if (-not $script:Cal) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : la calibration n''a pas été lancée.') }
+}
+
+$btnWrite.Add_Click({ Start-ImageWrite })
 
 $lblWProfileInfo = New-Object System.Windows.Forms.Label
 $lblWProfileInfo.Location = '270,348'; $lblWProfileInfo.Size = '502,40'; $lblWProfileInfo.Anchor = 'Top,Left,Right'
@@ -2141,13 +2394,15 @@ Set-Btn $btnLibRoot    'FolderOpen' -IconOnly
 Set-Btn $btnLibRefresh 'Refresh'    -IconOnly
 Set-Btn $btnLibFilter  'Search'     -IconOnly
 Set-Btn $btnLibReindex 'Sync'
-Set-Btn $btnLibToWrite 'Save' 'primary'
+Set-Btn $btnLibFast    'Save' 'primary'
+Set-Btn $btnLibSlow    'Save' 'primary'
 Set-Btn $btnLibOpen    'OpenFile'
 Set-Btn $btnLibExplore 'FolderOpen'
 Set-Btn $btnWFile      'FolderOpen' -IconOnly
 Set-Btn $btnWDiskdefs  'FolderOpen' -IconOnly
 Set-Btn $btnWrite      'Save' 'primary'
 Set-Btn $btnWCalib     'Diagnostic'
+Set-Btn $btnWCalReset  'Delete' 'danger'
 Set-Btn $btnWCurve     'Diagnostic'
 Set-Btn $btnRFile      'FolderOpen' -IconOnly
 Set-Btn $btnRDiskdefs  'FolderOpen' -IconOnly
@@ -2430,14 +2685,14 @@ function Update-Library {
     $form.Cursor = [System.Windows.Forms.Cursors]::Default
     $treeLib.Nodes.Clear()
     $txtLibInfo.Clear()
-    $btnLibToWrite.Enabled = $false
+    Set-LibWriteEnabled $false
     $btnLibOpen.Enabled = $false
     $lblLibCount.Text = ''
 
     $root = $txtLibRoot.Text
     if (-not $root -or -not (Test-Path -LiteralPath $root)) {
         if ($root) { $lblLibCount.Text = (T 'racine introuvable') }
-        $txtLibInfo.Text = (T "Pour commencer :`r`n1. Choisis le dossier racine de tes images (bouton ...).`r`n2. Déplie l'arborescence ou utilise la recherche.`r`n3. Sélectionne une image puis « Envoyer vers Écriture ».")
+        $txtLibInfo.Text = (T "Pour commencer :`r`n1. Choisis le dossier racine de tes images (bouton ...).`r`n2. Déplie l'arborescence ou utilise la recherche.`r`n3. Sélectionne une image puis « Écriture rapide » ou « Écriture lente ».")
         return
     }
 
@@ -2469,7 +2724,7 @@ function Update-Library {
 }
 
 function Show-LibSelection($node) {
-    $btnLibToWrite.Enabled = $false
+    Set-LibWriteEnabled $false
     $btnLibOpen.Enabled = $false
     if (-not $node -or -not $node.Tag) { $txtLibInfo.Clear(); return }
     $t = $node.Tag
@@ -2492,14 +2747,14 @@ function Show-LibSelection($node) {
             $lines += ((T "Taille  : {0}") -f "$(Format-Size $t.Size)")
             $lines += ''
             $lines += (T 'Extrait dans un dossier temporaire avant usage.')
-            $btnLibToWrite.Enabled = ($t.FileKind -eq 'image')
+            Set-LibWriteEnabled ($t.FileKind -eq 'image')
             $btnLibOpen.Enabled    = ($t.FileKind -eq 'doc')
         }
         'image' {
             $lines += ((T "Image disquette ({0})") -f "$([System.IO.Path]::GetExtension($t.Path))")
             $lines += ((T "Taille : {0}") -f "$(Format-Size $t.Size)")
             $lines += $t.Path
-            $btnLibToWrite.Enabled = $true
+            Set-LibWriteEnabled $true
         }
         'doc' {
             $lines += ((T "Document ({0})") -f "$([System.IO.Path]::GetExtension($t.Path))")
@@ -2528,6 +2783,8 @@ function Expand-ZipEntry([string]$zipPath, [string]$entry) {
 }
 
 function Resolve-LibSelection {
+    # Image ou document selectionne : chemin (entree d archive extraite dans TempDir) et source unique (fichier, ou
+    # archive + entree : deux archives peuvent extraire le meme nom de fichier)
     $n = $treeLib.SelectedNode
     if (-not $n -or -not $n.Tag) { return $null }
     $t = $n.Tag
@@ -2536,14 +2793,14 @@ function Resolve-LibSelection {
         try {
             $p = Expand-ZipEntry $t.ZipPath $t.Entry
             Append-Log ((T "Extrait : {0} -> {1}") -f "$($t.Entry)", "$p")
-            return @{ Path = $p; IsImage = ($t.FileKind -eq 'image') }
+            return @{ Path = $p; IsImage = ($t.FileKind -eq 'image'); Source = "$($t.ZipPath)|$($t.Entry)" }
         } catch {
             Append-Log ((T "Extraction impossible : {0}") -f "$($_.Exception.Message)")
             return $null
         } finally { $form.Cursor = [System.Windows.Forms.Cursors]::Default }
     }
     if ($t.Kind -eq 'image' -or $t.Kind -eq 'doc' -or $t.Kind -eq 'other') {
-        return @{ Path = $t.Path; IsImage = ($t.Kind -eq 'image') }
+        return @{ Path = $t.Path; IsImage = ($t.Kind -eq 'image'); Source = $t.Path }
     }
     return $null
 }
@@ -2558,6 +2815,9 @@ function Invoke-NextChainStep {
         $script:Chain.Clear(); $script:WriteQueue.Clear()
         if ($script:Rep) { Stop-WriteCheck }
         Append-Log ((T "ERREUR étape : {0}") -f "$($_.Exception.Message)")
+        # Etape de calibration en echec : calibration abandonnee, avec l ecriture qu elle devait preceder
+        if ($script:Cal) { Stop-PrecompCalib }
+        $script:AfterCalib = ''
         if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : {0}") -f "$($_.Exception.Message)") }
     }
 }
@@ -2718,7 +2978,9 @@ function Compare-Images {
 }
 
 # ============================== ALIGNEMENT : LOGIQUE ===========================
-function Read-ScpFile([string]$path) {
+function Read-ScpFile([string]$path, [int]$cellsPerRev = 0) {
+    # cellsPerRev > 0 : motif de test connu (calibration) ; la cellule vaut alors duree du tour / nombre de cellules,
+    # au lieu de la mediane des intervalles de deux cellules, qui derive quand le decalage residuel est grand.
     $d = [System.IO.File]::ReadAllBytes($path)
     if ([System.Text.Encoding]::ASCII.GetString($d, 0, 3) -ne 'SCP') { throw (T 'Fichier SCP invalide') }
     $revs = $d[5]; $res = ($d[11] + 1) * 25
@@ -2732,7 +2994,7 @@ function Read-ScpFile([string]$path) {
             $ln   = [BitConverter]::ToUInt32($d, $o + 8 + 12 * $r)
             $doff = [BitConverter]::ToUInt32($d, $o + 12 + 12 * $r)
             $flux = [ScpStats]::Decode($d, [int]($o + $doff), [int]$ln, $res)
-            $list += [ScpStats]::Analyze($flux, [double]$idx * $res)
+            $list += [ScpStats]::Analyze($flux, [double]$idx * $res, $cellsPerRev)
         }
         $tracks[[int]$tn] = $list
     }
@@ -3058,13 +3320,40 @@ function Get-ScpCellInfo([string]$path) {
 
 # HFE : debit binaire declare dans l en-tete (kbit/s) -> cellule = 500 000 / debit
 function Get-HfeCellInfo([string]$path) {
+    # Densite d un HFE telle que gw l ecrit (hfe.py) : par face, 8 x (longueur // 2) bits, la longueur (octets, deux
+    # faces) etant lue dans la table des pistes (bloc ToUInt16(18), une entree de 4 octets par cylindre : bloc des
+    # donnees, longueur) ; gw cale chaque piste sur un tour du lecteur, d ou une cellule de 200 ms / bits a 300 tr/min
+    # (mediane des pistes). Table retenue si elle suit l en-tete, est complete et designe pour au moins la moitie des
+    # cylindres des donnees presentes dans le fichier. HFE v3 (opcodes dans le flux de bits) ou table inexploitable :
+    # 400 x debit de l en-tete.
     $fs = [System.IO.File]::OpenRead($path)
-    try { $h = New-Object byte[] 32; [void]$fs.Read($h, 0, 32) } finally { $fs.Dispose() }
-    if ([System.Text.Encoding]::ASCII.GetString($h, 0, 8) -notmatch '^HXCPICFE|^HXCHFEV3') { throw (T 'Signature HFE absente') }
-    $rate = [BitConverter]::ToUInt16($h, 12)          # en-tete HFE : bitRate (kbit/s) a l offset 12
-    if ($rate -le 0) { throw (T 'Débit HFE nul') }
-    if ($rate -lt 100 -or $rate -gt 1000) { throw ((T "Débit HFE invalide ({0} kbit/s)") -f "$rate") }
-    return @{ CellNs = [double](500000.0 / $rate); Bits = [int64](200000000.0 / (500000.0 / $rate)); Tracks = -1; DosTracks = -1; Source = ((T "HFE (débit {0} kbit/s)") -f "$rate") }
+    try {
+        $h = New-Object byte[] 32; [void]$fs.Read($h, 0, 32)
+        $sig = [System.Text.Encoding]::ASCII.GetString($h, 0, 8)
+        if ($sig -notmatch '^HXCPICFE|^HXCHFEV3') { throw (T 'Signature HFE absente') }
+        $rate = [BitConverter]::ToUInt16($h, 12)          # en-tete HFE : bitRate (kbit/s) a l offset 12
+        if ($rate -le 0) { throw (T 'Débit HFE nul') }
+        if ($rate -lt 100 -or $rate -gt 1000) { throw ((T "Débit HFE invalide ({0} kbit/s)") -f "$rate") }
+        $bits = [int64](400 * [int]$rate); $src = ((T "HFE (débit {0} kbit/s)") -f "$rate")
+        $nCyl = [int]$h[9]; $tlBase = [int][BitConverter]::ToUInt16($h, 18)
+        if ($sig -eq 'HXCPICFE' -and $nCyl -gt 0 -and $tlBase -ge 1) {
+            $tl = New-Object byte[] (4 * $nCyl)
+            [void]$fs.Seek([int64]$tlBase * 512, [System.IO.SeekOrigin]::Begin)
+            $got = $fs.Read($tl, 0, $tl.Length)
+            if ($got -eq $tl.Length) {
+                $flen = $fs.Length
+                $lens = @(@(for ($i = 0; $i + 4 -le $got; $i += 4) {
+                    $off = [int64][BitConverter]::ToUInt16($tl, $i); $l = [int][BitConverter]::ToUInt16($tl, $i + 2)
+                    if ($l -ge 2 -and $off -gt $tlBase -and $off * 512 + $l -le $flen + 512) { 8 * [int64][math]::Floor($l / 2) }
+                }) | Sort-Object)
+                if ($lens.Count -gt 0 -and $lens.Count -ge [math]::Ceiling($nCyl / 2)) {
+                    $med = [int64]$lens[[int][math]::Floor($lens.Count / 2)]
+                    if ($med -ge 20000 -and $med -le 600000) { $bits = $med; $src = ((T "HFE ({0} bits par piste, débit {1} kbit/s)") -f "$med", "$rate") }
+                }
+            }
+        }
+    } finally { $fs.Dispose() }
+    return @{ CellNs = [double](200000000.0 / $bits); Bits = $bits; Tracks = -1; DosTracks = -1; Source = $src }
 }
 
 function Get-CurveDate($cv) {
@@ -3172,6 +3461,8 @@ $script:CalCoarse    = @(0, 100, 200)   # passes de mesure : trois points pour l
 $script:CalMaxNs     = 300              # borne haute d une valeur de precomp
 $script:CalResidual  = 4.0              # residu (ns) au-dela duquel un cylindre est corrige
 $script:CalMaxVerify = 2                # passes de verification au plus
+$script:CalBracketMargin = 80           # passe d encadrement : estimation + marge (ns) pour un cylindre encore sous-compense a 200 ns
+$script:AfterCalib = ''                                  # 'write' : ecriture rapide ou lente a lancer apres une calibration reussie
 $script:PrecompCurves = @{ std = $null; long = $null; std_h0 = $null; std_h1 = $null; long_h0 = $null; long_h1 = $null }   # derniere courbe calibree par famille d image (et par tete : ecriture lente)
 $script:CurveKeys = @('std', 'long', 'std_h0', 'std_h1', 'long_h0', 'long_h1')
 $script:CurveData = $null; $script:CurveForm = $null; $script:CurveFamily = 'std'
@@ -3245,13 +3536,6 @@ function Get-CalibTrackScore($st) {
     return ($j + 2000 * ([math]::Abs($r3 - 1.5) + [math]::Abs($r4 - 2.0)) + 5 * $ooc)
 }
 
-function Get-CalibTrackShift($st) {
-    # Decalage de pic residuel moyen (ns) sur les tours ou il est mesurable ; NaN sinon
-    $vals = @()
-    foreach ($x in $st) { if (-not [double]::IsNaN($x.Shift)) { $vals += [double]$x.Shift } }
-    if ($vals.Count -eq 0) { return [double]::NaN }
-    return ($vals | Measure-Object -Average).Average
-}
 
 function Get-CalibFamilyName([string]$family) {
     if ($family -eq 'long') { return (T 'Long track 1,89 us') }
@@ -3391,11 +3675,13 @@ function Get-CurveModelName([string]$model) {
 }
 
 function Format-CurveTable($cvs) {
-    # Tableau texte des valeurs par cylindre (10 par ligne) et profil --precomp correspondant, pour chaque courbe
+    # Tableau texte des valeurs par cylindre (10 par ligne), profil --precomp, puis mesures avec leur origine, l ecart
+    # de la courbe et le residu de la derniere verification, pour chaque courbe
     $lines = @()
     foreach ($cv in @($cvs)) {
         if ($lines.Count -gt 0) { $lines += ''; $lines += '' }
         if ($null -ne $cv.Head) { $lines += ((T "Tête {0} : courbe {1}") -f "$($cv.Head)", (Get-CurveModelName $cv.Model)) }
+        if ($cv.Converged -eq $false) { $lines += (T 'NON CONVERGÉE : résidu hors tolérance après la dernière vérification (voir « résidu »).') }
         $v = @($cv.Values)
         $lines += @(((T "Profil --precomp : {0}") -f "$($cv.Spec)"), '', ('cyl  ' + ((0..9 | ForEach-Object { '{0,5}' -f "+$_" }) -join '')))
         for ($c0 = 0; $c0 -lt $v.Count; $c0 += 10) {
@@ -3403,30 +3689,39 @@ function Format-CurveTable($cvs) {
             $lines += ('{0,3}  ' -f $c0) + ($row -join '')
         }
         $lines += ''
-        $lines += (T "Mesures (cylindre : estimation ± incertitude, ns) :")
-        $m = @(); for ($i = 0; $i -lt @($cv.Cyls).Count; $i++) { $m += ("c{0} : {1:0.0} ± {2:0.0}" -f $cv.Cyls[$i], $cv.Ys[$i], $cv.Sig[$i]) }
-        $lines += ($m -join '   ')
+        $lines += (T "Mesures (cylindre : estimation ± incertitude en ns, origine, courbe retenue et écart, résidu de vérification) :")
+        for ($i = 0; $i -lt @($cv.Cyls).Count; $i++) {
+            $c = [int]$cv.Cyls[$i]
+            $kind = if ($cv.Kinds -and $i -lt @($cv.Kinds).Count) { Get-KindName $cv.Kinds[$i] } else { '' }
+            $cur = if ($c -lt $v.Count) { $v[$c] } else { $null }
+            $dev = if ($null -ne $cur) { '{0:+0;-0;0}' -f ($cur - [double]$cv.Ys[$i]) } else { '' }
+            $res = if ($cv.Res -and $i -lt @($cv.Res).Count -and -not [double]::IsNaN([double]$cv.Res[$i])) { (T 'résidu {0}') -f ('{0:+0.0;-0.0;0.0}' -f [double]$cv.Res[$i]) } else { '' }
+            $lines += ("  c{0,-3} {1,6:0.0} ± {2,4:0.0}  {3,-11} {4} {5,4} ({6,4})  {7}" -f $c, [double]$cv.Ys[$i], [double]$cv.Sig[$i], $kind, (T 'courbe'), $cur, $dev, $res).TrimEnd()
+        }
     }
     return ($lines -join "`r`n")
 }
 
 function Draw-PrecompCurve($g, $size) {
-    # Une courbe (profil commun) ou une par tete (ecriture lente), mesures avec leur incertitude
+    # Une courbe (profil commun) ou une par tete (ecriture lente). Mesures selon leur origine : point plein = encadree
+    # par deux mesures, cercle creux = extrapolee, carre creux = plafonnee ; anneau rouge = ecart a la courbe > max(15 ns ; 3 incertitudes).
+    # Zone hachuree : au-dessus de la plus forte precomp mesuree (extrapolation).
     $cvs = @(@($script:CurveData) | Where-Object { $_ })
     if ($cvs.Count -eq 0) { return }
     $multi = $cvs.Count -gt 1
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $g.Clear([System.Drawing.Color]::White)
     $W = $size.Width; $H = $size.Height
-    $L = 56; $R = 20; $Tp = $(if ($multi) { 72 } else { 52 }); $Bm = 40
+    $L = 56; $R = 20; $Tp = 72; $Bm = 40
     $pw = $W - $L - $R; $ph = $H - $Tp - $Bm
     if ($pw -lt 60 -or $ph -lt 40) { return }
     $nC = 2; foreach ($cv in $cvs) { $nC = [math]::Max($nC, @($cv.Values).Count) }
     $maxC = $nC - 1
-    $top = 0.0
+    $top = 0.0; $maxX = 0
     foreach ($cv in $cvs) {
         foreach ($x in @($cv.Values)) { if ($x -gt $top) { $top = $x } }
         for ($i = 0; $i -lt @($cv.Cyls).Count; $i++) { $t = [double]$cv.Ys[$i] + [double]$cv.Sig[$i]; if ($t -gt $top) { $top = $t } }
+        if ($cv.MaxX -and [int]$cv.MaxX -gt $maxX) { $maxX = [int]$cv.MaxX }
     }
     $step = if ($top -le 120) { 20 } elseif ($top -le 300) { 50 } else { 100 }
     $ymax = [math]::Max(2 * $step, [math]::Ceiling($top / $step) * $step)
@@ -3437,17 +3732,26 @@ function Draw-PrecompCurve($g, $size) {
     $grid = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(228, 232, 238), 1)
     $axis = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(150, 156, 166), 1)
     $err = New-Object System.Drawing.Pen($script:Theme.Muted, 1.2)
+    $flag = New-Object System.Drawing.Pen($script:Theme.Danger, 1.8)
     $txt = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(70, 76, 88))
+    $red = New-Object System.Drawing.SolidBrush($script:Theme.Danger)
     $gray = New-Object System.Drawing.SolidBrush($script:Theme.Muted)
-    # Tete 0 (ou profil commun) en bleu, tete 1 en orange ; points de mesure orange (commun) ou de la couleur de la tete
+    $grayPen = New-Object System.Drawing.Pen($script:Theme.Muted, 1.6)
+    $hatch = New-Object System.Drawing.Drawing2D.HatchBrush([System.Drawing.Drawing2D.HatchStyle]::BackwardDiagonal, [System.Drawing.Color]::FromArgb(222, 226, 232), [System.Drawing.Color]::White)
     $colors = @($script:Theme.Accent, $script:Theme.Flux)
-    $pens = @(); $dots = @()
+    $pens = @(); $dots = @(); $hollow = @()
     for ($i = 0; $i -lt $cvs.Count; $i++) {
         $col = $colors[[math]::Min($i, 1)]
+        $dc = if ($multi) { $col } else { $script:Theme.Flux }
         $pens += (New-Object System.Drawing.Pen($col, 2.2))
-        $dots += (New-Object System.Drawing.SolidBrush($(if ($multi) { $col } else { $script:Theme.Flux })))
+        $dots += (New-Object System.Drawing.SolidBrush($dc))
+        $hollow += (New-Object System.Drawing.Pen($dc, 1.6))
     }
     try {
+        if ($maxX -gt 0 -and $maxX -lt $ymax) {
+            $yh = & $fy $maxX
+            $g.FillRectangle($hatch, [float]$L, [float]$Tp, [float]$pw, [float]($yh - $Tp))
+        }
         for ($v = 0; $v -le $ymax; $v += $step) {
             $y = & $fy $v
             $g.DrawLine($grid, $L, $y, $L + $pw, $y)
@@ -3466,42 +3770,47 @@ function Draw-PrecompCurve($g, $size) {
         $s = (T 'cylindre'); $sz = $g.MeasureString($s, $font); $g.DrawString($s, $font, $txt, $L + $pw - $sz.Width, $Tp + $ph + 20)
         for ($k = 0; $k -lt $cvs.Count; $k++) {
             $cv = $cvs[$k]; $vals = @($cv.Values)
-            # Courbe retenue : une valeur par cylindre
             $pts = New-Object 'System.Drawing.PointF[]' $vals.Count
             for ($c = 0; $c -lt $vals.Count; $c++) { $pts[$c] = New-Object System.Drawing.PointF([float](& $fx $c), [float](& $fy $vals[$c])) }
             if ($pts.Count -ge 2) { $g.DrawLines($pens[$k], $pts) }
-            # Mesures : estimation par cylindre teste, barre = incertitude
             for ($i = 0; $i -lt @($cv.Cyls).Count; $i++) {
                 $x = & $fx $cv.Cyls[$i]; $yv = [double]$cv.Ys[$i]; $sg = [double]$cv.Sig[$i]
                 $y1 = & $fy ([math]::Min($ymax, $yv + $sg)); $y2 = & $fy ([math]::Max(0, $yv - $sg))
                 $g.DrawLine($err, $x, $y1, $x, $y2); $g.DrawLine($err, $x - 3, $y1, $x + 3, $y1); $g.DrawLine($err, $x - 3, $y2, $x + 3, $y2)
-                $y = & $fy $yv; $g.FillEllipse($dots[$k], $x - 3.5, $y - 3.5, 7, 7)
+                $y = & $fy $yv
+                $kind = if ($cv.Kinds -and $i -lt @($cv.Kinds).Count) { [string]$cv.Kinds[$i] } else { 'interp' }
+                switch ($kind) {
+                    'extrap' { $g.FillEllipse([System.Drawing.Brushes]::White, $x - 3.5, $y - 3.5, 7, 7); $g.DrawEllipse($hollow[$k], $x - 3.5, $y - 3.5, 7, 7) }
+                    'cap'    { $g.FillRectangle([System.Drawing.Brushes]::White, $x - 3.5, $y - 3.5, 7, 7); $g.DrawRectangle($hollow[$k], $x - 3.5, $y - 3.5, 7, 7) }
+                    default  { $g.FillEllipse($dots[$k], $x - 3.5, $y - 3.5, 7, 7) }
+                }
+                if (Test-CurvePointFlag $cv $i) { $g.DrawEllipse($flag, $x - 7, $y - 7, 14, 14) }
             }
         }
-        # Titre et legende
+        # Titre (non convergence en rouge) et legende sur deux lignes
         $cv0 = $cvs[0]; $v0 = @($cv0.Values)
         if ($multi) { $title = ((T "{0} : lecteur {1}, {2}, une courbe par tête") -f "$($cv0.Family)", "$($cv0.Drive)", "$($cv0.Date)") }
         else { $title = ((T "{0} : lecteur {1}, {2}, courbe {3}, de {4} à {5} ns") -f "$($cv0.Family)", "$($cv0.Drive)", "$($cv0.Date)", (Get-CurveModelName $cv0.Model), "$($v0[0])", "$($v0[-1])") }
         $g.DrawString($title, $fontB, $txt, $L, 8)
-        $ly = 30
-        $g.FillEllipse($(if ($multi) { $gray } else { $dots[0] }), $L, $ly + 3, 7, 7)
-        $s1 = (T 'mesure par cylindre testé (± incertitude)'); $g.DrawString($s1, $font, $txt, $L + 12, $ly)
-        if (-not $multi) {
-            $x2 = $L + 24 + $g.MeasureString($s1, $font).Width
-            $g.DrawLine($pens[0], $x2, $ly + 7, $x2 + 22, $ly + 7)
-            $g.DrawString((T 'précompensation retenue par cylindre'), $font, $txt, $x2 + 28, $ly)
-        } else {
-            $ly = 50; $x2 = $L
-            for ($k = 0; $k -lt $cvs.Count; $k++) {
-                $cv = $cvs[$k]; $vals = @($cv.Values)
-                $g.DrawLine($pens[$k], $x2, $ly + 7, $x2 + 22, $ly + 7)
-                $s = ((T "tête {0} : courbe {1}, de {2} à {3} ns") -f "$($cv.Head)", (Get-CurveModelName $cv.Model), "$($vals[0])", "$($vals[-1])")
-                $g.DrawString($s, $font, $txt, $x2 + 28, $ly)
-                $x2 += 28 + $g.MeasureString($s, $font).Width + 24
-            }
+        if (@($cvs | Where-Object { $_.Converged -eq $false }).Count -gt 0) {
+            $g.DrawString((T 'NON CONVERGÉE'), $fontB, $red, $L + 12 + $g.MeasureString($title, $fontB).Width, 8)
+        }
+        $ly = 30; $x2 = $L
+        $g.FillEllipse($gray, $x2, $ly + 3, 7, 7); $s = (T 'mesure encadrée'); $g.DrawString($s, $font, $txt, $x2 + 11, $ly); $x2 += 24 + $g.MeasureString($s, $font).Width
+        $g.DrawEllipse($grayPen, $x2, $ly + 3, 7, 7); $s = (T 'extrapolée'); $g.DrawString($s, $font, $txt, $x2 + 11, $ly); $x2 += 24 + $g.MeasureString($s, $font).Width
+        $g.DrawRectangle($grayPen, $x2, $ly + 3, 7, 7); $s = (T 'plafonnée'); $g.DrawString($s, $font, $txt, $x2 + 11, $ly); $x2 += 24 + $g.MeasureString($s, $font).Width
+        $g.DrawEllipse($flag, $x2 - 1, $ly + 1, 11, 11); $s = (T 'écart > 15 ns et > 3 incertitudes'); $g.DrawString($s, $font, $txt, $x2 + 13, $ly); $x2 += 26 + $g.MeasureString($s, $font).Width
+        $g.FillRectangle($hatch, $x2, $ly + 2, 16, 10); $g.DrawRectangle($grid, $x2, $ly + 2, 16, 10); $g.DrawString((T 'au-delà des mesures'), $font, $txt, $x2 + 20, $ly)
+        $ly = 50; $x2 = $L
+        for ($k = 0; $k -lt $cvs.Count; $k++) {
+            $cv = $cvs[$k]; $vals = @($cv.Values)
+            $g.DrawLine($pens[$k], $x2, $ly + 7, $x2 + 22, $ly + 7)
+            $s = if ($multi) { ((T "tête {0} : courbe {1}, de {2} à {3} ns") -f "$($cv.Head)", (Get-CurveModelName $cv.Model), "$($vals[0])", "$($vals[-1])") } else { (T 'précompensation retenue par cylindre') }
+            $g.DrawString($s, $font, $txt, $x2 + 28, $ly)
+            $x2 += 28 + $g.MeasureString($s, $font).Width + 24
         }
     } finally {
-        foreach ($o in @($font, $fontB, $grid, $axis, $err, $txt, $gray) + $pens + $dots) { $o.Dispose() }
+        foreach ($o in @($font, $fontB, $grid, $axis, $err, $flag, $txt, $red, $gray, $grayPen, $hatch) + $pens + $dots + $hollow) { $o.Dispose() }
     }
 }
 
@@ -3543,17 +3852,25 @@ function Update-CurveButton([string]$path) {
 
 function ConvertTo-CurveConfig($cv) {
     if (-not $cv) { return $null }
-    return [ordered]@{ family = $cv.Family; head = $cv.Head; drive = $cv.Drive; date = $cv.Date; model = $cv.Model; spec = $cv.Spec
-                       values = @($cv.Values); cyls = @($cv.Cyls); ys = @($cv.Ys); sig = @($cv.Sig) }
+    return [ordered]@{ family = $cv.Family; head = $cv.Head; drive = $cv.Drive; date = $cv.Date; model = $cv.Model; spec = $cv.Spec; method = $cv.Method
+                       values = @($cv.Values); cyls = @($cv.Cyls); ys = @($cv.Ys); sig = @($cv.Sig)
+                       kinds = @($cv.Kinds); res = @(@($cv.Res) | ForEach-Object { if ($null -eq $_ -or [double]::IsNaN([double]$_)) { $null } else { [double]$_ } })
+                       converged = $(if ($null -eq $cv.Converged) { $null } else { [bool]$cv.Converged }); maxx = $cv.MaxX }
 }
 
 function ConvertFrom-CurveConfig($o) {
     if (-not $o) { return $null }
     try {
         $cv = @{ Family = [string]$o.family; Head = $(if ($null -ne $o.head) { [int]$o.head } else { $null }); Drive = [string]$o.drive; Date = [string]$o.date
-                 Model = [string]$o.model; Spec = [string]$o.spec
-                 Values = [int[]]@($o.values); Cyls = [int[]]@($o.cyls); Ys = [double[]]@($o.ys); Sig = [double[]]@($o.sig) }
+                 Model = [string]$o.model; Spec = [string]$o.spec; Method = $(if ($o.method) { [string]$o.method } else { 'image' })
+                 Values = [int[]]@($o.values); Cyls = [int[]]@($o.cyls); Ys = [double[]]@($o.ys); Sig = [double[]]@($o.sig)
+                 Kinds = $null; Res = $null; Converged = $null; MaxX = 0 }
         if ($cv.Values.Count -lt 2 -or $cv.Cyls.Count -ne $cv.Ys.Count -or $cv.Cyls.Count -ne $cv.Sig.Count) { return $null }
+        # Champs ajoutes en v11.9 : absents d une courbe plus ancienne
+        if ($o.kinds -and @($o.kinds).Count -eq $cv.Cyls.Count) { $cv.Kinds = [string[]]@($o.kinds) }
+        if ($o.res -and @($o.res).Count -eq $cv.Cyls.Count) { $cv.Res = [double[]]@(@($o.res) | ForEach-Object { if ($null -eq $_) { [double]::NaN } else { [double]$_ } }) }
+        if ($null -ne $o.converged) { $cv.Converged = [bool]$o.converged }
+        if ($o.maxx) { $cv.MaxX = [int]$o.maxx }
         return $cv
     } catch { return $null }
 }
@@ -3561,7 +3878,208 @@ function ConvertFrom-CurveConfig($o) {
 function New-CalibUnit($head) {
     # Unite de calibration : les deux tetes ensemble (Head = $null, profil commun) ou une seule tete (ecriture lente)
     $prefix = if ($null -eq $head) { '' } else { ((T '[tête {0}] ') -f "$head") }
-    return @{ Head = $head; Prefix = $prefix; Results = @{}; Est = @{}; Sig = @{}; Fit = $null; Slope = $null; Profile = ''; Verify = @{} }
+    return @{ Head = $head; Prefix = $prefix; Results = @{}; Est = @{}; Sig = @{}; Kind = @{}; Bracket = @{}; Warn = $null; Fit = $null; Slope = $null; Profile = ''; Verify = @{} }
+}
+
+function New-CalibPattern([string]$family, [string]$img, [int]$nCyl) {
+    # Motif de test independant du contenu de l image : HFE de donnees pseudo-aleatoires codees MFM (graine fixe, contenu
+    # reproductible) a la DENSITE de l image. gw cale chaque piste ecrite sur un tour du lecteur (write.py, facteur
+    # drive_ticks_per_rev / ticks_to_index) : la densite ne depend que du nombre de cellules par piste.
+    #  ADF : celui du codec AmigaDOS de gw, horloge 14/7 093 790 s, (int(0,2 / horloge) + 31) & ~31 = 101 344 cellules
+    #        (1 973,5 ns) en DD, 202 688 en HD ;
+    #  IPF et HFE : bits par piste de l image (mediane ; HFE v3 : 400 x debit) ;
+    #  autres formats a secteurs (IMG, ST...) : 100 000 cellules de 2 us ; long track illisible : 1,89 us.
+    # Une piste pauvre en motifs (secteurs vides) reduit la mesure du decalage de pic a quelques dizaines d occurrences
+    # (en-tetes, syncs) : resultat plus bruite et biaise de quelques ns (jusqu a ~15 ns en simulation). Ici toutes les
+    # pistes ont la meme richesse de motifs : calibration reproductible, independante de l image.
+    $bits = 100000; $src = (T 'format à secteurs, 2 µs par cellule')
+    $ext = [System.IO.Path]::GetExtension($img).ToLower()
+    try {
+        switch ($ext) {
+            '.adf' {
+                $len = (Get-Item -LiteralPath $img).Length
+                if ($len % 22528 -eq 0 -and $len / 11264 -gt 84) { $bits = 202688; $src = (T 'ADF haute densité, horloge AmigaDOS de gw') }
+                else { $bits = 101344; $src = (T 'ADF, horloge AmigaDOS de gw') }
+            }
+            '.ipf' { $info = Get-IpfCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'IPF, bits par piste de l''image') } }
+            '.hfe' { $info = Get-HfeCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'HFE, bits par piste de l''image') } }
+        }
+    } catch { }
+    if ($family -eq 'long' -and $bits -eq 100000) { $bits = 105820; $src = (T 'long track, 1,89 µs par cellule') }
+    $bits -= $bits % 16
+    $rate = [int][math]::Round($bits / 400.0)            # debit de l en-tete HFE (kbit/s) : un tour a 300 tr/min, indicatif
+    $path = Join-Path $script:TempDir 'precomp-pattern.hfe'
+    [CalibPattern]::WriteHfe($path, $nCyl, $bits, $rate, 20261014)
+    return @{ Path = $path; Bits = $bits; Rate = $rate; CellNs = 200000000.0 / $bits; Source = $src }
+}
+
+function Get-CalibDriveArgs {
+    # Options de lecteur de l ecriture reprises par la calibration, sans --format ni --diskdefs : le motif est un HFE
+    return @(Get-WriteFormatArgs | Where-Object { $_ -notmatch '^--(format|diskdefs)=' })
+}
+
+function Get-CurveKeyLabel([string]$key) {
+    # 'std' -> « Standard 2 us (commune) », 'long_h1' -> « Long track 1,89 us (tête 1) »
+    $fam = if ($key -like 'long*') { 'long' } else { 'std' }
+    $kind = if ($key -match '_h(\d)$') { (T "tête {0}") -f "$($Matches[1])" } else { (T 'commune') }
+    return ("{0} ({1})" -f (Get-CalibFamilyName $fam), $kind)
+}
+
+function Reset-CalibProfiles {
+    # Efface toutes les calibrations : courbes communes et par tete des deux familles ; profils de famille remis aux
+    # valeurs d origine. Refuse pendant une operation (calibration, ecriture, controle, sequence en cours).
+    if (($script:GwProc -and -not $script:GwProc.HasExited) -or $script:Cal -or $script:Rep -or $script:Chain.Count -gt 0) {
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Opération en cours : attendre la fin de la calibration ou de l''écriture.'),(T 'Effacer les calibrations'),'OK','Warning'); return
+    }
+    $curves = @($script:CurveKeys | Where-Object { $script:PrecompCurves[$_] })
+    $changed = ($script:PrecompStd -ne $script:PrecompStdDefault) -or ($script:PrecompLong -ne $script:PrecompLongDefault)
+    if ($curves.Count -eq 0 -and -not $changed) {
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Aucune calibration enregistrée : les profils sont déjà ceux d''origine.'),(T 'Effacer les calibrations'),'OK','Information'); return
+    }
+    $list = if ($curves.Count -gt 0) { (@($curves | ForEach-Object { Get-CurveKeyLabel $_ }) -join ', ') } else { (T 'aucune') }
+    $r = [System.Windows.Forms.MessageBox]::Show(
+        ((T "Effacer toutes les calibrations de précompensation ?`n`nCourbes : {0}.`nProfils de famille remis aux valeurs d'origine : standard {1}, long track {2}.`n`nOpération irréversible. Le mode Auto applique ensuite ces profils ; une écriture rapide ou lente recalibre automatiquement.") -f "$list", "$($script:PrecompStdDefault)", "$($script:PrecompLongDefault)"),
+        (T 'Effacer les calibrations'), 'YesNo', 'Warning')
+    if ($r -ne 'Yes') { return }
+    foreach ($k in $script:CurveKeys) { $script:PrecompCurves[$k] = $null }
+    $script:PrecompStd = $script:PrecompStdDefault; $script:PrecompLong = $script:PrecompLongDefault
+    if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
+    Update-PrecompForImage $txtWFile.Text
+    $pbWCal.Visible = $false; $lblWCal.Visible = $true; $lblWCal.Text = (T 'Calibrations effacées.')
+    Append-Log ((T "Calibrations effacées : {0} courbe(s) ({1}) ; profils standard et long track remis aux valeurs d'origine ({2} ; {3}).") -f "$($curves.Count)", "$list", "$($script:PrecompStdDefault)", "$($script:PrecompLongDefault)")
+    [void](Save-Config)
+}
+
+function Get-CalibTrackMeasure($st) {
+    # Decalage de pic d une piste (moyenne des tours mesurables) et son erreur-type (ns) ; $null si aucun tour mesurable.
+    # Erreur-type : celle d Analyze (dispersion dans les quatre contextes) combinee sur les tours, a defaut la
+    # dispersion entre tours.
+    $vals = @(); $ses = @()
+    foreach ($x in @($st)) {
+        if ($null -eq $x -or $null -eq $x.Shift -or [double]::IsNaN([double]$x.Shift)) { continue }
+        $vals += [double]$x.Shift
+        $se = $x.ShiftSE
+        if ($null -ne $se -and -not [double]::IsNaN([double]$se) -and [double]$se -gt 0) { $ses += [double]$se }
+    }
+    if ($vals.Count -eq 0) { return $null }
+    $m = ($vals | Measure-Object -Average).Average
+    $se = [double]::NaN
+    if ($ses.Count -eq $vals.Count) { $q = 0.0; foreach ($s in $ses) { $q += $s * $s }; $se = [math]::Sqrt($q) / $vals.Count }
+    elseif ($vals.Count -ge 2) { $q = 0.0; foreach ($v in $vals) { $q += ($v - $m) * ($v - $m) }; $se = [math]::Sqrt($q / ($vals.Count - 1)) / [math]::Sqrt($vals.Count) }
+    return @{ Shift = $m; SE = $se }
+}
+
+function Add-CalibPoint($points, [int]$x, $m) {
+    # Mesure (Shift, SE, Score) a la precomp x pour un cylindre ; deux mesures a la meme valeur sont moyennees
+    if ($points.ContainsKey($x)) {
+        $o = $points[$x]
+        $se = if (-not [double]::IsNaN([double]$o.SE) -and -not [double]::IsNaN([double]$m.SE)) { [math]::Sqrt($o.SE * $o.SE + $m.SE * $m.SE) / 2 } else { [double]::NaN }
+        $points[$x] = @{ Shift = ($o.Shift + $m.Shift) / 2; SE = $se; Score = $m.Score }
+    } else { $points[$x] = $m }
+}
+
+function Limit-CalibZero([double]$x0, [double]$sig, [string]$kind, [double]$a, [bool]$own) {
+    $k = $kind; $v = $x0
+    if ($v -lt 0) { $v = 0.0; $k = 'cap' }
+    if ($v -gt $script:CalMaxNs) { $v = [double]$script:CalMaxNs; $k = 'cap' }
+    return @{ Est = $v; Sig = [math]::Min(50.0, [math]::Max(1.0, $sig)); Kind = $k; Slope = $a; Own = $own }
+}
+
+function Get-CalibZero($points, [double]$pooledSlope) {
+    # Precomp qui annule le decalage d un cylindre, d apres ses mesures (precomp -> Shift, SE) :
+    #  - encadree : deux mesures de signes opposes -> interpolation lineaire entre elles (pente locale) ;
+    #  - sinon extrapolee depuis les deux mesures les plus proches du zero (pente locale, ou pente commune si elle
+    #    n est pas nettement negative) : la pente s aplatit au-dela de la plage mesuree, d ou une incertitude
+    #    elargie de 25 % de la distance extrapolee ;
+    #  - bornee a 0..CalMaxNs : « plafonnee ».
+    # Renvoie @{ Est; Sig; Kind = interp|extrap|cap; Slope; Own } ou $null (moins de deux mesures).
+    $xs = @($points.Keys | ForEach-Object { [int]$_ } | Sort-Object)
+    if ($xs.Count -lt 2) { return $null }
+    $s = @($xs | ForEach-Object { [double]$points[$_].Shift })
+    $e = @($xs | ForEach-Object { $v = $points[$_].SE; if ($null -eq $v -or [double]::IsNaN([double]$v) -or [double]$v -le 0) { 2.0 } else { [double]$v } })
+    for ($i = 0; $i -lt $xs.Count - 1; $i++) {
+        if ($s[$i] -gt 0 -and $s[$i + 1] -le 0) {
+            $a = ($s[$i + 1] - $s[$i]) / ($xs[$i + 1] - $xs[$i])
+            $x0 = $xs[$i] + $s[$i] / (-$a)
+            $sig = [math]::Sqrt($e[$i] * $e[$i] + $e[$i + 1] * $e[$i + 1]) / [math]::Abs($a)
+            return (Limit-CalibZero $x0 $sig 'interp' $a ($a -lt -0.2))
+        }
+    }
+    $under = $s[-1] -gt 0
+    $j = if ($under) { $xs.Count - 2 } else { 0 }
+    $a = ($s[$j + 1] - $s[$j]) / ($xs[$j + 1] - $xs[$j])
+    $own = $a -lt -0.2
+    if (-not $own) { $a = $pooledSlope }
+    $xr = if ($under) { $xs[-1] } else { $xs[0] }
+    $sr = if ($under) { $s[-1] } else { $s[0] }
+    $er = if ($under) { $e[-1] } else { $e[0] }
+    $x0 = $xr + $sr / (-$a)
+    $sig = [math]::Max(5.0, [math]::Sqrt([math]::Pow($er / [math]::Abs($a), 2) + [math]::Pow(0.25 * [math]::Abs($x0 - $xr), 2)))
+    return (Limit-CalibZero $x0 $sig 'extrap' $a $own)
+}
+
+function Get-BracketSpec($bracket) {
+    # Profil --precomp d une passe d encadrement : une entree c=ns par cylindre a encadrer (seuls ceux-la sont ecrits)
+    return ((@($bracket.Keys | ForEach-Object { [int]$_ } | Sort-Object) | ForEach-Object { "$_=$($bracket[$_])" }) -join ':')
+}
+
+function Start-CalibFit($cal) {
+    # Courbe par unite d apres les estimations, puis premiere passe de verification
+    foreach ($u in $cal.Units) {
+        $u.Fit = Fit-PrecompCurve $u.Est $u.Sig $cal.MaxCyl
+        $u.Profile = Build-CurveProfile $u.Fit.Values
+        Append-Log ($u.Prefix + ((T "Courbe ajustée : {0} (écart réduit {1}), de {2} ns au cylindre 0 à {3} ns au cylindre {4} ; profil : {5}") -f (Get-CurveModelName $u.Fit.Model), "$([math]::Round($u.Fit.Chi, 2))", "$($u.Fit.Values[0])", "$($u.Fit.Values[-1])", "$($cal.MaxCyl)", "$($u.Profile)"))
+        $u.Verify = @{}
+    }
+    $cal.Stage = 'verify'; $cal.VerifyCount = 1
+    New-CalibPass
+}
+
+function Get-ResidualTol($meas) {
+    # Tolerance du residu d une verification : CalResidual, elargie a 3 erreurs-types quand la mesure est plus bruitee
+    # (un residu dans le bruit ne justifie ni une correction ni une alerte de non-convergence)
+    $se = [double]::NaN
+    if ($null -ne $meas -and $null -ne $meas.SE) { $se = [double]$meas.SE }
+    if ([double]::IsNaN($se)) { return [double]$script:CalResidual }
+    return [math]::Max([double]$script:CalResidual, 3.0 * $se)
+}
+
+function Get-CalibWarnings($u, [int]$maxCyl) {
+    # Bilan de fiabilite d une unite apres la derniere verification :
+    #  NonConv : cylindres dont le residu de la derniere verification reste hors tolerance (Get-ResidualTol) : la
+    #            courbe ne suit pas, au-dela du bruit de la mesure ; ou cylindres mesures que la derniere verification
+    #            n a pas pu relire (correction eventuelle jamais verifiee) ;
+    #  Dev     : cylindres ou la courbe retenue s ecarte de l estimation de plus de max(15 ns ; 3 incertitudes),
+    #            typiquement un besoin non croissant lisse par la contrainte croissante ;
+    #  Extrap / Cap : estimations extrapolees au-dela des mesures, ou plafonnees.
+    $nonConv = @(); $dev = @(); $extrap = @(); $cap = @()
+    foreach ($c in @($u.Verify.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
+        $r = [double]$u.Verify[$c].Shift
+        if ([math]::Abs($r) -gt (Get-ResidualTol $u.Verify[$c])) { $nonConv += ("c{0} ({1:+0.0;-0.0})" -f $c, $r) }
+    }
+    foreach ($c in @($u.Est.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
+        if (-not $u.Verify.ContainsKey($c)) { $nonConv += ("c{0} ({1})" -f $c, (T 'non relu')) }
+    }
+    $vals = @($u.Fit.Values)
+    foreach ($c in @($u.Est.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
+        if ($c -lt $vals.Count) {
+            $dv = $vals[$c] - [double]$u.Est[$c]
+            if ([math]::Abs($dv) -gt [math]::Max(15.0, 3.0 * [double]$u.Sig[$c])) { $dev += ("c{0} ({1:+0;-0})" -f $c, $dv) }
+        }
+        if ($u.Kind[$c] -eq 'extrap') { $extrap += "c$c" } elseif ($u.Kind[$c] -eq 'cap') { $cap += "c$c" }
+    }
+    return @{ NonConv = $nonConv; Dev = $dev; Extrap = $extrap; Cap = $cap }
+}
+
+function Get-KindName([string]$k) {
+    switch ($k) { 'interp' { return (T 'encadrée') } 'extrap' { return (T 'extrapolée') } 'cap' { return (T 'plafonnée') } default { return '' } }
+}
+
+function Test-CurvePointFlag($cv, [int]$i) {
+    # Point dont la courbe s ecarte de plus de max(15 ns ; 3 incertitudes)
+    $c = [int]$cv.Cyls[$i]; $v = @($cv.Values)
+    if ($c -ge $v.Count) { return $false }
+    return ([math]::Abs($v[$c] - [double]$cv.Ys[$i]) -gt [math]::Max(15.0, 3.0 * [double]$cv.Sig[$i]))
 }
 
 function Start-PrecompCalib {
@@ -3575,11 +4093,22 @@ function Start-PrecompCalib {
     }
     $img = $txtWFile.Text
     if (-not $img -or -not (Test-Path -LiteralPath $img)) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Choisis d''abord l''image à écrire : ses pistes servent de motif de test.'),(T 'Calibration precomp'),'OK','Warning'); return
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Choisis d''abord l''image à écrire : elle fixe la famille (cellule) et le nombre de cylindres de la calibration.'),(T 'Calibration precomp'),'OK','Warning'); return
     }
     $ext = [System.IO.Path]::GetExtension($img).ToLower()
     if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) {
-        [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration impossible sur un flux ({0}) : gw n'applique la précompensation qu'aux images à bits ou secteurs (ADF, IPF, HFE, IMG...).") -f "$ext"),(T 'Calibration precomp'),'OK','Warning'); return
+        [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration impossible sur un flux ({0}) : la calibration ne détermine la densité que d'une image à bits ou secteurs (ADF, IPF, HFE, IMG...).") -f "$ext"),(T 'Calibration precomp'),'OK','Warning'); return
+    }
+    $hd = Get-HighDensityReason $img $cmbWFmt.Text
+    if ($hd) {
+        [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration non prise en charge pour une image haute densité ({0}) : les profils calibrés sont ceux des familles double densité (standard 2 µs, long track 1,89 µs).") -f "$hd"),(T 'Calibration precomp'),'OK','Warning'); return
+    }
+    if ($chkWHard.Checked -or $chkWTG43.Checked) {
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Calibration non prise en charge avec secteurs durs ou lecteur 8 pouces (TG43) : l''analyse de flux est calibrée pour le MFM double densité.'),(T 'Calibration precomp'),'OK','Warning'); return
+    }
+    $oor = Get-CellOutOfRange $img
+    if ($null -ne $oor) {
+        [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration non prise en charge : cellule de l'image de {0} ns, hors de la plage mesurable (1 700 à 2 300 ns, MFM double densité).") -f "$oor"),(T 'Calibration precomp'),'OK','Warning'); return
     }
     $family = Get-ImageFamily $img
     $nCyl = Get-ImageCylinders $img
@@ -3589,12 +4118,6 @@ function Start-PrecompCalib {
     $maxCyl = $nCyl - 1
     $fine = ($cmbWCalMode.SelectedIndex -eq 1)
     $slow = [bool]$chkWSlow.Checked
-    if ($slow) {
-        $imgSet = Get-ImageTrackSet $img
-        if ($null -ne $imgSet -and @($imgSet.Keys | Where-Object { $_ -like '*.1' }).Count -eq 0) {
-            [void][System.Windows.Forms.MessageBox]::Show((T "Calibration par tête impossible : l'image n'a qu'une face, gw n'écrirait pas la tête 1.`nDécocher « Écriture lente » pour une calibration commune."),(T 'Calibration precomp'),'OK','Warning'); return
-        }
-    }
     if ($fine) { $cyls = @(0..$maxCyl) }
     else { $cyls = @(0..$maxCyl | Where-Object { $_ % 10 -eq 0 }); if ($cyls -notcontains $maxCyl) { $cyls += $maxCyl } }
     $cyls = @($cyls | Sort-Object -Unique)
@@ -3605,19 +4128,22 @@ function Start-PrecompCalib {
     $famTxt = Get-CalibFamilyName $family
     $cylList = Format-CylList $cyls
     $script:AlignLoop = $false; $script:AlignNextAt = $null
+    $auto = if ($script:AfterCalib -eq 'write') { (T "Calibration automatique avant l'écriture : la disquette insérée reçoit d'abord le motif de test, puis l'image.") + "`n`n" } else { '' }
     $r = [System.Windows.Forms.MessageBox]::Show(
-        ((T "Calibration de la précompensation sur le lecteur {0} ({1}).`n`nImage : {2}, famille {3}, {4}.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes.`n`nInsère une disquette vierge ou sans valeur, puis confirme.") -f "$($cmbDrive.Text)", "$modeTxt", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$cylSrc", "$cylList", "$minutes", "$nPassEst"),
+        $auto + ((T "Calibration de la précompensation sur le lecteur {0} ({1}).`n`nImage : {2}, famille {3}, {4}.`nMotif de test : données pseudo-aléatoires générées à la densité de l'image, son contenu n'est pas écrit.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes.`n`nInsère une disquette vierge ou sans valeur, puis confirme.") -f "$($cmbDrive.Text)", "$modeTxt", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$cylSrc", "$cylList", "$minutes", "$nPassEst"),
         (T 'Calibration precomp'), 'OKCancel', 'Warning')
     if ($r -ne 'OK') { return }
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
+    try { $pat = New-CalibPattern $family $img $nCyl }
+    catch { [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)"),(T 'Calibration precomp'),'OK','Error'); return }
     # Ecriture lente : une unite par tete (mesures, courbe et verification separees) ; sinon une unite pour les deux tetes
     # @() autour du if : une seule unite resterait sinon une hashtable nue ($cal.Units[0] = $null)
     $units = @(if ($slow) { (New-CalibUnit 0), (New-CalibUnit 1) } else { New-CalibUnit $null })
     foreach ($u in $units) { foreach ($c in $cyls) { $u.Results[[int]$c] = @{} } }
     $script:Cal = @{
         Mode = $(if ($fine) { 'fine' } else { 'std' }); Cyls = $cyls; MaxCyl = $maxCyl; Family = $family; Slow = $slow
-        Image = $img; Drive = $cmbDrive.Text; TSpec = "c=${cylList}:h=0-1"; CylList = $cylList
+        Image = $img; Pattern = $pat.Path; PatternBits = $pat.Bits; MaxCoarse = 200; Drive = $cmbDrive.Text; TSpec = "c=${cylList}:h=0-1"; CylList = $cylList
         Stage = 'coarse'; Values = @($script:CalCoarse); Index = 0; Value = 0; ValueTxt = ''; Spec = ''
         Units = $units; VerifyCount = 0
         Scp = (Join-Path $script:TempDir 'precomp-calib.scp'); Writes = (New-Object System.Collections.Queue); ReadArgs = @()
@@ -3627,6 +4153,7 @@ function Start-PrecompCalib {
     }
     Append-Log ((T "=== Calibration precomp : lecteur {0}, image {1} ({2}, {3}) ===") -f "$($cmbDrive.Text)", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$modeTxt")
     Append-Log ((T "Cylindres de test : {0} ({1})") -f "$cylList", "$cylSrc")
+    Append-Log ((T "Motif de test : HFE de données pseudo-aléatoires généré, {0} cylindres, {1} cellules par piste ({2}), soit {3} ns par cellule à 300 tr/min. L'image ne fixe que la densité et le nombre de cylindres, son contenu n'est pas écrit.") -f "$nCyl", "$($pat.Bits)", "$($pat.Source)", "$([math]::Round($pat.CellNs, 1))")
     $pbWCal.Value = 0; $pbWCal.Visible = $true; $lblWCal.Visible = $true
     Update-CalibProgress
     New-CalibPass
@@ -3667,18 +4194,34 @@ function Stop-PrecompCalib {
     $pbWCal.Visible = $false
     $lblWCal.Text = (T 'Calibration precomp interrompue.')
     Append-Log (T 'Calibration precomp interrompue.')
+    if ($script:AfterCalib) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : calibration interrompue.') }
 }
 
 function New-CalibPass {
-    # Une passe = une ou deux commandes gw write puis une relecture en flux de tous les cylindres de test.
-    # Passes de mesure : meme valeur pour les deux tetes, une commande. Verification en ecriture lente : tete 0
-    # puis tete 1, chacune avec son profil (gw applique --precomp par cylindre seulement).
+    # Une passe = une ou deux commandes gw write puis une relecture en flux.
+    #  - mesure : meme valeur pour tous les cylindres de test et les deux tetes, une commande ;
+    #  - encadrement : cylindres encore sous-compenses a la plus forte valeur mesuree, ecrits a leur estimation +
+    #    CalBracketMargin (une valeur par cylindre ; par tete en ecriture lente), relus seuls ;
+    #  - verification : le profil obtenu ; en ecriture lente tete 0 puis tete 1, chacune avec son profil.
     $cal = $script:Cal
-    $writes = @()
+    $writes = @(); $readTs = $cal.TSpec
     if ($cal.Stage -eq 'coarse') {
         $cal.Value = [int]$cal.Values[$cal.Index]; $cal.Spec = "0=$($cal.Value)"; $cal.ValueTxt = "$($cal.Value) ns"
         Append-Log ((T "Calibration : passe de mesure {0}/{1}, precomp {2} ns") -f "$($cal.Index + 1)", "$($cal.Values.Count)", "$($cal.Value)")
         $writes += ,@($cal.TSpec, $cal.Spec)
+    } elseif ($cal.Stage -eq 'bracket') {
+        $cal.ValueTxt = (T 'encadrement')
+        $all = @{}
+        foreach ($u in $cal.Units) { foreach ($c in @($u.Bracket.Keys)) { $all[[int]$c] = $true } }
+        $cyls = [int[]]@($all.Keys | Sort-Object)
+        if ($cal.Slow) {
+            foreach ($u in $cal.Units) { if ($u.Bracket.Count -gt 0) { $writes += ,@("c=$(Format-CylList ([int[]]@($u.Bracket.Keys))):h=$($u.Head)", (Get-BracketSpec $u.Bracket)) } }
+        } else {
+            $writes += ,@("c=$(Format-CylList $cyls):h=0-1", (Get-BracketSpec $cal.Units[0].Bracket))
+        }
+        $readTs = "c=$(Format-CylList $cyls):h=0-1"
+        $specTxt = (@($cal.Units | ForEach-Object { "$($_.Prefix)$(Get-BracketSpec $_.Bracket)" } | Where-Object { $_ -match '=' })) -join ' ; '
+        Append-Log ((T "Calibration : passe d'encadrement des cylindres {0}, encore sous-compensés à {1} ns : precomp {2}") -f (Format-CylList $cyls), "$($cal.MaxCoarse)", "$specTxt")
     } elseif ($cal.Slow) {
         $cal.ValueTxt = (T 'profil')
         Append-Log ((T "Calibration : passe de vérification {0}/{1}, tête 0 puis tête 1, profils {2} et {3}") -f "$($cal.VerifyCount)", "$($script:CalMaxVerify)", "$($cal.Units[0].Profile)", "$($cal.Units[1].Profile)")
@@ -3691,9 +4234,9 @@ function New-CalibPass {
     if (Test-Path -LiteralPath $cal.Scp) { Remove-Item -LiteralPath $cal.Scp -Force }
     $cal.Writes.Clear()
     foreach ($w in $writes) {
-        $cal.Writes.Enqueue([string[]](@('write') + (Get-CommonArgs) + @('--pre-erase', '--no-verify') + (Get-WriteFormatArgs) + @("--tracks=$($w[0])", '--precomp', $w[1], "`"$($cal.Image)`"")))
+        $cal.Writes.Enqueue([string[]](@('write') + (Get-CommonArgs) + @('--pre-erase', '--no-verify') + (Get-CalibDriveArgs) + @("--tracks=$($w[0])", '--precomp', $w[1], "`"$($cal.Pattern)`"")))
     }
-    $cal.ReadArgs  = @('read') + (Get-CommonArgs) + @('--revs=3', "--tracks=$($cal.TSpec)", "`"$($cal.Scp)`"")
+    $cal.ReadArgs  = @('read') + (Get-CommonArgs) + @(Get-DriveReadArgs) + @('--revs=3', "--tracks=$readTs", "`"$($cal.Scp)`"")
     $cal.PassStart = Get-Date; $cal.PhaseStart = $cal.PassStart; $cal.Phase = 'write'
     Update-CalibProgress
     $script:Chain.Clear()
@@ -3707,45 +4250,38 @@ function New-CalibPass {
     Invoke-NextChainStep
 }
 
-function Set-CalibEstimates($u) {
-    # Droite decalage = b + a * precomp par cylindre (moindres carres sur les passes de mesure) ;
-    # pente mise en commun (mediane) pour les cylindres dont la pente propre n est pas fiable.
+function Set-CalibEstimates($u, [string]$when = '') {
+    # Valeur de precomp par cylindre teste (Get-CalibZero) d apres toutes ses mesures : passes 0/100/200, passe
+    # d encadrement et passes de verification. Pente commune = mediane des pentes nettement negatives (-2 a defaut,
+    # valeur theorique), utilisee seulement pour extrapoler un cylindre dont la pente locale n est pas fiable.
     $cal = $script:Cal
-    $fits = @{}; $slopes = @()
+    $slopes = @(); $measured = 0
     foreach ($c in $cal.Cyls) {
-        $r = $u.Results[[int]$c]
-        if ($r.Count -lt 2) { continue }
-        $xs = @($r.Keys | Sort-Object); $ys = @($xs | ForEach-Object { [double]$r[$_].Shift })
+        $pts = $u.Results[[int]$c]
+        if ($pts.Count -lt 2) { continue }
+        $measured++
+        $xs = @($pts.Keys | ForEach-Object { [int]$_ } | Sort-Object); $ys = @($xs | ForEach-Object { [double]$pts[$_].Shift })
         $mx = ($xs | Measure-Object -Average).Average; $my = ($ys | Measure-Object -Average).Average
         $sxx = 0.0; $sxy = 0.0
         for ($i = 0; $i -lt $xs.Count; $i++) { $sxx += ($xs[$i] - $mx) * ($xs[$i] - $mx); $sxy += ($xs[$i] - $mx) * ($ys[$i] - $my) }
-        if ($sxx -le 0) { continue }
-        $a = $sxy / $sxx
-        $sse = 0.0
-        for ($i = 0; $i -lt $xs.Count; $i++) { $e = $ys[$i] - ($my + $a * ($xs[$i] - $mx)); $sse += $e * $e }
-        $fits[[int]$c] = @{ A = $a; Mx = $mx; My = $my; S = [math]::Sqrt($sse / [math]::Max(1, $xs.Count - 2)) }
-        if ($a -lt -0.2) { $slopes += $a }
+        if ($sxx -gt 0 -and $sxy / $sxx -lt -0.2) { $slopes += $sxy / $sxx }
     }
-    if ($fits.Count -eq 0) { Append-Log ($u.Prefix + (T 'Calibration : aucune mesure exploitable pour estimer la précompensation.')); return $false }
+    if ($measured -eq 0) { Append-Log ($u.Prefix + (T 'Calibration : aucune mesure exploitable pour estimer la précompensation.')); return $false }
     # Tete seule sans aucune pente propre : le decalage ne suit pas la precomp ecrite, la face lue n a pas ete ecrite
-    # (format simple face : gw saute la tete 1) ; la pente de repli donnerait une courbe sans signification.
-    if ($null -ne $u.Head -and $slopes.Count -eq 0) { Append-Log ($u.Prefix + (T 'Calibration : le décalage ne varie pas avec la précompensation écrite, cette face n''a pas été écrite (format simple face ?).')); return $false }
-    $pooled = $null
-    if ($slopes.Count -gt 0) { $s = @($slopes | Sort-Object); $pooled = $s[[int][math]::Floor($s.Count / 2)] }
-    $u.Slope = if ($null -ne $pooled) { $pooled } else { -2.0 }   # -2 : valeur theorique (deux transitions par intervalle)
-    $u.Est = @{}; $u.Sig = @{}
-    foreach ($c in @($fits.Keys)) {
-        $f = $fits[$c]
-        $own = $f.A -lt -0.2
-        $a = if ($own) { $f.A } else { $u.Slope }
-        $b = $f.My - $a * $f.Mx
-        $v0 = -$b / $a
-        $u.Est[[int]$c] = [math]::Max(0, [math]::Min($script:CalMaxNs, $v0))
-        # Incertitude (ns) : ecart-type des mesures autour de la droite rapporte a la pente ; 10 ns si pente commune
-        $u.Sig[[int]$c] = if ($own) { [math]::Max(1.0, [math]::Min(50.0, $f.S / [math]::Abs($a))) } else { 10.0 }
+    # (tete ou circuit d ecriture defaillant : le motif HFE a toujours deux faces) ; une pente de repli serait sans signification.
+    if ($null -ne $u.Head -and $slopes.Count -eq 0) { Append-Log ($u.Prefix + (T 'Calibration : le décalage ne varie pas avec la précompensation écrite, cette face n''a pas été écrite (tête ou circuit d''écriture défaillant ?).')); return $false }
+    $pooled = -2.0
+    if ($slopes.Count -gt 0) { $sl = @($slopes | Sort-Object); $pooled = $sl[[int][math]::Floor($sl.Count / 2)] }
+    $u.Slope = $pooled; $u.Est = @{}; $u.Sig = @{}; $u.Kind = @{}
+    foreach ($c in $cal.Cyls) {
+        $z = Get-CalibZero $u.Results[[int]$c] $pooled
+        if (-not $z) { continue }
+        $u.Est[[int]$c] = $z.Est; $u.Sig[[int]$c] = $z.Sig; $u.Kind[[int]$c] = $z.Kind
     }
-    $estTxt = (@($u.Est.Keys | Sort-Object | ForEach-Object { "c$_=$([math]::Round($u.Est[$_], 0))" })) -join ' '
-    Append-Log ($u.Prefix + ((T "Pente moyenne : {0} ns de décalage par ns de precomp ; estimation par cylindre : {1}") -f "$([math]::Round($u.Slope, 2))", "$estTxt"))
+    $mark = @{ interp = ''; extrap = '*'; cap = '^' }
+    $estTxt = (@($u.Est.Keys | Sort-Object | ForEach-Object { "c$_=$([math]::Round($u.Est[$_], 0))$($mark[$u.Kind[$_]])" })) -join ' '
+    Append-Log ($u.Prefix + $when + ((T "Pente moyenne : {0} ns de décalage par ns de precomp ; estimation par cylindre : {1}") -f "$([math]::Round($u.Slope, 2))", "$estTxt"))
+    if (@($u.Kind.Values | Where-Object { $_ -ne 'interp' }).Count -gt 0) { Append-Log ($u.Prefix + (T '  * extrapolée au-delà des mesures, ^ plafonnée à 0 ou 300 ns : valeur peu fiable.')) }
     return $true
 }
 
@@ -3753,26 +4289,33 @@ function Invoke-CalibAnalysis {
     $cal = $script:Cal
     if (-not $cal) { return }
     if (-not (Test-Path -LiteralPath $cal.Scp)) { Append-Log (T 'Calibration : fichier SCP absent, analyse impossible.'); Stop-PrecompCalib; return }
-    try { $tracks = Read-ScpFile $cal.Scp } catch { Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)"); Stop-PrecompCalib; return }
+    try { $tracks = Read-ScpFile $cal.Scp ([int]$cal.PatternBits) } catch { Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)"); Stop-PrecompCalib; return }
     $cal.ReadDurs += ((Get-Date) - $cal.PhaseStart).TotalSeconds
     $cal.PassesDone++
     foreach ($u in $cal.Units) {
-        # Moyenne des deux faces (profil commun) ou face de l unite seule (ecriture lente)
+        # Moyenne des deux faces (profil commun) ou face de l unite seule (ecriture lente) ; erreur-type combinee
         $heads = if ($null -eq $u.Head) { @(0, 1) } else { @([int]$u.Head) }
         $shifts = @(); $scores = @(); $bad = @()
         foreach ($c in $cal.Cyls) {
-            $sv = @(); $jv = @()
+            if ($cal.Stage -eq 'bracket' -and -not $u.Bracket.ContainsKey([int]$c)) { continue }
+            $sv = @(); $ev = @(); $jv = @()
             foreach ($h in $heads) {
                 $tn = [int]$c * 2 + $h
                 if (-not $tracks.ContainsKey($tn)) { continue }
-                $s = Get-CalibTrackShift $tracks[$tn]; if (-not [double]::IsNaN($s)) { $sv += $s }
+                $m = Get-CalibTrackMeasure $tracks[$tn]; if ($m) { $sv += $m.Shift; $ev += $m.SE }
                 $j = Get-CalibTrackScore $tracks[$tn]; if ($j -lt 9999) { $jv += $j }
             }
             if ($sv.Count -eq 0) { $bad += $c; continue }
             $sh = ($sv | Measure-Object -Average).Average
+            $se = [double]::NaN
+            if (@($ev | Where-Object { [double]::IsNaN([double]$_) }).Count -eq 0) { $q = 0.0; foreach ($x in $ev) { $q += $x * $x }; $se = [math]::Sqrt($q) / $ev.Count }
             $jt = if ($jv.Count -gt 0) { ($jv | Measure-Object -Average).Average } else { [double]::NaN }
-            if ($cal.Stage -eq 'coarse') { $u.Results[[int]$c][[int]$cal.Value] = @{ Shift = $sh; Score = $jt } }
-            else { $u.Verify[[int]$c] = @{ Shift = $sh; Score = $jt } }
+            $meas = @{ Shift = $sh; SE = $se; Score = $jt }
+            switch ($cal.Stage) {
+                'coarse'  { Add-CalibPoint $u.Results[[int]$c] ([int]$cal.Value) $meas }
+                'bracket' { Add-CalibPoint $u.Results[[int]$c] ([int]$u.Bracket[[int]$c]) $meas }
+                default   { $u.Verify[[int]$c] = $meas }
+            }
             $shifts += $sh; if (-not [double]::IsNaN($jt)) { $scores += $jt }
         }
         $badTxt = if ($bad.Count -gt 0) { ((T ", illisibles : {0}") -f "$($bad -join ',')") } else { '' }
@@ -3780,7 +4323,7 @@ function Invoke-CalibAnalysis {
             $st = $shifts | Measure-Object -Average -Minimum -Maximum
             $scTxt = if ($scores.Count -gt 0) { "$([math]::Round(($scores | Measure-Object -Average).Average, 0))" } else { '-' }
             Append-Log ((T "  {0} : décalage résiduel moyen {1} ns (de {2} à {3}), score jitter moyen {4}, {5} cylindre(s){6}") -f "$($u.Prefix)$($cal.ValueTxt)", "$([math]::Round($st.Average, 1))", "$([math]::Round($st.Minimum, 1))", "$([math]::Round($st.Maximum, 1))", "$scTxt", "$($shifts.Count)", "$badTxt")
-        } else {
+        } elseif ($cal.Stage -ne 'bracket' -or $u.Bracket.Count -gt 0) {
             Append-Log ((T "  {0} : aucun cylindre mesurable{1}") -f "$($u.Prefix)$($cal.ValueTxt)", "$badTxt")
         }
     }
@@ -3790,30 +4333,43 @@ function Invoke-CalibAnalysis {
         foreach ($u in $cal.Units) {
             if (-not (Set-CalibEstimates $u)) { $cal.TotalPasses = $cal.PassesDone; Complete-PrecompCalib; return }
         }
+        # Encadrement : un cylindre encore sous-compense a la plus forte valeur mesuree a un zero extrapole, biaise
+        # vers le haut (la pente s aplatit) : une passe le mesure a son estimation + marge pour l encadrer.
+        $cal.MaxCoarse = [int](@($script:CalCoarse) | Measure-Object -Maximum).Maximum
+        $need = $false
         foreach ($u in $cal.Units) {
-            $u.Fit = Fit-PrecompCurve $u.Est $u.Sig $cal.MaxCyl
-            $u.Profile = Build-CurveProfile $u.Fit.Values
-            Append-Log ($u.Prefix + ((T "Courbe ajustée : {0} (écart réduit {1}), de {2} ns au cylindre 0 à {3} ns au cylindre {4} ; profil : {5}") -f (Get-CurveModelName $u.Fit.Model), "$([math]::Round($u.Fit.Chi, 2))", "$($u.Fit.Values[0])", "$($u.Fit.Values[-1])", "$($cal.MaxCyl)", "$($u.Profile)"))
-            $u.Verify = @{}
+            $u.Bracket = @{}
+            foreach ($c in @($u.Est.Keys)) {
+                $pts = $u.Results[[int]$c]
+                $top = [int](@($pts.Keys | ForEach-Object { [int]$_ }) | Measure-Object -Maximum).Maximum
+                if ($u.Kind[[int]$c] -ne 'interp' -and [double]$pts[$top].Shift -gt 0 -and $top -lt $script:CalMaxNs) {
+                    $u.Bracket[[int]$c] = [int][math]::Min($script:CalMaxNs, [math]::Max($top + 40, [math]::Round([double]$u.Est[[int]$c] + $script:CalBracketMargin)))
+                    $need = $true
+                }
+            }
         }
-        $cal.Stage = 'verify'; $cal.VerifyCount = 1
-        New-CalibPass; return
+        if ($need) { $cal.Stage = 'bracket'; $cal.TotalPasses++; New-CalibPass; return }
+        Start-CalibFit $cal; return
     }
-    # Verification : correction locale de la courbe aux cylindres dont le residu depasse la tolerance
-    # (residu / pente), interpolee entre cylindres verifies ; les cylindres dans la tolerance ancrent la courbe.
+    if ($cal.Stage -eq 'bracket') {
+        foreach ($u in $cal.Units) { if ($u.Bracket.Count -gt 0) { [void](Set-CalibEstimates $u (T 'Après encadrement : ')) } }
+        Start-CalibFit $cal; return
+    }
+    # Verification : la mesure au profil applique devient un point de plus pour chaque cylindre verifie ; l estimation
+    # est recalculee (en general encadree, donc interpolee avec la pente locale). Correction locale de la courbe aux
+    # cylindres hors tolerance (estimation - valeur appliquee), interpolee entre cylindres verifies, lissage croissant.
     # Ecriture lente : chaque tete est corrigee d apres sa propre mesure ; une nouvelle passe reverifie les deux.
     $again = $false
     foreach ($u in $cal.Units) {
+        foreach ($c in @($u.Verify.Keys)) { Add-CalibPoint $u.Results[[int]$c] (Get-SpecValue $u.Profile ([int]$c)) $u.Verify[$c] }
+        [void](Set-CalibEstimates $u ((T "Vérification {0} : ") -f "$($cal.VerifyCount)"))
         $corr = 0; $delta = @{}
         foreach ($c in @($u.Verify.Keys)) {
             $res = [double]$u.Verify[$c].Shift
             $d = 0.0
-            if ([math]::Abs($res) -gt $script:CalResidual) {
-                $d = $res / [math]::Abs($u.Slope)
-                $applied = Get-SpecValue $u.Profile ([int]$c)
-                $u.Est[[int]$c] = [math]::Max(0, [math]::Min($script:CalMaxNs, $applied + $d))
-                $u.Sig[[int]$c] = [math]::Max(1.0, $script:CalResidual / [math]::Abs($u.Slope))   # mesure directe a la valeur appliquee
-                $corr++
+            if ([math]::Abs($res) -gt (Get-ResidualTol $u.Verify[$c]) -and $u.Est.ContainsKey([int]$c)) {
+                $d = [double]$u.Est[[int]$c] - (Get-SpecValue $u.Profile ([int]$c))
+                if ([math]::Abs($d) -ge 0.5) { $corr++ } else { $d = 0.0 }
             }
             $delta[[int]$c] = $d
         }
@@ -3824,7 +4380,7 @@ function Invoke-CalibAnalysis {
         $base = ([string]$u.Fit.Model) -replace '\+c$', ''
         $u.Fit = @{ Model = "$base+c"; A = $u.Fit.A; B = $u.Fit.B; Chi = $u.Fit.Chi; Values = $newVals }
         $u.Profile = $newProfile
-        Append-Log ($u.Prefix + ((T "{0} cylindre(s) corrigé(s) de plus de {1} ns de résidu, nouveau profil : {2}") -f "$corr", "$($script:CalResidual)", "$($u.Profile)"))
+        Append-Log ($u.Prefix + ((T "{0} cylindre(s) corrigé(s), résidu hors tolérance, nouveau profil : {1}") -f "$corr", "$($u.Profile)"))
         $again = $true
     }
     if ($again) {
@@ -3842,13 +4398,28 @@ function Complete-PrecompCalib {
     $pbWCal.Value = 100
     $elapsedTotal = if ($cal.StartTime -is [datetime]) { ((Get-Date) - $cal.StartTime).TotalSeconds } else { 0 }
     $lblWCal.Text = ((T "Calibration terminée en {0}") -f (Format-CalDuration $elapsedTotal))
-    if (@($cal.Units | Where-Object { -not $_.Profile -or -not $_.Fit }).Count -gt 0) { Append-Log (T 'Calibration precomp : aucune mesure exploitable, profil inchangé.'); return }
-    foreach ($u in $cal.Units) {
-        if ($u.Verify.Count -eq 0) { continue }
-        $resTxt = (@($u.Verify.Keys | Sort-Object | ForEach-Object { "c$_=$('{0:+0.0;-0.0;0.0}' -f [double]$u.Verify[$_].Shift)" })) -join ' '
-        Append-Log ($u.Prefix + ((T "Résidu après vérification (ns, tolérance {0}) : {1}") -f "$($script:CalResidual)", "$resTxt"))
+    if (@($cal.Units | Where-Object { -not $_.Profile -or -not $_.Fit }).Count -gt 0) {
+        Append-Log (T 'Calibration precomp : aucune mesure exploitable, profil inchangé.')
+        if ($script:AfterCalib) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : calibration sans mesure exploitable.') }
+        return
     }
     $famTxt = Get-CalibFamilyName $cal.Family
+    $allConv = $true
+    foreach ($u in $cal.Units) {
+        if ($u.Verify.Count -gt 0) {
+            $resTxt = (@($u.Verify.Keys | Sort-Object | ForEach-Object { "c$_=$('{0:+0.0;-0.0;0.0}' -f [double]$u.Verify[$_].Shift)" })) -join ' '
+            Append-Log ($u.Prefix + ((T "Résidu après vérification (ns, tolérance {0}, élargie à 3 erreurs-types si la mesure est plus bruitée) : {1}") -f "$($script:CalResidual)", "$resTxt"))
+        }
+        $u.Warn = Get-CalibWarnings $u $cal.MaxCyl
+        if ($u.Warn.NonConv.Count -gt 0) {
+            $allConv = $false
+            Append-Log ($u.Prefix + ((T "Calibration non convergée aux cylindres {0} : résidu hors tolérance après la dernière vérification, la courbe ne suit pas la mesure à ces cylindres. Refaire un test fin sur cette zone, ou essayer une autre disquette.") -f ($u.Warn.NonConv -join ', ')))
+        }
+        if ($u.Warn.Dev.Count -gt 0) { Append-Log ($u.Prefix + ((T "Écart à la courbe de plus de 15 ns et de trois incertitudes (courbe moins mesure) : {0}. Besoin non croissant lissé par la contrainte croissante.") -f ($u.Warn.Dev -join ', '))) }
+        if ($u.Warn.Extrap.Count + $u.Warn.Cap.Count -gt 0) {
+            Append-Log ($u.Prefix + ((T "Valeurs peu fiables : {0} extrapolée(s) au-delà des mesures ({1}), {2} plafonnée(s) à 0 ou {3} ns ({4}).") -f "$($u.Warn.Extrap.Count)", ($(if ($u.Warn.Extrap.Count) { $u.Warn.Extrap -join ',' } else { '-' })), "$($u.Warn.Cap.Count)", "$($script:CalMaxNs)", ($(if ($u.Warn.Cap.Count) { $u.Warn.Cap -join ',' } else { '-' }))))
+        }
+    }
     # Profil commun : remplace celui de la famille. Ecriture lente : courbes par tete, le profil commun est conserve.
     if (-not $cal.Slow) {
         $spec = $cal.Units[0].Profile
@@ -3858,22 +4429,29 @@ function Complete-PrecompCalib {
     foreach ($u in $cal.Units) {
         $key = if ($null -eq $u.Head) { $cal.Family } else { "$($cal.Family)_h$($u.Head)" }
         $cs = @($u.Est.Keys | ForEach-Object { [int]$_ } | Sort-Object)
+        $maxX = 0
+        foreach ($c in $cs) { foreach ($x in @($u.Results[$c].Keys)) { if ([int]$x -gt $maxX) { $maxX = [int]$x } } }
         $script:PrecompCurves[$key] = @{
-            Family = $famTxt; Head = $u.Head; Drive = $cal.Drive; Date = $date; Model = $u.Fit.Model; Spec = $u.Profile
+            Family = $famTxt; Head = $u.Head; Drive = $cal.Drive; Date = $date; Model = $u.Fit.Model; Spec = $u.Profile; Method = 'motif'
             Values = [int[]]@($u.Fit.Values); Cyls = [int[]]$cs
             Ys = [double[]]@($cs | ForEach-Object { [math]::Round([double]$u.Est[$_], 1) })
             Sig = [double[]]@($cs | ForEach-Object { [math]::Round($(if ($u.Sig.ContainsKey($_)) { [double]$u.Sig[$_] } else { 5.0 }), 1) })
+            Kinds = [string[]]@($cs | ForEach-Object { [string]$u.Kind[$_] })
+            Res = [double[]]@($cs | ForEach-Object { if ($u.Verify.ContainsKey($_)) { [math]::Round([double]$u.Verify[$_].Shift, 1) } else { [double]::NaN } })
+            Converged = ($u.Warn.NonConv.Count -eq 0); MaxX = $maxX
         }
     }
     $cmbWProfile.SelectedIndex = 0                 # Auto : applique le profil de la famille de l image
     Update-PrecompForImage $txtWFile.Text
+    $convTxt = if ($allConv) { '' } else { (T ' NON CONVERGÉE : voir le journal et la fenêtre Courbe.') }
     if ($cal.Slow) {
         $v0 = @($cal.Units[0].Fit.Values); $v1 = @($cal.Units[1].Fit.Values)
-        $lblWProfileInfo.Text = ((T "Profils {0} par tête calibrés le {1} sur le lecteur {2} : tête 0 de {3} à {4} ns, tête 1 de {5} à {6} ns, une valeur par cylindre (bouton Courbe).") -f "$famTxt", "$date", "$($cal.Drive)", "$($v0[0])", "$($v0[-1])", "$($v1[0])", "$($v1[-1])")
+        $lblWProfileInfo.Text = ((T "Profils {0} par tête calibrés le {1} sur le lecteur {2} : tête 0 de {3} à {4} ns, tête 1 de {5} à {6} ns, une valeur par cylindre (bouton Courbe).") -f "$famTxt", "$date", "$($cal.Drive)", "$($v0[0])", "$($v0[-1])", "$($v1[0])", "$($v1[-1])") + $convTxt
     } else {
         $v = @($cal.Units[0].Fit.Values)
-        $lblWProfileInfo.Text = ((T "Profil {0} calibré le {1} sur le lecteur {2} : courbe {3}, de {4} à {5} ns, une valeur par cylindre (bouton Courbe).") -f "$famTxt", "$date", "$($cal.Drive)", (Get-CurveModelName $cal.Units[0].Fit.Model), "$($v[0])", "$($v[-1])")
+        $lblWProfileInfo.Text = ((T "Profil {0} calibré le {1} sur le lecteur {2} : courbe {3}, de {4} à {5} ns, une valeur par cylindre (bouton Courbe).") -f "$famTxt", "$date", "$($cal.Drive)", (Get-CurveModelName $cal.Units[0].Fit.Model), "$($v[0])", "$($v[-1])") + $convTxt
     }
+    if (-not $allConv) { $lblWCal.Text += $convTxt }
     foreach ($u in $cal.Units) {
         Append-Log ($u.Prefix + ((T "Calibration terminée : profil {0} = {1}") -f "$famTxt", "$($u.Profile)"))
         $v = @($u.Fit.Values)
@@ -3887,6 +4465,13 @@ function Complete-PrecompCalib {
     if ($cal.Slow) { Append-Log ((T "Profils par tête enregistrés dans la configuration et appliqués par le mode Auto en écriture lente à toute image {0}.") -f "$famTxt") }
     else { Append-Log ((T "Profil enregistré dans la configuration et appliqué par le mode Auto à toute image {0}.") -f "$famTxt") }
     [void](Save-Config)
+    if ($script:AfterCalib -eq 'write') {
+        # Ecriture rapide ou lente : l image est ecrite tout de suite avec le profil obtenu (courbe visible par le bouton Courbe)
+        $script:AfterCalib = ''
+        Append-Log (T 'Calibration terminée : écriture de l''image avec le profil obtenu.')
+        Start-ImageWrite
+        return
+    }
     Show-PrecompCurve $cal.Family $cal.Slow
 }
 
@@ -4013,19 +4598,100 @@ function Get-TrackGroups($keys) {
     return ,$g
 }
 
+function Test-AdfHd([string]$path) {
+    # ADF haute densite : multiple de 22 528 octets (2 faces x 22 secteurs x 512) au-dela de 84 cylindres double
+    # densite, meme regle que Get-ImageCylinders et New-CalibPattern
+    try { $len = (Get-Item -LiteralPath $path).Length } catch { return $false }
+    return ($len -gt 0 -and $len % 22528 -eq 0 -and $len / 11264 -gt 84)
+}
+
+function Test-NeedsFormat([string]$path) {
+    # Image secteur brute, sans geometrie : gw exige --format (classe IMG pour .img, .ima et .st ; .dsk sans signature
+    # CPC, dsk.py : un DSK Apricot est lu par Apridisk, derive d IMG, qui exige aussi le format)
+    $ext = [System.IO.Path]::GetExtension($path).ToLower()
+    if (@('.img', '.ima', '.st') -contains $ext) { return $true }
+    if ($ext -ne '.dsk') { return $false }
+    try {
+        $fs = [System.IO.File]::OpenRead($path)
+        try { $b = New-Object byte[] 24; $n = $fs.Read($b, 0, 24) } finally { $fs.Dispose() }
+        $s = [System.Text.Encoding]::ASCII.GetString($b, 0, $n)
+        if ($s.StartsWith('MV - CPC') -or $s.StartsWith('EXTENDED CPC DSK')) { return $false }
+    } catch { }
+    return $true
+}
+
+function Test-HdFormat([string]$fmt) {
+    # Formats gw a 500 ou 1000 kbit/s (diskdefs) : *_hd, *.1200, *.1440, *.1600, *.1680, *.dmf, *.2880, pc98.2hd/2hs,
+    # *.hd, *.ed, os9.80dshd_*, luxor.1000.*, hp.mmfm.* (cellule de 1 us), raw.500, raw.1000
+    if (-not $fmt) { return $false }
+    return ($fmt -match '(_hd|dshd_\d+|\.(1200|1440|1600|1680|dmf|2880|2hd|2hs|hd|ed))$' -or $fmt -match '^(raw\.(500|1000)$|luxor\.1000\.|hp\.mmfm\.)')
+}
+
+function Get-CellOutOfRange([string]$path) {
+    # Cellule d une image IPF ou HFE hors de la plage que la calibration sait mesurer : ScpStats exige des 2T entre
+    # 3 et 5 us, soit une cellule de 1,5 a 2,5 us ; marge retenue 1 700 a 2 300 ns (MFM double densite, long track
+    # compris). Renvoie la cellule arrondie (ns), $null si elle est dans la plage ou non lue (autres formats).
+    $ext = [System.IO.Path]::GetExtension($path).ToLower()
+    $info = $null
+    try { switch ($ext) { '.ipf' { $info = Get-IpfCellInfo $path } '.hfe' { $info = Get-HfeCellInfo $path } } } catch { return $null }
+    if ($null -eq $info -or [double]::IsNaN([double]$info.CellNs)) { return $null }
+    if ($info.CellNs -lt 1700 -or $info.CellNs -gt 2300) { return [int][math]::Round($info.CellNs, 0) }
+    return $null
+}
+
+function Get-DriveReadArgs {
+    # Options de lecteur de l onglet Ecriture utilisables en relecture (controle apres ecriture, calibration) : sans
+    # --fake-index, un lecteur sans capteur d index ne relit rien
+    $o = @()
+    if ($chkWReverse.Checked)         { $o += '--reverse' }
+    if ($cmbWDensel.Text -ne '(non)') { $o += "--densel=$($cmbWDensel.Text)" }
+    if ($txtWFakeIdx.Text.Trim())     { $o += "--fake-index=$($txtWFakeIdx.Text.Trim())" }
+    return $o
+}
+
+function Get-HighDensityReason([string]$path, [string]$fmt) {
+    # Image ou format haute densite ; $null sinon. Les familles de calibration (standard 2 us, long track 1,89 us) sont
+    # double densite : une calibration HD ecraserait la courbe standard, appliquee ensuite aux disquettes DD.
+    # Sans format explicite : format implicite de gw pour l extension (HDM, XDF, FDI, DIM, DCP : pc98.2hd ou 2hs ;
+    # D2M, D4M : CMD FD2000 HD, FD4000 ED), image secteur brute de 1 200 000 octets ou plus, mode de la premiere
+    # piste d un IMD.
+    $ext = [System.IO.Path]::GetExtension($path).ToLower()
+    if (-not $fmt -or $fmt -eq '(auto)') {
+        $def = @{ '.hdm' = 'pc98.2hd'; '.xdf' = 'pc98.2hd'; '.fdi' = 'pc98.2hd'; '.dim' = 'pc98.2hd'; '.dcp' = 'pc98.2hd'
+                  '.d2m' = 'commodore.cmd.fd2000.hd'; '.d4m' = 'commodore.cmd.fd4000.ed' }
+        if ($def.ContainsKey($ext)) { $fmt = $def[$ext] }
+    }
+    if (Test-HdFormat $fmt) { return ((T "format haute densité {0}") -f "$fmt") }
+    try {
+        if ($ext -eq '.adf' -and (Test-AdfHd $path)) { return (T 'ADF haute densité') }
+        if (@('.img', '.ima', '.st', '.dsk', '.msa') -contains $ext) {
+            $len = (Get-Item -LiteralPath $path).Length
+            if ($len -ge 1200000) { return ((T "image secteur de {0} octets") -f "$len") }
+        }
+        if ($ext -eq '.imd') {
+            # IMD : en-tete texte termine par 0x1A, puis mode de la premiere piste (0 = FM, 3 = MFM a 500 kbit/s)
+            $fs = [System.IO.File]::OpenRead($path)
+            try { $b = New-Object byte[] 65536; $n = $fs.Read($b, 0, $b.Length) } finally { $fs.Dispose() }
+            $i = [Array]::IndexOf($b, [byte]0x1A, 0, $n)
+            if ($i -ge 0 -and $i + 1 -lt $n -and ($b[$i + 1] -eq 0 -or $b[$i + 1] -eq 3)) { return (T 'image IMD à 500 kbit/s') }
+        }
+        $info = $null
+        switch ($ext) { '.ipf' { $info = Get-IpfCellInfo $path } '.hfe' { $info = Get-HfeCellInfo $path } }
+        if ($null -ne $info -and $info.CellNs -lt 1500) { return ((T "image haute densité, cellule {0} ns") -f "$([math]::Round($info.CellNs, 0))") }
+    } catch { }
+    return $null
+}
+
 function Get-WriteCheckBlocker([string]$path, [string]$fmt) {
     # Raison pour laquelle l analyse de flux (calibree MFM double densite, cellule 2 us) ne s applique pas ; $null sinon
     if ($chkWHard.Checked) { return (T 'secteurs durs') }
     if ($chkWTG43.Checked) { return (T 'lecteur 8 pouces (TG43)') }
-    if ($fmt -match '(_hd|\.(1200|1440|1680|dmf|2880))$' -or $fmt -match '^raw\.(500|1000)$') { return ((T "format haute densité {0}") -f "$fmt") }
+    $hd = Get-HighDensityReason $path $fmt
+    if ($hd) { return $hd }
     if ($fmt -match '^(commodore\.15[47]1|mac\.|apple2\.)') { return ((T "format GCR {0}") -f "$fmt") }
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
     if (@('.d64', '.d71', '.g64', '.nib', '.woz', '.do', '.po') -contains $ext) { return ((T "image GCR {0}") -f "$ext") }
     try {
-        if ($ext -eq '.adf' -and (Get-Item -LiteralPath $path).Length -eq 1802240) { return (T 'ADF haute densité') }
-        $info = $null
-        switch ($ext) { '.ipf' { $info = Get-IpfCellInfo $path } '.hfe' { $info = Get-HfeCellInfo $path } }
-        if ($null -ne $info -and $info.CellNs -lt 1500) { return ((T "image haute densité, cellule {0} ns") -f "$([math]::Round($info.CellNs, 0))") }
         if ($ext -eq '.scp' -and $script:ScpStatsOk -and (Test-ScpHighDensity $path)) { return (T 'flux SCP haute densité') }
     } catch { }
     return $null
@@ -4595,7 +5261,7 @@ function Get-LogColor([string]$line) {
     # Lignes de synthese du controle apres ecriture : simples comptes par etat (« 0 critique(s) » n est pas une erreur)
     if ($line -match '^(Contrôle complet|Full check|Remesure après réécriture|Re-measure after rewrite)\b') { return $script:LogColors.std }
     if ($line -match 'FATAL|ERREUR|ERROR|ECHEC|ÉCHEC|FAILED|Command Failed|Write ?Protect|CRITIQUE|CRITICAL|ILLISIBLE|UNREADABLE|introuvable|not found|code retour : [1-9]|exit code: [1-9]|support fatigué|worn media|réécriture automatique non lancée|automatic rewrite not started') { return $script:LogColors.err }
-    if ($line -match 'Verify Failure|Retry #|retries|À SURVEILLER|TO WATCH|marginal|DIFF[EÉ]RENT|Interrompu|Interrupted|aborted|non applicable|not applicable|réécriture automatique désactivée|automatic rewrite disabled|Aucune réécriture automatique|No automatic rewrite') { return $script:LogColors.warn }
+    if ($line -match 'Verify Failure|Retry #|retries|À SURVEILLER|TO WATCH|marginal|DIFF[EÉ]RENT|Interrompu|Interrupted|aborted|non applicable|not applicable|réécriture automatique désactivée|automatic rewrite disabled|Aucune réécriture automatique|No automatic rewrite|non convergée|not converged|NON CONVERGÉE|NOT CONVERGED|Valeurs peu fiables|Unreliable values|Écart à la courbe|Deviation from the curve') { return $script:LogColors.warn }
     if ($line -match 'All tracks verified|code retour : 0|exit code: 0|SAIN|HEALTHY|IDENTIQUE|IDENTICAL|EXCELLENT|aucune piste n|no track needed') { return $script:LogColors.ok }
     if ($line -match '^T\d+\.\d+\b[^:]*:') { return $script:LogColors.dim }
     return $script:LogColors.std
