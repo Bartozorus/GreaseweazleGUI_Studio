@@ -3,6 +3,11 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Le numéro de version est celui de `$script:Version` dans `src/GreaseweazleGUI.ps1` ; chaque release GitHub porte le tag `vX.Y` correspondant.
 
+## [Non publié]
+
+- Releases v11.3 à v11.7 : exécutable remplacé le 14/10/2026 par une version recompilée depuis le tag et signée avec le certificat du projet. La CI, sans secrets de signature, y avait publié un exécutable non signé.
+- README : signature auto-signée décrite sans surestimer sa portée, accès aux secrets de signature du dépôt précisé, commande d'export du PFX indépendante du répertoire courant, étape de remplacement de l'exécutable signé dans la procédure de publication, durée du test fin, garde-fou du contrôle à partir de 20 pistes, option TG43, conséquences de l'échec de compilation des helpers C#, contenu du fichier de configuration et des fichiers temporaires, mention du moteur PS2EXE (Microsoft Limited Public License 1.1) embarqué dans l'exécutable.
+
 ## [11.8] - 2026-10-14
 
 - Écriture lente : case de l'onglet Écriture qui écrit toutes les pistes de la tête 0 puis toutes celles de la tête 1, en deux commandes `gw write`, chacune avec sa précompensation (champ « Précomp. tête 1 »). Champ Pistes respecté, `hswap` compris ; sans `h=`, faces lues dans l'image (IPF, HFE, ADF), refus pour les autres images si « Effacer les pistes vides » est coché, pour ne pas effacer la tête 1 d'un format simple face ; contrôle après écriture et réécritures des pistes faibles tête par tête ; tête 1 non lancée si la tête 0 échoue. Calibration par tête quand la case est cochée : mesures analysées face par face, une courbe et une vérification par tête, courbes enregistrées par famille et appliquées par le profil Auto en écriture lente tant qu'aucune calibration commune plus récente ne les remplace, fenêtre « Courbe » à deux courbes. Une face non écrite par gw est rejetée au lieu de produire une courbe sans signification. Onglet Écriture défilant quand la fenêtre est trop basse pour l'afficher en entier, ouvert en haut sur l'image.
