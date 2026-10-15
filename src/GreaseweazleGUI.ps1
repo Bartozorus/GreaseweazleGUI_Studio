@@ -56,10 +56,10 @@ $script:I18n['Images seulement'] = 'Images only'
 $script:I18n['Réindexer'] = 'Reindex'
 $script:I18n["Reconstruit l'index de la racine (en arrière-plan). À faire après l'ajout ou le déplacement de fichiers."] = "Rebuilds the root index (in the background). Do this after adding or moving files."
 $script:I18n['Écriture rapide'] = 'Fast write'
-$script:I18n["Écrit l'image sélectionnée en une passe, les deux têtes ensemble : image entière, profil de précompensation Auto,`npré-effacement, effacement des pistes vides, vérification gw, 10 retries, sans contrôle complet des pistes.`nSans calibration commune pour la famille de l'image, le lecteur est d'abord calibré : la disquette reçoit le motif de test, puis l'image."] = "Writes the selected image in one pass, both heads together: whole image, Auto precompensation profile,`npre-erase, erase empty tracks, gw verification, 10 retries, no full track check.`nWithout a common calibration for the image family, the drive is calibrated first: the disk receives the test pattern, then the image."
+$script:I18n["Écrit l'image sélectionnée en une passe, les deux têtes ensemble : image entière, profil de précompensation Auto,`npré-effacement, effacement des pistes vides, vérification gw, 10 essais, sans contrôle complet des pistes.`nSans calibration commune pour la famille de l'image, le lecteur est d'abord calibré : la disquette reçoit le motif de test, puis l'image."] = "Writes the selected image in one pass, both heads together: whole image, Auto precompensation profile,`npre-erase, erase empty tracks, gw verification, 10 retries, no full track check.`nWithout a common calibration for the image family, the drive is calibrated first: the disk receives the test pattern, then the image."
 $script:I18n["Écrit la tête 0 puis la tête 1, chacune avec sa précompensation, puis contrôle toutes les pistes`net réécrit les pistes faibles, 3 passes au plus. Mêmes paramètres que l'écriture rapide.`nSans calibration par tête pour la famille de l'image, chaque tête est d'abord calibrée : la disquette reçoit le motif de test, puis l'image."] = "Writes head 0 then head 1, each with its own precompensation, then checks every track`nand rewrites weak tracks, 3 passes at most. Same settings as the fast write.`nWithout a per-head calibration for the image family, each head is calibrated first: the disk receives the test pattern, then the image."
-$script:I18n['Écriture lente : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 retries, tête 0 puis tête 1, contrôle de toutes les pistes, 3 passes de réécriture.'] = 'Slow write: whole image, Auto profile, pre-erase, erase empty tracks, gw verification, 10 retries, head 0 then head 1, full track check, 3 rewrite passes.'
-$script:I18n['Écriture rapide : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 retries, les deux têtes ensemble, sans contrôle complet des pistes.'] = 'Fast write: whole image, Auto profile, pre-erase, erase empty tracks, gw verification, 10 retries, both heads together, no full track check.'
+$script:I18n['Écriture lente : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 essais, tête 0 puis tête 1, contrôle de toutes les pistes, 3 passes de réécriture.'] = 'Slow write: whole image, Auto profile, pre-erase, erase empty tracks, gw verification, 10 retries, head 0 then head 1, full track check, 3 rewrite passes.'
+$script:I18n['Écriture rapide : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 essais, les deux têtes ensemble, sans contrôle complet des pistes.'] = 'Fast write: whole image, Auto profile, pre-erase, erase empty tracks, gw verification, 10 retries, both heads together, no full track check.'
 $script:I18n['par tête'] = 'per-head'
 $script:I18n['commune'] = 'common'
 $script:I18n["La calibration {0} de la famille {1} a été mesurée sur le contenu d'une image, avant le motif de test : elle est refaite."] = "The {0} calibration of the {1} family was measured on an image's content, before the test pattern: it is redone."
@@ -368,8 +368,10 @@ $script:I18n['Effacement'] = 'Erase'
 $script:I18n['Nettoyage'] = 'Clean'
 $script:I18n['Mesure de vitesse'] = 'Speed measurement'
 $script:I18n["ERREUR lancement : {0}"] = "Launch ERROR: {0}"
-$script:I18n["Pistes ayant nécessité des retries : "] = "Tracks that needed retries: "
-$script:I18n['Écriture : aucune piste n''a nécessité de retry.'] = 'Write: no track needed a retry.'
+$script:I18n["Pistes ayant nécessité de nouveaux essais : "] = "Tracks that needed retries: "
+$script:I18n['Écriture : aucune piste n''a nécessité de nouvel essai.'] = 'Write: no track needed a retry.'
+$script:I18n[" (essais x{0})"] = " (retries x{0})"
+$script:I18n["  -  essai {0}"] = "  -  retry {0}"
 $script:I18n["<<< Terminé (code retour : {0}, {1} s, {2} ligne(s) reçues)"] = "<<< Done (exit code: {0}, {1} s, {2} line(s) received)"
 $script:I18n["ERREUR : opération incomplète, gw s'est arrêté après {0} piste(s) sur {1} annoncées avec le code 0. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer."] = "ERROR: incomplete operation, gw stopped after {0} track(s) of {1} announced with exit code 0. Check the drive, the USB cable and the power supply, then retry."
 $script:I18n['Séquence interrompue : gw a retourné une erreur.'] = 'Sequence aborted: gw returned an error.'
@@ -405,7 +407,21 @@ $script:I18n["{0} cylindres d'après l'image"] = "{0} cylinders from the image"
 $script:I18n['80 cylindres par défaut (nombre non lisible dans l''image)'] = '80 cylinders by default (count not readable from the image)'
 $script:I18n['test fin, tous les cylindres'] = 'fine test, every cylinder'
 $script:I18n['test standard, un cylindre sur 10'] = 'standard test, one cylinder in 10'
-$script:I18n["Calibration de la précompensation sur le lecteur {0} ({1}).`n`nImage : {2}, famille {3}, {4}.`nMotif de test : données pseudo-aléatoires générées à la densité de l'image, son contenu n'est pas écrit.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes.`n`nInsère une disquette vierge ou sans valeur, puis confirme."] = "Precompensation calibration on drive {0} ({1}).`n`nImage: {2}, family {3}, {4}.`nTest pattern: pseudo-random data generated at the image's density, its content is not written.`nTest cylinders: {5} (both sides), OVERWRITTEN on every pass. Estimated time: {6} min for {7} passes.`n`nInsert a blank or worthless disk, then confirm."
+$script:I18n["Calibration de la précompensation sur le lecteur {0} ({1}).`n`nImage : {2}, famille {3}, {4}.`nMotif de test : données pseudo-aléatoires générées à la densité de l'image, son contenu n'est pas écrit.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes."] = "Precompensation calibration on drive {0} ({1}).`n`nImage: {2}, family {3}, {4}.`nTest pattern: pseudo-random data generated at the image's density, its content is not written.`nTest cylinders: {5} (both sides), OVERWRITTEN on every pass. Estimated time: {6} min for {7} passes."
+$script:I18n["ATTENTION : la calibration écrit le motif de test sur les mêmes pistes à chaque passe ({0} passes prévues). Ces écritures répétées sollicitent le support magnétique et peuvent le fatiguer."] = "WARNING: the calibration writes the test pattern on the same tracks on every pass ({0} passes planned). These repeated writes stress the magnetic medium and can wear it."
+$script:I18n["Pour épargner {0}, coche la case ci-dessous (le compte à rebours s'arrête), remplace-la par une disquette sacrifiée (sans valeur, jamais l'original), puis clique « Lancer la calibration » : après la calibration, l'application te demandera de remettre {0}. Sinon, la calibration utilise la disquette insérée."] = 'To spare {0}, tick the box below (the countdown stops), replace it with a sacrificial disk (worthless, never the original), then click "Start the calibration": after the calibration, the application will ask you to put {0} back. Otherwise, the calibration uses the inserted disk.'
+$script:I18n["Compte à rebours arrêté : insère la disquette sacrifiée, puis clique « Lancer la calibration »."] = 'Countdown stopped: insert the sacrificial disk, then click "Start the calibration".'
+$script:I18n["Compte à rebours arrêté : clique « Lancer la calibration » pour calibrer avec la disquette insérée."] = 'Countdown stopped: click "Start the calibration" to calibrate with the inserted disk.'
+$script:I18n['Insère de préférence une disquette sacrifiée (vierge ou sans valeur), puis valide.'] = 'Preferably insert a sacrificial disk (blank or worthless), then confirm.'
+$script:I18n["J'ai inséré une disquette sacrifiée : me redemander {0} après la calibration"] = 'I inserted a sacrificial disk: ask me again for {0} after the calibration'
+$script:I18n['la disquette de destination'] = 'the destination disk'
+$script:I18n['la disquette à écrire'] = 'the disk to write'
+$script:I18n['Lancer la calibration'] = 'Start the calibration'
+$script:I18n["Sans réponse, la calibration démarre automatiquement dans {0} s."] = 'Without an answer, the calibration starts automatically in {0} s.'
+$script:I18n["Calibration : avertissement validé automatiquement après {0} s sans réponse."] = 'Calibration: warning confirmed automatically after {0} s without an answer.'
+$script:I18n["Calibration sur une disquette sacrifiée : {0} sera redemandée avant l'écriture."] = 'Calibration on a sacrificial disk: {0} will be requested again before writing.'
+$script:I18n["Calibration terminée.`n`nRetire la disquette sacrifiée du lecteur {0} et insère la disquette à écrire, puis clique OK pour écrire l'image.`nAnnuler : l'image n'est pas écrite."] = "Calibration complete.`n`nRemove the sacrificial disk from drive {0} and insert the disk to write, then click OK to write the image.`nCancel: the image is not written."
+$script:I18n['Écriture annulée : la disquette à écrire n''a pas été remise après la calibration.'] = 'Write cancelled: the disk to write was not put back after the calibration.'
 $script:I18n["=== Calibration precomp : lecteur {0}, image {1} ({2}, {3}) ==="] = "=== Precomp calibration: drive {0}, image {1} ({2}, {3}) ==="
 $script:I18n["Cylindres de test : {0} ({1})"] = "Test cylinders: {0} ({1})"
 $script:I18n["Calibration : passe de mesure {0}/{1}, precomp {2} ns"] = "Calibration: measurement pass {0}/{1}, precomp {2} ns"
@@ -572,7 +588,6 @@ $script:I18n["Décoché : seuls les onglets utiles au quotidien sont affichés (
 $script:I18n['Aide'] = 'Help'
 $script:I18n['Ouvre le guide en ligne de l''onglet affiché (touche F1).'] = 'Opens the online guide for the current tab (F1 key).'
 $script:I18n['Essais :'] = 'Retries:'
-$script:I18n["Calibration {0} de la famille {1} refaite à la demande."] = '{0} calibration of the {1} family redone on request.'
 $script:I18n['Flux brut (--raw)'] = 'Raw flux (--raw)'
 $script:I18n['Face B flippy (--reverse)'] = 'Flippy side B (--reverse)'
 $script:I18n['Lecture : image secteur, --raw ignoré (gw le refuse pour ce type de fichier).'] = 'Read: sector image, --raw ignored (gw refuses it for this file type).'
@@ -617,7 +632,7 @@ $script:I18n['Lire la disquette d''origine'] = 'Read the original disk'
 $script:I18n['Vérifier la lecture'] = 'Check the read'
 $script:I18n['Changer de disquette'] = 'Swap disks'
 $script:I18n['Vérifier la disquette de destination'] = 'Check the destination disk'
-$script:I18n['Calibrer le lecteur, tête par tête'] = 'Calibrate the drive, head by head'
+$script:I18n['Calibrer le lecteur si nécessaire'] = 'Calibrate the drive if needed'
 $script:I18n['Écrire la tête 0 puis la tête 1'] = 'Write head 0, then head 1'
 $script:I18n['Comparer la copie à l''original'] = 'Compare the copy with the original'
 $script:I18n['Continuer'] = 'Continue'
@@ -700,18 +715,23 @@ $script:I18n['la disquette insérée semble être l''original'] = 'the inserted 
 $script:I18n['Restauration : la disquette de destination contient les mêmes données que l''original sur le cylindre 0. Écriture refusée.'] = 'Restore: the destination disk holds the same data as the original on cylinder 0. Write refused.'
 $script:I18n["ATTENTION : la disquette insérée a le même contenu que l'original sur le cylindre 0, c'est probablement l'ORIGINAL. Change de disquette. S'il s'agit bien d'une copie à remplacer, clique « Écraser quand même »."] = 'WARNING: the inserted disk has the same content as the original on cylinder 0, it is probably the ORIGINAL. Swap disks. If it really is a copy to replace, click "Overwrite anyway".'
 $script:I18n['ce n''est pas l''original'] = 'not the original'
-$script:I18n['aucune calibration par tête'] = 'no per-head calibration'
-$script:I18n['calibration mesurée sur le contenu d''une image'] = 'calibration measured on an image''s content'
-$script:I18n['courbes par tête antérieures à la calibration commune'] = 'per-head curves older than the common calibration'
-$script:I18n["courbes mesurées sur le lecteur {0}"] = 'curves measured on drive {0}'
-$script:I18n['calibration précédente non convergée'] = 'previous calibration not converged'
+$script:I18n['aucune calibration existante'] = 'no existing calibration'
+$script:I18n['commune aux deux têtes'] = 'common to both heads'
+$script:I18n['mesurée sur le contenu d''une image, avant le motif de test'] = 'measured on an image''s content, before the test pattern'
+$script:I18n["mesurée sur le lecteur {0}"] = 'measured on drive {0}'
+$script:I18n['non convergée'] = 'not converged'
+$script:I18n["Restauration : calibration existante utilisée ({0}), le lecteur n'est pas recalibré."] = 'Restore: existing calibration used ({0}), the drive is not recalibrated.'
+$script:I18n["Remarque sur cette calibration : {0}. Pour la refaire, lance « Calibrer » dans l'onglet Écriture, « Écriture lente » cochée, avant la restauration."] = 'Note about this calibration: {0}. To redo it, run "Calibrate" in the Write tab, with "Slow write" ticked, before the restore.'
+$script:I18n["calibration existante ({0}), pas de recalibration"] = 'existing calibration ({0}), no recalibration'
+$script:I18n['Restauration : calibration terminée sur la disquette sacrifiée.'] = 'Restore: calibration complete on the sacrificial disk.'
+$script:I18n["Calibration terminée. Retire la disquette sacrifiée du lecteur {0} et insère la disquette de DESTINATION : tout son contenu sera remplacé. Elle sera de nouveau vérifiée avant l'écriture."] = 'Calibration complete. Remove the sacrificial disk from drive {0} and insert the DESTINATION disk: all its content will be replaced. It will be checked again before writing.'
+$script:I18n["faite ({0})"] = 'done ({0})'
+$script:I18n["faite sur une disquette sacrifiée ({0})"] = 'done on a sacrificial disk ({0})'
 $script:I18n["Restauration : calibration par tête en test fin ({0})."] = 'Restore: per-head calibration with the fine test ({0}).'
 $script:I18n["Restauration : écriture tête par tête, {0} essais par piste, contrôle de toutes les pistes ({1} passes au plus)."] = 'Restore: head-by-head write, {0} retries per track, check of all tracks (up to {1} passes).'
 $script:I18n["non applicable : {0}"] = 'not applicable: {0}'
-$script:I18n['calibration existante, à jour'] = 'existing calibration, up to date'
 $script:I18n['l''écriture n''a pas démarré (calibration refusée ou annulée ? voir le journal)'] = 'the write did not start (calibration refused or cancelled? see the log)'
 $script:I18n['faite, non convergée sur une tête : voir le journal'] = 'done, not converged on one head: see the log'
-$script:I18n["refaite ({0})"] = 'redone ({0})'
 $script:I18n['séquence arrêtée sans suite, voir le journal'] = 'sequence stopped without continuation, see the log'
 $script:I18n['non applicable à ce format'] = 'not applicable to this format'
 $script:I18n['relecture de la copie impossible'] = 'cannot read the copy back'
@@ -728,7 +748,7 @@ $script:I18n['copie exacte du flux'] = 'exact flux copy'
 $script:I18n["Lecteurs    : origine {0}, destination {1}"] = 'Drives      : original {0}, destination {1}'
 $script:I18n["Original lu : {0}"] = 'Original    : {0}'
 $script:I18n["Copie relue : {0}"] = 'Read-back   : {0}'
-$script:I18n["Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête, calibration par tête en test fin si besoin, pré-effacement, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai."] = 'Rules       : read {0} revolutions, {1} retries x {2} series; head-by-head write, per-head calibration with the fine test if needed, pre-erase, gw verification, {3} retries per track; check of all tracks, up to {4} rewrite passes; final read-back without retry.'
+$script:I18n["Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), pré-effacement, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai."] = 'Rules       : read {0} revolutions, {1} retries x {2} series; head-by-head write, existing calibration kept (per-head calibration with the fine test if none exists), pre-erase, gw verification, {3} retries per track; check of all tracks, up to {4} rewrite passes; final read-back without retry.'
 $script:I18n['Étapes :'] = 'Steps:'
 $script:I18n["Verdict     : {0}"] = 'Verdict     : {0}'
 $script:I18n["Rapport     : {0}"] = 'Report      : {0}'
@@ -748,7 +768,7 @@ $script:I18n["Une restauration est en cours. Quitter quand même ? La disquette 
 $script:I18n['Conseil : protège-la en écriture avant de commencer.'] = 'Tip: write-protect it before you start.'
 $script:I18n['Disquette 3,5" : fenêtre de protection ouverte. 5,25" : encoche couverte. Ainsi, même une erreur de manipulation ne peut pas l''effacer.'] = '3.5" disk: protection window open. 5.25" disk: notch covered. This way, even a handling mistake cannot erase it.'
 $script:I18n['Vierge ou à sacrifier : tout son contenu sera remplacé.'] = 'Blank or expendable: all its content will be replaced.'
-$script:I18n["Règles appliquées à la copie : écriture tête par tête avec une calibration par tête, pré-effacement, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original."] = 'Rules applied to the copy: head-by-head write with a per-head calibration, pre-erase, gw verification, {0} retries per track, check of all tracks (up to {1} rewrite passes), then read-back and comparison with the original.'
+$script:I18n["Règles appliquées à la copie : écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), pré-effacement, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original."] = 'Rules applied to the copy: head-by-head write with the existing drive calibration (per-head calibration if none exists), pre-erase, gw verification, {0} retries per track, check of all tracks (up to {1} rewrite passes), then read-back and comparison with the original.'
 $script:I18n['commande gw'] = 'gw command'
 $script:I18n['calibration'] = 'calibration'
 $script:I18n['contrôle après écriture'] = 'post-write check'
@@ -1541,7 +1561,7 @@ function Set-LibWriteEnabled([bool]$on) { $btnLibFast.Enabled = $on; $btnLibSlow
 $btnLibFast = New-Object System.Windows.Forms.Button
 $btnLibFast.Text = (T 'Écriture rapide'); $btnLibFast.Location = '465,213'; $btnLibFast.Size = '154,38'; $btnLibFast.Font = $bold
 $btnLibFast.Anchor = 'Bottom,Right'; $btnLibFast.Enabled = $false
-$tip.SetToolTip($btnLibFast, (T "Écrit l'image sélectionnée en une passe, les deux têtes ensemble : image entière, profil de précompensation Auto,`npré-effacement, effacement des pistes vides, vérification gw, 10 retries, sans contrôle complet des pistes.`nSans calibration commune pour la famille de l'image, le lecteur est d'abord calibré : la disquette reçoit le motif de test, puis l'image."))
+$tip.SetToolTip($btnLibFast, (T "Écrit l'image sélectionnée en une passe, les deux têtes ensemble : image entière, profil de précompensation Auto,`npré-effacement, effacement des pistes vides, vérification gw, 10 essais, sans contrôle complet des pistes.`nSans calibration commune pour la famille de l'image, le lecteur est d'abord calibré : la disquette reçoit le motif de test, puis l'image."))
 $btnLibFast.Add_Click({ Start-LibWrite 'fast' })
 $btnLibSlow = New-Object System.Windows.Forms.Button
 $btnLibSlow.Text = (T 'Écriture lente'); $btnLibSlow.Location = '624,213'; $btnLibSlow.Size = '154,38'; $btnLibSlow.Font = $bold
@@ -1857,7 +1877,7 @@ function Test-CalibCurrent([string]$fam, [bool]$heads) {
 
 function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
     # Parametres d une ecriture rapide ou lente : image entiere, profil Auto, pre-effacement, effacement des pistes vides,
-    # verification gw, 10 retries, precomp transmise. Rapide : une commande pour les deux tetes, sans controle complet.
+    # verification gw, 10 essais, precomp transmise. Rapide : une commande pour les deux tetes, sans controle complet.
     # Lente : tete 0 puis tete 1 (profils par tete), controle de toutes les pistes, 3 passes de reecriture. Les options
     # de lecteur (flippy, densel, fake index, diskdefs, secteurs durs, TG43) decrivent le materiel : conservees, comme
     # les elements step, h0.off, h1.off et hswap du champ Pistes (seuls c= et h= sont retires : image entiere).
@@ -1888,22 +1908,22 @@ function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
     $chkWSlow.Checked = ($mode -eq 'slow')
     if ($mode -eq 'slow') {
         $chkWPostCheck.Checked = $true; $numWRepair.Value = 3
-        Append-Log (T 'Écriture lente : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 retries, tête 0 puis tête 1, contrôle de toutes les pistes, 3 passes de réécriture.')
+        Append-Log (T 'Écriture lente : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 essais, tête 0 puis tête 1, contrôle de toutes les pistes, 3 passes de réécriture.')
     } else {
         $chkWPostCheck.Checked = $false
-        Append-Log (T 'Écriture rapide : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 retries, les deux têtes ensemble, sans contrôle complet des pistes.')
+        Append-Log (T 'Écriture rapide : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 essais, les deux têtes ensemble, sans contrôle complet des pistes.')
         if ($null -ne $oneHead) { Append-Log ((T "Image à une seule face : seule la tête {0} est écrite (h={0} dans Pistes).") -f "$oneHead") }
     }
     if ($facesUnknown) { Append-Log (T "Nombre de faces de l'image inconnu : effacement des pistes vides désactivé (seules les pistes présentes dans l'image sont écrites).") }
     if ($extras) { Append-Log ((T "Champ Pistes : éléments de lecteur conservés ({0}).") -f $extras.TrimStart(':')) }
 }
 
-function Start-PresetWrite([string]$mode, [switch]$ForceCalib) {
+function Start-PresetWrite([string]$mode, [switch]$NoCalib) {
     # Calibration automatique si elle manque pour la famille de l image (commune en rapide, par tete en lente), puis
     # ecriture. Ecriture directe, sans calibration automatique : flux ecrit tel quel (sans --format, gw ne lui applique
     # pas la precompensation), image haute densite, secteurs durs ou lecteur 8 pouces, densite non etablie (conteneur
     # a geometrie libre : IMD, TD0, D88, D64... ; IPF ou HFE dont la cellule sort de la plage mesurable), module
-    # d analyse SCP indisponible.
+    # d analyse SCP indisponible. NoCalib (restauration) : la calibration existante est conservee, jamais refaite.
     $img = $txtWFile.Text
     if (-not $img -or -not (Test-Path -LiteralPath $img)) {
         [void][System.Windows.Forms.MessageBox]::Show((T 'Fichier image introuvable.'),(T 'Erreur'),'OK','Warning'); return
@@ -1924,15 +1944,15 @@ function Start-PresetWrite([string]$mode, [switch]$ForceCalib) {
     $oor = Get-CellOutOfRange $img
     if ($null -ne $oor) { Append-Log ((T "Cellule de l'image hors de la plage mesurable ({0} ns, de 1 700 à 2 300 ns en MFM double densité) : pas de calibration automatique, écriture avec le profil courant.") -f "$oor"); Start-ImageWrite; return }
     if (-not $script:ScpStatsOk) { Append-Log (T "Module d'analyse SCP indisponible : pas de calibration automatique, écriture avec le profil courant."); Start-ImageWrite; return }
+    if ($NoCalib) { Start-ImageWrite; return }
     $fam = Get-ImageFamily $img
     $heads = ($mode -eq 'slow')
     $state = Get-CalibState $fam $heads
-    if ($state -eq 'ok' -and -not $ForceCalib) { Start-ImageWrite; return }
+    if ($state -eq 'ok') { Start-ImageWrite; return }
     $kind = if ($heads) { (T 'par tête') } else { (T 'commune') }
     switch ($state) {
         'content' { Append-Log ((T "La calibration {0} de la famille {1} a été mesurée sur le contenu d'une image, avant le motif de test : elle est refaite.") -f "$kind", (Get-CalibFamilyName $fam)) }
         'stale'   { Append-Log ((T "Courbes par tête de la famille {0} antérieures à la calibration commune : elles sont refaites.") -f (Get-CalibFamilyName $fam)) }
-        'ok'      { Append-Log ((T "Calibration {0} de la famille {1} refaite à la demande.") -f "$kind", (Get-CalibFamilyName $fam)) }
         default   { Append-Log ((T "Aucune calibration {0} pour la famille {1} : calibration automatique, puis écriture.") -f "$kind", (Get-CalibFamilyName $fam)) }
     }
     $script:AfterCalib = 'write'
@@ -2624,7 +2644,7 @@ $lblRsStepsTitle = New-Object System.Windows.Forms.Label
 $lblRsStepsTitle.Text = (T 'Étapes'); $lblRsStepsTitle.Location = '402,8'; $lblRsStepsTitle.AutoSize = $true
 $lblRsStepsTitle.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 10.5); $lblRsStepsTitle.ForeColor = $script:Theme.Accent2
 $script:RsStepNames = @((T 'Lire la disquette d''origine'), (T 'Vérifier la lecture'), (T 'Changer de disquette'),
-    (T 'Vérifier la disquette de destination'), (T 'Calibrer le lecteur, tête par tête'), (T 'Écrire la tête 0 puis la tête 1'),
+    (T 'Vérifier la disquette de destination'), (T 'Calibrer le lecteur si nécessaire'), (T 'Écrire la tête 0 puis la tête 1'),
     (T 'Contrôler toutes les pistes'), (T 'Comparer la copie à l''original'))
 $script:RsStepLabels = @()
 for ($i = 0; $i -lt $script:RsStepNames.Count; $i++) {
@@ -3928,6 +3948,8 @@ $script:CalResidual  = 4.0              # residu (ns) au-dela duquel un cylindre
 $script:CalMaxVerify = 2                # passes de verification au plus
 $script:CalBracketMargin = 80           # passe d encadrement : estimation + marge (ns) pour un cylindre encore sous-compense a 200 ns
 $script:AfterCalib = ''                                  # 'write' : ecriture rapide ou lente a lancer apres une calibration reussie
+$script:CalibConfirmSeconds = 120                        # avertissement avant calibration : validation automatique au bout de ce delai (s)
+$script:CalConfirm = $null
 $script:PrecompCurves = @{ std = $null; long = $null; std_h0 = $null; std_h1 = $null; long_h0 = $null; long_h1 = $null }   # derniere courbe calibree par famille d image (et par tete : ecriture lente)
 $script:CurveKeys = @('std', 'long', 'std_h0', 'std_h1', 'long_h0', 'long_h1')
 $script:CurveData = $null; $script:CurveForm = $null; $script:CurveFamily = 'std'
@@ -4547,6 +4569,87 @@ function Test-CurvePointFlag($cv, [int]$i) {
     return ([math]::Abs($v[$c] - [double]$cv.Ys[$i]) -gt [math]::Max(15.0, 3.0 * [double]$cv.Sig[$i]))
 }
 
+function Show-CalibConfirm([string]$text, [string]$swapLabel) {
+    # Avertissement avant une calibration : la disquette inseree recoit le motif de test a chaque passe, ce qui use le
+    # support. Lancer / Annuler ; sans reponse, validation automatique au bout de $script:CalibConfirmSeconds, pour toute
+    # calibration (une sequence sans surveillance, restauration ou ecriture depuis la Bibliotheque, ne reste pas bloquee ;
+    # 0 = pas de delai). $swapLabel : case
+    # « disquette sacrifiee » (la disquette a ecrire est redemandee apres la calibration), absente pour une calibration
+    # seule ; la cocher ou la decocher arrete le decompte (l utilisateur est present et change de disquette).
+    # Renvoie @{ Ok ; Swap ; Auto } (Auto : validation par le delai).
+    $w = 560
+    $dlg = New-Object System.Windows.Forms.Form
+    $dlg.Name = 'frmCalibConfirm'; $dlg.Text = (T 'Calibration precomp')
+    $dlg.FormBorderStyle = 'FixedDialog'; $dlg.MaximizeBox = $false; $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false
+    $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font; $dlg.BackColor = [System.Drawing.Color]::White
+    $pic = New-Object System.Windows.Forms.PictureBox
+    $pic.Image = [System.Drawing.SystemIcons]::Warning.ToBitmap(); $pic.SizeMode = 'AutoSize'; $pic.Location = New-Object System.Drawing.Point(16, 16)
+    $lbl = New-Object System.Windows.Forms.Label
+    $lbl.AutoSize = $false; $lbl.UseMnemonic = $false; $lbl.Text = $text; $lbl.Location = New-Object System.Drawing.Point(64, 16)
+    $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
+    $h = [System.Windows.Forms.TextRenderer]::MeasureText($text, $dlg.Font, (New-Object System.Drawing.Size($w, 10000)), $tf).Height
+    $lbl.Size = New-Object System.Drawing.Size($w, ($h + 4))
+    $y = $lbl.Bottom + 12
+    $chk = $null
+    if ($swapLabel) {
+        $chk = New-Object System.Windows.Forms.CheckBox
+        $chk.Name = 'chkCalSwap'; $chk.Text = $swapLabel; $chk.AutoSize = $false; $chk.UseMnemonic = $false
+        $chk.CheckAlign = 'TopLeft'; $chk.TextAlign = 'TopLeft'
+        $hc = [System.Windows.Forms.TextRenderer]::MeasureText($swapLabel, $dlg.Font, (New-Object System.Drawing.Size(($w - 24), 10000)), $tf).Height
+        $chk.Size = New-Object System.Drawing.Size($w, [math]::Max(24, ($hc + 6))); $chk.Location = New-Object System.Drawing.Point(64, $y)
+        $y = $chk.Bottom + 8
+    }
+    $lblCount = New-Object System.Windows.Forms.Label
+    $lblCount.Name = 'lblCalCount'; $lblCount.AutoSize = $false; $lblCount.Size = New-Object System.Drawing.Size($w, 22)
+    $lblCount.Location = New-Object System.Drawing.Point(64, $y); $lblCount.ForeColor = $script:Theme.Warn; $lblCount.Font = $bold
+    $y += 32
+    $btnOk = New-Object System.Windows.Forms.Button
+    $btnOk.Name = 'btnCalOk'; $btnOk.Text = (T 'Lancer la calibration'); $btnOk.Size = New-Object System.Drawing.Size(200, 34)
+    $btnOk.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $btnNo = New-Object System.Windows.Forms.Button
+    $btnNo.Name = 'btnCalCancel'; $btnNo.Text = (T 'Annuler'); $btnNo.Size = New-Object System.Drawing.Size(110, 34)
+    $btnNo.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    Set-Btn $btnOk 'Diagnostic' 'primary'; Set-Btn $btnNo '' 'normal'
+    $btnNo.Location = New-Object System.Drawing.Point((64 + $w - $btnNo.Width), $y)
+    $btnOk.Location = New-Object System.Drawing.Point(($btnNo.Left - 8 - $btnOk.Width), $y)
+    $dlg.ClientSize = New-Object System.Drawing.Size((64 + $w + 16), ($y + $btnOk.Height + 16))
+    $dlg.AcceptButton = $btnOk; $dlg.CancelButton = $btnNo
+    $dlg.Controls.AddRange(@($pic, $lbl, $lblCount, $btnOk, $btnNo))
+    if ($chk) { $dlg.Controls.Add($chk) }
+    $sec = [int]$script:CalibConfirmSeconds
+    $script:CalConfirm = @{ Left = $sec; Auto = $false; Dlg = $dlg; Count = $lblCount; Tmr = $null }
+    $tmr = $null
+    if ($sec -gt 0) {
+        $lblCount.Text = ((T "Sans réponse, la calibration démarre automatiquement dans {0} s.") -f "$sec")
+        $tmr = New-Object System.Windows.Forms.Timer
+        $tmr.Interval = 1000
+        $script:CalConfirm.Tmr = $tmr
+        $tmr.Add_Tick({
+            $c = $script:CalConfirm
+            if (-not $c) { return }
+            $c.Left--
+            if ($c.Left -le 0) { $c.Auto = $true; $c.Dlg.DialogResult = [System.Windows.Forms.DialogResult]::OK; return }
+            $c.Count.Text = ((T "Sans réponse, la calibration démarre automatiquement dans {0} s.") -f "$($c.Left)")
+        })
+    }
+    if ($chk -and $tmr) {
+        $chk.Add_CheckedChanged({
+            $c = $script:CalConfirm
+            if (-not $c) { return }
+            if ($c.Tmr) { $c.Tmr.Stop() }
+            $c.Count.Text = if ($this.Checked) { (T "Compte à rebours arrêté : insère la disquette sacrifiée, puis clique « Lancer la calibration ».") } else { (T "Compte à rebours arrêté : clique « Lancer la calibration » pour calibrer avec la disquette insérée.") }
+        })
+    }
+    $dlg.Add_Shown({ $this.Activate(); try { [System.Media.SystemSounds]::Exclamation.Play() } catch { } })
+    if ($tmr) { $tmr.Start() }
+    try { $dr = $dlg.ShowDialog($form) }
+    finally { if ($tmr) { $tmr.Stop(); $tmr.Dispose() } }
+    $res = @{ Ok = ($dr -eq [System.Windows.Forms.DialogResult]::OK); Swap = [bool]($chk -and $chk.Checked); Auto = [bool]$script:CalConfirm.Auto }
+    $script:CalConfirm = $null
+    $dlg.Dispose()
+    return $res
+}
+
 function Start-PrecompCalib {
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     $script:Cal = $null
@@ -4593,11 +4696,20 @@ function Start-PrecompCalib {
     $famTxt = Get-CalibFamilyName $family
     $cylList = Format-CylList $cyls
     $script:AlignLoop = $false; $script:AlignNextAt = $null
-    $auto = if ($script:AfterCalib -eq 'write') { (T "Calibration automatique avant l'écriture : la disquette insérée reçoit d'abord le motif de test, puis l'image.") + "`n`n" } else { '' }
-    $r = [System.Windows.Forms.MessageBox]::Show(
-        $auto + ((T "Calibration de la précompensation sur le lecteur {0} ({1}).`n`nImage : {2}, famille {3}, {4}.`nMotif de test : données pseudo-aléatoires générées à la densité de l'image, son contenu n'est pas écrit.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes.`n`nInsère une disquette vierge ou sans valeur, puis confirme.") -f "$($cmbDrive.Text)", "$modeTxt", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$cylSrc", "$cylList", "$minutes", "$nPassEst"),
-        (T 'Calibration precomp'), 'OKCancel', 'Warning')
-    if ($r -ne 'OK') { return }
+    # Avertissement (usure du support) : validation automatique au bout du delai ; avant une ecriture, case « disquette
+    # sacrifiee » : la disquette a ecrire est redemandee apres la calibration (Complete-PrecompCalib)
+    $toWrite = ($script:AfterCalib -eq 'write')
+    $target = if ($script:Restore) { (T 'la disquette de destination') } else { (T 'la disquette à écrire') }
+    $auto = if ($toWrite) { (T "Calibration automatique avant l'écriture : la disquette insérée reçoit d'abord le motif de test, puis l'image.") + "`n`n" } else { '' }
+    $body = (T "Calibration de la précompensation sur le lecteur {0} ({1}).`n`nImage : {2}, famille {3}, {4}.`nMotif de test : données pseudo-aléatoires générées à la densité de l'image, son contenu n'est pas écrit.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes.") -f "$($cmbDrive.Text)", "$modeTxt", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$cylSrc", "$cylList", "$minutes", "$nPassEst"
+    $wear = (T "ATTENTION : la calibration écrit le motif de test sur les mêmes pistes à chaque passe ({0} passes prévues). Ces écritures répétées sollicitent le support magnétique et peuvent le fatiguer.") -f "$nPassEst"
+    $choice = if ($toWrite) { (T "Pour épargner {0}, coche la case ci-dessous (le compte à rebours s'arrête), remplace-la par une disquette sacrifiée (sans valeur, jamais l'original), puis clique « Lancer la calibration » : après la calibration, l'application te demandera de remettre {0}. Sinon, la calibration utilise la disquette insérée.") -f "$target" }
+              else { (T 'Insère de préférence une disquette sacrifiée (vierge ou sans valeur), puis valide.') }
+    $swapLabel = if ($toWrite) { (T "J'ai inséré une disquette sacrifiée : me redemander {0} après la calibration") -f "$target" } else { '' }
+    $ans = Show-CalibConfirm ($auto + $body + "`n`n" + $wear + "`n`n" + $choice) $swapLabel
+    if (-not $ans.Ok) { return }
+    if ($ans.Auto) { Append-Log ((T "Calibration : avertissement validé automatiquement après {0} s sans réponse.") -f "$($script:CalibConfirmSeconds)") }
+    if ($ans.Swap) { Append-Log ((T "Calibration sur une disquette sacrifiée : {0} sera redemandée avant l'écriture.") -f "$target") }
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
     try { $pat = New-CalibPattern $family $img $nCyl }
@@ -4610,7 +4722,7 @@ function Start-PrecompCalib {
         Mode = $(if ($fine) { 'fine' } else { 'std' }); Cyls = $cyls; MaxCyl = $maxCyl; Family = $family; Slow = $slow
         Image = $img; Pattern = $pat.Path; PatternBits = $pat.Bits; MaxCoarse = 200; Drive = $cmbDrive.Text; TSpec = "c=${cylList}:h=0-1"; CylList = $cylList
         Stage = 'coarse'; Values = @($script:CalCoarse); Index = 0; Value = 0; ValueTxt = ''; Spec = ''
-        Units = $units; VerifyCount = 0
+        Units = $units; VerifyCount = 0; Swap = [bool]$ans.Swap
         Scp = (Join-Path $script:TempDir 'precomp-calib.scp'); Writes = (New-Object System.Collections.Queue); ReadArgs = @()
         # Progression globale : passes faites / prevues, durees mesurees par phase, estimation initiale 0,7 s par piste et par phase
         StartTime = (Get-Date); PassStart = (Get-Date); PhaseStart = (Get-Date); Phase = 'write'
@@ -4935,6 +5047,13 @@ function Complete-PrecompCalib {
     if ($script:AfterCalib -eq 'write') {
         # Ecriture rapide ou lente : l image est ecrite tout de suite avec le profil obtenu (courbe visible par le bouton Courbe)
         $script:AfterCalib = ''
+        if ($cal.Swap) {
+            # Calibration faite sur une disquette sacrifiee : la disquette a ecrire est redemandee, sans delai (l utilisateur
+            # a annonce l echange) ; restauration : attente, puis nouvelle sonde de la destination avant l ecriture
+            if ($script:Restore) { Enter-RestoreSwapBack; return }
+            $q = [System.Windows.Forms.MessageBox]::Show(((T "Calibration terminée.`n`nRetire la disquette sacrifiée du lecteur {0} et insère la disquette à écrire, puis clique OK pour écrire l'image.`nAnnuler : l'image n'est pas écrite.") -f "$($cal.Drive)"), (T 'Calibration precomp'), 'OKCancel', 'Information')
+            if ($q -ne 'OK') { Append-Log (T 'Écriture annulée : la disquette à écrire n''a pas été remise après la calibration.'); return }
+        }
         Append-Log (T 'Calibration terminée : écriture de l''image avec le profil obtenu.')
         if ($script:Restore) { $script:Restore.InCall = $true }
         try { Start-ImageWrite } finally { if ($script:Restore) { $script:Restore.InCall = $false; $script:Restore.Idle = Get-Date } }
@@ -5359,7 +5478,7 @@ function Show-WriteCheckTable($rep) {
             $m = $rep.State[$k]
             $mark = ''
             if ($rep.Rewrites.ContainsKey($k)) { $mark = ((T " (réécrite x{0})") -f "$($rep.Rewrites[$k])") }
-            elseif ($rep.Retries.ContainsKey($k)) { $mark = ((T " (retries x{0})") -f "$($rep.Retries[$k])") }
+            elseif ($rep.Retries.ContainsKey($k)) { $mark = ((T " (essais x{0})") -f "$($rep.Retries[$k])") }
             [void]$lvAl.Items.Add((New-AlignRow $k $m $mark '-' -1))
             if ($m.Bad) { $last[$k] = @{ Score = 9999; Jitter = 0; Asym = 0; Err = 0; Stab = 0; Cell = 0 }; continue }
             $last[$k] = @{ Score = $m.Score; Jitter = $m.J; Asym = $m.Asym; Err = $m.Ooc; Stab = $m.Stab; Cell = $m.Cell }
@@ -5452,9 +5571,10 @@ function Stop-WriteCheck([switch]$GwError) {
 #     fidele est impossible) ; flux : qualite piste par piste, a juger par l utilisateur au changement de disquette ;
 #  3. changement de disquette (pause, bouton Continuer) ; 4. sonde du cylindre 0 de la destination : identique a
 #     l original -> c est probablement l original, l ecriture est refusee sauf confirmation ;
-#  5-7. ecriture lente tete par tete deleguee a Start-PresetWrite : calibration par tete en test fin si elle manque,
-#     date d une image, d un autre lecteur ou n a pas converge ; pre-effacement, verification gw, essais et passes de
-#     reecriture de $script:RestoreRules, controle de toutes les pistes ;
+#  5-7. ecriture lente tete par tete deleguee a Start-PresetWrite : une calibration existante (par tete, sinon commune)
+#     n est jamais refaite, ses reserves sont signalees ; calibration par tete en test fin seulement si la famille n en a
+#     aucune, eventuellement sur une disquette sacrifiee (la destination est alors redemandee et de nouveau sondee) ;
+#     pre-effacement, verification gw, essais et passes de reecriture de $script:RestoreRules, controle de toutes les pistes ;
 #  8. relecture de la copie sans nouvel essai et comparaison secteur par secteur avec l original.
 # Machine d etats $script:Restore, un seul repartiteur Invoke-RestoreNext. Calibration, ecriture et controle vident
 # la chaine d etapes : ils rappellent la restauration par des points d accroche (Complete-WriteCheck, fin de
@@ -5484,7 +5604,7 @@ function Get-SafeFileName([string]$s) {
 
 function Update-RsRules {
     $r = $script:RestoreRules
-    $lblRsRules.Text = ((T "Règles appliquées à la copie : écriture tête par tête avec une calibration par tête, pré-effacement, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)")
+    $lblRsRules.Text = ((T "Règles appliquées à la copie : écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), pré-effacement, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)")
 }
 
 function Set-RsStep([int]$i, [string]$state, [string]$detail = '') {
@@ -5582,6 +5702,7 @@ function Start-Restore {
         Probe = (Join-Path $script:TempDir ("restore-probe-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + $ext))
         Stage = 'read'; Waiting = $false; Override = $false; InCall = $false; Idle = (Get-Date); Start = (Get-Date); Cur = 0
         Steps = @{}; Saved = (Save-WriteTabState); Read = $null; Cmp = $null; Calib = ''; HD = ''
+        CalibUsed = $null; CalibDone = $false; CalSwap = $false; SwapBack = $false
         Extras = (Get-TSpecExtras $txtWTracks.Text)       # step, hswap, h0.off, h1.off : geometrie du lecteur
     }
     $script:LastCheck = $null
@@ -5714,7 +5835,8 @@ function Enter-RestoreWait([string]$extra) {
     $r.Stage = 'wait'; $r.Waiting = $true
     $cmbDrive.SelectedItem = $r.Dst
     Set-RsStep 2 'run'
-    $msg = if ($r.Same) { (T "Retire l'ORIGINAL du lecteur {0} et range-le. Insère la disquette de DESTINATION : tout son contenu sera remplacé.") -f "$($r.Dst)" }
+    $msg = if ($r.SwapBack) { (T "Calibration terminée. Retire la disquette sacrifiée du lecteur {0} et insère la disquette de DESTINATION : tout son contenu sera remplacé. Elle sera de nouveau vérifiée avant l'écriture.") -f "$($r.Dst)" }
+           elseif ($r.Same) { (T "Retire l'ORIGINAL du lecteur {0} et range-le. Insère la disquette de DESTINATION : tout son contenu sera remplacé.") -f "$($r.Dst)" }
            else { (T "Vérifie que la disquette de DESTINATION est dans le lecteur {0} : tout son contenu sera remplacé.") -f "$($r.Dst)" }
     if ($extra) { $msg = $extra + "`n" + $msg }
     if ($r.Mode -eq 'flux' -and $r.Read -and $r.Read.Crit -gt 0) { $msg = ((T "{0} piste(s) critique(s) dans la lecture : normal pour une protection, sinon nettoie le lecteur et relance.") -f "$($r.Read.Crit)") + "`n" + $msg }
@@ -5747,7 +5869,7 @@ function Resume-Restore([bool]$force) {
         $q = [System.Windows.Forms.MessageBox]::Show((T "Copie de flux : l'application ne peut pas vérifier que la disquette insérée n'est pas l'original.`n`nAs-tu bien retiré l'ORIGINAL et inséré la disquette de DESTINATION ?"), (T 'Restauration'), 'YesNo', 'Warning', 'Button2')
         if ($q -ne 'Yes') { return }
     }
-    $r.Waiting = $false; $pnlRsWait.Visible = $false; $r.Idle = Get-Date; $r.Override = $false
+    $r.Waiting = $false; $r.SwapBack = $false; $pnlRsWait.Visible = $false; $r.Idle = Get-Date; $r.Override = $false
     Set-RsStep 2 'ok'
     if ($r.Mode -eq 'sector' -and -not $force) { Start-RestoreProbe; return }
     if ($r.Mode -eq 'sector') { Set-RsStep 3 'warn' (T 'contrôle ignoré à ta demande') }
@@ -5756,7 +5878,7 @@ function Resume-Restore([bool]$force) {
 }
 
 function Start-RestoreProbe {
-    # Lecture du seul cylindre 0 de la disquette inseree, sans nouvel essai : identique a l original -> c est l original
+    # Lecture du seul cylindre 0 de la disquette inseree (3 tours, 2 essais) : identique a l original -> c est l original
     $r = $script:Restore
     $r.Stage = 'probe'
     Set-RsStep 3 'run'
@@ -5807,19 +5929,21 @@ function Complete-RestoreProbe {
     Start-RestoreWrite
 }
 
-function Get-RestoreCalibReason([string]$fam) {
-    # Raison de recalibrer avant l ecriture stricte ; '' si les courbes par tete sont utilisables telles quelles
-    switch (Get-CalibState $fam $true) {
-        'none'    { return (T 'aucune calibration par tête') }
-        'content' { return (T 'calibration mesurée sur le contenu d''une image') }
-        'stale'   { return (T 'courbes par tête antérieures à la calibration commune') }
+function Get-RestoreCalibInfo([string]$fam) {
+    # Calibration de l ecriture stricte : une calibration existante (par tete si a jour, sinon commune, comme l applique
+    # l ecriture lente) n est jamais refaite ; Need seulement si la famille n en a aucune. Notes : reserves a signaler.
+    $cvs = Get-FamilyCurves $fam $true
+    if ($cvs.Count -eq 0) { return @{ Need = $true; Text = (T 'aucune calibration existante'); Notes = @() } }
+    $text = if ($cvs.Count -gt 1) { (T 'par tête') } else { (T 'commune aux deux têtes') }
+    $notes = New-Object System.Collections.Generic.List[string]
+    foreach ($cv in $cvs) {
+        $n = @()
+        if ($cv.Method -ne 'motif') { $n += (T 'mesurée sur le contenu d''une image, avant le motif de test') }
+        if ($cv.Drive -and [string]$cv.Drive -ne $script:Restore.Dst) { $n += ((T "mesurée sur le lecteur {0}") -f "$($cv.Drive)") }
+        if ($cv.Converged -eq $false) { $n += (T 'non convergée') }
+        foreach ($x in $n) { if (-not $notes.Contains($x)) { $notes.Add($x) } }
     }
-    foreach ($h in 0, 1) {
-        $cv = $script:PrecompCurves["${fam}_h$h"]
-        if ($cv.Drive -and [string]$cv.Drive -ne $script:Restore.Dst) { return ((T "courbes mesurées sur le lecteur {0}") -f "$($cv.Drive)") }
-        if ($cv.Converged -eq $false) { return (T 'calibration précédente non convergée') }
-    }
-    return ''
+    return @{ Need = $false; Text = $text; Notes = $notes.ToArray() }
 }
 
 function Start-RestoreWrite {
@@ -5836,16 +5960,25 @@ function Start-RestoreWrite {
         $chkWNoVerify.Checked = $false; $chkWPostCheck.Checked = $true; $chkWPrecomp.Checked = $true
         $cmbWCalMode.SelectedIndex = 1
         Update-PrecompForImage $r.Orig
-        $force = $false
+        $r.SwapBack = $false
+        $noCalib = $false
         if ($r.Mode -eq 'sector') {
             $r.HD = [string](Get-HighDensityReason $r.Orig $r.Fmt)
             if (-not $r.HD) {
-                $why = Get-RestoreCalibReason (Get-ImageFamily $r.Orig)
-                if ($why) { $force = $true; $r.Calib = $why; Append-Log ((T "Restauration : calibration par tête en test fin ({0}).") -f "$why") }
+                if ($r.CalibDone) { $noCalib = $true }          # calibration faite sur une disquette sacrifiee, destination remise
+                else {
+                    $ci = Get-RestoreCalibInfo (Get-ImageFamily $r.Orig)
+                    if ($ci.Need) { $r.Calib = $ci.Text; Append-Log ((T "Restauration : calibration par tête en test fin ({0}).") -f "$($ci.Text)") }
+                    else {
+                        $noCalib = $true; $r.CalibUsed = $ci
+                        Append-Log ((T "Restauration : calibration existante utilisée ({0}), le lecteur n'est pas recalibré.") -f "$($ci.Text)")
+                        if ($ci.Notes.Count -gt 0) { Append-Log ((T "Remarque sur cette calibration : {0}. Pour la refaire, lance « Calibrer » dans l'onglet Écriture, « Écriture lente » cochée, avant la restauration.") -f "$($ci.Notes -join ' ; ')") }
+                    }
+                }
             }
         }
         Append-Log ((T "Restauration : écriture tête par tête, {0} essais par piste, contrôle de toutes les pistes ({1} passes au plus).") -f "$($script:RestoreRules.WriteRetries)", "$($script:RestoreRules.RepairPasses)")
-        Start-PresetWrite 'slow' -ForceCalib:$force
+        Start-PresetWrite 'slow' -NoCalib:$noCalib
         if ($r.Mode -eq 'flux' -and $script:Rep -and $r.Read -and $r.Read.CritKeys -and $r.Read.CritKeys.Count -gt 0) { $script:Rep.Ignore = $r.Read.CritKeys }
     } finally { $r.InCall = $false; $r.Idle = Get-Date }
     if (-not $script:Restore) { return }
@@ -5853,7 +5986,11 @@ function Start-RestoreWrite {
     elseif ($script:GwProc -and -not $script:GwProc.HasExited) {
         if ($r.Mode -ne 'sector') { Set-RsStep 4 'skip' (T 'non applicable à une copie de flux') }
         elseif ($r.HD) { Set-RsStep 4 'skip' ((T "non applicable : {0}") -f "$($r.HD)") }
-        else { Set-RsStep 4 'ok' (T 'calibration existante, à jour') }
+        elseif ($r.CalibUsed) {
+            $d = (T "calibration existante ({0}), pas de recalibration") -f "$($r.CalibUsed.Text)"
+            if ($r.CalibUsed.Notes.Count -gt 0) { $d += ' ; ' + ($r.CalibUsed.Notes -join ' ; ') }
+            Set-RsStep 4 $(if ($r.CalibUsed.Notes.Count -gt 0) { 'warn' } else { 'ok' }) $d
+        }
         Set-RsStep 5 'run'
     } else {
         Fail-Restore 4 (T 'l''écriture n''a pas démarré (calibration refusée ou annulée ? voir le journal)')
@@ -5866,7 +6003,20 @@ function Set-RsCalibDone {
     $fam = Get-ImageFamily $r.Orig
     $nc = @(@(0, 1) | Where-Object { $cv = $script:PrecompCurves["${fam}_h$_"]; $cv -and $cv.Converged -eq $false })
     if ($nc.Count -gt 0) { Set-RsStep 4 'warn' (T 'faite, non convergée sur une tête : voir le journal') }
-    else { Set-RsStep 4 'ok' $(if ($r.Calib) { (T "refaite ({0})") -f "$($r.Calib)" } else { '' }) }
+    elseif ($r.CalSwap) { Set-RsStep 4 'ok' ((T "faite sur une disquette sacrifiée ({0})") -f "$($r.Calib)") }
+    else { Set-RsStep 4 'ok' $(if ($r.Calib) { (T "faite ({0})") -f "$($r.Calib)" } else { '' }) }
+}
+
+function Enter-RestoreSwapBack {
+    # Calibration faite sur une disquette sacrifiee : etape terminee, la destination est redemandee puis de nouveau
+    # sondee (Resume-Restore -> Start-RestoreProbe) ; l ecriture reprend ensuite sans recalibrer (CalibDone).
+    $r = $script:Restore
+    $r.CalSwap = $true
+    Set-RsCalibDone
+    $r.CalibDone = $true; $r.SwapBack = $true
+    Set-RsStep 3 'pending'
+    Append-Log (T 'Restauration : calibration terminée sur la disquette sacrifiée.')
+    Enter-RestoreWait ''
 }
 
 function Update-RestoreProgress {
@@ -5956,7 +6106,7 @@ function Write-RestoreReport([bool]$ok, [string]$verdict) {
     $L.Add(((T "Original lu : {0}") -f "$($r.Orig)"))
     if ($r.Mode -eq 'sector') { $L.Add(((T "Copie relue : {0}") -f "$($r.Back)")) }
     $rr = $script:RestoreRules
-    $L.Add(((T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête, calibration par tête en test fin si besoin, pré-effacement, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)"))
+    $L.Add(((T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), pré-effacement, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)"))
     $L.Add('')
     $L.Add((T 'Étapes :'))
     $marks = @{ pending = '[ ]'; run = '[>]'; ok = '[OK]'; fail = '[ECHEC]'; skip = '[-]'; warn = '[!]' }
@@ -6351,7 +6501,7 @@ function Get-LogColor([string]$line) {
     # Lignes de synthese du controle apres ecriture : simples comptes par etat (« 0 critique(s) » n est pas une erreur)
     if ($line -match '^(Contrôle complet|Full check|Remesure après réécriture|Re-measure after rewrite)\b') { return $script:LogColors.std }
     if ($line -match 'FATAL|ERREUR|ERROR|ECHEC|ÉCHEC|FAILED|Command Failed|Write ?Protect|CRITIQUE|CRITICAL|ILLISIBLE|UNREADABLE|introuvable|not found|code retour : [1-9]|exit code: [1-9]|support fatigué|worn media|réécriture automatique non lancée|automatic rewrite not started|RESTAURATION ÉCHOUÉE|RESTORE FAILED') { return $script:LogColors.err }
-    if ($line -match 'Verify Failure|Retry #|retries|À SURVEILLER|TO WATCH|marginal|DIFF[EÉ]RENT|Interrompu|Interrupted|aborted|non applicable|not applicable|réécriture automatique désactivée|automatic rewrite disabled|Aucune réécriture automatique|No automatic rewrite|non convergée|not converged|NON CONVERGÉE|NOT CONVERGED|Valeurs peu fiables|Unreliable values|Écart à la courbe|Deviation from the curve|Giving up') { return $script:LogColors.warn }
+    if ($line -match 'Verify Failure|Retry #|nécessité de nouveaux essais|needed retries|À SURVEILLER|TO WATCH|marginal|DIFF[EÉ]RENT|Interrompu|Interrupted|aborted|non applicable|not applicable|réécriture automatique désactivée|automatic rewrite disabled|Aucune réécriture automatique|No automatic rewrite|non convergée|not converged|NON CONVERGÉE|NOT CONVERGED|Valeurs peu fiables|Unreliable values|Écart à la courbe|Deviation from the curve|Giving up') { return $script:LogColors.warn }
     if ($line -match 'All tracks verified|code retour : 0|exit code: 0|SAIN|HEALTHY|IDENTIQUE|IDENTICAL|EXCELLENT|aucune piste n|no track needed|RESTAURATION RÉUSSIE|RESTORE SUCCEEDED') { return $script:LogColors.ok }
     if ($line -match '^T\d+\.\d+\b[^:]*:') { return $script:LogColors.dim }
     return $script:LogColors.std
@@ -6403,7 +6553,7 @@ function Update-Progress([string]$line) {
             $pct = [math]::Round(100 * $v / $script:ProgTotal, 0)
             $stTrack.Text = ((T "piste {0}  ({1}/{2}, {3} %)") -f "$key", "$v", "$($script:ProgTotal)", "$pct")
         } else { $stTrack.Text = ((T "piste {0}") -f "$key") }
-        if ($line -match 'Retry #(\d+)(?:\.(\d+))?') { $stTrack.Text += ((T "  -  retry {0}") -f "$(if ($Matches[2]) { $Matches[2] } else { $Matches[1] })") }
+        if ($line -match 'Retry #(\d+)(?:\.(\d+))?') { $stTrack.Text += ((T "  -  essai {0}") -f "$(if ($Matches[2]) { $Matches[2] } else { $Matches[1] })") }
     }
 }
 
@@ -6561,8 +6711,8 @@ $timer.Add_Tick({
             $wasWrite = [bool]$script:GwIsWrite
             if ($script:GwIsWrite) {
                 if ($script:WriteRetries.Count -gt 0) {
-                    Append-Log ((T "Pistes ayant nécessité des retries : ") + (($script:WriteRetries.Keys | Sort-Object | ForEach-Object { ((T "{0} (x{1})") -f "$_", "$($script:WriteRetries[$_])") }) -join ', '))
-                } elseif ($code -eq 0 -and $script:GwWriteSummary) { Append-Log (T 'Écriture : aucune piste n''a nécessité de retry.') }
+                    Append-Log ((T "Pistes ayant nécessité de nouveaux essais : ") + (($script:WriteRetries.Keys | Sort-Object | ForEach-Object { ((T "{0} (x{1})") -f "$_", "$($script:WriteRetries[$_])") }) -join ', '))
+                } elseif ($code -eq 0 -and $script:GwWriteSummary) { Append-Log (T 'Écriture : aucune piste n''a nécessité de nouvel essai.') }
                 $script:GwIsWrite = $false
             }
             $elapsed = if ($script:GwStart -is [datetime]) { [math]::Round(((Get-Date) - $script:GwStart).TotalSeconds, 1) } else { 0 }
