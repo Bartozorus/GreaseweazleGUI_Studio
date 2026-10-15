@@ -1,6 +1,6 @@
 # Greaseweazle Studio
 
-Greaseweazle Studio est une application Windows dédiée aux disquettes. Elle pilote une carte [Greaseweazle](https://github.com/keirf/greaseweazle), de Keir Fraser, branchée en USB au PC et reliée à un lecteur de disquette. Elle permet de sauvegarder une disquette dans un fichier, d'écrire une image (un jeu Amiga en ADF, par exemple) sur une disquette, de restaurer une disquette d'origine sur une disquette vierge, et de vérifier l'état d'une disquette ou d'un lecteur. Elle a été conçue en priorité pour la préservation des disquettes Amiga.
+Greaseweazle Studio est une application Windows dédiée à l'écriture de disquettes. Elle pilote la carte [Greaseweazle](https://github.com/keirf/greaseweazle), de Keir Fraser. Elle permet d'écrire les images de disquettes d'origines (jeu Amiga en ADF, par exemple) sur une disquette, de restaurer une disquette d'origine sur une disquette vierge, et de vérifier l'état d'une disquette ou d'un lecteur. Cette application a été conçue en priorité pour la préservation des disquettes Amiga.
 
 Aucune connaissance des commandes de la carte n'est nécessaire : l'application les construit, règle les options et contrôle le résultat. Chaque commande lancée reste visible dans le journal, en bas de la fenêtre.
 
