@@ -27,7 +27,7 @@ param(
 )
 
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
-$script:Version = '12.1'
+$script:Version = '12.2'
 $script:CalibAlgo = 'seg1'       # revision de la mesure et de l ajustement de la calibration : une courbe d une autre revision est abandonnee
 
 # --- Langue de l interface -------------------------------------------------------
@@ -436,7 +436,7 @@ $script:I18n["  {0} : aucun cylindre mesurable{1}"] = "  {0}: no measurable cyli
 $script:I18n['Calibration : aucune mesure exploitable pour estimer la précompensation.'] = 'Calibration: no usable measurement to estimate precompensation.'
 $script:I18n["Pente moyenne : {0} ns de décalage par ns de precomp ; estimation par cylindre : {1}"] = "Average slope: {0} ns of shift per ns of precomp; estimate per cylinder: {1}"
 $script:I18n["{0} cylindre(s) corrigé(s), résidu hors tolérance, nouveau profil : {1}"] = "{0} cylinder(s) corrected, residual out of tolerance, new profile: {1}"
-$script:I18n["Plafond de {0} ns atteint aux cylindres {1} : le besoin dépasse la précompensation maximale, la courbe reste au plafond et une nouvelle calibration n'y changera rien. La même saturation sur une autre disquette désigne le lecteur, sinon le support."] = "{0} ns ceiling reached at cylinders {1}: the need exceeds the maximum precompensation, the curve stays at the ceiling and a new calibration will not change it. The same saturation on another disk points to the drive, otherwise to the media."
+$script:I18n["Plafond de {0} ns atteint aux cylindres {1} : le besoin dépasse la précompensation maximale, la courbe reste au plafond et une nouvelle calibration n'y changera rien. Si une disquette en bon état sature aussi, c'est le lecteur ; sinon, c'est le support, probablement fatigué."] = "{0} ns ceiling reached at cylinders {1}: the need exceeds the maximum precompensation, the curve stays at the ceiling and a new calibration will not change it. If a disk in good condition saturates too, it is the drive; otherwise it is the media, probably worn."
 $script:I18n[' Limite de précompensation atteinte (0 ou 300 ns) : voir le journal.'] = ' Precompensation limit reached (0 or 300 ns): see the log.'
 $script:I18n["Précompensation nulle encore excessive aux cylindres {0} : la courbe reste à 0 ns et une nouvelle calibration n'y changera rien. La même mesure sur une autre disquette désigne le lecteur, sinon le support."] = 'Zero precompensation still excessive at cylinders {0}: the curve stays at 0 ns and a new calibration will not change it. The same measurement on another disk points to the drive, otherwise to the media.'
 $script:I18n["Résidu après vérification (ns, tolérance {0}, élargie à 3 erreurs-types si la mesure est plus bruitée) : {1}"] = "Residual after verification (ns, tolerance {0}, widened to 3 standard errors when the measurement is noisier): {1}"
@@ -671,7 +671,21 @@ $script:I18n["Analyse de l'image flux..."] = 'Analysing the flux image...'
 $script:I18n["CONTRÔLE APRÈS ÉCRITURE : {0}/{1} pistes saines"] = 'POST-WRITE CHECK: {0}/{1} healthy tracks'
 $script:I18n[", {0} piste(s) non reproductible(s) ou déjà critique(s) non comptée(s) : {1}"] = ', {0} non-reproducible or already critical track(s) not counted: {1}'
 $script:I18n["{0}/{1} pistes saines"] = '{0}/{1} healthy tracks'
-$script:I18n["Zone instable (protection probable, non reproductible) : {0}"] = 'Unstable zone (probable protection, not reproducible): {0}'
+$script:I18n["Zone instable d'un tour à l'autre (protection contre la copie ou défaut du support) : {0}"] = 'Zone changing from one revolution to the next (copy protection or media defect): {0}'
+$script:I18n[" ; cylindres voisins {0} : défaut du support probable"] = '; neighbouring cylinders {0}: probable media defect'
+$script:I18n["c{0}-c{1} tête {2}"] = 'c{0}-c{1} head {2}'
+$script:I18n["Mesure : pistes instables sur des cylindres voisins d'une même face ({0}) : défaut du support probable (rayure, usure) plutôt qu'une protection."] = 'Measurement: unstable tracks on neighbouring cylinders of the same side ({0}): probable media defect (scratch, wear) rather than a protection.'
+$script:I18n["Zone instable sur la copie, défaut probable du support (la source n'en contient pas) : {0}"] = 'Unstable zone on the copy, probable media defect (the source has none): {0}'
+$script:I18n["Zone instable de la source (protection probable, non reproductible) : {0}"] = 'Unstable zone from the source (probable protection, not reproducible): {0}'
+$script:I18n["Zone instable sur une piste déjà critique dans la source : {0}"] = 'Unstable zone on a track already critical in the source: {0}'
+$script:I18n["Zone instable non jugée (la source peut contenir une protection) : {0}"] = 'Unstable zone not judged (the source may hold a protection): {0}'
+$script:I18n["Contrôle : zone instable sur {0} piste(s) non jugée(s) ({1}) : la source peut en contenir (protection) sans que l'application puisse le vérifier. Ni réécrites ni comptées comme saines."] = 'Check: unstable zone on {0} track(s) not judged ({1}): the source may hold some (protection) and the application cannot verify it. Neither rewritten nor counted as healthy.'
+$script:I18n[", {0} piste(s) à zone instable non jugée(s) : {1}"] = ', {0} track(s) with an unstable zone not judged: {1}'
+$script:I18n['NON JUGÉE'] = 'NOT JUDGED'
+$script:I18n["Contrôle : zone instable d'un tour à l'autre sur la copie, piste(s) {0} : la source n'en contient pas, défaut probable du support. Ces pistes sont traitées comme faibles."] = 'Check: zone changing from one revolution to the next on the copy, track(s) {0}: the source has none, probable media defect. These tracks are treated as weak.'
+$script:I18n["Écart avec la calibration précédente du lecteur {0} ({1}) : {2} ns en moyenne (de {3} à {4} ns)."] = 'Difference from the previous calibration of drive {0} ({1}): {2} ns on average (from {3} to {4} ns).'
+$script:I18n["Plafond atteint alors que la calibration précédente du même lecteur ne l'atteignait pas : support de calibration probablement fatigué (sinon têtes à nettoyer, ou autre lecteur sous la même lettre)."] = 'Ceiling reached whereas the previous calibration of the same drive did not reach it: the calibration disk is probably worn (otherwise dirty heads, or another drive under the same letter).'
+$script:I18n["Calibration faite sur une disquette sacrifiée qui atteint le plafond : si elle est fatiguée, la courbe surestime le besoin de la disquette à écrire. Préférez une disquette sacrifiée en bon état."] = 'Calibration made on a sacrificial disk that reaches the ceiling: if that disk is worn, the curve overestimates the need of the disk to write. Prefer a sacrificial disk in good condition.'
 $script:I18n["Lecteur {0} : non pris en charge par cette carte (ligne de sélection absente)."] = 'Drive {0}: not supported by this board (select line missing).'
 $script:I18n["{0} et {1} utilisent la même ligne de sélection : la détection ne peut pas les distinguer (A ou B : nappe PC avec twist ; 0 à 3 : nappe droite)."] = '{0} and {1} use the same select line: the detection cannot tell them apart (A or B: PC cable with twist; 0 to 3: straight cable).'
 $script:I18n["Restauration : lecteur {0} remplacé par {1} (origine et destination)."] = 'Restore: drive {0} replaced by {1} (source and destination).'
@@ -680,7 +694,7 @@ $script:I18n["Détection des lecteurs interrompue : {0}"] = 'Drive detection abo
 $script:I18n["Calibrations d'une version précédente de Greaseweazle Studio ({0}) ignorées : courbes et profils calibrés remis aux valeurs d'origine. Le lecteur sera recalibré à la prochaine écriture qui en a besoin."] = 'Calibrations from a previous version of Greaseweazle Studio ({0}) ignored: curves and calibrated profiles reset to the original values. The drive will be recalibrated at the next write that needs it.'
 $script:I18n['antérieure à 12.1'] = 'older than 12.1'
 $script:I18n[' (zone instable)'] = ' (unstable zone)'
-$script:I18n["Mesure : zone instable d'un tour à l'autre sur {0} piste(s) : {1}. Bits faibles d'une protection contre la copie probable, ou défaut localisé du support : une copie n'en écrit qu'un tour et ne les reproduit pas fidèlement."] = 'Measurement: zone changing from one revolution to the next on {0} track(s): {1}. Weak bits of a probable copy protection, or a localised media defect: a copy writes only one revolution of them and cannot reproduce them faithfully.'
+$script:I18n["Mesure : zone instable d'un tour à l'autre sur {0} piste(s) : {1}. Bits faibles d'une protection contre la copie probable, ou défaut localisé du support : une copie faite depuis un flux n'en écrit qu'un tour et ne les reproduit pas fidèlement."] = 'Measurement: zone changing from one revolution to the next on {0} track(s): {1}. Weak bits of a probable copy protection, or a localised media defect: a copy made from a flux image writes only one revolution of them and cannot reproduce them faithfully.'
 $script:I18n["{0} pistes : {1} saines, {2} à surveiller, {3} critiques, {4} à zone instable"] = '{0} tracks: {1} healthy, {2} to watch, {3} critical, {4} with an unstable zone'
 $script:I18n["Restauration : {0} piste(s) non reproductible(s) sur l'original, zone instable d'un tour à l'autre ({1}) : bits faibles d'une protection contre la copie probable, ou défaut localisé. La copie n'en recevra qu'un tour figé : la protection risque de ne pas fonctionner. Ces pistes ne sont jamais réécrites sur une disquette identique à l'original."] = 'Restore: {0} non-reproducible track(s) on the original, zone changing from one revolution to the next ({1}): weak bits of a probable copy protection, or a localised defect. The copy will receive a single frozen revolution of them: the protection may not work. These tracks are never rewritten on a disk identical to the original.'
 $script:I18n["PROTECTION PROBABLE : {0} piste(s) de l'original changent d'un tour à l'autre (bits faibles) : une copie ne peut pas les reproduire et risque de ne pas fonctionner."] = 'PROBABLE PROTECTION: {0} track(s) of the original change from one revolution to the next (weak bits): a copy cannot reproduce them and may not work.'
@@ -2071,13 +2085,13 @@ function Start-ImageWrite {
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     # Image flux a plusieurs tours : pistes dont le contenu change d un tour a l autre (bits faibles d une protection),
     # que gw ne reproduit pas (il n ecrit que le premier tour) : avertissement, confirmation, pas de reecriture au controle
-    $script:ImageUnstable = $null
+    $script:ImageUnstable = $null; $script:ImageSrcWeak = $null; $script:ImageNoJudge = $null; $script:ImageScpFailed = $false
     if (-not $script:Restore -and $script:ScpStatsOk -and [System.IO.Path]::GetExtension($txtWFile.Text).ToLower() -eq '.scp') {
         # Analyse (quelques secondes pour un flux complet) mise en cache par fichier, taille et date
-        $uk = @{}; $ck = @{}
+        $uk = @{}; $ck = @{}; $nj = @{}; $failed = $false
         $fi = Get-Item -LiteralPath $txtWFile.Text
         $ckey = "$($fi.FullName)|$($fi.Length)|$($fi.LastWriteTimeUtc.Ticks)"
-        if ($script:ScpWeakCache -and $script:ScpWeakCache.Key -eq $ckey) { $uk = $script:ScpWeakCache.Weak.Clone(); $ck = $script:ScpWeakCache.Crit.Clone() }
+        if ($script:ScpWeakCache -and $script:ScpWeakCache.Key -eq $ckey) { $uk = $script:ScpWeakCache.Weak.Clone(); $ck = $script:ScpWeakCache.Crit.Clone(); $nj = $script:ScpWeakCache.NoJudge.Clone(); $failed = [bool]$script:ScpWeakCache.Failed }
         else {
             $oldTxt = $stOp.Text; $stOp.Text = (T "Analyse de l'image flux..."); $status.Refresh()
             $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
@@ -2089,9 +2103,12 @@ function Start-ImageWrite {
                     # Image jugee aux seuils Standard, comme un original en restauration
                     $lv = if ($m.Bad) { 2 } else { Get-HealthLevel $m.Ooc $m.Dr $m.Stab $m.J 120 250 }
                     if ($m.Weak) { $uk[$key] = $true } elseif ($lv -ge 2) { $ck[$key] = $true }
+                    # Courte zone instable (raccord ou protection) ou stabilite non mesurable (un seul tour, densite) : une
+                    # zone instable relue sur la copie n y sera pas jugee
+                    elseif ($m.ShortUnstable -or $m.Blocks -eq 0) { $nj[$key] = $true }
                 }
-                $script:ScpWeakCache = @{ Key = $ckey; Weak = $uk.Clone(); Crit = $ck.Clone() }
-            } catch { } finally { $form.Cursor = [System.Windows.Forms.Cursors]::Default; $stOp.Text = $oldTxt }
+                $script:ScpWeakCache = @{ Key = $ckey; Weak = $uk.Clone(); Crit = $ck.Clone(); NoJudge = $nj.Clone(); Failed = $false }
+            } catch { $failed = $true } finally { $form.Cursor = [System.Windows.Forms.Cursors]::Default; $stOp.Text = $oldTxt }
         }
         if ($uk.Count -gt 0) {
             $lst = Format-TrackList (Sort-TrackKeys @($uk.Keys))
@@ -2105,6 +2122,7 @@ function Start-ImageWrite {
         $ign = @{}
         foreach ($k in @(@($uk.Keys) + @($ck.Keys))) { $ign[[string]$k] = $true }
         if ($ign.Count -gt 0) { $script:ImageUnstable = $ign }
+        $script:ImageSrcWeak = $uk; $script:ImageNoJudge = $nj; $script:ImageScpFailed = $failed
     }
     $slow = $chkWSlow.Checked
     $userTs = $txtWTracks.Text.Trim()
@@ -2166,6 +2184,9 @@ function Start-ImageWrite {
         $readOpts = @(Get-DriveReadArgs)
         New-WriteCheck $base $txtWFile.Text $userTs ([int]$numWRepair.Value) $readOpts $headPc
         if ($script:ImageUnstable) { $script:Rep.Ignore = $script:ImageUnstable }
+        $script:Rep.SrcWeak = $script:ImageSrcWeak; $script:Rep.NoJudge = $script:ImageNoJudge
+        # SCP non analyse (module absent, restauration : voir Start-RestoreWrite) ou analyse en echec : rien n est juge
+        if ([System.IO.Path]::GetExtension($txtWFile.Text).ToLower() -eq '.scp' -and ($script:ImageScpFailed -or ((-not $script:Restore) -and $null -eq $script:ImageNoJudge))) { $script:Rep.UnstDefect = $false }
         $script:Chain.Clear()
         if ($slow) { for ($i = 0; $i -lt $script:WriteQueue.Count; $i++) { $script:Chain.Enqueue({ Invoke-WriteQueueNext }) } }
         else { $script:WriteArgs = $a; $script:Chain.Enqueue({ Start-Gw $script:WriteArgs }) }
@@ -4176,8 +4197,11 @@ function New-AlignRow([string]$lab, $m, [string]$mark, [string]$delta, [int]$del
     }
     $hl = [int]$m.Level
     $wk = if ($m.Weak) { (T ' (zone instable)') } else { '' }
-    foreach ($v in @(($healthNames[$hl] + $wk + $mark), ('{0:N1}' -f $m.Ooc), ('{0:N1}' -f $m.Dr), [string]$m.Stab, ('{0:N0}' -f $m.J), ('{0:N0}' -f $m.Score), $delta, ('{0:N3}' -f $m.Asym), ('{0:N0}' -f $m.Cell))) { [void]$it.SubItems.Add($v) }
+    # Zone instable non jugee (controle d une copie dont la source peut porter des zones faibles) : ni SAINE ni faible
+    $stTxt = if ($m.Unjudged -and $hl -eq 0) { (T 'NON JUGÉE') } else { $healthNames[$hl] }
+    foreach ($v in @(($stTxt + $wk + $mark), ('{0:N1}' -f $m.Ooc), ('{0:N1}' -f $m.Dr), [string]$m.Stab, ('{0:N0}' -f $m.J), ('{0:N0}' -f $m.Score), $delta, ('{0:N3}' -f $m.Asym), ('{0:N0}' -f $m.Cell))) { [void]$it.SubItems.Add($v) }
     $it.SubItems[1].BackColor = $healthColor[$hl]; $it.SubItems[1].ForeColor = $script:AlFg[$(@{0=0;1=2;2=3}[$hl])]
+    if ($m.Unjudged -and $hl -eq 0) { $it.SubItems[1].BackColor = $script:AlColors[1]; $it.SubItems[1].ForeColor = $script:AlFg[1] }
     $it.SubItems[1].Font = $bold
     $lvErr = Get-AlLevel 'err' $m.Ooc;    $it.SubItems[2].BackColor = $script:AlColors[$lvErr];  $it.SubItems[2].ForeColor = $script:AlFg[$lvErr]
     $lvDr  = $(if ($m.Dr -le 0) { 0 } elseif ($m.Dr -le 1) { 2 } else { 3 }); $it.SubItems[3].BackColor = $script:AlColors[$lvDr]; $it.SubItems[3].ForeColor = $script:AlFg[$lvDr]
@@ -4187,6 +4211,34 @@ function New-AlignRow([string]$lab, $m, [string]$mark, [string]$delta, [int]$del
     if ($deltaLvl -ge 0) { $it.SubItems[7].BackColor = $script:AlColors[$deltaLvl]; $it.SubItems[7].ForeColor = $script:AlFg[$deltaLvl] }
     $lvAs  = Get-AlLevel 'asym' $m.Asym;  $it.SubItems[8].BackColor = $script:AlColors[$lvAs];   $it.SubItems[8].ForeColor = $script:AlFg[$lvAs]
     return $it
+}
+
+function Set-UnstableBanner([string[]]$parts) {
+    # Bandeau orange des zones instables (onglet Qualite) ; vide : efface un bandeau orange reste d une mesure precedente,
+    # sauf pendant le guide d alignement qui utilise la meme ligne
+    $parts = @($parts | Where-Object { $_ })
+    if ($parts.Count -gt 0) {
+        $lblAlReco.Text = ($parts -join '   |   '); $lblAlReco.ForeColor = 'DarkOrange'; $lblAlReco.Visible = $true
+        $script:UnstableBannerText = $lblAlReco.Text
+    } elseif ($script:UnstableBannerText -and $lblAlReco.Text -eq $script:UnstableBannerText) { $lblAlReco.Text = ''; $script:UnstableBannerText = $null }
+    elseif (-not $chkAlGuide.Checked -and $lblAlReco.ForeColor -eq [System.Drawing.Color]::DarkOrange) { $lblAlReco.Text = '' }
+}
+
+function Get-UnstableClusters([string[]]$keys, [int]$minRun = 3) {
+    # Suites d au moins $minRun cylindres consecutifs instables sur une meme face (« c58-c61 tete 1 ») : une rayure ou une
+    # usure touche des pistes voisines, une protection a bits faibles tient en general sur une piste isolee
+    $out = @()
+    foreach ($h in 0, 1) {
+        $cs = @($keys | Where-Object { $_ -match "^\d+\.$h$" } | ForEach-Object { [int](($_ -split '\.')[0]) } | Sort-Object -Unique)
+        $i = 0
+        while ($i -lt $cs.Count) {
+            $j = $i
+            while ($j + 1 -lt $cs.Count -and $cs[$j + 1] -eq $cs[$j] + 1) { $j++ }
+            if ($j - $i + 1 -ge $minRun) { $out += ((T "c{0}-c{1} tête {2}") -f "$($cs[$i])", "$($cs[$j])", "$h") }
+            $i = $j + 1
+        }
+    }
+    return $out
 }
 
 function Invoke-AlignAnalysis {
@@ -4210,6 +4262,9 @@ function Invoke-AlignAnalysis {
                 $last[$key] = @{ Score = 9999; Jitter = 0; Asym = 0; Err = 0; Stab = 0; Cell = 0 }
                 $crit += ((T "{0} (illisible)") -f "$lab"); continue
             }
+            # Zone instable : la piste ne se relit pas pareil d un tour a l autre, elle n est pas propre (protection ou
+            # defaut du support, l application ne peut pas trancher sur une disquette inconnue) : au moins A SURVEILLER
+            if ($m.Weak -and $m.Level -lt 1) { $m.Level = 1 }
             $sc = $m.Score
             if (-not $script:AlignBest.ContainsKey($key) -or $sc -lt $script:AlignBest[$key]) { $script:AlignBest[$key] = $sc }
             $last[$key] = @{ Score = $sc; Jitter = $m.J; Asym = $m.Asym; Err = $m.Ooc; Stab = $m.Stab; Cell = $m.Cell }
@@ -4240,7 +4295,9 @@ function Invoke-AlignAnalysis {
             $lblAlHealth.BackColor = $script:AlColors[0]; $lblAlHealth.ForeColor = $script:AlFg[0]
         }
         Append-Log ((T "Mesure : {0}") -f "$($lblAlHealth.Text)")
-        if ($weakL.Count -gt 0) { Append-Log ((T "Mesure : zone instable d'un tour à l'autre sur {0} piste(s) : {1}. Bits faibles d'une protection contre la copie probable, ou défaut localisé du support : une copie n'en écrit qu'un tour et ne les reproduit pas fidèlement.") -f "$($weakL.Count)", "$($weakL -join ', ')") }
+        if ($weakL.Count -gt 0) { Append-Log ((T "Mesure : zone instable d'un tour à l'autre sur {0} piste(s) : {1}. Bits faibles d'une protection contre la copie probable, ou défaut localisé du support : une copie faite depuis un flux n'en écrit qu'un tour et ne les reproduit pas fidèlement.") -f "$($weakL.Count)", "$($weakL -join ', ')") }
+        $clu = @(Get-UnstableClusters $weakL)
+        if ($clu.Count -gt 0) { Append-Log ((T "Mesure : pistes instables sur des cylindres voisins d'une même face ({0}) : défaut du support probable (rayure, usure) plutôt qu'une protection.") -f "$($clu -join ', ')") }
 
         # --- Verdict 2 : score de lecture
         if ($count -gt 0) {
@@ -4261,8 +4318,8 @@ function Invoke-AlignAnalysis {
             $lblAlVerdict.BackColor = $script:AlColors[$lvlAvg]; $lblAlVerdict.ForeColor = $script:AlFg[$lvlAvg]
             Append-Log ((T "Mesure : score moyen {0} ({1}){2}") -f "$avg", "$($script:AlNames[$lvlAvg])", "$trend")
             Update-AlignGuide $avg
-            if ($weakL.Count -gt 0) { $lblAlReco.Text = ((T "Zone instable (protection probable, non reproductible) : {0}") -f "$($weakL -join ', ')"); $lblAlReco.ForeColor = 'DarkOrange'; $lblAlReco.Visible = $true }
-            elseif ($null -eq $script:AlPos -and $lblAlReco.ForeColor -eq [System.Drawing.Color]::DarkOrange) { $lblAlReco.Text = '' }
+            $bn = if ($weakL.Count -gt 0) { ((T "Zone instable d'un tour à l'autre (protection contre la copie ou défaut du support) : {0}") -f "$($weakL -join ', ')") + $(if ($clu.Count -gt 0) { (T " ; cylindres voisins {0} : défaut du support probable") -f "$($clu -join ', ')" } else { '' }) } else { '' }
+            Set-UnstableBanner @($bn)
         } else {
             $lblAlVerdict.Text = (T 'Aucune piste analysable'); $lblAlVerdict.BackColor = $script:AlColors[3]; $lblAlVerdict.ForeColor = $script:AlFg[3]
         }
@@ -5778,7 +5835,7 @@ function Complete-PrecompCalib {
         return
     }
     $famTxt = Get-CalibFamilyName $cal.Family
-    $allConv = $true; $anySat = $false
+    $allConv = $true; $anySat = $false; $anyCeil = $false
     foreach ($u in $cal.Units) {
         if ($u.Verify.Count -gt 0) {
             $resTxt = (@($u.Verify.Keys | Sort-Object | ForEach-Object { "c$_=$('{0:+0.0;-0.0;0.0}' -f [double]$u.Verify[$_].Shift)" + $(if (@($u.Outliers) -contains [int]$_) { " ($(Get-KindName 'outlier'))" } else { '' }) })) -join ' '
@@ -5790,8 +5847,8 @@ function Complete-PrecompCalib {
             Append-Log ($u.Prefix + ((T "Calibration non convergée aux cylindres {0} : résidu hors tolérance après la dernière vérification, la courbe ne suit pas la mesure à ces cylindres. Refaire la calibration en test fin, ou sur une autre disquette sacrifiée.") -f ($u.Warn.NonConv -join ', ')))
         }
         if ($u.Warn.Sat.Count -gt 0) {
-            $anySat = $true
-            Append-Log ($u.Prefix + ((T "Plafond de {0} ns atteint aux cylindres {1} : le besoin dépasse la précompensation maximale, la courbe reste au plafond et une nouvelle calibration n'y changera rien. La même saturation sur une autre disquette désigne le lecteur, sinon le support.") -f "$($script:CalMaxNs)", ($u.Warn.Sat -join ', ')))
+            $anySat = $true; $anyCeil = $true
+            Append-Log ($u.Prefix + ((T "Plafond de {0} ns atteint aux cylindres {1} : le besoin dépasse la précompensation maximale, la courbe reste au plafond et une nouvelle calibration n'y changera rien. Si une disquette en bon état sature aussi, c'est le lecteur ; sinon, c'est le support, probablement fatigué.") -f "$($script:CalMaxNs)", ($u.Warn.Sat -join ', ')))
         }
         if ($u.Warn.Floor.Count -gt 0) {
             $anySat = $true
@@ -5801,10 +5858,26 @@ function Complete-PrecompCalib {
         if ($bk.Count -ge 2) { Append-Log ($u.Prefix + ((T "Changement de sens du besoin entre c{0} et c{1} : courbe monotone par segments. La même signature sur une autre disquette désigne le lecteur, sinon le support.") -f "$($bk[0])", "$($bk[1])")) }
         elseif ($bk.Count -eq 1) { Append-Log ($u.Prefix + ((T "Le besoin redescend à partir de c{0} : courbe monotone par segments. La même signature sur une autre disquette désigne le lecteur, sinon le support.") -f "$($bk[0])")) }
         if ($u.Warn.Dev.Count -gt 0) { Append-Log ($u.Prefix + ((T "Écart à la courbe de plus de 15 ns et de trois incertitudes (courbe moins mesure) : {0}.") -f ($u.Warn.Dev -join ', '))) }
+        # Calibration precedente du meme lecteur (encore en memoire, remplacee plus bas) : la forme de la courbe tient au
+        # lecteur, son niveau au support ; un ecart net, ou un plafond nouveau, designe le support de calibration
+        $pkey = if ($null -eq $u.Head) { $cal.Family } else { "$($cal.Family)_h$($u.Head)" }
+        $prev = $script:PrecompCurves[$pkey]
+        if ($prev -and [string]$prev.Drive -eq [string]$cal.Drive -and @($prev.Values).Count -gt 0 -and $u.Fit) {
+            $pv = @($prev.Values); $nv = @($u.Fit.Values); $nn = [math]::Min($pv.Count, $nv.Count)
+            if ($nn -gt 0) {
+                $dd = @(for ($c = 0; $c -lt $nn; $c++) { [int]$nv[$c] - [int]$pv[$c] })
+                $ds = $dd | Measure-Object -Average -Minimum -Maximum
+                Append-Log ($u.Prefix + ((T "Écart avec la calibration précédente du lecteur {0} ({1}) : {2} ns en moyenne (de {3} à {4} ns).") -f "$($cal.Drive)", "$($prev.Date)", ('{0:+0;-0;0}' -f [math]::Round($ds.Average, 0)), ('{0:+0;-0;0}' -f $ds.Minimum), ('{0:+0;-0;0}' -f $ds.Maximum)))
+                if ($u.Warn.Sat.Count -gt 0 -and @($pv[0..($nn - 1)] | Where-Object { [int]$_ -ge $script:CalMaxNs }).Count -eq 0) {
+                    Append-Log ($u.Prefix + (T "Plafond atteint alors que la calibration précédente du même lecteur ne l'atteignait pas : support de calibration probablement fatigué (sinon têtes à nettoyer, ou autre lecteur sous la même lettre)."))
+                }
+            }
+        }
         if ($u.Warn.Extrap.Count + $u.Warn.Cap.Count -gt 0) {
             Append-Log ($u.Prefix + ((T "Valeurs peu fiables : {0} extrapolée(s) au-delà des mesures ({1}), {2} plafonnée(s) à 0 ou {3} ns ({4}).") -f "$($u.Warn.Extrap.Count)", ($(if ($u.Warn.Extrap.Count) { $u.Warn.Extrap -join ',' } else { '-' })), "$($u.Warn.Cap.Count)", "$($script:CalMaxNs)", ($(if ($u.Warn.Cap.Count) { $u.Warn.Cap -join ',' } else { '-' }))))
         }
     }
+    if ($anyCeil -and $cal.Swap) { Append-Log (T "Calibration faite sur une disquette sacrifiée qui atteint le plafond : si elle est fatiguée, la courbe surestime le besoin de la disquette à écrire. Préférez une disquette sacrifiée en bon état.") }
     # Profil commun : remplace celui de la famille. Ecriture lente : courbes par tete, le profil commun est conserve.
     if (-not $cal.Slow) {
         $spec = $cal.Units[0].Profile
@@ -6136,11 +6209,42 @@ function New-WriteCheck([string[]]$base, [string]$image, [string]$userTSpec, [in
         HeadPrecomp = $headPrecomp; Written = @{}              # Written : pistes ecrites, cumulees sur les commandes (ecriture lente)
         Round = 0; Scope = $null; Weak = @(); State = @{}; Retries = @{}; Rewrites = @{}
         Pending = (New-Object System.Collections.Queue); Scps = @(); Safety = $false; Measured = 0
+        # Zone instable relue sur la copie = defaut de la copie, sauf source capable d en porter (voir Set-CopyUnstable)
+        UnstDefect = (-not (Test-SourceMayHaveWeak $image)); NoJudge = $null; SrcWeak = $null
     }
     # Une mesure continue de l onglet Qualite ecraserait le resultat du controle : elle est arretee
     $script:AlignLoop = $false; $script:AlignNextAt = $null; $script:AlLastMove = 0
     $lblWCal.Text = (T 'Écriture en cours, contrôle de toutes les pistes ensuite.')
     $pbWCal.Visible = $false; $lblWCal.Visible = $true
+}
+
+function Test-SourceMayHaveWeak([string]$path) {
+    # Sources dont gw ecrit les zones faibles comme une zone sans flux (une transition toutes les 32 cellules, track.py
+    # MasterTrack.force_random_weak), relue volontairement instable : IPF (CAPS), HFE v3 (opcode Rand), EDSK (secteur
+    # stocke en plusieurs copies). Flux .raw, .kf, .a2r, .ctr : non analyses. Fichier illisible : prudence.
+    $ext = [System.IO.Path]::GetExtension($path).ToLower()
+    if (@('.ipf', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) { return $true }
+    if (@('.hfe', '.dsk', '.edsk') -notcontains $ext) { return $false }
+    try {
+        $fs = [System.IO.File]::OpenRead($path)
+        try { $b = New-Object byte[] 16; $n = $fs.Read($b, 0, 16) } finally { $fs.Dispose() }
+        $s = [System.Text.Encoding]::ASCII.GetString($b, 0, $n)
+        return ($s.StartsWith('HXCHFEV3') -or $s.StartsWith('EXTENDED CPC DSK'))
+    } catch { return $true }
+}
+
+function Set-CopyUnstable($rep, [string]$k, $m) {
+    # gw ecrit un tour fige de la source : une zone instable d un tour a l autre relue sur la copie ne vient pas de la
+    # source quand celle-ci n en contient pas a cette piste (image secteur, HFE v1/v2, piste stable d un SCP analyse).
+    # Elle signale alors un defaut de la copie (support fatigue, defaut localise) : la piste est faible et reecrite.
+    # Pistes instables ou critiques de la source (Rep.Ignore) : traitees a part. Non jugees (Unjudged : ni reecrites ni
+    # comptees saines) : source qui peut porter des zones faibles (Test-SourceMayHaveWeak), SCP non analysable, piste
+    # que la source porte avec une courte zone instable ou que l analyse n a pas pu mesurer (Rep.NoJudge).
+    if (-not $m -or $m.Bad -or -not $m.Weak) { return }
+    if ($rep.Ignore -and $rep.Ignore.ContainsKey($k)) { return }
+    if (-not $rep.UnstDefect -or ($rep.NoJudge -and $rep.NoJudge.ContainsKey($k))) { $m.Unjudged = $true; return }
+    $m.CopyDefect = $true
+    if ($m.Level -lt 1) { $m.Level = 1 }
 }
 
 function Merge-RepRetries {
@@ -6240,9 +6344,15 @@ function Invoke-WriteCheckAnalysis {
         $tn = Get-TrackKeyOrder $k
         if ($tracks.ContainsKey($tn)) { $m = Get-TrackMetrics $tracks[$tn] }
         else { $m = Get-TrackMetrics @(); $m.Missing = $true }
+        Set-CopyUnstable $rep $k $m
         $rep.State[$k] = $m
-        if ($m.Bad -or $m.Level -ge 2) { $crit += $k } elseif ($m.Level -eq 1) { $watch += $k } else { $healthy++ }
+        if ($m.Bad -or $m.Level -ge 2) { $crit += $k } elseif ($m.Level -eq 1) { $watch += $k }
+        elseif (-not $m.Unjudged -and -not ($m.Weak -and $rep.Ignore -and $rep.Ignore.ContainsKey($k))) { $healthy++ }
     }
+    $unjK = @($expected | Where-Object { $rep.State[$_].Unjudged -and -not $rep.State[$_].Bad -and $rep.State[$_].Level -lt 1 })
+    if ($unjK.Count -gt 0 -and $rep.Round -eq 0) { Append-Log ((T "Contrôle : zone instable sur {0} piste(s) non jugée(s) ({1}) : la source peut en contenir (protection) sans que l'application puisse le vérifier. Ni réécrites ni comptées comme saines.") -f "$($unjK.Count)", "$(Format-TrackList $unjK)") }
+    $defK = @($expected | Where-Object { $rep.State[$_].CopyDefect })
+    if ($defK.Count -gt 0) { Append-Log ((T "Contrôle : zone instable d'un tour à l'autre sur la copie, piste(s) {0} : la source n'en contient pas, défaut probable du support. Ces pistes sont traitées comme faibles.") -f "$(Format-TrackList $defK)") }
     if ($rep.Ignore) {
         # Restauration d un flux ou image SCP : pistes deja critiques ou non reproductibles (zone instable), non comptees
         $ign = @(@($watch) + @($crit) | Where-Object { $rep.Ignore.ContainsKey($_) })
@@ -6311,6 +6421,17 @@ function Show-WriteCheckTable($rep) {
             $total += $m.Score; $count++
         }
     } finally { $lvAl.EndUpdate() }
+    # Bandeau des zones instables d apres la derniere mesure du controle (efface celui d une mesure precedente)
+    $inIgn = { param($k) $rep.Ignore -and $rep.Ignore.ContainsKey($k) }
+    $defK = @($keys | Where-Object { $rep.State[$_].CopyDefect })
+    $srcK = @($keys | Where-Object { $rep.State[$_].Weak -and (& $inIgn $_) -and $rep.SrcWeak -and $rep.SrcWeak.ContainsKey($_) })
+    $crtK = @($keys | Where-Object { $rep.State[$_].Weak -and (& $inIgn $_) -and -not ($rep.SrcWeak -and $rep.SrcWeak.ContainsKey($_)) })
+    $unkK = @($keys | Where-Object { $rep.State[$_].Unjudged -and -not (& $inIgn $_) })
+    Set-UnstableBanner @(
+        $(if ($defK.Count -gt 0) { (T "Zone instable sur la copie, défaut probable du support (la source n'en contient pas) : {0}") -f "$(Format-TrackList $defK)" }),
+        $(if ($srcK.Count -gt 0) { (T "Zone instable de la source (protection probable, non reproductible) : {0}") -f "$(Format-TrackList $srcK)" }),
+        $(if ($crtK.Count -gt 0) { (T "Zone instable sur une piste déjà critique dans la source : {0}") -f "$(Format-TrackList $crtK)" }),
+        $(if ($unkK.Count -gt 0) { (T "Zone instable non jugée (la source peut contenir une protection) : {0}") -f "$(Format-TrackList $unkK)" }))
     $script:AlignLast = $last
     if ($count -gt 0) {
         $avg = [math]::Round($total / $count, 0); $lvl = Get-AlLevel 'score' $avg
@@ -6329,9 +6450,11 @@ function Complete-WriteCheck([switch]$GwError) {
     $n = $rep.State.Count
     $weak = @(@($rep.Weak) | Where-Object { $_ })
     $nRew = $rep.Rewrites.Count
-    # Pistes ignorees (non reproductibles ou deja critiques) : ni saines ni faibles, signalees a part
-    $ignK = @(@($rep.State.Keys) | Where-Object { $rep.Ignore -and $rep.Ignore.ContainsKey($_) -and ($rep.State[$_].Bad -or $rep.State[$_].Level -ge 1) })
-    $nOk = $n - $ignK.Count
+    # Pistes ignorees (non reproductibles ou deja critiques) : ni saines ni faibles, signalees a part ; de meme les pistes
+    # a zone instable non jugee
+    $ignK = @(@($rep.State.Keys) | Where-Object { $rep.Ignore -and $rep.Ignore.ContainsKey($_) -and ($rep.State[$_].Bad -or $rep.State[$_].Level -ge 1 -or $rep.State[$_].Weak) })
+    $unjK = @(@($rep.State.Keys) | Where-Object { $rep.State[$_].Unjudged -and -not $rep.State[$_].Bad -and $rep.State[$_].Level -lt 1 -and -not ($rep.Ignore -and $rep.Ignore.ContainsKey($_)) })
+    $nOk = $n - $ignK.Count - $unjK.Count
     if ($GwError) {
         # gw a echoue pendant une passe de reecriture : les pistes de la passe restent faibles
         $txt = ((T "CONTRÔLE APRÈS ÉCRITURE interrompu par une erreur gw à la passe {0}/{1} : {2} piste(s) faible(s) ou non remesurée(s) : {3}  ->  support fatigué ou lecteur en défaut") -f "$($rep.Round)", "$($rep.Max)", "$($weak.Count)", "$(Format-TrackList $weak)"); $lvl = 3
@@ -6340,6 +6463,7 @@ function Complete-WriteCheck([switch]$GwError) {
     } elseif ($weak.Count -eq 0) {
         $txt = ((T "CONTRÔLE APRÈS ÉCRITURE : {0}/{1} pistes saines") -f "$nOk", "$n")
         if ($ignK.Count -gt 0) { $txt += ((T ", {0} piste(s) non reproductible(s) ou déjà critique(s) non comptée(s) : {1}") -f "$($ignK.Count)", "$(Format-TrackList (Sort-TrackKeys $ignK))") }
+        if ($unjK.Count -gt 0) { $txt += ((T ", {0} piste(s) à zone instable non jugée(s) : {1}") -f "$($unjK.Count)", "$(Format-TrackList (Sort-TrackKeys $unjK))") }
         if ($nRew -gt 0) { $txt += ((T ", après réécriture de {0} piste(s) en {1} passe(s)") -f "$nRew", "$($rep.Round)") }
         $lvl = 0
     } elseif ($rep.Safety) {
@@ -6374,7 +6498,8 @@ function Update-RepPartial {
         foreach ($tn in @($t.Keys)) {
             $k = "$([math]::Floor([int]$tn / 2)).$([int]$tn % 2)"
             if (@($rep.Weak) -notcontains $k) { continue }
-            $rep.State[$k] = Get-TrackMetrics $t[$tn]
+            $mm = Get-TrackMetrics $t[$tn]; Set-CopyUnstable $rep $k $mm
+            $rep.State[$k] = $mm
             $rep.Rewrites[$k] = 1 + $(if ($rep.Rewrites.ContainsKey($k)) { [int]$rep.Rewrites[$k] } else { 0 })
             $remeasured[$k] = $true
         }
@@ -6646,7 +6771,7 @@ function Complete-RestoreRead {
             Fail-Restore 1 (T 'flux haute densité : une copie de flux ne pourrait pas être contrôlée. Choisissez un format haute densité (amiga.amigados_hd, ibm.1440) pour une copie vérifiée secteur par secteur.'); return
         } else {
             try { $t = Read-ScpFile $r.Orig -Finger } catch { Fail-Restore 1 ((T "flux illisible : {0}") -f "$($_.Exception.Message)"); return }
-            $n = 0; $sane = 0; $watch = 0; $crit = 0; $critKeys = @{}; $weakKeys = @{}; $unstKeys = @{}; $fp = $null; $maxTn = 0
+            $n = 0; $sane = 0; $watch = 0; $crit = 0; $critKeys = @{}; $weakKeys = @{}; $unstKeys = @{}; $noMeas = @{}; $fp = $null; $maxTn = 0
             foreach ($tn in @($t.Keys | Sort-Object)) {
                 # Original juge aux seuils Standard (120 / 250 ns), independants du reglage du jitter
                 $m = Get-TrackMetrics $t[$tn]; $n++
@@ -6656,6 +6781,7 @@ function Complete-RestoreRead {
                 if ($lv -ge 2) { $crit++; $critKeys[$key] = $true } elseif ($lv -ge 1) { $watch++ } else { $sane++ }
                 # Zone instable d un tour a l autre : bits faibles d une protection probable, non reproductibles
                 if ($m.Weak) { $weakKeys[$key] = $true } elseif ($m.ShortUnstable -and $lv -lt 2) { $unstKeys[$key] = $true }
+                elseif ($lv -lt 2 -and $m.Blocks -eq 0) { $noMeas[$key] = $true }
                 # Empreinte : piste stable la plus riche en motifs, pour reconnaitre l original dans le lecteur de destination
                 $r0 = $t[$tn][0]
                 if ($lv -lt 2 -and -not $m.Weak -and $r0.Finger -and $r0.Finger.Count -ge 6 -and (-not $fp -or $r0.Rich -gt $fp.Rich)) {
@@ -6668,7 +6794,7 @@ function Complete-RestoreRead {
             }
             # Pistes deja critiques (cylindres non formates, protection) ou a zone instable (bits faibles) sur l original :
             # ni reecrites ni comptees au controle de la copie, jamais reecrites sur une disquette identique a l original
-            $r.Read = @{ Tracks = $n; Sane = $sane; Watch = $watch; Crit = $crit; CritKeys = $critKeys; WeakKeys = $weakKeys; UnstKeys = $unstKeys; MaxCyl = [int][math]::Floor($maxTn / 2) }
+            $r.Read = @{ Tracks = $n; Sane = $sane; Watch = $watch; Crit = $crit; CritKeys = $critKeys; WeakKeys = $weakKeys; UnstKeys = $unstKeys; NoMeas = $noMeas; MaxCyl = [int][math]::Floor($maxTn / 2) }
             $r.Finger = $fp
             $txt = if ($weakKeys.Count -gt 0) { (T "{0} pistes : {1} saines, {2} à surveiller, {3} critiques, {4} à zone instable") -f "$n", "$sane", "$watch", "$crit", "$($weakKeys.Count)" }
                    else { (T "{0} pistes : {1} saines, {2} à surveiller, {3} critiques") -f "$n", "$sane", "$watch", "$crit" }
@@ -6913,6 +7039,10 @@ function Start-RestoreWrite {
             $ign = @{}
             foreach ($k in @(@($r.Read.CritKeys.Keys) + @($r.Read.WeakKeys.Keys))) { $ign[[string]$k] = $true }
             if ($ign.Count -gt 0) { $script:Rep.Ignore = $ign }
+            # Zones instables relues sur la copie : courtes zones ou pistes non mesurables de l original non jugees
+            $script:Rep.SrcWeak = $r.Read.WeakKeys
+            $nj = @{}; foreach ($k in @(@($r.Read.UnstKeys.Keys) + @($(if ($r.Read.NoMeas) { $r.Read.NoMeas.Keys } else { @() })))) { $nj[[string]$k] = $true }
+            $script:Rep.NoJudge = $nj
         }
     } finally { $r.InCall = $false; $r.Idle = Get-Date }
     if (-not $script:Restore) { return }
@@ -7499,7 +7629,7 @@ function Get-LogColor([string]$line) {
     # Lignes de synthese du controle apres ecriture : simples comptes par etat (« 0 critique(s) » n est pas une erreur)
     if ($line -match '^(Contrôle complet|Full check|Remesure après réécriture|Re-measure after rewrite)\b') { return $script:LogColors.std }
     if ($line -match 'FATAL|ERREUR|ERROR|ECHEC|ÉCHEC|FAILED|Command Failed|Write ?Protect|CRITIQUE|CRITICAL|ILLISIBLE|UNREADABLE|introuvable|not found|code retour : [1-9]|exit code: [1-9]|support fatigué|worn media|réécriture automatique non lancée|automatic rewrite not started|RESTAURATION ÉCHOUÉE|RESTORE FAILED') { return $script:LogColors.err }
-    if ($line -match 'Verify Failure|Retry #|nécessité de nouveaux essais|needed retries|À SURVEILLER|TO WATCH|marginal|DIFF[EÉ]RENT|Interrompu|Interrupted|aborted|non applicable|not applicable|réécriture automatique désactivée|automatic rewrite disabled|Aucune réécriture automatique|No automatic rewrite|non convergée|not converged|NON CONVERGÉE|NOT CONVERGED|Valeurs peu fiables|Unreliable values|Écart à la courbe|Deviation from the curve|Giving up') { return $script:LogColors.warn }
+    if ($line -match 'Verify Failure|Retry #|nécessité de nouveaux essais|needed retries|À SURVEILLER|TO WATCH|marginal|DIFF[EÉ]RENT|Interrompu|Interrupted|aborted|non applicable|not applicable|réécriture automatique désactivée|automatic rewrite disabled|Aucune réécriture automatique|No automatic rewrite|non convergée|not converged|NON CONVERGÉE|NOT CONVERGED|Valeurs peu fiables|Unreliable values|Écart à la courbe|Deviation from the curve|Giving up|zone instable|unstable zone|non jugée|not judged|probablement fatigué|probably worn') { return $script:LogColors.warn }
     if ($line -match 'All tracks verified|code retour : 0|exit code: 0|SAIN|HEALTHY|IDENTIQUE|IDENTICAL|EXCELLENT|aucune piste n|no track needed|RESTAURATION RÉUSSIE|RESTORE SUCCEEDED') { return $script:LogColors.ok }
     if ($line -match '^T\d+\.\d+\b[^:]*:') { return $script:LogColors.dim }
     return $script:LogColors.std

@@ -3,6 +3,23 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Le numéro de version est celui de `$script:Version` dans `src/GreaseweazleGUI.ps1` ; chaque release GitHub porte le tag `vX.Y` correspondant.
 
+## [12.2] - 2026-10-15
+
+### Zones instables
+
+- Contrôle après écriture : une piste qui se relit différemment d'un tour à l'autre sur la copie, alors que la source n'en contient pas (image secteur comme un ADF, HFE v1 ou v2, piste stable d'une image SCP analysée), est un défaut de la copie (support fatigué, défaut localisé). Elle est classée À SURVEILLER, réécrite comme une piste faible et signalée dans le journal et le bandeau (« Zone instable sur la copie, défaut probable du support »). Auparavant, elle restait SAINE avec la mention « protection probable ».
+- Sources qui peuvent porter des zones faibles : gw écrit les bits faibles d'un IPF, d'un HFE v3 ou d'un EDSK comme une zone sans flux (une transition toutes les 32 cellules), relue volontairement instable. Pour ces sources, pour les flux .raw, .kf, .a2r et .ctr, pour une image SCP non analysable (un seul tour, analyse en échec) et pour les pistes que la source porte avec une courte zone instable, la zone instable de la copie n'est pas jugée : « NON JUGÉE (zone instable) » dans le tableau, ni réécrite ni comptée parmi les pistes saines, citée à part dans le verdict.
+- Le bandeau des zones instables est mis à jour par chaque contrôle après écriture (il ne reste plus affiché d'une mesure précédente) et distingue la copie, la source (protection probable), une piste déjà critique dans la source et les pistes non jugées.
+- Onglet Qualité & alignement : une piste à zone instable est au moins À SURVEILLER ; bandeau neutre (« protection contre la copie ou défaut du support ») ; trois cylindres consécutifs ou plus instables sur une même face sont signalés comme un défaut du support probable.
+- Journal : les lignes de zone instable ou de piste non jugée s'affichent en avertissement (orange), et non plus en vert.
+
+### Calibration
+
+- Écart avec la calibration précédente du même lecteur (même famille, même tête, sur les cylindres communs) : moyenne, minimum et maximum dans le journal. Un plafond de 300 ns atteint alors que la calibration précédente ne l'atteignait pas est signalé comme un support de calibration probablement fatigué (sinon têtes à nettoyer, ou autre lecteur sous la même lettre).
+- Calibration sur une disquette sacrifiée qui atteint le plafond : la courbe peut surestimer le besoin de la disquette à écrire ; une disquette sacrifiée en bon état est conseillée.
+- Message du plafond : « Si une disquette en bon état sature aussi, c'est le lecteur ; sinon, c'est le support, probablement fatigué. »
+- Comme à chaque nouvelle version, les calibrations faites avec la 12.1 ne sont pas réutilisées (copie de la configuration dans `GreaseweazleGUI.json.calib-v12.1.bak`) : la première écriture qui en a besoin recalibre le lecteur.
+
 ## [12.1] - 2026-10-15
 
 ### Calibration de la précompensation (algorithme `seg1`)
