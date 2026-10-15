@@ -1,114 +1,91 @@
 # Greaseweazle Studio
 
-Interface graphique Windows (PowerShell / WinForms) pour les [Greaseweazle host tools](https://github.com/keirf/greaseweazle) de Keir Fraser. Elle pilote `gw.exe` pour lire, écrire, convertir et contrôler des disquettes, avec un accent sur la préservation de disquettes Amiga.
+Greaseweazle Studio est une application Windows pour tes disquettes. Elle pilote une carte [Greaseweazle](https://github.com/keirf/greaseweazle), de Keir Fraser, branchée en USB à ton PC et reliée à un lecteur de disquette. Avec elle, tu peux sauvegarder une disquette dans un fichier, écrire une image (un jeu Amiga en ADF, par exemple) sur une disquette, restaurer une disquette d'origine sur une disquette vierge, et vérifier l'état d'une disquette ou d'un lecteur. Elle a été pensée d'abord pour la préservation des disquettes Amiga.
 
-L'application tient dans un seul script, `GreaseweazleGUI.ps1`, sans dépendance externe. Elle est aussi livrée sous forme d'exécutable `GreaseweazleGUI.exe` compilé avec PS2EXE.
+Tu n'as pas besoin de connaître les commandes de la carte : l'application les construit pour toi, règle les options et contrôle le résultat. Chaque commande lancée reste visible dans le journal, en bas de la fenêtre.
 
-## Fonctionnalités
+Côté technique, c'est une interface graphique PowerShell / WinForms pour les Greaseweazle host tools : elle pilote `gw.exe`. Elle tient dans un seul script, `GreaseweazleGUI.ps1`, sans dépendance externe, et elle est aussi livrée sous forme d'exécutable `GreaseweazleGUI.exe` compilé avec PS2EXE.
 
-- Les 13 actions de `gw` : `info`, `read`, `write`, `convert`, `erase`, `clean`, `seek`, `delays`, `update`, `pin`, `reset`, `bandwidth`, `rpm`.
-- **Bibliothèque** : arborescence d'images disque, archives ZIP parsées à la volée, index persistant construit en arrière-plan avec recherche instantanée, ouverture des documents associés (txt, pdf, jpg, png, gif, nfo, md) dans l'application par défaut. Boutons « Écriture rapide » et « Écriture lente » : écriture de l'image sélectionnée avec les paramètres adaptés et calibration automatique si nécessaire, voir ci-dessous.
-- **Écriture** : choix de l'image, profil de précompensation détecté automatiquement d'après l'image (IPF et HFE : bits par piste, HFE v3 : débit ; SCP : flux), options courantes et avancées, contrôle de toutes les pistes après écriture avec réécriture automatique des pistes faibles, écriture lente tête 0 puis tête 1 avec une précompensation par tête, voir ci-dessous.
-- **Calibration de la précompensation** : mesure automatique du meilleur `--precomp` pour le lecteur d'écriture, commun aux deux têtes ou propre à chaque tête, voir ci-dessous.
-- **Lecture** et **Conversion** : options de `gw read` et `gw convert`.
-- **Comparaison** : convert (référence) + read (disquette), puis diff secteur par secteur.
-- **Qualité & Alignement** : mesure continue de la qualité de lecture (cellule mesurée, jitter, asymétrie, dropouts) sur une disquette pressée, pour régler l'alignement d'un lecteur.
-- **Outils** et **Délais** : erase, clean, seek, rpm, bandwidth, pin, reset, update, delays.
-- **Commande libre** : n'importe quelle ligne de commande `gw`.
-- Journal repliable avec coloration, barre de progression, fenêtre entièrement redimensionnable.
-- Interface en français ou en anglais : la langue est choisie d'après la langue d'affichage de Windows, toute autre langue que le français donnant l'anglais. `-Language fr` ou `-Language en` force le choix.
+Documentation complète, pour débuter comme pour aller plus loin : le [wiki](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki).
 
-## Prérequis
+## Ce qu'il te faut
 
-- Windows 10 ou 11.
-- Windows PowerShell 5.1 (inclus dans Windows) ou PowerShell 7. L'exécutable compilé s'appuie sur Windows PowerShell 5.1.
-- .NET Framework 4.x (inclus dans Windows) : WinForms et compilation à la volée des helpers C# (comparaison rapide, analyse de flux SCP, index de bibliothèque). Chaque helper est compilé séparément. Si la compilation de la comparaison ou de l'index échoue, la fonction correspondante bascule sur un chemin PowerShell plus lent, la recherche dans la bibliothèque se faisant alors sans index. L'analyse de flux SCP n'a pas d'équivalent PowerShell : sans elle, la mesure de l'onglet Qualité & alignement et la calibration de la précompensation sont refusées, le contrôle après écriture est ignoré, le profil Auto traite tout flux SCP comme une image standard 2 µs, et les boutons Écriture rapide et Écriture lente écrivent sans calibration automatique, avec le profil courant.
-- Greaseweazle host tools : `gw.exe` extrait de l'archive Windows d'une [release](https://github.com/keirf/greaseweazle/releases). Développé et testé avec la version 1.23 ; la liste des formats d'images reconnus est alignée sur `gw write --help` de cette version.
+- Un PC sous Windows 10 ou 11.
+- Une carte Greaseweazle, branchée en USB.
+- Un lecteur de disquette relié à la carte par une nappe : une nappe de PC avec torsade (twist), ou une nappe droite, typique d'un lecteur Amiga. Ce détail sert à choisir le lecteur dans l'application.
+- Les Greaseweazle host tools : le programme `gw.exe`, dans l'archive Windows d'une [release Greaseweazle](https://github.com/keirf/greaseweazle/releases). L'application est développée et testée avec la version 1.23 ; la liste des formats d'images reconnus est alignée sur `gw write --help` de cette version.
+- Des disquettes : celles à sauvegarder ou à restaurer, et des disquettes vierges ou sans valeur pour écrire. Une écriture remplace tout le contenu de la disquette.
 
-## Installation
+Prérequis techniques, déjà présents dans Windows : Windows PowerShell 5.1 et .NET Framework 4.x. Le script fonctionne aussi sous PowerShell 7, à installer à part ; l'exécutable s'appuie sur Windows PowerShell 5.1. .NET Framework fournit WinForms et compile à la volée les helpers C# : comparaison rapide, analyse de flux SCP, index de la bibliothèque. Chaque helper est compilé séparément. Si la comparaison ou l'index ne compile pas, la fonction passe par un chemin PowerShell plus lent, et la recherche dans la bibliothèque se fait sans index. L'analyse de flux SCP n'a pas d'équivalent PowerShell : sans elle, la restauration, la mesure de l'onglet « Qualité & alignement » et la calibration de la précompensation sont refusées, le contrôle après écriture est ignoré, le profil Auto traite tout flux SCP comme une image standard 2 µs, et les boutons « Écriture rapide » et « Écriture lente » écrivent sans calibration automatique, avec le profil courant.
 
-1. Télécharger et extraire les Greaseweazle host tools, par exemple dans `C:\greaseweazle-1.23\`.
-2. Copier dans ce même répertoire, au choix :
-   - `GreaseweazleGUI.exe` depuis la page [Releases](https://github.com/Bartozorus/GreaseweazleGUI_Studio/releases) ;
-   - ou `src/GreaseweazleGUI.ps1` depuis ce dépôt.
-3. Lancer : double-clic sur `GreaseweazleGUI.exe`, ou pour le script :
+## Installation en 3 étapes
+
+1. Télécharge l'archive Windows des Greaseweazle host tools depuis leurs [releases](https://github.com/keirf/greaseweazle/releases) et extrais-la, par exemple dans `C:\greaseweazle-1.23\`.
+2. Copie dans ce même dossier, à côté de `gw.exe`, au choix :
+   - `GreaseweazleGUI.exe`, depuis la page [Releases](https://github.com/Bartozorus/GreaseweazleGUI_Studio/releases) de ce dépôt ;
+   - ou le script `src/GreaseweazleGUI.ps1`, lisible et fonctionnellement identique.
+3. Lance l'application : double-clic sur `GreaseweazleGUI.exe`, ou pour le script :
 
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\GreaseweazleGUI.ps1
    ```
 
-`gw.exe` est résolu depuis le répertoire du script ou de l'exécutable. S'il est absent, le journal le signale au démarrage.
+Regarde ensuite le bandeau bleu, en haut à droite. « gw.exe prêt », en vert, signifie que l'application a trouvé `gw.exe`. « gw.exe introuvable », en rouge, signifie qu'elle n'est pas dans le dossier de `gw.exe` : le journal le signale aussi au démarrage. `gw.exe` est cherché dans le dossier de l'exécutable ou du script, quel que soit le dossier courant, y compris sur un partage réseau (chemin UNC).
 
-Pour forcer la langue de l'interface, ajouter `-Language en` ou `-Language fr` à la commande, avec l'exécutable comme avec le script :
+La langue de l'interface suit la langue d'affichage de Windows : français si elle est française, anglais pour toute autre langue. Pour forcer le choix, ajoute `-Language fr` ou `-Language en`, avec l'exécutable comme avec le script :
 
 ```powershell
 .\GreaseweazleGUI.exe -Language en
 ```
 
+Le pas à pas détaillé, branchement compris, est la page [Installation](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki/Installation) du wiki.
+
 ### Avertissements SmartScreen et antivirus
 
-L'exécutable est produit par PS2EXE, qui embarque le script dans un hôte .NET. Ce type de binaire déclenche fréquemment SmartScreen et des faux positifs antivirus. L'exécutable publié dans les releases est signé avec le certificat auto-signé du projet, `CN=Greaseweazle Studio`, et non par une autorité reconnue : la signature atteste que le fichier n'a pas été modifié, mais elle n'est pas reconnue sur un poste tiers et SmartScreen avertit quand même. En cas de doute, utilisez directement le script `.ps1`, lisible et fonctionnellement identique.
+L'exécutable est produit par PS2EXE, qui embarque le script dans un hôte .NET. Ce type de binaire déclenche souvent SmartScreen et des faux positifs antivirus. L'exécutable publié dans les releases est signé avec le certificat auto-signé du projet, `CN=Greaseweazle Studio`, et non par une autorité reconnue : la signature atteste que le fichier n'a pas été modifié, mais elle n'est pas reconnue sur un poste tiers et SmartScreen avertit quand même. En cas de doute, utilise directement le script `.ps1`, lisible et fonctionnellement identique.
 
-## Contrôle après écriture et réécriture des pistes faibles
+## Premiers pas
 
-Avec la case « Contrôler toutes les pistes » de l'onglet Écriture, chaque écriture réussie est suivie d'un contrôle complet :
+Le guide complet, avec deux exemples de bout en bout, est la page [Premiers pas](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki/Premiers-pas) du wiki. En quelques lignes :
 
-1. Les pistes que gw a réellement écrites sont relues en flux, sur trois tours, avec le lecteur et les options de lecteur de l'écriture. Une piste vide de l'image, seulement effacée, n'est pas contrôlée. Si le champ « Pistes » est rempli, seules ces pistes sont concernées.
-2. Chaque piste est classée avec les critères de l'onglet Qualité & alignement : erreurs hors classe, trous de signal, stabilité entre tours et jitter. Une piste À SURVEILLER, CRITIQUE, illisible ou absente de la relecture est faible.
-3. Les pistes faibles, et elles seules, sont réécrites avec pré-effacement, puis seules remesurées. Les commandes visent exactement ces pistes : cylindres à deux faces faibles en `h=0-1`, sinon une face à la fois.
-4. L'opération se répète tant qu'il reste des pistes faibles, au plus le nombre de « Passes de réécriture », 3 par défaut, de 0 à 10, enregistré dans la configuration. À 0, le contrôle signale les pistes faibles sans rien réécrire.
+1. Au lancement, l'onglet « Accueil » te demande « Que veux-tu faire ? ». Clique d'abord la carte « Tester le Greaseweazle » : elle lance `gw info`. Dans le journal, sous `Device:`, les lignes `Port:` et `Model:` donnent le port et le modèle de ta carte. `Not found` à la place signifie que la carte n'est pas détectée.
+2. Dans le bandeau, choisis « Lecteur : ». « A » ou « B » pour un lecteur sur une nappe de PC avec torsade ; « 0 », « 1 » ou « 2 » pour une nappe droite, comme sur un lecteur Amiga. Laisse « COM : » vide : le texte gris « auto » indique que la carte est détectée automatiquement.
+3. Reviens à l'« Accueil » et clique la carte de ta tâche : « Restaurer une disquette », « Écrire une image sur une disquette », « Sauvegarder une disquette » ou « Vérifier une disquette ou un lecteur ». L'application ouvre l'onglet adapté.
+4. Un doute ? Appuie sur F1, ou clique « Aide » dans le bandeau : la page du wiki de l'onglet affiché s'ouvre dans ton navigateur. Passe aussi la souris sur un réglage : son infobulle reste affichée 30 secondes.
 
-Le journal détaille chaque passe. À la fin, l'onglet Qualité & alignement affiche l'état final de chaque piste, avec le nombre de réécritures, et le verdict : toutes les pistes saines, ou pistes encore faibles à recopier sur une autre disquette. Si plus de la moitié des pistes sont faibles au premier contrôle, et que celui-ci porte sur au moins 20 pistes, aucune réécriture n'est lancée : c'est le signe d'un format non MFM, d'une disquette inadaptée ou d'un lecteur en défaut. En deçà de 20 pistes contrôlées, par exemple une sélection réduite dans le champ « Pistes », les pistes faibles sont réécrites normalement. Une piste volontairement instable, comme une protection à bits faibles, restera signalée faible : le nombre de passes borne alors les réécritures inutiles.
+Pour aller plus loin :
 
-Le contrôle ne s'applique qu'au MFM double densité, pour lequel l'analyse de flux est calibrée. Il est automatiquement désactivé, avec un message, pour les images haute densité (format gw à 500 ou 1 000 kbit/s comme `_hd`, `.1440` ou `raw.500`, format implicite d'un HDM, XDF, FDI, DIM, DCP, D2M ou D4M, ADF HD, IMD à 500 kbit/s, image secteur brute d'au moins 1 200 000 octets, IPF ou HFE à cellule courte, flux SCP haute densité), les formats GCR, Commodore 1541 ou Apple II, les secteurs durs et l'option « TG43 lecteur 8 pouces ». L'écriture se fait alors sans contrôle. Le bouton Arrêter interrompt le contrôle à tout moment. Si gw échoue pendant une passe de réécriture, le contrôle s'arrête avec un verdict qui tient compte des pistes déjà remesurées.
+- [Premiers pas](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki/Premiers-pas) : premier lancement, écrire un jeu Amiga sur une disquette, sauvegarder une disquette.
+- [Restaurer une disquette](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki/Restaurer-une-disquette) : copier une disquette d'origine sur une disquette vierge, étape par étape.
+- [Écriture](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki/%C3%89criture) : écrire une image et comprendre les options.
+- [Dépannage](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki/D%C3%A9pannage) : que faire quand ça ne marche pas.
 
-## Calibration de la précompensation
+## Ce que fait l'application
 
-Dans l'onglet Écriture, la ligne « Calibration précomp » détermine le profil `--precomp` adapté au lecteur d'écriture, sans réglage manuel :
+- **Accueil** : le premier onglet. Six cartes cliquables : « Restaurer une disquette », « Écrire une image sur une disquette » (ouvre « Bibliothèque »), « Sauvegarder une disquette » (ouvre « Lecture / Dump »), « Vérifier une disquette ou un lecteur » (ouvre « Qualité & alignement »), « Tester le Greaseweazle » (lance `gw info`, avec `--device` si un port COM est saisi) et « Guide pas à pas » (ouvre la page Premiers pas du wiki).
+- **Restauration** : copie une disquette d'origine sur une disquette vierge, avec un ou deux lecteurs, en huit étapes affichées : lecture et vérification de l'original, changement de disquette, contrôle que la disquette insérée n'est pas l'original, calibration du lecteur tête par tête, écriture tête 0 puis tête 1, contrôle de toutes les pistes, comparaison avec l'original. Deux modes : avec un format (Amiga, Atari ST, PC), chaque secteur est lu, vérifié et comparé, et la restauration s'arrête avant toute écriture si un seul secteur de l'original est illisible ; « Copie exacte du flux », pour une disquette protégée contre la copie ou d'un format inconnu. L'original lu, la copie relue (avec un format) et un rapport sont enregistrés.
+- **Bibliothèque** : arborescence d'images disque, archives ZIP lues à la volée, index persistant construit en arrière-plan avec recherche instantanée, ouverture des documents associés (txt, pdf, jpg, png, gif, nfo, md) dans l'application par défaut. Les boutons « Écriture rapide » et « Écriture lente » écrivent l'image sélectionnée avec les réglages adaptés, après une calibration automatique si nécessaire.
+- **Écriture** : profil de précompensation choisi d'après l'image (IPF et HFE : bits par piste, HFE v3 : débit ; SCP : flux), calibration de la précompensation propre à ton lecteur, commune aux deux têtes ou par tête, écriture lente tête 0 puis tête 1, contrôle de toutes les pistes après écriture avec réécriture automatique des pistes faibles.
+- **Lecture / Dump** : sauvegarde d'une disquette dans un fichier, SCP pour archiver, ADF pour un émulateur.
+- **Qualité & alignement** : mesure continue de la qualité de lecture piste par piste (cellule mesurée, jitter, asymétrie, trous de signal) sur une disquette pressée, pour régler l'alignement d'un lecteur.
+- **Mode expert** : case du bandeau. Décochée, seuls les six onglets du quotidien sont affichés : Accueil, Restauration, Bibliothèque, Écriture, Lecture / Dump, Qualité & alignement. Cochée, s'y ajoutent Conversion, Comparaison (conversion de la référence, lecture de la disquette, puis comparaison secteur par secteur), Outils et Délais (erase, clean, seek, rpm, bandwidth, pin, reset, update, delays), et Commande libre, qui lance n'importe quelle ligne de commande `gw`. Une première installation démarre sans le mode expert ; une configuration d'une version précédente l'active, pour ne rien changer aux habitudes. Une fonction qui a besoin d'un onglet masqué l'active d'elle-même. Les 13 actions de `gw` sont couvertes : `info`, `read`, `write`, `convert`, `erase`, `clean`, `seek`, `delays`, `update`, `pin`, `reset`, `bandwidth`, `rpm`.
+- **Aide F1** : la touche F1 et le bouton « Aide » du bandeau ouvrent la page du wiki de l'onglet affiché.
+- Textes indicatifs gris dans les champs vides, infobulles affichées 30 secondes, journal repliable avec coloration, barre de progression, fenêtre entièrement redimensionnable, interface en français ou en anglais.
 
-1. Choisir l'image à écrire : elle fixe la famille, la densité du motif de test et le nombre de cylindres, lu dans le fichier (taille d'un ADF, enregistrements d'un IPF, en-tête d'un HFE ; 80 à défaut). Son contenu n'est pas écrit. Chaque passe écrit un motif de test généré : un HFE de données pseudo-aléatoires codées MFM, à la densité de l'image : 101 344 cellules par piste pour un ADF, soit 1 973,5 ns par cellule comme gw l'écrit avec l'horloge AmigaDOS, nombre de bits par piste pour un IPF ou un HFE, lu dans sa table des pistes (400 × débit pour un HFE v3), 2 µs par cellule pour les autres formats à secteurs. gw calant chaque piste sur un tour du lecteur, c'est ce nombre de cellules qui fixe la densité écrite. Toutes ses pistes ont la même richesse de motifs. Sur une piste pauvre de l'image, comme des secteurs vides, la mesure ne reposait que sur quelques dizaines d'en-têtes et de marques de synchronisation : plus bruitée, et biaisée de quelques nanosecondes, jusqu'à une quinzaine selon deux simulations indépendantes. Le motif rend la calibration reproductible et indépendante de l'image. Il faut une image à bits ou secteurs (ADF, IPF, HFE, IMG...) : la calibration ne détermine pas la densité d'un flux SCP ou RAW. La calibration est refusée avec « Secteurs durs » ou « TG43 » cochés, et pour un IPF ou un HFE dont la cellule sort de 1 700 à 2 300 ns. Une image haute densité (format gw à 500 ou 1 000 kbit/s comme `_hd`, `.1440` ou `raw.500`, format implicite d'un HDM, XDF, FDI, DIM, DCP, D2M ou D4M, ADF HD, IMD à 500 kbit/s, image secteur brute d'au moins 1 200 000 octets, IPF ou HFE à cellule courte) est refusée, les familles calibrées étant double densité.
-2. Choisir le test : « standard » écrit un cylindre sur dix plus le dernier, en quelques minutes ; « fin » écrit tous les cylindres, pour un profil précis, en un quart d'heure environ.
-3. Insérer une disquette vierge ou sans valeur dans le lecteur sélectionné, cliquer « Calibrer » et confirmer. Chaque passe écrit le motif sur les cylindres de test en une seule commande, puis les relit en flux sur trois tours. L'analyse mesure le décalage de pic résiduel, signé : à la lecture, une transition est repoussée par sa voisine la plus proche, donc un intervalle court encadré par deux longs est lu trop long et un 3T encadré par deux courts trop court. Positif, la précompensation est insuffisante ; négatif, excessive ; nul, le réglage est idéal.
-4. Trois passes de mesure écrivent 0, 100 puis 200 ns. Pour chaque cylindre testé, la valeur qui annule le décalage est interpolée entre les deux mesures de signes opposés qui l'encadrent, avec la pente locale, et accompagnée de son incertitude. Un cylindre encore sous-compensé à 200 ns, dont la valeur ne serait qu'extrapolée, reçoit une passe d'encadrement à son estimation plus 80 ns, 300 ns au plus : sa valeur est alors interpolée elle aussi. Une valeur qui reste extrapolée reçoit une incertitude élargie ; une valeur hors de 0 à 300 ns est plafonnée. L'analyse cale la cellule sur le motif, dont le nombre de cellules par tour est connu, et ne retient une piste que si les quatre contextes comparés comptent chacun au moins 30 occurrences ; l'incertitude vient de la dispersion mesurée dans ces contextes.
-5. Une courbe est ensuite ajustée sur ces valeurs, pondérées par leur incertitude, puis évaluée pour chaque cylindre de l'image : une valeur entière en nanosecondes par cylindre, y compris entre les cylindres testés en mode standard. Trois formes croissantes vers l'intérieur sont essayées, linéaire en cylindre, en 1/rayon et en 1/rayon², car le besoin suit la densité linéaire des bits ; la mieux ajustée est retenue. Si aucune n'explique les mesures, par exemple un lecteur au comportement en coude, les mesures lissées sont interpolées de façon monotone.
-6. Une passe de vérification écrit ce profil et mesure le résidu. Chaque mesure de vérification devient un point de plus pour son cylindre, et l'estimation est recalculée. Aux cylindres hors tolérance, 4 ns, élargie à trois erreurs-types quand la mesure est plus bruitée, la courbe est corrigée localement, la correction étant interpolée entre cylindres vérifiés, puis une dernière passe vérifie. Une anomalie limitée à un seul cylindre n'est mesurée à coup sûr qu'en test fin. En test standard, elle passe inaperçue si elle touche un cylindre non testé ; sur un cylindre testé, elle est mesurée, mais sa correction est interpolée sur les cylindres voisins non testés. Quatre à six passes au total, passe d'encadrement comprise : quelques minutes en test standard, un quart d'heure environ en test fin. Dans une même commande, gw n'accepte qu'une valeur par cylindre, commune aux deux faces : pour une valeur propre à chaque tête, voir l'écriture lente ci-dessous.
-7. Le journal termine par un bilan de fiabilité : cylindres non convergés, dont le résidu reste hors tolérance après la dernière vérification ou que celle-ci n'a pas pu relire ; écarts entre la courbe et la mesure supérieurs à la fois à 15 ns et à trois incertitudes, typiquement un besoin non croissant lissé par la courbe ; valeurs extrapolées ou plafonnées. Une calibration non convergée est signalée dans le journal, sur la ligne de calibration tant qu'une autre opération ne remplace pas ce texte, et par « NON CONVERGÉE » dans le titre de la fenêtre Courbe : refaire un test fin sur la zone, ou essayer une autre disquette.
+## Bon à savoir
 
-Le profil obtenu remplace celui de la famille de l'image, standard 2 µs ou long track 1,89 µs, est enregistré dans la configuration et appliqué ensuite par le profil Auto à toute image de la même famille. Le journal détaille chaque passe. Les cylindres de test, deux faces, sont écrasés à chaque passe. Le bouton Arrêter interrompt la calibration sans modifier le profil. Le bouton « Effacer les calibrations », sur la même ligne, supprime après confirmation toutes les courbes, communes et par tête, des familles standard et long track, et remet les deux profils de famille à leurs valeurs d'origine ; il est refusé pendant une calibration ou une écriture. Le bouton « Courbe », à côté du profil de précompensation, affiche la courbe de la famille de l'image : mesures avec leur incertitude et leur origine, encadrée, extrapolée ou plafonnée, écarts à la courbe signalés, zone hachurée au-dessus de la plus forte précompensation mesurée, courbe retenue, profil `--precomp` et tableau des valeurs par cylindre avec le résidu de vérification, copiables. Elle s'ouvre aussi en fin de calibration lancée par « Calibrer » ; après une calibration automatique, l'écriture enchaîne et la courbe reste accessible par ce bouton. Elle est enregistrée dans la configuration.
+- **Calibrations et lecteur.** Les calibrations ne sont pas liées à un lecteur physique : la courbe retient la lettre du lecteur (A, B, 0, 1 ou 2), mais aucun lecteur de disquette n'expose d'identifiant lisible. Après un changement de lecteur, relance une calibration depuis l'onglet « Écriture », avec « Écriture lente » cochée pour recalibrer chaque tête. La restauration recalibre d'elle-même chaque tête quand les courbes ont été mesurées sous une autre lettre de lecteur.
+- **Format d'une image secteur brute.** Une image IMG, IMA, ST ou DSK sans signature CPC n'a pas de géométrie : gw exige son format. « Écriture rapide » et « Écriture lente » la refusent, avant toute calibration, tant qu'aucun format n'a été choisi pour elle dans l'onglet « Écriture ». Ce format n'est conservé que pour la même source, fichier ou archive et entrée : deux archives ZIP contenant un fichier de même nom ne le partagent pas.
+- Le détail technique de la calibration, de l'écriture lente, du contrôle après écriture et des formats pris en charge est dans le wiki : [Précompensation et calibration](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki/Pr%C3%A9compensation-et-calibration), [Écriture lente](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki/%C3%89criture-lente), [Contrôle après écriture](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki/Contr%C3%B4le-apr%C3%A8s-%C3%A9criture), [Formats et limites](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki/Formats-et-limites), [Configuration et fichiers](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki/Configuration-et-fichiers).
 
-## Écriture rapide et écriture lente depuis la bibliothèque
-
-Dans l'onglet Bibliothèque, deux boutons écrivent l'image sélectionnée en appliquant tous les paramètres adaptés : image entière, profil de précompensation Auto, pré-effacement, effacement des pistes vides, vérification par gw, 10 retries. Les options de lecteur de l'onglet Écriture (flippy, densel, fake index, diskdefs, secteurs durs, TG43) sont conservées, ainsi que les éléments `step`, `h0.off`, `h1.off` et `hswap` du champ Pistes : ils décrivent le matériel. Les relectures de calibration reprennent les options flippy, densel et fake index.
-
-| Bouton | Écriture | Contrôle | Calibration requise |
-|---|---|---|---|
-| Écriture rapide | Une commande, les deux têtes ensemble | Vérification gw seulement | Commune, pour la famille de l'image |
-| Écriture lente | Tête 0 puis tête 1, chacune avec sa précompensation | Contrôle de toutes les pistes, 3 passes de réécriture | Par tête, pour la famille de l'image |
-
-Si la calibration requise n'existe pas, si elle a été mesurée sur le contenu d'une image avant l'arrivée du motif de test, ou, en écriture lente, si les courbes par tête sont antérieures à une calibration commune, le lecteur est d'abord calibré automatiquement, après confirmation. La disquette insérée reçoit alors le motif de test, puis l'image. Refuser la calibration, ou une calibration interrompue ou sans mesure exploitable, annule l'écriture. Sont écrits directement, sans calibration automatique : un flux SCP ou RAW, une image haute densité, une image dont la densité n'est pas établie : toute image autre qu'un ADF, un IPF, un HFE ou une image secteur brute avec un format choisi non GCR, le bouton remettant le format des autres images (IMD, TD0, D88, D64, MSA, DSK CPC...) à `(auto)` ; un IPF ou un HFE dont la cellule sort de 1 700 à 2 300 ns, plage que la calibration sait mesurer (HFE converti d'une image C64, par exemple) ; toute image avec « Secteurs durs » ou « TG43 » cochés, et toute image si le module d'analyse SCP n'a pas pu être compilé. Un ADF haute densité, reconnu à sa taille, est écrit au format `amiga.amigados_hd`.
-
-Une image secteur brute, IMG, IMA, ST ou DSK sans signature CPC, n'a pas de géométrie : gw exige son format. Le bouton refuse alors l'écriture, avant toute calibration, tant qu'aucun format n'a été choisi pour cette image : choisir le format dans l'onglet Écriture, où l'image est déjà sélectionnée, puis cliquer de nouveau sur le bouton. Le format n'est conservé que pour la même source : deux archives ZIP contenant un fichier de même nom ne partagent pas le format. Si le nombre de faces de l'image est inconnu (IMG, ST, IMD, D64, SCP...), « Effacer les pistes vides » est décoché : gw n'écrit alors que les pistes présentes dans l'image. Une image à une seule face (IPF, HFE ou ADF qui le déclarent) n'écrit que cette face : en écriture rapide, `h=0` ou `h=1` est placé dans le champ Pistes.
-
-Les calibrations ne sont pas liées à un lecteur précis : aucun lecteur de disquette n'expose d'identifiant lisible. Après un changement de lecteur, relancer une calibration depuis l'onglet Écriture, avec « Écriture lente » cochée pour recalibrer chaque tête.
-
-## Écriture lente et calibration par tête
-
-La case « Écriture lente » de l'onglet Écriture sépare l'écriture par tête : toutes les pistes de la tête 0 d'abord, puis toutes celles de la tête 1, en deux commandes `gw write` successives. gw n'appliquant `--precomp` que par cylindre, c'est le seul moyen de donner à chaque tête sa propre précompensation. L'écriture est plus longue, le disque étant balayé deux fois.
-
-- Le champ de précompensation devient celui de la tête 0, et un second champ, « Précomp. tête 1 », s'active. Un champ vide écrit la tête correspondante sans `--precomp`.
-- Le champ « Pistes » est respecté : `c=0-9:h=1` n'écrit que la tête 1, les éléments `step`, `h0.off`, `h1.off` et `hswap` sont conservés. Avec `hswap`, chaque tête logique reçoit le profil de la tête physique qui l'écrit.
-- Sans `h=` dans le champ « Pistes », les têtes écrites sont celles de l'image quand elle les déclare (IPF, HFE, ADF) : une image à une seule face n'écrit que la tête 0. Pour les autres images (IMG, ST, D64...), dont le nombre de faces dépend du format, l'écriture est refusée si « Effacer les pistes vides » est coché : gw effacerait toute la tête 1 d'un format simple face, par exemple la face B d'une disquette flippy. Indiquer alors `h=0-1` ou `h=0` dans « Pistes ». Le bouton « Écriture lente » de la bibliothèque décoche l'option dans ce cas.
-- Le contrôle après écriture relit les pistes des deux commandes, et les réécritures de pistes faibles se font aussi tête par tête, chacune avec sa précompensation.
-- Si la commande de la tête 0 échoue, par exemple sur une disquette protégée en écriture, celle de la tête 1 n'est pas lancée.
-
-Lancée avec « Écriture lente » cochée, la calibration mesure chaque tête séparément. Les trois passes de mesure restent communes, la même valeur étant écrite sur les deux faces, mais le décalage est analysé face par face : pour chaque tête, une valeur interpolée et son incertitude par cylindre testé, puis une courbe. La passe d'encadrement, si elle a lieu, écrit chaque tête avec ses propres valeurs. La passe de vérification écrit la tête 0 puis la tête 1, chacune avec son profil, et corrige chaque courbe d'après sa propre mesure. Les deux courbes sont enregistrées pour la famille de l'image, sans toucher au profil commun, et le profil Auto les applique en écriture lente. Sans calibration par tête pour la famille, ou si une calibration commune plus récente a été faite, après un changement de lecteur par exemple, l'écriture lente utilise le profil commun pour les deux têtes. Quand « Écriture lente » est cochée et que les courbes par tête de la famille sont à jour, le bouton « Courbe » affiche les deux courbes, tête 0 en bleu et tête 1 en orange, avec le tableau des valeurs de chacune ; sinon, il affiche la courbe commune, s'il en existe une. Une tête illisible, comme sur une disquette simple face, ou une tête dont le décalage ne suit pas la précompensation écrite, signe d'une tête ou d'un circuit d'écriture défaillant, interrompt la calibration sans rien enregistrer. Le motif de test ayant toujours deux faces, une image simple face peut servir à calibrer les deux têtes.
-## Fichiers créés à l'exécution
+### Fichiers créés à l'exécution
 
 | Emplacement | Contenu |
 |---|---|
-| `GreaseweazleGUI.json` (à côté du script ou de l'exe) | Configuration : options saisies dans les onglets, état de la fenêtre, profils de précompensation standard et long track, courbes de calibration, communes et par tête, référence de l'onglet Qualité & alignement. Créé et mis à jour automatiquement. Le supprimer, application fermée, efface ces calibrations. |
-| `%TEMP%\GreaseweazleGUI\` | Extractions ZIP, images intermédiaires de comparaison, flux `align.scp` (Qualité & alignement), `precomp-pattern.hfe` et `precomp-calib.scp` (calibration : motif de test et relecture) et `check-*.scp` (contrôle après écriture). Rien n'y est supprimé en fin d'opération. |
+| `GreaseweazleGUI.json` (à côté du script ou de l'exe) | Configuration : options saisies dans les onglets, mode expert, réglages de la restauration, état de la fenêtre, profils de précompensation standard et long track, courbes de calibration, communes et par tête, référence de l'onglet « Qualité & alignement ». Créé et mis à jour automatiquement. Le supprimer, application fermée, efface ces calibrations. |
+| `%TEMP%\GreaseweazleGUI\` | Extractions ZIP, images intermédiaires de comparaison, flux `align.scp` (Qualité & alignement), `precomp-pattern.hfe` et `precomp-calib.scp` (calibration : motif de test et relecture), `check-*.scp` (contrôle après écriture) et `restore-probe-*` (restauration : lecture du cylindre 0 de la disquette de destination). Rien n'y est supprimé en fin d'opération. |
 | `%LOCALAPPDATA%\GreaseweazleGUI\index-*.tsv` | Index de la bibliothèque, un fichier par racine indexée. |
+| `Documents\Greaseweazle Studio\Restaurations\` (dossier par défaut de l'onglet « Restauration ») | `<nom> - original`, `<nom> - copie relue` (avec un format) et `<nom> - rapport.txt`. Rien n'est écrasé : un suffixe « (2) », « (3) »... est ajouté si le nom existe déjà. |
 
 ## Compilation de l'exécutable
 
@@ -128,11 +105,11 @@ Le script lit la version dans `src/GreaseweazleGUI.ps1` (variable `$script:Versi
 
 Règle du projet : tout exécutable livré est signé. `Build-Exe.ps1` signe l'exécutable avec le certificat de signature de code `CN=Greaseweazle Studio`, créé auto-signé à la première exécution dans les magasins utilisateur (`My`, `Root`, `TrustedPublisher`, sans droits administrateur) et horodaté chez DigiCert. `-Sign:$false` est le seul moyen de compiler sans signer, pour un test ou sur un poste où l'on ne veut pas créer de certificat.
 
-Un certificat auto-signé n'est reconnu que sur les machines qui lui font confiance : ailleurs, la signature montre seulement que le fichier n'a pas été modifié depuis sa signature par ce certificat, sans prouver son auteur, puisque n'importe qui peut créer un certificat auto-signé au même nom, et SmartScreen avertit quand même. Sur un poste d'entreprise managé, déclarer de confiance un certificat auto-signé contourne sa politique de sécurité : compilez-y avec `-Sign:$false` ou faites signer avec le certificat interne.
+Un certificat auto-signé n'est reconnu que sur les machines qui lui font confiance. Ailleurs, la signature montre seulement que le fichier n'a pas été modifié depuis sa signature par ce certificat, sans prouver son auteur, puisque n'importe qui peut créer un certificat auto-signé au même nom, et SmartScreen avertit quand même. Sur un poste d'entreprise managé, déclarer de confiance un certificat auto-signé contourne sa politique de sécurité : compile-y avec `-Sign:$false` ou fais signer avec le certificat interne.
 
 ## Publication d'une version
 
-Le workflow GitHub Actions [release.yml](.github/workflows/release.yml) compile l'exécutable sur un runner Windows et l'attache à une release GitHub à chaque tag `vX.Y`.
+Le workflow GitHub Actions [release.yml](.github/workflows/release.yml) compile l'exécutable sur un runner Windows et l'attache à une release GitHub à chaque tag `vX.Y`, avec pour notes la section correspondante du CHANGELOG.
 
 1. Mettre à jour `$script:Version` dans `src/GreaseweazleGUI.ps1` et le [CHANGELOG](CHANGELOG.md).
 2. Commit, puis tag et push :
@@ -143,6 +120,8 @@ Le workflow GitHub Actions [release.yml](.github/workflows/release.yml) compile 
    ```
 
 3. Le workflow vérifie que le tag correspond à `$script:Version`, compile, puis attache `GreaseweazleGUI.exe` et `GreaseweazleGUI.ps1` à la release. Tant que le dépôt n'a pas les secrets de signature décrits ci-dessous, cet exe n'est pas signé : le remplacer par l'exe signé compilé localement avec `Build-Exe.ps1` depuis le même commit, par exemple `gh release upload v11.8 dist\GreaseweazleGUI.exe --clobber`.
+
+Un lancement manuel du workflow (workflow_dispatch) régénère les notes d'une release existante depuis le CHANGELOG, sans toucher aux fichiers attachés.
 
 Le workflow signe l'exécutable avec le même certificat si deux secrets existent dans le dépôt, sinon il le publie non signé et le dit dans son journal. Pour les créer, sur le PC qui possède le certificat, exporter la clé privée en PFX puis l'encoder en base64 :
 
@@ -155,6 +134,8 @@ Export-PfxCertificate -Cert $cert -FilePath .\codesign.pfx -Password $pwd | Out-
 
 Dans GitHub, Settings, Secrets and variables, Actions : créer `CODESIGN_PFX_BASE64` avec le contenu du presse-papiers et `CODESIGN_PFX_PASSWORD` avec le mot de passe choisi, puis supprimer le fichier `codesign.pfx` local. La clé privée est alors stockée chiffrée chez GitHub et n'apparaît pas dans l'interface, mais tout workflow du dépôt peut lire ces secrets : toute personne disposant d'un accès en écriture au dépôt y a donc accès.
 
+La page [Compilation et publication](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki/Compilation-et-publication) du wiki reprend ces procédures.
+
 ## Structure du dépôt
 
 ```
@@ -164,11 +145,20 @@ Dans GitHub, Settings, Secrets and variables, Actions : créer `CODESIGN_PFX_BAS
 │   ├── GreaseweazleGUI.ps1         Application (script unique)
 │   └── GreaseweazleGUI.ico         Icône de l'exécutable
 ├── dist/                           Sortie de Build-Exe.ps1 (ignoré par git)
+├── .editorconfig, .gitattributes   Encodage et fins de ligne (CRLF pour .ps1, LF pour .md)
 ├── Build-Exe.ps1                   Compilation PS2EXE et signature auto-signée
 ├── CHANGELOG.md
 ├── LICENSE
 └── README.md
 ```
+
+## Remerciements
+
+Merci à Keir Fraser pour [Greaseweazle](https://github.com/keirf/greaseweazle) et ses host tools : sans eux, cette application n'existerait pas.
+
+Le code de Greaseweazle Studio a été entièrement écrit par **Claude**, l'assistant d'intelligence artificielle d'[Anthropic](https://www.anthropic.com/), utilisé avec Claude Code : l'application, ses scripts de compilation et de publication, et sa documentation. Bartozorus a défini les besoins, dirigé chaque évolution, testé l'application sur son matériel et décidé de ce qui était publié. Le mérite de l'écriture du code revient à Claude, qui en a été l'exécutant.
+
+Merci, Claude.
 
 ## Licence
 

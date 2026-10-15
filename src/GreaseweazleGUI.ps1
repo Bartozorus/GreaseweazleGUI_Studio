@@ -27,7 +27,7 @@ param(
 )
 
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
-$script:Version = '11.8'
+$script:Version = '12.0'
 
 # --- Langue de l interface -------------------------------------------------------
 # Deux langues : francais et anglais. Choix automatique d apres la langue
@@ -44,7 +44,6 @@ $script:I18n['●  gw.exe prêt'] = '●  gw.exe ready'
 $script:I18n['●  gw.exe introuvable'] = '●  gw.exe not found'
 $script:I18n["A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0/1/2 = bus Shugart (nappe droite) - typiquement le lecteur Amiga"] = "A/B = IBM-PC bus (twisted cable) - typically the PC drive`n0/1/2 = Shugart bus (straight cable) - typically the Amiga drive"
 $script:I18n['Port COM du Greaseweazle. Vide = détection automatique.'] = 'Greaseweazle COM port. Empty = auto-detect.'
-$script:I18n['Affiche le temps écoulé après chaque commande gw.'] = 'Shows the elapsed time after each gw command.'
 $script:I18n['Lecteur :'] = 'Drive:'
 $script:I18n['COM :'] = 'COM:'
 $script:I18n['Bibliothèque'] = 'Library'
@@ -101,7 +100,6 @@ $script:I18n['--retries : nombre de réécritures d''une piste dont la vérifica
 $script:I18n['Précompensation (--precomp) :'] = 'Precompensation (--precomp):'
 $script:I18n["--precomp : cylindre=nanosecondes, paliers séparés par ':'.`nRempli automatiquement selon le profil ; modifiable en mode Manuel."] = "--precomp: cylinder=nanoseconds, steps separated by ':'.`nFilled in automatically from the profile; editable in Manual mode."
 $script:I18n['Transmet --precomp à gw. Coché automatiquement quand un profil est appliqué.'] = 'Passes --precomp to gw. Checked automatically when a profile is applied.'
-$script:I18n['Retries :'] = 'Retries:'
 $script:I18n['Options avancées'] = 'Advanced options'
 $script:I18n["--tracks : sous-ensemble de pistes, ex : c=0-79:h=0-1`nc=0:h=0 pour réécrire uniquement la piste 0 face 0."] = "--tracks: subset of tracks, e.g. c=0-79:h=0-1`nc=0:h=0 to rewrite only track 0 side 0."
 $script:I18n['--densel : force le signal density select (pin 2) sur les lecteurs qui l''exploitent.'] = '--densel: forces the density select signal (pin 2) on drives that use it.'
@@ -119,12 +117,9 @@ $script:I18n['Choisis une image : le format et la précompensation seront dédui
 $script:I18n['Lecture / Dump'] = 'Read / Dump'
 $script:I18n['Flux SCP (préservation)|*.scp|ADF (AmigaDOS)|*.adf|Kryoflux stream|*.raw|HFE|*.hfe|Tous|*.*'] = 'SCP flux (preservation)|*.scp|ADF (AmigaDOS)|*.adf|Kryoflux stream|*.raw|HFE|*.hfe|All files|*.*'
 $script:I18n['Tours lus par piste. 5 recommandés pour l''archivage flux (SCP).'] = 'Revolutions read per track. 5 recommended for flux archiving (SCP).'
-$script:I18n['--raw (cumuler le flux entre les retries)'] = '--raw (accumulate flux across retries)'
 $script:I18n['LIRE LA DISQUETTE'] = 'READ THE DISK'
 $script:I18n['Indique un fichier de sortie.'] = 'Specify an output file.'
 $script:I18n['Sortie :'] = 'Output:'
-$script:I18n['Révolutions :'] = 'Revolutions:'
-$script:I18n['Tracks :'] = 'Tracks:'
 $script:I18n['Images disquette|*.scp;*.raw;*.ipf;*.adf;*.hfe;*.img;*.st;*.dsk|Tous|*.*'] = 'Disk images|*.scp;*.raw;*.ipf;*.adf;*.hfe;*.img;*.st;*.dsk|All files|*.*'
 $script:I18n['Format de décodage. Nécessaire pour passer d''un flux (SCP/RAW) à un format secteur (ADF).'] = 'Decoding format. Required to go from a flux file (SCP/RAW) to a sector format (ADF).'
 $script:I18n['CONVERTIR'] = 'CONVERT'
@@ -184,10 +179,7 @@ $script:I18n['Cylindres :'] = 'Cylinders:'
 $script:I18n['Têtes :'] = 'Heads:'
 $script:I18n['Tours :'] = 'Revs:'
 $script:I18n['Outils'] = 'Tools'
-$script:I18n['Info périphérique'] = 'Device info'
 $script:I18n['Mesurer la vitesse (rpm)'] = 'Measure speed (rpm)'
-$script:I18n['Bande passante USB'] = 'USB bandwidth'
-$script:I18n['Reset du périphérique'] = 'Reset device'
 $script:I18n['Mise à jour firmware'] = 'Firmware update'
 $script:I18n["Mettre à jour le firmware du Greaseweazle ?`nNe pas débrancher pendant l'opération."] = "Update the Greaseweazle firmware?`nDo not unplug during the operation."
 $script:I18n['Cylindre cible. Valeurs négatives possibles sur lecteur flippy.'] = 'Target cylinder. Negative values possible on a flippy drive.'
@@ -235,7 +227,6 @@ $script:I18n['Mesure continue arrêtée.'] = 'Continuous measurement stopped.'
 $script:I18n['Masquer journal'] = 'Hide log'
 $script:I18n['Exporter'] = 'Export'
 $script:I18n['Texte|*.txt'] = 'Text|*.txt'
-$script:I18n['Paramètres'] = 'Settings'
 $script:I18n["Paramètres enregistrés : {0}"] = "Settings saved: {0}"
 $script:I18n["Remettre tous les paramètres de l'interface à leurs valeurs par défaut et supprimer le fichier de configuration ?`n`n(Aucun effet sur le Greaseweazle, ni sur tes fichiers image, ni sur l'index de la bibliothèque.)"] = "Reset all interface settings to their defaults and delete the configuration file?`n`n(No effect on the Greaseweazle, your image files or the library index.)"
 $script:I18n['Réinitialiser les paramètres'] = 'Reset settings'
@@ -393,7 +384,6 @@ $script:I18n['gw.exe      : ABSENT - place ce script dans le répertoire de gw.e
 $script:I18n['Config      : chargée depuis GreaseweazleGUI.json'] = 'Config      : loaded from GreaseweazleGUI.json'
 $script:I18n['Config      : aucune, valeurs par défaut'] = 'Config      : none, using defaults'
 $script:I18n['module indisponible, recherche directe'] = 'module unavailable, direct search'
-$script:I18n['Effacer'] = 'Clear'
 $script:I18n['Piste'] = 'Track'
 $script:I18n['État'] = 'Status'
 $script:I18n['Erreurs'] = 'Errors'
@@ -574,6 +564,205 @@ $script:I18n['long track, 1,89 µs par cellule'] = 'long track, 1.89 µs per cel
 $script:I18n["Motif de test : HFE de données pseudo-aléatoires généré, {0} cylindres, {1} cellules par piste ({2}), soit {3} ns par cellule à 300 tr/min. L'image ne fixe que la densité et le nombre de cylindres, son contenu n'est pas écrit."] = "Test pattern: pseudo-random HFE generated, {0} cylinders, {1} cells per track ({2}), i.e. {3} ns per cell at 300 rpm. The image only sets the density and the number of cylinders, its content is not written."
 $script:I18n['Calibration : le décalage ne varie pas avec la précompensation écrite, cette face n''a pas été écrite (tête ou circuit d''écriture défaillant ?).'] = 'Calibration: the shift does not vary with the written precompensation, this side was not written (faulty head or write circuit?).'
 $script:I18n[' ; écriture lente : courbes par tête antérieures au profil commun, profil commun pour les deux têtes'] = '; slow write: per-head curves older than the common profile, common profile for both heads'
+$script:I18n["Aide en ligne : impossible d'ouvrir {0} ({1})"] = 'Online help: cannot open {0} ({1})'
+$script:I18n['Chrono'] = 'Timer'
+$script:I18n['Affiche le temps écoulé après chaque commande gw (option --time).'] = 'Shows the elapsed time after each gw command (--time option).'
+$script:I18n['Mode expert'] = 'Expert mode'
+$script:I18n["Décoché : seuls les onglets utiles au quotidien sont affichés (Accueil, Restauration, Bibliothèque, Écriture, Lecture, Qualité).`nCoché : tous les onglets, y compris Conversion, Comparaison, Outils, Délais et Commande libre."] = "Unchecked: only the everyday tabs are shown (Home, Restore, Library, Write, Read, Quality).`nChecked: all tabs, including Conversion, Comparison, Tools, Delays and Free command."
+$script:I18n['Aide'] = 'Help'
+$script:I18n['Ouvre le guide en ligne de l''onglet affiché (touche F1).'] = 'Opens the online guide for the current tab (F1 key).'
+$script:I18n['Essais :'] = 'Retries:'
+$script:I18n["Calibration {0} de la famille {1} refaite à la demande."] = '{0} calibration of the {1} family redone on request.'
+$script:I18n['Flux brut (--raw)'] = 'Raw flux (--raw)'
+$script:I18n['Face B flippy (--reverse)'] = 'Flippy side B (--reverse)'
+$script:I18n['Lecture : image secteur, --raw ignoré (gw le refuse pour ce type de fichier).'] = 'Read: sector image, --raw ignored (gw refuses it for this file type).'
+$script:I18n['Tester la carte (info)'] = 'Test the board (info)'
+$script:I18n['Débit USB (bandwidth)'] = 'USB throughput (bandwidth)'
+$script:I18n['Réinitialiser la carte (reset)'] = 'Reset the board (reset)'
+$script:I18n['Accueil'] = 'Home'
+$script:I18n['Que veux-tu faire ?'] = 'What do you want to do?'
+$script:I18n["Choisis une tâche : l'application règle les options pour toi. F1 ouvre l'aide de l'onglet affiché."] = 'Pick a task: the application sets the options for you. F1 opens the help for the current tab.'
+$script:I18n['Restaurer une disquette'] = 'Restore a floppy disk'
+$script:I18n["Copier une disquette d'origine sur une disquette vierge, avec les contrôles les plus stricts."] = 'Copy an original floppy disk onto a blank one, with the strictest checks.'
+$script:I18n['Écrire une image sur une disquette'] = 'Write an image to a floppy disk'
+$script:I18n["Choisir un fichier (ADF, IPF, SCP...) dans ta bibliothèque et l'écrire sur une disquette."] = 'Pick a file (ADF, IPF, SCP...) in your library and write it to a floppy disk.'
+$script:I18n['Sauvegarder une disquette'] = 'Back up a floppy disk'
+$script:I18n["Lire une disquette et l'enregistrer dans un fichier : SCP pour archiver, ADF pour un émulateur."] = 'Read a floppy disk and save it to a file: SCP to archive, ADF for an emulator.'
+$script:I18n['Vérifier une disquette ou un lecteur'] = 'Check a floppy disk or a drive'
+$script:I18n['Mesurer la qualité de lecture piste par piste, ou guider le réglage de l''alignement.'] = 'Measure the read quality track by track, or get guidance to adjust the alignment.'
+$script:I18n['Tester le Greaseweazle'] = 'Test the Greaseweazle'
+$script:I18n['Vérifier que la carte répond et afficher sa version et son port (gw info).'] = 'Check that the board responds and show its version and port (gw info).'
+$script:I18n['Guide pas à pas'] = 'Step-by-step guide'
+$script:I18n['Ouvrir l''aide en ligne : premiers pas, glossaire des termes, dépannage.'] = 'Open the online help: getting started, glossary, troubleshooting.'
+$script:I18n['Restauration'] = 'Restore'
+$script:I18n['Copie exacte du flux (disquette protégée ou format inconnu)'] = 'Exact flux copy (copy-protected disk or unknown format)'
+$script:I18n['1. Disquette d''origine'] = '1. Original disk'
+$script:I18n["Lecteur qui lit la disquette d'origine (même convention que le choix Lecteur du bandeau).`nA/B = nappe PC avec twist, 0/1/2 = nappe droite (lecteur Amiga, par exemple)."] = "Drive that reads the original disk (same convention as the Drive choice in the banner).`nA/B = PC cable with twist, 0/1/2 = straight cable (Amiga drive, for example)."
+$script:I18n["Format de la disquette d'origine.`nAvec un format (amiga.amigados pour une disquette Amiga, par exemple) : chaque secteur est lu et vérifié, la copie est écrite avec la précompensation calibrée puis comparée secteur par secteur à l'original.`nCopie exacte du flux : pour une disquette protégée contre la copie ou d'un format absent de la liste ; le signal est recopié tel quel, sans précompensation ni comparaison par secteur."] = "Format of the original disk.`nWith a format (amiga.amigados for an Amiga disk, for example): every sector is read and checked, the copy is written with the calibrated precompensation, then compared sector by sector with the original.`nExact flux copy: for a copy-protected disk or a format not in the list; the signal is copied as is, without precompensation or sector comparison."
+$script:I18n['2. Disquette de destination'] = '2. Destination disk'
+$script:I18n["Lecteur qui écrit la copie. Même lecteur que l'origine : l'application te demandera de changer de disquette entre la lecture et l'écriture."] = 'Drive that writes the copy. Same drive as the original: the application will ask you to swap disks between reading and writing.'
+$script:I18n['3. Sauvegarde de l''original'] = '3. Backup of the original'
+$script:I18n['Dossier où enregistrer la lecture de l''original, la relecture de la copie et le rapport'] = 'Folder where the read of the original, the read-back of the copy and the report are saved'
+$script:I18n["Dossier où sont enregistrés la lecture de l'original, la relecture de la copie et le rapport de restauration."] = 'Folder where the read of the original, the read-back of the copy and the restore report are saved.'
+$script:I18n['Nom des fichiers enregistrés, par exemple « Workbench 1.3 ». Vide : date et heure.'] = 'Name of the saved files, for example "Workbench 1.3". Empty: date and time.'
+$script:I18n['Dossier :'] = 'Folder:'
+$script:I18n['Nom :'] = 'Name:'
+$script:I18n['Documents\Greaseweazle Studio\Restaurations'] = 'Documents\Greaseweazle Studio\Restorations'
+$script:I18n['vide = date et heure'] = 'empty = date and time'
+$script:I18n['RESTAURER LA DISQUETTE'] = 'RESTORE THE DISK'
+$script:I18n["ERREUR restauration : {0}"] = 'Restore ERROR: {0}'
+$script:I18n["Lit l'original, te demande de changer de disquette, puis écrit et contrôle la copie avec les règles les plus strictes.`nDurée : de quelques minutes à plus d'une demi-heure selon la calibration et l'état des disquettes."] = "Reads the original, asks you to swap disks, then writes and checks the copy with the strictest rules.`nDuration: from a few minutes to more than half an hour depending on the calibration and the condition of the disks."
+$script:I18n['Étapes'] = 'Steps'
+$script:I18n['Lire la disquette d''origine'] = 'Read the original disk'
+$script:I18n['Vérifier la lecture'] = 'Check the read'
+$script:I18n['Changer de disquette'] = 'Swap disks'
+$script:I18n['Vérifier la disquette de destination'] = 'Check the destination disk'
+$script:I18n['Calibrer le lecteur, tête par tête'] = 'Calibrate the drive, head by head'
+$script:I18n['Écrire la tête 0 puis la tête 1'] = 'Write head 0, then head 1'
+$script:I18n['Comparer la copie à l''original'] = 'Compare the copy with the original'
+$script:I18n['Continuer'] = 'Continue'
+$script:I18n['Écraser quand même'] = 'Overwrite anyway'
+$script:I18n['Annuler'] = 'Cancel'
+$script:I18n['annulée par l''utilisateur'] = 'cancelled by the user'
+$script:I18n['Dossier qui contient tes images disque (bouton à droite pour le choisir)'] = 'Folder that holds your disk images (button on the right to choose it)'
+$script:I18n['Nom d''image à rechercher'] = 'Image name to search for'
+$script:I18n['Image à écrire : ADF, IPF, SCP, HFE, IMG... (bouton à droite)'] = 'Image to write: ADF, IPF, SCP, HFE, IMG... (button on the right)'
+$script:I18n['vide = toutes les pistes'] = 'empty = all tracks'
+$script:I18n['vide = lecteur normal'] = 'empty = normal drive'
+$script:I18n['vide = formats intégrés à gw'] = 'empty = formats built into gw'
+$script:I18n['auto'] = 'auto'
+$script:I18n['Fichier à créer : .scp pour archiver, .adf pour un émulateur'] = 'File to create: .scp to archive, .adf for an emulator'
+$script:I18n['vide = toutes'] = 'empty = all'
+$script:I18n['Fichier à convertir'] = 'File to convert'
+$script:I18n['Fichier à créer (son extension fixe le type)'] = 'File to create (its extension sets the type)'
+$script:I18n['Image de référence : ADF, IPF, SCP...'] = 'Reference image: ADF, IPF, SCP...'
+$script:I18n["Fichier où enregistrer la disquette lue.`n.scp : flux exact, pour archiver (protections comprises).`n.adf, .img, .st : secteurs décodés, pour un émulateur (un format est alors nécessaire)."] = "File where the read disk is saved.`n.scp: exact flux, to archive (copy protections included).`n.adf, .img, .st: decoded sectors, for an emulator (a format is then required)."
+$script:I18n["Format de la disquette. (auto) : flux sans décodage.`nAvec un format, gw vérifie chaque secteur et relit les pistes incomplètes (Essais)."] = "Disk format. (auto): flux without decoding.`nWith a format, gw checks every sector and re-reads incomplete tracks (Retries)."
+$script:I18n['Nombre de relectures d''une piste dont des secteurs manquent (avec un format seulement).'] = 'Number of re-reads of a track with missing sectors (with a format only).'
+$script:I18n['Pistes à lire, par exemple c=0-79:h=0-1. Vide : toutes les pistes du format.'] = 'Tracks to read, for example c=0-79:h=0-1. Empty: all tracks of the format.'
+$script:I18n['Face B d''une disquette flippy (5,25" retournée) : le flux est lu à l''envers.'] = 'Side B of a flippy disk (flipped 5.25"): the flux is read in reverse.'
+$script:I18n['Force le signal de densité du lecteur (H = haute, L = basse). (non) : laissé au lecteur.'] = 'Forces the drive density signal (H = high, L = low). (non): left to the drive.'
+$script:I18n['Fichier de définitions de formats personnalisés. Vide : formats intégrés à gw.'] = 'File of custom format definitions. Empty: formats built into gw.'
+$script:I18n['Lit la disquette insérée et enregistre le fichier.'] = 'Reads the inserted disk and saves the file.'
+$script:I18n['Écrit l''image sur la disquette insérée avec les options de cet onglet. Tout le contenu de la disquette est remplacé.'] = 'Writes the image to the inserted disk with the options of this tab. All the content of the disk is replaced.'
+$script:I18n['interrompue par l''utilisateur'] = 'interrupted by the user'
+$script:I18n['Vider'] = 'Clear'
+$script:I18n['Enregistrer'] = 'Save'
+$script:I18n['Arrête la commande ou la séquence en cours.'] = 'Stops the current command or sequence.'
+$script:I18n['Affiche ou masque le journal des commandes gw.'] = 'Shows or hides the log of gw commands.'
+$script:I18n["erreur interne : {0}"] = 'internal error: {0}'
+$script:I18n['calibration interrompue'] = 'calibration interrupted'
+$script:I18n['calibration sans mesure exploitable'] = 'calibration without a usable measurement'
+$script:I18n['l''écriture n''a pas démarré après la calibration, voir le journal'] = 'the write did not start after the calibration, see the log'
+$script:I18n['contrôle des pistes indisponible'] = 'track check unavailable'
+$script:I18n['contrôle interrompu par une erreur gw'] = 'check interrupted by a gw error'
+$script:I18n["{0}/{0} pistes saines"] = '{0}/{0} healthy tracks'
+$script:I18n['aucune piste mesurée'] = 'no track measured'
+$script:I18n["{0} piste(s) faible(s) : {1}"] = '{0} weak track(s): {1}'
+$script:I18n['erreur gw pendant le contrôle des pistes'] = 'gw error during the track check'
+$script:I18n['contrôle des pistes interrompu'] = 'track check interrupted'
+$script:I18n['Restaurations'] = 'Restorations'
+$script:I18n['Une opération est déjà en cours : attends sa fin ou clique « Arrêter ».'] = 'An operation is already running: wait for it to finish or click "Stop".'
+$script:I18n["Restauration impossible : le module d'analyse de flux n'a pas pu être compilé, le contrôle strict des pistes n'est donc pas disponible."] = 'Restore impossible: the flux analysis module could not be compiled, so the strict track check is not available.'
+$script:I18n['Restauration non prise en charge avec « Secteurs durs » ou « TG43 » cochés dans les options avancées de l''onglet Écriture : le contrôle des pistes est calibré pour le MFM double densité.'] = 'Restore not supported with "Hard sectors" or "TG43" checked in the advanced options of the Write tab: the track check is calibrated for double-density MFM.'
+$script:I18n["Dossier de sauvegarde inaccessible : {0}"] = 'Backup folder not accessible: {0}'
+$script:I18n['disquette'] = 'disk'
+$script:I18n['original'] = 'original'
+$script:I18n["secteur par secteur, format {0}"] = 'sector by sector, format {0}'
+$script:I18n['copie exacte du flux, sans précompensation ni comparaison par secteur'] = 'exact flux copy, without precompensation or sector comparison'
+$script:I18n["Le lecteur {0} lit l'original, puis tu changes de disquette quand l'application te le demande."] = 'Drive {0} reads the original, then you swap disks when the application asks.'
+$script:I18n["Le lecteur {0} lit l'original et le lecteur {1} écrit la copie."] = 'Drive {0} reads the original and drive {1} writes the copy.'
+$script:I18n["Restauration ({0}).`n`n{1}`n`n1. Insère maintenant la disquette d'ORIGINE dans le lecteur {2}, de préférence protégée en écriture.`n2. Sa lecture est enregistrée dans :`n   {3}`n3. La disquette de destination sera entièrement effacée puis écrite.`n`nCommencer la lecture ?"] = "Restore ({0}).`n`n{1}`n`n1. Insert the ORIGINAL disk in drive {2} now, preferably write-protected.`n2. Its read is saved in:`n   {3}`n3. The destination disk will be fully erased, then written.`n`nStart reading?"
+$script:I18n['copie relue'] = 'copy read back'
+$script:I18n['rapport'] = 'report'
+$script:I18n["=== RESTAURATION : {0} ({1}) ==="] = '=== RESTORE: {0} ({1}) ==='
+$script:I18n["Original : lecteur {0} -> {1}"] = 'Original: drive {0} -> {1}'
+$script:I18n["Copie    : lecteur {0}"] = 'Copy    : drive {0}'
+$script:I18n['la lecture n''a produit aucun fichier (disquette absente ou lecteur incorrect ?)'] = 'the read produced no file (no disk, or wrong drive?)'
+$script:I18n['gw n''a imprimé aucun bilan de secteurs : format incorrect, ou disquette illisible ?'] = 'gw printed no sector summary: wrong format, or unreadable disk?'
+$script:I18n["{0} secteur(s) illisible(s) sur l'original (pistes {1}) : une copie fidèle est impossible. Nettoie les têtes du lecteur et relance, ou choisis « Copie exacte du flux » si la disquette est protégée contre la copie."] = '{0} unreadable sector(s) on the original (tracks {1}): a faithful copy is impossible. Clean the drive heads and try again, or choose "Exact flux copy" if the disk is copy-protected.'
+$script:I18n["{0}/{1} secteurs lus"] = '{0}/{1} sectors read'
+$script:I18n["Restauration : original lu en entier, {0}/{1} secteurs."] = 'Restore: original fully read, {0}/{1} sectors.'
+$script:I18n["flux illisible : {0}"] = 'unreadable flux: {0}'
+$script:I18n['aucune piste dans le flux lu.'] = 'no track in the flux read.'
+$script:I18n["{0} pistes : {1} saines, {2} à surveiller, {3} critiques"] = '{0} tracks: {1} healthy, {2} to watch, {3} critical'
+$script:I18n["Restauration : flux de l'original, {0}."] = 'Restore: flux of the original, {0}.'
+$script:I18n["Retire l'ORIGINAL du lecteur {0} et range-le. Insère la disquette de DESTINATION : tout son contenu sera remplacé."] = 'Remove the ORIGINAL from drive {0} and put it away. Insert the DESTINATION disk: all its content will be replaced.'
+$script:I18n["Vérifie que la disquette de DESTINATION est dans le lecteur {0} : tout son contenu sera remplacé."] = 'Check that the DESTINATION disk is in drive {0}: all its content will be replaced.'
+$script:I18n["{0} piste(s) critique(s) dans la lecture : normal pour une protection, sinon nettoie le lecteur et relance."] = '{0} critical track(s) in the read: normal for a copy protection, otherwise clean the drive and try again.'
+$script:I18n['Puis clique « Continuer ».'] = 'Then click "Continue".'
+$script:I18n["Restauration : en attente de la disquette de destination dans le lecteur {0}."] = 'Restore: waiting for the destination disk in drive {0}.'
+$script:I18n['Une commande gw est encore en cours : attends sa fin.'] = 'A gw command is still running: wait for it to finish.'
+$script:I18n['contrôle ignoré à ta demande'] = 'check skipped at your request'
+$script:I18n['non applicable à une copie de flux'] = 'not applicable to a flux copy'
+$script:I18n['Aucune disquette lisible n''a été détectée dans le lecteur de destination.'] = 'No readable disk was detected in the destination drive.'
+$script:I18n['la disquette insérée semble être l''original'] = 'the inserted disk seems to be the original'
+$script:I18n['Restauration : la disquette de destination contient les mêmes données que l''original sur le cylindre 0. Écriture refusée.'] = 'Restore: the destination disk holds the same data as the original on cylinder 0. Write refused.'
+$script:I18n["ATTENTION : la disquette insérée a le même contenu que l'original sur le cylindre 0, c'est probablement l'ORIGINAL. Change de disquette. S'il s'agit bien d'une copie à remplacer, clique « Écraser quand même »."] = 'WARNING: the inserted disk has the same content as the original on cylinder 0, it is probably the ORIGINAL. Swap disks. If it really is a copy to replace, click "Overwrite anyway".'
+$script:I18n['ce n''est pas l''original'] = 'not the original'
+$script:I18n['aucune calibration par tête'] = 'no per-head calibration'
+$script:I18n['calibration mesurée sur le contenu d''une image'] = 'calibration measured on an image''s content'
+$script:I18n['courbes par tête antérieures à la calibration commune'] = 'per-head curves older than the common calibration'
+$script:I18n["courbes mesurées sur le lecteur {0}"] = 'curves measured on drive {0}'
+$script:I18n['calibration précédente non convergée'] = 'previous calibration not converged'
+$script:I18n["Restauration : calibration par tête en test fin ({0})."] = 'Restore: per-head calibration with the fine test ({0}).'
+$script:I18n["Restauration : écriture tête par tête, {0} essais par piste, contrôle de toutes les pistes ({1} passes au plus)."] = 'Restore: head-by-head write, {0} retries per track, check of all tracks (up to {1} passes).'
+$script:I18n["non applicable : {0}"] = 'not applicable: {0}'
+$script:I18n['calibration existante, à jour'] = 'existing calibration, up to date'
+$script:I18n['l''écriture n''a pas démarré (calibration refusée ou annulée ? voir le journal)'] = 'the write did not start (calibration refused or cancelled? see the log)'
+$script:I18n['faite, non convergée sur une tête : voir le journal'] = 'done, not converged on one head: see the log'
+$script:I18n["refaite ({0})"] = 'redone ({0})'
+$script:I18n['séquence arrêtée sans suite, voir le journal'] = 'sequence stopped without continuation, see the log'
+$script:I18n['non applicable à ce format'] = 'not applicable to this format'
+$script:I18n['relecture de la copie impossible'] = 'cannot read the copy back'
+$script:I18n["identique, {0} secteurs"] = 'identical, {0} sectors'
+$script:I18n["Restauration : copie IDENTIQUE à l'original, {0} secteurs relus du premier coup."] = 'Restore: copy IDENTICAL to the original, {0} sectors read back at the first attempt.'
+$script:I18n["{0} secteur(s) différent(s) sur {1}, dont {2} non relu(s) du premier coup ; pistes {3}"] = '{0} sector(s) differ out of {1}, of which {2} not read back at the first attempt; tracks {3}'
+$script:I18n["{0} secteur(s) différent(s)"] = '{0} sector(s) differ'
+$script:I18n["Restauration : copie DIFFÉRENTE de l'original : {0}."] = 'Restore: copy DIFFERENT from the original: {0}.'
+$script:I18n["Greaseweazle Studio v{0} - rapport de restauration"] = 'Greaseweazle Studio v{0} - restore report'
+$script:I18n["Date        : {0}, durée {1} min"] = 'Date        : {0}, duration {1} min'
+$script:I18n["Disquette   : {0}"] = 'Disk        : {0}'
+$script:I18n["Mode        : {0}"] = 'Mode        : {0}'
+$script:I18n['copie exacte du flux'] = 'exact flux copy'
+$script:I18n["Lecteurs    : origine {0}, destination {1}"] = 'Drives      : original {0}, destination {1}'
+$script:I18n["Original lu : {0}"] = 'Original    : {0}'
+$script:I18n["Copie relue : {0}"] = 'Read-back   : {0}'
+$script:I18n["Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête, calibration par tête en test fin si besoin, pré-effacement, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai."] = 'Rules       : read {0} revolutions, {1} retries x {2} series; head-by-head write, per-head calibration with the fine test if needed, pre-erase, gw verification, {3} retries per track; check of all tracks, up to {4} rewrite passes; final read-back without retry.'
+$script:I18n['Étapes :'] = 'Steps:'
+$script:I18n["Verdict     : {0}"] = 'Verdict     : {0}'
+$script:I18n["Rapport     : {0}"] = 'Report      : {0}'
+$script:I18n["Rapport non enregistré : {0}"] = 'Report not saved: {0}'
+$script:I18n['comparaison non faite'] = 'comparison not done'
+$script:I18n['RESTAURATION RÉUSSIE'] = 'RESTORE SUCCEEDED'
+$script:I18n['La copie a été écrite tête par tête, toutes ses pistes sont saines et elle est identique à l''original, secteur par secteur.'] = 'The copy was written head by head, all its tracks are healthy and it is identical to the original, sector by sector.'
+$script:I18n['Le flux a été recopié et toutes les pistes de la copie sont saines. Sans format, la copie n''est pas comparée secteur par secteur : essaie-la sur la machine d''origine.'] = 'The flux was copied and all tracks of the copy are healthy. Without a format, the copy is not compared sector by sector: try it on the original machine.'
+$script:I18n['RESTAURATION ÉCHOUÉE'] = 'RESTORE FAILED'
+$script:I18n['Essaie une autre disquette de destination ; si le problème persiste, nettoie les têtes du lecteur. Le détail est dans le rapport.'] = 'Try another destination disk; if the problem persists, clean the drive heads. The details are in the report.'
+$script:I18n['Rien n''a été écrit : la disquette de destination n''a pas été touchée.'] = 'Nothing was written: the destination disk was not touched.'
+$script:I18n['Le détail est dans le journal et dans le rapport.'] = 'The details are in the log and in the report.'
+$script:I18n['gw n''a pas pu être lancé'] = 'gw could not be started'
+$script:I18n['opération gw incomplète : disquette protégée en écriture, absente, ou lecteur en défaut ? Voir le journal'] = 'incomplete gw operation: write-protected or missing disk, or faulty drive? See the log'
+$script:I18n["gw a retourné le code {0}, voir le journal"] = 'gw returned code {0}, see the log'
+$script:I18n["Une restauration est en cours. Quitter quand même ? La disquette de destination restera incomplète."] = 'A restore is running. Quit anyway? The destination disk will remain incomplete.'
+$script:I18n['Conseil : protège-la en écriture avant de commencer.'] = 'Tip: write-protect it before you start.'
+$script:I18n['Disquette 3,5" : fenêtre de protection ouverte. 5,25" : encoche couverte. Ainsi, même une erreur de manipulation ne peut pas l''effacer.'] = '3.5" disk: protection window open. 5.25" disk: notch covered. This way, even a handling mistake cannot erase it.'
+$script:I18n['Vierge ou à sacrifier : tout son contenu sera remplacé.'] = 'Blank or expendable: all its content will be replaced.'
+$script:I18n["Règles appliquées à la copie : écriture tête par tête avec une calibration par tête, pré-effacement, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original."] = 'Rules applied to the copy: head-by-head write with a per-head calibration, pre-erase, gw verification, {0} retries per track, check of all tracks (up to {1} rewrite passes), then read-back and comparison with the original.'
+$script:I18n['commande gw'] = 'gw command'
+$script:I18n['calibration'] = 'calibration'
+$script:I18n['contrôle après écriture'] = 'post-write check'
+$script:I18n['séquence d''étapes'] = 'step sequence'
+$script:I18n["Restauration refusée : opération en cours ({0})."] = 'Restore refused: operation in progress ({0}).'
+$script:I18n['Restauration : change de disquette, puis clique « Continuer » dans l''onglet Restauration.'] = 'Restore: swap disks, then click "Continue" in the Restore tab.'
+$script:I18n['Lecture : flux avec un format, sans « Flux brut » : gw enregistre un flux reconstitué à partir des secteurs décodés ; les pistes protégées ou illisibles ne sont pas conservées telles quelles. Coche « Flux brut (--raw) » pour garder le flux réel.'] = 'Read: flux with a format, without "Raw flux": gw saves a flux rebuilt from the decoded sectors; protected or unreadable tracks are not kept as they are. Check "Raw flux (--raw)" to keep the real flux.'
+$script:I18n["Enregistre le flux réel du disque ; avec un format, celui-ci sert alors au contrôle des secteurs et aux relectures.`nSans cette case, un .scp lu avec un format contient un flux reconstitué à partir des secteurs décodés.`nAvec des essais, les tours relus sont ajoutés après les premiers, mais la plupart des logiciels ne lisent que les premiers tours."] = "Saves the real flux of the disk; with a format, the format is then used to check the sectors and for re-reads.`nWithout this box, a .scp read with a format holds a flux rebuilt from the decoded sectors.`nWith retries, the re-read revolutions are appended after the first ones, but most software only reads the first revolutions."
+$script:I18n["Contrôle : {0} piste(s) déjà critique(s) sur l'original, non comptée(s) : {1}"] = 'Check: {0} track(s) already critical on the original, not counted: {1}'
+$script:I18n['flux haute densité : une copie de flux ne pourrait pas être contrôlée. Choisis un format haute densité (amiga.amigados_hd, ibm.1440) pour une copie vérifiée secteur par secteur.'] = 'high-density flux: a flux copy could not be checked. Choose a high-density format (amiga.amigados_hd, ibm.1440) for a copy verified sector by sector.'
+$script:I18n["lecture sans données exploitables : {0} piste(s) critique(s) sur {1}. Disquette vierge, lecteurs inversés ou têtes sales ?"] = 'read without usable data: {0} critical track(s) out of {1}. Blank disk, swapped drives or dirty heads?'
+$script:I18n["Copie de flux : l'application ne peut pas vérifier que la disquette insérée n'est pas l'original.`n`nAs-tu bien retiré l'ORIGINAL et inséré la disquette de DESTINATION ?"] = "Flux copy: the application cannot check that the inserted disk is not the original.`n`nDid you remove the ORIGINAL and insert the DESTINATION disk?"
+$script:I18n['La copie a été écrite tête par tête et elle est identique à l''original, secteur par secteur. Le contrôle des pistes ne s''applique pas à ce format (haute densité).'] = 'The copy was written head by head and it is identical to the original, sector by sector. The track check does not apply to this format (high density).'
+$script:I18n['fenêtre fermée pendant la restauration'] = 'window closed during the restore'
 function T([string]$s) {
     if ($script:Lang -eq 'fr') { return $s }
     $t = $script:I18n[$s]
@@ -966,6 +1155,39 @@ $form.BackColor = [System.Drawing.Color]::FromArgb(236, 239, 244)
 $mono     = New-Object System.Drawing.Font('Consolas', 9.5)
 $monoBig  = New-Object System.Drawing.Font('Consolas', 10.5)
 $tip  = New-Object System.Windows.Forms.ToolTip
+$bold = New-Object System.Drawing.Font('Segoe UI', 9.75, [System.Drawing.FontStyle]::Bold)   # utilise des la bibliotheque
+# Infobulles : delai de lecture suffisant pour les textes longs (5 s par defaut sous WinForms)
+$tip.AutoPopDelay = 30000; $tip.InitialDelay = 400; $tip.ReshowDelay = 100
+
+# Textes indicatifs gris dans les champs vides (EM_SETCUEBANNER) : appliques a l affichage de la fenetre, une fois
+# les poignees Windows creees. Sans effet sur une zone multiligne.
+$script:CueOk = $false
+try {
+    Add-Type -Namespace GwUi -Name Native -MemberDefinition '[DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, string lParam);' -ErrorAction Stop
+    $script:CueOk = $true
+} catch { }
+$script:CueText = @{}
+function Set-Cue($tb, [string]$text) {
+    $script:CueText[$tb] = $text
+    if ($script:CueOk -and $tb.IsHandleCreated) { [void][GwUi.Native]::SendMessage($tb.Handle, 0x1501, [IntPtr]1, $text) }
+    $tb.Add_HandleCreated({ if ($script:CueOk -and $script:CueText.ContainsKey($this)) { [void][GwUi.Native]::SendMessage($this.Handle, 0x1501, [IntPtr]1, [string]$script:CueText[$this]) } })
+}
+function Apply-Cues {
+    if (-not $script:CueOk) { return }
+    foreach ($tb in @($script:CueText.Keys)) { if ($tb.IsHandleCreated) { [void][GwUi.Native]::SendMessage($tb.Handle, 0x1501, [IntPtr]1, [string]$script:CueText[$tb]) } }
+}
+
+# Aide en ligne : page du wiki associee a l onglet courant (TabPage.Tag), touche F1 ou bouton Aide du bandeau
+$script:WikiBase = 'https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki/'
+function Open-Help([string]$page) {
+    $url = $script:WikiBase + $(if ($page) { [System.Uri]::EscapeDataString($page) } else { '' })
+    try { Start-Process $url } catch { Append-Log ((T "Aide en ligne : impossible d'ouvrir {0} ({1})") -f "$url", "$($_.Exception.Message)") }
+}
+function Open-HelpForTab {
+    $p = if ($tabs.SelectedTab -and $tabs.SelectedTab.Tag) { [string]$tabs.SelectedTab.Tag } else { 'Home' }
+    Open-Help $p
+}
+
 
 # ============================== THEME, ICONES & LOGO ===========================
 # Aucun fichier image externe : les icones sont rendues a l'execution a partir de la police
@@ -995,7 +1217,7 @@ $script:Glyph = @{
     Repair=0xE90F; Stopwatch=0xE916; Cmd=0xE756; Folder=0xE8B7; FolderOpen=0xE838; Search=0xE721
     Refresh=0xE72C; Sync=0xE895; OpenFile=0xE8E5; Document=0xE8A5; Package=0xE7B8; Page=0xE7C3
     Stop=0xE71A; Delete=0xE74D; Setting=0xE713; Info=0xE946; Error=0xE783; Check=0xE73E
-    Play=0xE768; Pin=0xE718; Usb=0xE88E; Add=0xE710; Remove=0xE738
+    Play=0xE768; Pin=0xE718; Usb=0xE88E; Add=0xE710; Remove=0xE738; Home=0xE80F; Help=0xE897; History=0xE81C
 }
 
 function New-GlyphBitmap([string]$name, [int]$size, [System.Drawing.Color]$color) {
@@ -1210,12 +1432,24 @@ $txtDev.Location = '652,34'; $txtDev.Width = 50; $txtDev.Anchor = 'Top,Right'
 $tip.SetToolTip($txtDev, (T 'Port COM du Greaseweazle. Vide = détection automatique.'))
 
 $chkTime = New-Object System.Windows.Forms.CheckBox
-$chkTime.Text = '--time'; $chkTime.Location = '712,35'; $chkTime.Width = 70; $chkTime.Anchor = 'Top,Right'
+$chkTime.Text = (T 'Chrono'); $chkTime.Location = '712,35'; $chkTime.Width = 70; $chkTime.Anchor = 'Top,Right'
 $chkTime.BackColor = [System.Drawing.Color]::Transparent; $chkTime.ForeColor = [System.Drawing.Color]::White
-$tip.SetToolTip($chkTime, (T 'Affiche le temps écoulé après chaque commande gw.'))
+$tip.SetToolTip($chkTime, (T 'Affiche le temps écoulé après chaque commande gw (option --time).'))
+
+# Mode expert : affiche aussi les onglets techniques (Conversion, Comparaison, Outils, Délais, Commande libre)
+$chkExpert = New-Object System.Windows.Forms.CheckBox
+$chkExpert.Text = (T 'Mode expert'); $chkExpert.Location = '404,9'; $chkExpert.AutoSize = $true; $chkExpert.Anchor = 'Top,Right'
+$chkExpert.BackColor = [System.Drawing.Color]::Transparent; $chkExpert.ForeColor = [System.Drawing.Color]::White
+$tip.SetToolTip($chkExpert, (T "Décoché : seuls les onglets utiles au quotidien sont affichés (Accueil, Restauration, Bibliothèque, Écriture, Lecture, Qualité).`nCoché : tous les onglets, y compris Conversion, Comparaison, Outils, Délais et Commande libre."))
+
+# Aide en ligne (wiki) pour l onglet affiche ; touche F1
+$btnHelpTop = New-Object System.Windows.Forms.Button
+$btnHelpTop.Text = (T 'Aide'); $btnHelpTop.Location = '404,33'; $btnHelpTop.Size = '84,26'; $btnHelpTop.Anchor = 'Top,Right'
+$btnHelpTop.Add_Click({ Open-HelpForTab })
+$tip.SetToolTip($btnHelpTop, (T 'Ouvre le guide en ligne de l''onglet affiché (touche F1).'))
 
 $pnlTop.Controls.AddRange(@($lblGwStatus, (New-BannerLabel (T 'Lecteur :') '500,37'), $cmbDrive,
-    (New-BannerLabel (T 'COM :') '612,37'), $txtDev, $chkTime))
+    (New-BannerLabel (T 'COM :') '612,37'), $txtDev, $chkTime, $chkExpert, $btnHelpTop))
 
 # --- Separateur onglets / journal ----------------------------------------------
 $split = New-Object System.Windows.Forms.SplitContainer
@@ -1298,7 +1532,7 @@ function Start-LibWrite([string]$mode) {
     Append-Log ((T "Image sélectionnée : {0}") -f "$($sel.Path)")
     Set-WritePreset $mode $sel.Path $sel.Source
     Update-PrecompForImage $sel.Path
-    $tabs.SelectedTab = $tabW
+    Show-Tab $tabW
     Start-PresetWrite $mode
 }
 
@@ -1465,7 +1699,7 @@ $pbWCal.Location = '12,136'; $pbWCal.Size = '300,16'; $pbWCal.Minimum = 0; $pbWC
 $lblWCal = New-Object System.Windows.Forms.Label
 $lblWCal.Location = '320,137'; $lblWCal.AutoSize = $true; $lblWCal.ForeColor = 'DimGray'; $lblWCal.Visible = $false
 
-$grpWOpt.Controls.AddRange(@($chkWPreErase, $chkWEraseEmpty, $chkWNoVerify, (New-Label (T 'Retries :') '500,26'), $numWRetries, $chkWSlow, $chkWPrecomp, $txtWPrecomp, $chkWPostCheck,
+$grpWOpt.Controls.AddRange(@($chkWPreErase, $chkWEraseEmpty, $chkWNoVerify, (New-Label (T 'Essais :') '500,26'), $numWRetries, $chkWSlow, $chkWPrecomp, $txtWPrecomp, $chkWPostCheck,
     $lblWPrecomp1, $txtWPrecomp1, (New-Label (T 'Calibration précomp :') '12,109'), $cmbWCalMode, $btnWCalib, $btnWCalReset, $pbWCal, $lblWCal, $lblWRepair, $numWRepair))
 
 # --- Groupe 3 : options avancees (rarement utiles)
@@ -1590,8 +1824,10 @@ function Start-ImageWrite {
     } elseif ($slow) {
         $script:Chain.Clear()
         for ($i = 0; $i -lt $script:WriteQueue.Count; $i++) { $script:Chain.Enqueue({ Invoke-WriteQueueNext }) }
+        if ($script:Restore) { $script:Chain.Enqueue({ Invoke-RestoreNext }) }   # restauration sans controle complet
         Invoke-NextChainStep
     } else {
+        if ($script:Restore) { $script:Chain.Clear(); $script:Chain.Enqueue({ Invoke-RestoreNext }) }
         Start-Gw $a
     }
 }
@@ -1662,7 +1898,7 @@ function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
     if ($extras) { Append-Log ((T "Champ Pistes : éléments de lecteur conservés ({0}).") -f $extras.TrimStart(':')) }
 }
 
-function Start-PresetWrite([string]$mode) {
+function Start-PresetWrite([string]$mode, [switch]$ForceCalib) {
     # Calibration automatique si elle manque pour la famille de l image (commune en rapide, par tete en lente), puis
     # ecriture. Ecriture directe, sans calibration automatique : flux ecrit tel quel (sans --format, gw ne lui applique
     # pas la precompensation), image haute densite, secteurs durs ou lecteur 8 pouces, densite non etablie (conteneur
@@ -1691,11 +1927,12 @@ function Start-PresetWrite([string]$mode) {
     $fam = Get-ImageFamily $img
     $heads = ($mode -eq 'slow')
     $state = Get-CalibState $fam $heads
-    if ($state -eq 'ok') { Start-ImageWrite; return }
+    if ($state -eq 'ok' -and -not $ForceCalib) { Start-ImageWrite; return }
     $kind = if ($heads) { (T 'par tête') } else { (T 'commune') }
     switch ($state) {
         'content' { Append-Log ((T "La calibration {0} de la famille {1} a été mesurée sur le contenu d'une image, avant le motif de test : elle est refaite.") -f "$kind", (Get-CalibFamilyName $fam)) }
         'stale'   { Append-Log ((T "Courbes par tête de la famille {0} antérieures à la calibration commune : elles sont refaites.") -f (Get-CalibFamilyName $fam)) }
+        'ok'      { Append-Log ((T "Calibration {0} de la famille {1} refaite à la demande.") -f "$kind", (Get-CalibFamilyName $fam)) }
         default   { Append-Log ((T "Aucune calibration {0} pour la famille {1} : calibration automatique, puis écriture.") -f "$kind", (Get-CalibFamilyName $fam)) }
     }
     $script:AfterCalib = 'write'
@@ -1748,9 +1985,9 @@ $txtRTracks = New-Object System.Windows.Forms.TextBox
 $txtRTracks.Location = '415,74'; $txtRTracks.Width = 160
 
 $chkRRaw = New-Object System.Windows.Forms.CheckBox
-$chkRRaw.Text = (T '--raw (cumuler le flux entre les retries)'); $chkRRaw.Location = '90,105'; $chkRRaw.Width = 290
+$chkRRaw.Text = (T 'Flux brut (--raw)'); $chkRRaw.Location = '90,105'; $chkRRaw.Width = 290
 $chkRRev = New-Object System.Windows.Forms.CheckBox
-$chkRRev.Text = '--reverse'; $chkRRev.Location = '390,105'; $chkRRev.Width = 100
+$chkRRev.Text = (T 'Face B flippy (--reverse)'); $chkRRev.Location = '390,105'; $chkRRev.Width = 100
 
 $cmbRDensel = New-Object System.Windows.Forms.ComboBox
 $cmbRDensel.Location = '90,135'; $cmbRDensel.Width = 60; $cmbRDensel.DropDownStyle = 'DropDownList'
@@ -1775,7 +2012,15 @@ $btnRead.Add_Click({
     $a = @('read') + (Get-CommonArgs)
     $a += "--revs=$($numRevs.Value)"
     $a += "--retries=$($numRRetries.Value)"
-    if ($chkRRaw.Checked) { $a += '--raw' }
+    $outExt = [System.IO.Path]::GetExtension($txtRFile.Text.Trim().Trim('"')).ToLower()
+    $fmtSet = ($cmbRFmt.Text -and $cmbRFmt.Text -ne '(auto)')
+    $raw = $chkRRaw.Checked
+    if (@('.scp', '.raw') -contains $outExt -and $fmtSet -and -not $raw) {
+        # Sans --raw, gw enregistre un flux reconstitue a partir des secteurs decodes (read.py) : choix laisse a l utilisateur
+        Append-Log (T 'Lecture : flux avec un format, sans « Flux brut » : gw enregistre un flux reconstitué à partir des secteurs décodés ; les pistes protégées ou illisibles ne sont pas conservées telles quelles. Coche « Flux brut (--raw) » pour garder le flux réel.')
+    }
+    if (@('.adf', '.img', '.ima', '.st', '.dsk') -contains $outExt -and $raw) { $raw = $false; Append-Log (T 'Lecture : image secteur, --raw ignoré (gw le refuse pour ce type de fichier).') }
+    if ($raw) { $a += '--raw' }
     if ($chkRRev.Checked) { $a += '--reverse' }
     if ($cmbRFmt.Text -and $cmbRFmt.Text -ne '(auto)') { $a += "--format=$($cmbRFmt.Text)" }
     if ($txtRTracks.Text.Trim())      { $a += "--tracks=$($txtRTracks.Text.Trim())" }
@@ -1787,9 +2032,9 @@ $btnRead.Add_Click({
 
 $tabR.Controls.AddRange(@((New-Label (T 'Sortie :') '10,17'), $txtRFile, $btnRFile,
     (New-Label (T 'Format :') '10,47'), $cmbRFmt,
-    (New-Label (T 'Révolutions :') '10,77'), $numRevs,
-    (New-Label (T 'Retries :') '190,77'), $numRRetries,
-    (New-Label (T 'Tracks :') '355,77'), $txtRTracks,
+    (New-Label (T 'Tours :') '10,77'), $numRevs,
+    (New-Label (T 'Essais :') '190,77'), $numRRetries,
+    (New-Label (T 'Pistes :') '355,77'), $txtRTracks,
     $chkRRaw, $chkRRev,
     (New-Label (T 'Densel :') '10,138'), $cmbRDensel,
     (New-Label (T 'Diskdefs :') '165,138'), $txtRDiskdefs, $btnRDiskdefs,
@@ -1851,7 +2096,7 @@ $btnConvert.Add_Click({
 $tabCv.Controls.AddRange(@((New-Label (T 'Source :') '10,17'), $txtCvIn, $btnCvIn,
     (New-Label (T 'Destination :') '10,47'), $txtCvOut, $btnCvOut,
     (New-Label (T 'Format :') '10,78'), $cmbCvFmt,
-    (New-Label (T 'Tracks :') '355,78'), $txtCvTracks, $btnConvert))
+    (New-Label (T 'Pistes :') '355,78'), $txtCvTracks, $btnConvert))
 
 # ============================== COMPARAISON ====================================
 $tabCmp = New-TabPage (T 'Comparaison')
@@ -1897,7 +2142,7 @@ $txtCmpResult.ScrollBars = 'Vertical'; $txtCmpResult.WordWrap = $false
 $txtCmpResult.BackColor = [System.Drawing.SystemColors]::Control
 
 $tabCmp.Controls.AddRange(@((New-Label (T 'Référence :') '10,17'), $txtCmpRef, $btnCmpRef,
-    (New-Label (T 'Format :') '10,47'), $cmbCmpFmt, (New-Label (T 'Retries :') '305,47'), $numCmpRetries, $btnCmpFromWrite,
+    (New-Label (T 'Format :') '10,47'), $cmbCmpFmt, (New-Label (T 'Essais :') '305,47'), $numCmpRetries, $btnCmpFromWrite,
     $btnCompare, $txtCmpResult))
 
 # ============================== QUALITE & ALIGNEMENT ===========================
@@ -2096,10 +2341,10 @@ function New-ToolButton($text, $loc, $onClick) {
     return $b
 }
 
-$btnInfo  = New-ToolButton (T 'Info périphérique')        '15,15'  { Start-Gw @('info') }
+$btnInfo  = New-ToolButton (T 'Tester la carte (info)')   '15,15'  { $a = @('info'); if ($txtDev.Text.Trim()) { $a += "--device=$($txtDev.Text.Trim())" }; Start-Gw $a }
 $btnRpm   = New-ToolButton (T 'Mesurer la vitesse (rpm)') '15,52'  { Start-Gw (@('rpm') + (Get-CommonArgs)) }
-$btnBw    = New-ToolButton (T 'Bande passante USB')       '15,89'  { Start-Gw @('bandwidth') }
-$btnReset = New-ToolButton (T 'Reset du périphérique')    '15,126' { Start-Gw @('reset') }
+$btnBw    = New-ToolButton (T 'Débit USB (bandwidth)')    '15,89'  { Start-Gw @('bandwidth') }
+$btnReset = New-ToolButton (T 'Réinitialiser la carte (reset)') '15,126' { Start-Gw @('reset') }
 
 $btnUpdate = New-ToolButton (T 'Mise à jour firmware') '15,163' {
     $r = [System.Windows.Forms.MessageBox]::Show(
@@ -2257,7 +2502,220 @@ $btnHelpAct.Add_Click({ Start-Gw @($cmbHelpAct.Text, '--help') })
 $tabC.Controls.AddRange(@((New-Label (T 'Arguments passés à gw (sans "gw") :') '10,17'), $txtC, $btnC,
     $btnHelp, $cmbHelpAct, $btnHelpAct))
 
-$tabs.TabPages.AddRange(@($tabL,$tabW,$tabR,$tabCv,$tabCmp,$tabAl,$tabT,$tabD,$tabC))
+# ============================== ACCUEIL ========================================
+# Point d entree pour un debutant : une carte par tache courante, qui ouvre l onglet adapte ou lance l action.
+$tabH = New-TabPage (T 'Accueil')
+$tabH.AutoScroll = $true
+
+$lblHTitle = New-Object System.Windows.Forms.Label
+$lblHTitle.Text = (T 'Que veux-tu faire ?'); $lblHTitle.Location = '14,8'; $lblHTitle.AutoSize = $true
+$lblHTitle.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 13); $lblHTitle.ForeColor = $script:Theme.Accent2
+$lblHSub = New-Object System.Windows.Forms.Label
+$lblHSub.Text = (T "Choisis une tâche : l'application règle les options pour toi. F1 ouvre l'aide de l'onglet affiché.")
+$lblHSub.Location = '16,38'; $lblHSub.AutoSize = $true; $lblHSub.ForeColor = $script:Theme.Muted
+
+function Get-HomeCard($ctrl) {
+    # Carte (Panel) d un controle de la carte
+    $c = $ctrl
+    while ($c -and -not ($c -is [System.Windows.Forms.Panel] -and $c.Name -eq 'HomeCard')) { $c = $c.Parent }
+    return $c
+}
+
+function New-HomeCard([string]$glyph, [string]$title, [string]$desc, [string]$loc, [scriptblock]$action) {
+    $p = New-Object System.Windows.Forms.Panel
+    $p.Name = 'HomeCard'; $p.Location = $loc; $p.Size = '373,84'; $p.BackColor = [System.Drawing.Color]::White
+    $p.Tag = $action
+    $bar = New-Object System.Windows.Forms.Panel
+    $bar.Location = '0,0'; $bar.Size = '5,84'; $bar.BackColor = $script:Theme.Accent
+    $pic = New-Object System.Windows.Forms.PictureBox
+    $pic.Image = New-GlyphBitmap $glyph 28 $script:Theme.Accent; $pic.Location = '16,26'; $pic.Size = '32,32'; $pic.SizeMode = 'CenterImage'
+    $t = New-Object System.Windows.Forms.Label
+    $t.Text = $title; $t.Location = '58,10'; $t.Size = '306,22'
+    $t.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 10.5); $t.ForeColor = $script:Theme.Accent2
+    $d = New-Object System.Windows.Forms.Label
+    $d.Text = $desc; $d.Location = '58,34'; $d.Size = '306,44'; $d.ForeColor = $script:Theme.Muted
+    $p.Controls.AddRange(@($bar, $pic, $t, $d))
+    foreach ($c in @($p, $bar, $pic, $t, $d)) {
+        $c.Cursor = [System.Windows.Forms.Cursors]::Hand
+        $c.Add_Click({ $card = Get-HomeCard $this; if ($card -and $card.Tag) { & $card.Tag } })
+        $c.Add_MouseEnter({ $card = Get-HomeCard $this; if ($card) { $card.BackColor = [System.Drawing.Color]::FromArgb(234, 241, 251) } })
+        $c.Add_MouseLeave({
+            $card = Get-HomeCard $this
+            if ($card -and -not $card.ClientRectangle.Contains($card.PointToClient([System.Windows.Forms.Cursor]::Position))) { $card.BackColor = [System.Drawing.Color]::White }
+        })
+    }
+    $p.Add_Paint({
+        $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(205, 212, 224))
+        $_.Graphics.DrawRectangle($pen, 0, 0, $this.Width - 1, $this.Height - 1); $pen.Dispose()
+    })
+    return $p
+}
+
+$cardRestore = New-HomeCard 'History' (T 'Restaurer une disquette') (T "Copier une disquette d'origine sur une disquette vierge, avec les contrôles les plus stricts.") '14,64' { Show-Tab $tabRs }
+$cardWrite   = New-HomeCard 'Save' (T 'Écrire une image sur une disquette') (T "Choisir un fichier (ADF, IPF, SCP...) dans ta bibliothèque et l'écrire sur une disquette.") '397,64' { Show-Tab $tabL }
+$cardRead    = New-HomeCard 'Download' (T 'Sauvegarder une disquette') (T "Lire une disquette et l'enregistrer dans un fichier : SCP pour archiver, ADF pour un émulateur.") '14,156' { Show-Tab $tabR }
+$cardCheck   = New-HomeCard 'Diagnostic' (T 'Vérifier une disquette ou un lecteur') (T 'Mesurer la qualité de lecture piste par piste, ou guider le réglage de l''alignement.') '397,156' { Show-Tab $tabAl }
+$cardTest    = New-HomeCard 'Usb' (T 'Tester le Greaseweazle') (T 'Vérifier que la carte répond et afficher sa version et son port (gw info).') '14,248' {
+    $a = @('info'); if ($txtDev.Text.Trim()) { $a += "--device=$($txtDev.Text.Trim())" }
+    Start-Gw $a
+}
+$cardHelp    = New-HomeCard 'Help' (T 'Guide pas à pas') (T 'Ouvrir l''aide en ligne : premiers pas, glossaire des termes, dépannage.') '397,248' { Open-Help 'Premiers-pas' }
+$tabH.Controls.AddRange(@($lblHTitle, $lblHSub, $cardRestore, $cardWrite, $cardRead, $cardCheck, $cardTest, $cardHelp))
+
+# ============================== RESTAURATION : INTERFACE =======================
+# Assistant : lecture de l original, changement de disquette, ecriture stricte, controle et comparaison. La logique
+# (machine d etats $script:Restore) est dans la section RESTAURATION : LOGIQUE.
+$tabRs = New-TabPage (T 'Restauration')
+$tabRs.AutoScroll = $true
+$script:RsFluxItem = (T 'Copie exacte du flux (disquette protégée ou format inconnu)')
+
+$grpRsSrc = New-Group (T '1. Disquette d''origine') '10,4' '380,80'; $grpRsSrc.Anchor = 'Top,Left'
+$cmbRsSrc = New-Object System.Windows.Forms.ComboBox
+$cmbRsSrc.Location = '78,21'; $cmbRsSrc.Width = 50; $cmbRsSrc.DropDownStyle = 'DropDownList'
+[void]$cmbRsSrc.Items.AddRange(@('A','B','0','1','2'))
+$tip.SetToolTip($cmbRsSrc, (T "Lecteur qui lit la disquette d'origine (même convention que le choix Lecteur du bandeau).`nA/B = nappe PC avec twist, 0/1/2 = nappe droite (lecteur Amiga, par exemple)."))
+$cmbRsFmt = New-Object System.Windows.Forms.ComboBox
+$cmbRsFmt.Location = '196,21'; $cmbRsFmt.Width = 172; $cmbRsFmt.DropDownWidth = 360; $cmbRsFmt.DropDownStyle = 'DropDownList'
+[void]$cmbRsFmt.Items.AddRange(@($script:RsFluxItem, 'amiga.amigados', 'amiga.amigados_hd', 'atarist.720', 'atarist.800', 'atarist.880', 'ibm.360', 'ibm.720', 'ibm.1440'))
+$tip.SetToolTip($cmbRsFmt, (T "Format de la disquette d'origine.`nAvec un format (amiga.amigados pour une disquette Amiga, par exemple) : chaque secteur est lu et vérifié, la copie est écrite avec la précompensation calibrée puis comparée secteur par secteur à l'original.`nCopie exacte du flux : pour une disquette protégée contre la copie ou d'un format absent de la liste ; le signal est recopié tel quel, sans précompensation ni comparaison par secteur."))
+$lblRsSrcHint = New-Object System.Windows.Forms.Label
+$lblRsSrcHint.Text = (T 'Conseil : protège-la en écriture avant de commencer.')
+$lblRsSrcHint.Location = '12,52'; $lblRsSrcHint.Size = '360,20'; $lblRsSrcHint.ForeColor = $script:Theme.Muted
+$tip.SetToolTip($lblRsSrcHint, (T 'Disquette 3,5" : fenêtre de protection ouverte. 5,25" : encoche couverte. Ainsi, même une erreur de manipulation ne peut pas l''effacer.'))
+$grpRsSrc.Controls.AddRange(@((New-Label (T 'Lecteur :') '12,24'), $cmbRsSrc, (New-Label (T 'Format :') '138,24'), $cmbRsFmt, $lblRsSrcHint))
+
+$grpRsDst = New-Group (T '2. Disquette de destination') '10,88' '380,78'; $grpRsDst.Anchor = 'Top,Left'
+$cmbRsDst = New-Object System.Windows.Forms.ComboBox
+$cmbRsDst.Location = '78,21'; $cmbRsDst.Width = 50; $cmbRsDst.DropDownStyle = 'DropDownList'
+[void]$cmbRsDst.Items.AddRange(@('A','B','0','1','2'))
+$tip.SetToolTip($cmbRsDst, (T "Lecteur qui écrit la copie. Même lecteur que l'origine : l'application te demandera de changer de disquette entre la lecture et l'écriture."))
+$lblRsDstHint = New-Object System.Windows.Forms.Label
+$lblRsDstHint.Text = (T 'Vierge ou à sacrifier : tout son contenu sera remplacé.')
+$lblRsDstHint.Location = '12,52'; $lblRsDstHint.Size = '360,20'; $lblRsDstHint.ForeColor = $script:Theme.Muted
+$grpRsDst.Controls.AddRange(@((New-Label (T 'Lecteur :') '12,24'), $cmbRsDst, $lblRsDstHint))
+
+$grpRsDir = New-Group (T '3. Sauvegarde de l''original') '10,170' '380,82'; $grpRsDir.Anchor = 'Top,Left'
+$txtRsDir = New-Object System.Windows.Forms.TextBox
+$txtRsDir.Location = '78,21'; $txtRsDir.Width = 256
+$btnRsDir = New-Object System.Windows.Forms.Button
+$btnRsDir.Text = '...'; $btnRsDir.Location = '340,20'; $btnRsDir.Width = 30
+$btnRsDir.Add_Click({
+    $d = New-Object System.Windows.Forms.FolderBrowserDialog
+    $d.Description = (T 'Dossier où enregistrer la lecture de l''original, la relecture de la copie et le rapport')
+    if ($txtRsDir.Text -and (Test-Path -LiteralPath $txtRsDir.Text)) { $d.SelectedPath = $txtRsDir.Text }
+    if ($d.ShowDialog() -eq 'OK') { $txtRsDir.Text = $d.SelectedPath }
+})
+$txtRsName = New-Object System.Windows.Forms.TextBox
+$txtRsName.Location = '78,51'; $txtRsName.Width = 292
+$tip.SetToolTip($txtRsDir, (T "Dossier où sont enregistrés la lecture de l'original, la relecture de la copie et le rapport de restauration."))
+$tip.SetToolTip($txtRsName, (T 'Nom des fichiers enregistrés, par exemple « Workbench 1.3 ». Vide : date et heure.'))
+$grpRsDir.Controls.AddRange(@((New-Label (T 'Dossier :') '12,24'), $txtRsDir, $btnRsDir, (New-Label (T 'Nom :') '12,54'), $txtRsName))
+Set-Cue $txtRsDir (T 'Documents\Greaseweazle Studio\Restaurations')
+Set-Cue $txtRsName (T 'vide = date et heure')
+
+$btnRsStart = New-Object System.Windows.Forms.Button
+$btnRsStart.Text = (T 'RESTAURER LA DISQUETTE'); $btnRsStart.Location = '10,260'; $btnRsStart.Size = '250,40'; $btnRsStart.Font = $bold
+$btnRsStart.Add_Click({ try { Start-Restore } catch { Append-Log ((T "ERREUR restauration : {0}") -f "$($_.Exception.Message)") } })
+$lblRsRules = New-Object System.Windows.Forms.Label
+$lblRsRules.Location = '404,232'; $lblRsRules.Size = '372,100'; $lblRsRules.ForeColor = $script:Theme.Muted
+$tip.SetToolTip($btnRsStart, (T "Lit l'original, te demande de changer de disquette, puis écrit et contrôle la copie avec les règles les plus strictes.`nDurée : de quelques minutes à plus d'une demi-heure selon la calibration et l'état des disquettes."))
+
+$lblRsStepsTitle = New-Object System.Windows.Forms.Label
+$lblRsStepsTitle.Text = (T 'Étapes'); $lblRsStepsTitle.Location = '402,8'; $lblRsStepsTitle.AutoSize = $true
+$lblRsStepsTitle.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 10.5); $lblRsStepsTitle.ForeColor = $script:Theme.Accent2
+$script:RsStepNames = @((T 'Lire la disquette d''origine'), (T 'Vérifier la lecture'), (T 'Changer de disquette'),
+    (T 'Vérifier la disquette de destination'), (T 'Calibrer le lecteur, tête par tête'), (T 'Écrire la tête 0 puis la tête 1'),
+    (T 'Contrôler toutes les pistes'), (T 'Comparer la copie à l''original'))
+$script:RsStepLabels = @()
+for ($i = 0; $i -lt $script:RsStepNames.Count; $i++) {
+    $l = New-Object System.Windows.Forms.Label
+    $l.Location = New-Object System.Drawing.Point(404, (32 + 21 * $i)); $l.Size = '372,20'; $l.AutoEllipsis = $true
+    $l.ForeColor = $script:Theme.Muted; $l.Text = "○  " + $script:RsStepNames[$i]
+    $script:RsStepLabels += $l
+}
+$lblRsNow = New-Object System.Windows.Forms.Label
+$lblRsNow.Location = '404,204'; $lblRsNow.Size = '372,22'; $lblRsNow.AutoEllipsis = $true; $lblRsNow.ForeColor = $script:Theme.Accent
+
+# Attente du changement de disquette : la sequence est en pause, sans commande gw en cours
+$pnlRsWait = New-Object System.Windows.Forms.Panel
+$pnlRsWait.Location = '402,230'; $pnlRsWait.Size = '374,104'; $pnlRsWait.BackColor = [System.Drawing.Color]::FromArgb(255, 246, 220); $pnlRsWait.Visible = $false
+$lblRsWait = New-Object System.Windows.Forms.Label
+$lblRsWait.Location = '8,6'; $lblRsWait.AutoSize = $true; $lblRsWait.MaximumSize = New-Object System.Drawing.Size(358, 0); $lblRsWait.ForeColor = [System.Drawing.Color]::FromArgb(90, 60, 0)
+$btnRsGo = New-Object System.Windows.Forms.Button
+$btnRsGo.Text = (T 'Continuer'); $btnRsGo.Location = '8,68'; $btnRsGo.Size = '120,30'
+$btnRsGo.Add_Click({ try { Resume-Restore $false } catch { Append-Log ((T "ERREUR restauration : {0}") -f "$($_.Exception.Message)") } })
+$btnRsForce = New-Object System.Windows.Forms.Button
+$btnRsForce.Text = (T 'Écraser quand même'); $btnRsForce.Location = '134,68'; $btnRsForce.Size = '140,30'; $btnRsForce.Visible = $false
+$btnRsForce.Add_Click({ try { Resume-Restore $true } catch { Append-Log ((T "ERREUR restauration : {0}") -f "$($_.Exception.Message)") } })
+$btnRsCancel = New-Object System.Windows.Forms.Button
+$btnRsCancel.Text = (T 'Annuler'); $btnRsCancel.Location = '280,68'; $btnRsCancel.Size = '86,30'
+$btnRsCancel.Add_Click({ Stop-Restore (T 'annulée par l''utilisateur') })
+$pnlRsWait.Controls.AddRange(@($lblRsWait, $btnRsGo, $btnRsForce, $btnRsCancel))
+
+# Verdict final
+$lblRsResult = New-Object System.Windows.Forms.Label
+$lblRsResult.Location = '402,230'; $lblRsResult.AutoSize = $true; $lblRsResult.MaximumSize = New-Object System.Drawing.Size(374, 0); $lblRsResult.MinimumSize = New-Object System.Drawing.Size(374, 60)
+$lblRsResult.Visible = $false; $lblRsResult.Padding = New-Object System.Windows.Forms.Padding(8)
+$lblRsResult.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 9.75)
+
+$tabRs.Controls.AddRange(@($grpRsSrc, $grpRsDst, $grpRsDir, $btnRsStart, $lblRsRules, $lblRsStepsTitle) + $script:RsStepLabels + @($lblRsNow, $pnlRsWait, $lblRsResult))
+Set-Btn $btnRsStart 'History' 'primary'
+Set-Btn $btnRsDir 'FolderOpen' -IconOnly
+Set-Btn $btnRsGo 'Play' 'primary'
+Set-Btn $btnRsForce 'Delete' 'danger'
+Set-Btn $btnHelpTop 'Help'
+
+# Aide en ligne : page du wiki de chaque onglet (F1, bouton Aide)
+$tabH.Tag = 'Premiers-pas'; $tabRs.Tag = 'Restaurer-une-disquette'; $tabL.Tag = 'Autres-onglets'; $tabW.Tag = 'Écriture'
+$tabR.Tag = 'Autres-onglets'; $tabCv.Tag = 'Autres-onglets'; $tabCmp.Tag = 'Autres-onglets'; $tabAl.Tag = 'Qualité-et-alignement'
+$tabT.Tag = 'Autres-onglets'; $tabD.Tag = 'Autres-onglets'; $tabC.Tag = 'Autres-onglets'
+
+# Onglets affiches : usage courant, ou tous en mode expert
+$script:AllTabs = @($tabH, $tabRs, $tabL, $tabW, $tabR, $tabCv, $tabCmp, $tabAl, $tabT, $tabD, $tabC)
+$script:NoviceTabs = @($tabH, $tabRs, $tabL, $tabW, $tabR, $tabAl)
+function Update-TabSet {
+    $want = if ($chkExpert.Checked) { $script:AllTabs } else { $script:NoviceTabs }
+    $sel = $tabs.SelectedTab
+    $tabs.SuspendLayout()
+    $tabs.TabPages.Clear()
+    $tabs.TabPages.AddRange([System.Windows.Forms.TabPage[]]$want)
+    if ($sel -and $want -contains $sel) { $tabs.SelectedTab = $sel }
+    $tabs.ResumeLayout()
+}
+function Show-Tab($page) {
+    # Onglet technique masque (mode expert decoche) : le mode expert est active pour l afficher
+    if (-not $tabs.TabPages.Contains($page)) { $chkExpert.Checked = $true }
+    if ($tabs.TabPages.Contains($page)) { $tabs.SelectedTab = $page }
+}
+$chkExpert.Add_CheckedChanged({ Update-TabSet })
+
+# Textes indicatifs des champs vides et infobulles des champs qui n en avaient pas
+Set-Cue $txtLibRoot   (T 'Dossier qui contient tes images disque (bouton à droite pour le choisir)')
+Set-Cue $txtLibFilter (T 'Nom d''image à rechercher')
+Set-Cue $txtWFile     (T 'Image à écrire : ADF, IPF, SCP, HFE, IMG... (bouton à droite)')
+Set-Cue $txtWTracks   (T 'vide = toutes les pistes')
+Set-Cue $txtWFakeIdx  (T 'vide = lecteur normal')
+Set-Cue $txtWDiskdefs (T 'vide = formats intégrés à gw')
+Set-Cue $txtDev       (T 'auto')
+Set-Cue $txtRFile     (T 'Fichier à créer : .scp pour archiver, .adf pour un émulateur')
+Set-Cue $txtRTracks   (T 'vide = toutes')
+Set-Cue $txtRDiskdefs (T 'vide = formats intégrés à gw')
+Set-Cue $txtCvIn      (T 'Fichier à convertir')
+Set-Cue $txtCvOut     (T 'Fichier à créer (son extension fixe le type)')
+Set-Cue $txtCvTracks  (T 'vide = toutes')
+Set-Cue $txtCmpRef    (T 'Image de référence : ADF, IPF, SCP...')
+Set-Cue $txtEraseTracks (T 'vide = toutes les pistes')
+$tip.SetToolTip($txtRFile, (T "Fichier où enregistrer la disquette lue.`n.scp : flux exact, pour archiver (protections comprises).`n.adf, .img, .st : secteurs décodés, pour un émulateur (un format est alors nécessaire)."))
+$tip.SetToolTip($cmbRFmt, (T "Format de la disquette. (auto) : flux sans décodage.`nAvec un format, gw vérifie chaque secteur et relit les pistes incomplètes (Essais)."))
+$tip.SetToolTip($numRRetries, (T 'Nombre de relectures d''une piste dont des secteurs manquent (avec un format seulement).'))
+$tip.SetToolTip($txtRTracks, (T 'Pistes à lire, par exemple c=0-79:h=0-1. Vide : toutes les pistes du format.'))
+$tip.SetToolTip($chkRRaw, (T "Enregistre le flux réel du disque ; avec un format, celui-ci sert alors au contrôle des secteurs et aux relectures.`nSans cette case, un .scp lu avec un format contient un flux reconstitué à partir des secteurs décodés.`nAvec des essais, les tours relus sont ajoutés après les premiers, mais la plupart des logiciels ne lisent que les premiers tours."))
+$tip.SetToolTip($chkRRev, (T 'Face B d''une disquette flippy (5,25" retournée) : le flux est lu à l''envers.'))
+$tip.SetToolTip($cmbRDensel, (T 'Force le signal de densité du lecteur (H = haute, L = basse). (non) : laissé au lecteur.'))
+$tip.SetToolTip($txtRDiskdefs, (T 'Fichier de définitions de formats personnalisés. Vide : formats intégrés à gw.'))
+$tip.SetToolTip($btnRead, (T 'Lit la disquette insérée et enregistre le fichier.'))
+$tip.SetToolTip($btnWrite, (T 'Écrit l''image sur la disquette insérée avec les options de cet onglet. Tout le contenu de la disquette est remplacé.'))
+$tabs.TabPages.AddRange([System.Windows.Forms.TabPage[]]$script:AllTabs)   # tous attaches : Fit-ControlText les ajuste ; Update-TabSet apres la configuration
 $split.Panel1.Controls.Add($tabs)
 # Onglet Ecriture defilant (fenetre basse) : il s ouvre en haut, sur l image. Selectionne par le code (bibliotheque),
 # WinForms y place le focus sur un controle du bas et fait defiler jusqu a lui. Reprise une fois ce focus pose.
@@ -2284,11 +2742,12 @@ function New-BarButton($text, $width) {
 $btnStop = New-BarButton (T 'Arrêter') 105
 $btnStop.Enabled = $false; $btnStop.Font = $bold
 $btnStop.Add_Click({
-    if ($script:GwProc -or $script:Chain.Count -gt 0 -or $script:Rep -or $script:Cal) {
+    if ($script:GwProc -or $script:Chain.Count -gt 0 -or $script:Rep -or $script:Cal -or $script:Restore) {
         if ($script:GwProc -and -not $script:GwProc.HasExited) {
             try { $script:GwProc.Kill($true) } catch { try { $script:GwProc.Kill() } catch { } }
         }
         $script:Chain.Clear(); $script:WriteQueue.Clear()
+        if ($script:Restore) { Stop-Restore (T 'interrompue par l''utilisateur') }
         if ($script:Rep) { Stop-WriteCheck }
         if ($script:Cal) { Stop-PrecompCalib }
         Append-Log (T '*** Interrompu par l''utilisateur ***')
@@ -2299,7 +2758,7 @@ $btnStop.Add_Click({
 $btnLogToggle = New-BarButton (T 'Masquer journal') 140
 $btnLogToggle.Add_Click({ Set-LogVisible ($split.Panel2Collapsed) })
 
-$btnClear = New-BarButton (T 'Effacer') 95
+$btnClear = New-BarButton (T 'Vider') 95
 $btnClear.Add_Click({ $txtLog.Clear() })
 
 $btnSaveLog = New-BarButton (T 'Exporter') 100
@@ -2310,7 +2769,7 @@ $btnSaveLog.Add_Click({
     if ($d.ShowDialog() -eq 'OK') { $txtLog.Text | Set-Content -LiteralPath $d.FileName -Encoding UTF8 }
 })
 
-$btnCfgSave = New-BarButton (T 'Paramètres') 115
+$btnCfgSave = New-BarButton (T 'Enregistrer') 115
 $btnCfgSave.Add_Click({ if (Save-Config) { Append-Log ((T "Paramètres enregistrés : {0}") -f "$($script:ConfigFile)") } })
 
 $btnCfgReset = New-BarButton (T 'Réinitialiser') 120
@@ -2369,10 +2828,11 @@ $form.Icon = [System.Drawing.Icon]::FromHandle($script:LogoIcon.GetHicon())
 $imgTabs = New-Object System.Windows.Forms.ImageList
 $imgTabs.ColorDepth = [System.Windows.Forms.ColorDepth]::Depth32Bit
 $imgTabs.ImageSize = New-Object System.Drawing.Size(16, 16)
-foreach ($n in @('Library','Save','Download','Switch','Copy','Diagnostic','Repair','Stopwatch','Cmd')) {
+foreach ($n in @('Home','History','Library','Save','Download','Switch','Copy','Diagnostic','Repair','Stopwatch','Cmd')) {
     $imgTabs.Images.Add($n, (New-GlyphBitmap $n 16 $script:Theme.Accent))
 }
 $tabs.ImageList = $imgTabs
+$tabH.ImageKey = 'Home'; $tabRs.ImageKey = 'History'
 $tabL.ImageKey = 'Library'; $tabW.ImageKey = 'Save'; $tabR.ImageKey = 'Download'; $tabCv.ImageKey = 'Switch'
 $tabCmp.ImageKey = 'Copy'; $tabAl.ImageKey = 'Diagnostic'; $tabT.ImageKey = 'Repair'; $tabD.ImageKey = 'Stopwatch'; $tabC.ImageKey = 'Cmd'
 
@@ -2443,6 +2903,8 @@ $tip.SetToolTip($btnClear,   (T 'Effacer le contenu du journal.'))
 $tip.SetToolTip($btnSaveLog, (T 'Exporter le journal dans un fichier texte.'))
 $tip.SetToolTip($btnCfgSave, (T 'Enregistrer maintenant tous les paramètres de l''interface.'))
 $tip.SetToolTip($btnCfgReset,(T 'Remettre les paramètres de l''interface à leurs valeurs par défaut.'))
+$tip.SetToolTip($btnStop, (T 'Arrête la commande ou la séquence en cours.'))
+$tip.SetToolTip($btnLogToggle, (T 'Affiche ou masque le journal des commandes gw.'))
 
 # Barre d'etat : pictogramme d'etat
 $script:StIcons = @{
@@ -2819,6 +3281,7 @@ function Invoke-NextChainStep {
         if ($script:Cal) { Stop-PrecompCalib }
         $script:AfterCalib = ''
         if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : {0}") -f "$($_.Exception.Message)") }
+        if ($script:Restore) { Stop-Restore ((T "erreur interne : {0}") -f "$($_.Exception.Message)") }
     }
 }
 
@@ -2836,6 +3299,8 @@ function Get-SectorsPerTrack([string]$fmt) {
         'ibm.1440'          { return 18 }
         'ibm.360'           { return 9 }
         'atarist.720'       { return 9 }
+        'atarist.800'       { return 10 }
+        'atarist.880'       { return 11 }
         default             { return 0 }
     }
 }
@@ -2968,7 +3433,7 @@ function Compare-Images {
         $lines.Add("  $refPath")
         $lines.Add("  $dskPath")
         $txtCmpResult.Text = ($lines -join "`r`n")
-        $tabs.SelectedTab = $tabCmp
+        Show-Tab $tabCmp
     } catch {
         $txtCmpResult.Text = ((T "ERREUR pendant la comparaison : {0}") -f "$($_.Exception.Message)")
         Append-Log ((T "Comparaison : erreur {0}") -f "$($_.Exception.Message)")
@@ -3928,7 +4393,7 @@ function Get-CurveKeyLabel([string]$key) {
 function Reset-CalibProfiles {
     # Efface toutes les calibrations : courbes communes et par tete des deux familles ; profils de famille remis aux
     # valeurs d origine. Refuse pendant une operation (calibration, ecriture, controle, sequence en cours).
-    if (($script:GwProc -and -not $script:GwProc.HasExited) -or $script:Cal -or $script:Rep -or $script:Chain.Count -gt 0) {
+    if (($script:GwProc -and -not $script:GwProc.HasExited) -or $script:Cal -or $script:Rep -or $script:Restore -or $script:Chain.Count -gt 0) {
         [void][System.Windows.Forms.MessageBox]::Show((T 'Opération en cours : attendre la fin de la calibration ou de l''écriture.'),(T 'Effacer les calibrations'),'OK','Warning'); return
     }
     $curves = @($script:CurveKeys | Where-Object { $script:PrecompCurves[$_] })
@@ -4195,6 +4660,7 @@ function Stop-PrecompCalib {
     $lblWCal.Text = (T 'Calibration precomp interrompue.')
     Append-Log (T 'Calibration precomp interrompue.')
     if ($script:AfterCalib) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : calibration interrompue.') }
+    if ($script:Restore) { Stop-Restore (T 'calibration interrompue') }
 }
 
 function New-CalibPass {
@@ -4401,6 +4867,7 @@ function Complete-PrecompCalib {
     if (@($cal.Units | Where-Object { -not $_.Profile -or -not $_.Fit }).Count -gt 0) {
         Append-Log (T 'Calibration precomp : aucune mesure exploitable, profil inchangé.')
         if ($script:AfterCalib) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : calibration sans mesure exploitable.') }
+        if ($script:Restore) { Stop-Restore (T 'calibration sans mesure exploitable') }
         return
     }
     $famTxt = Get-CalibFamilyName $cal.Family
@@ -4469,7 +4936,9 @@ function Complete-PrecompCalib {
         # Ecriture rapide ou lente : l image est ecrite tout de suite avec le profil obtenu (courbe visible par le bouton Courbe)
         $script:AfterCalib = ''
         Append-Log (T 'Calibration terminée : écriture de l''image avec le profil obtenu.')
-        Start-ImageWrite
+        if ($script:Restore) { $script:Restore.InCall = $true }
+        try { Start-ImageWrite } finally { if ($script:Restore) { $script:Restore.InCall = $false; $script:Restore.Idle = Get-Date } }
+        if ($script:Restore -and -not ($script:GwProc -and -not $script:GwProc.HasExited) -and $script:Chain.Count -eq 0) { Stop-Restore (T 'l''écriture n''a pas démarré après la calibration, voir le journal') }
         return
     }
     Show-PrecompCurve $cal.Family $cal.Slow
@@ -4780,7 +5249,11 @@ function Start-WriteCheck {
     $rep = $script:Rep
     if (-not $rep) { return }
     Merge-RepRetries
-    if (-not $script:ScpStatsOk) { Append-Log (T 'Contrôle après écriture : module d''analyse SCP indisponible, contrôle ignoré.'); $script:Rep = $null; return }
+    if (-not $script:ScpStatsOk) {
+        Append-Log (T 'Contrôle après écriture : module d''analyse SCP indisponible, contrôle ignoré.'); $script:Rep = $null
+        if ($script:Restore) { Stop-Restore (T 'contrôle des pistes indisponible') }
+        return
+    }
     # Perimetre = pistes que gw a reellement ecrites (lignes « Writing Track » ; une piste vide effacee n en a pas),
     # limitees a l image quand ses pistes sont connues. A defaut : pistes de l image, puis 80 x 2.
     $img = Get-ImageTrackSet $rep.Image
@@ -4826,6 +5299,12 @@ function Invoke-WriteCheckAnalysis {
         else { $m = Get-TrackMetrics @(); $m.Missing = $true }
         $rep.State[$k] = $m
         if ($m.Bad -or $m.Level -ge 2) { $crit += $k } elseif ($m.Level -eq 1) { $watch += $k } else { $healthy++ }
+    }
+    if ($rep.Ignore) {
+        # Restauration d un flux : pistes deja critiques sur l original, non comptees (elles ne peuvent pas etre meilleures)
+        $ign = @(@($watch) + @($crit) | Where-Object { $rep.Ignore.ContainsKey($_) })
+        if ($ign.Count -gt 0 -and $rep.Round -eq 0) { Append-Log ((T "Contrôle : {0} piste(s) déjà critique(s) sur l'original, non comptée(s) : {1}") -f "$($ign.Count)", "$(Format-TrackList $ign)") }
+        $watch = @($watch | Where-Object { -not $rep.Ignore.ContainsKey($_) }); $crit = @($crit | Where-Object { -not $rep.Ignore.ContainsKey($_) })
     }
     $weak = Sort-TrackKeys (@($watch) + @($crit))
     $lw = if ($watch.Count -gt 0) { " : $(Format-TrackList $watch)" } else { '' }
@@ -4924,7 +5403,15 @@ function Complete-WriteCheck([switch]$GwError) {
     $lblAlHealth.Text = $txt; $lblAlHealth.BackColor = $script:AlColors[$lvl]; $lblAlHealth.ForeColor = $script:AlFg[$lvl]
     $lblWCal.Text = $txt; $lblWCal.Visible = $true
     Append-Log $txt
-    $tabs.SelectedTab = $tabAl
+    # Bilan exploitable par la restauration (accroche : le controle vide la chaine d etapes, rien ne le suit)
+    $short = if ($GwError) { (T 'contrôle interrompu par une erreur gw') } elseif ($lvl -eq 0) { (T "{0}/{0} pistes saines") -f "$n" }
+             elseif ($n -eq 0) { (T 'aucune piste mesurée') } else { (T "{0} piste(s) faible(s) : {1}") -f "$($weak.Count)", "$(Format-TrackList $weak)" }
+    $script:LastCheck = @{ Ok = ($lvl -eq 0); Level = $lvl; Text = $txt; Short = $short; Weak = $weak; Measured = $n; Rounds = $rep.Round; Rewrites = $nRew; GwError = [bool]$GwError }
+    if ($script:Restore) {
+        if ($GwError) { Stop-Restore (T 'erreur gw pendant le contrôle des pistes') } else { Invoke-RestoreNext }
+        return
+    }
+    Show-Tab $tabAl
 }
 
 function Update-RepPartial {
@@ -4954,6 +5441,595 @@ function Stop-WriteCheck([switch]$GwError) {
     $script:Rep = $null
     $lblWCal.Text = (T 'Contrôle après écriture interrompu.')
     Append-Log (T 'Contrôle après écriture interrompu.')
+    if ($script:Restore) { Stop-Restore (T 'contrôle des pistes interrompu') }
+}
+
+# ============================== RESTAURATION : LOGIQUE =========================
+# Copie d une disquette d origine sur une disquette vierge, regles d ecriture les plus strictes :
+#  1. lecture de l original : avec un format, image secteur lue par gw avec relectures physiques (--retries,
+#     --seek-retries ; un secteur manquant est rempli par gw du motif « -=[BAD SECTOR]=- ») ; sans format, flux exact ;
+#  2. verification : avec un format, tous les secteurs doivent etre lus, sinon arret avant toute ecriture (une copie
+#     fidele est impossible) ; flux : qualite piste par piste, a juger par l utilisateur au changement de disquette ;
+#  3. changement de disquette (pause, bouton Continuer) ; 4. sonde du cylindre 0 de la destination : identique a
+#     l original -> c est probablement l original, l ecriture est refusee sauf confirmation ;
+#  5-7. ecriture lente tete par tete deleguee a Start-PresetWrite : calibration par tete en test fin si elle manque,
+#     date d une image, d un autre lecteur ou n a pas converge ; pre-effacement, verification gw, essais et passes de
+#     reecriture de $script:RestoreRules, controle de toutes les pistes ;
+#  8. relecture de la copie sans nouvel essai et comparaison secteur par secteur avec l original.
+# Machine d etats $script:Restore, un seul repartiteur Invoke-RestoreNext. Calibration, ecriture et controle vident
+# la chaine d etapes : ils rappellent la restauration par des points d accroche (Complete-WriteCheck, fin de
+# Start-ImageWrite). Tout abandon passe par Stop-Restore (idempotent) ; un chien de garde dans le timer arrete une
+# sequence restee sans suite (aucun gw, aucune etape, aucun controle ni calibration en cours).
+$script:Restore = $null
+$script:GwCapture = $null
+$script:LastCheck = $null
+$script:RestoreArgs = @()
+$script:RestoreRules = @{ ReadRevs = 5; ReadRetries = 10; SeekRetries = 2; WriteRetries = 20; RepairPasses = 5; FinalRetries = 0 }
+
+function Get-RestoreDefaultDir {
+    return (Join-Path ([Environment]::GetFolderPath('MyDocuments')) ('Greaseweazle Studio\' + (T 'Restaurations')))
+}
+
+function Get-RestoreFormat {
+    # '' = copie exacte du flux
+    if ($cmbRsFmt.SelectedIndex -le 0) { return '' }
+    return [string]$cmbRsFmt.SelectedItem
+}
+
+function Get-SafeFileName([string]$s) {
+    $bad = [System.IO.Path]::GetInvalidFileNameChars()
+    $o = -join @($s.ToCharArray() | ForEach-Object { if ($bad -contains $_) { '_' } else { $_ } })
+    return $o.Trim().TrimEnd('.')
+}
+
+function Update-RsRules {
+    $r = $script:RestoreRules
+    $lblRsRules.Text = ((T "Règles appliquées à la copie : écriture tête par tête avec une calibration par tête, pré-effacement, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)")
+}
+
+function Set-RsStep([int]$i, [string]$state, [string]$detail = '') {
+    $g = @{ pending = '○'; run = '▶'; ok = '✓'; fail = '✗'; skip = '–'; warn = '!' }[$state]
+    $c = @{ pending = $script:Theme.Muted; run = $script:Theme.Accent; ok = $script:Theme.Ok; fail = $script:Theme.Danger; skip = $script:Theme.Muted; warn = $script:Theme.Warn }[$state]
+    $l = $script:RsStepLabels[$i]
+    $l.Text = "$g  " + $script:RsStepNames[$i] + $(if ($detail) { "  -  $detail" } else { '' })
+    $l.ForeColor = $c
+    $l.Font = if ($state -eq 'run') { $bold } else { $form.Font }
+    $tip.SetToolTip($l, $l.Text)
+    if ($script:Restore) {
+        $script:Restore.Steps[$i] = @{ State = $state; Detail = $detail }
+        if ($state -eq 'run') { $script:Restore.Cur = $i }
+    }
+}
+
+function Reset-RsSteps {
+    for ($i = 0; $i -lt $script:RsStepNames.Count; $i++) { Set-RsStep $i 'pending' }
+    $pnlRsWait.Visible = $false; $lblRsResult.Visible = $false; $lblRsNow.Text = ''; $lblRsRules.Visible = $true
+}
+
+function Set-RsLock([bool]$lock) {
+    # Pendant une restauration : seuls l onglet Restauration et le bouton Arreter restent utilisables
+    foreach ($p in $script:AllTabs) { if ($p -ne $tabRs) { $p.Enabled = -not $lock } }
+    foreach ($c in @($grpRsSrc, $grpRsDst, $grpRsDir, $btnRsStart, $cmbDrive, $chkExpert)) { $c.Enabled = -not $lock }
+    $btnCfgReset.Enabled = -not $lock -and -not ($script:GwProc -and -not $script:GwProc.HasExited)
+    $btnCfgSave.Enabled = $btnCfgReset.Enabled
+}
+
+function Save-WriteTabState {
+    return @{ File = $txtWFile.Text; Fmt = $cmbWFmt.Text; Slow = $chkWSlow.Checked; Pre = $chkWPreErase.Checked; Empty = $chkWEraseEmpty.Checked
+              NoVer = $chkWNoVerify.Checked; Retries = $numWRetries.Value; Precomp = $chkWPrecomp.Checked; Post = $chkWPostCheck.Checked
+              Repair = $numWRepair.Value; Tracks = $txtWTracks.Text; CalMode = $cmbWCalMode.SelectedIndex; Profile = $cmbWProfile.SelectedIndex
+              P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Drive = $cmbDrive.Text; Source = $script:PresetSource }
+}
+
+function Restore-WriteTabState($s) {
+    # Onglet Ecriture et lecteur remis tels qu avant la restauration (les calibrations obtenues restent enregistrees)
+    if (-not $s) { return }
+    $txtWFile.Text = $s.File; Set-Combo $cmbWFmt $s.Fmt; if ($cmbWFmt.Text -ne $s.Fmt) { $cmbWFmt.Text = $s.Fmt }
+    $chkWSlow.Checked = $s.Slow; $chkWPreErase.Checked = $s.Pre; $chkWEraseEmpty.Checked = $s.Empty; $chkWNoVerify.Checked = $s.NoVer
+    Set-Num $numWRetries $s.Retries; $chkWPrecomp.Checked = $s.Precomp; $chkWPostCheck.Checked = $s.Post; Set-Num $numWRepair $s.Repair
+    $txtWTracks.Text = $s.Tracks; $cmbWCalMode.SelectedIndex = $s.CalMode; $cmbWProfile.SelectedIndex = $s.Profile
+    $script:PresetSource = $s.Source
+    $cmbDrive.SelectedItem = $s.Drive
+    Update-PrecompForImage $txtWFile.Text
+    if ($cmbWProfile.Text -eq (T 'Manuel')) { $txtWPrecomp.Text = $s.P0; $txtWPrecomp1.Text = $s.P1 }
+    $chkWPrecomp.Checked = $s.Precomp                      # Set-PrecompFields la recoche
+}
+
+function Start-Restore {
+    if ($script:Restore) { return }
+    $busy = @()
+    if ($script:GwProc -and -not $script:GwProc.HasExited) { $busy += (T 'commande gw') }
+    if ($script:Cal) { $busy += (T 'calibration') }
+    if ($script:Rep) { $busy += (T 'contrôle après écriture') }
+    if ($script:Chain.Count -gt 0) { $busy += (T 'séquence d''étapes') }
+    if ($busy.Count -gt 0) {
+        Append-Log ((T "Restauration refusée : opération en cours ({0}).") -f ($busy -join ', '))
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Une opération est déjà en cours : attends sa fin ou clique « Arrêter ».'),(T 'Restauration'),'OK','Information'); return
+    }
+    if (-not (Test-Path -LiteralPath $script:GwExe)) {
+        [void][System.Windows.Forms.MessageBox]::Show(((T "gw.exe introuvable : {0}`n`nPlace ce script dans le même répertoire que gw.exe.") -f "$($script:GwExe)"),(T 'Erreur'),'OK','Error'); return
+    }
+    if (-not $script:ScpStatsOk) {
+        [void][System.Windows.Forms.MessageBox]::Show((T "Restauration impossible : le module d'analyse de flux n'a pas pu être compilé, le contrôle strict des pistes n'est donc pas disponible."),(T 'Restauration'),'OK','Warning'); return
+    }
+    if ($chkWHard.Checked -or $chkWTG43.Checked) {
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Restauration non prise en charge avec « Secteurs durs » ou « TG43 » cochés dans les options avancées de l''onglet Écriture : le contrôle des pistes est calibré pour le MFM double densité.'),(T 'Restauration'),'OK','Warning'); return
+    }
+    $fmt = Get-RestoreFormat
+    $dir = $txtRsDir.Text.Trim()
+    if (-not $dir) { $dir = Get-RestoreDefaultDir }
+    if (-not [System.IO.Path]::IsPathRooted($dir)) { $dir = Join-Path $script:AppDir $dir }
+    try { $dir = [System.IO.Path]::GetFullPath($dir) } catch { }
+    try { New-Item -ItemType Directory -Force -Path $dir -ErrorAction Stop | Out-Null }
+    catch { [void][System.Windows.Forms.MessageBox]::Show(((T "Dossier de sauvegarde inaccessible : {0}") -f "$($_.Exception.Message)"),(T 'Restauration'),'OK','Warning'); return }
+    $name = Get-SafeFileName $txtRsName.Text
+    if (-not $name) { $name = (T 'disquette') + ' ' + (Get-Date -Format "yyyy-MM-dd HH'h'mm") }
+    $ext = if ($fmt) { Get-DecodedExt $fmt } else { '.scp' }
+    # Jamais d ecrasement : suffixe (2), (3)... si une restauration du meme nom existe deja
+    $stem = Join-Path $dir $name; $k = 1
+    while (Test-Path -LiteralPath ($stem + ' - ' + (T 'original') + $ext)) { $k++; $stem = (Join-Path $dir $name) + " ($k)" }
+    $src = [string]$cmbRsSrc.SelectedItem; $dst = [string]$cmbRsDst.SelectedItem
+    $same = ($src -eq $dst)
+    $modeTxt = if ($fmt) { (T "secteur par secteur, format {0}") -f "$fmt" } else { (T 'copie exacte du flux, sans précompensation ni comparaison par secteur') }
+    $swap = if ($same) { (T "Le lecteur {0} lit l'original, puis tu changes de disquette quand l'application te le demande.") -f "$src" }
+            else { (T "Le lecteur {0} lit l'original et le lecteur {1} écrit la copie.") -f "$src", "$dst" }
+    $msg = ((T "Restauration ({0}).`n`n{1}`n`n1. Insère maintenant la disquette d'ORIGINE dans le lecteur {2}, de préférence protégée en écriture.`n2. Sa lecture est enregistrée dans :`n   {3}`n3. La disquette de destination sera entièrement effacée puis écrite.`n`nCommencer la lecture ?") -f "$modeTxt", "$swap", "$src", "$dir")
+    if ([System.Windows.Forms.MessageBox]::Show($msg, (T 'Restauration'), 'OKCancel', 'Information') -ne 'OK') { return }
+    $txtRsDir.Text = $dir
+    $script:Restore = @{
+        Mode = $(if ($fmt) { 'sector' } else { 'flux' }); Fmt = $fmt; Ext = $ext; Src = $src; Dst = $dst; Same = $same; Name = $name
+        Orig = ($stem + ' - ' + (T 'original') + $ext); Back = ($stem + ' - ' + (T 'copie relue') + $ext); Report = ($stem + ' - ' + (T 'rapport') + '.txt')
+        Probe = (Join-Path $script:TempDir ("restore-probe-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + $ext))
+        Stage = 'read'; Waiting = $false; Override = $false; InCall = $false; Idle = (Get-Date); Start = (Get-Date); Cur = 0
+        Steps = @{}; Saved = (Save-WriteTabState); Read = $null; Cmp = $null; Calib = ''; HD = ''
+        Extras = (Get-TSpecExtras $txtWTracks.Text)       # step, hswap, h0.off, h1.off : geometrie du lecteur
+    }
+    $script:LastCheck = $null
+    Reset-RsSteps; Set-RsLock $true
+    if (-not (Test-Path -LiteralPath $script:TempDir)) { New-Item -ItemType Directory -Force -Path $script:TempDir | Out-Null }
+    Append-Log ''
+    Append-Log ((T "=== RESTAURATION : {0} ({1}) ===") -f "$name", "$modeTxt")
+    Append-Log ((T "Original : lecteur {0} -> {1}") -f "$src", "$($script:Restore.Orig)")
+    Append-Log ((T "Copie    : lecteur {0}") -f "$dst")
+    $cmbDrive.SelectedItem = $src
+    Invoke-RestoreRead
+}
+
+function Invoke-RestoreRead {
+    $r = $script:Restore
+    Set-RsStep 0 'run'
+    $a = @('read') + (Get-CommonArgs) + @(Get-DriveReadArgs)
+    if ($r.Mode -eq 'sector') {
+        $a += @("--format=$($r.Fmt)", "--revs=$($script:RestoreRules.ReadRevs)", "--retries=$($script:RestoreRules.ReadRetries)", "--seek-retries=$($script:RestoreRules.SeekRetries)")
+    } else {
+        $a += "--revs=$($script:RestoreRules.ReadRevs)"
+    }
+    if ($r.Extras) { $a += "--tracks=$($r.Extras.TrimStart(':'))" }
+    $a += "`"$($r.Orig)`""
+    $script:RestoreArgs = $a
+    $script:GwCapture = New-Object System.Collections.Generic.List[string]
+    $script:Chain.Clear()
+    $script:Chain.Enqueue({ Start-Gw $script:RestoreArgs })
+    $script:Chain.Enqueue({ Invoke-RestoreNext })
+    Invoke-NextChainStep
+}
+
+function Invoke-RestoreNext {
+    $r = $script:Restore
+    if (-not $r) { return }
+    $r.Idle = Get-Date
+    switch ($r.Stage) {
+        'read'    { Complete-RestoreRead }
+        'probe'   { Complete-RestoreProbe }
+        'write'   { Start-RestoreCompare }
+        'compare' { Complete-RestoreCompare }
+    }
+}
+
+function Get-GwSectorSummary($lines) {
+    # Bilan d une lecture gw avec format : « T0.0: AmigaDOS (11/11 sectors) from ... » (derniere ligne de la piste),
+    # « T0.0: Giving up: 2 sectors missing », « Found 1758 sectors of 1760 (99%) »
+    $tracks = @{}; $gaveUp = @{}; $found = -1; $total = -1
+    foreach ($l in @($lines)) {
+        if ($l -match '^T(\d+)\.(\d+)\b[^:]*: Giving up: (\d+) sectors? missing') { $gaveUp["$($Matches[1]).$($Matches[2])"] = [int]$Matches[3] }
+        elseif ($l -match '^T(\d+)\.(\d+)\b[^:]*: .*\((\d+)/(\d+) sectors\)') { $tracks["$($Matches[1]).$($Matches[2])"] = @([int]$Matches[3], [int]$Matches[4]) }
+        elseif ($l -match '^Found (\d+) sectors of (\d+)') { $found = [int]$Matches[1]; $total = [int]$Matches[2] }
+    }
+    return @{ Tracks = $tracks; GaveUp = $gaveUp; Found = $found; Total = $total }
+}
+
+function Get-BadSectorBlocks([string]$path) {
+    # Blocs de 512 octets remplis par gw du motif « -=[BAD SECTOR]=- » (secteur manquant a la lecture)
+    $b = [System.IO.File]::ReadAllBytes($path)
+    $pat = [System.Text.Encoding]::ASCII.GetBytes('-=[BAD SECTOR]=-')
+    $list = New-Object System.Collections.Generic.List[int]
+    for ($s = 0; $s + 512 -le $b.Length; $s += 512) {
+        $same = $true
+        for ($i = 0; $i -lt 512; $i++) { if ($b[$s + $i] -ne $pat[$i % 16]) { $same = $false; break } }
+        if ($same) { $list.Add([int]($s / 512)) }
+    }
+    return ,$list.ToArray()
+}
+
+function Get-BlockTracks([int[]]$blocks, [string]$fmt) {
+    # Pistes « cyl.tete » des blocs (image double face entrelacee, secteurs par piste du format)
+    $spt = Get-SectorsPerTrack $fmt
+    $set = @{}
+    if ($spt -le 0) { return @() }
+    foreach ($b in $blocks) { $t = [math]::Floor($b / $spt); $set["$([math]::Floor($t / 2)).$($t % 2)"] = $true }
+    return (Sort-TrackKeys @($set.Keys))         # elements emis un par un : @() chez l appelant reste plat
+}
+
+function Complete-RestoreRead {
+    $r = $script:Restore
+    $lines = @(); if ($script:GwCapture) { $lines = @($script:GwCapture) }
+    $script:GwCapture = $null
+    if (-not (Test-Path -LiteralPath $r.Orig) -or (Get-Item -LiteralPath $r.Orig).Length -eq 0) {
+        Fail-Restore 0 (T 'la lecture n''a produit aucun fichier (disquette absente ou lecteur incorrect ?)'); return
+    }
+    Set-RsStep 0 'ok' (Split-Path -Leaf $r.Orig)
+    Set-RsStep 1 'run'
+    if ($r.Mode -eq 'sector') {
+        $sum = Get-GwSectorSummary $lines
+        $bad = Get-BadSectorBlocks $r.Orig
+        $miss = @($sum.GaveUp.Keys) + @(Get-BlockTracks $bad $r.Fmt)
+        $miss = Sort-TrackKeys @($miss | Select-Object -Unique)
+        $r.Read = @{ Found = $sum.Found; Total = $sum.Total; Bad = $bad.Count; Tracks = $miss }
+        if ($sum.Total -le 0) { Fail-Restore 1 (T 'gw n''a imprimé aucun bilan de secteurs : format incorrect, ou disquette illisible ?'); return }
+        $nMiss = [math]::Max($bad.Count, $sum.Total - $sum.Found)
+        if ($nMiss -gt 0) {
+            Fail-Restore 1 ((T "{0} secteur(s) illisible(s) sur l'original (pistes {1}) : une copie fidèle est impossible. Nettoie les têtes du lecteur et relance, ou choisis « Copie exacte du flux » si la disquette est protégée contre la copie.") -f "$nMiss", "$(Format-TrackList $miss)")
+            return
+        }
+        Set-RsStep 1 'ok' ((T "{0}/{1} secteurs lus") -f "$($sum.Found)", "$($sum.Total)")
+        Append-Log ((T "Restauration : original lu en entier, {0}/{1} secteurs.") -f "$($sum.Found)", "$($sum.Total)")
+    } else {
+        # Flux : qualite piste par piste (MFM double densite) ; la decision revient a l utilisateur au changement de disquette
+        if (Test-ScpHighDensity $r.Orig) {
+            # Copie de flux HD : ni precompensation, ni verification gw, ni controle des pistes -> rien ne serait verifie
+            Fail-Restore 1 (T 'flux haute densité : une copie de flux ne pourrait pas être contrôlée. Choisis un format haute densité (amiga.amigados_hd, ibm.1440) pour une copie vérifiée secteur par secteur.'); return
+        } else {
+            try { $t = Read-ScpFile $r.Orig } catch { Fail-Restore 1 ((T "flux illisible : {0}") -f "$($_.Exception.Message)"); return }
+            $n = 0; $sane = 0; $watch = 0; $crit = 0; $critKeys = @{}
+            foreach ($tn in @($t.Keys)) {
+                $m = Get-TrackMetrics $t[$tn]; $n++
+                if ($m.Bad -or $m.Level -ge 2) { $crit++; $critKeys["$([math]::Floor([int]$tn / 2)).$([int]$tn % 2)"] = $true } elseif ($m.Level -ge 1) { $watch++ } else { $sane++ }
+            }
+            if ($n -eq 0) { Fail-Restore 1 (T 'aucune piste dans le flux lu.'); return }
+            if ($sane -eq 0 -or $crit * 2 -gt $n) {
+                Fail-Restore 1 ((T "lecture sans données exploitables : {0} piste(s) critique(s) sur {1}. Disquette vierge, lecteurs inversés ou têtes sales ?") -f "$crit", "$n"); return
+            }
+            # Pistes deja critiques sur l original (cylindres non formates, protection) : ni reecrites ni comptees au controle
+            $r.Read = @{ Tracks = $n; Sane = $sane; Watch = $watch; Crit = $crit; CritKeys = $critKeys }
+            $txt = (T "{0} pistes : {1} saines, {2} à surveiller, {3} critiques") -f "$n", "$sane", "$watch", "$crit"
+            Set-RsStep 1 $(if ($crit -gt 0) { 'warn' } else { 'ok' }) $txt
+            Append-Log ((T "Restauration : flux de l'original, {0}.") -f "$txt")
+        }
+    }
+    Enter-RestoreWait ''
+}
+
+function Enter-RestoreWait([string]$extra) {
+    $r = $script:Restore
+    $r.Stage = 'wait'; $r.Waiting = $true
+    $cmbDrive.SelectedItem = $r.Dst
+    Set-RsStep 2 'run'
+    $msg = if ($r.Same) { (T "Retire l'ORIGINAL du lecteur {0} et range-le. Insère la disquette de DESTINATION : tout son contenu sera remplacé.") -f "$($r.Dst)" }
+           else { (T "Vérifie que la disquette de DESTINATION est dans le lecteur {0} : tout son contenu sera remplacé.") -f "$($r.Dst)" }
+    if ($extra) { $msg = $extra + "`n" + $msg }
+    if ($r.Mode -eq 'flux' -and $r.Read -and $r.Read.Crit -gt 0) { $msg = ((T "{0} piste(s) critique(s) dans la lecture : normal pour une protection, sinon nettoie le lecteur et relance.") -f "$($r.Read.Crit)") + "`n" + $msg }
+    $lblRsWait.Text = $msg + ' ' + (T 'Puis clique « Continuer ».')
+    $btnRsForce.Visible = [bool]$r.Override
+    # Boutons sous le texte (hauteur variable) ; « Ecraser quand meme » seul sur une seconde ligne
+    $y = $lblRsWait.Bottom + 8
+    $btnRsGo.Location = New-Object System.Drawing.Point(8, $y)
+    $btnRsCancel.Location = New-Object System.Drawing.Point(($btnRsGo.Right + 8), $y)
+    $bottom = $btnRsGo.Bottom
+    if ($r.Override) { $btnRsForce.Location = New-Object System.Drawing.Point(8, ($btnRsGo.Bottom + 8)); $bottom = $btnRsForce.Bottom }
+    $pnlRsWait.Height = $bottom + 8
+    $pnlRsWait.Visible = $true; $pnlRsWait.BringToFront(); $lblRsRules.Visible = $false
+    $lblRsNow.Text = ''
+    Show-Tab $tabRs
+    $tabRs.ScrollControlIntoView($pnlRsWait)                 # fenetre basse : l encadre et son bouton Continuer restent visibles
+    $stOp.Text = (T 'Restauration : change de disquette, puis clique « Continuer » dans l''onglet Restauration.')
+    Append-Log ((T "Restauration : en attente de la disquette de destination dans le lecteur {0}.") -f "$($r.Dst)")
+    try { [System.Media.SystemSounds]::Exclamation.Play() } catch { }
+}
+
+function Resume-Restore([bool]$force) {
+    $r = $script:Restore
+    if (-not $r -or -not $r.Waiting) { return }
+    if ($script:GwProc -and -not $script:GwProc.HasExited) {
+        [void][System.Windows.Forms.MessageBox]::Show((T 'Une commande gw est encore en cours : attends sa fin.'),(T 'Restauration'),'OK','Information'); return
+    }
+    if ($r.Mode -eq 'flux' -and $r.Same) {
+        # Copie de flux : aucune sonde possible, confirmation explicite que l original a ete retire
+        $q = [System.Windows.Forms.MessageBox]::Show((T "Copie de flux : l'application ne peut pas vérifier que la disquette insérée n'est pas l'original.`n`nAs-tu bien retiré l'ORIGINAL et inséré la disquette de DESTINATION ?"), (T 'Restauration'), 'YesNo', 'Warning', 'Button2')
+        if ($q -ne 'Yes') { return }
+    }
+    $r.Waiting = $false; $pnlRsWait.Visible = $false; $r.Idle = Get-Date; $r.Override = $false
+    Set-RsStep 2 'ok'
+    if ($r.Mode -eq 'sector' -and -not $force) { Start-RestoreProbe; return }
+    if ($r.Mode -eq 'sector') { Set-RsStep 3 'warn' (T 'contrôle ignoré à ta demande') }
+    else { Set-RsStep 3 'skip' (T 'non applicable à une copie de flux') }
+    Start-RestoreWrite
+}
+
+function Start-RestoreProbe {
+    # Lecture du seul cylindre 0 de la disquette inseree, sans nouvel essai : identique a l original -> c est l original
+    $r = $script:Restore
+    $r.Stage = 'probe'
+    Set-RsStep 3 'run'
+    Remove-Item -LiteralPath $r.Probe -ErrorAction SilentlyContinue
+    $script:RestoreArgs = @('read') + (Get-CommonArgs) + @(Get-DriveReadArgs) + @("--format=$($r.Fmt)", "--tracks=c=0:h=0-1$($r.Extras)", '--revs=3', '--retries=2', "`"$($r.Probe)`"")
+    $script:Chain.Clear()
+    $script:Chain.Enqueue({ Start-Gw $script:RestoreArgs })
+    $script:Chain.Enqueue({ Invoke-RestoreNext })
+    Invoke-NextChainStep
+}
+
+function Restore-ProbeFailed {
+    # Sonde sans resultat (pas de disquette, pas d index) : retour a l attente plutot qu un abandon
+    $r = $script:Restore
+    $script:Chain.Clear()
+    $r.Override = $false
+    Set-RsStep 3 'pending'
+    Enter-RestoreWait (T 'Aucune disquette lisible n''a été détectée dans le lecteur de destination.')
+}
+
+function Complete-RestoreProbe {
+    $r = $script:Restore
+    if (-not (Test-Path -LiteralPath $r.Probe)) { Restore-ProbeFailed; return }
+    # Cylindre 0, secteur par secteur : un secteur non relu par la sonde (motif BAD SECTOR de gw) ne compte pas ;
+    # au moins un secteur lu et tous les secteurs lus identiques a l original -> c est l original (meme abime)
+    $a = [System.IO.File]::ReadAllBytes($r.Orig); $p = [System.IO.File]::ReadAllBytes($r.Probe)
+    $spt = Get-SectorsPerTrack $r.Fmt
+    $n = if ($spt -gt 0) { 2 * $spt * 512 } else { 1024 }
+    $n = [math]::Min($n, [math]::Min($a.Length, $p.Length))
+    $pat = [System.Text.Encoding]::ASCII.GetBytes('-=[BAD SECTOR]=-')
+    $readable = 0; $differ = 0
+    for ($s = 0; $s + 512 -le $n; $s += 512) {
+        $isBad = $true
+        for ($i = 0; $i -lt 512; $i++) { if ($p[$s + $i] -ne $pat[$i % 16]) { $isBad = $false; break } }
+        if ($isBad) { continue }
+        $readable++
+        for ($i = 0; $i -lt 512; $i++) { if ($a[$s + $i] -ne $p[$s + $i]) { $differ++; break } }
+    }
+    $same = ($readable -gt 0 -and $differ -eq 0)
+    if ($same) {
+        Set-RsStep 3 'fail' (T 'la disquette insérée semble être l''original')
+        Append-Log (T 'Restauration : la disquette de destination contient les mêmes données que l''original sur le cylindre 0. Écriture refusée.')
+        $r.Override = $true
+        Enter-RestoreWait (T "ATTENTION : la disquette insérée a le même contenu que l'original sur le cylindre 0, c'est probablement l'ORIGINAL. Change de disquette. S'il s'agit bien d'une copie à remplacer, clique « Écraser quand même ».")
+        return
+    }
+    Set-RsStep 3 'ok' (T 'ce n''est pas l''original')
+    Start-RestoreWrite
+}
+
+function Get-RestoreCalibReason([string]$fam) {
+    # Raison de recalibrer avant l ecriture stricte ; '' si les courbes par tete sont utilisables telles quelles
+    switch (Get-CalibState $fam $true) {
+        'none'    { return (T 'aucune calibration par tête') }
+        'content' { return (T 'calibration mesurée sur le contenu d''une image') }
+        'stale'   { return (T 'courbes par tête antérieures à la calibration commune') }
+    }
+    foreach ($h in 0, 1) {
+        $cv = $script:PrecompCurves["${fam}_h$h"]
+        if ($cv.Drive -and [string]$cv.Drive -ne $script:Restore.Dst) { return ((T "courbes mesurées sur le lecteur {0}") -f "$($cv.Drive)") }
+        if ($cv.Converged -eq $false) { return (T 'calibration précédente non convergée') }
+    }
+    return ''
+}
+
+function Start-RestoreWrite {
+    $r = $script:Restore
+    $r.Stage = 'write'; $r.Idle = Get-Date
+    $script:LastCheck = $null
+    $r.InCall = $true
+    try {
+        # Regles strictes dans l onglet Ecriture (etat d origine remis en fin de restauration)
+        Set-WritePreset 'slow' $r.Orig ("restore|" + $r.Orig)
+        if ($r.Mode -eq 'sector') { Set-Combo $cmbWFmt $r.Fmt }
+        Set-Num $numWRetries $script:RestoreRules.WriteRetries
+        Set-Num $numWRepair $script:RestoreRules.RepairPasses
+        $chkWNoVerify.Checked = $false; $chkWPostCheck.Checked = $true; $chkWPrecomp.Checked = $true
+        $cmbWCalMode.SelectedIndex = 1
+        Update-PrecompForImage $r.Orig
+        $force = $false
+        if ($r.Mode -eq 'sector') {
+            $r.HD = [string](Get-HighDensityReason $r.Orig $r.Fmt)
+            if (-not $r.HD) {
+                $why = Get-RestoreCalibReason (Get-ImageFamily $r.Orig)
+                if ($why) { $force = $true; $r.Calib = $why; Append-Log ((T "Restauration : calibration par tête en test fin ({0}).") -f "$why") }
+            }
+        }
+        Append-Log ((T "Restauration : écriture tête par tête, {0} essais par piste, contrôle de toutes les pistes ({1} passes au plus).") -f "$($script:RestoreRules.WriteRetries)", "$($script:RestoreRules.RepairPasses)")
+        Start-PresetWrite 'slow' -ForceCalib:$force
+        if ($r.Mode -eq 'flux' -and $script:Rep -and $r.Read -and $r.Read.CritKeys -and $r.Read.CritKeys.Count -gt 0) { $script:Rep.Ignore = $r.Read.CritKeys }
+    } finally { $r.InCall = $false; $r.Idle = Get-Date }
+    if (-not $script:Restore) { return }
+    if ($script:Cal) { Set-RsStep 4 'run' }
+    elseif ($script:GwProc -and -not $script:GwProc.HasExited) {
+        if ($r.Mode -ne 'sector') { Set-RsStep 4 'skip' (T 'non applicable à une copie de flux') }
+        elseif ($r.HD) { Set-RsStep 4 'skip' ((T "non applicable : {0}") -f "$($r.HD)") }
+        else { Set-RsStep 4 'ok' (T 'calibration existante, à jour') }
+        Set-RsStep 5 'run'
+    } else {
+        Fail-Restore 4 (T 'l''écriture n''a pas démarré (calibration refusée ou annulée ? voir le journal)')
+    }
+}
+
+function Set-RsCalibDone {
+    # Calibration terminee pendant la restauration : convergence des deux courbes par tete
+    $r = $script:Restore
+    $fam = Get-ImageFamily $r.Orig
+    $nc = @(@(0, 1) | Where-Object { $cv = $script:PrecompCurves["${fam}_h$_"]; $cv -and $cv.Converged -eq $false })
+    if ($nc.Count -gt 0) { Set-RsStep 4 'warn' (T 'faite, non convergée sur une tête : voir le journal') }
+    else { Set-RsStep 4 'ok' $(if ($r.Calib) { (T "refaite ({0})") -f "$($r.Calib)" } else { '' }) }
+}
+
+function Update-RestoreProgress {
+    # Appele par le timer : etape en cours pendant l ecriture deleguee, ligne d avancement, chien de garde
+    $r = $script:Restore
+    if (-not $r) { return }
+    $busy = (($script:GwProc -and -not $script:GwProc.HasExited) -or $script:Chain.Count -gt 0 -or $script:Rep -or $script:Cal -or $r.Waiting -or $r.InCall)
+    if ($busy) { $r.Idle = Get-Date }
+    elseif (((Get-Date) - $r.Idle).TotalSeconds -gt 5) { Stop-Restore (T 'séquence arrêtée sans suite, voir le journal'); return }
+    if ($r.Stage -eq 'write') {
+        if ($script:Cal) {
+            if ($r.Cur -ne 4) { Set-RsStep 4 'run' }
+        } elseif ($script:Rep -and $null -ne $script:Rep.Scope) {
+            if ($r.Cur -lt 6) {
+                if ($r.Steps.ContainsKey(4) -and $r.Steps[4].State -eq 'run') { Set-RsCalibDone }
+                Set-RsStep 5 'ok'; Set-RsStep 6 'run'
+            }
+        } elseif ($script:GwProc -and $r.Cur -lt 5) {
+            if ($r.Steps.ContainsKey(4) -and $r.Steps[4].State -eq 'run') { Set-RsCalibDone }
+            Set-RsStep 5 'run'
+        }
+    }
+    $now = if ($script:Cal) { $lblWCal.Text } elseif ($script:GwProc) { ($stOp.Text + '   ' + $stTrack.Text).Trim() } else { '' }
+    if ($lblRsNow.Text -ne $now) { $lblRsNow.Text = $now }
+}
+
+function Start-RestoreCompare {
+    # Ecriture et controle termines (accroches) : bilan, puis relecture de la copie sans nouvel essai
+    $r = $script:Restore
+    $chk = $script:LastCheck
+    if ($r.Steps.ContainsKey(4) -and $r.Steps[4].State -eq 'run') { Set-RsCalibDone }
+    Set-RsStep 5 'ok'
+    if ($chk) { Set-RsStep 6 $(if ($chk.Ok) { 'ok' } else { 'fail' }) $chk.Short }
+    else { Set-RsStep 6 'skip' (T 'non applicable à ce format') }
+    if ($r.Mode -ne 'sector') { Set-RsStep 7 'skip' (T 'non applicable à une copie de flux'); Finish-Restore; return }
+    $r.Stage = 'compare'
+    Set-RsStep 7 'run'
+    Remove-Item -LiteralPath $r.Back -ErrorAction SilentlyContinue
+    $script:RestoreArgs = @('read') + (Get-CommonArgs) + @(Get-DriveReadArgs) + @("--format=$($r.Fmt)", "--retries=$($script:RestoreRules.FinalRetries)")
+    if ($r.Extras) { $script:RestoreArgs += "--tracks=$($r.Extras.TrimStart(':'))" }
+    $script:RestoreArgs += "`"$($r.Back)`""
+    $script:GwCapture = New-Object System.Collections.Generic.List[string]
+    $script:Chain.Clear()
+    $script:Chain.Enqueue({ Start-Gw $script:RestoreArgs })
+    $script:Chain.Enqueue({ Invoke-RestoreNext })
+    Invoke-NextChainStep
+}
+
+function Complete-RestoreCompare {
+    $r = $script:Restore
+    $script:GwCapture = $null
+    if (-not (Test-Path -LiteralPath $r.Back)) {
+        $r.Cmp = @{ Ok = $false; Text = (T 'relecture de la copie impossible') }
+        Set-RsStep 7 'fail' $r.Cmp.Text; Finish-Restore; return
+    }
+    $a = [System.IO.File]::ReadAllBytes($r.Orig); $b = [System.IO.File]::ReadAllBytes($r.Back)
+    if ($script:FastCompare) { $diff = @([GwCompare]::DiffSectors($a, $b, 512)) }
+    else {
+        $set = New-Object System.Collections.Generic.HashSet[int]
+        $n = [Math]::Max($a.Length, $b.Length)
+        for ($i = 0; $i -lt $n; $i++) { if ($i -ge $a.Length -or $i -ge $b.Length -or $a[$i] -ne $b[$i]) { [void]$set.Add([int][Math]::Floor($i / 512)) } }
+        $diff = @($set | Sort-Object)
+    }
+    $unread = Get-BadSectorBlocks $r.Back
+    $total = [int][math]::Ceiling([math]::Max($a.Length, $b.Length) / 512)
+    if ($diff.Count -eq 0) {
+        $r.Cmp = @{ Ok = $true; Text = ((T "identique, {0} secteurs") -f "$total") }
+        Set-RsStep 7 'ok' $r.Cmp.Text
+        Append-Log ((T "Restauration : copie IDENTIQUE à l'original, {0} secteurs relus du premier coup.") -f "$total")
+    } else {
+        $trk = Get-BlockTracks ([int[]]$diff) $r.Fmt
+        $r.Cmp = @{ Ok = $false; Text = ((T "{0} secteur(s) différent(s) sur {1}, dont {2} non relu(s) du premier coup ; pistes {3}") -f "$($diff.Count)", "$total", "$($unread.Count)", "$(Format-TrackList $trk)") }
+        Set-RsStep 7 'fail' ((T "{0} secteur(s) différent(s)") -f "$($diff.Count)")
+        Append-Log ((T "Restauration : copie DIFFÉRENTE de l'original : {0}.") -f "$($r.Cmp.Text)")
+    }
+    Finish-Restore
+}
+
+function Write-RestoreReport([bool]$ok, [string]$verdict) {
+    $r = $script:Restore
+    $L = New-Object System.Collections.Generic.List[string]
+    $L.Add(((T "Greaseweazle Studio v{0} - rapport de restauration") -f "$($script:Version)"))
+    $L.Add(((T "Date        : {0}, durée {1} min") -f (Get-Date -Format 'dd/MM/yyyy HH:mm'), "$([math]::Round(((Get-Date) - $r.Start).TotalMinutes, 1))"))
+    $L.Add(((T "Disquette   : {0}") -f "$($r.Name)"))
+    $L.Add(((T "Mode        : {0}") -f $(if ($r.Mode -eq 'sector') { (T "secteur par secteur, format {0}") -f "$($r.Fmt)" } else { (T 'copie exacte du flux') })))
+    $L.Add(((T "Lecteurs    : origine {0}, destination {1}") -f "$($r.Src)", "$($r.Dst)"))
+    $L.Add(((T "Original lu : {0}") -f "$($r.Orig)"))
+    if ($r.Mode -eq 'sector') { $L.Add(((T "Copie relue : {0}") -f "$($r.Back)")) }
+    $rr = $script:RestoreRules
+    $L.Add(((T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête, calibration par tête en test fin si besoin, pré-effacement, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)"))
+    $L.Add('')
+    $L.Add((T 'Étapes :'))
+    $marks = @{ pending = '[ ]'; run = '[>]'; ok = '[OK]'; fail = '[ECHEC]'; skip = '[-]'; warn = '[!]' }
+    for ($i = 0; $i -lt $script:RsStepNames.Count; $i++) {
+        $s = if ($r.Steps.ContainsKey($i)) { $r.Steps[$i] } else { @{ State = 'pending'; Detail = '' } }
+        $L.Add(("  {0,-7} {1}{2}" -f $marks[$s.State], $script:RsStepNames[$i], $(if ($s.Detail) { ' : ' + $s.Detail } else { '' })))
+    }
+    if ($script:LastCheck) { $L.Add(''); $L.Add($script:LastCheck.Text) }
+    $L.Add('')
+    $L.Add(((T "Verdict     : {0}") -f "$verdict"))
+    try { [System.IO.File]::WriteAllLines($r.Report, $L, (New-Object System.Text.UTF8Encoding($true))); Append-Log ((T "Rapport     : {0}") -f "$($r.Report)") }
+    catch { Append-Log ((T "Rapport non enregistré : {0}") -f "$($_.Exception.Message)") }
+}
+
+function Show-RestoreResult([bool]$ok, [string]$text) {
+    $lblRsResult.Text = $text
+    $lblRsResult.BackColor = if ($ok) { [System.Drawing.Color]::FromArgb(222, 244, 228) } else { [System.Drawing.Color]::FromArgb(252, 226, 224) }
+    $lblRsResult.ForeColor = if ($ok) { [System.Drawing.Color]::FromArgb(20, 90, 45) } else { [System.Drawing.Color]::FromArgb(140, 30, 25) }
+    $pnlRsWait.Visible = $false; $lblRsNow.Text = ''
+    $lblRsResult.Visible = $true; $lblRsResult.BringToFront(); $lblRsRules.Visible = $false
+    $tabRs.ScrollControlIntoView($lblRsResult)
+}
+
+function Finish-Restore {
+    $r = $script:Restore
+    if (-not $r) { return }
+    $chk = $script:LastCheck
+    $reasons = @()
+    if ($chk -and -not $chk.Ok) { $reasons += $chk.Short }
+    if ($r.Mode -eq 'sector' -and -not ($r.Cmp -and $r.Cmp.Ok)) { $reasons += $(if ($r.Cmp) { $r.Cmp.Text } else { (T 'comparaison non faite') }) }
+    $ok = ($reasons.Count -eq 0)
+    if ($ok) {
+        $verdict = (T 'RESTAURATION RÉUSSIE')
+        $detail = if ($r.Mode -eq 'sector' -and -not $chk) { (T 'La copie a été écrite tête par tête et elle est identique à l''original, secteur par secteur. Le contrôle des pistes ne s''applique pas à ce format (haute densité).') }
+                  elseif ($r.Mode -eq 'sector') { (T 'La copie a été écrite tête par tête, toutes ses pistes sont saines et elle est identique à l''original, secteur par secteur.') }
+                  else { (T 'Le flux a été recopié et toutes les pistes de la copie sont saines. Sans format, la copie n''est pas comparée secteur par secteur : essaie-la sur la machine d''origine.') }
+    } else {
+        $verdict = (T 'RESTAURATION ÉCHOUÉE') + ' : ' + ($reasons -join ' ; ')
+        $detail = (T 'Essaie une autre disquette de destination ; si le problème persiste, nettoie les têtes du lecteur. Le détail est dans le rapport.')
+    }
+    Append-Log $verdict
+    Write-RestoreReport $ok $verdict
+    Show-RestoreResult $ok ($verdict + "`n`n" + $detail)
+    Close-Restore
+}
+
+function Fail-Restore([int]$step, [string]$why) {
+    $r = $script:Restore
+    if (-not $r) { return }
+    $r.Stage = 'failed'
+    $script:Chain.Clear(); $script:WriteQueue.Clear(); $script:GwCapture = $null; $script:AfterCalib = ''
+    if ($step -ge 0) { Set-RsStep $step 'fail' $why }
+    $verdict = (T 'RESTAURATION ÉCHOUÉE') + ' : ' + $why
+    Append-Log $verdict
+    Write-RestoreReport $false $verdict
+    $note = if ($step -le 1) { (T 'Rien n''a été écrit : la disquette de destination n''a pas été touchée.') } else { (T 'Le détail est dans le journal et dans le rapport.') }
+    Show-RestoreResult $false ($verdict + "`n`n" + $note)
+    Close-Restore
+}
+
+function Stop-Restore([string]$why) {
+    # Abandon (bouton Arreter ou Annuler, erreur gw, operation incomplete, sequence bloquee) ; sans effet hors restauration
+    $r = $script:Restore
+    if (-not $r) { return }
+    Fail-Restore ([int]$r.Cur) $why
+}
+
+function Close-Restore {
+    $r = $script:Restore
+    $script:Restore = $null
+    if ($r) { Restore-WriteTabState $r.Saved }
+    Set-RsLock $false
+    $pnlRsWait.Visible = $false
 }
 
 # --- Configuration -------------------------------------------------------------
@@ -5036,6 +6112,8 @@ function Set-Defaults {
         $c.Num.Value = $c.Def
     }
 
+    $cmbRsSrc.SelectedItem = 'A'; $cmbRsDst.SelectedItem = 'A'; $cmbRsFmt.SelectedIndex = 1; $txtRsDir.Text = ''; $txtRsName.Text = ''
+    Update-RsRules; Reset-RsSteps
     $cmbHelpAct.SelectedItem = 'write'
     $txtC.Text = 'write --pre-erase --erase-empty --retries=10 --precomp 40=140 "jeu.ipf"'
     Update-CurveButton $txtWFile.Text
@@ -5092,6 +6170,9 @@ function Save-Config {
         }
         delays   = $delays
         free     = @{ command = $txtC.Text; helpAction = $cmbHelpAct.Text }
+        ui       = @{ expert = [bool]$chkExpert.Checked }
+        restore  = @{ source = $cmbRsSrc.Text; target = $cmbRsDst.Text; folder = $txtRsDir.Text
+                      format = $(if ($cmbRsFmt.SelectedIndex -le 0) { 'flux' } else { $cmbRsFmt.Text }) }
     }
     try {
         $cfg | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $script:ConfigFile -Encoding UTF8
@@ -5239,6 +6320,15 @@ function Load-Config {
     $txtC.Text = [string](Get-Cfg $f 'command' $txtC.Text)
     Set-Combo $cmbHelpAct (Get-Cfg $f 'helpAction' 'write')
 
+    # Configuration d une version precedente (sans section ui) : tous les onglets, comme avant
+    $ui = Get-Cfg $cfg 'ui' $null
+    $chkExpert.Checked = [bool](Get-Cfg $ui 'expert' ($null -eq $ui))
+    $rs = Get-Cfg $cfg 'restore' $null
+    Set-Combo $cmbRsSrc ([string](Get-Cfg $rs 'source' 'A')); Set-Combo $cmbRsDst ([string](Get-Cfg $rs 'target' 'A'))
+    $rf = [string](Get-Cfg $rs 'format' 'amiga.amigados')
+    if ($rf -eq 'flux') { $cmbRsFmt.SelectedIndex = 0 } else { Set-Combo $cmbRsFmt $rf }
+    $txtRsDir.Text = [string](Get-Cfg $rs 'folder' '')
+
     return $true
 }
 
@@ -5252,17 +6342,17 @@ function Get-CommonArgs {
 function Set-Busy([bool]$busy) {
     $tabs.Enabled = -not $busy
     $btnStop.Enabled = $busy
-    $btnCfgSave.Enabled = -not $busy
-    $btnCfgReset.Enabled = -not $busy
+    $btnCfgSave.Enabled = -not $busy -and -not $script:Restore
+    $btnCfgReset.Enabled = -not $busy -and -not $script:Restore
 }
 
 function Get-LogColor([string]$line) {
     if ($line -match '^>>>') { return $script:LogColors.cmd }
     # Lignes de synthese du controle apres ecriture : simples comptes par etat (« 0 critique(s) » n est pas une erreur)
     if ($line -match '^(Contrôle complet|Full check|Remesure après réécriture|Re-measure after rewrite)\b') { return $script:LogColors.std }
-    if ($line -match 'FATAL|ERREUR|ERROR|ECHEC|ÉCHEC|FAILED|Command Failed|Write ?Protect|CRITIQUE|CRITICAL|ILLISIBLE|UNREADABLE|introuvable|not found|code retour : [1-9]|exit code: [1-9]|support fatigué|worn media|réécriture automatique non lancée|automatic rewrite not started') { return $script:LogColors.err }
-    if ($line -match 'Verify Failure|Retry #|retries|À SURVEILLER|TO WATCH|marginal|DIFF[EÉ]RENT|Interrompu|Interrupted|aborted|non applicable|not applicable|réécriture automatique désactivée|automatic rewrite disabled|Aucune réécriture automatique|No automatic rewrite|non convergée|not converged|NON CONVERGÉE|NOT CONVERGED|Valeurs peu fiables|Unreliable values|Écart à la courbe|Deviation from the curve') { return $script:LogColors.warn }
-    if ($line -match 'All tracks verified|code retour : 0|exit code: 0|SAIN|HEALTHY|IDENTIQUE|IDENTICAL|EXCELLENT|aucune piste n|no track needed') { return $script:LogColors.ok }
+    if ($line -match 'FATAL|ERREUR|ERROR|ECHEC|ÉCHEC|FAILED|Command Failed|Write ?Protect|CRITIQUE|CRITICAL|ILLISIBLE|UNREADABLE|introuvable|not found|code retour : [1-9]|exit code: [1-9]|support fatigué|worn media|réécriture automatique non lancée|automatic rewrite not started|RESTAURATION ÉCHOUÉE|RESTORE FAILED') { return $script:LogColors.err }
+    if ($line -match 'Verify Failure|Retry #|retries|À SURVEILLER|TO WATCH|marginal|DIFF[EÉ]RENT|Interrompu|Interrupted|aborted|non applicable|not applicable|réécriture automatique désactivée|automatic rewrite disabled|Aucune réécriture automatique|No automatic rewrite|non convergée|not converged|NON CONVERGÉE|NOT CONVERGED|Valeurs peu fiables|Unreliable values|Écart à la courbe|Deviation from the curve|Giving up') { return $script:LogColors.warn }
+    if ($line -match 'All tracks verified|code retour : 0|exit code: 0|SAIN|HEALTHY|IDENTIQUE|IDENTICAL|EXCELLENT|aucune piste n|no track needed|RESTAURATION RÉUSSIE|RESTORE SUCCEEDED') { return $script:LogColors.ok }
     if ($line -match '^T\d+\.\d+\b[^:]*:') { return $script:LogColors.dim }
     return $script:LogColors.std
 }
@@ -5313,7 +6403,7 @@ function Update-Progress([string]$line) {
             $pct = [math]::Round(100 * $v / $script:ProgTotal, 0)
             $stTrack.Text = ((T "piste {0}  ({1}/{2}, {3} %)") -f "$key", "$v", "$($script:ProgTotal)", "$pct")
         } else { $stTrack.Text = ((T "piste {0}") -f "$key") }
-        if ($line -match 'Retry #(\d+)') { $stTrack.Text += ((T "  -  retry {0}") -f "$($Matches[1])") }
+        if ($line -match 'Retry #(\d+)(?:\.(\d+))?') { $stTrack.Text += ((T "  -  retry {0}") -f "$(if ($Matches[2]) { $Matches[2] } else { $Matches[1] })") }
     }
 }
 
@@ -5335,6 +6425,7 @@ function Reset-GwSequence {
     if ($script:Rep) { Stop-WriteCheck }
     if ($script:Cal) { Stop-PrecompCalib }
     if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : {0}") -f (T 'gw n''a pas pu être lancé.')) }
+    if ($script:Restore) { Stop-Restore (T 'gw n''a pas pu être lancé') }
 }
 
 # Sortie de gw capturee via redirection fichier puis relue par le timer.
@@ -5350,7 +6441,7 @@ function Start-Gw([string[]]$gwArgs) {
         return
     }
 
-    [void](Save-Config)
+    if (-not $script:Restore) { [void](Save-Config) }      # restauration : reglages temporaires, pas enregistres
 
     $script:GwIsWrite = ($gwArgs.Count -gt 0 -and $gwArgs[0] -eq 'write')
     $verbs = @{ write=(T 'Écriture'); read=(T 'Lecture'); erase=(T 'Effacement'); convert='Conversion'; clean=(T 'Nettoyage'); rpm=(T 'Mesure de vitesse'); update=(T 'Mise à jour firmware') }
@@ -5442,6 +6533,7 @@ function Read-GwOutput([bool]$flush) {
     if ($lines.Count -eq 0) { return }
     $script:GwLines += $lines.Count
     foreach ($l in $lines) { Update-Progress $l }
+    if ($null -ne $script:GwCapture) { foreach ($l in $lines) { $script:GwCapture.Add($l) } }
     if ($script:GwIsWrite) {
         foreach ($l in $lines) {
             if ($l -match '^T(\d+)\.(\d+)\b[^:]*:.*Retry #(\d+)') {
@@ -5483,8 +6575,15 @@ $timer.Add_Tick({
             if ($incomplete) {
                 Append-Log ((T "ERREUR : opération incomplète, gw s'est arrêté après {0} piste(s) sur {1} annoncées avec le code 0. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer.") -f "$($script:ProgSeen.Count)", "$($script:ProgTotal)")
                 $script:Chain.Clear(); $script:WriteQueue.Clear()
-                if ($script:Rep) { Stop-WriteCheck -GwError }
-                if ($script:Cal) { Stop-PrecompCalib }
+                $why = (T 'opération gw incomplète : disquette protégée en écriture, absente, ou lecteur en défaut ? Voir le journal')
+                if ($script:Restore -and $script:Restore.Stage -eq 'probe') { Restore-ProbeFailed }
+                else {
+                    # Restauration : raison exacte d abord, sauf si le controle a deja un bilan (il l ecrira dans le rapport)
+                    if ($script:Restore -and -not ($script:Rep -and $script:Rep.Round -gt 0)) { Stop-Restore $why }
+                    if ($script:Rep) { Stop-WriteCheck -GwError }
+                    if ($script:Cal) { Stop-PrecompCalib }
+                    if ($script:Restore) { Stop-Restore $why }
+                }
             }
             Append-Log ''
             $script:GwProc = $null
@@ -5493,6 +6592,9 @@ $timer.Add_Tick({
                 if ($code -eq 0) {
                     Invoke-NextChainStep
                 } else {
+                    $why = ((T "gw a retourné le code {0}, voir le journal") -f "$code")
+                    if ($script:Restore -and $script:Restore.Stage -eq 'probe') { Restore-ProbeFailed }
+                    elseif ($script:Restore -and -not ($script:Rep -and $script:Rep.Round -gt 0)) { Stop-Restore $why }
                     $script:Chain.Clear(); $script:WriteQueue.Clear()
                     Append-Log (T 'Séquence interrompue : gw a retourné une erreur.')
                     if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : gw a retourné le code {0}. Voir le journal.") -f "$code") }
@@ -5501,14 +6603,17 @@ $timer.Add_Tick({
                     if ($script:Cal) { Stop-PrecompCalib }
                 }
             }
+            if ($code -ne 0 -and $script:Restore -and -not $script:Restore.Waiting) { Stop-Restore ((T "gw a retourné le code {0}, voir le journal") -f "$code") }
         } else {
             Read-GwOutput $false
         }
     }
     # Calibration precomp : barre globale et temps restant
     if ($script:Cal) { Update-CalibProgress }
+    # Restauration : etape en cours et chien de garde
+    if ($script:Restore) { Update-RestoreProgress }
     # Alignement : passe suivante en mode continu
-    if ($script:AlignLoop -and $script:AlignNextAt -and -not $script:GwProc -and -not $script:Cal -and -not $script:Rep -and $script:Chain.Count -eq 0 -and (Get-Date) -ge $script:AlignNextAt) {
+    if ($script:AlignLoop -and $script:AlignNextAt -and -not $script:GwProc -and -not $script:Cal -and -not $script:Rep -and -not $script:Restore -and $script:Chain.Count -eq 0 -and (Get-Date) -ge $script:AlignNextAt) {
         $script:AlignNextAt = $null
         Start-AlignCycle
     }
@@ -5534,7 +6639,15 @@ $timer.Add_Tick({
 })
 $timer.Start()
 
+$form.KeyPreview = $true
+$form.Add_KeyDown({ if ($_.KeyCode -eq [System.Windows.Forms.Keys]::F1) { Open-HelpForTab; $_.Handled = $true } })
 $form.Add_FormClosing({
+    if ($script:Restore) {
+        $q = [System.Windows.Forms.MessageBox]::Show((T "Une restauration est en cours. Quitter quand même ? La disquette de destination restera incomplète."), (T 'Restauration'), 'YesNo', 'Warning')
+        if ($q -ne 'Yes') { $_.Cancel = $true; return }
+        if ($script:GwProc -and -not $script:GwProc.HasExited) { try { $script:GwProc.Kill() } catch { } }
+        Stop-Restore (T 'fenêtre fermée pendant la restauration')   # rapport ecrit, onglet Ecriture et lecteur remis avant Save-Config
+    }
     if ($script:GwProc -and -not $script:GwProc.HasExited) {
         try { $script:GwProc.Kill($true) } catch { try { $script:GwProc.Kill() } catch { } }
     }
@@ -5550,6 +6663,7 @@ $script:PendingLogVisible = $true
 $form.Add_Shown({
     $script:UiReady = $true
     Render-Banner
+    Apply-Cues
     Set-LogVisible $script:PendingLogVisible
     if ($script:PendingSplit -gt 0) {
         $max = $split.Height - $split.Panel2MinSize - $split.SplitterWidth
@@ -5586,6 +6700,7 @@ Fit-ControlText $form
 # --- Demarrage -----------------------------------------------------------------
 Set-Defaults
 $loaded = Load-Config
+Update-TabSet
 Update-CurveButton ''
 
 Append-Log "Greaseweazle Studio v$($script:Version)"
