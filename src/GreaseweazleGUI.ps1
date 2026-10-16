@@ -28,7 +28,12 @@ param(
 
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
 $script:Version = '12.3'
-$script:CalibAlgo = 'seg1'       # revision de la mesure et de l ajustement de la calibration : une courbe d une autre revision est abandonnee
+# Version du calcul de calibration (motif de test, mesure du decalage, ajustement de la courbe, verification), enregistree
+# avec chaque courbe : a changer seulement quand ce calcul change. Une courbe faite avec ce calcul est reprise par les
+# versions suivantes de l application ; une courbe d un autre calcul n est reprise que si l utilisateur la conserve.
+$script:CalibCalc = '12.3'
+$script:CalibAlgo = 'seg1'       # famille de modele de la courbe (information enregistree avec chaque courbe)
+$script:OldCalib = $null         # calibrations d un autre calcul, mises de cote au chargement en attendant le choix
 
 # --- Langue de l interface -------------------------------------------------------
 # Deux langues : francais et anglais. Choix automatique d apres la langue
@@ -673,7 +678,6 @@ $script:I18n['Après mesures complémentaires : '] = 'After additional measureme
 $script:I18n["Calibration : passe de vérification {0}/{1} ciblée sur les cylindres modifiés : {2}"] = 'Calibration: verification pass {0}/{1} limited to the changed cylinders: {2}'
 $script:I18n["Écart à la courbe de plus de 15 ns et de trois incertitudes (courbe moins mesure) : {0}."] = 'Deviation from the curve of more than 15 ns and three uncertainties (curve minus measurement): {0}.'
 $script:I18n["Calibration non convergée aux cylindres {0} : résidu hors tolérance après la dernière vérification, la courbe ne suit pas la mesure à ces cylindres. Refaire la calibration en test fin, ou sur une autre disquette sacrifiée."] = 'Calibration not converged at cylinders {0}: residual out of tolerance after the last verification, the curve does not follow the measurement at these cylinders. Redo the calibration with the fine test, or on another sacrificial disk.'
-$script:I18n["Configuration sauvegardée avant l'abandon des anciennes calibrations : {0}"] = 'Configuration saved before discarding the old calibrations: {0}'
 $script:I18n["Restauration : {0} piste(s) avec une courte zone instable ({1}) : raccord d'écriture ou protection possible. Elles ne seront jamais réécrites sur une disquette identique à l'original."] = 'Restore: {0} track(s) with a short unstable zone ({1}): write splice or possible protection. They will never be rewritten on a disk identical to the original.'
 $script:I18n["La disquette insérée a le même contenu que l'original. Chaque cylindre ({0}) porte une piste non reproductible ou critique : aucun cylindre ne peut être réécrit sans détruire la protection. Écriture refusée : insérez une autre disquette."] = 'The inserted disk has the same content as the original. Every cylinder ({0}) carries a non-reproducible or critical track: no cylinder can be rewritten without destroying the protection. Write refused: insert another disk.'
 $script:I18n["aucun cylindre réécrivable sans toucher aux pistes non reproductibles : rien n'a été écrit"] = 'no cylinder can be rewritten without touching the non-reproducible tracks: nothing was written'
@@ -705,8 +709,6 @@ $script:I18n["{0} et {1} utilisent la même ligne de sélection : la détection 
 $script:I18n["Restauration : lecteur {0} remplacé par {1} (origine et destination)."] = 'Restore: drive {0} replaced by {1} (source and destination).'
 $script:I18n["Détection des lecteurs : aucun lecteur au dernier démarrage, seul le lecteur {0} est testé (carte « Tester le Greaseweazle » de l'Accueil : tous les lecteurs)."] = 'Drive detection: no drive at the last startup, only drive {0} is tested ("Test the Greaseweazle" card on the Home tab: all drives).'
 $script:I18n["Détection des lecteurs interrompue : {0}"] = 'Drive detection aborted: {0}'
-$script:I18n["Calibrations d'une version précédente de Greaseweazle Studio ({0}) ignorées : courbes et profils calibrés remis aux valeurs d'origine. Le lecteur sera recalibré à la prochaine écriture qui en a besoin."] = 'Calibrations from a previous version of Greaseweazle Studio ({0}) ignored: curves and calibrated profiles reset to the original values. The drive will be recalibrated at the next write that needs it.'
-$script:I18n['antérieure à 12.1'] = 'older than 12.1'
 $script:I18n[' (zone instable)'] = ' (unstable zone)'
 $script:I18n["Mesure : zone instable d'un tour à l'autre sur {0} piste(s) : {1}. Bits faibles d'une protection contre la copie probable, ou défaut localisé du support : une copie faite depuis un flux n'en écrit qu'un tour et ne les reproduit pas fidèlement."] = 'Measurement: zone changing from one revolution to the next on {0} track(s): {1}. Weak bits of a probable copy protection, or a localised media defect: a copy made from a flux image writes only one revolution of them and cannot reproduce them faithfully.'
 $script:I18n["{0} pistes : {1} saines, {2} à surveiller, {3} critiques, {4} à zone instable"] = '{0} tracks: {1} healthy, {2} to watch, {3} critical, {4} with an unstable zone'
@@ -1033,6 +1035,29 @@ $script:I18n['non vérifiée (trop peu de cylindres mesurés)'] = 'not verified 
 $script:I18n["Profils par tête appliqués par le mode Auto en écriture lente à toute image {0} ; ils seront enregistrés dans la configuration à la fin de la restauration."] = 'Per-head profiles applied by Auto mode in slow write to any {0} image; they will be saved in the configuration at the end of the restore.'
 $script:I18n["Profil appliqué par le mode Auto à toute image {0} ; il sera enregistré dans la configuration à la fin de la restauration."] = 'Profile applied by Auto mode to any {0} image; it will be saved in the configuration at the end of the restore.'
 $script:I18n['Calibration rapide : écriture terminée, champs --precomp remis au profil de la référence (le profil décalé ne valait que pour la disquette écrite).'] = 'Quick calibration: write finished, --precomp fields reset to the reference profile (the shifted profile only applied to the written disk).'
+$script:I18n['antérieur à 12.1'] = 'older than 12.1'
+$script:I18n['{0}, conservé (calcul actuel v{1})'] = '{0}, kept (current calculation v{1})'
+$script:I18n['Courbe obtenue avec le calcul de calibration v{0}.'] = 'Curve obtained with calibration calculation v{0}.'
+$script:I18n['Configuration sauvegardée avant le choix sur les anciennes calibrations : {0}'] = 'Configuration saved before the choice on the old calibrations: {0}'
+$script:I18n['Profil de famille calibré sans courbe (version antérieure à 12.1) : profil d''origine rétabli.'] = 'Calibrated family profile without curve (version older than 12.1): original profile restored.'
+$script:I18n['{0} : calcul {1}, lecteur {2}, {3}'] = '{0}: calculation {1}, drive {2}, {3}'
+$script:I18n['Calibrations d''un autre calcul'] = 'Calibrations from another calculation'
+$script:I18n['Recalibrer (conseillé)'] = 'Recalibrate (recommended)'
+$script:I18n['Conserver ces courbes'] = 'Keep these curves'
+$script:I18n['Calibrations d''un autre calcul conservées à votre demande : {0}. Elles sont utilisées telles quelles (calcul actuel v{1}).'] = 'Calibrations from another calculation kept at your request: {0}. They are used as they are (current calculation v{1}).'
+$script:I18n["Calibrations d'un autre calcul abandonnées : {0}. Courbes et profils calibrés remis aux valeurs d'origine ; le lecteur sera recalibré à la prochaine écriture qui en a besoin."] = 'Calibrations from another calculation discarded: {0}. Curves and calibrated profiles reset to the original values; the drive will be recalibrated at the next write that needs it.'
+$script:I18n['Calibrations d''un autre calcul : décision remise au prochain démarrage ; elles ne sont pas utilisées d''ici là.'] = 'Calibrations from another calculation: decision postponed to the next start; they are not used until then.'
+$script:I18n['calcul {0}'] = 'calculation {0}'
+$script:I18n['Calcul de calibration : {0}'] = 'Calibration calculation: {0}'
+$script:I18n['calcul de calibration {0}'] = 'calibration calculation {0}'
+$script:I18n["Calibration {0} de la famille {1} faite avec le calcul {2} : écriture avec cette courbe, conservée à votre demande. Pour la refaire avec le calcul actuel, bouton « Calibrer » de l'onglet Écriture."] = '{0} calibration of the {1} family made with calculation {2}: writing with this curve, kept at your request. To redo it with the current calculation, Calibrate button of the Write tab.'
+$script:I18n['Référence faite avec le calcul de calibration {0}.'] = 'Reference made with calibration calculation {0}.'
+$script:I18n['{0}, calcul {1}'] = '{0}, calculation {1}'
+$script:I18n['Ces calibrations ont été faites avec un autre calcul de calibration que le calcul actuel (v{0}) :'] = 'These calibrations were made with a calibration calculation other than the current one (v{0}):'
+$script:I18n["Calibrations faites avec un autre calcul de calibration que le calcul actuel (v{0}) : {1}. Elles sont mises de côté jusqu'à votre choix."] = 'Calibrations made with a calibration calculation other than the current one (v{0}): {1}. They are set aside until you choose.'
+$script:I18n["Recalibrer (conseillé) : ces calibrations sont abandonnées ; la prochaine écriture qui en a besoin recalibre le lecteur.`nConserver ces courbes : elles restent utilisées telles quelles ; la fenêtre Courbe et le journal rappellent leur calcul. Le calcul ayant changé, une nouvelle calibration peut donner une courbe plus juste. Une courbe antérieure à la 12.3 ne peut pas servir de référence au test rapide (pente et densité non enregistrées).`nFermer la fenêtre (ou Échap) : décision au prochain démarrage ; d'ici là, ces calibrations ne sont pas utilisées."] = "Recalibrate (recommended): these calibrations are discarded; the next write that needs one recalibrates the drive.`nKeep these curves: they remain in use as they are; the Curve window and the log recall their calculation. As the calculation has changed, a new calibration may give a more accurate curve. A curve older than 12.3 cannot be the reference of the quick test (slope and density not recorded).`nClose the window (or Esc): decision at the next start; until then, these calibrations are not used."
+$script:I18n["Copie de la configuration d'avant ce choix : {0}"] = 'Copy of the configuration from before this choice: {0}'
+$script:I18n['Courbes de la version 12.2 relues dans la copie faite par la première version 12.3 : {0}'] = 'Curves of version 12.2 read back from the copy made by the first 12.3 version: {0}'
 function T([string]$s) {
     if ($script:Lang -eq 'fr') { return $s }
     $t = $script:I18n[$s]
@@ -2449,6 +2474,8 @@ function Start-PresetWrite([string]$mode, [switch]$NoCalib, [switch]$LevelOnly) 
     if ($state -eq 'ok') {
         # Courbe non convergee gardee apres un « Annuler » : reutilisee, mais signalee
         $nc = @(@($(if ($heads) { @("${fam}_h0", "${fam}_h1") } else { @($fam) })) | Where-Object { $script:PrecompCurves[$_] -and $script:PrecompCurves[$_].Converged -eq $false })
+        $kc = @(@($(if ($heads) { @("${fam}_h0", "${fam}_h1") } else { @($fam) })) | Where-Object { $script:PrecompCurves[$_] -and (Get-CurveCalc $script:PrecompCurves[$_]) -ne $script:CalibCalc })
+        if ($kc.Count -gt 0) { Append-Log ((T "Calibration {0} de la famille {1} faite avec le calcul {2} : écriture avec cette courbe, conservée à votre demande. Pour la refaire avec le calcul actuel, bouton « Calibrer » de l'onglet Écriture.") -f "$kind", (Get-CalibFamilyName $fam), (Get-CurveCalcText $script:PrecompCurves[$kc[0]] -Plain)) }
         if ($nc.Count -gt 0) { Append-Log ((T "Calibration {0} de la famille {1} non convergée ({2}) : écriture avec cette courbe. Pour la refaire, bouton « Calibrer » de l'onglet Écriture, de préférence en test fin.") -f "$kind", (Get-CalibFamilyName $fam), "$($script:PrecompCurves[$nc[0]].Date)") }
         Start-ImageWrite; return
     }
@@ -5008,6 +5035,7 @@ function Format-CurveTable($cvs) {
             $lines += ''
         }
         if ($null -ne $cv.Head) { $lines += ((T "Tête {0} : courbe {1}") -f "$($cv.Head)", (Get-CurveModelName $cv.Model)) }
+        $lines += ((T "Calcul de calibration : {0}") -f (Get-CurveCalcText $cv))
         if ($cv.Converged -eq $false) { $lines += (T 'NON CONVERGÉE : résidu hors tolérance après la dernière vérification (voir « résidu »).') }
         $v = @($cv.Values)
         $lines += @(((T "Profil --precomp : {0}") -f "$($cv.Spec)"), '', ('cyl  ' + ((0..9 | ForEach-Object { '{0,5}' -f "+$_" }) -join '')))
@@ -5159,6 +5187,7 @@ function Draw-PrecompCurve($g, $size) {
         $cv0 = $cvs[0]; $v0 = @($cv0.Values)
         if ($multi) { $title = ((T "{0} : lecteur {1}, {2}, une courbe par tête") -f "$($cv0.Family)", "$($cv0.Drive)", "$($cv0.Date)") }
         else { $title = ((T "{0} : lecteur {1}, {2}, courbe {3}, de {4} à {5} ns") -f "$($cv0.Family)", "$($cv0.Drive)", "$($cv0.Date)", (Get-CurveModelName $cv0.Model), "$($v0[0])", "$($v0[-1])") }
+        $title += ', ' + ((T "calcul {0}") -f (Get-CurveCalcText $cv0))     # version du calcul de calibration de la courbe
         $g.DrawString($title, $fontB, $txt, $L, 8)
         $tx = $L + 12 + $g.MeasureString($title, $fontB).Width
         if (@($cvs | Where-Object { $_.Converged -eq $false }).Count -gt 0) {
@@ -5243,13 +5272,35 @@ function Update-CurveButton([string]$path) {
     $btnWCurve.Enabled = (Get-FamilyCurves $fam ([bool]$chkWSlow.Checked)).Count -gt 0
 }
 
+function Get-CurveCalc($cv) {
+    # Version du calcul de calibration d une courbe ; courbe anterieure a ce champ : version de l application qui l a
+    # faite (le calcul changeait alors avec chaque version) ; '' si aucune (anterieure a 12.1)
+    if (-not $cv) { return '' }
+    if ($cv.Calc) { return [string]$cv.Calc }
+    return [string]$cv.Version
+}
+
+function Test-CurveCalcOk($cv) {
+    # Courbe utilisable : faite avec le calcul actuel, ou conservee par l utilisateur pour ce calcul
+    if (-not $cv) { return $false }
+    return ((Get-CurveCalc $cv) -eq $script:CalibCalc -or [string]$cv.KeptFor -eq $script:CalibCalc)
+}
+
+function Get-CurveCalcText($cv, [switch]$Plain) {
+    # « v12.3 » ; courbe d un autre calcul conservee : « v12.2, conservé (calcul actuel v12.3) »
+    $c = Get-CurveCalc $cv
+    $ct = if ($c) { "v$c" } else { (T 'antérieur à 12.1') }
+    if ($Plain -or $c -eq $script:CalibCalc) { return $ct }
+    return ((T "{0}, conservé (calcul actuel v{1})") -f "$ct", "$($script:CalibCalc)")
+}
+
 function ConvertTo-CurveConfig($cv) {
     if (-not $cv) { return $null }
     return [ordered]@{ family = $cv.Family; head = $cv.Head; drive = $cv.Drive; date = $cv.Date; model = $cv.Model; spec = $cv.Spec; method = $cv.Method
                        values = @($cv.Values); cyls = @($cv.Cyls); ys = @($cv.Ys); sig = @($cv.Sig)
                        kinds = @($cv.Kinds); res = @(@($cv.Res) | ForEach-Object { if ($null -eq $_ -or [double]::IsNaN([double]$_)) { $null } else { [double]$_ } })
                        converged = $(if ($null -eq $cv.Converged) { $null } else { [bool]$cv.Converged }); maxx = $cv.MaxX; version = $cv.Version
-                       algo = $cv.Algo; breaks = @($cv.Breaks); slope = $cv.Slope; bits = $cv.Bits; test = $cv.Test }
+                       algo = $cv.Algo; calc = $cv.Calc; keptFor = $cv.KeptFor; breaks = @($cv.Breaks); slope = $cv.Slope; bits = $cv.Bits; test = $cv.Test }
 }
 
 function ConvertTo-LevelConfig($r) {
@@ -5284,6 +5335,7 @@ function ConvertFrom-CurveConfig($o) {
                  Model = [string]$o.model; Spec = [string]$o.spec; Method = $(if ($o.method) { [string]$o.method } else { 'image' })
                  Values = [int[]]@($o.values); Cyls = [int[]]@($o.cyls); Ys = [double[]]@($o.ys); Sig = [double[]]@($o.sig)
                  Kinds = $null; Res = $null; Converged = $null; MaxX = 0; Version = [string]$o.version; Algo = [string]$o.algo
+                 Calc = [string]$o.calc; KeptFor = [string]$o.keptFor
                  Breaks = [int[]]@(@($o.breaks) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ }) }
         if ($cv.Values.Count -lt 2 -or $cv.Cyls.Count -ne $cv.Ys.Count -or $cv.Cyls.Count -ne $cv.Sig.Count) { return $null }
         # Champs ajoutes en v11.9 : absents d une courbe plus ancienne
@@ -5358,6 +5410,61 @@ function Get-CurveKeyLabel([string]$key) {
     return ("{0} ({1})" -f (Get-CalibFamilyName $fam), $kind)
 }
 
+function Resolve-OldCalibrations {
+    # Calibrations d un autre calcul (Load-Config) : conserver ou recalibrer. Fermeture de la fenetre : decision remise au
+    # prochain demarrage, calibrations gardees dans la configuration mais non utilisees d ici la.
+    $o = $script:OldCalib
+    if (-not $o) { return }
+    $items = @(@($o.Curves.Keys) | ForEach-Object { $cv = $o.Curves[$_]; (T "{0} : calcul {1}, lecteur {2}, {3}") -f (Get-CurveKeyLabel $_), (Get-CurveCalcText $cv -Plain), "$($cv.Drive)", "$($cv.Date)" })
+    $txt = ((T "Ces calibrations ont été faites avec un autre calcul de calibration que le calcul actuel (v{0}) :") -f "$($script:CalibCalc)") + "`n" + ((@($items) | ForEach-Object { "  - $_" }) -join "`n") + "`n`n" +
+           (T "Recalibrer (conseillé) : ces calibrations sont abandonnées ; la prochaine écriture qui en a besoin recalibre le lecteur.`nConserver ces courbes : elles restent utilisées telles quelles ; la fenêtre Courbe et le journal rappellent leur calcul. Le calcul ayant changé, une nouvelle calibration peut donner une courbe plus juste. Une courbe antérieure à la 12.3 ne peut pas servir de référence au test rapide (pente et densité non enregistrées).`nFermer la fenêtre (ou Échap) : décision au prochain démarrage ; d'ici là, ces calibrations ne sont pas utilisées.")
+    if ($o.Bak -and (Test-Path -LiteralPath $o.Bak)) { $txt += "`n`n" + ((T "Copie de la configuration d'avant ce choix : {0}") -f "$([System.IO.Path]::GetFileName([string]$o.Bak))") }
+    $dlg = New-Object System.Windows.Forms.Form
+    $dlg.Name = 'frmOldCalib'; $dlg.Text = (T 'Calibrations d''un autre calcul'); $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font
+    $dlg.FormBorderStyle = 'FixedDialog'; $dlg.MaximizeBox = $false; $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false; $dlg.BackColor = [System.Drawing.Color]::White
+    $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
+    $h = [System.Windows.Forms.TextRenderer]::MeasureText($txt, $dlg.Font, (New-Object System.Drawing.Size(620, 10000)), $tf).Height
+    $dlg.ClientSize = New-Object System.Drawing.Size(660, ($h + 90))
+    $lbl = New-Object System.Windows.Forms.Label
+    $lbl.Name = 'lblOldText'; $lbl.AutoSize = $false; $lbl.UseMnemonic = $false; $lbl.Text = $txt
+    $lbl.Location = New-Object System.Drawing.Point(20, 16); $lbl.Size = New-Object System.Drawing.Size(620, ($h + 8))
+    $btnRedo = New-Object System.Windows.Forms.Button
+    $btnRedo.Name = 'btnOldRedo'; $btnRedo.Text = (T 'Recalibrer (conseillé)'); $btnRedo.Size = New-Object System.Drawing.Size(200, 34)
+    $btnRedo.Location = New-Object System.Drawing.Point(($dlg.ClientSize.Width - 20 - 200), ($h + 40)); $btnRedo.DialogResult = [System.Windows.Forms.DialogResult]::Abort
+    $btnKeep = New-Object System.Windows.Forms.Button
+    $btnKeep.Name = 'btnOldKeep'; $btnKeep.Text = (T 'Conserver ces courbes'); $btnKeep.Size = New-Object System.Drawing.Size(200, 34)
+    $btnKeep.Location = New-Object System.Drawing.Point(($btnRedo.Left - 8 - 200), ($h + 40)); $btnKeep.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    Set-Btn $btnRedo '' 'primary'; Set-Btn $btnKeep '' 'normal'
+    $dlg.Controls.AddRange(@($lbl, $btnRedo, $btnKeep)); $dlg.AcceptButton = $btnRedo; $dlg.ActiveControl = $btnRedo   # Entree : bouton conseille
+    $dlg.KeyPreview = $true
+    $dlg.Add_KeyDown({ if ($_.KeyCode -eq [System.Windows.Forms.Keys]::Escape) { $_.Handled = $true; $this.Close() } })   # Echap : decision remise
+    $dlg.Add_Shown({ $this.Activate(); try { [System.Media.SystemSounds]::Exclamation.Play() } catch { } })
+    try { $dr = $dlg.ShowDialog($form) } finally { $dlg.Dispose() }
+    $list = (@($o.Curves.Keys | ForEach-Object { (T "{0}, calcul {1}") -f (Get-CurveKeyLabel $_), (Get-CurveCalcText $o.Curves[$_] -Plain) })) -join ' ; '
+    if ($dr -eq [System.Windows.Forms.DialogResult]::OK) {
+        # Conservees pour le calcul actuel : reprises sans question aux demarrages suivants, calcul rappele a l usage
+        foreach ($k in @($o.Curves.Keys)) { $cv = $o.Curves[$k]; $cv.KeptFor = $script:CalibCalc; $script:PrecompCurves[$k] = $cv }
+        if ($o.Std) { $script:PrecompStd = $o.Std }
+        if ($o.Long) { $script:PrecompLong = $o.Long }
+        foreach ($k in @($o.Levels.Keys)) { $script:LevelShifts[$k] = $o.Levels[$k] }
+        $script:OldCalib = $null
+        if ($cmbWProfile.Text -ne (T 'Manuel')) {
+            # Champs enregistres (faits avec ces courbes), puis recalcules pour l image choisie le cas echeant
+            if ($null -ne $o.P0) { $txtWPrecomp.Text = $o.P0; $txtWPrecomp1.Text = $o.P1 }
+            if ($txtWFile.Text) { Update-PrecompForImage $txtWFile.Text }
+        }
+        Append-Log ((T "Calibrations d'un autre calcul conservées à votre demande : {0}. Elles sont utilisées telles quelles (calcul actuel v{1}).") -f "$list", "$($script:CalibCalc)")
+    } elseif ($dr -eq [System.Windows.Forms.DialogResult]::Abort) {
+        $script:OldCalib = $null
+        Append-Log ((T "Calibrations d'un autre calcul abandonnées : {0}. Courbes et profils calibrés remis aux valeurs d'origine ; le lecteur sera recalibré à la prochaine écriture qui en a besoin.") -f "$list")
+    } else {
+        Append-Log (T 'Calibrations d''un autre calcul : décision remise au prochain démarrage ; elles ne sont pas utilisées d''ici là.')
+        return
+    }
+    Update-CurveButton $txtWFile.Text
+    [void](Save-Config)
+}
+
 function Reset-CalibProfiles {
     # Efface toutes les calibrations : courbes communes et par tete des deux familles ; profils de famille remis aux
     # valeurs d origine. Refuse pendant une operation (calibration, ecriture, controle, sequence en cours).
@@ -5365,6 +5472,9 @@ function Reset-CalibProfiles {
         [void][System.Windows.Forms.MessageBox]::Show((T 'Opération en cours : attendre la fin de la calibration ou de l''écriture.'),(T 'Effacer les calibrations'),'OK','Warning'); return
     }
     $curves = @($script:CurveKeys | Where-Object { $script:PrecompCurves[$_] })
+    # Calibrations d un autre calcul en attente du choix : effacees aussi
+    $pend = @(if ($script:OldCalib) { @($script:OldCalib.Curves.Keys | Where-Object { -not $script:PrecompCurves[$_] }) })
+    $curves = @(@($curves) + $pend | Sort-Object -Unique)
     $changed = ($script:PrecompStd -ne $script:PrecompStdDefault) -or ($script:PrecompLong -ne $script:PrecompLongDefault)
     if ($curves.Count -eq 0 -and -not $changed) {
         [void][System.Windows.Forms.MessageBox]::Show((T 'Aucune calibration enregistrée : les profils sont déjà ceux d''origine.'),(T 'Effacer les calibrations'),'OK','Information'); return
@@ -5375,7 +5485,7 @@ function Reset-CalibProfiles {
         (T 'Effacer les calibrations'), 'YesNo', 'Warning')
     if ($r -ne 'Yes') { return }
     foreach ($k in $script:CurveKeys) { $script:PrecompCurves[$k] = $null }
-    $script:LevelShifts = @{}
+    $script:LevelShifts = @{}; $script:OldCalib = $null
     $script:PrecompStd = $script:PrecompStdDefault; $script:PrecompLong = $script:PrecompLongDefault
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
     Update-PrecompForImage $txtWFile.Text
@@ -5962,6 +6072,8 @@ function Get-LevelRef([string]$fam, [bool]$heads, [string]$drive, [string]$img, 
                       Wit = [int[]]@($cd.Wit); Probe = $cd.Probe; CapLo = [int]$cd.CapLo; D0 = $d0; NHist = $nh }
     }
     if (@($specs | Where-Object { $_.Cv.Converged -eq $false }).Count -gt 0) { $res.Notes += (T 'Référence non convergée : ses cylindres hors tolérance sont exclus de la mesure ; une calibration complète en test fin est conseillée.') }
+    $kcv = @($specs | Where-Object { (Get-CurveCalc $_.Cv) -ne $script:CalibCalc })
+    if ($kcv.Count -gt 0) { $res.Notes += ((T "Référence faite avec le calcul de calibration {0}.") -f (Get-CurveCalcText $kcv[0].Cv)) }
     if (@($specs | Where-Object { [string]$_.Cv.Test -eq 'std' }).Count -gt 0) { $res.Notes += (T 'Référence en test standard : entre les cylindres mesurés, la forme est interpolée ; une référence en test fin est conseillée.') }
     if (@($cands | Where-Object { $_.Fallback }).Count -gt 0) { $res.Notes += (T "Trop peu de cylindres de mesure selon les règles habituelles : règles élargies (cylindres 0 et 1 admis, valeurs de 5 à 290 ns, résidu de référence jusqu'à 12 ns).") }
     $res.Ok = $true; $res.Units = $units; $res.Why = ''
@@ -7072,7 +7184,7 @@ function Complete-PrecompCalib {
         foreach ($c in $cs) { foreach ($x in @($u.Results[$c].Keys)) { if ([int]$x -gt $maxX) { $maxX = [int]$x } } }
         $script:PrecompCurves[$key] = @{
             Family = $famTxt; Head = $u.Head; Drive = $cal.Drive; Date = $date; Model = $u.Fit.Model; Spec = $u.Profile; Method = 'motif'
-            Version = $script:Version; Algo = $script:CalibAlgo; Breaks = [int[]]@($u.Fit.Breaks)
+            Version = $script:Version; Algo = $script:CalibAlgo; Calc = $script:CalibCalc; Breaks = [int[]]@($u.Fit.Breaks)
             Values = [int[]]@($u.Fit.Values); Cyls = [int[]]$cs
             Ys = [double[]]@($cs | ForEach-Object { [math]::Round([double]$u.Est[$_], 1) })
             Sig = [double[]]@($cs | ForEach-Object { [math]::Round($(if ($u.Sig.ContainsKey($_)) { [double]$u.Sig[$_] } else { 5.0 }), 1) })
@@ -7110,6 +7222,7 @@ function Complete-PrecompCalib {
             Append-Log $line
         }
     }
+    Append-Log ((T "Courbe obtenue avec le calcul de calibration v{0}.") -f "$($script:CalibCalc)")
     if ($script:Restore) {
         if ($cal.Slow) { Append-Log ((T "Profils par tête appliqués par le mode Auto en écriture lente à toute image {0} ; ils seront enregistrés dans la configuration à la fin de la restauration.") -f "$famTxt") }
         else { Append-Log ((T "Profil appliqué par le mode Auto à toute image {0} ; il sera enregistré dans la configuration à la fin de la restauration.") -f "$famTxt") }
@@ -8194,6 +8307,7 @@ function Get-RestoreCalibInfo([string]$fam) {
         if ($cv.Method -ne 'motif') { $n += (T 'mesurée sur le contenu d''une image, avant le motif de test') }
         if ($cv.Drive -and [string]$cv.Drive -ne $script:Restore.Dst) { $n += ((T "mesurée sur le lecteur {0}") -f "$($cv.Drive)") }
         if ($cv.Converged -eq $false) { $n += (T 'non convergée') }
+        if ((Get-CurveCalc $cv) -ne $script:CalibCalc) { $n += ((T "calcul de calibration {0}") -f (Get-CurveCalcText $cv)) }
         foreach ($x in $n) { if (-not $notes.Contains($x)) { $notes.Add($x) } }
     }
     return @{ Need = $false; Text = $text; Notes = $notes.ToArray() }
@@ -8595,7 +8709,14 @@ function Save-Config {
         $delays[$k] = @{ on = [bool]$c.Chk.Checked; val = [int]$c.Num.Value }
     }
     $curvesCfg = [ordered]@{}
-    foreach ($k in $script:CurveKeys) { $curvesCfg[$k] = ConvertTo-CurveConfig $script:PrecompCurves[$k] }
+    $oc = $script:OldCalib          # calibrations d un autre calcul en attente du choix : gardees telles quelles
+    foreach ($k in $script:CurveKeys) {
+        $cv = $script:PrecompCurves[$k]
+        if (-not $cv -and $oc -and $oc.Curves.Contains($k)) { $cv = $oc.Curves[$k] }
+        $curvesCfg[$k] = ConvertTo-CurveConfig $cv
+    }
+    $lvCfg = @(@($script:LevelShifts.Values) | Where-Object { $_ } | ForEach-Object { ConvertTo-LevelConfig $_ })
+    if ($oc) { $lvCfg += @(@($oc.Levels.Values) | Where-Object { $_ -and -not $script:PrecompCurves[$_.RefKey] } | ForEach-Object { ConvertTo-LevelConfig $_ }) }
     $cfg = [ordered]@{
         _comment = (T 'Configuration GreaseweazleGUI - régénérée automatiquement. Supprimable sans risque.')
         _saved   = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
@@ -8615,11 +8736,14 @@ function Save-Config {
             retries = [int]$numWRetries.Value
             precompOn = [bool]$chkWPrecomp.Checked; precomp = $txtWPrecomp.Text; precomp1 = $txtWPrecomp1.Text; slowWrite = [bool]$chkWSlow.Checked
             precompProfile = $cmbWProfile.Text; postCheck = [bool]$chkWPostCheck.Checked; repairMax = [int]$numWRepair.Value; calMode = [int]$cmbWCalMode.SelectedIndex
-            precompStd = $script:PrecompStd; precompLong = $script:PrecompLong; precompThresholdNs = [int]$script:PrecompThresholdNs
-            calibVersion = $script:Version     # calibrations (courbes et profils) produites par cette version
-            calibAlgo = $script:CalibAlgo      # et par cette revision de la mesure et de l ajustement
+            precompStd = $(if ($oc -and $oc.Std -and -not $script:PrecompCurves['std']) { $oc.Std } else { $script:PrecompStd })
+            precompLong = $(if ($oc -and $oc.Long -and -not $script:PrecompCurves['long']) { $oc.Long } else { $script:PrecompLong })
+            precompThresholdNs = [int]$script:PrecompThresholdNs
+            calibVersion = $script:Version     # version de l application qui a enregistre (information)
+            calibCalc = $script:CalibCalc      # calcul de calibration courant ; chaque courbe porte le sien (calc)
+            calibAlgo = $script:CalibAlgo
             precompCurves = $curvesCfg
-            levelAlgo = $script:LevelAlgo; levelShifts = @(@($script:LevelShifts.Values) | Where-Object { $_ } | ForEach-Object { ConvertTo-LevelConfig $_ })
+            levelAlgo = $script:LevelAlgo; levelShifts = $lvCfg
             tracks = $txtWTracks.Text; densel = $cmbWDensel.Text
             fakeIndex = $txtWFakeIdx.Text; diskdefs = $txtWDiskdefs.Text
         }
@@ -8715,50 +8839,72 @@ function Load-Config {
     $chkWTG43.Checked       = [bool](Get-Cfg $w 'genTg43' $false)
     Set-Num $numWRetries (Get-Cfg $w 'retries' 10)
     $chkWPrecomp.Checked    = [bool](Get-Cfg $w 'precompOn' $true)
-    # Calibrations d une autre version de l application : jamais reutilisees (methode de mesure et d ajustement
-    # susceptibles d avoir change) ; courbes et profils de famille calibres remis aux valeurs d origine
+    # Calibrations : courbe reprise si elle a ete faite avec le calcul de calibration actuel ($script:CalibCalc), quelle que
+    # soit la version de l application qui l a faite, ou si l utilisateur l a conservee pour ce calcul (KeptFor). Courbe
+    # d un autre calcul : mise de cote ($script:OldCalib) avec son profil de famille et ses niveaux ; au demarrage,
+    # l utilisateur choisit de la conserver ou de recalibrer (Resolve-OldCalibrations) ; d ici la, elle n est pas utilisee.
     $calVer = [string](Get-Cfg $w 'calibVersion' '')
-    $calAlgo = [string](Get-Cfg $w 'calibAlgo' '')
     $pcv = Get-Cfg $w 'precompCurves' $null
-    $calPurged = $false
-    if ($calVer -eq $script:Version -and $calAlgo -eq $script:CalibAlgo) {
-        $script:PrecompStd  = [string](Get-Cfg $w 'precompStd' $script:PrecompStd)
-        $script:PrecompLong = [string](Get-Cfg $w 'precompLong' $script:PrecompLong)
-        if ($pcv) {
-            foreach ($fam in $script:CurveKeys) {
-                $cv = ConvertFrom-CurveConfig (Get-Cfg $pcv $fam $null)
-                $ok = ($cv -and $cv.Version -eq $script:Version -and $cv.Algo -eq $script:CalibAlgo)
-                if ($cv -and -not $ok) { $calPurged = $true }
-                $script:PrecompCurves[$fam] = $(if ($ok) { $cv } else { $null })
+    $cfgStd = [string](Get-Cfg $w 'precompStd' $script:PrecompStdDefault)
+    $cfgLong = [string](Get-Cfg $w 'precompLong' $script:PrecompLongDefault)
+    # Premiere 12.3 publiee : elle a abandonne les courbes 12.2 et reecrit la configuration sans elles (sans calibCalc),
+    # apres en avoir fait la copie .calib-v12.2.bak : ces courbes y sont relues pour etre proposees au choix
+    $fromBak = $null
+    $hasCurve = ($pcv -and @($script:CurveKeys | Where-Object { Get-Cfg $pcv $_ $null }).Count -gt 0)
+    $bak122 = $script:ConfigFile + '.calib-v12.2.bak'
+    if (-not $hasCurve -and $calVer -eq '12.3' -and $null -eq (Get-Cfg $w 'calibCalc' $null) -and (Test-Path -LiteralPath $bak122)) {
+        try {
+            $bw = Get-Cfg (Get-Content -LiteralPath $bak122 -Raw -Encoding UTF8 | ConvertFrom-Json) 'write' $null
+            $bpcv = Get-Cfg $bw 'precompCurves' $null
+            if ($bpcv -and @($script:CurveKeys | Where-Object { Get-Cfg $bpcv $_ $null }).Count -gt 0) {
+                $pcv = $bpcv; $fromBak = $bak122
+                $cfgStd = [string](Get-Cfg $bw 'precompStd' $script:PrecompStdDefault); $cfgLong = [string](Get-Cfg $bw 'precompLong' $script:PrecompLongDefault)
             }
-        }
-        # Niveaux de la calibration rapide : gardes seulement avec leur reference (meme courbe, meme lecteur, meme algorithme)
-        $script:LevelShifts = @{}
-        if ([string](Get-Cfg $w 'levelAlgo' '') -eq $script:LevelAlgo) {
-            foreach ($o in @(Get-Cfg $w 'levelShifts' @())) {
-                $lr = ConvertFrom-LevelConfig $o
-                if (-not $lr -or $lr.Version -ne $script:Version -or $lr.Algo -ne $script:CalibAlgo -or $lr.LevelAlgo -ne $script:LevelAlgo) { continue }
-                $rc = $script:PrecompCurves[$lr.RefKey]
-                if (-not $rc -or [string]$rc.Date -ne [string]$lr.RefDate -or [string]$rc.Drive -ne [string]$lr.Drive) { continue }
-                $script:LevelShifts["$($lr.RefKey)|$($lr.Tag)"] = $lr
-            }
-        }
-        # Profil commun sans courbe de cette version : valeur d origine
-        if (-not $script:PrecompCurves['std']) { $script:PrecompStd = $script:PrecompStdDefault }
-        if (-not $script:PrecompCurves['long']) { $script:PrecompLong = $script:PrecompLongDefault }
-    } else {
-        $hadCal = $false
-        if ($pcv) { foreach ($fam in $script:CurveKeys) { if (Get-Cfg $pcv $fam $null) { $hadCal = $true } } }
-        if ([string](Get-Cfg $w 'precompStd' $script:PrecompStdDefault) -ne $script:PrecompStdDefault -or [string](Get-Cfg $w 'precompLong' $script:PrecompLongDefault) -ne $script:PrecompLongDefault) { $hadCal = $true }
-        foreach ($fam in $script:CurveKeys) { $script:PrecompCurves[$fam] = $null }
-        $script:LevelShifts = @{}
-        $script:PrecompStd = $script:PrecompStdDefault; $script:PrecompLong = $script:PrecompLongDefault
-        if ($hadCal) {
-            $calPurged = $true
-            # Copie de la configuration avant que le prochain enregistrement n efface les anciennes courbes (une fois)
-            $bak = $script:ConfigFile + '.calib-' + $(if ($calVer) { "v$calVer" } else { 'ancienne' }) + '.bak'
-            if (-not (Test-Path -LiteralPath $bak)) { try { Copy-Item -LiteralPath $script:ConfigFile -Destination $bak -ErrorAction Stop; Append-Log ((T "Configuration sauvegardée avant l'abandon des anciennes calibrations : {0}") -f "$bak") } catch { } } Append-Log ((T "Calibrations d'une version précédente de Greaseweazle Studio ({0}) ignorées : courbes et profils calibrés remis aux valeurs d'origine. Le lecteur sera recalibré à la prochaine écriture qui en a besoin.") -f $(if ($calVer) { "v$calVer" } else { (T 'antérieure à 12.1') })) }
+        } catch { }
     }
+    $old = [ordered]@{}
+    foreach ($fam in $script:CurveKeys) {
+        $cv = if ($pcv) { ConvertFrom-CurveConfig (Get-Cfg $pcv $fam $null) } else { $null }
+        if ($cv -and -not (Test-CurveCalcOk $cv)) { $old[$fam] = $cv; $cv = $null }
+        $script:PrecompCurves[$fam] = $cv
+    }
+    # Profil de famille : celui de la configuration s il accompagne une courbe reprise ; mis de cote avec sa courbe ;
+    # profil calibre sans courbe (anterieur a 12.1) : abandonne
+    $oldStd = $null; $oldLong = $null; $lostProf = $false
+    if ($script:PrecompCurves['std']) { $script:PrecompStd = $cfgStd }
+    else { $script:PrecompStd = $script:PrecompStdDefault; if ($old.Contains('std')) { $oldStd = $cfgStd } elseif ($cfgStd -ne $script:PrecompStdDefault) { $lostProf = $true } }
+    if ($script:PrecompCurves['long']) { $script:PrecompLong = $cfgLong }
+    else { $script:PrecompLong = $script:PrecompLongDefault; if ($old.Contains('long')) { $oldLong = $cfgLong } elseif ($cfgLong -ne $script:PrecompLongDefault) { $lostProf = $true } }
+    # Niveaux de la calibration rapide : gardes avec leur reference (meme courbe, meme lecteur, meme algorithme de niveau) ;
+    # ceux d une reference mise de cote le sont avec elle
+    $script:LevelShifts = @{}; $oldLv = @{}
+    if ([string](Get-Cfg $w 'levelAlgo' '') -eq $script:LevelAlgo) {
+        foreach ($o in @(Get-Cfg $w 'levelShifts' @())) {
+            $lr = ConvertFrom-LevelConfig $o
+            if (-not $lr -or $lr.LevelAlgo -ne $script:LevelAlgo) { continue }
+            $rc = $script:PrecompCurves[$lr.RefKey]; $tgt = $script:LevelShifts
+            if (-not $rc -and $old.Contains($lr.RefKey)) { $rc = $old[$lr.RefKey]; $tgt = $oldLv }
+            if (-not $rc -or [string]$rc.Date -ne [string]$lr.RefDate -or [string]$rc.Drive -ne [string]$lr.Drive) { continue }
+            $tgt["$($lr.RefKey)|$($lr.Tag)"] = $lr
+        }
+    }
+    $script:OldCalib = $null
+    $calPurged = $lostProf
+    if ($old.Count -gt 0) {
+        $calPurged = $true
+        $tags = @(@($old.Values) | ForEach-Object { Get-CurveCalc $_ } | Sort-Object -Unique)
+        $tag = if ($tags.Count -eq 1 -and $tags[0]) { "v$($tags[0])" } elseif ($calVer) { "v$calVer" } else { 'ancienne' }
+        # Copie de la configuration avant tout enregistrement, quel que soit le choix : une fois par passage d un calcul au
+        # calcul actuel ; courbes relues dans la copie de la 12.3 publiee : cette copie
+        if ($fromBak) { $bak = $fromBak; Append-Log ((T "Courbes de la version 12.2 relues dans la copie faite par la première version 12.3 : {0}") -f "$fromBak") }
+        else {
+            $bak = $script:ConfigFile + '.calib-' + $tag + '-avant-v' + $script:CalibCalc + '.bak'
+            if (-not (Test-Path -LiteralPath $bak)) { try { Copy-Item -LiteralPath $script:ConfigFile -Destination $bak -ErrorAction Stop; Append-Log ((T "Configuration sauvegardée avant le choix sur les anciennes calibrations : {0}") -f "$bak") } catch { $bak = $null } }
+        }
+        $script:OldCalib = @{ Curves = $old; Std = $oldStd; Long = $oldLong; Levels = $oldLv; Bak = $bak; P0 = $null; P1 = $null }
+        Append-Log ((T "Calibrations faites avec un autre calcul de calibration que le calcul actuel (v{0}) : {1}. Elles sont mises de côté jusqu'à votre choix.") -f "$($script:CalibCalc)", ((@($old.Keys | ForEach-Object { (T "{0}, calcul {1}") -f (Get-CurveKeyLabel $_), (Get-CurveCalcText $old[$_] -Plain) })) -join ' ; '))
+    }
+    if ($lostProf) { Append-Log (T 'Profil de famille calibré sans courbe (version antérieure à 12.1) : profil d''origine rétabli.') }
     $script:PrecompThresholdNs = [int](Get-Cfg $w 'precompThresholdNs' $script:PrecompThresholdNs)
     Set-Combo $cmbWProfile (Get-Cfg $w 'precompProfile' (T 'Auto (selon image)'))
     $chkWPostCheck.Checked = [bool](Get-Cfg $w 'postCheck' $true)
@@ -8767,6 +8913,7 @@ function Load-Config {
     $cm = [int](Get-Cfg $w 'calMode' 0); if ($cm -ge 0 -and $cm -lt $cmbWCalMode.Items.Count) { $cmbWCalMode.SelectedIndex = $cm }
     $txtWPrecomp.Text  = [string](Get-Cfg $w 'precomp' $script:PrecompStd)
     $txtWPrecomp1.Text = [string](Get-Cfg $w 'precomp1' $txtWPrecomp.Text)
+    if ($script:OldCalib) { $script:OldCalib.P0 = $txtWPrecomp.Text; $script:OldCalib.P1 = $txtWPrecomp1.Text }   # retablis si conservees
     # Champs --precomp remplis par une ancienne calibration : profil d origine (sauf profil manuel, choisi par l utilisateur)
     if ($calPurged -and $cmbWProfile.Text -ne (T 'Manuel')) { $txtWPrecomp.Text = $script:PrecompStd; $txtWPrecomp1.Text = $script:PrecompStd }
     $chkWSlow.Checked  = [bool](Get-Cfg $w 'slowWrite' $false)
@@ -9293,7 +9440,6 @@ $script:PendingSplit = 0
 $script:PendingLogVisible = $true
 $form.Add_Shown({
     $script:UiReady = $true
-    if (Test-Path -LiteralPath $script:GwExe) { $script:DetectAt = (Get-Date).AddSeconds(1) }   # detection des lecteurs
     Render-Banner
     Apply-Cues
     Set-LogVisible $script:PendingLogVisible
@@ -9306,6 +9452,9 @@ $form.Add_Shown({
     # Bibliotheque chargee une fois la fenetre visible (racine reseau possible)
     $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
     try { Update-Library; if ($txtWFile.Text) { Update-PrecompForImage $txtWFile.Text } else { Update-CurveButton '' } } finally { $form.Cursor = [System.Windows.Forms.Cursors]::Default }
+    # Calibrations d un autre calcul : choix de l utilisateur, puis detection des lecteurs (qui lance gw)
+    Resolve-OldCalibrations
+    if (Test-Path -LiteralPath $script:GwExe) { $script:DetectAt = (Get-Date).AddSeconds(1) }   # detection des lecteurs
 })
 
 # --- Largeurs ajustees au texte (police, langue) : plus de libelles tronques --------
