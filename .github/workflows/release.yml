@@ -67,7 +67,7 @@ jobs:
             if ($in -and $l -match '^## ') { break }
             if ($in) { $out += $l }
           }
-          $body = if ($out.Count -gt 0) { "### Nouveautés de la version $ver`n`n" + (($out -join "`n").Trim()) } else { "Voir le CHANGELOG du dépôt pour la version $ver." }
+          $body = if ($out.Count -gt 0) { (($out -join "`n").Trim()) } else { "Voir le CHANGELOG du dépôt pour la version $ver." }
           [System.IO.File]::WriteAllText('release-notes.md', $body + "`n", (New-Object System.Text.UTF8Encoding($false)))
           Get-Content release-notes.md
 
