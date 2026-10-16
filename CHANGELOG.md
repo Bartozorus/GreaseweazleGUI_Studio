@@ -5,6 +5,27 @@ Le numéro de version est celui de `$script:Version` dans `src/GreaseweazleGUI.p
 
 Chaque version s'ouvre sur un résumé de ce qu'elle apporte, puis classe ses changements en Nouveautés, Améliorations et Corrections. La rubrique « À savoir pour la mise à jour » indique ce qu'il faut faire en installant la version, par exemple recalibrer un lecteur. « Pour les développeurs » regroupe la compilation, la publication et le format de configuration. Le fonctionnement détaillé est décrit dans le [wiki](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki).
 
+## [12.5] - 2026-10-17
+
+Une calibration n'est plus déclarée « NON CONVERGÉE » parce que le lecteur dérive légèrement d'une passe de vérification à l'autre. Les cylindres qui ne se reproduisent pas sont signalés à part. La limite de précompensation calibrée devient réglable.
+
+### Améliorations
+
+- **Dérive du lecteur entre deux vérifications.** Quand la première vérification corrige la courbe, la seconde réécrit et relit aussi des cylindres non modifiés, appelés témoins : jusqu'à 10 par tête. Leur écart d'une passe à l'autre mesure la dérive du lecteur, par exemple due à la température ou au contact de la tête. Les cylindres corrigés sont jugés sans cette dérive ; les témoins, inchangés, restent jugés sur leur première mesure. Le journal donne la dérive et son incertitude. Un vrai écart régional reste signalé.
+- **Cylindres non reproductibles.** Un cylindre isolé dont la mesure part à l'inverse de la correction, ou bien au-delà, est listé à part dans le journal, avec ses deux valeurs. Il ne compte pas pour la convergence. Une correction sans effet, ou plus faible que prévu, reste une non-convergence.
+- **Dérive forte signalée.** Une dérive de plus de 8 ns de décalage entre les deux vérifications ouvre la fenêtre de décision : le lecteur ou le support est peut-être instable.
+- **Limite de précompensation réglable.** La valeur maximale d'une courbe calibrée, 400 ns par défaut, se règle dans le fichier de configuration, de 300 à 470 ns. Au-delà, la précompensation déplacerait une transition d'un quart de cellule sur une image long track.
+
+### À savoir pour la mise à jour
+
+- Le calcul de calibration reste en version 12.4 : vos courbes sont reprises sans question. Une courbe déjà marquée « NON CONVERGÉE » garde ce verdict ; la prochaine calibration bénéficie des nouvelles règles.
+- La seconde vérification réécrit et relit quelques cylindres de plus. Ils sont choisis pour ne pas dépasser le nombre maximal d'écritures par piste que la calibration atteint de toute façon, sauf s'il en manque.
+- Si vous abaissez la limite sous celle d'une courbe existante, la calibration rapide ramène ses valeurs à la nouvelle limite et le signale dans le journal.
+
+### Pour les développeurs
+
+- Configuration : champ `precompMaxNs` de la section `write` (300 à 470, 400 par défaut). Chaque courbe enregistre la borne de son calcul dans `maxNs`.
+
 ## [12.4] - 2026-10-16
 
 La précompensation calibrée peut désormais atteindre 400 ns, pour les lecteurs qui demandent plus de 300 ns. Une calibration en test fin n'est plus déclarée « NON CONVERGÉE » pour quelques cylindres isolés. Le wiki est réécrit.

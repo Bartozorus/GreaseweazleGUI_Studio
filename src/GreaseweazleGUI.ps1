@@ -27,7 +27,7 @@ param(
 )
 
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
-$script:Version = '12.4'
+$script:Version = '12.5'
 # Version du calcul de calibration (motif de test, mesure du decalage, ajustement de la courbe, verification), enregistree
 # avec chaque courbe : a changer seulement quand ce calcul change. Une courbe faite avec ce calcul est reprise par les
 # versions suivantes de l application ; une courbe d un autre calcul n est reprise que si l utilisateur la conserve.
@@ -1058,7 +1058,7 @@ $script:I18n["Calibrations faites avec un autre calcul de calibration que le cal
 $script:I18n["Recalibrer (conseillé) : ces calibrations sont abandonnées ; la prochaine écriture qui en a besoin recalibre le lecteur.`nConserver ces courbes : elles restent utilisées telles quelles ; la fenêtre Courbe et le journal rappellent leur calcul. Le calcul ayant changé, une nouvelle calibration peut donner une courbe plus juste. Une courbe antérieure à la 12.3 ne peut pas servir de référence au test rapide (pente et densité non enregistrées).`nFermer la fenêtre (ou Échap) : décision au prochain démarrage ; d'ici là, ces calibrations ne sont pas utilisées."] = "Recalibrate (recommended): these calibrations are discarded; the next write that needs one recalibrates the drive.`nKeep these curves: they remain in use as they are; the Curve window and the log recall their calculation. As the calculation has changed, a new calibration may give a more accurate curve. A curve older than 12.3 cannot be the reference of the quick test (slope and density not recorded).`nClose the window (or Esc): decision at the next start; until then, these calibrations are not used."
 $script:I18n["Copie de la configuration d'avant ce choix : {0}"] = 'Copy of the configuration from before this choice: {0}'
 $script:I18n['Courbes de la version 12.2 relues dans la copie faite par la première version 12.3 : {0}'] = 'Curves of version 12.2 read back from the copy made by the first 12.3 version: {0}'
-$script:I18n["Bruit de mesure estimé : {0} ns, sur {1} écarts entre cylindres vérifiés distants de 2 au plus. Un écart est retenu si la moyenne des résidus voisins (2 cylindres au plus) dépasse {2} ns, si un résidu dépasse {3} ns, s'il s'étend sur 3 cylindres ou plus, ou 2 en bord de piste ou de segment, au-delà de {2} ns, ou s'il couvre 2 cylindres au-delà de {4} ns. Seuils relevés quand le bruit est fort. Un écart dont un cylindre a moins de 2 autres cylindres vérifiés à 2 cylindres au plus est retenu sur sa seule tolérance ; les points isolés et les cylindres au plafond ou au plancher ne comptent ni dans le bruit ni dans le voisinage."] = 'Estimated measurement noise: {0} ns, from {1} differences between verified cylinders at most 2 apart. A deviation is kept if the mean of the neighbouring residuals (within 2 cylinders) exceeds {2} ns, if a residual exceeds {3} ns, if it spans 3 or more cylinders, or 2 at the edge of the track or of a segment, beyond {2} ns, or if it covers 2 cylinders beyond {4} ns. Thresholds are raised when the noise is high. A deviation one of whose cylinders has fewer than 2 other verified cylinders within 2 cylinders is kept on its tolerance alone; isolated points and cylinders at the ceiling or floor count neither in the noise nor in the neighbourhood.'
+$script:I18n["Bruit de mesure estimé : {0} ns, sur {1} écarts entre cylindres vérifiés distants de 2 au plus. Un écart est retenu si la moyenne des résidus voisins (2 cylindres au plus) dépasse {2} ns, si un résidu dépasse {3} ns, s'il s'étend sur 3 cylindres ou plus, ou 2 en bord de piste ou de segment, au-delà de {2} ns, ou s'il couvre 2 cylindres au-delà de {4} ns. Seuils relevés quand le bruit est fort. Un écart dont un cylindre a moins de 2 autres cylindres vérifiés à 2 cylindres au plus est retenu sur sa seule tolérance ; les points isolés et les cylindres au plafond ou au plancher ne comptent ni dans le bruit ni dans le voisinage, les cylindres non reproductibles ni dans le bruit ni dans les moyennes."] = 'Estimated measurement noise: {0} ns, from {1} differences between verified cylinders at most 2 apart. A deviation is kept if the mean of the neighbouring residuals (within 2 cylinders) exceeds {2} ns, if a residual exceeds {3} ns, if it spans 3 or more cylinders, or 2 at the edge of the track or of a segment, beyond {2} ns, or if it covers 2 cylinders beyond {4} ns. Thresholds are raised when the noise is high. A deviation one of whose cylinders has fewer than 2 other verified cylinders within 2 cylinders is kept on its tolerance alone; isolated points and cylinders at the ceiling or floor count neither in the noise nor in the neighbourhood, non-reproducible cylinders neither in the noise nor in the means.'
 $script:I18n['Écarts locaux non retenus : {0}. Hors tolérance, mais sous les seuils ci-dessus : ces écarts ne sont pas corrigés.'] = 'Local deviations not kept: {0}. Out of tolerance, but below the thresholds above: these deviations are not corrected.'
 $script:I18n["c{0} : extrapolation {1} ± {2} ns, tendance {3} ± {4} ns, retenu {5} ns"] = 'c{0}: extrapolation {1} ± {2} ns, trend {3} ± {4} ns, kept {5} ns'
 $script:I18n["Besoin au-delà de {0} ns, zéro extrapolé incertain (loin des mesures ou sans pente propre) : combiné avec la tendance de la courbe ({1}). La vérification écrit la courbe à ces cylindres et la mesure."] = 'Need above {0} ns, uncertain extrapolated zero (far from the measurements or without its own slope): combined with the trend of the curve ({1}). The verification writes the curve at these cylinders and measures it.'
@@ -1069,6 +1069,22 @@ $script:I18n["Courbes au plafond de {0} ns de leur calcul : {1}. Conservées, el
 $script:I18n["Courbe au plafond de {0} ns de son calcul : {1}. Conservée, elle y reste ; le calcul actuel va jusqu'à {2} ns."] = 'Curve at the {0} ns ceiling of its calculation: {1}. If kept, it stays there; the current calculation goes up to {2} ns.'
 $script:I18n['courbe au plafond de {0} ns de son calcul'] = 'curve at the {0} ns ceiling of its calculation'
 $script:I18n["Auto : image haute densité ({0}) -> profil d'origine {1} ({2}) : un profil calibré (double densité) ne s'applique pas à une image haute densité"] = "Auto: high-density image ({0}) -> original {1} profile ({2}): a calibrated (double-density) profile does not apply to a high-density image"
+$script:I18n["c{0} ({1} puis {2} ns)"] = 'c{0} ({1} then {2} ns)'
+$script:I18n["Calibration : témoins de dérive, réécrits à leur valeur inchangée et relus pour mesurer l'écart du lecteur entre deux vérifications : {0}"] = 'Calibration: drift witnesses, rewritten at their unchanged value and read again to measure the drive offset between two verifications: {0}'
+$script:I18n['moins de 1 ns'] = 'less than 1 ns'
+$script:I18n["Dérive du lecteur entre les deux vérifications : {0} ± {1} ns de décalage commun sur {2} cylindres témoins (dispersion {3})."] = 'Drive drift between the two verifications: {0} ± {1} ns of common offset on {2} witness cylinders (spread {3}).'
+$script:I18n[" Le besoin de précompensation était plus élevé de {0} ns à la dernière vérification."] = ' The precompensation need was {0} ns higher at the last verification.'
+$script:I18n[" Le besoin de précompensation était plus faible de {0} ns à la dernière vérification."] = ' The precompensation need was {0} ns lower at the last verification.'
+$script:I18n[" Écart des cylindres corrigés à leur prédiction, dérive comprise : {0} ns en médiane sur {1}."] = ' Deviation of the corrected cylinders from their prediction, drift included: median {0} ns over {1}.'
+$script:I18n["Cylindres non reproductibles d'une vérification à l'autre (zéro estimé à la pente commune par la vérification précédente, puis par la dernière, dérive retirée) : {0}. Ils ne comptent pas pour la convergence ; une nouvelle calibration peut leur donner une autre valeur."] = 'Cylinders not reproducible from one verification to the next (zero estimated with the common slope by the previous verification, then by the last one, drift removed): {0}. They do not count for convergence; a new calibration may give them another value.'
+$script:I18n["Borne de précompensation réglée dans la configuration (precompMaxNs) : {0} ns, au lieu de {1} ns par défaut."] = 'Precompensation bound set in the configuration (precompMaxNs): {0} ns, instead of {1} ns by default.'
+$script:I18n["dérive du lecteur de {0} ns entre deux vérifications (lecteur ou support instable ?)"] = 'drive drift of {0} ns between two verifications (unstable drive or media?)'
+$script:I18n[" Les résidus des cylindres relus à la dernière vérification sont jugés sans ce décalage ; les témoins, inchangés, sur leur mesure précédente, sauf ceux d'un écart systématique, jugés sur leur relecture."] = ' The residuals of the cylinders read again at the last verification are judged without this offset; the witnesses, unchanged, on their previous measurement, except those of a systematic deviation, judged on their new reading.'
+$script:I18n["Dérive du lecteur non mesurée : {0} témoin(s) exploitable(s) sur {1}, {2} au moins nécessaires ; résidus jugés sans correction de dérive, témoins sur leur mesure précédente."] = 'Drive drift not measured: {0} usable witness(es) out of {1}, at least {2} needed; residuals judged without drift correction, witnesses on their previous measurement.'
+$script:I18n["Dérive du lecteur non mesurée : {0} cylindre(s) non modifié(s) disponible(s) comme témoins, {1} au moins nécessaires ; résidus jugés sans correction de dérive."] = 'Drive drift not measured: {0} unchanged cylinder(s) available as witnesses, at least {1} needed; residuals judged without drift correction.'
+$script:I18n["Référence calculée avec une borne de {0} ns, au-delà de la borne actuelle (precompMaxNs = {1} ns) aux cylindres {2} : valeurs ramenées à {1} ns."] = 'Reference computed with a {0} ns bound, beyond the current bound (precompMaxNs = {1} ns) at cylinders {2}: values brought back to {1} ns.'
+$script:I18n["Borne de précompensation (precompMaxNs) de {0} ns ramenée à {1} ns : elle va de {2} à {3} ns. Au-delà de 470 ns, la précompensation déplacerait une transition d'un quart de cellule en long track (1,89 µs)."] = 'Precompensation bound (precompMaxNs) of {0} ns brought back to {1} ns: it ranges from {2} to {3} ns. Beyond 470 ns, precompensation would move a transition by a quarter of a cell on long tracks (1.89 µs).'
+$script:I18n["Borne de précompensation (precompMaxNs) illisible ({0}) : {1} ns par défaut."] = 'Precompensation bound (precompMaxNs) unreadable ({0}): {1} ns by default.'
 function T([string]$s) {
     if ($script:Lang -eq 'fr') { return $s }
     $t = $script:I18n[$s]
@@ -4727,8 +4743,14 @@ $script:CalCoarse    = @(0, 100, 200)   # passes de mesure : trois points pour l
 $script:CalMaxNs     = 300
 # Borne absolue d une valeur de precomp (zero estime, courbe, verification, plafond Sat/plancher des residus) : gw 1.23
 # n impose aucune borne (PrecompSpec int(v), Precomp.apply sans clamp) ; en MFM 2 us, un intervalle court ecrit vaut
-# 4 us - 2t, 400 ns = 0,2 cellule ; simulation du PLL de gw : premier echec vers 540 ns.
-$script:CalHardNs    = 400
+# 4 us - 2t, 400 ns = 0,2 cellule ; simulation du PLL de gw : premier echec vers 540 ns (2 us), 507 ns (long track
+# 1,89 us). Reglable dans la configuration (write.precompMaxNs), de 300 ns (plafond des mesures) a 470 ns (un quart de
+# cellule long track : chaque intervalle ecrit atteint alors sa frontiere de decision) ; chaque courbe enregistre la borne
+# de son calcul (maxNs).
+$script:CalHardNsDefault = 400
+$script:CalHardMinNs = 300
+$script:CalHardMaxNs = 470
+$script:CalHardNs    = $script:CalHardNsDefault
 # Zero extrapole au-dela de CalMaxNs incertain (plus de CalTrendSig ns, 25 % de 50 ns) ou sans pente propre : combine avec
 # la tendance de la courbe, droite sur les CalTrendN derniers cylindres fiables, a CalTrendSpan cylindres au plus en test
 # fin (3 fois plus en test standard)
@@ -4737,6 +4759,8 @@ $script:CalTrendN    = 6
 $script:CalTrendSpan = 12
 $script:CalResidual  = 4.0              # residu (ns) au-dela duquel un cylindre est corrige
 $script:CalNoiseMinDiffs = 10           # differences de residus (cylindres verifies distants de 2 au plus) necessaires pour estimer le bruit, sinon regle d origine
+$script:CalDriftWitness  = 10           # verification ciblee : cylindres temoins non modifies, reecrits et relus pour mesurer la derive du lecteur (H)
+$script:CalDriftMinWit   = 6            # temoins necessaires pour retirer cette derive du jugement (H)
 $script:CalMaxVerify = 2                # passes de verification au plus
 $script:CalBracketMargin = 80           # passe d encadrement : estimation + marge (ns) pour un cylindre encore sous-compense a 200 ns
 $script:AfterCalib = ''                                  # 'write' : ecriture rapide ou lente a lancer apres une calibration reussie
@@ -5430,7 +5454,7 @@ function New-CalibUnit($head) {
     # Unite de calibration : les deux tetes ensemble (Head = $null, profil commun) ou une seule tete (ecriture lente)
     $prefix = if ($null -eq $head) { '' } else { ((T '[tête {0}] ') -f "$head") }
     return @{ Head = $head; Prefix = $prefix; Results = @{}; Est = @{}; Sig = @{}; Kind = @{}; Bracket = @{}; Warn = $null; Fit = $null; Slope = $null; Profile = ''; Verify = @{}
-              Dense = @{}; VerifyList = $null; VerifyP = @{}; Outliers = @(); Own = @{}; Trend = @{} }
+              Dense = @{}; VerifyList = $null; VerifyP = @{}; Outliers = @(); Own = @{}; Trend = @{}; VerifyPrev = @{}; Witness = @(); ReadLast = @{}; Writes = @{}; WitCand = 0; WitMin = 0 }
 }
 
 function Get-PatternBits([string]$family, [string]$img) {
@@ -5495,7 +5519,7 @@ function Resolve-OldCalibrations {
            (T "Recalibrer (conseillé) : ces calibrations sont abandonnées ; la prochaine écriture qui en a besoin recalibre le lecteur.`nConserver ces courbes : elles restent utilisées telles quelles ; la fenêtre Courbe et le journal rappellent leur calcul. Le calcul ayant changé, une nouvelle calibration peut donner une courbe plus juste. Une courbe antérieure à la 12.3 ne peut pas servir de référence au test rapide (pente et densité non enregistrées).`nFermer la fenêtre (ou Échap) : décision au prochain démarrage ; d'ici là, ces calibrations ne sont pas utilisées.")
     # Courbe a la borne de son calcul : conservee, elle y reste (le calcul actuel admet des valeurs plus hautes)
     $atMax = @(@($o.Curves.Keys) | Where-Object { Test-CurveAtMax $o.Curves[$_] })
-    foreach ($mx in @($atMax | ForEach-Object { Get-CurveMaxNs $o.Curves[$_] } | Sort-Object -Unique)) {
+    foreach ($mx in @($atMax | ForEach-Object { Get-CurveMaxNs $o.Curves[$_] } | Where-Object { $_ -lt $script:CalHardNs } | Sort-Object -Unique)) {
         $kl = @($atMax | Where-Object { (Get-CurveMaxNs $o.Curves[$_]) -eq $mx } | ForEach-Object { Get-CurveKeyLabel $_ })
         $ct = if ($kl.Count -gt 1) { (T "Courbes au plafond de {0} ns de leur calcul : {1}. Conservées, elles y restent ; le calcul actuel va jusqu'à {2} ns.") } else { (T "Courbe au plafond de {0} ns de son calcul : {1}. Conservée, elle y reste ; le calcul actuel va jusqu'à {2} ns.") }
         $txt += "`n`n" + ($ct -f "$mx", ($kl -join ', '), "$($script:CalHardNs)")
@@ -5816,7 +5840,7 @@ function Start-CalibFit($cal) {
         $u.Profile = Build-CurveProfile $u.Fit.Values
         Append-Log ($u.Prefix + ((T "Courbe ajustée : {0} (écart réduit {1}), de {2} ns au cylindre 0 à {3} ns au cylindre {4} ; profil : {5}") -f (Get-CurveModelName $u.Fit.Model), "$([math]::Round($u.Fit.Chi, 2))", "$($u.Fit.Values[0])", "$($u.Fit.Values[-1])", "$($cal.MaxCyl)", "$($u.Profile)"))
         if ($u.Outliers.Count -gt 0) { Append-Log ($u.Prefix + ((T "Point(s) isolé(s) écarté(s) de la courbe : {0} : écart avec les cylindres voisins, défaut ponctuel probable de la disquette de calibration, non suivi.") -f (($u.Outliers | ForEach-Object { "c$_" }) -join ', '))) }
-        $u.Verify = @{}; $u.VerifyP = @{}; $u.VerifyList = $null
+        $u.Verify = @{}; $u.VerifyP = @{}; $u.VerifyList = $null; $u.VerifyPrev = @{}; $u.Witness = @(); $u.ReadLast = @{}; $u.WitCand = 0; $u.WitMin = 0
     }
     $cal.Stage = 'verify'; $cal.VerifyCount = 1
     New-CalibPass
@@ -5829,6 +5853,96 @@ function Get-ResidualTol($meas) {
     if ($null -ne $meas -and $null -ne $meas.SE) { $se = [double]$meas.SE }
     if ([double]::IsNaN($se)) { return [double]$script:CalResidual }
     return [math]::Max([double]$script:CalResidual, 3.0 * $se)
+}
+
+function Add-DriftWitnesses($u) {
+    # Verification ciblee : des cylindres non modifies sont reecrits a leur valeur inchangee et relus avec les cylindres
+    # modifies. Leur valeur ecrite ne change pas : l ecart de leur residu d une verification a l autre mesure directement la
+    # derive du lecteur entre les deux passes (temperature, contact de la tete), sans dependre de la pente. Repartis sur la
+    # piste, sans condition sur leur residu (pas de biais de selection), et seulement s ils ne depassent pas le nombre
+    # maximal d ecritures par piste que la calibration atteint de toute facon.
+    $u.Witness = @(); $u.WitCand = 0
+    # Minimum de temoins : 4 en test standard (peu de cylindres non modifies), sinon CalDriftMinWit ; garde avec l unite
+    $u.WitMin = if ($script:Cal -and $script:Cal.Mode -ne 'fine' -and -not [bool]$script:Cal.Densified) { 4 } else { [int]$script:CalDriftMinWit }
+    if (@($u.VerifyList).Count -eq 0) { return }
+    $vals = @($u.Fit.Values)
+    $cand = @($u.Verify.Keys | ForEach-Object { [int]$_ } | Where-Object {
+        @($u.VerifyList) -notcontains $_ -and @($u.Outliers) -notcontains $_ -and $u.VerifyP.ContainsKey($_) -and $_ -lt $vals.Count -and
+        [int]$vals[$_] -eq [int]$u.VerifyP[$_] -and [int]$vals[$_] -gt 0 -and [int]$vals[$_] -lt $script:CalHardNs } | Sort-Object)
+    if ($null -ne $u.Writes -and $u.Writes.Count -gt 0) {
+        $wmax = [int](@($u.Writes.Values) | Measure-Object -Maximum).Maximum
+        $vmax = [int](@(@($u.VerifyList) | ForEach-Object { 1 + [int]$u.Writes[[int]$_] }) | Measure-Object -Maximum).Maximum
+        $lim = [math]::Max($wmax, $vmax)
+        $low = @($cand | Where-Object { 1 + [int]$u.Writes[[int]$_] -le $lim })
+        # Repli : une ecriture de plus sur quelques pistes plutot qu aucune mesure de derive
+        if ($low.Count -ge [int]$u.WitMin) { $cand = $low }
+    }
+    $u.WitCand = $cand.Count
+    $k = [math]::Min([int]$script:CalDriftWitness, $cand.Count)
+    if ($k -lt [int]$u.WitMin) { return }
+    $w = @(for ($i = 0; $i -lt $k; $i++) { [int]$cand[[int][math]::Floor(($i + 0.5) * $cand.Count / $k)] })
+    $u.Witness = $w
+    $u.VerifyList = @(@($u.VerifyList) + $w | Sort-Object -Unique)
+}
+
+function Get-VerifyDrift($u) {
+    # Derive du lecteur entre les deux dernieres verifications, mesuree sur les temoins (meme valeur ecrite les deux fois) :
+    # D = mediane de (residu nouveau - residu precedent), incertitude E = 1,2533 S / racine du nombre de temoins. Les residus
+    # des cylindres relus a la derniere verification sont juges sans ce decalage (ramenes au repere de la verification
+    # precedente, sur laquelle la courbe a ete corrigee).
+    # Non reproductible : temoin dont l ecart s eloigne de D de plus de max(3 tolerances ; 4 S) ; cylindre corrige dont le
+    # residu, derive retiree, va a l inverse du changement prevu par la pente commune, ou au-dela du changement prevu entier,
+    # de plus de cette limite. Une reponse plus faible que prevu, ou nulle, n est pas une non-reproductibilite : le cylindre
+    # est juge normalement. Une suite d au moins 3 candidats voisins (2 cylindres au plus, ou consecutifs parmi les
+    # cylindres relus) de meme sens est un ecart
+    # systematique, jugee normalement elle aussi. DC / NC : ecart median des cylindres corriges a leur prediction (derive
+    # comprise), a comparer a D (les temoins isoles derivent-ils comme les blocs corriges ?). Sys : candidats d une suite
+    # systematique ; un temoin qui en fait partie est juge sur sa relecture, derive retiree, et non sur sa mesure precedente.
+    $res = @{ Use = $false; D = 0.0; S = [double]::NaN; SRaw = [double]::NaN; E = [double]::NaN; NW = 0; NC = 0; DC = [double]::NaN; NonRepro = @{}; Sys = @{} }
+    if (-not $u.VerifyPrev -or $u.VerifyPrev.Count -eq 0) { return $res }
+    $sl = if ($null -ne $u.Slope -and [double]$u.Slope -lt -0.2) { [double]$u.Slope } else { -2.0 }
+    $wit = @(); $cor = @()
+    foreach ($k in @($u.VerifyPrev.Keys)) {
+        $c = [int]$k
+        if (-not $u.Verify.ContainsKey($c) -or -not $u.VerifyP.ContainsKey($c) -or @($u.Outliers) -contains $c) { continue }
+        $p1 = [double]$u.VerifyPrev[$c].P; $r1 = [double]$u.VerifyPrev[$c].Shift
+        $p2 = [double]$u.VerifyP[$c]; $r2 = [double]$u.Verify[$c].Shift
+        if ([double]::IsNaN($r1) -or [double]::IsNaN($r2)) { continue }
+        $o = @{ C = $c; Obs = $r2 - $r1; Exp = $sl * ($p2 - $p1); P1 = $p1; R1 = $r1; P2 = $p2; R2 = $r2 }
+        if ($p2 -eq $p1) { $wit += ,$o } else { $cor += ,$o }
+    }
+    $res.NW = $wit.Count
+    $wm = if ($u.WitMin) { [int]$u.WitMin } else { [int]$script:CalDriftMinWit }
+    if ($wit.Count -lt $wm) { return $res }
+    $dw = @($wit | ForEach-Object { [double]$_.Obs })
+    $d = [double](Get-Median $dw)
+    $sr = 1.4826 * [double](Get-Median @($dw | ForEach-Object { [math]::Abs($_ - $d) }))
+    $s = [math]::Max(1.0, $sr)
+    $res.Use = $true; $res.D = $d; $res.S = $s; $res.SRaw = $sr; $res.E = 1.2533 * $s / [math]::Sqrt([double]$wit.Count)
+    $lim = [math]::Max(3.0 * [double]$script:CalResidual, 4.0 * $s)
+    $cand = @{}
+    foreach ($o in @($wit + $cor)) {
+        $ob = [double]$o.Obs - $d; $ex = [double]$o.Exp
+        $nr = if ($ex -eq 0) { [math]::Abs($ob) -gt $lim } else { $sg = [math]::Sign($ex); (($ob * $sg) -lt (-$lim)) -or (($ob * $sg) -gt ([math]::Abs($ex) + $lim)) }
+        if ($nr) { $cand[[int]$o.C] = $o }
+    }
+    # Suites de candidats voisins de meme sens : ecart systematique, pas une mesure non reproductible
+    $cs = @($cand.Keys | ForEach-Object { [int]$_ } | Sort-Object)
+    # Voisins : 2 cylindres au plus, ou consecutifs parmi les cylindres relus (test standard, un cylindre sur 10)
+    $all = @(@($wit + $cor) | ForEach-Object { [int]$_.C } | Sort-Object)
+    $i = 0
+    while ($i -lt $cs.Count) {
+        $j = $i
+        while ($j -lt $cs.Count - 1 -and (($cs[$j + 1] - $cs[$j] -le 2) -or ([array]::IndexOf($all, $cs[$j + 1]) - [array]::IndexOf($all, $cs[$j]) -eq 1)) -and [math]::Sign([double]$cand[$cs[$j + 1]].Obs - $d - [double]$cand[$cs[$j + 1]].Exp) -eq [math]::Sign([double]$cand[$cs[$i]].Obs - $d - [double]$cand[$cs[$i]].Exp)) { $j++ }
+        if ($j - $i + 1 -lt 3) {
+            for ($q = $i; $q -le $j; $q++) { $o = $cand[$cs[$q]]; $res.NonRepro[[int]$cs[$q]] = @{ Z1 = [double]$o.P1 - [double]$o.R1 / $sl; Z2 = [double]$o.P2 - ([double]$o.R2 - $d) / $sl } }
+        }
+        else { for ($q = $i; $q -le $j; $q++) { $res.Sys[[int]$cs[$q]] = $true } }   # ecart systematique : juge sur la relecture
+        $i = $j + 1
+    }
+    $kc = @($cor | Where-Object { -not $res.NonRepro.ContainsKey([int]$_.C) } | ForEach-Object { [double]$_.Obs - [double]$_.Exp })
+    if ($kc.Count -gt 0) { $res.NC = $kc.Count; $res.DC = [double](Get-Median $kc) }
+    return $res
 }
 
 function Get-ResidualFlags($u) {
@@ -5853,14 +5967,20 @@ function Get-ResidualFlags($u) {
     $vals = @($u.Fit.Values)
     $segs = @($u.Fit.Segs | Where-Object { $null -ne $_ })
     $pts = New-Object System.Collections.Generic.List[object]
+    $dft = Get-VerifyDrift $u
     foreach ($c in @($u.Verify.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
-        if (@($u.Outliers) -contains $c) { continue }
-        $r = [double]$u.Verify[$c].Shift
+        if (@($u.Outliers) -contains $c -or $dft.NonRepro.ContainsKey($c)) { continue }
+        $r = [double]$u.Verify[$c].Shift; $mz = $u.Verify[$c]
+        # Temoin : valeur inchangee, juge sur sa mesure precedente (repere de la verification precedente, comme les cylindres
+        # corriges une fois la derive retiree) ; sa relecture ne sert qu a mesurer la derive. Autre cylindre relu a la
+        # derniere verification : juge sans la derive du lecteur mesuree sur les temoins
+        if (@($u.Witness) -contains $c -and $u.VerifyPrev -and $u.VerifyPrev.ContainsKey($c) -and -not $dft.Sys.ContainsKey($c)) { $mz = $u.VerifyPrev[$c].Meas; $r = [double]$u.VerifyPrev[$c].Shift }
+        elseif ($dft.Use -and $u.ReadLast -and $u.ReadLast.ContainsKey($c)) { $r -= [double]$dft.D }
         # Limites physiques (courbe au plafond encore sous-compensee, au plancher encore sur-compensee) : hors du jugement
         if ($c -lt $vals.Count -and (($r -gt 0 -and [int]$vals[$c] -ge $script:CalHardNs) -or ($r -lt 0 -and [int]$vals[$c] -le 0))) { continue }
         $sg = if ($segs.Count -gt 0) { -1 } else { 0 }
         for ($g = 0; $g -lt $segs.Count; $g++) { if ($c -ge [int]$segs[$g].Lo -and $c -le [int]$segs[$g].Hi) { $sg = $g; break } }
-        $pts.Add(@{ C = $c; R = $r; S = $sg; Out = ([math]::Abs($r) -gt (Get-ResidualTol $u.Verify[$c])) })
+        $pts.Add(@{ C = $c; R = $r; S = $sg; Out = ([math]::Abs($r) -gt (Get-ResidualTol $mz)) })
     }
     $n = $pts.Count
     $bad = @{}; $spot = @()
@@ -5887,7 +6007,9 @@ function Get-ResidualFlags($u) {
     for ($i = 0; $i -lt $n; $i++) {
         if (-not $pts[$i].Out) { continue }
         $k = $hi[$i] - $lo[$i] + 1
-        if ($k -lt 3) { $flag[$i] = $true; continue }
+        # Un cylindre non reproductible, hors des moyennes, reste un voisin verifie (pas de bascule dans la regle d origine)
+        $kx = @($dft.NonRepro.Keys | Where-Object { [math]::Abs([int]$_ - [int]$pts[$i].C) -le 2 }).Count
+        if ($k + $kx -lt 3) { $flag[$i] = $true; continue }
         $s = 0.0; for ($j = $lo[$i]; $j -le $hi[$i]; $j++) { $s += [double]$pts[$j].R }
         $tl = [math]::Max($t0, 3.0 * $sig / [math]::Sqrt([double]$k))
         if ([math]::Abs($s / $k) -gt $tl -or [math]::Abs([double]$pts[$i].R) -gt $hard) { $flag[$i] = $true }
@@ -5930,18 +6052,25 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
     #  Beyond  : cylindres dont la courbe depasse le plafond des passes de mesure CalMaxNs (valeurs deduites des mesures,
     #            puis verifiees), information seulement ;
     #  Extrap / Cap : estimations extrapolees au-dela des mesures, ou plafonnees.
-    $nonConv = @(); $sat = @(); $floor = @(); $dev = @(); $extrap = @(); $cap = @(); $spot = @(); $beyond = @()
+    #  Drift / NonRepro : derive du lecteur entre les deux verifications (temoins) et cylindres non reproductibles d une
+    #            passe a l autre (Get-VerifyDrift) ; les residus relus a la derniere verification sont juges sans la derive.
+    $nonConv = @(); $sat = @(); $floor = @(); $dev = @(); $extrap = @(); $cap = @(); $spot = @(); $beyond = @(); $nonRepro = @()
     $outl = @{}; foreach ($c in @($u.Outliers)) { $outl[[int]$c] = $true }
     $vals = @($u.Fit.Values)
     $fl = Get-ResidualFlags $u
+    $dft = Get-VerifyDrift $u
     foreach ($c in @($u.Verify.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
         if ($outl.ContainsKey($c)) { continue }
-        $r = [double]$u.Verify[$c].Shift
-        if ([math]::Abs($r) -gt (Get-ResidualTol $u.Verify[$c])) {
+        $r = [double]$u.Verify[$c].Shift; $mz = $u.Verify[$c]
+        if (@($u.Witness) -contains $c -and $u.VerifyPrev -and $u.VerifyPrev.ContainsKey($c) -and -not $dft.Sys.ContainsKey($c)) { $mz = $u.VerifyPrev[$c].Meas; $r = [double]$u.VerifyPrev[$c].Shift }
+        elseif ($dft.Use -and $u.ReadLast -and $u.ReadLast.ContainsKey($c)) { $r -= [double]$dft.D }
+        $out = [math]::Abs($r) -gt (Get-ResidualTol $mz)
+        if ($out -and $r -gt 0 -and $c -lt $vals.Count -and [int]$vals[$c] -ge $script:CalHardNs) { $sat += ("c{0} ({1:+0.0;-0.0})" -f $c, $r); continue }
+        if ($out -and $r -lt 0 -and $c -lt $vals.Count -and [int]$vals[$c] -le 0) { $floor += ("c{0} ({1:+0.0;-0.0})" -f $c, $r); continue }
+        if ($dft.NonRepro.ContainsKey($c)) { $z = $dft.NonRepro[$c]; $nonRepro += ((T "c{0} ({1} puis {2} ns)") -f "$c", (Format-LevelNum $z.Z1), (Format-LevelNum $z.Z2)); continue }
+        if ($out) {
             $txt = "c{0} ({1:+0.0;-0.0})" -f $c, $r
-            if ($r -gt 0 -and $c -lt $vals.Count -and [int]$vals[$c] -ge $script:CalHardNs) { $sat += $txt }
-            elseif ($r -lt 0 -and $c -lt $vals.Count -and [int]$vals[$c] -le 0) { $floor += $txt }
-            elseif ($fl.Bad.ContainsKey($c)) { $nonConv += $txt }
+            if ($fl.Bad.ContainsKey($c)) { $nonConv += $txt }
             else { $spot += $txt }            # ecart local non retenu par Get-ResidualFlags
         }
     }
@@ -5958,7 +6087,8 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
     # Cylindres a la borne absolue avec Sat : couverts par le message du plafond, ce ne sont pas des valeurs deduites
     for ($c = 0; $c -lt $vals.Count; $c++) { $x = [int]$vals[$c]; if ($x -gt $script:CalMaxNs -and ($x -lt $script:CalHardNs -or $sat.Count -eq 0)) { $beyond += $c } }
     return @{ NonConv = $nonConv; Sat = $sat; Floor = $floor; Dev = $dev; Extrap = $extrap; Cap = $cap; Isolated = @($u.Outliers | ForEach-Object { "c$_" }); Breaks = @($u.Fit.Breaks)
-              Spot = $spot; Sigma = $fl.Sigma; NDiff = $fl.NDiff; Hard = $fl.Hard; HardPair = $fl.HardPair; Beyond = [int[]]$beyond }
+              Spot = $spot; Sigma = $fl.Sigma; NDiff = $fl.NDiff; Hard = $fl.Hard; HardPair = $fl.HardPair; Beyond = [int[]]$beyond
+              Drift = $dft; NonRepro = $nonRepro }
 }
 
 function Get-KindName([string]$k) {
@@ -6461,9 +6591,16 @@ function Build-LevelValues($u, [int]$d, $e) {
     # Noms distincts de la reference ($ref) et de sa valeur ($rv) : PowerShell ignore la casse ($V et $v seraient une
     # seule variable)
     $max = [int]$script:CalHardNs; $rmax = Get-CurveMaxNs $u.Cv; $ref = @($u.V); $n = $ref.Count
-    $out = New-Object int[] $n; $sat = @(); $floor = @()
+    $out = New-Object int[] $n; $sat = @(); $floor = @(); $clip = @()
     for ($c = 0; $c -lt $n; $c++) {
         $rv = [int]$ref[$c]
+        # Reference au-dela de la borne actuelle (courbe calculee avec une borne plus haute) : ecretee a la borne, niveau
+        # applique, sans Sat (la borne est un reglage, pas un besoin de cette disquette)
+        if ($rv -gt $max) {
+            $raw = if ($rv -ge $rmax) { $rv + [math]::Max(0, $d) } else { $rv + $d }
+            if ($raw -gt $max) { $clip += $c }
+            $out[$c] = [int][math]::Max(0, [math]::Min($max, $raw)); continue
+        }
         if ($rv -ge $rmax) {
             $raw = $rv + [math]::Max(0, $d)
             if ($raw -gt $max) { $sat += $c }
@@ -6485,20 +6622,20 @@ function Build-LevelValues($u, [int]$d, $e) {
             # Zone recalculee : interpolation depuis le dernier cylindre hors zone ; au-dela du temoin (reference plus longue
             # que l image), valeur du temoin
             $y0 = [double]$out[$lo - 1]
-            $sat = @($sat | Where-Object { $_ -lt $lo })
+            $sat = @($sat | Where-Object { $_ -lt $lo }); $clip = @($clip | Where-Object { $_ -lt $lo })
             for ($c = $lo; $c -lt $n; $c++) {
                 $tt = [math]::Min(1.0, ($c - ($lo - 1)) / [double]($p - ($lo - 1)))
                 $raw = [math]::Round($y0 + $tt * ($y1 - $y0))
                 if ($note -eq 'cap') {
                     $lb = [double]$ref[$c] + [math]::Max(0, $d)
-                    if ($c -eq $p -or $lb -gt $max) { $sat += $c }
+                    if ([double]$ref[$c] -gt $max) { $clip += $c } elseif ($c -eq $p -or $lb -gt $max) { $sat += $c }
                     $raw = [math]::Max($raw, [math]::Min([double]$max, $lb))
                 }
                 $out[$c] = [int][math]::Max(0, [math]::Min($max, $raw))
             }
         }
     }
-    return @{ Values = $out; Sat = $sat; Floor = $floor; ProbeNote = $note }
+    return @{ Values = $out; Sat = $sat; Floor = $floor; ProbeNote = $note; Clip = $clip }
 }
 
 function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback) {
@@ -6721,6 +6858,9 @@ function Complete-LevelCalib {
         if ($bv.Sat.Count -gt 0) {
             Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec le niveau de cette disquette ({2} ns par rapport à la référence) : support probablement fatigué, ces cylindres resteront sous-compensés.") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)), ('{0:+0;-0;0}' -f [int]$u.Level)))
             $issues.Add($pfx + ((T "plafond de {0} ns atteint aux cylindres {1} (support fatigué ?)") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat))))
+        }
+        if (@($bv.Clip).Count -gt 0) {
+            Append-Log ($pfx + ((T "Référence calculée avec une borne de {0} ns, au-delà de la borne actuelle (precompMaxNs = {1} ns) aux cylindres {2} : valeurs ramenées à {1} ns.") -f "$(Get-CurveMaxNs $u.Cv)", "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Clip))))
         }
         if ($bv.Floor.Count -gt 0) {
             Append-Log ($pfx + ((T "Précompensation nulle encore excessive aux cylindres {0} avec le niveau de cette disquette : ces cylindres resteront sur-compensés.") -f (Format-CylList ([int[]]$bv.Floor))))
@@ -7106,7 +7246,9 @@ function New-CalibPass {
             $writes += ,@("c=$(Format-CylList ([int[]]$lst)):h=$($u.Head)", $u.Profile)
         }
         if ($null -ne $cal.Units[0].VerifyList) {
-            Append-Log ((T "Calibration : passe de vérification {0}/{1} ciblée sur les cylindres modifiés : {2}") -f "$($cal.VerifyCount)", "$($script:CalMaxVerify)", ((@($cal.Units | Where-Object { @($_.VerifyList).Count -gt 0 } | ForEach-Object { "$($_.Prefix)$(Format-CylList ([int[]]@($_.VerifyList)))" })) -join ' ; '))
+            Append-Log ((T "Calibration : passe de vérification {0}/{1} ciblée sur les cylindres modifiés : {2}") -f "$($cal.VerifyCount)", "$($script:CalMaxVerify)", ((@($cal.Units | Where-Object { @($_.VerifyList).Count -gt 0 } | ForEach-Object { $uu = $_; "$($uu.Prefix)$(Format-CylList ([int[]]@(@($uu.VerifyList) | Where-Object { @($uu.Witness) -notcontains $_ })))" })) -join ' ; '))
+            $wt = @($cal.Units | Where-Object { @($_.Witness).Count -gt 0 } | ForEach-Object { "$($_.Prefix)$(Format-CylList ([int[]]@($_.Witness)))" })
+            if ($wt.Count -gt 0) { Append-Log ((T "Calibration : témoins de dérive, réécrits à leur valeur inchangée et relus pour mesurer l'écart du lecteur entre deux vérifications : {0}") -f ($wt -join ' ; ')) }
         } else {
             Append-Log ((T "Calibration : passe de vérification {0}/{1}, tête 0 puis tête 1, profils {2} et {3}") -f "$($cal.VerifyCount)", "$($script:CalMaxVerify)", "$($cal.Units[0].Profile)", "$($cal.Units[1].Profile)")
         }
@@ -7116,7 +7258,8 @@ function New-CalibPass {
         $u0 = $cal.Units[0]
         if ($null -ne $u0.VerifyList) {
             $lst = [int[]]@($u0.VerifyList)
-            Append-Log ((T "Calibration : passe de vérification {0}/{1} ciblée sur les cylindres modifiés : {2}") -f "$($cal.VerifyCount)", "$($script:CalMaxVerify)", (Format-CylList $lst))
+            Append-Log ((T "Calibration : passe de vérification {0}/{1} ciblée sur les cylindres modifiés : {2}") -f "$($cal.VerifyCount)", "$($script:CalMaxVerify)", (Format-CylList ([int[]]@($lst | Where-Object { @($u0.Witness) -notcontains $_ }))))
+            if (@($u0.Witness).Count -gt 0) { Append-Log ((T "Calibration : témoins de dérive, réécrits à leur valeur inchangée et relus pour mesurer l'écart du lecteur entre deux vérifications : {0}") -f (Format-CylList ([int[]]@($u0.Witness)))) }
             $writes += ,@("c=$(Format-CylList $lst):h=0-1", $cal.Spec)
             $readTs = "c=$(Format-CylList $lst):h=0-1"
         } else {
@@ -7195,13 +7338,20 @@ function Invoke-CalibAnalysis {
         if ($cal.Stage -eq 'verify' -and $null -ne $u.VerifyList) {
             # Verification ciblee : la mesure de la passe precedente, prise a l ancienne valeur, ne vaut plus pour ces
             # cylindres ; non relus a cette passe, ils restent « non relus » (jamais juges sur un residu perime)
-            foreach ($c in @($u.VerifyList)) { [void]$u.Verify.Remove([int]$c); [void]$u.VerifyP.Remove([int]$c) }
+            # Mesure precedente gardee a part : la derive entre deux verifications (Get-VerifyDrift) la compare a la nouvelle
+            $u.VerifyPrev = @{}; $u.ReadLast = @{}
+            foreach ($c in @($u.VerifyList)) {
+                $u.ReadLast[[int]$c] = $true
+                if ($u.Verify.ContainsKey([int]$c) -and $u.VerifyP.ContainsKey([int]$c)) { $u.VerifyPrev[[int]$c] = @{ Shift = [double]$u.Verify[[int]$c].Shift; P = [double]$u.VerifyP[[int]$c]; Meas = $u.Verify[[int]$c] } }
+                [void]$u.Verify.Remove([int]$c); [void]$u.VerifyP.Remove([int]$c)
+            }
         }
         foreach ($c in $cal.Cyls) {
             if ($cal.Stage -eq 'bracket' -and -not $u.Bracket.ContainsKey([int]$c)) { continue }
             if ($cal.Stage -eq 'densify' -and -not $u.Dense.ContainsKey([int]$c)) { continue }
             if ($cal.Stage -eq 'verify' -and $null -ne $u.VerifyList -and @($u.VerifyList) -notcontains [int]$c) { continue }
             if ($cal.Stage -eq 'level' -and -not $u.LTarget.ContainsKey([int]$c)) { continue }
+            if ($null -ne $u.Writes) { $u.Writes[[int]$c] = 1 + [int]$u.Writes[[int]$c] }   # piste ecrite a cette passe
             $sv = @(); $ev = @(); $jv = @()
             foreach ($h in $heads) {
                 $tn = [int]$c * 2 + $h
@@ -7223,6 +7373,15 @@ function Invoke-CalibAnalysis {
                 default   { $u.Verify[[int]$c] = $meas; $u.VerifyP[[int]$c] = Get-SpecValue $u.Profile ([int]$c) }
             }
             $shifts += $sh; if (-not [double]::IsNaN($jt)) { $scores += $jt }
+        }
+        if ($cal.Stage -eq 'verify' -and $null -ne $u.VerifyList -and @($u.Witness).Count -gt 0) {
+            foreach ($c in @($u.Witness)) {
+                $ci = [int]$c
+                if ($u.Verify.ContainsKey($ci) -or -not $u.VerifyPrev.ContainsKey($ci)) { continue }
+                $u.Verify[$ci] = $u.VerifyPrev[$ci].Meas; $u.VerifyP[$ci] = [int]$u.VerifyPrev[$ci].P
+                [void]$u.VerifyPrev.Remove($ci); [void]$u.ReadLast.Remove($ci)
+                $u.VerifyList = @(@($u.VerifyList) | Where-Object { [int]$_ -ne $ci })
+            }
         }
         $badTxt = if ($bad.Count -gt 0) { ((T ", illisibles : {0}") -f "$($bad -join ',')") } else { '' }
         if ($shifts.Count -gt 0) {
@@ -7277,7 +7436,7 @@ function Invoke-CalibAnalysis {
     $again = $false
     foreach ($u in $cal.Units) {
         # Points de la passe : seulement les cylindres relus a cette passe (verification ciblee : VerifyList)
-        $readNow = if ($null -ne $u.VerifyList) { @($u.VerifyList) } else { @($u.Verify.Keys | ForEach-Object { [int]$_ }) }
+        $readNow = if ($null -ne $u.VerifyList) { @(@($u.VerifyList) | Where-Object { @($u.Witness) -notcontains [int]$_ }) } else { @($u.Verify.Keys | ForEach-Object { [int]$_ }) }
         foreach ($c in @($u.Verify.Keys)) { if ($readNow -contains [int]$c) { Add-CalibPoint $u.Results[[int]$c] ([int]$u.VerifyP[[int]$c]) $u.Verify[$c] } }
         [void](Set-CalibEstimates $u ((T "Vérification {0} : ") -f "$($cal.VerifyCount)"))
         $u.VerifyList = @()
@@ -7330,6 +7489,7 @@ function Invoke-CalibAnalysis {
                 $bTxt = if ($oldB -ne $newB) { (T "changement de sens déplacé de {0} à {1}") -f "$oldB", "$newB" } else { (T "changements de sens {0}") -f "$newB" }
                 Append-Log ($u.Prefix + ((T "Vérification : {0} cylindre(s) hors tolérance, courbe réajustée sur les zéros mesurés par la vérification ({1}) : {2}") -f "$corr", "$bTxt", "$($u.Profile)"))
                 $u.VerifyList = @($u.Est.Keys | ForEach-Object { [int]$_ } | Where-Object { $_ -lt @($re.Values).Count -and (-not $u.VerifyP.ContainsKey($_) -or [int]$re.Values[$_] -ne [int]$u.VerifyP[$_]) } | Sort-Object)
+                Add-DriftWitnesses $u
                 if ($u.VerifyList.Count -gt 0) { $again = $true }
                 continue
             }
@@ -7343,6 +7503,7 @@ function Invoke-CalibAnalysis {
         Append-Log ($u.Prefix + ((T "{0} cylindre(s) corrigé(s), résidu hors tolérance, nouveau profil : {1}") -f "$corr", "$($u.Profile)"))
         # Verification suivante ciblee : cylindres estimes dont la valeur appliquee change (au moins 1 ns)
         $u.VerifyList = @($u.Est.Keys | ForEach-Object { [int]$_ } | Where-Object { $_ -lt $newVals.Count -and (-not $u.VerifyP.ContainsKey($_) -or [int]$newVals[$_] -ne [int]$u.VerifyP[$_]) } | Sort-Object)
+        Add-DriftWitnesses $u
         if ($u.VerifyList.Count -gt 0) { $again = $true }
     }
     if ($again) {
@@ -7374,8 +7535,32 @@ function Complete-PrecompCalib {
             Append-Log ($u.Prefix + ((T "Résidu après vérification (ns, tolérance {0}, élargie à 3 erreurs-types si la mesure est plus bruitée) : {1}") -f "$($script:CalResidual)", "$resTxt"))
         }
         $u.Warn = Get-CalibWarnings $u $cal.MaxCyl
+        $dft = $u.Warn.Drift
+        if ($dft.Use) {
+            $sla = if ($null -ne $u.Slope -and [double]$u.Slope -lt -0.2) { [math]::Abs([double]$u.Slope) } else { 2.0 }
+            $dsp = if ([double]$dft.SRaw -ge 1.0) { "$(Format-LevelNum $dft.SRaw) ns" } else { (T 'moins de 1 ns') }
+            $lt = (T "Dérive du lecteur entre les deux vérifications : {0} ± {1} ns de décalage commun sur {2} cylindres témoins (dispersion {3}).") -f ('{0:+0.0;-0.0;0.0}' -f [double]$dft.D), (Format-LevelNum $dft.E), "$($dft.NW)", "$dsp"
+            $pdv = [math]::Round([math]::Abs([double]$dft.D) / $sla, 1); $pd = Format-LevelNum $pdv
+            if ($pdv -le 0) { }
+            elseif ([double]$dft.D -gt 0) { $lt += (T " Le besoin de précompensation était plus élevé de {0} ns à la dernière vérification.") -f "$pd" }
+            elseif ([double]$dft.D -lt 0) { $lt += (T " Le besoin de précompensation était plus faible de {0} ns à la dernière vérification.") -f "$pd" }
+            if ([int]$dft.NC -gt 0) { $lt += (T " Écart des cylindres corrigés à leur prédiction, dérive comprise : {0} ns en médiane sur {1}.") -f ('{0:+0.0;-0.0;0.0}' -f [double]$dft.DC), "$($dft.NC)" }
+            $lt += (T " Les résidus des cylindres relus à la dernière vérification sont jugés sans ce décalage ; les témoins, inchangés, sur leur mesure précédente, sauf ceux d'un écart systématique, jugés sur leur relecture.")
+            Append-Log ($u.Prefix + $lt)
+            # Derive forte : retiree du jugement, mais signalee (lecteur ou support instable d une passe a l autre)
+            if ([math]::Abs([double]$dft.D) -gt 2.0 * [double]$script:CalResidual) { $issues.Add($u.Prefix + ((T "dérive du lecteur de {0} ns entre deux vérifications (lecteur ou support instable ?)") -f ('{0:+0.0;-0.0;0.0}' -f [double]$dft.D))) }
+        }
+        elseif (@($u.Witness).Count -gt 0 -and $u.VerifyPrev.Count -gt 0) {
+            Append-Log ($u.Prefix + ((T "Dérive du lecteur non mesurée : {0} témoin(s) exploitable(s) sur {1}, {2} au moins nécessaires ; résidus jugés sans correction de dérive, témoins sur leur mesure précédente.") -f "$($dft.NW)", "$(@($u.Witness).Count)", "$([int]$u.WitMin)"))
+        }
+        elseif (@($u.Witness).Count -eq 0 -and $u.VerifyPrev -and $u.VerifyPrev.Count -gt 0) {
+            Append-Log ($u.Prefix + ((T "Dérive du lecteur non mesurée : {0} cylindre(s) non modifié(s) disponible(s) comme témoins, {1} au moins nécessaires ; résidus jugés sans correction de dérive.") -f "$([int]$u.WitCand)", "$([int]$u.WitMin)"))
+        }
+        if (@($u.Warn.NonRepro).Count -gt 0) {
+            Append-Log ($u.Prefix + ((T "Cylindres non reproductibles d'une vérification à l'autre (zéro estimé à la pente commune par la vérification précédente, puis par la dernière, dérive retirée) : {0}. Ils ne comptent pas pour la convergence ; une nouvelle calibration peut leur donner une autre valeur.") -f (@($u.Warn.NonRepro) -join ', ')))
+        }
         if (-not [double]::IsNaN([double]$u.Warn.Sigma)) {
-            Append-Log ($u.Prefix + ((T "Bruit de mesure estimé : {0} ns, sur {1} écarts entre cylindres vérifiés distants de 2 au plus. Un écart est retenu si la moyenne des résidus voisins (2 cylindres au plus) dépasse {2} ns, si un résidu dépasse {3} ns, s'il s'étend sur 3 cylindres ou plus, ou 2 en bord de piste ou de segment, au-delà de {2} ns, ou s'il couvre 2 cylindres au-delà de {4} ns. Seuils relevés quand le bruit est fort. Un écart dont un cylindre a moins de 2 autres cylindres vérifiés à 2 cylindres au plus est retenu sur sa seule tolérance ; les points isolés et les cylindres au plafond ou au plancher ne comptent ni dans le bruit ni dans le voisinage.") -f (Format-LevelNum $u.Warn.Sigma), "$($u.Warn.NDiff)", (Format-LevelNum $script:CalResidual), (Format-LevelNum $u.Warn.Hard), (Format-LevelNum $u.Warn.HardPair)))
+            Append-Log ($u.Prefix + ((T "Bruit de mesure estimé : {0} ns, sur {1} écarts entre cylindres vérifiés distants de 2 au plus. Un écart est retenu si la moyenne des résidus voisins (2 cylindres au plus) dépasse {2} ns, si un résidu dépasse {3} ns, s'il s'étend sur 3 cylindres ou plus, ou 2 en bord de piste ou de segment, au-delà de {2} ns, ou s'il couvre 2 cylindres au-delà de {4} ns. Seuils relevés quand le bruit est fort. Un écart dont un cylindre a moins de 2 autres cylindres vérifiés à 2 cylindres au plus est retenu sur sa seule tolérance ; les points isolés et les cylindres au plafond ou au plancher ne comptent ni dans le bruit ni dans le voisinage, les cylindres non reproductibles ni dans le bruit ni dans les moyennes.") -f (Format-LevelNum $u.Warn.Sigma), "$($u.Warn.NDiff)", (Format-LevelNum $script:CalResidual), (Format-LevelNum $u.Warn.Hard), (Format-LevelNum $u.Warn.HardPair)))
         }
         if (@($u.Warn.Spot).Count -gt 0) {
             Append-Log ($u.Prefix + ((T "Écarts locaux non retenus : {0}. Hors tolérance, mais sous les seuils ci-dessus : ces écarts ne sont pas corrigés.") -f (@($u.Warn.Spot) -join ', ')))
@@ -7418,7 +7603,7 @@ function Complete-PrecompCalib {
                 $ds = $dd | Measure-Object -Average -Minimum -Maximum
                 Append-Log ($u.Prefix + ((T "Écart avec la calibration précédente du lecteur {0} ({1}) : {2} ns en moyenne (de {3} à {4} ns).") -f "$($cal.Drive)", "$($prev.Date)", ('{0:+0;-0;0}' -f [math]::Round($ds.Average, 0)), ('{0:+0;-0;0}' -f $ds.Minimum), ('{0:+0;-0;0}' -f $ds.Maximum)))
                 # Plafond de la courbe precedente : borne de SON calcul (300 ns avant le calcul 12.4)
-                $pmax = Get-CurveMaxNs $prev
+                $pmax = [math]::Min((Get-CurveMaxNs $prev), [int]$script:CalHardNs)   # ramenee a la borne actuelle
                 $ptop = [int](@($pv[0..($nn - 1)]) | Measure-Object -Maximum).Maximum
                 if ($u.Warn.Sat.Count -gt 0 -and $ptop -lt $pmax) {
                     Append-Log ($u.Prefix + (T "Plafond atteint alors que la calibration précédente du même lecteur ne l'atteignait pas : support de calibration probablement fatigué (sinon têtes à nettoyer, ou autre lecteur sous la même lettre)."))
@@ -7474,7 +7659,7 @@ function Complete-PrecompCalib {
             Ys = [double[]]@($cs | ForEach-Object { [math]::Round([double]$u.Est[$_], 1) })
             Sig = [double[]]@($cs | ForEach-Object { [math]::Round($(if ($u.Sig.ContainsKey($_)) { [double]$u.Sig[$_] } else { 5.0 }), 1) })
             Kinds = [string[]]@($cs | ForEach-Object { [string]$u.Kind[$_] })
-            Res = [double[]]@($cs | ForEach-Object { if ($u.Verify.ContainsKey($_)) { [math]::Round([double]$u.Verify[$_].Shift, 1) } else { [double]::NaN } })
+            Res = [double[]]@($cs | ForEach-Object { if (@($u.Witness) -contains $_ -and $u.VerifyPrev.ContainsKey($_) -and -not $u.Warn.Drift.Sys.ContainsKey($_)) { [math]::Round([double]$u.VerifyPrev[$_].Shift, 1) } elseif ($u.Verify.ContainsKey($_)) { [math]::Round([double]$u.Verify[$_].Shift, 1) } else { [double]::NaN } })
             Converged = ($u.Warn.NonConv.Count -eq 0); MaxX = $maxX; MaxNs = [int]$script:CalHardNs
             Slope =$(if ($null -ne $u.Slope) { [math]::Round([double]$u.Slope, 3) } else { $null }); Bits = [int]$cal.PatternBits; Test = [string]$cal.Mode
         }
@@ -8909,6 +9094,7 @@ function Close-Restore {
 
 # --- Configuration -------------------------------------------------------------
 function Set-Defaults {
+    $script:CalHardNs = $script:CalHardNsDefault
     $cmbDrive.SelectedIndex = 0
     $txtDev.Text = ''
     $chkTime.Checked = $false
@@ -9032,6 +9218,7 @@ function Save-Config {
             precompStd = $(if ($oc -and $oc.Std -and -not $script:PrecompCurves['std']) { $oc.Std } else { $script:PrecompStd })
             precompLong = $(if ($oc -and $oc.Long -and -not $script:PrecompCurves['long']) { $oc.Long } else { $script:PrecompLong })
             precompThresholdNs = [int]$script:PrecompThresholdNs
+            precompMaxNs = [int]$script:CalHardNs   # borne des valeurs calibrees (300 a 470 ns, 400 par defaut)
             calibVersion = $script:Version     # version de l application qui a enregistre (information)
             calibCalc = $script:CalibCalc      # calcul de calibration courant ; chaque courbe porte le sien (calc)
             calibAlgo = $script:CalibAlgo
@@ -9199,6 +9386,17 @@ function Load-Config {
     }
     if ($lostProf) { Append-Log (T 'Profil de famille calibré sans courbe (version antérieure à 12.1) : profil d''origine rétabli.') }
     $script:PrecompThresholdNs = [int](Get-Cfg $w 'precompThresholdNs' $script:PrecompThresholdNs)
+    # Borne des valeurs calibrees : reglage de la configuration, ramene a 300..470 ns ; valeur illisible : defaut, signale
+    $hraw = Get-Cfg $w 'precompMaxNs' $null
+    $hn = $script:CalHardNsDefault; $hd = 0.0
+    if ($null -ne $hraw) {
+        if ($hraw -isnot [bool] -and $hraw -isnot [array] -and [double]::TryParse(([string]$hraw).Trim(), [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$hd) -and -not [double]::IsNaN($hd) -and -not [double]::IsInfinity($hd)) {
+            $hn = [int][math]::Round([math]::Max(-1e9, [math]::Min(1e9, $hd)))
+        } else { Append-Log ((T "Borne de précompensation (precompMaxNs) illisible ({0}) : {1} ns par défaut.") -f "$hraw", "$($script:CalHardNsDefault)") }
+    }
+    $script:CalHardNs = [int][math]::Max($script:CalHardMinNs, [math]::Min($script:CalHardMaxNs, $hn))
+    if ($script:CalHardNs -ne $hn) { Append-Log ((T "Borne de précompensation (precompMaxNs) de {0} ns ramenée à {1} ns : elle va de {2} à {3} ns. Au-delà de 470 ns, la précompensation déplacerait une transition d'un quart de cellule en long track (1,89 µs).") -f "$hraw", "$($script:CalHardNs)", "$($script:CalHardMinNs)", "$($script:CalHardMaxNs)") }
+    elseif ($script:CalHardNs -ne $script:CalHardNsDefault) { Append-Log ((T "Borne de précompensation réglée dans la configuration (precompMaxNs) : {0} ns, au lieu de {1} ns par défaut.") -f "$($script:CalHardNs)", "$($script:CalHardNsDefault)") }
     Set-Combo $cmbWProfile (Get-Cfg $w 'precompProfile' (T 'Auto (selon image)'))
     $chkWPostCheck.Checked = [bool](Get-Cfg $w 'postCheck' $true)
     $rm = [int](Get-Cfg $w 'repairMax' 3); $numWRepair.Value = [math]::Max(0, [math]::Min(10, $rm))
