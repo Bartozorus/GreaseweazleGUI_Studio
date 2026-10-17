@@ -5,6 +5,45 @@ Le numéro de version est celui de `$script:Version` dans `src/GreaseweazleGUI.p
 
 Chaque version s'ouvre sur un résumé de ce qu'elle apporte, puis classe ses changements en Nouveautés, Améliorations et Corrections. La rubrique « À savoir pour la mise à jour » indique ce qu'il faut faire en installant la version, par exemple recalibrer un lecteur. « Pour les développeurs » regroupe la compilation, la publication et le format de configuration. Le fonctionnement détaillé est décrit dans le [wiki](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki).
 
+## [12.6] - 2026-10-17
+
+L'Accueil gagne deux cartes : « Calibrer le lecteur », pour tous les types de disquette, et « Nettoyer les têtes du lecteur », avec une procédure illustrée. Le lecteur est préchauffé avant une calibration complète et avant une écriture lente. Une calibration n'est plus déclarée « NON CONVERGÉE » quand ses deux vérifications se contredisent sur une zone.
+
+### Nouveautés
+
+- **Carte « Calibrer le lecteur ».** Elle remplace la carte « Courbe de calibration » de l'Accueil. Sa fenêtre liste, par groupe, tous les types de disquette connus de gw 1.23, et indique pour chacun s'il est calibrable ou pourquoi il ne l'est pas. Pour le type choisi, elle affiche l'état des courbes et propose « Afficher la courbe », ainsi qu'une calibration complète (test standard ou test fin) ou rapide. La calibration rapide n'est proposée que si une calibration complète de référence convient ; sinon, la fenêtre en donne la raison. Aucune image n'est nécessaire : l'application génère un motif de test à la densité du type et l'écrit sur une disquette sacrifiée. La carte affiche ensuite la progression, puis le bilan.
+- **Carte « Nettoyer les têtes du lecteur ».** Sa fenêtre présente la procédure en cinq vignettes. Elle permet de choisir le lecteur, sa course (80 ou 40 pistes), une disquette humide ou sèche et la durée. Le nettoyage ne démarre qu'une fois cochée la case « J'ai inséré une disquette de nettoyage dans le lecteur … », décochée à chaque changement de lecteur. Un bandeau rouge rappelle de ne jamais lancer le nettoyage avec une vraie disquette, qui risquerait d'être rayée et de perdre ses données. Le bouton « NETTOYER » de l'onglet « Outils » ouvre la même fenêtre.
+- **Préchauffage du lecteur.** Avant une calibration complète ou une écriture lente, l'application relit la disquette insérée sans rien y écrire, pendant 5 minutes au plus. Le lecteur atteint ainsi sa température de fonctionnement, qui modifie nettement le besoin de précompensation. Le préchauffage est réduit, ou sauté, si le lecteur vient de travailler. Quand une calibration rapide précède l'écriture, il a lieu avant la mesure du niveau. Le bouton « Passer le préchauffage » de la barre le termine après la lecture en cours, et « Arrêter » l'interrompt.
+- **Préchauffage désactivable.** La case « Préchauffer le lecteur avant l'écriture lente » de l'onglet « Écriture » le désactive pour l'écriture. La fenêtre de la carte « Calibrer le lecteur » a sa propre case pour la calibration. La durée se règle dans le fichier de configuration, de 0 (désactivé) à 30 minutes.
+
+### Améliorations
+
+- **Vérifications contradictoires.** Sur certaines zones, la première vérification peut demander moins de précompensation et la seconde, après correction, davantage. Les deux placent alors le besoin entre les deux valeurs écrites. La courbe y prend désormais la médiane des passes de mesure et des deux vérifications, sans dépasser les cylindres vérifiés voisins. Le journal et la fenêtre « Courbe » signalent ces cylindres comme « zone non reproductible », qui ne compte plus comme non convergée.
+- **Fenêtre de décision sur une zone non reproductible.** Elle s'ouvre quand les deux vérifications s'écartent de plus de 12 ns, ou quand la dérive du lecteur n'a pas pu être mesurée. Les cylindres sur lesquels les deux vérifications s'accordent restent jugés normalement, et une correction sans effet, ou plus faible que prévu, reste une non-convergence.
+- **Préchauffage sans disquette lisible.** Après deux lectures de suite sans aboutir (Greaseweazle, lecteur ou disquette absent), le préchauffage s'arrête et l'opération commence. Sa première écriture signale le défaut s'il persiste. Pour une écriture lente, les lectures reprennent les options d'index et de densité de l'écriture, par exemple pour une disquette à secteurs durs.
+- **Durée et progression.** L'avertissement d'une calibration compte le préchauffage dans la durée estimée. Pendant une calibration ou un préchauffage, le libellé commence par le pourcentage et le temps restant, lisibles à la taille minimale de la fenêtre.
+- **Formats non calibrables.** Avant une écriture, un format choisi explicitement et non calibrable (FM, GCR, secteurs durs, 360 tr/min…) n'est plus calibré automatiquement. L'écriture garde le profil courant, et le journal l'indique. Le bouton « Calibrer » refuse ces formats et en donne la raison.
+- **Images IMG et ST.** La calibration prend le nombre de cylindres du format choisi, par exemple 40 pour un format 5,25 pouces 360 Ko, au lieu de 80 par défaut, et en mesure au moins 35.
+- **Courbe plus courte que l'image.** Avant une écriture, une courbe calibrée sur nettement moins de cylindres que l'image est refaite sur les cylindres de l'image ; l'avertissement le signale. En « Test rapide », une telle référence mène à une calibration complète. Une restauration ne recalibre pas, mais signale la réserve à l'étape « Calibrer le lecteur si nécessaire ».
+- **Contrôle après écriture.** Il n'est plus proposé pour les formats FM, ni pour ceux dont la piste 0 est en FM : ses critères MFM les jugeraient à tort.
+- **Accueil sans défilement horizontal.** La fenêtre principale fait au moins 816 pixels de large. Une largeur enregistrée plus étroite est élargie au démarrage.
+
+### À savoir pour la mise à jour
+
+- Le calcul de calibration passe à 12.6, car les valeurs de la courbe changent sur les zones non reproductibles. Au premier démarrage, la fenêtre « Calibrations d'un autre calcul » propose vos courbes 12.4 : « Recalibrer (conseillé) » ou « Conserver ces courbes ». La recalibration commence par le préchauffage ; prévoyez une disquette sacrifiée.
+- Une calibration complète et une écriture lente durent jusqu'à 5 minutes de plus, sauf si le lecteur vient de travailler. Pendant une restauration avec un seul lecteur, la lecture de l'original chauffe déjà le lecteur : le préchauffage de la destination est en général sauté.
+- Une disquette protégée en écriture n'est signalée qu'à la première écriture, après le préchauffage.
+- Il reste une seule courbe par famille, commune à tous les lecteurs. Calibrer avec un autre lecteur, ou sur un autre nombre de cylindres, remplace cette courbe ; la fenêtre et l'avertissement le signalent.
+- Les types simple face sont calibrés sur les deux faces : il faut un lecteur double face. Les formats Atari à 260 et 261 kbit/s sont calibrés comme la double densité standard.
+- La fenêtre de la carte « Calibrer le lecteur » demande un écran d'au moins 1 024 pixels de large.
+
+### Pour les développeurs
+
+- Configuration, section `write` : `calWarmupMinutes` (0 à 30, 5 par défaut) et `slowWarmup` (préchauffage de l'écriture lente, activé par défaut). Chaque courbe enregistre sa zone non reproductible dans `contra`.
+- Configuration, section `ui` : `homeCalFormat` (dernier type choisi dans la carte « Calibrer le lecteur »).
+- Configuration, section `tools` : `cleanWet`, `cleanCyls` et `cleanPreset` (derniers choix de la fenêtre de nettoyage).
+- Fenêtre principale : largeur minimale portée de 800 à 816 pixels (`window.width`).
+
 ## [12.5] - 2026-10-17
 
 Une calibration n'est plus déclarée « NON CONVERGÉE » parce que le lecteur dérive légèrement d'une passe de vérification à l'autre. Les cylindres qui ne se reproduisent pas sont signalés à part. La limite de précompensation calibrée devient réglable.
