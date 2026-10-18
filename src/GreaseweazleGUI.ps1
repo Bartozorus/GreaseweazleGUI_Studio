@@ -27,11 +27,14 @@ param(
 )
 
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
-$script:Version = '12.6'
+$script:Version = '12.7'
 # Version du calcul de calibration (motif de test, mesure du decalage, ajustement de la courbe, verification), enregistree
 # avec chaque courbe : a changer seulement quand ce calcul change. Une courbe faite avec ce calcul est reprise par les
 # versions suivantes de l application ; une courbe d un autre calcul n est reprise que si l utilisateur la conserve.
 $script:CalibCalc = '12.6'
+# 12.7 : version du calcul de la famille haute densite (hd), distincte : son bareme provisoire changera apres les premieres
+# mesures reelles sans rouvrir le choix des courbes double densite (Get-CurveCalcRef)
+$script:CalibCalcHd = '12.7'
 $script:CalibAlgo = 'seg1'       # famille de modele de la courbe (information enregistree avec chaque courbe)
 $script:OldCalib = $null         # calibrations d un autre calcul, mises de cote au chargement en attendant le choix
 
@@ -535,7 +538,6 @@ $script:I18n["résidu {0}"] = "residual {0}"
 $script:I18n['courbe'] = 'curve'
 $script:I18n['NON CONVERGÉE'] = 'NOT CONVERGED'
 $script:I18n['mesure encadrée'] = 'bracketed measurement'
-$script:I18n['écart > 15 ns et > 3 incertitudes'] = 'deviation > 15 ns and > 3 uncertainties'
 $script:I18n['au-delà des mesures'] = 'beyond the measurements'
 $script:I18n['cylindre'] = 'cylinder'
 $script:I18n["{0} : lecteur {1}, {2}, courbe {3}, de {4} à {5} ns"] = "{0}: drive {1}, {2}, {3} curve, from {4} to {5} ns"
@@ -578,7 +580,6 @@ $script:I18n['Aucune calibration enregistrée : les profils sont déjà ceux d''
 $script:I18n["Effacer toutes les calibrations de précompensation ?`n`nCourbes : {0}.`nProfils de famille remis aux valeurs d'origine : standard {1}, long track {2}.`n`nOpération irréversible. Le mode Auto applique ensuite ces profils ; une écriture rapide ou lente recalibre automatiquement."] = "Clear every precompensation calibration?`n`nCurves: {0}.`nFamily profiles reset to their original values: standard {1}, long track {2}.`n`nThis cannot be undone. Auto mode then applies these profiles; a fast or slow write recalibrates automatically."
 $script:I18n['Calibrations effacées.'] = 'Calibrations cleared.'
 $script:I18n["Calibrations effacées : {0} courbe(s) ({1}) ; profils standard et long track remis aux valeurs d'origine ({2} ; {3})."] = "Calibrations cleared: {0} curve(s) ({1}); standard and long-track profiles reset to their original values ({2}; {3})."
-$script:I18n["Calibration non prise en charge pour une image haute densité ({0}) : les profils calibrés sont ceux des familles double densité (standard 2 µs, long track 1,89 µs)."] = "Calibration not supported for a high-density image ({0}): calibrated profiles belong to the double-density families (standard 2 µs, long track 1.89 µs)."
 $script:I18n["Image haute densité ({0}) : pas de calibration automatique, écriture avec le profil courant."] = "High-density image ({0}): no automatic calibration, writing with the current profile."
 $script:I18n['ADF haute densité, horloge AmigaDOS de gw'] = 'high-density ADF, gw AmigaDOS clock'
 $script:I18n['ADF, horloge AmigaDOS de gw'] = 'ADF, gw AmigaDOS clock'
@@ -596,9 +597,7 @@ $script:I18n["Nombre de faces de l'image inconnu : effacement des pistes vides d
 $script:I18n["Image à une seule face : seule la tête {0} est écrite (h={0} dans Pistes)."] = "Single-sided image: only head {0} is written (h={0} in Tracks)."
 $script:I18n["Champ Pistes : éléments de lecteur conservés ({0})."] = "Tracks field: drive elements kept ({0})."
 $script:I18n['Secteurs durs ou lecteur 8 pouces (TG43) : pas de calibration automatique, écriture avec le profil courant.'] = 'Hard sectors or 8-inch drive (TG43): no automatic calibration, writing with the current profile.'
-$script:I18n["Cellule de l'image hors de la plage mesurable ({0} ns, de 1 700 à 2 300 ns en MFM double densité) : pas de calibration automatique, écriture avec le profil courant."] = "Image bit cell outside the measurable range ({0} ns, 1,700 to 2,300 ns in double-density MFM): no automatic calibration, writing with the current profile."
 $script:I18n['Calibration non prise en charge avec secteurs durs ou lecteur 8 pouces (TG43) : l''analyse de flux est calibrée pour le MFM double densité.'] = 'Calibration not supported with hard sectors or an 8-inch drive (TG43): the flux analysis is calibrated for double-density MFM.'
-$script:I18n["Calibration non prise en charge : cellule de l'image de {0} ns, hors de la plage mesurable (1 700 à 2 300 ns, MFM double densité)."] = "Calibration not supported: image bit cell of {0} ns, outside the measurable range (1,700 to 2,300 ns, double-density MFM)."
 $script:I18n['non relu'] = 'not read back'
 $script:I18n['long track, 1,89 µs par cellule'] = 'long track, 1.89 µs per cell'
 $script:I18n["Motif de test : HFE de données pseudo-aléatoires généré, {0} cylindres, {1} cellules par piste ({2}), soit {3} ns par cellule à 300 tr/min. L'image ne fixe que la densité et le nombre de cylindres, son contenu n'est pas écrit."] = "Test pattern: pseudo-random HFE generated, {0} cylinders, {1} cells per track ({2}), i.e. {3} ns per cell at 300 rpm. The image only sets the density and the number of cylinders, its content is not written."
@@ -675,7 +674,6 @@ $script:I18n["mesure complémentaire {0}"] = 'additional measurement {0}'
 $script:I18n["Calibration : mesure complémentaire {0} des cylindres {1} : precomp {2}"] = 'Calibration: additional measurement {0} of cylinders {1}: precomp {2}'
 $script:I18n['Après mesures complémentaires : '] = 'After additional measurements: '
 $script:I18n["Calibration : passe de vérification {0}/{1} ciblée sur les cylindres modifiés : {2}"] = 'Calibration: verification pass {0}/{1} limited to the changed cylinders: {2}'
-$script:I18n["Écart à la courbe de plus de 15 ns et de trois incertitudes (courbe moins mesure) : {0}."] = 'Deviation from the curve of more than 15 ns and three uncertainties (curve minus measurement): {0}.'
 $script:I18n["Calibration non convergée aux cylindres {0} : résidu hors tolérance après la dernière vérification, la courbe ne suit pas la mesure à ces cylindres. Refaire la calibration en test fin, ou sur une autre disquette sacrifiée."] = 'Calibration not converged at cylinders {0}: residual out of tolerance after the last verification, the curve does not follow the measurement at these cylinders. Redo the calibration with the fine test, or on another sacrificial disk.'
 $script:I18n["Restauration : {0} piste(s) avec une courte zone instable ({1}) : raccord d'écriture ou protection possible. Elles ne seront jamais réécrites sur une disquette identique à l'original."] = 'Restore: {0} track(s) with a short unstable zone ({1}): write splice or possible protection. They will never be rewritten on a disk identical to the original.'
 $script:I18n["La disquette insérée a le même contenu que l'original. Chaque cylindre ({0}) porte une piste non reproductible ou critique : aucun cylindre ne peut être réécrit sans détruire la protection. Écriture refusée : insérez une autre disquette."] = 'The inserted disk has the same content as the original. Every cylinder ({0}) carries a non-reproducible or critical track: no cylinder can be rewritten without destroying the protection. Write refused: insert another disk.'
@@ -1066,7 +1064,6 @@ $script:I18n["Besoin au-delà de {0} ns alors que la calibration précédente du
 $script:I18n["Courbes au plafond de {0} ns de leur calcul : {1}. Conservées, elles y restent ; le calcul actuel va jusqu'à {2} ns."] = 'Curves at the {0} ns ceiling of their calculation: {1}. If kept, they stay there; the current calculation goes up to {2} ns.'
 $script:I18n["Courbe au plafond de {0} ns de son calcul : {1}. Conservée, elle y reste ; le calcul actuel va jusqu'à {2} ns."] = 'Curve at the {0} ns ceiling of its calculation: {1}. If kept, it stays there; the current calculation goes up to {2} ns.'
 $script:I18n['courbe au plafond de {0} ns de son calcul'] = 'curve at the {0} ns ceiling of its calculation'
-$script:I18n["Auto : image haute densité ({0}) -> profil d'origine {1} ({2}) : un profil calibré (double densité) ne s'applique pas à une image haute densité"] = "Auto: high-density image ({0}) -> original {1} profile ({2}): a calibrated (double-density) profile does not apply to a high-density image"
 $script:I18n["c{0} ({1} puis {2} ns)"] = 'c{0} ({1} then {2} ns)'
 $script:I18n["Calibration : témoins de dérive, réécrits à leur valeur inchangée et relus pour mesurer l'écart du lecteur entre deux vérifications : {0}"] = 'Calibration: drift witnesses, rewritten at their unchanged value and read again to measure the drive offset between two verifications: {0}'
 $script:I18n['moins de 1 ns'] = 'less than 1 ns'
@@ -1124,13 +1121,7 @@ $script:I18n["Termine le préchauffage du lecteur après la lecture en cours : l
 $script:I18n["Écriture lente : le lecteur est d'abord préchauffé par des lectures sans écriture (case « Préchauffer le lecteur avant l'écriture lente » de l'onglet Écriture ; bouton « Passer le préchauffage » pendant l'attente)."] = 'Slow write: the drive is first warmed up by reads without writing ("Warm up the drive before the slow write" box of the Write tab; "Skip warm-up" button while waiting).'
 $script:I18n["format absent de la table de l'application (gw plus récent ou fichier diskdefs) : calibrez depuis l'onglet Écriture, avec l'image et ce format"] = 'format missing from the application table (newer gw or diskdefs file): calibrate from the Write tab, with the image and this format'
 $script:I18n["format de balayage : gw n'écrit pas une image secteur avec ibm.scan, densité inconnue à l'avance"] = 'scan format: gw does not write a sector image with ibm.scan, density unknown in advance'
-$script:I18n["haute densité : les courbes calibrées sont double densité ; l'écriture applique le profil d'origine de la famille, non calibré"] = "high density: calibrated curves are double density; writing applies the family's original, uncalibrated profile"
-$script:I18n['codage GCR : la calibration ne mesure que le MFM double densité'] = 'GCR encoding: calibration only measures double-density MFM'
-$script:I18n['codage FM (simple densité) : la calibration ne mesure que le MFM double densité'] = 'FM encoding (single density): calibration only measures double-density MFM'
-$script:I18n['codage propre au système (M2FM, Data General) : la calibration ne mesure que le MFM double densité'] = 'system-specific encoding (M2FM, Data General): calibration only measures double-density MFM'
 $script:I18n['disquette à secteurs durs : calibration non prise en charge'] = 'hard-sectored disk: calibration not supported'
-$script:I18n["format à {0} tr/min : le motif de test suppose un lecteur à 300 tr/min"] = '{0} rpm format: the test pattern assumes a 300 rpm drive'
-$script:I18n["cellule de {0} ns, hors de la plage mesurable (1 700 à 2 300 ns)"] = '{0} ns cell, outside the measurable range (1,700 to 2,300 ns)'
 $script:I18n["Débit de {0} kbit/s (cellule de {1} ns) : l'écriture de ce format applique la courbe {2}, mesurée à 2 µs par cellule (densité plus forte de {3} %)."] = '{0} kbit/s data rate ({1} ns cell): writing this format applies the {2} curve, measured at 2 µs per cell ({3} % higher density).'
 $script:I18n['Piste 0 en FM : non mesurée, la courbe s''y applique telle quelle.'] = 'Track 0 in FM: not measured, the curve is applied to it as is.'
 $script:I18n['Format simple face : la calibration écrit aussi la face 1 (lecteur double face nécessaire).'] = 'Single-sided format: calibration also writes side 1 (double-sided drive required).'
@@ -1263,6 +1254,229 @@ $script:I18n["Conserver le niveau : il est enregistré pour cette disquette et r
 $script:I18n['Calibration rapide abandonnée.'] = 'Quick calibration abandoned.'
 $script:I18n['Calibration rapide abandonnée à votre demande : niveau non conservé.'] = 'Quick calibration abandoned at your request: level not kept.'
 $script:I18n["La calibration rapide ne convient pas à cette disquette ({0}).`nCalibration complète en test fin ci-dessous : elle devient la nouvelle référence de forme du lecteur {1}. Annuler : rien de plus n'est écrit."] = "The quick calibration does not suit this disk ({0}).`nFull fine-test calibration below: it becomes the new shape reference of drive {1}. Cancel: nothing more is written."
+# 12.7 point 0 : zone de progression de la calibration sur l Accueil
+$script:I18n['Calibration en cours : lecteur {0}, {1}, {2}'] = 'Calibration in progress: drive {0}, {1}, {2}'
+$script:I18n['Calibration rapide en cours : lecteur {0}, {1}'] = 'Quick calibration in progress: drive {0}, {1}'
+$script:I18n["Préchauffage avant l'écriture lente : lecteur {0}"] = 'Warm-up before the slow write: drive {0}'
+$script:I18n['Afficher le journal'] = 'Show the log'
+$script:I18n['Calibration terminée : courbe convergée'] = 'Calibration finished: curve converged'
+$script:I18n['Calibration terminée avec réserves : voir le journal'] = 'Calibration finished with reservations: see the log'
+$script:I18n['Calibration arrêtée'] = 'Calibration stopped'
+$script:I18n['Calibration abandonnée'] = 'Calibration abandoned'
+# 12.7 point 1 : controle de surface de la passe 1, vitesse du lecteur et densite relue, cylindre mesure sur une seule face
+$script:I18n['Contrôle de surface'] = 'Surface check'
+$script:I18n["J'ai inséré une autre disquette"] = 'I inserted another disk'
+$script:I18n['illisible'] = 'unreadable'
+$script:I18n['trous de signal'] = 'signal gaps'
+$script:I18n['intervalles hors classe'] = 'out-of-class intervals'
+$script:I18n["lecture différente d'un tour à l'autre"] = 'reading differs from one revolution to the next'
+$script:I18n['{0} aux cylindres {1}'] = '{0} at cylinders {1}'
+$script:I18n['face {0} : {1}'] = 'side {0}: {1}'
+$script:I18n['face {0} : hors classe sur toute la face'] = 'side {0}: out-of-class over the whole side'
+$script:I18n['face {0} : {1} piste(s) défectueuse(s) sur {2}'] = 'side {0}: {1} defective track(s) out of {2}'
+$script:I18n["face {0} : {1} cylindres, {2} défectueux{3}, trous de signal dans {4} tour(s) sur {5}, hors classe {6} par tour en médiane (seuil {7}), écart du nombre de flux entre tours jusqu'à {8} (seuil {9})"] = 'side {0}: {1} cylinders, {2} defective{3}, signal gaps in {4} revolution(s) out of {5}, out-of-class {6} per revolution in median (threshold {7}), flux count spread between revolutions up to {8} (threshold {9})'
+$script:I18n[', non jugés sur les hors classe aux cylindres {0} (décalage au-delà de {1} ns)'] = ', not judged on out-of-class at cylinders {0} (shift beyond {1} ns)'
+$script:I18n[', lecture partielle aux cylindres {0}'] = ', partial reading at cylinders {0}'
+$script:I18n[' ; contrôle partiel en test standard, cylindres de test seulement'] = '; partial check with the standard test, test cylinders only'
+$script:I18n['Contrôle de surface (passe 1, motif écrit sans précompensation) : {0}{1}.'] = 'Surface check (pass 1, pattern written without precompensation): {0}{1}.'
+$script:I18n['Contrôle de surface : disquette de calibration douteuse ({0}) : décision demandée.'] = 'Surface check: doubtful calibration disk ({0}): decision requested.'
+$script:I18n['Contrôle de surface : disquette de calibration douteuse ({0}) ; la calibration continue, avec une réserve au bilan.'] = 'Surface check: doubtful calibration disk ({0}); the calibration goes on, with a reservation in the summary.'
+$script:I18n['Contrôle de surface : défaut ponctuel de la disquette de calibration ({0}) ; la calibration continue.'] = 'Surface check: isolated defect of the calibration disk ({0}); the calibration goes on.'
+$script:I18n['Contrôle de surface : calibration poursuivie sur cette disquette à votre demande.'] = 'Surface check: calibration continued on this disk at your request.'
+$script:I18n["Contrôle de surface : calibration arrêtée à votre demande, rien de plus n'est écrit."] = 'Surface check: calibration stopped at your request, nothing more is written.'
+$script:I18n['=== Calibration precomp reprise sur une autre disquette (disquette {0}) : mêmes réglages, cylindres {1} ==='] = '=== Precomp calibration restarted on another disk (disk {0}): same settings, cylinders {1} ==='
+$script:I18n['Calibration en attente : contrôle de surface, décision demandée (lecteur {0}).'] = 'Calibration on hold: surface check, decision requested (drive {0}).'
+$script:I18n['Contrôle de surface de la première passe : disquette jugée douteuse ({0}), calibration poursuivie à votre demande : la courbe peut refléter ce support plutôt que le lecteur.'] = 'Surface check of the first pass: disk judged doubtful ({0}), calibration continued at your request: the curve may reflect this medium rather than the drive.'
+$script:I18n['contrôle de surface : disquette de calibration douteuse ({0}), calibration poursuivie à votre demande'] = 'surface check: doubtful calibration disk ({0}), calibration continued at your request'
+$script:I18n['support : {0} piste(s) défectueuse(s) à la première passe ({1})'] = 'medium: {0} defective track(s) at the first pass ({1})'
+$script:I18n['support : {0} à la première passe'] = 'medium: {0} at the first pass'
+$script:I18n['disquette B défectueuse au contrôle de surface'] = 'disk B defective at the surface check'
+$script:I18n[', mesurés sans la face {0} : {1}'] = ', measured without side {0}: {1}'
+$script:I18n["Cylindres mesurés sans la face {0} à au moins une passe : {1}. En courbe commune, leur valeur vient de l'autre face seule : l'écart entre les têtes n'y est pas compensé. Refaire la calibration en écriture lente (une courbe par tête), ou sur une autre disquette."] = 'Cylinders measured without side {0} in at least one pass: {1}. With a common curve, their value comes from the other side only: the difference between the heads is not compensated there. Redo the calibration with slow writing (one curve per head), or on another disk.'
+$script:I18n['La disquette de calibration semble défectueuse. Le contrôle de surface de la première passe, où le motif de test est écrit sans précompensation puis relu sur 3 tours, a trouvé :'] = 'The calibration disk seems defective. The surface check of the first pass, where the test pattern is written without precompensation then read back over 3 revolutions, found:'
+$script:I18n['face {0} : intervalles hors classe sur toute la face ({1} par tour en médiane)'] = 'side {0}: out-of-class intervals over the whole side ({1} per revolution in median)'
+$script:I18n['Sur une telle disquette, la calibration risque de mesurer le défaut du support plutôt que le besoin du lecteur.'] = 'On such a disk, the calibration may measure the defect of the medium rather than the need of the drive.'
+$script:I18n["Des trous de signal sur les deux faces viennent souvent de têtes sales : nettoyez-les (carte « Nettoyer les têtes du lecteur » de l'Accueil), puis recommencez."] = 'Signal gaps on both sides often come from dirty heads: clean them ("Clean the drive heads" card of the Home tab), then start again.'
+$script:I18n['Test standard : seuls les cylindres de test ont été contrôlés.'] = 'Standard test: only the test cylinders were checked.'
+$script:I18n["La disquette insérée est la disquette à écrire : elle recevra le motif de test, puis l'image."] = 'The inserted disk is the disk to write: it will receive the test pattern, then the image.'
+$script:I18n["L'avertissement a été validé automatiquement : la disquette insérée est donc celle à écrire."] = 'The warning was confirmed automatically: the inserted disk is therefore the one to write.'
+$script:I18n["Changer de disquette : insérez une autre disquette et cochez la première case ; cochez aussi la seconde si c'est une disquette sacrifiée, la disquette à écrire vous sera alors redemandée après la calibration. La calibration reprend à la première passe, avec les mêmes réglages et sans nouvel avertissement.`nContinuer : la calibration se poursuit sur cette disquette, puis l'image y est écrite.`nArrêter : la calibration s'arrête et l'image n'est pas écrite."] = "Swap disks: insert another disk and tick the first box; also tick the second one if it is a sacrificial disk, the disk to write will then be requested again after the calibration. The calibration restarts from the first pass, with the same settings and no new warning.`nContinue: the calibration goes on with this disk, then the image is written to it.`nStop: the calibration stops and the image is not written."
+$script:I18n["Changer de disquette : insérez une autre disquette sacrifiée, cochez la case, puis cliquez sur « Changer de disquette » ; la calibration reprend à la première passe, avec les mêmes réglages, et la disquette à écrire vous sera redemandée ensuite.`nContinuer : la calibration se poursuit sur cette disquette.`nArrêter : la calibration s'arrête et l'image n'est pas écrite."] = "Swap disks: insert another sacrificial disk, tick the box, then click `"Swap disks`"; the calibration restarts from the first pass, with the same settings, and the disk to write will be requested afterwards.`nContinue: the calibration goes on with this disk.`nStop: the calibration stops and the image is not written."
+$script:I18n["Changer de disquette : insérez une autre disquette sacrifiée, cochez la case, puis cliquez sur « Changer de disquette » ; la calibration reprend à la première passe, et la disquette de destination vous sera redemandée ensuite.`nContinuer : la calibration se poursuit sur cette disquette.`nArrêter : la calibration et la restauration s'arrêtent."] = "Swap disks: insert another sacrificial disk, tick the box, then click `"Swap disks`"; the calibration restarts from the first pass, and the destination disk will be requested afterwards.`nContinue: the calibration goes on with this disk.`nStop: the calibration and the restoration stop."
+$script:I18n["La calibration se fait sur la disquette de destination, déjà contrôlée par la restauration : elle ne peut pas être changée ici.`nContinuer : la calibration se poursuit sur cette disquette, puis la copie y est écrite.`nArrêter : la calibration et la restauration s'arrêtent ; relancez la restauration avec une autre disquette de destination."] = "The calibration is made on the destination disk, already checked by the restoration: it cannot be changed here.`nContinue: the calibration goes on with this disk, then the copy is written to it.`nStop: the calibration and the restoration stop; start the restoration again with another destination disk."
+$script:I18n["Changer de disquette : insérez une autre disquette sacrifiée, cochez la case, puis cliquez sur « Changer de disquette » ; la calibration B reprend à la première passe.`nContinuer : la calibration B se poursuit sur cette disquette.`nArrêter : la calibration B s'arrête, puis vous décidez de la courbe A."] = "Swap disks: insert another sacrificial disk, tick the box, then click `"Swap disks`"; calibration B restarts from the first pass.`nContinue: calibration B goes on with this disk.`nStop: calibration B stops, then you decide on curve A."
+$script:I18n["Changer de disquette : insérez une autre disquette sacrifiée, cochez la case, puis cliquez sur « Changer de disquette » ; la calibration reprend à la première passe, avec les mêmes réglages et sans nouvel avertissement.`nContinuer : la calibration se poursuit sur cette disquette.`nArrêter : la calibration s'arrête, rien de plus n'est écrit."] = "Swap disks: insert another sacrificial disk, tick the box, then click `"Swap disks`"; the calibration restarts from the first pass, with the same settings and no new warning.`nContinue: the calibration goes on with this disk.`nStop: the calibration stops, nothing more is written."
+$script:I18n['Pas de décision automatique : la calibration attend votre réponse. Fermer la fenêtre équivaut à « Arrêter ».'] = 'No automatic decision: the calibration waits for your answer. Closing the window is the same as "Stop".'
+$script:I18n['face {0} : tour de {1} ms en médiane ({2} ms attendues), flux à {3} % du motif'] = 'side {0}: revolution of {1} ms in median ({2} ms expected), flux at {3} % of the pattern'
+$script:I18n['Contrôle de vitesse et de densité (passe 1) : {0}.'] = 'Speed and density check (pass 1): {0}.'
+$script:I18n['face {0} : tour de {1} ms en médiane au lieu de {2} ms ({3} piste(s) sur {4}) : lecteur à environ {5} tr/min, ce type de disquette en demande {6}'] = 'side {0}: revolution of {1} ms in median instead of {2} ms ({3} track(s) out of {4}): drive at about {5} rpm, this disk type needs {6}'
+$script:I18n["face {0} : nombre de flux à {1} % de celui du motif en médiane ({2} piste(s) sur {3} à plus de {4} % d'écart) : la densité relue n'est pas celle du motif écrit"] = "side {0}: flux count at {1} % of the pattern's in median ({2} track(s) out of {3} more than {4} % off): the density read back is not that of the written pattern"
+$script:I18n["Vitesse du lecteur différente de celle du type de disquette : un format à 300 tr/min demande un lecteur à 300 tr/min (3,5 pouces, ou 5,25 pouces double densité), un format à 360 tr/min un lecteur à 360 tr/min (5,25 pouces haute densité, ou 3,5 pouces réglé à 360 tr/min). Changer de disquette n'y change rien."] = "Drive speed different from the disk type's: a 300 rpm format needs a 300 rpm drive (3.5-inch, or 5.25-inch double density), a 360 rpm format a 360 rpm drive (5.25-inch high density, or 3.5-inch set to 360 rpm). Changing the disk does not help."
+$script:I18n["En haute densité, ce résultat vient le plus souvent d'une disquette double densité (sans trou de densité), d'un lecteur sans mode haute densité, ou d'un lecteur resté en double densité (option « Densel » de l'onglet Écriture, pour un lecteur qui suit la broche 2). Utilisez une disquette haute densité sacrifiée dans un lecteur haute densité."] = 'In high density, this result most often comes from a double-density disk (no density hole), a drive without high-density mode, or a drive left in double density ("Densel" option of the Write tab, for a drive that follows pin 2). Use a sacrificial high-density disk in a high-density drive.'
+$script:I18n['Haute densité : décalage de plus de {0} ns à la première passe (précompensation nulle) aux cylindres {1} : la mesure y sort de sa plage de validité (0,2 cellule) et sous-estime le besoin, qui dépasse probablement la borne de {2} ns.'] = 'High density: shift of more than {0} ns at the first pass (no precompensation) at cylinders {1}: the measurement leaves its validity range there (0.2 cell) and underestimates the need, which probably exceeds the {2} ns bound.'
+$script:I18n['vitesse du lecteur différente de celle du type de disquette'] = "drive speed different from the disk type's"
+$script:I18n['densité relue différente de celle du motif'] = "density read back different from the pattern's"
+# 12.7 point 2 : « Refaire sur une autre disquette », calibration B, comparaison face par face et courbe conseillee
+$script:I18n["{0} : lecteur {1}, calibrations A ({2}) et B ({3})"] = '{0}: drive {1}, calibrations A ({2}) and B ({3})'
+$script:I18n['A NON CONVERGÉE'] = 'A NOT CONVERGED'
+$script:I18n['B NON CONVERGÉE'] = 'B NOT CONVERGED'
+$script:I18n["{0}, tête {1}"] = '{0}, head {1}'
+$script:I18n["{0} : courbe {1}, de {2} à {3} ns"] = '{0}: {1} curve, from {2} to {3} ns'
+$script:I18n['désaccord entre A et B'] = 'disagreement between A and B'
+$script:I18n['lecteur'] = 'drive'
+$script:I18n['mode de test'] = 'test mode'
+$script:I18n['courbe par tête'] = 'curve per head'
+$script:I18n['famille'] = 'family'
+$script:I18n['cylindres de test'] = 'test cylinders'
+$script:I18n['type de disquette'] = 'disk type'
+$script:I18n['image'] = 'image'
+$script:I18n['non fait'] = 'not done'
+$script:I18n["disquette douteuse, {0} piste(s) défectueuse(s)"] = 'doubtful disk, {0} defective track(s)'
+$script:I18n["{0} piste(s) défectueuse(s)"] = '{0} defective track(s)'
+$script:I18n['aucun défaut'] = 'no defect'
+$script:I18n["Comparaison des calibrations A ({0}) et B ({1}) du lecteur {2}, faites avec les mêmes réglages sur deux disquettes :"] = 'Comparison of calibrations A ({0}) and B ({1}) of drive {2}, made with the same settings on two disks:'
+$script:I18n["face {0} : trop peu de cylindres encadrés par les deux calibrations pour les comparer"] = 'side {0}: too few cylinders bracketed by both calibrations to compare them'
+$script:I18n["zones de désaccord : {0}"] = 'disagreement zones: {0}'
+$script:I18n['aucune zone de désaccord'] = 'no disagreement zone'
+$script:I18n["écarts ponctuels : {0}"] = 'isolated differences: {0}'
+$script:I18n["face {0} : niveau B − A {1} ns, écart de forme {2} ns (au plus {3} ns à c{4}), {5}"] = 'side {0}: level B − A {1} ns, shape difference {2} ns (at most {3} ns at c{4}), {5}'
+$script:I18n["{0}courbe B − A : de {1} à {2} ns, {3} ns en moyenne"] = '{0}curve B − A: from {1} to {2} ns, {3} ns on average'
+$script:I18n["Test standard : la comparaison ne porte que sur les cylindres testés ; un défaut situé entre deux cylindres testés n'est pas vu."] = 'Standard test: the comparison only covers the tested cylinders; a defect between two tested cylinders is not seen.'
+$script:I18n["Réserves de A : {0}"] = 'Reservations of A: {0}'
+$script:I18n["Réserves de B : {0}"] = 'Reservations of B: {0}'
+$script:I18n["Contrôle de surface de la première passe : A {0} ; B {1}."] = 'Surface check of the first pass: A {0}; B {1}.'
+$script:I18n["Écart de forme avec la calibration précédente du {0} : A {1} ns, B {2} ns."] = 'Shape difference with the previous calibration of {0}: A {1} ns, B {2} ns.'
+$script:I18n["Sur les cylindres en désaccord, écart à la calibration précédente du {0}, niveau retiré : A {1} ns, B {2} ns."] = 'On the cylinders in disagreement, difference with the previous calibration of {0}, level removed: A {1} ns, B {2} ns.'
+$script:I18n['Aucune calibration précédente de cette famille : pas de comparaison de forme avec elle.'] = 'No previous calibration of this family: no shape comparison with it.'
+$script:I18n["La calibration précédente de cette famille vient du lecteur {0} : elle ne sert pas de comparaison."] = 'The previous calibration of this family comes from drive {0}: it is not used for comparison.'
+$script:I18n["La calibration précédente a été mesurée sur le contenu d'une image : elle ne sert pas de comparaison."] = 'The previous calibration was measured on the content of an image: it is not used for comparison.'
+$script:I18n['Trop peu de cylindres encadrés en commun avec la calibration précédente : pas de comparaison de forme avec elle.'] = 'Too few bracketed cylinders in common with the previous calibration: no shape comparison with it.'
+$script:I18n["Écart propre à une disquette ({0}) : défaut probable de l'une des deux disquettes ; la comparaison seule ne dit pas laquelle."] = 'Difference specific to one disk ({0}): probable defect of one of the two disks; the comparison alone cannot tell which.'
+$script:I18n['Forme commune aux deux disquettes : elle vient du lecteur.'] = 'Shape common to both disks: it comes from the drive.'
+$script:I18n["Formes proches sur les deux disquettes (écart de forme jusqu'à {0} ns), sans zone de désaccord."] = 'Similar shapes on both disks (shape difference up to {0} ns), without disagreement zone.'
+$script:I18n["Formes différentes sur les deux disquettes (écart de forme jusqu'à {0} ns), sans zone localisée : lecteur instable, ou supports très différents."] = 'Different shapes on both disks (shape difference up to {0} ns), without localized zone: unstable drive, or very different media.'
+$script:I18n["Niveau très différent d'une disquette à l'autre (jusqu'à {0} ns) : la calibration rapide mesure ce niveau sur chaque disquette à écrire."] = 'Very different level from one disk to the other (up to {0} ns): the quick calibration measures this level on each disk to write.'
+$script:I18n['Les deux calibrations ont des réserves liées au support : deux disquettes défectueuses, ou un lecteur instable (préchauffage, têtes à nettoyer).'] = 'Both calibrations have reservations related to the medium: two defective disks, or an unstable drive (warm-up, heads to clean).'
+$script:I18n["Une des deux calibrations a une dérive du lecteur de plus de {0} ns : la comparaison est peu concluante."] = 'One of the two calibrations has a drive drift of more than {0} ns: the comparison is not very conclusive.'
+$script:I18n["Courbe {0} conseillée : sur les cylindres en désaccord, elle est la plus proche de la calibration précédente du {1}. Ce critère suppose que cette calibration a été faite sur une disquette saine."] = 'Curve {0} recommended: on the cylinders in disagreement, it is the closest to the previous calibration of {1}. This criterion assumes that this calibration was made on a sound disk.'
+$script:I18n["Courbe {0} conseillée : sa forme est la plus proche de la calibration précédente du {1}. Ce critère suppose que cette calibration a été faite sur une disquette saine."] = 'Curve {0} recommended: its shape is the closest to the previous calibration of {1}. This criterion assumes that this calibration was made on a sound disk.'
+$script:I18n["Courbe {0} conseillée : sa disquette n'a pas de défaut au contrôle de surface, contrairement à l'autre."] = 'Curve {0} recommended: its disk has no defect at the surface check, unlike the other one.'
+$script:I18n['Courbe {0} conseillée : elle a moins de réserves liées au support.'] = 'Curve {0} recommended: it has fewer reservations related to the medium.'
+$script:I18n['Courbe {0} conseillée : elle a moins de cylindres non convergés.'] = 'Curve {0} recommended: it has fewer non-converged cylinders.'
+$script:I18n["Aucune courbe n'est conseillée : rien ne permet d'attribuer la zone de désaccord à l'une des deux disquettes. Une troisième calibration, sur une autre disquette, peut trancher."] = 'No curve is recommended: nothing allows the disagreement zone to be attributed to one of the two disks. A third calibration, on another disk, can decide.'
+$script:I18n["Aucune courbe n'est conseillée : choisissez d'après la comparaison et les réserves."] = 'No curve is recommended: choose from the comparison and the reservations.'
+$script:I18n["Conserver la courbe B : elle reste enregistrée.`nConserver la courbe A : la courbe A est rétablie et enregistrée.`nAbandonner les deux : la calibration d'avant la calibration A est rétablie.`nFermer la fenêtre : la courbe B est conservée."] = "Keep curve B: it stays saved.`nKeep curve A: curve A is restored and saved.`nDiscard both: the calibration from before calibration A is restored.`nClosing the window: curve B is kept."
+$script:I18n["Refaire sur une autre disquette : l'écriture est annulée ; cette courbe est mise de côté, la même calibration est refaite sur une autre disquette sacrifiée, puis vous choisissez la courbe. Relancez ensuite l'écriture depuis la Bibliothèque."] = 'Redo on another disk: the write is cancelled; this curve is set aside, the same calibration is run again on another sacrificial disk, then you choose the curve. Then start the write again from the Library.'
+$script:I18n["Refaire sur une autre disquette : cette courbe est mise de côté et la calibration précédente rétablie ; la même calibration est refaite sur une autre disquette sacrifiée, puis les deux courbes sont comparées et vous choisissez celle à conserver."] = 'Redo on another disk: this curve is set aside and the previous calibration restored; the same calibration is run again on another sacrificial disk, then both curves are compared and you choose which one to keep.'
+$script:I18n['Conserver la courbe B'] = 'Keep curve B'
+$script:I18n['Conserver la courbe A'] = 'Keep curve A'
+$script:I18n['Abandonner les deux'] = 'Discard both'
+$script:I18n['Refaire sur une autre disquette'] = 'Redo on another disk'
+$script:I18n['Fermer la fenêtre conserve la courbe B, déjà enregistrée.'] = 'Closing the window keeps curve B, already saved.'
+$script:I18n['Fermer la fenêtre conserve la courbe A, qui est rétablie et enregistrée.'] = 'Closing the window keeps curve A, which is restored and saved.'
+$script:I18n["Calibration B impossible : réglage différent de la calibration A ({0}). La décision sur la courbe A est rouverte."] = 'Calibration B impossible: setting different from calibration A ({0}). The decision on curve A is reopened.'
+$script:I18n['Calibration sur une autre disquette'] = 'Calibration on another disk'
+$script:I18n['Lancer la calibration B'] = 'Start calibration B'
+$script:I18n["J'ai retiré la disquette de la calibration A et inséré une autre disquette sacrifiée"] = 'I removed the disk of calibration A and inserted another sacrificial disk'
+$script:I18n["Pas de démarrage automatique : cochez la case, puis cliquez sur « Lancer la calibration B »."] = 'No automatic start: tick the box, then click "Start calibration B".'
+$script:I18n['densité du motif'] = 'pattern density'
+$script:I18n["=== Calibration B sur une autre disquette, mêmes réglages que la calibration A du {0} : les deux courbes seront comparées ==="] = '=== Calibration B on another disk, same settings as calibration A of {0}: both curves will be compared ==='
+$script:I18n["Calibration B : autre disquette sacrifiée déclarée insérée (case cochée) ; l'application ne peut pas distinguer deux disquettes."] = 'Calibration B: another sacrificial disk declared inserted (box ticked); the application cannot tell two disks apart.'
+$script:I18n["Calibration B : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})"] = 'Calibration B: {4} %, about {5} left (pass {0}/{1}, {2}, {3})'
+$script:I18n['aucune mesure exploitable'] = 'no usable measurement'
+$script:I18n["Calibration : « Refaire sur une autre disquette » : courbe A du {0} mise de côté, calibration précédente rétablie pendant la calibration B."] = 'Calibration: "Redo on another disk": curve A of {0} set aside, previous calibration restored during calibration B.'
+$script:I18n["Calibration B sur une autre disquette sacrifiée, avec les réglages de la calibration A du {0}.`n`nRetirez la disquette de la calibration A et insérez une AUTRE disquette sacrifiée : sans valeur, jamais l'original ni la disquette à écrire. L'application ne peut pas distinguer deux disquettes : la case ci-dessous fait foi. Les deux courbes seront ensuite comparées face par face, et vous choisirez celle à conserver."] = "Calibration B on another sacrificial disk, with the settings of calibration A of {0}.`n`nRemove the disk of calibration A and insert ANOTHER sacrificial disk: worthless, never the original nor the disk to write. The application cannot tell two disks apart: the box below is authoritative. Both curves will then be compared for each side, and you will choose which one to keep."
+$script:I18n["Pendant la calibration B, la configuration garde la calibration d'avant la calibration A : si vous fermez l'application avant la fin de la calibration B, la courbe A est perdue."] = 'During calibration B, the configuration keeps the calibration from before calibration A: if you close the application before the end of calibration B, curve A is lost.'
+$script:I18n["Écriture annulée : calibration refaite sur une autre disquette ; relancez l'écriture depuis la Bibliothèque une fois la courbe choisie."] = 'Write cancelled: calibration redone on another disk; start the write again from the Library once the curve is chosen.'
+$script:I18n['Calibration B non lancée : la courbe A est rétablie, décision sur la courbe A.'] = 'Calibration B not started: curve A is restored, decision on curve A.'
+$script:I18n["Courbe A conservée : la calibration B n'est pas retenue."] = 'Curve A kept: calibration B is not retained.'
+$script:I18n['Calibration B : courbe A conservée à votre demande, courbe B abandonnée.'] = 'Calibration B: curve A kept at your request, curve B discarded.'
+$script:I18n['Calibrations A et B abandonnées : la calibration précédente est rétablie.'] = 'Calibrations A and B discarded: the previous calibration is restored.'
+$script:I18n['Calibrations A et B abandonnées à votre demande : la calibration précédente est rétablie.'] = 'Calibrations A and B discarded at your request: the previous calibration is restored.'
+$script:I18n['Courbe B conservée : calibration refaite sur une autre disquette.'] = 'Curve B kept: calibration redone on another disk.'
+$script:I18n['Calibration B : courbe B conservée.'] = 'Calibration B: curve B kept.'
+$script:I18n["Calibration B arrêtée avant sa fin ({0}) : décision sur la courbe A."] = 'Calibration B stopped before its end ({0}): decision on curve A.'
+$script:I18n["La calibration B s'est arrêtée avant sa fin ({0}) : aucune comparaison n'est possible."] = 'Calibration B stopped before its end ({0}): no comparison is possible.'
+$script:I18n["Réserves de la courbe A ({0}) :"] = 'Reservations of curve A ({0}):'
+$script:I18n["Conserver la courbe A : elle est rétablie et enregistrée.`nAbandonner la courbe : la calibration d'avant la calibration A reste en place.`nFermer la fenêtre : la courbe A est conservée."] = "Keep curve A: it is restored and saved.`nDiscard the curve: the calibration from before calibration A stays in place.`nClosing the window: curve A is kept."
+$script:I18n['Calibration B arrêtée : la courbe A est abandonnée, la calibration précédente reste en place.'] = 'Calibration B stopped: curve A is discarded, the previous calibration stays in place.'
+$script:I18n['Courbe A abandonnée à votre demande : la calibration précédente reste en place.'] = 'Curve A discarded at your request: the previous calibration stays in place.'
+$script:I18n['Calibration B arrêtée : la courbe A est conservée.'] = 'Calibration B stopped: curve A is kept.'
+$script:I18n['Courbe A conservée à votre demande.'] = 'Curve A kept at your request.'
+# 12.7 : calibration haute densite (famille hd ; la famille a 360 tr/min n est pas livree)
+$script:I18n['Haute densité 1 us'] = 'High density 1 us'
+$script:I18n['codage GCR : la calibration ne mesure que le codage MFM'] = 'GCR encoding: calibration only measures MFM encoding'
+$script:I18n['codage FM (simple densité) : la calibration ne mesure que le codage MFM'] = 'FM encoding (single density): calibration only measures MFM encoding'
+$script:I18n['codage propre au système (M2FM, Data General) : la calibration ne mesure que le codage MFM'] = 'system-specific encoding (M2FM, Data General): calibration only measures MFM encoding'
+$script:I18n["très haute densité (ED) : cellule de 500 ns, trop courte pour l'analyse de la calibration (900 à 1 100 ns en haute densité)"] = 'extra-high density (ED): 500 ns bit cell, too short for the calibration analysis (900 to 1,100 ns in high density)'
+$script:I18n['disquette 5,25 pouces haute densité à 360 tr/min : calibration pas encore validée sur un lecteur réel'] = '5.25-inch high-density disk at 360 rpm: calibration not yet validated on a real drive'
+$script:I18n["format haute densité à {0} tr/min : la calibration haute densité suppose un lecteur à 300 tr/min"] = '{0} rpm high-density format: high-density calibration assumes a 300 rpm drive'
+$script:I18n["format à {0} tr/min en double densité : aucune famille de calibration à cette vitesse"] = '{0} rpm double-density format: no calibration family at this speed'
+$script:I18n["cellule de {0} ns, hors des plages mesurables (900 à 1 100 ns en haute densité, 1 700 à 2 300 ns en double densité)"] = '{0} ns cell, outside the measurable ranges (900 to 1,100 ns in high density, 1,700 to 2,300 ns in double density)'
+$script:I18n['format à secteurs haute densité, 1 µs par cellule'] = 'high-density sector format, 1 µs per cell'
+$script:I18n['image de cellules (raw), 1 µs par cellule'] = 'bitcell image (raw), 1 µs per cell'
+$script:I18n['Disquette et lecteur HD nécessaires ; réglages provisoires.'] = 'HD disk and drive required; provisional settings.'
+$script:I18n["Calibration non prise en charge pour cette image haute densité ({0}) : seule la haute densité MFM à 1 µs par cellule et à 300 tr/min se calibre ; la très haute densité (ED), les codages propres et la haute densité à 360 tr/min ne se calibrent pas."] = 'Calibration not supported for this high-density image ({0}): only high-density MFM at 1 µs per cell and 300 rpm can be calibrated; extra-high density (ED), system-specific encodings and high density at 360 rpm cannot.'
+$script:I18n["Calibration non prise en charge : cellule de l'image de {0} ns, hors des plages mesurables (900 à 1 100 ns en haute densité, 1 700 à 2 300 ns en double densité)."] = 'Calibration not supported: image bit cell of {0} ns, outside the measurable ranges (900 to 1,100 ns in high density, 1,700 to 2,300 ns in double density).'
+$script:I18n["Cellule de l'image hors des plages mesurables ({0} ns ; 900 à 1 100 ns en haute densité, 1 700 à 2 300 ns en double densité) : pas de calibration automatique, écriture avec le profil courant."] = 'Image bit cell outside the measurable ranges ({0} ns; 900 to 1,100 ns in high density, 1,700 to 2,300 ns in double density): no automatic calibration, writing with the current profile.'
+$script:I18n["Auto : image haute densité ({0}) -> profil calibré {1} ({2})"] = 'Auto: high-density image ({0}) -> calibrated {1} profile ({2})'
+$script:I18n["Auto : image haute densité ({0}) -> profil d'origine {1} ({2}), non calibré : calibrez le lecteur en haute densité (carte « Calibrer le lecteur » de l'Accueil)"] = 'Auto: high-density image ({0}) -> original {1} profile ({2}), not calibrated: calibrate the drive in high density ("Calibrate the drive" card of the Home tab)'
+$script:I18n["Auto : image haute densité ({0}) -> profil d'origine {1} ({2}) : calibration non disponible pour cette image"] = 'Auto: high-density image ({0}) -> original {1} profile ({2}): calibration not available for this image'
+$script:I18n["Image haute densité ({0}) : calibration {1} de la famille {2} du {3} appliquée par le mode Auto ; jamais de calibration automatique en haute densité."] = 'High-density image ({0}): {1} calibration of the {2} family from {3} applied by Auto mode; never any automatic calibration in high density.'
+$script:I18n["Image haute densité ({0}) : pas de calibration {1} à jour pour la famille {2} ({3}) : écriture avec le profil {4}, sans calibration automatique (jamais en haute densité). Pour calibrer : carte « Calibrer le lecteur » de l'Accueil, ou bouton « Calibrer » de l'onglet Écriture, avec une disquette haute densité sacrifiée."] = 'High-density image ({0}): no up-to-date {1} calibration for the {2} family ({3}): writing with profile {4}, without automatic calibration (never in high density). To calibrate: "Calibrate the drive" card of the Home tab, or "Calibrate" button of the Write tab, with a sacrificial high-density disk.'
+$script:I18n['aucune courbe'] = 'no curve'
+$script:I18n['courbes par tête antérieures à la courbe commune'] = 'per-head curves older than the common curve'
+$script:I18n["courbe plus courte que l'image de {0} cylindres"] = 'curve shorter than the {0}-cylinder image'
+$script:I18n["tête 0 : {0} ; tête 1 : {1}"] = 'head 0: {0}; head 1: {1}'
+$script:I18n["la haute densité n'a pas encore de calibration rapide : faites une calibration complète"] = 'high density has no quick calibration yet: run a full calibration'
+$script:I18n['écart > {0} ns et > 3 incertitudes'] = 'deviation > {0} ns and > 3 uncertainties'
+$script:I18n["Écart à la courbe de plus de {1} ns et de trois incertitudes (courbe moins mesure) : {0}."] = 'Deviation from the curve of more than {1} ns and three uncertainties (curve minus measurement): {0}.'
+# 12.7 : corrections apres le test (comparaison A/B, controle de vitesse, Accueil, haute densite)
+$script:I18n["Aucune face n'a pu être comparée : pas de verdict de forme."] = 'No side could be compared: no shape verdict.'
+$script:I18n["Niveau très différent d'une disquette à l'autre (jusqu'à {0} ns) : la haute densité n'a pas encore de calibration rapide pour mesurer ce niveau sur chaque disquette à écrire."] = 'Very different level from one disk to the other (up to {0} ns): high density has no quick calibration yet to measure this level on each disk to write.'
+$script:I18n["Auto : image haute densité ({0}) -> {1}"] = 'Auto: high-density image ({0}) -> {1}'
+$script:I18n['Calibration terminée : décision demandée'] = 'Calibration finished: decision requested'
+$script:I18n['Le lecteur ne tourne pas à la vitesse de ce type de disquette. Le contrôle de la première passe, où le motif de test est écrit sans précompensation puis relu sur 3 tours, a trouvé :'] = 'The drive does not spin at the speed of this disk type. The check of the first pass, where the test pattern is written without precompensation then read back over 3 revolutions, found:'
+$script:I18n['Contrôle de vitesse et de densité : {0} : décision demandée.'] = 'Speed and density check: {0}: decision requested.'
+$script:I18n['Contrôle de vitesse et de densité de la première passe : {0} ; calibration poursuivie à votre demande : la courbe a été mesurée avec un lecteur qui ne tourne pas à la vitesse de ce type de disquette.'] = 'Speed and density check of the first pass: {0}; calibration continued at your request: the curve was measured with a drive that does not spin at the speed of this disk type.'
+$script:I18n['contrôle de vitesse et de densité : {0}, calibration poursuivie à votre demande'] = 'speed and density check: {0}, calibration continued at your request'
+$script:I18n["Complète, test fin (tous les cylindres) : environ {0} min"] = 'Full, fine test (all cylinders): about {0} min'
+$script:I18n["aucune courbe par tête : courbe commune du {0} pour les deux têtes"] = 'no per-head curve: common curve from {0} for both heads'
+$script:I18n["Haute densité : profil d'origine {0}, sans calibration automatique ; recalibrez depuis la carte « Calibrer le lecteur » de l'Accueil."] = 'High density: original profile {0}, without automatic calibration; recalibrate from the "Calibrate the drive" card of the Home tab.'
+# 12.7 point 5 : mesure de la disquette avant l ecriture lente ; fenetre du controle de surface (arbitrage 14)
+$script:I18n["Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)"] = 'Measure the disk before the slow write: precompensation level and surface condition (about 1 min)'
+$script:I18n["Avant d'écrire l'image, l'application reprend la forme de la dernière calibration complète en test fin du lecteur.`nElle mesure, sur la disquette insérée, son niveau de précompensation propre et l'état de sa surface : le motif de test y est écrit au plus 3 fois, sur 4 à 9 cylindres par tête, puis l'image les recouvre.`nSans calibration de référence utilisable, l'écriture se fait avec la courbe du lecteur, ou avec le profil d'origine s'il n'en a pas, et le journal en donne la raison.`nNon disponible en haute densité."] = "Before writing the image, the application takes the shape of the drive's last full calibration in fine test.`nIt measures, on the inserted disk, its own precompensation level and the condition of its surface: the test pattern is written there at most 3 times, on 4 to 9 cylinders per head, then the image covers them.`nWithout a usable reference calibration, the write is done with the drive's curve, or with the original profile if it has none, and the log gives the reason.`nNot available in high density."
+$script:I18n["Mesure de la disquette avant l'écriture non faite : {0}. Écriture avec la courbe du lecteur ; une calibration complète en test fin servira de référence aux prochaines mesures."] = "Disk measurement before the write not done: {0}. Writing with the drive's curve; a full calibration in fine test will serve as reference for the next measurements."
+$script:I18n['Mesure de la disquette non disponible en haute densité : écriture avec la courbe HD du lecteur.'] = "Disk measurement not available in high density: writing with the drive's HD curve."
+$script:I18n["Mesure de la disquette non disponible en haute densité : écriture avec le profil d'origine."] = 'Disk measurement not available in high density: writing with the original profile.'
+$script:I18n["Mesure de la disquette avant l'écriture non faite : profil précomp. « {0} » choisi ; la mesure ne se fait qu'avec le profil Auto."] = 'Disk measurement before the write not done: precomp profile "{0}" chosen; the measurement is only done with the Auto profile.'
+$script:I18n["Mesure de la disquette avant l'écriture non faite : le champ Pistes (« {0} ») limite les pistes écrites ; le motif de test resterait sur des cylindres que l'image ne recouvre pas. Écriture sans mesure."] = 'Disk measurement before the write not done: the Tracks field ("{0}") limits the written tracks; the test pattern would remain on cylinders the image does not cover. Writing without measurement.'
+$script:I18n['Disquette à écrire défectueuse'] = 'Disk to be written is defective'
+$script:I18n['Écrire quand même'] = 'Write anyway'
+$script:I18n['Contrôle de surface de la disquette (calibration rapide, passe 1, cylindres mesurés seulement) : {0}.'] = 'Disk surface check (quick calibration, pass 1, measured cylinders only): {0}.'
+$script:I18n['Contrôle de surface : disquette à écrire défectueuse ({0}) : décision demandée.'] = 'Surface check: disk to be written is defective ({0}): decision requested.'
+$script:I18n["Contrôle de surface : disquette douteuse ({0}) ; la calibration rapide continue, avec une réserve si la fenêtre de décision s'ouvre."] = 'Surface check: doubtful disk ({0}); the quick calibration goes on, with a reservation if the decision window opens.'
+$script:I18n['Contrôle de surface : défaut ponctuel de la disquette ({0}) ; la calibration rapide continue.'] = 'Surface check: isolated defect of the disk ({0}); the quick calibration goes on.'
+$script:I18n['Contrôle de surface : écriture poursuivie sur cette disquette à votre demande.'] = 'Surface check: write continued on this disk at your request.'
+$script:I18n["Contrôle de surface : écriture arrêtée à votre demande, l'image n'est pas écrite."] = 'Surface check: write stopped at your request, the image is not written.'
+$script:I18n['La disquette à écrire semble défectueuse. La première passe de la mesure du niveau, où le motif de test est écrit sur les cylindres mesurés puis relu sur 3 tours, a trouvé :'] = 'The disk to be written seems defective. The first pass of the level measurement, where the test pattern is written on the measured cylinders then read back over 3 revolutions, found:'
+$script:I18n['Le lecteur ne tourne pas à la vitesse de ce type de disquette. La première passe de la mesure du niveau, où le motif de test est écrit sur les cylindres mesurés puis relu sur 3 tours, a trouvé :'] = 'The drive does not spin at the speed of this disk type. The first pass of the level measurement, where the test pattern is written on the measured cylinders then read back over 3 revolutions, found:'
+$script:I18n["Sur une telle disquette, l'image risque d'être mal écrite et mal relue."] = 'On such a disk, the image may be badly written and badly read back.'
+$script:I18n["Écrire quand même : la mesure du niveau se poursuit, puis l'image est écrite sur cette disquette.`nArrêter : rien de plus n'est écrit, l'image n'est pas écrite."] = "Write anyway: the level measurement goes on, then the image is written on this disk.`nStop: nothing more is written, the image is not written."
+$script:I18n["Écrire quand même : la mesure du niveau se poursuit, puis la copie est écrite sur cette disquette.`nArrêter : la restauration s'arrête ; relancez-la avec une autre disquette de destination."] = "Write anyway: the level measurement goes on, then the copy is written on this disk.`nStop: the restoration stops; start it again with another destination disk."
+$script:I18n["Pas de décision automatique : l'écriture attend votre réponse. Fermer la fenêtre équivaut à « Arrêter »."] = 'No automatic decision: the write waits for your answer. Closing the window is the same as "Stop".'
+$script:I18n['intervalles hors classe sur toute la face ({0} par tour en médiane)'] = 'out-of-class intervals over the whole side ({0} per revolution in median)'
+$script:I18n['trous de signal dans {0} tour(s) sur {1}'] = 'signal gaps in {0} revolution(s) out of {1}'
+# 12.7 point 5, corrections apres la revue (FIX5) : arbitrages 15 et 16, precompensation decochee, haute densite, defaut
+# de vitesse seul, « Ecrire quand meme » sans niveau mesure
+$script:I18n["Mesure de la disquette avant l'écriture non faite : image à une seule face ; le motif de test resterait sur l'autre face, que l'image n'écrit pas. Écriture sans mesure."] = 'Disk measurement before the write not done: single-sided image; the test pattern would remain on the other side, which the image does not write. Writing without measurement.'
+$script:I18n["Mesure de la disquette avant l'écriture non faite : précompensation désactivée (case --precomp décochée) ; écriture sans précompensation."] = 'Disk measurement before the write not done: precompensation disabled (--precomp box unchecked); writing without precompensation.'
+$script:I18n['Mesure de la disquette non disponible en haute densité.'] = 'Disk measurement not available in high density.'
+$script:I18n["Mesure de la disquette avant l'écriture non faite : {0}. Écriture avec le profil d'origine ; une calibration complète en test fin servira de référence aux prochaines mesures."] = 'Disk measurement before the write not done: {0}. Writing with the original profile; a full calibration in fine test will serve as reference for the next measurements.'
+$script:I18n["Écrire quand même : la mesure du niveau se poursuit, puis la copie est écrite sur cette disquette.`nArrêter : la restauration s'arrête."] = "Write anyway: the level measurement goes on, then the copy is written on this disk.`nStop: the restoration stops."
+$script:I18n["Continuer : la calibration se poursuit sur cette disquette, puis la copie y est écrite.`nArrêter : la calibration et la restauration s'arrêtent."] = "Continue: the calibration goes on with this disk, then the copy is written to it.`nStop: the calibration and the restoration stop."
+$script:I18n['contrôle de vitesse et de densité : {0} à la première passe'] = 'speed and density check: {0} at the first pass'
+$script:I18n['Mesure de la disquette sans niveau exploitable : écriture poursuivie à votre demande avec la courbe du lecteur, sans niveau mesuré.'] = "Disk measurement without a usable level: write continued at your request with the drive's curve, without a measured level."
 function T([string]$s) {
     if ($script:Lang -eq 'fr') { return $s }
     $t = $script:I18n[$s]
@@ -1843,6 +2057,7 @@ $script:PrecompStd  = '0=70:40=100:65=140'          # cellule 2 us : AmigaDOS, A
 $script:PrecompLong = '0=85:20=110:40=120:65=140'   # cellule ~1,89 us : long tracks (formats proprietaires)
 $script:PrecompStdDefault  = $script:PrecompStd     # profils d origine, retablis par « Effacer les calibrations »
 $script:PrecompLongDefault = $script:PrecompLong
+$script:PrecompHdDefault = '0=70:40=100:65=140'   # 12.7 : profil d origine haute densite (hd), celui de la 12.6 pour un ADF ou un IMG HD (H)
 $script:PrecompThresholdNs = 1950                   # cellule < seuil -> profil long track
 $script:JitterOk = 120                              # jitter (ns) sous lequel une piste peut etre SAINE (reglage de l Accueil)
 $script:JitterWatch = 250                           # jitter (ns) sous lequel une piste est au plus A SURVEILLER, CRITIQUE au-dela
@@ -1902,6 +2117,12 @@ $script:HomeCalFmt  = 'amiga.amigados'   # dernier type choisi dans la carte (co
 $script:HomeCalBusy = $false             # calibration lancee depuis l Accueil : progression affichee sur la carte
 $script:HomeCalDesc = ''                 # texte d origine de la carte
 $script:HcDlg       = $null              # etat de la fenetre de la carte (gestionnaires d evenements)
+# 12.7 : zone de progression de l Accueil (Update-HomeProgress). HomeProgDone : bilan d une calibration lancee depuis
+# l Accueil (Set-HomeProgDone) ; HomeProgHold : fenetre de decision ouverte (derniere progression gardee) ; HomeProgUi :
+# etat affiche, compare avant toute modification d un controle
+$script:HomeProgDone = $null
+$script:HomeProgHold = $false
+$script:HomeProgUi   = @{ Mode = 'none'; Shown = $false; Links = ''; RawTitle = $null; Src = $null; Bar = $null; TitleW = 756 }
 
 # --- Fenetre -------------------------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
@@ -2415,6 +2636,12 @@ $chkWWarm = New-Object System.Windows.Forms.CheckBox
 $chkWWarm.Location = '12,394'; $chkWWarm.AutoSize = $true; $chkWWarm.Checked = $true; $chkWWarm.Enabled = $false
 $chkWWarm.Text = (T "Préchauffer le lecteur avant l'écriture lente ({0} au plus de lecture sans écriture)") -f '5 min'
 $tip.SetToolTip($chkWWarm, (T "Écriture lente (onglet Écriture, Bibliothèque, restauration) : avant d'écrire, le lecteur est préchauffé par des lectures sans écriture (un cylindre sur 10 des pistes écrites, têtes écrites), comme avant une calibration complète, pour écrire dans l'état du lecteur où la précompensation a été calibrée.`nDurée : réglage calWarmupMinutes de la configuration (5 min par défaut, 0 : aucun) ; réduite ou sautée si le lecteur vient de servir, calibration qui précède comprise. Une calibration rapide avant l'écriture lente est précédée du préchauffage : le niveau est mesuré dans le même état du lecteur.`nUne disquette protégée en écriture n'est signalée qu'à la première écriture, après le préchauffage.`nDécochée : écriture tout de suite. Pendant le préchauffage, le bouton « Passer le préchauffage » lance l'écriture après la lecture en cours."))
+# 12.7 point 5 : mesure de la disquette a ecrire avant une ecriture lente (Start-WriteTabWrite, Start-PresetWrite,
+# restauration) : preference enregistree (write.levelBeforeWrite), case sous celle du prechauffage, active en ecriture lente
+$chkWLevel = New-Object System.Windows.Forms.CheckBox
+$chkWLevel.Name = 'chkWLevel'; $chkWLevel.Location = '12,418'; $chkWLevel.AutoSize = $true; $chkWLevel.Checked = $true; $chkWLevel.Enabled = $false
+$chkWLevel.Text = (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)")
+$tip.SetToolTip($chkWLevel, (T "Avant d'écrire l'image, l'application reprend la forme de la dernière calibration complète en test fin du lecteur.`nElle mesure, sur la disquette insérée, son niveau de précompensation propre et l'état de sa surface : le motif de test y est écrit au plus 3 fois, sur 4 à 9 cylindres par tête, puis l'image les recouvre.`nSans calibration de référence utilisable, l'écriture se fait avec la courbe du lecteur, ou avec le profil d'origine s'il n'en a pas, et le journal en donne la raison.`nNon disponible en haute densité."))
 
 $numWRetries = New-Object System.Windows.Forms.NumericUpDown
 $numWRetries.Location = '560,22'; $numWRetries.Width = 50
@@ -2441,6 +2668,9 @@ function Update-SlowUi {
     $mt = if ($wm -eq [math]::Floor($wm)) { "$([int]$wm) min" } else { Format-CalDuration (60 * $wm) }
     $chkWWarm.Text = if ($wm -gt 0) { (T "Préchauffer le lecteur avant l'écriture lente ({0} au plus de lecture sans écriture)") -f "$mt" } else { (T "Préchauffer le lecteur avant l'écriture lente (désactivé : calWarmupMinutes = 0 dans la configuration)") }
     $chkWWarm.Enabled = ($on -and $wm -gt 0)
+    # 12.7 point 5 : mesure de la disquette, ecriture lente seulement ; inactive avec la liste au « Test rapide », qui
+    # garde les chemins de la 12.6 (decision 3 de decisions127-p5)
+    $chkWLevel.Enabled = ($on -and $cmbWCalMode.SelectedIndex -ne 2)
 }
 $chkWSlow.Add_CheckedChanged({ Update-SlowUi; if ($script:UiReady) { Update-PrecompForImage $txtWFile.Text } })
 
@@ -2460,6 +2690,8 @@ $cmbWCalMode = New-Object System.Windows.Forms.ComboBox
 $cmbWCalMode.Location = '165,105'; $cmbWCalMode.Width = 250; $cmbWCalMode.DropDownStyle = 'DropDownList'
 [void]$cmbWCalMode.Items.AddRange(@((T 'Test standard : 1 cylindre sur 10'), (T 'Test fin : tous les cylindres'), (T 'Test rapide : niveau par disquette')))
 $cmbWCalMode.SelectedIndex = 0
+# 12.7 point 5 : case « Mesurer la disquette » grisee au « Test rapide » (Update-SlowUi), a chaque changement de la liste
+$cmbWCalMode.Add_SelectedIndexChanged({ Update-SlowUi })
 $tip.SetToolTip($cmbWCalMode, (T "Test standard (un cylindre sur 10) ou test fin (tous les cylindres) : calibration complète, qui mesure la courbe de précompensation du lecteur ; elle est faite une fois, puis réutilisée.`nTest rapide : la forme de la courbe vient de la dernière calibration complète du lecteur (la référence). Avant chaque écriture depuis la Bibliothèque ou une restauration, et avec « Calibrer », seul son niveau est mesuré sur la disquette insérée : 4 à 9 cylindres par tête, 1 à 3 écritures du motif par piste. Sans référence utilisable, une calibration complète en test fin est faite d'abord ; elle devient la référence."))
 $btnWCalib = New-Object System.Windows.Forms.Button
 $btnWCalib.Text = (T 'Calibrer'); $btnWCalib.Location = '425,104'; $btnWCalib.Size = '120,26'
@@ -2608,12 +2840,16 @@ function Start-ImageWrite([switch]$NoWarmup) {
     if ($chkWEraseEmpty.Checked) { $base += '--erase-empty' }
     if ($chkWNoVerify.Checked)   { $base += '--no-verify' }
     $base += "--retries=$($numWRetries.Value)"
-    # Mode Auto, image haute densite (format choisi apres l image, par exemple) : profil d origine, jamais un profil
-    # calibre (Update-PrecompForImage) ; format revenu en double densite apres coup : profil calibre de nouveau
+    # Mode Auto, image haute densite (format choisi apres l image, par exemple) : champs attendus de la branche haute densite
+    # d Update-PrecompForImage (12.7 : famille hd calibrable : sa courbe, sinon le profil d origine haute densite ; haute
+    # densite non calibrable : profil d origine de sa famille, jamais une courbe double densite) ; format revenu en double
+    # densite apres coup : profil calibre de nouveau
     if ($cmbWProfile.SelectedIndex -eq 0 -and $chkWPrecomp.Checked) {
         if (Get-HighDensityReason $txtWFile.Text $cmbWFmt.Text) {
-            $hdd = if ((Get-ImageFamily $txtWFile.Text) -eq 'long') { $script:PrecompLongDefault } else { $script:PrecompStdDefault }
-            if ($txtWPrecomp.Text.Trim() -ne $hdd -or $txtWPrecomp1.Text.Trim() -ne $hdd) { Update-PrecompForImage $txtWFile.Text }
+            $hf = Get-HdCalibFamily $txtWFile.Text $cmbWFmt.Text
+            if ($hf) { $af = Get-HdAutoFields $hf ([bool]$chkWSlow.Checked); $e0 = $af.P0; $e1 = $af.P1 }
+            else { $e0 = if ((Get-ImageFamily $txtWFile.Text $cmbWFmt.Text) -eq 'long') { $script:PrecompLongDefault } else { $script:PrecompStdDefault }; $e1 = $e0 }
+            if ($txtWPrecomp.Text.Trim() -ne $e0 -or $txtWPrecomp1.Text.Trim() -ne $e1) { Update-PrecompForImage $txtWFile.Text }
         } elseif ($script:WProfileHd) { Update-PrecompForImage $txtWFile.Text }
     }
     $pc0 = if ($chkWPrecomp.Checked -and $txtWPrecomp.Text.Trim()) { $txtWPrecomp.Text.Trim() } else { $null }
@@ -2741,9 +2977,11 @@ function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
 function Start-PresetWrite([string]$mode, [switch]$NoCalib, [switch]$LevelOnly) {
     # Calibration automatique si elle manque pour la famille de l image (commune en rapide, par tete en lente), puis
     # ecriture. Ecriture directe, sans calibration automatique : flux ecrit tel quel (sans --format, gw ne lui applique
-    # pas la precompensation), image haute densite, secteurs durs ou lecteur 8 pouces, densite non etablie (conteneur
-    # a geometrie libre : IMD, TD0, D88, D64... ; IPF ou HFE dont la cellule sort de la plage mesurable), module
-    # d analyse SCP indisponible. NoCalib (restauration) : la calibration existante est conservee, jamais refaite.
+    # pas la precompensation), image haute densite (12.7 : famille hd calibrable : sa courbe si elle existe, sinon le
+    # profil d origine haute densite, jamais de calibration automatique), secteurs durs ou lecteur 8 pouces, densite non
+    # etablie (conteneur a geometrie libre : IMD, TD0, D88, D64... ; IPF ou HFE dont la cellule sort des plages
+    # mesurables), module d analyse SCP indisponible. NoCalib (restauration) : la calibration existante est conservee,
+    # jamais refaite.
     $img = $txtWFile.Text
     if (-not $img -or -not (Test-Path -LiteralPath $img)) {
         [void][System.Windows.Forms.MessageBox]::Show((T 'Fichier image introuvable.'),(T 'Erreur'),'OK','Warning'); return
@@ -2757,7 +2995,30 @@ function Start-PresetWrite([string]$mode, [switch]$NoCalib, [switch]$LevelOnly) 
     }
     if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) { Start-ImageWrite; return }
     $hd = Get-HighDensityReason $img $fmt
-    if ($hd) { Append-Log ((T "Image haute densité ({0}) : pas de calibration automatique, écriture avec le profil courant.") -f "$hd"); Start-ImageWrite; return }
+    if ($hd) {
+        # 12.7 : haute densite calibrable (hd) : courbe de la famille appliquee par le mode Auto si elle existe, profil
+        # d origine sinon ; jamais de calibration automatique ni de test rapide avant l ecriture (bareme haute densite
+        # provisoire). Haute densite non calibrable : comme en 12.6.
+        $hf = Get-HdCalibFamily $img $fmt
+        if (-not $hf) { Append-Log ((T "Image haute densité ({0}) : pas de calibration automatique, écriture avec le profil courant.") -f "$hd"); Start-ImageWrite; return }
+        $heads = ($mode -eq 'slow')
+        $kind = if ($heads) { (T 'par tête') } else { (T 'commune') }
+        $nc = (Get-CalibCylinders $img $fmt).NCyl
+        $nc = if ($null -eq $nc) { 80 } else { [math]::Max(2, [math]::Min(84, [int]$nc)) }
+        $st = Get-CalibState $hf $heads $nc
+        $k0 = if ($heads) { "${hf}_h0" } else { $hf }
+        $af = Get-HdAutoFields $hf $heads
+        $pt = if ($af.P0 -eq $af.P1) { $af.P0 } else { (T "tête 0 : {0} ; tête 1 : {1}") -f "$($af.P0)", "$($af.P1)" }
+        if ($st -eq 'ok') { Append-Log ((T "Image haute densité ({0}) : calibration {1} de la famille {2} du {3} appliquée par le mode Auto ; jamais de calibration automatique en haute densité.") -f "$hd", "$kind", (Get-CalibFamilyName $hf), "$($script:PrecompCurves[$k0].Date)") }
+        else {
+            # Ecriture lente sans courbes par tete, courbe commune presente : la courbe commune est ecrite pour les deux tetes
+            $hcv = if ($heads) { Get-HdCommonCurve $hf } else { $null }
+            $why = switch ($st) { 'stale' { (T 'courbes par tête antérieures à la courbe commune') } 'short' { (T "courbe plus courte que l'image de {0} cylindres") -f "$nc" } default { if ($hcv) { (T "aucune courbe par tête : courbe commune du {0} pour les deux têtes") -f "$($hcv.Date)" } else { (T 'aucune courbe') } } }
+            Append-Log ((T "Image haute densité ({0}) : pas de calibration {1} à jour pour la famille {2} ({3}) : écriture avec le profil {4}, sans calibration automatique (jamais en haute densité). Pour calibrer : carte « Calibrer le lecteur » de l'Accueil, ou bouton « Calibrer » de l'onglet Écriture, avec une disquette haute densité sacrifiée.") -f "$hd", "$kind", (Get-CalibFamilyName $hf), "$why", "$pt")
+        }
+        if (Test-WriteLevelWanted $mode) { Write-LevelHdNote $hf $heads }    # 12.7 point 5 : pas de mesure en haute densite
+        Start-ImageWrite; return
+    }
     if ($chkWHard.Checked -or $chkWTG43.Checked) { Append-Log (T 'Secteurs durs ou lecteur 8 pouces (TG43) : pas de calibration automatique, écriture avec le profil courant.'); Start-ImageWrite; return }
     # Format gw explicite de la table non calibrable (FM, codage propre, secteurs durs, 360 tr/min, cellule hors plage :
     # Get-FormatCalibInfo, memes regles que la carte Calibration de l Accueil) : pas de calibration automatique ; GCR :
@@ -2767,9 +3028,18 @@ function Start-PresetWrite([string]$mode, [switch]$NoCalib, [switch]$LevelOnly) 
     $ddKnown =(@('.adf', '.ipf', '.hfe') -contains $ext) -or ($explicit -and $fmt -notmatch '^(commodore\.15[47]1|mac\.|apple2\.)')
     if (-not $ddKnown) { Append-Log ((T "Densité de l'image non établie ({0}, format déduit par gw) : pas de calibration automatique, écriture avec le profil courant.") -f "$ext"); Start-ImageWrite; return }
     $oor = Get-CellOutOfRange $img
-    if ($null -ne $oor) { Append-Log ((T "Cellule de l'image hors de la plage mesurable ({0} ns, de 1 700 à 2 300 ns en MFM double densité) : pas de calibration automatique, écriture avec le profil courant.") -f "$oor"); Start-ImageWrite; return }
+    if ($null -ne $oor) { Append-Log ((T "Cellule de l'image hors des plages mesurables ({0} ns ; 900 à 1 100 ns en haute densité, 1 700 à 2 300 ns en double densité) : pas de calibration automatique, écriture avec le profil courant.") -f "$oor"); Start-ImageWrite; return }
     if (-not $script:ScpStatsOk) { Append-Log (T "Module d'analyse SCP indisponible : pas de calibration automatique, écriture avec le profil courant."); Start-ImageWrite; return }
-    if ($NoCalib) { if ($LevelOnly) { Start-LevelBeforeWrite $mode -Restore; return }; Start-ImageWrite; return }
+    if ($NoCalib) {
+        if ($LevelOnly) {
+            # 12.7 point 5 (arbitrage 15) : mesure de la case (Test-WriteLevelWanted ; liste au test rapide : chemin 12.6)
+            # exclue quand l image ne recouvrirait pas tout le motif
+            $sk = if (Test-WriteLevelWanted $mode) { Get-LevelWriteSkip $img $fmt $txtWTracks.Text } else { $null }
+            if ($sk) { if ($sk.Why) { Append-Log $sk.Why }; Start-ImageWrite; return }
+            Start-LevelBeforeWrite $mode -Restore; return
+        }
+        Start-ImageWrite; return
+    }
     # Test rapide : niveau mesure sur la disquette a ecrire, sur la forme de la calibration complete du lecteur
     if ($cmbWCalMode.SelectedIndex -eq 2) { Start-LevelBeforeWrite $mode; return }
     $fam = Get-ImageFamily $img
@@ -2782,9 +3052,16 @@ function Start-PresetWrite([string]$mode, [switch]$NoCalib, [switch]$LevelOnly) 
     if ($state -eq 'ok') {
         # Courbe non convergee gardee apres un « Annuler » : reutilisee, mais signalee
         $nc = @(@($(if ($heads) { @("${fam}_h0", "${fam}_h1") } else { @($fam) })) | Where-Object { $script:PrecompCurves[$_] -and $script:PrecompCurves[$_].Converged -eq $false })
-        $kc = @(@($(if ($heads) { @("${fam}_h0", "${fam}_h1") } else { @($fam) })) | Where-Object { $script:PrecompCurves[$_] -and (Get-CurveCalc $script:PrecompCurves[$_]) -ne $script:CalibCalc })
+        $kc = @(@($(if ($heads) { @("${fam}_h0", "${fam}_h1") } else { @($fam) })) | Where-Object { $script:PrecompCurves[$_] -and (Get-CurveCalc $script:PrecompCurves[$_]) -ne (Get-CurveCalcRef $script:PrecompCurves[$_]) })
         if ($kc.Count -gt 0) { Append-Log ((T "Calibration {0} de la famille {1} faite avec le calcul {2} : écriture avec cette courbe, conservée à votre demande. Pour la refaire avec le calcul actuel, bouton « Calibrer » de l'onglet Écriture.") -f "$kind", (Get-CalibFamilyName $fam), (Get-CurveCalcText $script:PrecompCurves[$kc[0]] -Plain)) }
         if ($nc.Count -gt 0) { Append-Log ((T "Calibration {0} de la famille {1} non convergée ({2}) : écriture avec cette courbe. Pour la refaire, bouton « Calibrer » de l'onglet Écriture, de préférence en test fin.") -f "$kind", (Get-CalibFamilyName $fam), "$($script:PrecompCurves[$nc[0]].Date)") }
+        # 12.7 point 5 : ecriture lente, case « Mesurer la disquette » : niveau et surface mesures sur la disquette a ecrire
+        if (Test-WriteLevelWanted $mode) {
+            # Arbitrage 15 : pas de mesure si l image ne recouvre pas tout le motif (une face, step= garde par Set-WritePreset)
+            $sk = Get-LevelWriteSkip $img $fmt $txtWTracks.Text
+            if ($sk) { if ($sk.Why) { Append-Log $sk.Why }; Start-ImageWrite; return }
+            Start-LevelBeforeWrite $mode -Measure; return
+        }
         Start-ImageWrite; return
     }
     switch ($state) {
@@ -2801,13 +3078,99 @@ function Start-PresetWrite([string]$mode, [switch]$NoCalib, [switch]$LevelOnly) 
     if (-not $script:Cal) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : la calibration n''a pas été lancée.') }
 }
 
-$btnWrite.Add_Click({ Start-ImageWrite })
+function Test-WriteLevelWanted([string]$mode) {
+    # 12.7 point 5 : mesure de la disquette avant une ecriture lente demandee (case chkWLevel) : ecriture lente, liste
+    # « Calibration precomp » au test standard ou au test fin (au test rapide : chemins de la 12.6, inchanges) ; en
+    # restauration, liste de l onglet Ecriture d avant la restauration (Restore.Saved, la restauration la met au test fin)
+    if ($mode -ne 'slow' -or -not $chkWLevel.Checked) { return $false }
+    $cm = if ($script:Restore -and $script:Restore.Saved) { [int]$script:Restore.Saved.CalMode } else { [int]$cmbWCalMode.SelectedIndex }
+    return ($cm -ne 2)
+}
+
+function Get-WriteLevelKind([string]$img, [string]$fmt) {
+    # 12.7 point 5 : image de l onglet Ecriture pour la mesure avant l ecriture lente, memes regles que Start-PresetWrite :
+    # 'dd' (calibrable en double densite, calibration rapide possible), 'hd' (haute densite calibrable : pas de
+    # calibration rapide, arbitrage 8), '' (non calibrable : flux, image secteur sans format, secteurs durs, TG43, format
+    # non calibrable, densite non etablie, cellule hors plage, module d analyse SCP absent)
+    $ext = [System.IO.Path]::GetExtension($img).ToLower()
+    $explicit = ($fmt -and $fmt -ne '(auto)')
+    if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) { return '' }
+    if ((Test-NeedsFormat $img) -and -not $explicit) { return '' }
+    if (Get-HighDensityReason $img $fmt) { if (Get-HdCalibFamily $img $fmt) { return 'hd' }; return '' }
+    if ($chkWHard.Checked -or $chkWTG43.Checked) { return '' }
+    $fci = if ($explicit -and $script:GwFormats.Contains($fmt)) { Get-FormatCalibInfo $fmt } else { $null }
+    if ($fci -and -not $fci.Cal -and $fmt -notmatch '^(commodore\.15[47]1|mac\.|apple2\.)') { return '' }
+    if (-not ((@('.adf', '.ipf', '.hfe') -contains $ext) -or ($explicit -and $fmt -notmatch '^(commodore\.15[47]1|mac\.|apple2\.)'))) { return '' }
+    if ($null -ne (Get-CellOutOfRange $img)) { return '' }
+    if (-not $script:ScpStatsOk) { return '' }
+    return 'dd'
+}
+
+function Write-LevelHdNote([string]$hf, [bool]$heads) {
+    # 12.7 point 5 : pas de calibration rapide en haute densite (arbitrage 8) : ligne de journal, puis ecriture avec les
+    # champs du mode Auto (Get-HdAutoFields : courbes par tete a jour en ecriture lente, sinon courbe commune, sinon
+    # profil d origine haute densite)
+    $cur = ($heads -and (Test-HeadCurvesCurrent $hf)) -or [bool](Get-HdCommonCurve $hf)
+    if ($cur) { Append-Log (T 'Mesure de la disquette non disponible en haute densité : écriture avec la courbe HD du lecteur.') }
+    else { Append-Log (T "Mesure de la disquette non disponible en haute densité : écriture avec le profil d'origine.") }
+}
+
+function Get-LevelWriteSkip([string]$img, [string]$fmt, [string]$ts) {
+    # 12.7 point 5 (arbitrage 15) : mesure de la disquette avant l ecriture lente exclue quand l image ne recouvrirait pas
+    # tout le motif. La mesure ecrit le motif sur 4 a 9 cylindres par tete, sur tout le disque et les deux tetes
+    # (Start-LevelCalib : c=...:h=0-1), sans le champ Pistes. Renvoie $null (mesure possible) ou @{ Why } : ligne de
+    # journal, vide quand Start-ImageWrite refusera l ecriture lente (son message s affiche alors avant toute ecriture du
+    # motif). Cas, dans cet ordre :
+    #  - champ Pistes avec c=, h= ou step= (step= : pistes physiques que la mesure, sans le pas, ne vise pas) ;
+    #  - faces de l image inconnues avec « Effacer les pistes vides » : refus de Start-ImageWrite (memes regles, sans h=) ;
+    #  - image a une seule face : faces de l image (Get-ImageTrackSet), sinon tetes du format gw d une image secteur.
+    $ts = "$ts".Trim()
+    if ($ts -and [regex]::IsMatch(":$ts", ':\s*(c|h|step)\s*=')) { return @{ Why = ((T "Mesure de la disquette avant l'écriture non faite : le champ Pistes (« {0} ») limite les pistes écrites ; le motif de test resterait sur des cylindres que l'image ne recouvre pas. Écriture sans mesure.") -f "$ts") } }
+    $set = Get-ImageTrackSet $img
+    if ($null -eq $set) {
+        if ($chkWEraseEmpty.Checked) { return @{ Why = '' } }
+        $fe = if ($fmt -and $fmt -ne '(auto)' -and $script:GwFormats.Contains($fmt)) { $script:GwFormats[$fmt] } else { $null }
+        $hs = @(if ($fe -and [int]$fe.Heads -eq 1) { 0 } else { 0, 1 })
+    } else { $hs = @(@($set.Keys) | ForEach-Object { [int](([string]$_ -split '\.')[1]) } | Sort-Object -Unique) }
+    if ($hs.Count -eq 1) { return @{ Why = (T "Mesure de la disquette avant l'écriture non faite : image à une seule face ; le motif de test resterait sur l'autre face, que l'image n'écrit pas. Écriture sans mesure.") } }
+    return $null
+}
+
+function Start-WriteTabWrite {
+    # 12.7 point 5 : bouton ECRIRE de l onglet Ecriture. Ecriture lente avec la case « Mesurer la disquette avant
+    # l ecriture lente » (Test-WriteLevelWanted), image calibrable en double densite, profil Auto, --precomp coche, image
+    # qui recouvre tout le motif (Get-LevelWriteSkip) : niveau et etat de la surface mesures sur la disquette inseree
+    # (Start-LevelBeforeWrite -Measure), puis ecriture. Haute densite : ligne de journal, puis ecriture. Sinon :
+    # Start-ImageWrite, comme en 12.6 (jamais de calibration automatique depuis ce bouton)
+    $img = $txtWFile.Text
+    if (-not (Test-WriteLevelWanted $(if ($chkWSlow.Checked) { 'slow' } else { 'fast' })) -or -not $img -or -not (Test-Path -LiteralPath $img)) { Start-ImageWrite; return }
+    if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
+    $k = Get-WriteLevelKind $img $cmbWFmt.Text
+    if (-not $k) { Start-ImageWrite; return }
+    $auto = ($cmbWProfile.SelectedIndex -eq 0)
+    # Haute densite avant le profil : la mesure n y existe pas, quel que soit le profil ; ligne de la courbe ou du profil
+    # d origine seulement quand le mode Auto les applique (profil Auto, --precomp coche)
+    if ($k -eq 'hd') {
+        if ($auto -and $chkWPrecomp.Checked) { Write-LevelHdNote (Get-HdCalibFamily $img $cmbWFmt.Text) $true }
+        else { Append-Log (T 'Mesure de la disquette non disponible en haute densité.') }
+        Start-ImageWrite; return
+    }
+    # Profil choisi a la main (Manuel, ou profil force) : la mesure decalerait la courbe calibree du profil Auto
+    if (-not $auto) { Append-Log ((T "Mesure de la disquette avant l'écriture non faite : profil précomp. « {0} » choisi ; la mesure ne se fait qu'avec le profil Auto.") -f "$($cmbWProfile.Text)"); Start-ImageWrite; return }
+    # --precomp decoche : la mesure le cocherait (Set-LevelFields) ; ecriture sans precompensation, comme en 12.6
+    if (-not $chkWPrecomp.Checked) { Append-Log (T "Mesure de la disquette avant l'écriture non faite : précompensation désactivée (case --precomp décochée) ; écriture sans précompensation."); Start-ImageWrite; return }
+    $sk = Get-LevelWriteSkip $img $cmbWFmt.Text $txtWTracks.Text
+    if ($sk) { if ($sk.Why) { Append-Log $sk.Why }; Start-ImageWrite; return }
+    Start-LevelBeforeWrite 'slow' -Measure
+}
+
+$btnWrite.Add_Click({ Start-WriteTabWrite })
 
 $lblWProfileInfo = New-Object System.Windows.Forms.Label
 $lblWProfileInfo.Location = '270,348'; $lblWProfileInfo.Size = '502,40'; $lblWProfileInfo.Anchor = 'Top,Left,Right'
 $lblWProfileInfo.ForeColor = 'DimGray'; $lblWProfileInfo.Text = (T 'Choisissez une image : le format et la précompensation seront déduits automatiquement.')
 
-$tabW.Controls.AddRange(@($grpWImage, $grpWOpt, $grpWAdv, $btnWrite, $lblWProfileInfo, $chkWWarm))
+$tabW.Controls.AddRange(@($grpWImage, $grpWOpt, $grpWAdv, $btnWrite, $lblWProfileInfo, $chkWWarm, $chkWLevel))
 $tabW.AutoScroll = $true                                  # fenetre basse ou journal agrandi : defilement plutot que bouton masque
 
 # ============================== LECTURE ========================================
@@ -3369,6 +3732,32 @@ $lblHSub = New-Object System.Windows.Forms.Label
 $lblHSub.Text = (T "Choisissez une tâche : l'application règle les options pour vous. F1 ouvre l'aide de l'onglet affiché.")
 $lblHSub.Location = '16,38'; $lblHSub.AutoSize = $true; $lblHSub.ForeColor = $script:Theme.Muted
 
+# 12.7 : zone de progression de la calibration, a la place du titre et du sous-titre (14,4, largeur des deux colonnes de
+# cartes, 56 px au-dessus de la premiere rangee en 14,64) : titre et liens, barre, detail. Update-HomeProgress (minuterie)
+$pnlHomeProg = New-Object System.Windows.Forms.Panel
+$pnlHomeProg.Name = 'pnlHomeProg'; $pnlHomeProg.Location = '14,4'; $pnlHomeProg.Size = '756,56'; $pnlHomeProg.Visible = $false
+$lblHProgTitle = New-Object System.Windows.Forms.Label
+$lblHProgTitle.Name = 'lblHProgTitle'; $lblHProgTitle.AutoSize = $false; $lblHProgTitle.UseMnemonic = $false; $lblHProgTitle.Location = '0,0'; $lblHProgTitle.Size = '756,20'
+$lblHProgTitle.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 10.5); $lblHProgTitle.ForeColor = $script:Theme.Accent2
+$pbHProg = New-Object System.Windows.Forms.ProgressBar
+$pbHProg.Name = 'pbHProg'; $pbHProg.Location = '0,22'; $pbHProg.Size = '756,12'; $pbHProg.Minimum = 0; $pbHProg.Maximum = 100
+$lblHProgDetail = New-Object System.Windows.Forms.Label
+$lblHProgDetail.Name = 'lblHProgDetail'; $lblHProgDetail.AutoSize = $false; $lblHProgDetail.UseMnemonic = $false; $lblHProgDetail.Location = '0,37'; $lblHProgDetail.Size = '756,19'
+$lblHProgDetail.ForeColor = $script:Theme.Muted
+# Titre et detail dans leurs couleurs pendant une commande gw (Set-Busy desactive les onglets : texte grise sinon)
+$lblHProgTitle.Add_Paint({ Draw-HomeProgText $this $_ }); $lblHProgDetail.Add_Paint({ Draw-HomeProgText $this $_ })
+$lnkHProgLog = New-Object System.Windows.Forms.LinkLabel; $lnkHProgLog.Name = 'lnkHProgLog'
+$lnkHProgCurve = New-Object System.Windows.Forms.LinkLabel; $lnkHProgCurve.Name = 'lnkHProgCurve'
+$lnkHProgClose = New-Object System.Windows.Forms.LinkLabel; $lnkHProgClose.Name = 'lnkHProgClose'
+foreach ($lk in @($lnkHProgLog, $lnkHProgCurve, $lnkHProgClose)) { $lk.AutoSize = $true; $lk.UseMnemonic = $false; $lk.Visible = $false; $lk.Location = '0,1'; $lk.LinkColor = $script:Theme.Accent; $lk.ActiveLinkColor = $script:Theme.Accent2 }
+$lnkHProgLog.Text = (T 'Afficher le journal'); $lnkHProgCurve.Text = (T 'Afficher la courbe'); $lnkHProgClose.Text = (T 'Fermer')
+# Journal : affiche comme par le bouton « Afficher journal » de la barre (jamais force par la zone elle-meme)
+$lnkHProgLog.Add_LinkClicked({ Set-LogVisible $true; Update-HomeProgress })
+$lnkHProgCurve.Add_LinkClicked({ $d = $script:HomeProgDone; if ($d) { Show-PrecompCurve ([string]$d.Family) ([bool]$d.Slow) } })
+$lnkHProgClose.Add_LinkClicked({ Clear-HomeProgress })
+$pnlHomeProg.Controls.AddRange(@($lblHProgTitle, $pbHProg, $lblHProgDetail, $lnkHProgLog, $lnkHProgCurve, $lnkHProgClose))
+foreach ($lk in @($lnkHProgLog, $lnkHProgCurve, $lnkHProgClose)) { $lk.BringToFront() }
+
 function Get-HomeCard($ctrl) {
     # Carte (Panel) d un controle de la carte
     $c = $ctrl
@@ -3392,7 +3781,8 @@ function New-HomeCard([string]$glyph, [string]$title, [string]$desc, [string]$lo
     $p.Controls.AddRange(@($bar, $pic, $t, $d))
     foreach ($c in @($p, $bar, $pic, $t, $d)) {
         $c.Cursor = [System.Windows.Forms.Cursors]::Hand
-        $c.Add_Click({ $card = Get-HomeCard $this; if ($card -and $card.Tag) { & $card.Tag } })
+        # 12.7 : ouvrir une carte efface le bilan de la zone de progression
+        $c.Add_Click({ $card = Get-HomeCard $this; if ($card -and $card.Tag) { Clear-HomeProgress; & $card.Tag } })
         $c.Add_MouseEnter({ $card = Get-HomeCard $this; if ($card) { $card.BackColor = [System.Drawing.Color]::FromArgb(234, 241, 251) } })
         $c.Add_MouseLeave({
             $card = Get-HomeCard $this
@@ -3425,7 +3815,7 @@ $cardHelp    = New-HomeCard 'Help' (T 'Guide pas à pas') (T 'Ouvrir l''aide en 
 $cardClean   = New-HomeCard 'Repair' (T 'Nettoyer les têtes du lecteur') (T 'Procédure en images. Disquette de nettoyage uniquement, jamais une vraie disquette.') '397,248' { Show-CleanDialog }
 $cardJitter  = New-HomeCard 'Setting' (T 'Régler le jitter') (T "Choisir le jitter maximal d'une piste saine : plus il est strict, plus l'écriture lente réécrit de pistes.") '14,432' { Show-JitterSettings }
 $script:HomeCalDesc = $cardCalib.Controls[3].Text      # description d origine, remplacee par la progression (Update-HomeCalibCard)
-$tabH.Controls.AddRange(@($lblHTitle, $lblHSub, $cardRestore, $cardWrite, $cardRead, $cardCheck, $cardCalib, $cardClean, $cardTest, $cardHelp, $cardJitter))
+$tabH.Controls.AddRange(@($lblHTitle, $lblHSub, $pnlHomeProg, $cardRestore, $cardWrite, $cardRead, $cardCheck, $cardCalib, $cardClean, $cardTest, $cardHelp, $cardJitter))
 
 # ============================== RESTAURATION : INTERFACE =======================
 # Assistant : lecture de l original, changement de disquette, ecriture stricte, controle et comparaison. La logique
@@ -4639,7 +5029,7 @@ function Show-HomeCurve {
     # Courbe de la derniere calibration, toutes familles confondues : pour chaque famille, courbes par tete si elles sont
     # a jour, sinon la courbe commune (Get-FamilyCurves) ; on garde la famille dont cette courbe est la plus recente
     $best = $null; $bestDate = [datetime]::MinValue
-    foreach ($f in @('std', 'long')) {
+    foreach ($f in @('std', 'long', 'hd')) {
         $cvs = Get-FamilyCurves $f $true
         if ($cvs.Count -eq 0) { continue }
         $d = Get-CurveDate $cvs[0]
@@ -4657,17 +5047,21 @@ function Show-HomeCurve {
 # Get-LevelRef et New-CalibPattern, qui en tirent famille, cylindres et densite comme d une image de l onglet Ecriture.
 
 function Get-FormatCalibInfo([string]$name) {
-    # Calibration d un format gw (table GwFormats). Cal = 'std' avec Bits (cellules par piste du motif, celles que
-    # Get-PatternBits retient pour une image de ce format : ADF 101 344, autres 100 000), NCyl (35 au moins) et Notes ;
-    # sinon Why, raison affichee. Group : groupe de la liste de la carte. Memes regles que l ecriture : haute densite
-    # (Test-HdFormat, ou debit de 450 kbit/s et plus), GCR, FM, codages propres, secteurs durs, 360 tr/min, cellule hors
-    # plage. Debit de 260 ou 261 kbit/s (Atari) : famille standard, comme l ecriture d une image secteur, avec une note.
-    $r = @{ Name = $name; Label = $name; Group = 'other'; Cal = $null; Why = ''; Notes = @(); NCyl = 0; Heads = 0; Bits = 0; BitsSrc = ''; Rate = 0 }
+    # Calibration d un format gw (table GwFormats). Cal = 'std' ou 'hd' (12.7 : haute densite MFM, 1 us par cellule a
+    # 300 tr/min) avec Bits (cellules par piste du motif, celles que Get-PatternBits retient pour une image de ce format :
+    # ADF 101 344, ADF HD 202 688, autres haute densite 200 000, autres 100 000), Rpm, NCyl (35 au moins) et Notes ;
+    # sinon Why, raison affichee. Group : groupe de la liste de la carte. Ordre des refus : balayage, GCR, FM, codages
+    # propres, secteurs durs, tres haute densite (ED), haute densite a 360 tr/min (famille non livree en 12.7, faute de
+    # validation sur un lecteur reel), haute densite a une autre vitesse, double densite a une autre vitesse que
+    # 300 tr/min, cellule hors plage. Debit de 260 ou 261 kbit/s (Atari) : famille standard, comme l ecriture d une image
+    # secteur, avec une note.
+    $r = @{ Name = $name; Label = $name; Group = 'other'; Cal = $null; Why = ''; Notes = @(); NCyl = 0; Heads = 0; Bits = 0; BitsSrc = ''; Rate = 0; Rpm = 300 }
     $e = $script:GwFormats[$name]
     if (-not $e) { $r.Why = (T "format absent de la table de l'application (gw plus récent ou fichier diskdefs) : calibrez depuis l'onglet Écriture, avec l'image et ce format"); return $r }
-    $r.NCyl = [math]::Max(35, [int]$e.Cyls); $r.Heads = [int]$e.Heads
+    $r.NCyl = [math]::Max(35, [int]$e.Cyls); $r.Heads = [int]$e.Heads; $r.Rpm = [int]$e.Rpm
     $rate = [int]$e.Rate; $r.Rate = $rate
     $hd = (Test-HdFormat $name) -or $rate -ge 450
+    $ed = ($rate -ge 900) -or ($name -match '\.(2880|ed)$')
     $gcr = (@('c64', 'a2', 'mac') -contains $e.Enc)
     $grp = ''
     if ($e.Enc -eq 'amiga') { $grp = $(if ($hd) { 'amiga_hd' } else { 'amiga_dd' }) }
@@ -4676,18 +5070,31 @@ function Get-FormatCalibInfo([string]$name) {
     elseif ($hd) { $grp = 'hd' }
     elseif ($e.Enc -eq 'mfm' -and $name -match '^(ibm|atarist)\.') { $grp = 'pc_dd' }
     if ($e.Enc -eq 'scan') { $r.Why = (T "format de balayage : gw n'écrit pas une image secteur avec ibm.scan, densité inconnue à l'avance") }
-    elseif ($hd) { $r.Why = (T "haute densité : les courbes calibrées sont double densité ; l'écriture applique le profil d'origine de la famille, non calibré") }
-    elseif ($gcr) { $r.Why = (T 'codage GCR : la calibration ne mesure que le MFM double densité') }
-    elseif ($e.Enc -eq 'fm') { $r.Why = (T 'codage FM (simple densité) : la calibration ne mesure que le MFM double densité') }
-    elseif (@('m2fm', 'dg') -contains $e.Enc) { $r.Why = (T 'codage propre au système (M2FM, Data General) : la calibration ne mesure que le MFM double densité') }
+    elseif ($gcr) { $r.Why = (T 'codage GCR : la calibration ne mesure que le codage MFM') }
+    elseif ($e.Enc -eq 'fm') { $r.Why = (T 'codage FM (simple densité) : la calibration ne mesure que le codage MFM') }
+    elseif (@('m2fm', 'dg') -contains $e.Enc) { $r.Why = (T 'codage propre au système (M2FM, Data General) : la calibration ne mesure que le codage MFM') }
     elseif ($e.Enc -eq 'hard') { $r.Why = (T 'disquette à secteurs durs : calibration non prise en charge') }
-    elseif ([int]$e.Rpm -ne 300) { $r.Why = ((T "format à {0} tr/min : le motif de test suppose un lecteur à 300 tr/min") -f "$($e.Rpm)") }
-    elseif ($e.Enc -eq 'bit' -and $rate -ne 250) { $r.Why = ((T "cellule de {0} ns, hors de la plage mesurable (1 700 à 2 300 ns)") -f "$([math]::Round(500000 / $rate))") }
+    elseif ($ed) { $r.Why = (T "très haute densité (ED) : cellule de 500 ns, trop courte pour l'analyse de la calibration (900 à 1 100 ns en haute densité)") }
+    elseif ($hd -and [int]$e.Rpm -eq 360) { $r.Why = (T 'disquette 5,25 pouces haute densité à 360 tr/min : calibration pas encore validée sur un lecteur réel') }
+    elseif ($hd -and [int]$e.Rpm -ne 300) { $r.Why = ((T "format haute densité à {0} tr/min : la calibration haute densité suppose un lecteur à 300 tr/min") -f "$($e.Rpm)") }
+    elseif ($hd) {
+        $r.Cal = 'hd'
+        if ($e.Enc -eq 'amiga') { $r.Bits = 202688; $r.BitsSrc = (T 'ADF haute densité, horloge AmigaDOS de gw') }
+        elseif ($e.Enc -eq 'bit') { $r.Bits = 200000; $r.BitsSrc = (T 'image de cellules (raw), 1 µs par cellule') }
+        else { $r.Bits = 200000; $r.BitsSrc = (T 'format à secteurs haute densité, 1 µs par cellule') }
+        # 12.7 : note condensee sur une ligne (zone d information de la fenetre de la carte : etat des trois courbes visible
+        # jusqu a la tete 1 sans defilement)
+        $r.Notes += (T 'Disquette et lecteur HD nécessaires ; réglages provisoires.')
+    }
+    elseif ([int]$e.Rpm -ne 300) { $r.Why = ((T "format à {0} tr/min en double densité : aucune famille de calibration à cette vitesse") -f "$($e.Rpm)") }
+    elseif ($e.Enc -eq 'bit' -and $rate -ne 250) { $r.Why = ((T "cellule de {0} ns, hors des plages mesurables (900 à 1 100 ns en haute densité, 1 700 à 2 300 ns en double densité)") -f "$([math]::Round(500000 / $rate))") }
     else {
         $r.Cal = 'std'
         if ($e.Enc -eq 'amiga') { $r.Bits = 101344; $r.BitsSrc = (T 'ADF, horloge AmigaDOS de gw') }
         else { $r.Bits = 100000; $r.BitsSrc = (T 'format à secteurs, 2 µs par cellule') }
         if ($rate -gt 250) { $r.Notes += ((T "Débit de {0} kbit/s (cellule de {1} ns) : l'écriture de ce format applique la courbe {2}, mesurée à 2 µs par cellule (densité plus forte de {3} %).") -f "$rate", "$([math]::Round(500000 / $rate))", (Get-CalibFamilyName 'std'), (Format-UiNum ([math]::Round(100.0 * ($rate - 250) / 250, 1)))) }
+    }
+    if ($r.Cal) {
         if ($e.Enc -eq 'fm0') { $r.Notes += (T 'Piste 0 en FM : non mesurée, la courbe s''y applique telle quelle.') }
         if ($r.Heads -eq 1) { $r.Notes += (T 'Format simple face : la calibration écrit aussi la face 1 (lecteur double face nécessaire).') }
         if ([int]$e.Cyls -ne 80) { $r.Notes += ((T "{0} cylindres dans la définition de gw.") -f "$($e.Cyls)") }
@@ -4743,20 +5150,25 @@ function New-CalibGeometry($info, [int]$nCyl) {
     # choisi. Get-ImageCylinders (en-tete), Get-ImageFamily, Get-PatternBits, Get-CellOutOfRange et Get-HighDensityReason
     # (table des pistes, 8 x (longueur // 2) = cellules) la lisent comme toute image HFE : la calibration complete ou
     # rapide en deduit famille, cylindres et densite. Cellules : 100 000 (2 000 ns), 101 344 (1 973,5 ns), 105 808
-    # (1 890,2 ns, sous le seuil PrecompThresholdNs de 1 950 ns par defaut).
+    # (1 890,2 ns, sous le seuil PrecompThresholdNs de 1 950 ns par defaut) ; 12.7 : 200 000 (1 000 ns) et 202 688
+    # (986,7 ns, AmigaDOS HD) en haute densite. Debit de l en-tete : un tour a la vitesse du type, bits x tr/min / 120 000
+    # (regle generale du motif ; 300 tr/min : expression d origine, bits / 400).
     if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
     $path = Join-Path $script:TempDir 'precomp-geometry.hfe'
-    [CalibPattern]::WriteHfe($path, $nCyl, [int]$info.Bits, [int][math]::Round($info.Bits / 400.0), 20261014)
+    $rpm = if ($info.Rpm) { [int]$info.Rpm } else { 300 }
+    $rate = if ($rpm -eq 300) { [int][math]::Round($info.Bits / 400.0) } else { [int][math]::Round($info.Bits * $rpm / 120000.0) }
+    [CalibPattern]::WriteHfe($path, $nCyl, [int]$info.Bits, $rate, 20261014)
     return $path
 }
 
 function Get-WriteTabFamily {
-    # Famille de l image de l onglet Ecriture ; $null sans image, pour un flux ou une image haute densite
+    # Famille de l image de l onglet Ecriture ; $null sans image, pour un flux ou une image haute densite non calibrable
+    # (12.7 : 'hd' pour une haute densite calibrable)
     $p = $txtWFile.Text
     if (-not $p -or -not (Test-Path -LiteralPath $p)) { return $null }
     if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains [System.IO.Path]::GetExtension($p).ToLower()) { return $null }
-    if (Get-HighDensityReason $p $cmbWFmt.Text) { return $null }
-    return (Get-ImageFamily $p)
+    if (Get-HighDensityReason $p $cmbWFmt.Text) { return (Get-HdCalibFamily $p $cmbWFmt.Text) }
+    return (Get-ImageFamily $p $cmbWFmt.Text)
 }
 
 function Test-HomeCalibBusy {
@@ -4816,6 +5228,143 @@ function Update-HomeCalibCard {
     $d.Text = $lblWCal.Text; $d.ForeColor = $script:Theme.Muted
 }
 
+# ============================== ACCUEIL : PROGRESSION ==========================
+# Zone de l Accueil a la place du titre et du sous-titre (12.7) : toute calibration en cours ($script:Cal, rapide et
+# prechauffage compris, quel que soit le point de depart) et tout prechauffage d une ecriture lente ($script:WriteWarm) ;
+# puis bilan d une calibration lancee depuis l Accueil ($script:Cal.Home), jusqu a « Fermer », l ouverture d une carte ou
+# une nouvelle operation. Barre et detail recopies de $pbWCal et $lblWCal (onglet Ecriture).
+
+function Get-HomeProgFit([string]$t, $font, [int]$w) {
+    # Texte sur une ligne de $w px : tel quel s il tient, sinon sans ses details de fin entre parentheses (comme
+    # Update-HomeCalibCard), sinon coupe par des points de suspension (U+2026) au plus long qui tient, a la fin d un
+    # mot si possible
+    if (-not $t) { return '' }
+    $tf = [System.Windows.Forms.TextFormatFlags]::NoPrefix -bor [System.Windows.Forms.TextFormatFlags]::SingleLine
+    $sz = New-Object System.Drawing.Size(32000, 100)
+    if ([System.Windows.Forms.TextRenderer]::MeasureText($t, $font, $sz, $tf).Width -le $w) { return $t }
+    $s = $t -replace '\s*\([^()]*\)\s*$', ''
+    if ($s -ne $t -and [System.Windows.Forms.TextRenderer]::MeasureText($s, $font, $sz, $tf).Width -le $w) { return $s }
+    $e = [string][char]0x2026
+    $n = 0; $lo = 1; $hi = $s.Length - 1
+    while ($lo -le $hi) {
+        $mid = [int][math]::Floor(($lo + $hi) / 2)
+        if ([System.Windows.Forms.TextRenderer]::MeasureText(($s.Substring(0, $mid).TrimEnd() + $e), $font, $sz, $tf).Width -le $w) { $n = $mid; $lo = $mid + 1 } else { $hi = $mid - 1 }
+    }
+    if ($n -eq 0) { return $e }
+    $p = $s.Substring(0, $n)
+    $sp = $p.LastIndexOf(' ')
+    if ($s[$n] -ne ' ' -and $sp -gt $n / 2) { $p = $p.Substring(0, $sp) }
+    return ($p.TrimEnd(' ', ',', ';', ':', '(') + $e)
+}
+
+function Draw-HomeProgText($lbl, $e) {
+    # Libelle de la zone desactive avec les onglets (Set-Busy, commande gw en cours) : texte redessine dans sa couleur,
+    # sur une ligne, a la place du texte grise ; libelle actif : dessin habituel
+    if ($lbl.Enabled -or -not $lbl.Text) { return }
+    $b = New-Object System.Drawing.SolidBrush($lbl.BackColor)
+    $e.Graphics.FillRectangle($b, $lbl.ClientRectangle); $b.Dispose()
+    [System.Windows.Forms.TextRenderer]::DrawText($e.Graphics, $lbl.Text, $lbl.Font, $lbl.ClientRectangle, $lbl.ForeColor, ([System.Windows.Forms.TextFormatFlags]::NoPrefix -bor [System.Windows.Forms.TextFormatFlags]::SingleLine))
+}
+
+function Get-HomeProgTitle($cal, $ww) {
+    # Titre de la zone pendant une calibration (lecteur, type de la carte ou famille, test, courbes) ou un prechauffage
+    # d ecriture lente
+    if ($cal) {
+        $what = if ($cal.Home -and $cal.Geom -and $cal.Geom.Label) { [string]$cal.Geom.Label } else { Get-CalibFamilyName ([string]$cal.Family) }
+        $kt = if ($cal.Slow) { (T 'une courbe par tête') } else { (T 'courbe commune') }
+        if ($cal.Mode -eq 'level') { return ((T 'Calibration rapide en cours : lecteur {0}, {1}') -f "$($cal.Drive)", "$what, $kt") }
+        $tt = if ($cal.Mode -eq 'fine') { (T 'test fin') } else { (T 'test standard') }
+        return ((T 'Calibration en cours : lecteur {0}, {1}, {2}') -f "$($cal.Drive)", "$what", "$tt, $kt")
+    }
+    return ((T "Préchauffage avant l'écriture lente : lecteur {0}") -f "$($ww.Drive)")
+}
+
+function Set-HomeProgDone($cal, [string]$kind, [string]$detail = '') {
+    # Bilan d une calibration lancee depuis l Accueil (Complete-PrecompCalib, Complete-LevelCalib, Stop-PrecompCalib) :
+    # 'ok', 'warn' (reserves acceptees), 'abandon' (refusee dans la fenetre de decision), 'stop' (arretee, sans mesure
+    # exploitable). Detail : premiere raison de la fenetre de decision, sinon le libelle de l onglet Ecriture. Proc : gw
+    # en cours a la fin (arret), qui n est pas une nouvelle operation. Sans effet pour une calibration lancee ailleurs.
+    if (-not $cal -or -not $cal.Home) { return }
+    if ($detail) { $detail = $detail.Substring(0, 1).ToUpper() + $detail.Substring(1) } else { $detail = [string]$lblWCal.Text }
+    $script:HomeProgDone = @{ Kind = $kind; Detail = $detail; Family = [string]$cal.Family; Slow = [bool]$cal.Slow; Proc = $script:GwProc
+                              Curve = ((Get-FamilyCurves ([string]$cal.Family) ([bool]$cal.Slow)).Count -gt 0) }
+}
+
+function Clear-HomeProgress {
+    # « Fermer » de la zone, ouverture d une carte : bilan efface, titre et sous-titre de l Accueil remis
+    $script:HomeProgDone = $null
+    Update-HomeProgress
+}
+
+function Update-HomeProgress {
+    # Minuterie principale. Modes : 'prog' (calibration ou prechauffage d ecriture lente en cours), 'hold' (fenetre de
+    # decision ouverte apres une progression : titre « decision demandee », barre et detail gardes), 'done' (bilan),
+    # 'none' (titre et sous-titre de l Accueil).
+    # Un controle n est modifie que si sa valeur change ; l etat affiche est suivi dans HomeProgUi (la propriete Visible
+    # d un controle d un onglet non affiche se lit fausse)
+    if (-not $tabH -or -not $pnlHomeProg) { return }
+    $u = $script:HomeProgUi
+    $cal = $script:Cal; $ww = $script:WriteWarm; $d = $script:HomeProgDone
+    if ($cal -or $ww) { $mode = 'prog'; if ($d) { $script:HomeProgDone = $null; $d = $null } }
+    elseif ($script:HomeProgHold -and (@('prog', 'hold') -contains $u.Mode)) { $mode = 'hold' }
+    elseif ($d) {
+        # Nouvelle operation (gw hors detection des lecteurs, sequence, controle apres ecriture, restauration) : bilan efface
+        $newGw = [bool]($script:GwProc -and -not $script:Detect -and -not [object]::ReferenceEquals($script:GwProc, $d.Proc))
+        if ($newGw -or $script:Chain.Count -gt 0 -or $script:Rep -or $script:Restore) { $script:HomeProgDone = $null; $d = $null; $mode = 'none' } else { $mode = 'done' }
+    } else { $mode = 'none' }
+    $show = ($mode -ne 'none')
+    if ($u.Shown -ne $show) {
+        $u.Shown = $show
+        $pnlHomeProg.Visible = $show; $lblHTitle.Visible = -not $show; $lblHSub.Visible = -not $show
+    }
+    $u.Mode = $mode
+    if (-not $show) { return }
+    # Lien du journal seulement s il est utilisable : pendant une commande gw, Set-Busy desactive les onglets, donc la
+    # zone ; le bouton « Afficher journal » de la barre reste disponible
+    $logLink = [bool]$split.Panel2Collapsed -and [bool]$tabs.Enabled
+    if ($mode -eq 'done') {
+        $title = switch ([string]$d.Kind) { 'ok' { (T 'Calibration terminée : courbe convergée') } 'warn' { (T 'Calibration terminée avec réserves : voir le journal') } 'abandon' { (T 'Calibration abandonnée') } default { (T 'Calibration arrêtée') } }
+        $src = [string]$d.Detail; $bar = $false; $curveLink = [bool]$d.Curve; $closeLink = $true
+    } else {
+        # Fenetre de decision ouverte (mode hold) : calibration terminee, barre et detail de sa fin gardes
+        $title = if ($mode -eq 'prog') { Get-HomeProgTitle $cal $ww } else { (T 'Calibration terminée : décision demandée') }
+        $src = [string]$lblWCal.Text; $bar = $true; $curveLink = $false; $closeLink = $false
+    }
+    # Liens a droite du titre (Fermer, Afficher la courbe, Afficher le journal) ; textes et place refaits a chaque
+    # changement de liens ou de langue
+    $lk = "$($script:Lang)|$([int]$logLink)$([int]$curveLink)$([int]$closeLink)"
+    if ($u.Links -ne $lk) {
+        $u.Links = $lk
+        $lnkHProgLog.Text = (T 'Afficher le journal'); $lnkHProgCurve.Text = (T 'Afficher la courbe'); $lnkHProgClose.Text = (T 'Fermer')
+        $x = $pnlHomeProg.Width
+        foreach ($p in @(@($lnkHProgClose, $closeLink), @($lnkHProgCurve, $curveLink), @($lnkHProgLog, $logLink))) {
+            $p[0].Visible = [bool]$p[1]
+            if ($p[1]) { $x -= $p[0].PreferredWidth; $p[0].Left = $x; $x -= 14 }
+        }
+        $u.TitleW = [math]::Max(80, $x - 4)
+        $lblHProgTitle.Width = $u.TitleW
+        $u.RawTitle = $null; $u.Src = $null
+    }
+    if ($u.RawTitle -ne $title -or $null -eq $u.RawTitle) {
+        $u.RawTitle = $title
+        $t = Get-HomeProgFit $title $lblHProgTitle.Font ([int]$u.TitleW)
+        if ($lblHProgTitle.Text -ne $t) { $lblHProgTitle.Text = $t }
+    }
+    if ($u.Src -ne $src -or $null -eq $u.Src) {
+        $u.Src = $src
+        $t = Get-HomeProgFit $src $lblHProgDetail.Font $lblHProgDetail.Width
+        if ($lblHProgDetail.Text -ne $t) { $lblHProgDetail.Text = $t }
+    }
+    if ($u.Bar -ne $bar) { $u.Bar = $bar; $pbHProg.Visible = $bar }
+    if ($bar) {
+        # Barre : valeur et maximum de $pbWCal ; visible pendant toute progression (Visible de $pbWCal se lit faux quand
+        # l onglet Ecriture n est pas affiche, il est vrai pendant toute calibration et tout prechauffage)
+        if ($pbHProg.Maximum -ne $pbWCal.Maximum) { $pbHProg.Maximum = $pbWCal.Maximum }
+        $v = [math]::Max($pbHProg.Minimum, [math]::Min($pbHProg.Maximum, [int]$pbWCal.Value))
+        if ($pbHProg.Value -ne $v) { $pbHProg.Value = $v }
+    }
+}
+
 function Update-HomeCalibDialog {
     # Fenetre de la carte : detail du type choisi, etat des courbes, durees, disponibilite du test rapide, prechauffage,
     # remplacement d une courbe d un autre lecteur ou d une autre geometrie (une courbe par famille, pour tous les lecteurs)
@@ -4850,7 +5399,9 @@ function Update-HomeCalibDialog {
         $np = $script:CalCoarse.Count + $script:CalMaxVerify
         $nStd = @(0..($n - 1) | Where-Object { $_ % 10 -eq 0 }).Count + $(if (($n - 1) % 10 -ne 0) { 1 } else { 0 })
         $s.Std.Text = ((T "Complète, test standard (1 cylindre sur 10) : environ {0} min") -f "$([math]::Max(1, [math]::Round($nStd * 2 * 1.4 * $np / 60, 0)))")
-        $s.Fine.Text = ((T "Complète, test fin (tous les cylindres) : environ {0} min ; référence du test rapide") -f "$([math]::Max(1, [math]::Round($n * 2 * 1.4 * $np / 60, 0)))")
+        # Haute densite : pas de calibration rapide (12.7), le test fin n en est pas la reference
+        $fineMin = "$([math]::Max(1, [math]::Round($n * 2 * 1.4 * $np / 60, 0)))"
+        $s.Fine.Text = if ($fam -eq 'hd') { (T "Complète, test fin (tous les cylindres) : environ {0} min") -f $fineMin } else { (T "Complète, test fin (tous les cylindres) : environ {0} min ; référence du test rapide") -f $fineMin }
         $lr = Get-LevelRef $fam $heads $cmbDrive.Text '' $false -NCyl $n -Bits ([int]$info.Bits) -ForHome
         if ($lr.Ok) {
             $lc = @{}
@@ -5840,6 +6391,28 @@ function Set-PrecompFields([string]$spec, [string]$fam) {
     return (T ' ; écriture lente : même profil pour les deux têtes (aucune calibration par tête pour cette famille)')
 }
 
+function Get-HdProfile([string]$hf) {
+    # 12.7 : profil commun d une famille haute densite : Spec de sa courbe commune, sinon profil d origine haute densite
+    # (pas de champ de configuration : il suit la courbe, retablie avec elle par Restore-CalibState)
+    $cv = $script:PrecompCurves[$hf]
+    if ($cv -and $cv.Spec) { return [string]$cv.Spec }
+    return $script:PrecompHdDefault
+}
+
+function Get-HdCommonCurve([string]$hf) {
+    # 12.7 : courbe commune d une famille haute densite dont Get-HdProfile tire le profil commun ; $null sans elle
+    $cv = $script:PrecompCurves[$hf]
+    if ($cv -and $cv.Spec) { return $cv }
+    return $null
+}
+
+function Get-HdAutoFields([string]$hf, [bool]$slow) {
+    # 12.7 : champs --precomp du mode Auto pour une image haute densite calibrable (meme regle que Set-PrecompFields)
+    if ($slow -and (Test-HeadCurvesCurrent $hf)) { return @{ P0 = [string](Get-HeadSpec $hf 0); P1 = [string](Get-HeadSpec $hf 1) } }
+    $s = Get-HdProfile $hf
+    return @{ P0 = $s; P1 = $s }
+}
+
 function Update-PrecompForImage([string]$path) {
     Update-CurveButton $path
     $script:WProfileHd = $false
@@ -5850,14 +6423,31 @@ function Update-PrecompForImage([string]$path) {
     # Auto
     if (-not $path -or -not (Test-Path -LiteralPath $path)) { $lblWProfileInfo.Text = ''; return }
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
-    # Image haute densite : jamais de profil calibre (courbes double densite, jusqu a CalHardNs ns, trop fortes pour une
-    # cellule de 1 us), profil d origine de sa famille pour les deux tetes, ecriture lente comprise
+    # Image haute densite (12.7) : calibrable (famille hd) -> profil calibre de sa famille, par tete en ecriture lente si
+    # les courbes par tete sont a jour, sinon profil d origine haute densite ; non calibrable (ED, codages propres,
+    # 360 tr/min) -> profil d origine de sa famille double densite, comme en 12.6. Pour les deux tetes, ecriture lente
+    # comprise ; jamais une courbe double densite (jusqu a CalHardNs ns, trop forte pour une cellule de 1 us).
     $hd = Get-HighDensityReason $path $cmbWFmt.Text
     if ($hd) {
-        $hf = Get-ImageFamily $path
-        $def = if ($hf -eq 'long') { $script:PrecompLongDefault } else { $script:PrecompStdDefault }
-        $chkWPrecomp.Checked = $true; $txtWPrecomp.Text = $def; $txtWPrecomp1.Text = $def
-        $lblWProfileInfo.Text = ((T "Auto : image haute densité ({0}) -> profil d'origine {1} ({2}) : un profil calibré (double densité) ne s'applique pas à une image haute densité") -f "$hd", (Get-CalibFamilyName $hf), "$def")
+        $hf = Get-HdCalibFamily $path $cmbWFmt.Text
+        if ($hf) {
+            $spec = Get-HdProfile $hf
+            $x = Set-PrecompFields $spec $hf
+            # Profil commun dit calibre seulement s il vient de la courbe commune ; sans elle, en ecriture lente avec des
+            # courbes par tete a jour, le profil d origine n est pas ecrit : le complement de Set-PrecompFields nomme les
+            # profils des tetes
+            $fn = Get-CalibFamilyName $hf
+            $hcv = Get-HdCommonCurve $hf
+            if ($hcv) { $fl = (T "Auto : image haute densité ({0}) -> profil calibré {1} ({2})") -f "$hd", "$fn", "$spec" }
+            elseif ($chkWSlow.Checked -and (Test-HeadCurvesCurrent $hf)) { $fl = (T "Auto : image haute densité ({0}) -> {1}") -f "$hd", "$fn" }
+            else { $fl = (T "Auto : image haute densité ({0}) -> profil d'origine {1} ({2}), non calibré : calibrez le lecteur en haute densité (carte « Calibrer le lecteur » de l'Accueil)") -f "$hd", "$fn", "$spec" }
+            $lblWProfileInfo.Text = $fl + $x
+        } else {
+            $hf = Get-ImageFamily $path $cmbWFmt.Text
+            $def = if ($hf -eq 'long') { $script:PrecompLongDefault } else { $script:PrecompStdDefault }
+            $chkWPrecomp.Checked = $true; $txtWPrecomp.Text = $def; $txtWPrecomp1.Text = $def
+            $lblWProfileInfo.Text = ((T "Auto : image haute densité ({0}) -> profil d'origine {1} ({2}) : calibration non disponible pour cette image") -f "$hd", (Get-CalibFamilyName $hf), "$def")
+        }
         Append-Log ((T "Profil precomp : {0}") -f "$($lblWProfileInfo.Text)")
         $script:WProfileHd = $true
         return
@@ -5905,6 +6495,7 @@ function Update-PrecompForImage([string]$path) {
 # Cylindres deduits de l image (ADF, IPF, HFE), 80 par defaut. gw n applique la precomp
 # qu aux pistes a bits (images secteur ou bitcell), jamais aux flux SCP/RAW.
 $script:Cal = $null
+$script:CalRedo = $null   # calibration B (« Refaire sur une autre disquette ») : courbe A en memoire ; Stage 'confirm', 'running' ou 'interrupted'
 $script:CalCoarse    = @(0, 100, 200)   # passes de mesure : trois points pour la droite
 # Plafond des passes de MESURE (encadrement, mesures complementaires, cibles interpolees) : un cylindre encore
 # sous-compense a ce plafond a un zero extrapole de ses mesures, que la verification ecrit et mesure.
@@ -5933,6 +6524,29 @@ $script:CalContraMaxNs   = 12           # verifications contradictoires : ecart 
 $script:CalContraMinNs   = 2            # verifications contradictoires : ecart minimal (ns de precomp) quand la tolerance de la verification 1 n est pas convertible
 $script:CalMaxVerify = 2                # passes de verification au plus
 $script:CalBracketMargin = 80           # passe d encadrement : estimation + marge (ns) pour un cylindre encore sous-compense a 200 ns
+# --- Controle de surface de la passe 1 (seuils provisoires (H)) ------------------------------------------------------
+$script:CalSurfDropRevs  = 2      # trous de signal (>= 20 us) dans au moins ce nombre de tours : defaut reproductible (H)
+$script:CalSurfOocFloor  = 20     # hors classe par tour (mediane des tours) : plancher, borne CRITIQUE de Get-HealthLevel (H)
+$script:CalSurfStabFloor = 10     # ecart du nombre de flux entre tours : plancher, borne CRITIQUE de Get-HealthLevel (H)
+$script:CalSurfMadK      = 10     # ecart a la mediane de la face, en MAD normalises (MAD au moins 1) (H)
+$script:CalSurfShiftMax  = 300    # decalage residuel (ns) au-dela duquel les hors classe ne sont pas juges (H)
+$script:CalSurfMinBad    = 2      # pistes defectueuses par face pour une disquette douteuse, au moins (H)
+$script:CalSurfFrac      = 0.10   # ... ou cette part des cylindres testes de la face (H)
+$script:CalSurfRun       = 3      # ... ou ce nombre de cylindres testes consecutifs (H)
+# --- Comparaison de deux calibrations (A et B, autre disquette) (H) --------------------------------------------------
+$script:CalCmpPointNs  = 4.0      # zone de desaccord : chaque cylindre au-dela de cet ecart de forme (ns de precomp) (H)
+$script:CalCmpZoneNs   = 8.0      # ... et moyenne au-dela de max(CalCmpZoneNs ; 3 sigma / racine(n)) (H, 3 calibrations reelles)
+$script:CalCmpMinN     = 3        # ... sur au moins ce nombre de cylindres encadres consecutifs (H)
+$script:CalCmpSpotNs   = 15.0     # ecart ponctuel : au-dela de max(CalCmpSpotNs ; 4 sigma) (H)
+$script:CalCmpPrefNs   = 1.0      # courbe conseillee : forme plus proche de la calibration precedente d au moins
+$script:CalCmpPrefFrac = 0.25     #   max(CalCmpPrefNs ; CalCmpPrefFrac x l autre) (H)
+$script:CalCmpLocalNs  = 4.0      # zone de desaccord : courbe conseillee si son ecart local a la calibration precedente est plus faible d au moins (H)
+# --- Vitesse du lecteur et densite relue a la passe 1, toutes familles (arbitrage 10 de la 12.7) ----------------------
+$script:CalSurfRotTol    = 0.10   # duree du tour : ecart relatif admis a 60 000 / tr/min ms (arbitrage 1 : cellule a +/- 10 %) (H)
+$script:CalSurfFluxTol   = 0.10   # nombre de flux par tour : ecart relatif admis a CalFluxPerCell x cellules du motif (H)
+$script:CalSurfGrossFrac = 0.5    # defaut grossier d une face : au moins cette part de ses pistes mesurees hors tolerance (arbitrage 1)
+$script:CalFluxPerCell   = 0.375  # flux par cellule du motif (CalibPattern.Track : 0,75 transition par bit de donnee, 2 cellules par bit)
+$script:CalHdShiftCells  = 0.2    # haute densite : decalage a la passe 1 au-dela duquel la mesure sort de sa plage (simulation 18/10/2026)
 $script:AfterCalib = ''                                  # 'write' : ecriture rapide ou lente a lancer apres une calibration reussie
 $script:CalibConfirmSeconds = 120                        # avertissement avant calibration : validation automatique au bout de ce delai (s)
 # Prechauffage du lecteur avant une calibration complete (Start-CalibWarmup), avant une ecriture lente (Start-WriteWarmup,
@@ -5955,8 +6569,9 @@ $script:WarmSkipShown = $false   # bouton « Passer le prechauffage » affiche (
 $script:DriveActivity = @{}      # 'peripherique|lecteur' -> @{ Start; End } : derniere serie d activite continue du lecteur
                                  # (commandes qui ont fait tourner le moteur : code 0, ou au moins une piste lue ou ecrite)
 $script:CalConfirm = $null
-$script:PrecompCurves = @{ std = $null; long = $null; std_h0 = $null; std_h1 = $null; long_h0 = $null; long_h1 = $null }   # derniere courbe calibree par famille d image (et par tete : ecriture lente)
-$script:CurveKeys = @('std', 'long', 'std_h0', 'std_h1', 'long_h0', 'long_h1')
+$script:PrecompCurves = @{ std = $null; long = $null; std_h0 = $null; std_h1 = $null; long_h0 = $null; long_h1 = $null; hd = $null; hd_h0 = $null; hd_h1 = $null }   # derniere courbe calibree par famille d image (et par tete : ecriture lente)
+# 12.7 : cles de la haute densite (hd) apres les six cles double densite, dans le meme ordre qu avant
+$script:CurveKeys = @('std', 'long', 'std_h0', 'std_h1', 'long_h0', 'long_h1', 'hd', 'hd_h0', 'hd_h1')
 # Calibration rapide (niveau par disquette) : la forme vient d une calibration complete (reference), seul le niveau est
 # mesure sur la disquette a ecrire. (H) : seuils a recaler sur materiel reel.
 $script:LevelAlgo       = 'lvl1'
@@ -5976,10 +6591,68 @@ $script:LevelHistMax    = 10
 $script:LevelFatigueNs  = 25.0   # (H)
 $script:LevelKMin       = 0.3    # pente minimale admise (ns de decalage par ns de precomp) pour estimer le niveau
 $script:LevelShifts     = @{}    # 'cle de courbe|c|0|1' -> resultat de la derniere calibration rapide
+# 12.7 : bareme de la calibration par famille. Les amplitudes ci-dessus (ns de precompensation, ou de decalage rapporte a
+# la cellule) sont celles de la double densite (2 us). Haute densite (1 us, famille hd) : amplitudes x CalHdK, d apres la
+# plage de mesure de ScpStats.Analyze (sans biais jusqu a 0,2 cellule : 400 ns a 2 us, 200 ns a 1 us, simulation du
+# 18/10/2026) (H). Seuils de bruit (CalResidual, CalContraMinNs, derive, temoins, pentes, comptes du controle de surface)
+# communs. Set-CalibScale pose le bareme de la famille au debut de chaque calibration ; double densite : objets d origine
+# (CalScaleDd), calcul inchange.
+$script:CalBracketStep   = 40      # encadrement : au moins la plus forte valeur mesuree + ce pas (ns)
+$script:CalTrendRefSig   = 6.0     # tendance : incertitude maximale d un cylindre de reference (ns)
+$script:CalDevNs         = 15.0    # ecart notable : point isole, chute ou ecart du test standard, courbe moins mesure (ns)
+$script:CalDenseStep     = 15      # mesure complementaire B : ecart minimal a la valeur A (ns)
+$script:CalExtrapSigMin  = 5.0     # incertitude minimale d un zero extrapole (ns)
+$script:CalSigMax        = 50.0    # incertitude maximale d un zero (ns)
+$script:CalInterpDefault = 100     # cible d une passe de mesure sans aucune estimation (ns)
+$script:CalHdK           = 0.5     # rapport des cellules haute et double densite (1 us / 2 us) (H)
+$script:CalHardNsUser    = $script:CalHardNs   # borne configuree (precompMaxNs), celle de la double densite
+$script:CalScaleDd = @{ CalCoarse = $script:CalCoarse; CalMaxNs = $script:CalMaxNs; CalBracketMargin = $script:CalBracketMargin
+    CalBracketStep = $script:CalBracketStep; CalTrendSig = $script:CalTrendSig; CalTrendRefSig = $script:CalTrendRefSig
+    CalContraMaxNs = $script:CalContraMaxNs; CalDevNs = $script:CalDevNs; CalDenseStep = $script:CalDenseStep
+    CalExtrapSigMin = $script:CalExtrapSigMin; CalSigMax = $script:CalSigMax; CalInterpDefault = $script:CalInterpDefault
+    CalSurfShiftMax = $script:CalSurfShiftMax; CalCmpPointNs = $script:CalCmpPointNs; CalCmpZoneNs = $script:CalCmpZoneNs
+    CalCmpSpotNs = $script:CalCmpSpotNs; CalCmpPrefNs = $script:CalCmpPrefNs; CalCmpLocalNs = $script:CalCmpLocalNs
+    LevelTauOk = $script:LevelTauOk; LevelTauMax = $script:LevelTauMax }
+$script:CalScaleHd = @{ CalCoarse = @(0, 50, 100); CalMaxNs = 150; CalBracketMargin = 40; CalBracketStep = 20; CalTrendSig = 6.25
+    CalTrendRefSig = 3.0; CalContraMaxNs = 6; CalDevNs = 7.5; CalDenseStep = 8; CalExtrapSigMin = 2.5; CalSigMax = 25.0
+    CalInterpDefault = 50; CalSurfShiftMax = 150; CalCmpPointNs = 2.0; CalCmpZoneNs = 4.0; CalCmpSpotNs = 7.5; CalCmpPrefNs = 0.5
+    CalCmpLocalNs = 2.0; LevelTauOk = 2.0; LevelTauMax = 4.0 }
+$script:CalScaleFam = 'dd'
 $script:WProfileHd = $false           # champs --precomp remplis par la branche haute densite d Update-PrecompForImage (mode Auto)
 $script:LevelFieldsPending = $false   # ecriture apres une calibration rapide (Bibliotheque) : champs remis a la reference a sa fin
 $script:CurveData = $null; $script:CurveForm = $null; $script:CurveFamily = 'std'
+$script:CurveZones = @()   # 12.7 : zones de desaccord entre les calibrations A et B (fenetre de comparaison, Draw-PrecompCurve)
 $script:UiReady = $false                                 # vrai une fois la fenetre principale affichee
+
+function Set-CalibScale([string]$fam) {
+    # 12.7 : bareme de la famille calibree ('hd' : CalScaleHd ; autre ou vide : double densite, objets d origine) et borne
+    # CalHardNs (haute densite : moitie de la borne configuree CalHardNsUser). Appele avant la creation de $script:Cal
+    # (Start-PrecompCalib, Start-LevelCalib, Restart-PrecompCalib), au chargement de la configuration, par Set-Defaults et,
+    # au repos, par le minuteur principal (filet de securite). Affectations explicites : pas de Set-Variable (portee des
+    # tests).
+    $hd = ($fam -eq 'hd')
+    $t = if ($hd) { $script:CalScaleHd } else { $script:CalScaleDd }
+    $script:CalCoarse = $t.CalCoarse; $script:CalMaxNs = $t.CalMaxNs; $script:CalBracketMargin = $t.CalBracketMargin
+    $script:CalBracketStep = $t.CalBracketStep; $script:CalTrendSig = $t.CalTrendSig; $script:CalTrendRefSig = $t.CalTrendRefSig
+    $script:CalContraMaxNs = $t.CalContraMaxNs; $script:CalDevNs = $t.CalDevNs; $script:CalDenseStep = $t.CalDenseStep
+    $script:CalExtrapSigMin = $t.CalExtrapSigMin; $script:CalSigMax = $t.CalSigMax; $script:CalInterpDefault = $t.CalInterpDefault
+    $script:CalSurfShiftMax = $t.CalSurfShiftMax; $script:CalCmpPointNs = $t.CalCmpPointNs; $script:CalCmpZoneNs = $t.CalCmpZoneNs
+    $script:CalCmpSpotNs = $t.CalCmpSpotNs; $script:CalCmpPrefNs = $t.CalCmpPrefNs; $script:CalCmpLocalNs = $t.CalCmpLocalNs
+    $script:LevelTauOk = $t.LevelTauOk; $script:LevelTauMax = $t.LevelTauMax
+    $script:CalHardNs = if ($hd) { [int][math]::Round([double]$script:CalHardNsUser * $script:CalHdK) } else { $script:CalHardNsUser }
+    $script:CalScaleFam = if ($hd) { 'hd' } else { 'dd' }
+}
+
+function Test-CurveHd($cv) {
+    # 12.7 : courbe de la famille haute densite : motif de plus de 150 000 cellules (200 000, 202 688 ; DD 105 820 au plus)
+    return [bool]($cv -and $null -ne $cv.Bits -and [int]$cv.Bits -ge 150000)
+}
+
+function Get-CurveDevNs($cv) {
+    # 12.7 : ecart notable d une courbe enregistree (point marque, legende) : bareme de sa famille, hors de toute calibration
+    if (Test-CurveHd $cv) { return [double]$script:CalScaleHd.CalDevNs }
+    return [double]$script:CalScaleDd.CalDevNs
+}
 
 function Get-ImageCylinders([string]$path) {
     # Nombre de cylindres de l image, $null si non determinable
@@ -6017,8 +6690,10 @@ function Get-ImageCylinders([string]$path) {
     return $null
 }
 
-function Get-ImageFamily([string]$path) {
-    # 'long' si la cellule de l image est sous le seuil (long tracks), 'std' sinon : meme logique que le mode Auto
+function Get-ImageFamily([string]$path, [string]$fmt = '') {
+    # 12.7 : 'hd' pour une haute densite calibrable (Get-HdCalibFamily, format explicite ou implicite compris), sinon 'long'
+    # si la cellule de l image est sous le seuil (long tracks), 'std' sinon : meme logique que le mode Auto
+    $hf = Get-HdCalibFamily $path $fmt; if ($hf) { return $hf }
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
     $info = $null
     try {
@@ -6052,6 +6727,7 @@ function Get-CalibTrackScore($st) {
 
 function Get-CalibFamilyName([string]$family) {
     if ($family -eq 'long') { return (T 'Long track 1,89 us') }
+    if ($family -eq 'hd') { return (T 'Haute densité 1 us') }
     return (T 'Standard 2 us')
 }
 
@@ -6085,7 +6761,7 @@ function Get-IsolatedPoints($cs, $est, $sig) {
     # Donnees denses (test fin, mesures complementaires) : point isole = au moins un voisin mesure a 3 cylindres au plus
     # de chaque cote (2 au plus par cote), ecart a la mediane des voisins > max(15 ns ; 4 incertitudes) alors que les
     # deux cotes s accordent (ecart < meme seuil) : defaut ponctuel de la disquette de calibration, non suivi par la
-    # courbe. 10 % des points et 4 au plus, jamais le premier ni le dernier.
+    # courbe. 10 % des points et 4 au plus, jamais le premier ni le dernier. 15 ns : CalDevNs (bareme de la famille, 12.7).
     $cand = @()
     for ($i = 1; $i -lt $cs.Count - 1; $i++) {
         $c = [int]$cs[$i]
@@ -6093,7 +6769,7 @@ function Get-IsolatedPoints($cs, $est, $sig) {
         $right = @(); for ($j = $i + 1; $j -lt $cs.Count -and $right.Count -lt 2; $j++) { if ([int]$cs[$j] - $c -le 3) { $right += [double]$est[[int]$cs[$j]] } else { break } }
         if ($left.Count -eq 0 -or $right.Count -eq 0) { continue }
         $s = if ($sig -and $sig.ContainsKey($c)) { [double]$sig[$c] } else { 5.0 }
-        $thr = [math]::Max(15.0, 4.0 * $s)
+        $thr = [math]::Max($script:CalDevNs, 4.0 * $s)
         $r = [double]$est[$c] - (Get-Median (@($left) + @($right)))
         if ([math]::Abs($r) -gt $thr -and [math]::Abs((Get-Median $left) - (Get-Median $right)) -lt $thr) { $cand += ,@($c, $r) }
     }
@@ -6142,7 +6818,7 @@ function Fit-PrecompCurve($est, $sig, [int]$maxCyl, $kinds = $null, [bool]$dense
         if ($script:CurveFitOk) {
             $rel = [bool[]]@($cs | ForEach-Object { -not $kinds -or -not $kinds.ContainsKey($_) -or $kinds[$_] -eq 'interp' })
             $sg = @($cs | ForEach-Object { if ($sig -and $sig.ContainsKey($_)) { [math]::Max(1.0, [double]$sig[$_]) } else { 5.0 } })
-            $minDrop = [math]::Max(15.0, 3.0 * [math]::Sqrt(2.0) * (Get-Median $sg))
+            $minDrop = [math]::Max($script:CalDevNs, 3.0 * [math]::Sqrt(2.0) * (Get-Median $sg))
             $r = [CurveFit]::SegFit([double[]]$ys, [double[]]$ws, $rel, 4.0 * [math]::Log($cs.Count), $minDrop)
             $K = [int]$r[0]
             $fyS = @($r[4..($r.Count - 1)])
@@ -6325,6 +7001,9 @@ function Draw-PrecompCurve($g, $size) {
     $cvs = @(@($script:CurveData) | Where-Object { $_ })
     if ($cvs.Count -eq 0) { return }
     $multi = $cvs.Count -gt 1
+    # 12.7 point 2 : comparaison des calibrations A et B (copies marquees Series 'A' ou 'B', Show-CalibReview) : couleur par
+    # tete, B en tirets, zones de desaccord ($script:CurveZones) en bandes verticales. Sans Series : dessin inchange
+    $cmp = (@($cvs | Where-Object { $_.Series }).Count -gt 0)
     # Niveaux de la derniere calibration rapide, superposes a chaque courbe (Set-CurveLevelData)
     $lvls = @{}; $hasLevel = $false
     for ($k = 0; $k -lt $cvs.Count; $k++) {
@@ -6338,6 +7017,12 @@ function Draw-PrecompCurve($g, $size) {
     $W = $size.Width; $H = $size.Height
     $nRec = @(@($lvls.Values) | ForEach-Object { $_ }).Count       # un enregistrement de niveau par ligne de legende
     $L = 56; $R = 20; $Tp = $(if ($hasLevel) { 92 + 20 * [math]::Max(0, $nRec - 1) } else { 72 }); $Bm = 40
+    $zones = @(@($script:CurveZones) | Where-Object { $_ })
+    if ($cmp) {
+        # Legende : une ligne par tete (A puis B), plus une ligne pour les zones de desaccord
+        $nh = @($cvs | Where-Object { $null -ne $_.Head } | ForEach-Object { [int]$_.Head } | Sort-Object -Unique).Count
+        $Tp = 72 + 20 * ([math]::Max(1, $nh) - 1) + $(if ($zones.Count) { 20 } else { 0 })
+    }
     $pw = $W - $L - $R; $ph = $H - $Tp - $Bm
     if ($pw -lt 60 -or $ph -lt 40) { return }
     $nC = 2; foreach ($cv in $cvs) { $nC = [math]::Max($nC, @($cv.Values).Count) }
@@ -6370,9 +7055,11 @@ function Draw-PrecompCurve($g, $size) {
     $colors = @($script:Theme.Accent, $script:Theme.Flux)
     $pens = @(); $dots = @(); $hollow = @()
     for ($i = 0; $i -lt $cvs.Count; $i++) {
-        $col = $colors[[math]::Min($i, 1)]
+        $col = if ($cmp) { $colors[[math]::Min($(if ($null -ne $cvs[$i].Head) { [int]$cvs[$i].Head } else { 0 }), 1)] } else { $colors[[math]::Min($i, 1)] }
         $dc = if ($multi) { $col } else { $script:Theme.Flux }
-        $pens += (New-Object System.Drawing.Pen($col, 2.2))
+        $pn = New-Object System.Drawing.Pen($col, 2.2)
+        if ($cmp -and [string]$cvs[$i].Series -eq 'B') { $pn.DashStyle = [System.Drawing.Drawing2D.DashStyle]::Dash }
+        $pens += $pn
         $dots += (New-Object System.Drawing.SolidBrush($dc))
         $hollow += (New-Object System.Drawing.Pen($dc, 1.6))
     }
@@ -6380,6 +7067,16 @@ function Draw-PrecompCurve($g, $size) {
         if ($maxX -gt 0 -and $maxX -lt $ymax) {
             $yh = & $fy $maxX
             $g.FillRectangle($hatch, [float]$L, [float]$Tp, [float]$pw, [float]($yh - $Tp))
+        }
+        # Zones de desaccord entre A et B : bande verticale de Lo - 0,5 a Hi + 0,5 cylindre
+        if ($cmp -and $zones.Count) {
+            $zb = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(56, $script:Theme.Warn))
+            try {
+                foreach ($z in $zones) {
+                    $xa = & $fx ([math]::Max(0.0, [double]$z.Lo - 0.5)); $xb = & $fx ([math]::Min([double]$maxC, [double]$z.Hi + 0.5))
+                    $g.FillRectangle($zb, [float]$xa, [float]$Tp, [float]([math]::Max(2.0, $xb - $xa)), [float]$ph)
+                }
+            } finally { $zb.Dispose() }
         }
         for ($v = 0; $v -le $ymax; $v += $step) {
             $y = & $fy $v
@@ -6446,12 +7143,24 @@ function Draw-PrecompCurve($g, $size) {
         }
         # Titre (non convergence en rouge) et legende sur deux lignes
         $cv0 = $cvs[0]; $v0 = @($cv0.Values)
-        if ($multi) { $title = ((T "{0} : lecteur {1}, {2}, une courbe par tête") -f "$($cv0.Family)", "$($cv0.Drive)", "$($cv0.Date)") }
+        if ($cmp) {
+            $cA = @($cvs | Where-Object { [string]$_.Series -eq 'A' }); $cB = @($cvs | Where-Object { [string]$_.Series -eq 'B' })
+            $title = ((T "{0} : lecteur {1}, calibrations A ({2}) et B ({3})") -f "$($cv0.Family)", "$($cv0.Drive)", "$(if ($cA.Count) { $cA[0].Date })", "$(if ($cB.Count) { $cB[0].Date })")
+        }
+        elseif ($multi) { $title = ((T "{0} : lecteur {1}, {2}, une courbe par tête") -f "$($cv0.Family)", "$($cv0.Drive)", "$($cv0.Date)") }
         else { $title = ((T "{0} : lecteur {1}, {2}, courbe {3}, de {4} à {5} ns") -f "$($cv0.Family)", "$($cv0.Drive)", "$($cv0.Date)", (Get-CurveModelName $cv0.Model), "$($v0[0])", "$($v0[-1])") }
         $title += ', ' + ((T "calcul {0}") -f (Get-CurveCalcText $cv0))     # version du calcul de calibration de la courbe
         $g.DrawString($title, $fontB, $txt, $L, 8)
         $tx = $L + 12 + $g.MeasureString($title, $fontB).Width
-        if (@($cvs | Where-Object { $_.Converged -eq $false }).Count -gt 0) {
+        if ($cmp) {
+            # Non convergence de chaque calibration, nommee
+            foreach ($sr in @(@('A', $cA), @('B', $cB))) {
+                if (@($sr[1] | Where-Object { $_.Converged -eq $false }).Count -eq 0) { continue }
+                $s = if ($sr[0] -eq 'A') { (T 'A NON CONVERGÉE') } else { (T 'B NON CONVERGÉE') }
+                $g.DrawString($s, $fontB, $red, $tx, 8); $tx += 12 + $g.MeasureString($s, $fontB).Width
+            }
+        }
+        elseif (@($cvs | Where-Object { $_.Converged -eq $false }).Count -gt 0) {
             $g.DrawString((T 'NON CONVERGÉE'), $fontB, $red, $tx, 8); $tx += 12 + $g.MeasureString((T 'NON CONVERGÉE'), $fontB).Width
         }
         if (@(@($lvls.Values) | ForEach-Object { $_ } | Where-Object { $_.Verdict -eq 'mismatch' -or $_.Shape -eq 'mismatch' }).Count -gt 0) { $g.DrawString((T 'FORME NON CONFORME'), $fontB, $red, $tx, 8) }
@@ -6461,15 +7170,42 @@ function Draw-PrecompCurve($g, $size) {
         $g.DrawRectangle($grayPen, $x2, $ly + 3, 7, 7); $s = (T 'plafonnée'); $g.DrawString($s, $font, $txt, $x2 + 11, $ly); $x2 += 24 + $g.MeasureString($s, $font).Width
         if (@($cvs | Where-Object { @($_.Kinds) -contains 'outlier' }).Count -gt 0) { $g.DrawLine($grayPen, $x2, $ly + 3, $x2 + 7, $ly + 10); $g.DrawLine($grayPen, $x2, $ly + 10, $x2 + 7, $ly + 3); $s = (T 'isolée'); $g.DrawString($s, $font, $txt, $x2 + 11, $ly); $x2 += 24 + $g.MeasureString($s, $font).Width }
         if (@($cvs | Where-Object { @($_.Breaks).Count -gt 0 }).Count -gt 0) { $dl = New-Object System.Drawing.Pen($script:Theme.Muted, 1); $dl.DashStyle = [System.Drawing.Drawing2D.DashStyle]::Dash; $g.DrawLine($dl, $x2 + 3, $ly + 1, $x2 + 3, $ly + 12); $dl.Dispose(); $s = (T 'changement de sens'); $g.DrawString($s, $font, $txt, $x2 + 11, $ly); $x2 += 24 + $g.MeasureString($s, $font).Width }
-        $g.DrawEllipse($flag, $x2 - 1, $ly + 1, 11, 11); $s = (T 'écart > 15 ns et > 3 incertitudes'); $g.DrawString($s, $font, $txt, $x2 + 13, $ly); $x2 += 26 + $g.MeasureString($s, $font).Width
+        $g.DrawEllipse($flag, $x2 - 1, $ly + 1, 11, 11); $s = (T 'écart > {0} ns et > 3 incertitudes') -f (Format-UiNum (Get-CurveDevNs $cvs[0])); $g.DrawString($s, $font, $txt, $x2 + 13, $ly); $x2 += 26 + $g.MeasureString($s, $font).Width
         $g.FillRectangle($hatch, $x2, $ly + 2, 16, 10); $g.DrawRectangle($grid, $x2, $ly + 2, 16, 10); $g.DrawString((T 'au-delà des mesures'), $font, $txt, $x2 + 20, $ly)
         $ly = 50; $x2 = $L
-        for ($k = 0; $k -lt $cvs.Count; $k++) {
-            $cv = $cvs[$k]; $vals = @($cv.Values)
-            $g.DrawLine($pens[$k], $x2, $ly + 7, $x2 + 22, $ly + 7)
-            $s = if ($multi) { ((T "tête {0} : courbe {1}, de {2} à {3} ns") -f "$($cv.Head)", (Get-CurveModelName $cv.Model), "$($vals[0])", "$($vals[-1])") } else { (T 'précompensation retenue par cylindre') }
-            $g.DrawString($s, $font, $txt, $x2 + 28, $ly)
-            $x2 += 28 + $g.MeasureString($s, $font).Width + 24
+        if ($cmp) {
+            # Une ligne par tete (courbe commune : une seule), A puis B ; puis les zones de desaccord
+            $hk = @(@($cvs | ForEach-Object { if ($null -ne $_.Head) { "$([int]$_.Head)" } else { 'c' } }) | Sort-Object -Unique)
+            foreach ($hh in $hk) {
+                $x2 = $L
+                foreach ($sr in 'A', 'B') {
+                    for ($k = 0; $k -lt $cvs.Count; $k++) {
+                        $cv = $cvs[$k]
+                        if ([string]$cv.Series -ne $sr -or $(if ($null -ne $cv.Head) { "$([int]$cv.Head)" } else { 'c' }) -ne $hh) { continue }
+                        $vals = @($cv.Values)
+                        $lab = if ($null -eq $cv.Head) { $sr } else { (T "{0}, tête {1}") -f "$sr", "$($cv.Head)" }
+                        $g.DrawLine($pens[$k], $x2, $ly + 7, $x2 + 22, $ly + 7)
+                        $s = (T "{0} : courbe {1}, de {2} à {3} ns") -f "$lab", (Get-CurveModelName $cv.Model), "$($vals[0])", "$($vals[-1])"
+                        $g.DrawString($s, $font, $txt, $x2 + 28, $ly)
+                        $x2 += 28 + $g.MeasureString($s, $font).Width + 24
+                    }
+                }
+                $ly += 20
+            }
+            if ($zones.Count) {
+                $zb = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(56, $script:Theme.Warn))
+                try { $g.FillRectangle($zb, $L, $ly + 2, 16, 10) } finally { $zb.Dispose() }
+                $g.DrawString((T 'désaccord entre A et B'), $font, $txt, $L + 20, $ly)
+            }
+        }
+        else {
+            for ($k = 0; $k -lt $cvs.Count; $k++) {
+                $cv = $cvs[$k]; $vals = @($cv.Values)
+                $g.DrawLine($pens[$k], $x2, $ly + 7, $x2 + 22, $ly + 7)
+                $s = if ($multi) { ((T "tête {0} : courbe {1}, de {2} à {3} ns") -f "$($cv.Head)", (Get-CurveModelName $cv.Model), "$($vals[0])", "$($vals[-1])") } else { (T 'précompensation retenue par cylindre') }
+                $g.DrawString($s, $font, $txt, $x2 + 28, $ly)
+                $x2 += 28 + $g.MeasureString($s, $font).Width + 24
+            }
         }
         if ($hasLevel) {
             # Troisieme ligne : courbe decalee, mesure du niveau, niveau par enregistrement
@@ -6530,7 +7266,7 @@ function Update-CurveButton([string]$path) {
     $fam = 'std'
     $ext = if ($path) { [System.IO.Path]::GetExtension($path).ToLower() } else { '' }
     if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) { $script:CurveFamily = 'std'; $btnWCurve.Enabled = $false; return }
-    if ($path -and (Test-Path -LiteralPath $path)) { try { $fam = Get-ImageFamily $path } catch { $fam = 'std' } }
+    if ($path -and (Test-Path -LiteralPath $path)) { try { $fam = Get-ImageFamily $path $cmbWFmt.Text } catch { $fam = 'std' } }
     $script:CurveFamily = $fam
     $btnWCurve.Enabled = (Get-FamilyCurves $fam ([bool]$chkWSlow.Checked)).Count -gt 0
 }
@@ -6543,18 +7279,26 @@ function Get-CurveCalc($cv) {
     return [string]$cv.Version
 }
 
+function Get-CurveCalcRef($cv) {
+    # 12.7 : version du calcul attendue pour une courbe : CalibCalcHd (famille haute densite), sinon CalibCalc
+    if (Test-CurveHd $cv) { return $script:CalibCalcHd }
+    return $script:CalibCalc
+}
+
 function Test-CurveCalcOk($cv) {
-    # Courbe utilisable : faite avec le calcul actuel, ou conservee par l utilisateur pour ce calcul
+    # Courbe utilisable : faite avec le calcul actuel de sa famille, ou conservee par l utilisateur pour ce calcul
     if (-not $cv) { return $false }
-    return ((Get-CurveCalc $cv) -eq $script:CalibCalc -or [string]$cv.KeptFor -eq $script:CalibCalc)
+    $ref = Get-CurveCalcRef $cv
+    return ((Get-CurveCalc $cv) -eq $ref -or [string]$cv.KeptFor -eq $ref)
 }
 
 function Get-CurveCalcText($cv, [switch]$Plain) {
-    # « v12.3 » ; courbe d un autre calcul conservee : « v12.2, conservé (calcul actuel v12.3) »
+    # « v12.3 » ; courbe d un autre calcul conservee : « v12.2, conservé (calcul actuel v12.3) » (calcul de sa famille)
     $c = Get-CurveCalc $cv
+    $ref = Get-CurveCalcRef $cv
     $ct = if ($c) { "v$c" } else { (T 'antérieur à 12.1') }
-    if ($Plain -or $c -eq $script:CalibCalc) { return $ct }
-    return ((T "{0}, conservé (calcul actuel v{1})") -f "$ct", "$($script:CalibCalc)")
+    if ($Plain -or $c -eq $ref) { return $ct }
+    return ((T "{0}, conservé (calcul actuel v{1})") -f "$ct", "$ref")
 }
 
 function Get-CurveMaxNs($cv) {
@@ -6650,11 +7394,13 @@ function ConvertFrom-CurveConfig($o) {
 }
 
 function New-CalibUnit($head) {
-    # Unite de calibration : les deux tetes ensemble (Head = $null, profil commun) ou une seule tete (ecriture lente)
+    # Unite de calibration : les deux tetes ensemble (Head = $null, profil commun) ou une seule tete (ecriture lente).
+    # 12.7 : Face (tete -> cylindre -> mesures des passes de mesure, sans effet sur la courbe) ; OneFace ('c|tete' : cylindre
+    # de la courbe commune mesure sans cette face a une passe au moins)
     $prefix = if ($null -eq $head) { '' } else { ((T '[tête {0}] ') -f "$head") }
     return @{ Head = $head; Prefix = $prefix; Results = @{}; Est = @{}; Sig = @{}; Kind = @{}; Bracket = @{}; Warn = $null; Fit = $null; Slope = $null; Profile = ''; Verify = @{}
               Dense = @{}; VerifyList = $null; VerifyP = @{}; Outliers = @(); Own = @{}; Trend = @{}; VerifyPrev = @{}; Witness = @(); ReadLast = @{}; Writes = @{}; WitCand = 0; WitMin = 0
-              EstPass = @{} }
+              EstPass = @{}; Face = @{}; OneFace = @{} }
 }
 
 function Get-PatternBits([string]$family, [string]$img) {
@@ -6674,27 +7420,33 @@ function Get-PatternBits([string]$family, [string]$img) {
         }
     } catch { }
     if ($family -eq 'long' -and $bits -eq 100000) { $bits = 105820; $src = (T 'long track, 1,89 µs par cellule') }
+    elseif ($family -eq 'hd' -and $bits -eq 100000) { $bits = 200000; $src = (T 'format à secteurs haute densité, 1 µs par cellule') }   # 12.7
     $bits -= $bits % 16
     return @{ Bits = $bits; Source = $src }
 }
 
-function New-CalibPattern([string]$family, [string]$img, [int]$nCyl) {
+function New-CalibPattern([string]$family, [string]$img, [int]$nCyl, [int]$Rpm = 300) {
     # Motif de test independant du contenu de l image : HFE de donnees pseudo-aleatoires codees MFM (graine fixe, contenu
     # reproductible) a la DENSITE de l image. gw cale chaque piste ecrite sur un tour du lecteur (write.py, facteur
     # drive_ticks_per_rev / ticks_to_index) : la densite ne depend que du nombre de cellules par piste.
     #  ADF : celui du codec AmigaDOS de gw, horloge 14/7 093 790 s, (int(0,2 / horloge) + 31) & ~31 = 101 344 cellules
     #        (1 973,5 ns) en DD, 202 688 en HD ;
     #  IPF et HFE : bits par piste de l image (mediane ; HFE v3 : 400 x debit) ;
-    #  autres formats a secteurs (IMG, ST...) : 100 000 cellules de 2 us ; long track illisible : 1,89 us.
+    #  autres formats a secteurs (IMG, ST...) : 100 000 cellules de 2 us ; long track illisible : 1,89 us ; haute densite
+    #  (12.7) : 200 000 cellules de 1 us.
+    # Rpm : vitesse du type de disquette (300 tr/min pour toutes les familles calibrees en 12.7) : debit de l en-tete HFE,
+    # bits x tr/min / 120 000 (regle generale), et cellule d un tour.
     # Une piste pauvre en motifs (secteurs vides) reduit la mesure du decalage de pic a quelques dizaines d occurrences
     # (en-tetes, syncs) : resultat plus bruite et biaise de quelques ns (jusqu a ~15 ns en simulation). Ici toutes les
     # pistes ont la meme richesse de motifs : calibration reproductible, independante de l image.
     $pb = Get-PatternBits $family $img
     $bits = $pb.Bits; $src = $pb.Source
-    $rate = [int][math]::Round($bits / 400.0)            # debit de l en-tete HFE (kbit/s) : un tour a 300 tr/min, indicatif
+    # Debit de l en-tete HFE (kbit/s) : un tour a Rpm tr/min ; 300 tr/min : expression d origine
+    $rate = if ($Rpm -eq 300) { [int][math]::Round($bits / 400.0) } else { [int][math]::Round($bits * $Rpm / 120000.0) }
     $path = Join-Path $script:TempDir 'precomp-pattern.hfe'
     [CalibPattern]::WriteHfe($path, $nCyl, $bits, $rate, 20261014)
-    return @{ Path = $path; Bits = $bits; Rate = $rate; CellNs = 200000000.0 / $bits; Source = $src }
+    $cell = if ($Rpm -eq 300) { 200000000.0 / $bits } else { (60000000000.0 / $Rpm) / $bits }
+    return @{ Path = $path; Bits = $bits; Rate = $rate; CellNs = $cell; Source = $src; Rpm = $Rpm }
 }
 
 function Get-CalibDriveArgs {
@@ -6704,7 +7456,7 @@ function Get-CalibDriveArgs {
 
 function Get-CurveKeyLabel([string]$key) {
     # 'std' -> « Standard 2 us (commune) », 'long_h1' -> « Long track 1,89 us (tête 1) »
-    $fam = if ($key -like 'long*') { 'long' } else { 'std' }
+    $fam = if ($key -like 'hd*') { 'hd' } elseif ($key -like 'long*') { 'long' } else { 'std' }
     $kind = if ($key -match '_h(\d)$') { (T "tête {0}") -f "$($Matches[1])" } else { (T 'commune') }
     return ("{0} ({1})" -f (Get-CalibFamilyName $fam), $kind)
 }
@@ -6749,7 +7501,7 @@ function Resolve-OldCalibrations {
     $list = (@($o.Curves.Keys | ForEach-Object { (T "{0}, calcul {1}") -f (Get-CurveKeyLabel $_), (Get-CurveCalcText $o.Curves[$_] -Plain) })) -join ' ; '
     if ($dr -eq [System.Windows.Forms.DialogResult]::OK) {
         # Conservees pour le calcul actuel : reprises sans question aux demarrages suivants, calcul rappele a l usage
-        foreach ($k in @($o.Curves.Keys)) { $cv = $o.Curves[$k]; $cv.KeptFor = $script:CalibCalc; $script:PrecompCurves[$k] = $cv }
+        foreach ($k in @($o.Curves.Keys)) { $cv = $o.Curves[$k]; $cv.KeptFor = (Get-CurveCalcRef $cv); $script:PrecompCurves[$k] = $cv }
         if ($o.Std) { $script:PrecompStd = $o.Std }
         if ($o.Long) { $script:PrecompLong = $o.Long }
         foreach ($k in @($o.Levels.Keys)) { $script:LevelShifts[$k] = $o.Levels[$k] }
@@ -6772,8 +7524,8 @@ function Resolve-OldCalibrations {
 }
 
 function Reset-CalibProfiles {
-    # Efface toutes les calibrations : courbes communes et par tete des deux familles ; profils de famille remis aux
-    # valeurs d origine. Refuse pendant une operation (calibration, ecriture, controle, sequence en cours).
+    # Efface toutes les calibrations : courbes communes et par tete de toutes les familles (haute densite comprise, 12.7) ;
+    # profils de famille remis aux valeurs d origine. Refuse pendant une operation (calibration, ecriture, controle, sequence en cours).
     if (($script:GwProc -and -not $script:GwProc.HasExited) -or $script:Cal -or $script:Rep -or $script:Restore -or $script:Chain.Count -gt 0) {
         [void][System.Windows.Forms.MessageBox]::Show((T 'Opération en cours : attendre la fin de la calibration ou de l''écriture.'),(T 'Effacer les calibrations'),'OK','Warning'); return
     }
@@ -6786,9 +7538,11 @@ function Reset-CalibProfiles {
         [void][System.Windows.Forms.MessageBox]::Show((T 'Aucune calibration enregistrée : les profils sont déjà ceux d''origine.'),(T 'Effacer les calibrations'),'OK','Information'); return
     }
     $list = if ($curves.Count -gt 0) { (@($curves | ForEach-Object { Get-CurveKeyLabel $_ }) -join ', ') } else { (T 'aucune') }
-    $r = [System.Windows.Forms.MessageBox]::Show(
-        ((T "Effacer toutes les calibrations de précompensation ?`n`nCourbes : {0}.`nProfils de famille remis aux valeurs d'origine : standard {1}, long track {2}.`n`nOpération irréversible. Le mode Auto applique ensuite ces profils ; une écriture rapide ou lente recalibre automatiquement.") -f "$list", "$($script:PrecompStdDefault)", "$($script:PrecompLongDefault)"),
-        (T 'Effacer les calibrations'), 'YesNo', 'Warning')
+    $msg = (T "Effacer toutes les calibrations de précompensation ?`n`nCourbes : {0}.`nProfils de famille remis aux valeurs d'origine : standard {1}, long track {2}.`n`nOpération irréversible. Le mode Auto applique ensuite ces profils ; une écriture rapide ou lente recalibre automatiquement.") -f "$list", "$($script:PrecompStdDefault)", "$($script:PrecompLongDefault)"
+    # 12.7 : courbe haute densite effacee : profil d origine haute densite, jamais de calibration automatique
+    if (@($curves | Where-Object { "$_" -like 'hd*' }).Count -gt 0) { $msg += "`n" + ((T "Haute densité : profil d'origine {0}, sans calibration automatique ; recalibrez depuis la carte « Calibrer le lecteur » de l'Accueil.") -f "$($script:PrecompHdDefault)") }
+    # 12.7 : boite par Show-AppMessage (code modifie), comme les autres messages de la 12.7
+    $r = Show-AppMessage $msg (T 'Effacer les calibrations') 'YesNo' 'Warning'
     if ($r -ne 'Yes') { return }
     foreach ($k in $script:CurveKeys) { $script:PrecompCurves[$k] = $null }
     $script:LevelShifts = @{}; $script:OldCalib = $null
@@ -6834,7 +7588,7 @@ function Limit-CalibZero([double]$x0, [double]$sig, [string]$kind, [double]$a, [
     $k = $kind; $v = $x0
     if ($v -lt 0) { $v = 0.0; $k = 'cap' }
     if ($v -gt $script:CalHardNs) { $v = [double]$script:CalHardNs; $k = 'cap' }
-    return @{ Est = $v; Sig = [math]::Min(50.0, [math]::Max(1.0, $sig)); Kind = $k; Slope = $a; Own = $own }
+    return @{ Est = $v; Sig = [math]::Min($script:CalSigMax, [math]::Max(1.0, $sig)); Kind = $k; Slope = $a; Own = $own }
 }
 
 function Get-CalibZero($points, [double]$pooledSlope) {
@@ -6869,7 +7623,7 @@ function Get-CalibZero($points, [double]$pooledSlope) {
     $x0 = $xr + $sr / (-$a)
     $sig = [math]::Sqrt([math]::Pow($er / [math]::Abs($a), 2) + [math]::Pow(0.25 * [math]::Abs($x0 - $xr), 2))
     if ([math]::Abs($sr) -le 2.0 * $er) { return (Limit-CalibZero $x0 $sig 'interp' $a $own) }
-    return (Limit-CalibZero $x0 ([math]::Max(5.0, $sig)) 'extrap' $a $own)
+    return (Limit-CalibZero $x0 ([math]::Max($script:CalExtrapSigMin, $sig)) 'extrap' $a $own)
 }
 
 function Get-BracketSpec($bracket) {
@@ -6881,7 +7635,7 @@ function Get-InterpEst($u, [int]$c) {
     # Estimation interpolee lineairement entre les cylindres estimes qui encadrent c, cible d une passe de mesure : bornee
     # a 0..CalMaxNs (plafond des passes de mesure)
     $cs = @($u.Est.Keys | ForEach-Object { [int]$_ } | Sort-Object)
-    if ($cs.Count -eq 0) { return 100 }
+    if ($cs.Count -eq 0) { return $script:CalInterpDefault }
     $v = if ($c -le $cs[0]) { [double]$u.Est[$cs[0]] } elseif ($c -ge $cs[-1]) { [double]$u.Est[$cs[-1]] } else {
         $j = 0; while ($cs[$j + 1] -lt $c) { $j++ }
         [double]$u.Est[$cs[$j]] + ($c - $cs[$j]) / [double]($cs[$j + 1] - $cs[$j]) * ([double]$u.Est[$cs[$j + 1]] - [double]$u.Est[$cs[$j]])
@@ -6902,7 +7656,7 @@ function Start-CalibDensify($cal) {
         if ($cs.Count -lt 3) { continue }
         for ($i = 0; $i -lt $cs.Count - 1; $i++) {
             $ci = $cs[$i]; $cj = $cs[$i + 1]
-            $thr = [math]::Max(15.0, 3.0 * [math]::Sqrt([double]$u.Sig[$ci] * [double]$u.Sig[$ci] + [double]$u.Sig[$cj] * [double]$u.Sig[$cj]))
+            $thr = [math]::Max($script:CalDevNs, 3.0 * [math]::Sqrt([double]$u.Sig[$ci] * [double]$u.Sig[$ci] + [double]$u.Sig[$cj] * [double]$u.Sig[$cj]))
             $drop = [double]$u.Est[$ci] - [double]$u.Est[$cj]
             if ($drop -gt $thr -and $cj - $ci -gt 1) { $zones.Add(@{ Lo = $ci; Hi = $cj; Kind = 'drop'; Sev = $drop }) }
         }
@@ -6910,7 +7664,7 @@ function Start-CalibDensify($cal) {
         if ($fit) {
             foreach ($c in $cs) {
                 $dv = $fit.Values[$c] - [double]$u.Est[$c]
-                if ([math]::Abs($dv) -gt [math]::Max(15.0, 3.0 * [double]$u.Sig[$c])) { $zones.Add(@{ Lo = $c; Hi = $c; Kind = 'dev'; Sev = [math]::Abs($dv) }) }
+                if ([math]::Abs($dv) -gt [math]::Max($script:CalDevNs, 3.0 * [double]$u.Sig[$c])) { $zones.Add(@{ Lo = $c; Hi = $c; Kind = 'dev'; Sev = [math]::Abs($dv) }) }
             }
         }
     }
@@ -6953,7 +7707,8 @@ function Start-CalibDensify($cal) {
 
 function Set-CalibDenseB($cal) {
     # Passe B : chaque cylindre ajoute est ecrit de l autre cote du zero predit par sa mesure A (pente commune),
-    # a 15 ns au moins de la valeur A ; les cylindres qui bordent la zone sont remesures a la meme valeur (repetition)
+    # a 15 ns au moins de la valeur A (CalDenseStep, 12.7) ; les cylindres qui bordent la zone sont remesures a la meme
+    # valeur (repetition)
     foreach ($u in $cal.Units) {
         $slope = if ($null -ne $u.Slope -and [double]$u.Slope -lt -0.2) { [double]$u.Slope } else { -2.0 }
         $nd = @{}
@@ -6963,10 +7718,10 @@ function Set-CalibDenseB($cal) {
             if (-not $pts -or -not $pts.ContainsKey($x1)) { continue }
             $z = $x1 + [double]$pts[$x1].Shift / (-$slope)
             $dir = if ($z -ge $x1) { 1 } else { -1 }
-            $x2 = [int][math]::Round($z + 15 * $dir)
-            if ([math]::Abs($x2 - $x1) -lt 15) { $x2 = $x1 + 15 * $dir }
+            $x2 = [int][math]::Round($z + $script:CalDenseStep * $dir)
+            if ([math]::Abs($x2 - $x1) -lt $script:CalDenseStep) { $x2 = $x1 + $script:CalDenseStep * $dir }
             $x2 = [int][math]::Max(0, [math]::Min($script:CalMaxNs, $x2))
-            if ($x2 -eq $x1) { $x2 = if ($x1 -ge 15) { $x1 - 15 } else { $x1 + 15 } }
+            if ($x2 -eq $x1) { $x2 = if ($x1 -ge $script:CalDenseStep) { $x1 - $script:CalDenseStep } else { $x1 + $script:CalDenseStep } }
             $nd[$c] = $x2
         }
         $u.Dense = $nd
@@ -6998,7 +7753,7 @@ function Get-TrendEstimates($u, [int]$maxCyl, [bool]$dense) {
         $sg = @($segs | Where-Object { $c -ge [int]$_.Lo -and $c -le [int]$_.Hi })
         if ($sg.Count -eq 0 -or [int]$sg[0].Dir -ne 1) { continue }        # segment decroissant : pas de tendance montante
         $lo = [math]::Max([int]$sg[0].Lo, $c - $span)
-        $ref = @($cs | Where-Object { $_ -lt $c -and $_ -ge $lo -and -not $outl.ContainsKey($_) -and $kind[$_] -ne 'cap' -and $kind[$_] -ne 'trend' -and [double]$u.Sig[$_] -le 6.0 } | Select-Object -Last ([int]$script:CalTrendN))
+        $ref = @($cs | Where-Object { $_ -lt $c -and $_ -ge $lo -and -not $outl.ContainsKey($_) -and $kind[$_] -ne 'cap' -and $kind[$_] -ne 'trend' -and [double]$u.Sig[$_] -le $script:CalTrendRefSig } | Select-Object -Last ([int]$script:CalTrendN))
         if ($ref.Count -lt $minRef) { continue }
         $sw = 0.0; $sx = 0.0; $sy = 0.0
         foreach ($r in $ref) { $w = 1.0 / [math]::Pow([math]::Max(1.0, [double]$u.Sig[$r]), 2); $sw += $w; $sx += $w * $r; $sy += $w * [double]$u.Est[$r] }
@@ -7396,7 +8151,7 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
     foreach ($c in @($u.Est.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
         if ($c -lt $vals.Count -and -not $outl.ContainsKey($c)) {
             $dv = $vals[$c] - [double]$u.Est[$c]
-            if ([math]::Abs($dv) -gt [math]::Max(15.0, 3.0 * [double]$u.Sig[$c])) { $dev += ("c{0} ({1:+0;-0})" -f $c, $dv) }
+            if ([math]::Abs($dv) -gt [math]::Max($script:CalDevNs, 3.0 * [double]$u.Sig[$c])) { $dev += ("c{0} ({1:+0;-0})" -f $c, $dv) }
         }
         if ($u.Kind[$c] -eq 'extrap') { $extrap += "c$c" } elseif ($u.Kind[$c] -eq 'cap') { $cap += "c$c" }
     }
@@ -7412,28 +8167,303 @@ function Get-KindName([string]$k) {
 }
 
 function Test-CurvePointFlag($cv, [int]$i) {
-    # Point dont la courbe s ecarte de plus de max(15 ns ; 3 incertitudes)
+    # Point dont la courbe s ecarte de plus de max(15 ns ; 3 incertitudes) ; 12.7 : 15 ns en double densite, ecart notable
+    # du bareme de sa famille (Get-CurveDevNs)
     $c = [int]$cv.Cyls[$i]; $v = @($cv.Values)
     if ($c -ge $v.Count) { return $false }
     if ($cv.Kinds -and $i -lt @($cv.Kinds).Count -and [string]$cv.Kinds[$i] -eq 'outlier') { return $false }
-    return ([math]::Abs($v[$c] - [double]$cv.Ys[$i]) -gt [math]::Max(15.0, 3.0 * [double]$cv.Sig[$i]))
+    return ([math]::Abs($v[$c] - [double]$cv.Ys[$i]) -gt [math]::Max((Get-CurveDevNs $cv), 3.0 * [double]$cv.Sig[$i]))
 }
 
-function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerFull = $false, [bool]$noFields = $false) {
+# 12.7 point 2 : comparaison de deux calibrations (« Refaire sur une autre disquette ») : fonctions pures, appelees
+# par Complete-PrecompCalib, Complete-CalibRedo et Start-PrecompCalib. Aucune valeur de courbe n en depend.
+function ConvertTo-EstRecords($cv) {
+    # Estimations d une courbe enregistree : cylindre -> @{ Est ; Sig ; Kind }
+    $d = @{}
+    if (-not $cv -or -not $cv.Cyls -or -not $cv.Ys) { return $d }
+    for ($i = 0; $i -lt @($cv.Cyls).Count; $i++) {
+        $k = if ($cv.Kinds -and $i -lt @($cv.Kinds).Count) { [string]$cv.Kinds[$i] } else { 'interp' }
+        $s = if ($cv.Sig -and $i -lt @($cv.Sig).Count) { [double]$cv.Sig[$i] } else { 5.0 }
+        $d[[int]$cv.Cyls[$i]] = @{ Est = [double]$cv.Ys[$i]; Sig = $s; Kind = $k }
+    }
+    return $d
+}
+
+function Get-UnitEstRecords($u) {
+    # Estimations d une unite de calibration (toutes passes) : cylindre -> @{ Est ; Sig ; Kind }
+    $d = @{}
+    foreach ($c in @($u.Est.Keys)) {
+        $s = if ($u.Sig.ContainsKey($c)) { [double]$u.Sig[$c] } else { 5.0 }
+        $d[[int]$c] = @{ Est = [double]$u.Est[$c]; Sig = $s; Kind = [string]$u.Kind[$c] }
+    }
+    return $d
+}
+
+function Get-FaceEstimates($u) {
+    # Zero de chaque face d une unite d apres les seules passes de mesure gardees par face (u.Face : face -> cylindre ->
+    # precomp -> @{ Shift ; SE }), pente commune de l unite ; comparaison de deux calibrations seulement, sans effet sur
+    # la courbe. Renvoie face -> (cylindre -> @{ Est ; Sig ; Kind }).
+    $res = @{}
+    $sl = if ($null -ne $u.Slope -and [double]$u.Slope -lt -0.2) { [double]$u.Slope } else { -2.0 }
+    foreach ($h in @($u.Face.Keys)) {
+        $d = @{}
+        foreach ($c in @($u.Face[$h].Keys)) {
+            $z = Get-CalibZero $u.Face[$h][$c] $sl
+            if ($z) { $d[[int]$c] = @{ Est = [double]$z.Est; Sig = [double]$z.Sig; Kind = [string]$z.Kind } }
+        }
+        $res[[int]$h] = $d
+    }
+    return $res
+}
+
+function Compare-CurveRecords($X, $Y) {
+    # Ecart de Y a X (ns de precomp) sur leurs cylindres encadres communs : niveau (moyenne des differences), forme
+    # (ecart-type apres retrait du niveau), bruit sigma (1,4826 MAD des differences d ecart entre cylindres distants de 2
+    # au plus, divise par racine 2, 10 differences au moins ; a defaut, mediane des incertitudes combinees), zones de
+    # desaccord (CalCmpMinN cylindres consecutifs ou plus, meme signe, chacun au-dela de CalCmpPointNs, moyenne au-dela de
+    # max(CalCmpZoneNs ; 3 sigma / racine n)) et ecarts ponctuels (au-dela de max(CalCmpSpotNs ; 4 sigma), hors zone).
+    # $null si moins de 4 cylindres communs.
+    $cs = @(@($X.Keys) | ForEach-Object { [int]$_ } | Where-Object { $Y.ContainsKey($_) -and [string]$X[$_].Kind -eq 'interp' -and [string]$Y[$_].Kind -eq 'interp' } | Sort-Object)
+    if ($cs.Count -lt 4) { return $null }
+    $d = @{}; foreach ($c in $cs) { $d[$c] = [double]$Y[$c].Est - [double]$X[$c].Est }
+    $lvl = (@($cs | ForEach-Object { $d[$_] }) | Measure-Object -Average).Average
+    $e = @{}; $q = 0.0
+    foreach ($c in $cs) { $e[$c] = $d[$c] - $lvl; $q += $e[$c] * $e[$c] }
+    $sd = [math]::Sqrt($q / ($cs.Count - 1))
+    $df = @(); for ($i = 0; $i -lt $cs.Count - 1; $i++) { if ($cs[$i + 1] - $cs[$i] -le 2) { $df += $e[$cs[$i + 1]] - $e[$cs[$i]] } }
+    if ($df.Count -ge 10) { $m = Get-Median $df; $sig = 1.4826 * (Get-Median @($df | ForEach-Object { [math]::Abs($_ - $m) })) / [math]::Sqrt(2.0) }
+    else { $sig = Get-Median @($cs | ForEach-Object { [math]::Sqrt([double]$X[$_].Sig * [double]$X[$_].Sig + [double]$Y[$_].Sig * [double]$Y[$_].Sig) }) }
+    $zones = @(); $run = @()
+    foreach ($c in @($cs + @(-1))) {   # -1 : sentinelle de fin
+        $ok = ($c -ge 0) -and ([math]::Abs($e[$c]) -gt $script:CalCmpPointNs)
+        if ($ok -and $run.Count -gt 0 -and (($e[$c] -gt 0) -eq ($e[$run[-1]] -gt 0))) { $run += $c; continue }
+        if ($run.Count -ge $script:CalCmpMinN) {
+            $ma = (@($run | ForEach-Object { [math]::Abs($e[$_]) }) | Measure-Object -Average).Average
+            if ($ma -gt [math]::Max($script:CalCmpZoneNs, 3.0 * $sig / [math]::Sqrt($run.Count))) {
+                $zones += @{ Lo = [int]$run[0]; Hi = [int]$run[-1]; N = $run.Count; Mean = (@($run | ForEach-Object { $e[$_] }) | Measure-Object -Average).Average }
+            }
+        }
+        $run = @(); if ($ok) { $run = @($c) }   # affectation directe : un if deroulerait le tableau d un element
+    }
+    $spotT = [math]::Max($script:CalCmpSpotNs, 4.0 * $sig)
+    $spots = @($cs | Where-Object { $cc = $_; [math]::Abs($e[$cc]) -gt $spotT -and @($zones | Where-Object { $cc -ge $_.Lo -and $cc -le $_.Hi }).Count -eq 0 } | ForEach-Object { @{ C = [int]$_; E = $e[$_] } })
+    # Ecart maximal : a egalite, le plus petit cylindre (Sort-Object n est pas stable sous Windows PowerShell 5.1)
+    $mc = @($cs | Sort-Object @{ Expression = { -[math]::Abs($e[$_]) } }, @{ Expression = { $_ } })[0]
+    return @{ N = $cs.Count; Level = $lvl; Shape = $sd; Sigma = $sig; Zones = $zones; Spots = $spots; MaxC = [int]$mc; MaxE = $e[$mc] }
+}
+
+function Test-CalibRedoOffer([bool]$restore, [bool]$redoActive, [string[]]$kinds) {
+    # Bouton « Refaire sur une autre disquette » : hors restauration et hors calibration B, pour une reserve qui peut venir
+    # du support (toutes sauf la derive du lecteur, la courbe eloignee des mesures et, 12.7, la vitesse du lecteur)
+    if ($restore -or $redoActive) { return $false }
+    return (@(@($kinds) | Where-Object { $_ -and @('drift', 'dev', 'speed') -notcontains $_ }).Count -gt 0)
+}
+
+function Get-CalibRedoPick($dA, $dB, $sA, $sB, $surfA, $surfB, [int]$supA, [int]$supB, [int]$ncA, [int]$ncB, [bool]$zone) {
+    # Courbe conseillee. Zone de desaccord entre A et B ($zone) : 1) ecart local moyen a la calibration precedente sur les
+    # cylindres de la zone, niveau retire ($dA, $dB ; $null : non comparable), plus faible d au moins CalCmpLocalNs ; sinon
+    # 2) seule disquette sans defaut au controle de surface ; sinon aucune (zone non attribuable). Sans zone : 1) forme
+    # globale la plus proche de la calibration precedente ($sA, $sB), plus faible d au moins max(CalCmpPrefNs ;
+    # CalCmpPrefFrac x l autre) ; 2) controle de surface ; 3) moins de reserves liees au support ; 4) moins de cylindres non
+    # converges. Renvoie @{ Pick = 'A' | 'B' | $null ; By = 'zone' | 'prev' | 'surface' | 'support' | 'nonconv' | '' }
+    $dfA = [bool]($surfA -and $surfA.Defective); $dfB = [bool]($surfB -and $surfB.Defective)
+    $surfPick = $null
+    if ($surfA -and $surfB -and $dfA -ne $dfB) { $surfPick = if ($dfA) { 'B' } else { 'A' } }
+    if ($zone) {
+        if ($null -ne $dA -and $null -ne $dB) {
+            if ([double]$dA - [double]$dB -ge $script:CalCmpLocalNs) { return @{ Pick = 'B'; By = 'zone' } }
+            if ([double]$dB - [double]$dA -ge $script:CalCmpLocalNs) { return @{ Pick = 'A'; By = 'zone' } }
+        }
+        if ($surfPick) { return @{ Pick = $surfPick; By = 'surface' } }
+        return @{ Pick = $null; By = '' }
+    }
+    if ($null -ne $sA -and $null -ne $sB) {
+        if ([double]$sB -le [double]$sA - [math]::Max($script:CalCmpPrefNs, $script:CalCmpPrefFrac * [double]$sA)) { return @{ Pick = 'B'; By = 'prev' } }
+        if ([double]$sA -le [double]$sB - [math]::Max($script:CalCmpPrefNs, $script:CalCmpPrefFrac * [double]$sB)) { return @{ Pick = 'A'; By = 'prev' } }
+    }
+    if ($surfPick) { return @{ Pick = $surfPick; By = 'surface' } }
+    if ($supA -ne $supB) { return @{ Pick = $(if ($supA -lt $supB) { 'A' } else { 'B' }); By = 'support' } }
+    if ($ncA -ne $ncB) { return @{ Pick = $(if ($ncA -lt $ncB) { 'A' } else { 'B' }); By = 'nonconv' } }
+    return @{ Pick = $null; By = '' }
+}
+
+function Get-CalibUnitKey($cal, $u) {
+    # Cle de courbe d une unite de calibration : famille (courbe commune) ou famille_hN (une courbe par tete)
+    if ($null -eq $u.Head) { return [string]$cal.Family }
+    return "$($cal.Family)_h$($u.Head)"
+}
+
+function Get-CalibRedoMismatch($A, [string]$family, [int[]]$cyls, [bool]$slow, [bool]$fine, [string]$drive, [string]$img, $geom) {
+    # Controle d identite de la calibration B avant le premier gw : '' si ses reglages sont ceux de la calibration A,
+    # sinon le nom du premier reglage different
+    if ([string]$A.Drive -ne $drive) { return (T 'lecteur') }
+    if (([string]$A.Mode -eq 'fine') -ne $fine) { return (T 'mode de test') }
+    if ([bool]$A.Slow -ne $slow) { return (T 'courbe par tête') }
+    if ([string]$A.Family -ne $family) { return (T 'famille') }
+    # Cylindres de test de depart de A (Cyls0) : Cyls s etend aux mesures complementaires du test standard (Start-CalibDensify)
+    $a0 = if ($null -ne $A.Cyls0) { @($A.Cyls0) } else { @($A.Cyls) }
+    if (($a0 -join ',') -ne (@($cyls) -join ',')) { return (T 'cylindres de test') }
+    if ([bool]$A.Home -ne [bool]$geom) { return (T 'type de disquette') }
+    if ($A.Home -and [string]$A.Geom.Fmt -ne [string]$geom.Fmt) { return (T 'type de disquette') }
+    if (-not $A.Home -and [string]$A.Image -ne $img) { return (T 'image') }
+    return ''
+}
+
+function Format-CalibSurfaceState($sf) {
+    # Etat du controle de surface d une calibration, pour la fenetre de comparaison
+    if (-not $sf) { return (T 'non fait') }
+    $nb = @($sf.Bad).Count
+    if ($sf.Defective) { return ((T "disquette douteuse, {0} piste(s) défectueuse(s)") -f "$nb") }
+    if ($nb -gt 0) { return ((T "{0} piste(s) défectueuse(s)") -f "$nb") }
+    return (T 'aucun défaut')
+}
+
+function Get-CalibRedoReport($r, $cal, [string[]]$issues, [string[]]$kinds) {
+    # Comparaison des calibrations A ($r = $script:CalRedo : objet $cal de A, courbes et reserves) et B ($cal, deja
+    # enregistree dans PrecompCurves), sans fusion : par face, niveau, forme, zones de desaccord et ecarts ponctuels sur
+    # les estimations des passes de mesure (Get-FaceEstimates) ; par courbe, ecart des valeurs appliquees ; forme de A et
+    # de B face a la calibration d avant A ; courbe conseillee (Get-CalibRedoPick). Rien n est enregistre : journal seul.
+    # Renvoie @{ Text ; Log ; Curves (copies A puis B, champ Series) ; Zones (@{ Lo ; Hi ; Head }) ; Pick }.
+    $A = $r.ACal
+    $sup = @('nonconv', 'sat', 'floor', 'contra', 'contra-nodrift', 'surface')
+    $k0 = Get-CalibUnitKey $cal $cal.Units[0]
+    $bDate = if ($script:PrecompCurves[$k0]) { [string]$script:PrecompCurves[$k0].Date } else { '' }
+    $L = New-Object System.Collections.Generic.List[string]
+    $L.Add(((T "Comparaison des calibrations A ({0}) et B ({1}) du lecteur {2}, faites avec les mêmes réglages sur deux disquettes :") -f "$($r.ADate)", "$bDate", "$($cal.Drive)"))
+    $zd = @(); $flag = @(); $maxShape = 0.0; $maxLvl = 0.0; $nCmp = 0
+    for ($i = 0; $i -lt @($A.Units).Count; $i++) {
+        $ua = $A.Units[$i]; $ub = $cal.Units[$i]
+        $fa = Get-FaceEstimates $ua; $fb = Get-FaceEstimates $ub
+        foreach ($h in 0, 1) {
+            # Face absente des deux calibrations (unite de l autre tete) : rien ; absente d une seule : trop peu de cylindres
+            if (-not $fa.ContainsKey($h) -and -not $fb.ContainsKey($h)) { continue }
+            $c = if ($fa.ContainsKey($h) -and $fb.ContainsKey($h)) { Compare-CurveRecords $fa[$h] $fb[$h] } else { $null }
+            if (-not $c) { $L.Add('  ' + ((T "face {0} : trop peu de cylindres encadrés par les deux calibrations pour les comparer") -f "$h")); continue }
+            $nCmp++
+            $zt = if (@($c.Zones).Count) { (T "zones de désaccord : {0}") -f ((@($c.Zones) | ForEach-Object { "c$($_.Lo)-c$($_.Hi) ($('{0:+0;-0;0}' -f [math]::Round($_.Mean)) ns)" }) -join ', ') } else { (T 'aucune zone de désaccord') }
+            if (@($c.Spots).Count) { $zt += ' ; ' + ((T "écarts ponctuels : {0}") -f ((@($c.Spots) | ForEach-Object { "c$($_.C) ($('{0:+0;-0;0}' -f [math]::Round($_.E)) ns)" }) -join ', ')) }
+            $L.Add('  ' + ((T "face {0} : niveau B − A {1} ns, écart de forme {2} ns (au plus {3} ns à c{4}), {5}") -f "$h", ('{0:+0;-0;0}' -f [math]::Round($c.Level)), (Format-UiNum $c.Shape), (Format-UiNum ([math]::Round([double]$c.MaxE, 1)) '+0.#;-0.#;0'), "$($c.MaxC)", $zt))
+            foreach ($z in @($c.Zones)) { $zd += @{ Lo = [int]$z.Lo; Hi = [int]$z.Hi; Head = $h; Unit = $i }; $flag += ((T "face {0} : {1}") -f "$h", "c$($z.Lo)-c$($z.Hi)") }
+            foreach ($s in @($c.Spots)) { $zd += @{ Lo = [int]$s.C; Hi = [int]$s.C; Head = $h; Unit = $i }; $flag += ((T "face {0} : {1}") -f "$h", "c$($s.C)") }
+            if ($c.Shape -gt $maxShape) { $maxShape = $c.Shape }
+            if ([math]::Abs($c.Level) -gt $maxLvl) { $maxLvl = [math]::Abs($c.Level) }
+        }
+        $key = Get-CalibUnitKey $cal $ub
+        $cvA = $r.ACurves[$key]; $cvB = $script:PrecompCurves[$key]
+        if ($cvA -and $cvB) {
+            $pa = @($cvA.Values); $pb = @($cvB.Values); $nn = [math]::Min($pa.Count, $pb.Count)
+            if ($nn -gt 0) {
+                $dd = @(for ($k = 0; $k -lt $nn; $k++) { [int]$pb[$k] - [int]$pa[$k] }) | Measure-Object -Average -Minimum -Maximum
+                $L.Add('  ' + ((T "{0}courbe B − A : de {1} à {2} ns, {3} ns en moyenne") -f "$($ub.Prefix)", ('{0:+0;-0;0}' -f $dd.Minimum), ('{0:+0;-0;0}' -f $dd.Maximum), ('{0:+0;-0;0}' -f [math]::Round($dd.Average))))
+            }
+        }
+    }
+    if ([string]$A.Mode -eq 'std') { $L.Add((T "Test standard : la comparaison ne porte que sur les cylindres testés ; un défaut situé entre deux cylindres testés n'est pas vu.")) }
+    $L.Add(((T "Réserves de A : {0}") -f $(if (@($r.AIssues).Count) { @($r.AIssues) -join ' ; ' } else { (T 'aucune') })))
+    $L.Add(((T "Réserves de B : {0}") -f $(if (@($issues).Count) { @($issues) -join ' ; ' } else { (T 'aucune') })))
+    $L.Add(((T "Contrôle de surface de la première passe : A {0} ; B {1}.") -f (Format-CalibSurfaceState $A.Surf), (Format-CalibSurfaceState $cal.Surf)))
+    # Calibration d avant A (meme lecteur, motif de test) : forme de A et de B, niveau retire
+    $sA = @(); $sB = @(); $pvWhy = ''; $pvDate = ''; $pvDrive = ''; $lA = @(); $lB = @()
+    for ($i = 0; $i -lt @($A.Units).Count; $i++) {
+        $pv = $r.PrevA.Curves[(Get-CalibUnitKey $cal $cal.Units[$i])]
+        if (-not $pv) { $pvWhy = 'none'; break }
+        if ([string]$pv.Drive -ne [string]$A.Drive) { $pvWhy = 'drive'; $pvDrive = [string]$pv.Drive; break }
+        if ($pv.Method -and [string]$pv.Method -ne 'motif') { $pvWhy = 'content'; break }
+        $pr = ConvertTo-EstRecords $pv; $xa = Get-UnitEstRecords $A.Units[$i]; $xb = Get-UnitEstRecords $cal.Units[$i]
+        $ca = Compare-CurveRecords $pr $xa; $cb = Compare-CurveRecords $pr $xb
+        if (-not $ca -or -not $cb) { $pvWhy = 'few'; break }
+        $sA += $ca.Shape; $sB += $cb.Shape; $pvDate = [string]$pv.Date
+        # Zones et ecarts ponctuels de cette unite : ecart local de A et de B a la calibration precedente, niveau retire
+        foreach ($z in @($zd | Where-Object { $_.Unit -eq $i })) {
+            for ($c = $z.Lo; $c -le $z.Hi; $c++) {
+                if (-not $pr.ContainsKey($c) -or -not $xa.ContainsKey($c) -or -not $xb.ContainsKey($c)) { continue }
+                if ([string]$pr[$c].Kind -ne 'interp' -or [string]$xa[$c].Kind -ne 'interp' -or [string]$xb[$c].Kind -ne 'interp') { continue }
+                $lA += [math]::Abs(([double]$xa[$c].Est - [double]$pr[$c].Est) - $ca.Level)
+                $lB += [math]::Abs(([double]$xb[$c].Est - [double]$pr[$c].Est) - $cb.Level)
+            }
+        }
+    }
+    $mA = $null; $mB = $null; $dA = $null; $dB = $null
+    if (-not $pvWhy) {
+        $mA = ($sA | Measure-Object -Average).Average; $mB = ($sB | Measure-Object -Average).Average
+        $L.Add(((T "Écart de forme avec la calibration précédente du {0} : A {1} ns, B {2} ns.") -f "$pvDate", (Format-UiNum $mA), (Format-UiNum $mB)))
+        if ($lA.Count -gt 0) {
+            $dA = ($lA | Measure-Object -Average).Average; $dB = ($lB | Measure-Object -Average).Average
+            $L.Add(((T "Sur les cylindres en désaccord, écart à la calibration précédente du {0}, niveau retiré : A {1} ns, B {2} ns.") -f "$pvDate", (Format-UiNum $dA), (Format-UiNum $dB)))
+        }
+    } else {
+        switch ($pvWhy) {
+            'none'    { $L.Add((T 'Aucune calibration précédente de cette famille : pas de comparaison de forme avec elle.')) }
+            'drive'   { $L.Add(((T "La calibration précédente de cette famille vient du lecteur {0} : elle ne sert pas de comparaison.") -f "$pvDrive")) }
+            'content' { $L.Add((T "La calibration précédente a été mesurée sur le contenu d'une image : elle ne sert pas de comparaison.")) }
+            default   { $L.Add((T 'Trop peu de cylindres encadrés en commun avec la calibration précédente : pas de comparaison de forme avec elle.')) }
+        }
+    }
+    if ($flag.Count) { $L.Add(((T "Écart propre à une disquette ({0}) : défaut probable de l'une des deux disquettes ; la comparaison seule ne dit pas laquelle.") -f ($flag -join ' ; '))) }
+    elseif ($nCmp -eq 0) { $L.Add((T "Aucune face n'a pu être comparée : pas de verdict de forme.")) }
+    elseif ($maxShape -le $script:LevelTauOk) { $L.Add((T 'Forme commune aux deux disquettes : elle vient du lecteur.')) }
+    elseif ($maxShape -le $script:LevelTauMax) { $L.Add(((T "Formes proches sur les deux disquettes (écart de forme jusqu'à {0} ns), sans zone de désaccord.") -f (Format-UiNum $maxShape))) }
+    else { $L.Add(((T "Formes différentes sur les deux disquettes (écart de forme jusqu'à {0} ns), sans zone localisée : lecteur instable, ou supports très différents.") -f (Format-UiNum $maxShape))) }
+    # Niveau tres different : seuil de la calibration rapide (double densite) ; haute densite : seuil x CalHdK, et pas de
+    # calibration rapide pour mesurer ce niveau (12.7)
+    $hdCmp = ([string]$cal.Family -eq 'hd')
+    $fatNs = if ($hdCmp) { $script:LevelFatigueNs * $script:CalHdK } else { $script:LevelFatigueNs }
+    if ($maxLvl -gt $fatNs) {
+        if ($hdCmp) { $L.Add(((T "Niveau très différent d'une disquette à l'autre (jusqu'à {0} ns) : la haute densité n'a pas encore de calibration rapide pour mesurer ce niveau sur chaque disquette à écrire.") -f "$([math]::Round($maxLvl))")) }
+        else { $L.Add(((T "Niveau très différent d'une disquette à l'autre (jusqu'à {0} ns) : la calibration rapide mesure ce niveau sur chaque disquette à écrire.") -f "$([math]::Round($maxLvl))")) }
+    }
+    $supA = @(@($r.AKinds) | Where-Object { $sup -contains $_ }).Count; $supB = @(@($kinds) | Where-Object { $sup -contains $_ }).Count
+    if ($supA -gt 0 -and $supB -gt 0) { $L.Add((T 'Les deux calibrations ont des réserves liées au support : deux disquettes défectueuses, ou un lecteur instable (préchauffage, têtes à nettoyer).')) }
+    if (@(@($r.AKinds) + @($kinds)) -contains 'drift') { $L.Add(((T "Une des deux calibrations a une dérive du lecteur de plus de {0} ns : la comparaison est peu concluante.") -f "$(2 * $script:CalResidual)")) }
+    $ncA = [int](@($A.Units | ForEach-Object { @($_.Warn.NonConv).Count }) | Measure-Object -Sum).Sum
+    $ncB = [int](@($cal.Units | ForEach-Object { @($_.Warn.NonConv).Count }) | Measure-Object -Sum).Sum
+    $pk = Get-CalibRedoPick $dA $dB $mA $mB $A.Surf $cal.Surf $supA $supB $ncA $ncB ($flag.Count -gt 0)
+    switch ($pk.By) {
+        'zone'    { $L.Add(((T "Courbe {0} conseillée : sur les cylindres en désaccord, elle est la plus proche de la calibration précédente du {1}. Ce critère suppose que cette calibration a été faite sur une disquette saine.") -f "$($pk.Pick)", "$pvDate")) }
+        'prev'    { $L.Add(((T "Courbe {0} conseillée : sa forme est la plus proche de la calibration précédente du {1}. Ce critère suppose que cette calibration a été faite sur une disquette saine.") -f "$($pk.Pick)", "$pvDate")) }
+        'surface' { $L.Add(((T "Courbe {0} conseillée : sa disquette n'a pas de défaut au contrôle de surface, contrairement à l'autre.") -f "$($pk.Pick)")) }
+        'support' { $L.Add(((T 'Courbe {0} conseillée : elle a moins de réserves liées au support.') -f "$($pk.Pick)")) }
+        'nonconv' { $L.Add(((T 'Courbe {0} conseillée : elle a moins de cylindres non convergés.') -f "$($pk.Pick)")) }
+        default   {
+            if ($flag.Count) { $L.Add((T "Aucune courbe n'est conseillée : rien ne permet d'attribuer la zone de désaccord à l'une des deux disquettes. Une troisième calibration, sur une autre disquette, peut trancher.")) }
+            else { $L.Add((T "Aucune courbe n'est conseillée : choisissez d'après la comparaison et les réserves.")) }
+        }
+    }
+    $log = @($L.ToArray())
+    $L.Add('')
+    $L.Add((T "Conserver la courbe B : elle reste enregistrée.`nConserver la courbe A : la courbe A est rétablie et enregistrée.`nAbandonner les deux : la calibration d'avant la calibration A est rétablie.`nFermer la fenêtre : la courbe B est conservée."))
+    $cv = @()
+    foreach ($k in @($r.AKeys)) { if ($r.ACurves[$k]) { $x = $r.ACurves[$k].Clone(); $x.Series = 'A'; $cv += $x } }
+    foreach ($k in @($r.AKeys)) { if ($script:PrecompCurves[$k]) { $x = $script:PrecompCurves[$k].Clone(); $x.Series = 'B'; $cv += $x } }
+    return @{ Text = ($L.ToArray() -join "`n"); Log = $log; Curves = $cv; Zones = $zd; Pick = $pk.Pick }
+}
+
+function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerFull = $false, [bool]$noFields = $false, [bool]$offerRedo = $false, $compare = $null) {
     # Calibration au resultat douteux (non convergee, limite de 0 ou CalHardNs, ecart aux mesures, forme qui ne colle pas en
     # mode rapide) : la courbe obtenue est montree et l utilisateur decide. Pas de validation automatique : la decision
     # demande de regarder la courbe. Renvoie 'keep' (conserver / ecrire), 'stop' (abandonner) ou 'full' (calibration
     # complete, mode rapide seulement). Fermeture de la fenetre : arreter avant une ecriture, conserver sinon. noFields :
     # calibration rapide de la carte Calibration de l Accueil dont le profil n est pas place dans les champs --precomp.
+    # 12.7 point 2 : offerRedo : bouton « Refaire sur une autre disquette » ('redo'). compare = @{ Mode = 'ab' | 'aonly' ;
+    # Curves ; Zones ; Text ; Pick } : fenetre de comparaison des calibrations A et B ('keep' : courbe B, 'keepA' : courbe
+    # A, 'stop' : aucune ; fermeture : 'keep') ou decision sur la courbe A seule apres une calibration B interrompue
+    # ('keep' : courbe A, 'stop' : aucune ; fermeture : 'keep'). Courbes dessinees : copies de $compare.Curves.
     # Get-FamilyCurves renvoie deja un tableau protege (operateur virgule) : pas de @() autour, sinon tableau imbrique
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }   # elle dessine ces memes donnees
-    $script:CurveData = Get-FamilyCurves $cal.Family $cal.Slow
-    Set-CurveLevelData $script:CurveData
+    if ($compare) { $script:CurveData = @($compare.Curves); $script:CurveLevel = @{}; $script:CurveZones = @($compare.Zones) }
+    else {
+        $script:CurveData = Get-FamilyCurves $cal.Family $cal.Slow
+        Set-CurveLevelData $script:CurveData
+        $script:CurveZones = @()
+    }
+    $ab = [bool]($compare -and $compare.Mode -eq 'ab'); $aonly = [bool]($compare -and $compare.Mode -eq 'aonly')
     $dlg = New-Object System.Windows.Forms.Form
     $dlg.Name = 'frmCalibReview'; $dlg.Text = (T 'Calibration precomp')
     $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font; $dlg.BackColor = [System.Drawing.Color]::White
     $dlg.ShowInTaskbar = $false; $dlg.MinimizeBox = $false
     $dlg.Size = New-Object System.Drawing.Size(980, 760); $dlg.MinimumSize = New-Object System.Drawing.Size(700, 520)
+    # Comparaison : texte plus long (une ligne par face, reserves, verdict), fenetre plus haute si l ecran le permet
+    if ($compare) { $dlg.Size = New-Object System.Drawing.Size(980, [math]::Max(520, [math]::Min(860, [System.Windows.Forms.Screen]::FromControl($form).WorkingArea.Height - 40))) }
     $dlg.KeyPreview = $true                        # Echap : comme la croix de la fenetre
     $dlg.Add_KeyDown({ if ($_.KeyCode -eq [System.Windows.Forms.Keys]::Escape) { $_.Handled = $true; $this.Close() } })
     $lvl = ($cal.Mode -eq 'level')
@@ -7443,12 +8473,26 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
             elseif ($lvl) { (T "Conserver le niveau : le profil décalé reste dans les champs --precomp, pour cette disquette seulement.`nAbandonner le niveau : les champs --precomp reprennent leurs valeurs d'avant la calibration rapide.") }
             else { (T "Conserver la courbe : elle est enregistrée et appliquée aux prochaines écritures.`nAbandonner la courbe : la calibration précédente est rétablie.") }
     if ($offerFull) { $head += "`n" + (T "Calibration complète : la courbe du lecteur est mesurée de nouveau en test fin, après un avertissement ; elle devient la nouvelle référence de forme.") }
+    # 12.7 : ligne placee apres les autres (les fins de test n impriment que les premieres lignes, ou celles qui commencent
+    # par Conserver, Abandonner ou Calibration complete)
+    if ($offerRedo -and -not $compare) { $head += "`n" + $(if ($toWrite) { (T "Refaire sur une autre disquette : l'écriture est annulée ; cette courbe est mise de côté, la même calibration est refaite sur une autre disquette sacrifiée, puis vous choisissez la courbe. Relancez ensuite l'écriture depuis la Bibliothèque.") } else { (T "Refaire sur une autre disquette : cette courbe est mise de côté et la calibration précédente rétablie ; la même calibration est refaite sur une autre disquette sacrifiée, puis les deux courbes sont comparées et vous choisissez celle à conserver.") }) }
     $txt = (T "La calibration ne donne pas un bon résultat :") + "`n" + ((@($issues) | ForEach-Object { "  - $_" }) -join "`n") + "`n`n" + $head
+    if ($compare) { $txt = [string]$compare.Text }
     $lbl = New-Object System.Windows.Forms.Label
     $lbl.Name = 'lblRevText'; $lbl.AutoSize = $false; $lbl.UseMnemonic = $false; $lbl.Text = $txt; $lbl.Dock = 'Top'
     $lbl.Padding = New-Object System.Windows.Forms.Padding(12, 10, 12, 6); $lbl.ForeColor = $script:Theme.Warn
     $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
     $lbl.Height = [System.Windows.Forms.TextRenderer]::MeasureText($txt, $dlg.Font, (New-Object System.Drawing.Size(930, 10000)), $tf).Height + 20
+    # Comparaison (texte long) : hauteur du texte recalculee a la largeur de la fenetre (taille minimale : texte entier,
+    # dessin reduit)
+    if ($compare) {
+        $dlg.Add_Resize({
+            $l = $this.Controls['lblRevText']; if (-not $l) { return }
+            $f = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
+            $h = [System.Windows.Forms.TextRenderer]::MeasureText($l.Text, $l.Font, (New-Object System.Drawing.Size([math]::Max(100, $l.ClientSize.Width - 24), 10000)), $f).Height + 20
+            if ($l.Height -ne $h) { $l.Height = $h }
+        })
+    }
     $pb = New-Object System.Windows.Forms.PictureBox
     $pb.Dock = 'Fill'; $pb.BackColor = [System.Drawing.Color]::White
     $pb.Add_Paint({ Draw-PrecompCurve $_.Graphics $this.ClientSize })
@@ -7458,13 +8502,14 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
     $bar.Width = $dlg.ClientSize.Width             # avant les boutons : leur ancrage a droite se mesure sur cette largeur
     $btnOk = New-Object System.Windows.Forms.Button
     $btnOk.Name = 'btnRevKeep'; $btnOk.Size = New-Object System.Drawing.Size(200, 34); $btnOk.Anchor = 'Top,Right'
-    $btnOk.Text = if ($toWrite) { (T "Écrire l'image") } elseif ($lvl) { (T 'Conserver le niveau') } else { (T 'Conserver la courbe') }
+    $btnOk.Text = if ($ab) { (T 'Conserver la courbe B') } elseif ($aonly) { (T 'Conserver la courbe A') } elseif ($toWrite) { (T "Écrire l'image") } elseif ($lvl) { (T 'Conserver le niveau') } else { (T 'Conserver la courbe') }
     $btnOk.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $btnNo = New-Object System.Windows.Forms.Button
     $btnNo.Name = 'btnRevStop'; $btnNo.Size = New-Object System.Drawing.Size(180, 34); $btnNo.Anchor = 'Top,Right'
-    $btnNo.Text = if ($toWrite) { (T 'Arrêter') } elseif ($lvl) { (T 'Abandonner le niveau') } else { (T 'Abandonner la courbe') }
+    $btnNo.Text = if ($ab) { (T 'Abandonner les deux') } elseif ($aonly) { (T 'Abandonner la courbe') } elseif ($toWrite) { (T 'Arrêter') } elseif ($lvl) { (T 'Abandonner le niveau') } else { (T 'Abandonner la courbe') }
     $btnNo.DialogResult = [System.Windows.Forms.DialogResult]::Abort
-    Set-Btn $btnOk $(if ($toWrite) { 'Save' } else { '' }) 'primary'; Set-Btn $btnNo '' 'normal'
+    # Comparaison : style principal pour la courbe conseillee seulement (aucune mise en avant sans courbe conseillee)
+    Set-Btn $btnOk $(if ($toWrite -and -not $compare) { 'Save' } else { '' }) $(if ($ab -and $compare.Pick -ne 'B') { 'normal' } else { 'primary' }); Set-Btn $btnNo '' 'normal'
     $btnNo.Location = New-Object System.Drawing.Point(($dlg.ClientSize.Width - 16 - $btnNo.Width), 11)
     $btnOk.Location = New-Object System.Drawing.Point(($btnNo.Left - 8 - $btnOk.Width), 11)
     $bar.Controls.AddRange(@($btnOk, $btnNo))
@@ -7476,13 +8521,56 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
         $btnFull.Location = New-Object System.Drawing.Point(($btnOk.Left - 8 - $btnFull.Width), 11)
         $bar.Controls.Add($btnFull)
     }
+    # 12.7 point 2 : « Refaire sur une autre disquette » (reserve qui peut venir du support), a gauche de btnRevKeep ;
+    # comparaison A / B : « Conserver la courbe A » a gauche de « Conserver la courbe B ». Largeur a la taille minimale :
+    # 16 + 180 + 8 + 200 + 8 + 240 = 652 px sur environ 684 utiles
+    if ($offerRedo -and -not $compare) {
+        $btnRedo = New-Object System.Windows.Forms.Button
+        $btnRedo.Name = 'btnRevRedo'; $btnRedo.Size = New-Object System.Drawing.Size(240, 34); $btnRedo.Anchor = 'Top,Right'
+        $btnRedo.Text = (T 'Refaire sur une autre disquette'); $btnRedo.DialogResult = [System.Windows.Forms.DialogResult]::Ignore
+        Set-Btn $btnRedo '' 'normal'
+        $btnRedo.Location = New-Object System.Drawing.Point(($btnOk.Left - 8 - $btnRedo.Width), 11)
+        $bar.Controls.Add($btnRedo)
+    }
+    if ($ab) {
+        $btnKeepA = New-Object System.Windows.Forms.Button
+        $btnKeepA.Name = 'btnRevKeepA'; $btnKeepA.Size = New-Object System.Drawing.Size(200, 34); $btnKeepA.Anchor = 'Top,Right'
+        $btnKeepA.Text = (T 'Conserver la courbe A'); $btnKeepA.DialogResult = [System.Windows.Forms.DialogResult]::Yes
+        Set-Btn $btnKeepA '' $(if ($compare.Pick -eq 'A') { 'primary' } else { 'normal' })
+        $btnKeepA.Location = New-Object System.Drawing.Point(($btnOk.Left - 8 - $btnKeepA.Width), 11)
+        $bar.Controls.Add($btnKeepA)
+    }
+    if ($compare) {
+        # Arbitrage 3 : la fermeture de la fenetre est dite sous les boutons (courbe B deja enregistree ; decision sur A seule :
+        # courbe A retablie)
+        $bar.Height = 78
+        $lblClose = New-Object System.Windows.Forms.Label
+        $lblClose.Name = 'lblRevClose'; $lblClose.AutoSize = $false; $lblClose.UseMnemonic = $false; $lblClose.ForeColor = $script:Theme.Muted
+        $lblClose.Text = if ($ab) { (T 'Fermer la fenêtre conserve la courbe B, déjà enregistrée.') } else { (T 'Fermer la fenêtre conserve la courbe A, qui est rétablie et enregistrée.') }
+        $lblClose.TextAlign = 'MiddleRight'; $lblClose.Anchor = 'Top,Left,Right'
+        $lblClose.Location = New-Object System.Drawing.Point(16, 50); $lblClose.Size = New-Object System.Drawing.Size(($dlg.ClientSize.Width - 32), 20)
+        $bar.Controls.Add($lblClose)
+    }
     $dlg.Controls.Add($pb); $dlg.Controls.Add($lbl); $dlg.Controls.Add($bar); $pb.BringToFront()
     $dlg.Add_Shown({ $this.Activate(); try { [System.Media.SystemSounds]::Exclamation.Play() } catch { } })
-    try { $dr = $dlg.ShowDialog($form) } finally { $dlg.Dispose() }
+    # 12.7 : zone de progression de l Accueil gardee pendant la decision (Update-HomeProgress, mode 'hold')
+    $script:HomeProgHold = $true
+    try { $dr = $dlg.ShowDialog($form) } finally { $dlg.Dispose(); $script:HomeProgHold = $false; $script:CurveZones = @() }
     if ($dr -eq [System.Windows.Forms.DialogResult]::OK) { return 'keep' }
     if ($dr -eq [System.Windows.Forms.DialogResult]::Retry) { return 'full' }
+    if ($dr -eq [System.Windows.Forms.DialogResult]::Ignore) { return 'redo' }
+    if ($dr -eq [System.Windows.Forms.DialogResult]::Yes) { return 'keepA' }
     if ($dr -eq [System.Windows.Forms.DialogResult]::Abort) { return 'stop' }
+    if ($compare) { return 'keep' }
     return $(if ($toWrite) { 'stop' } else { 'keep' })
+}
+
+function Get-CalibSnapshot([string[]]$keys) {
+    # Etat des courbes et profils (retabli par Restore-CalibState) : courbes des cles donnees, niveaux, profil, champs --precomp
+    $s = @{ Std = $script:PrecompStd; Long = $script:PrecompLong; Curves = @{}; Levels = $script:LevelShifts.Clone()
+            Prof = $cmbWProfile.SelectedIndex; On = $chkWPrecomp.Checked; P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Lbl = $lblWProfileInfo.Text }
+    foreach ($k in @($keys)) { $s.Curves[$k] = $script:PrecompCurves[$k] }
+    return $s
 }
 
 function Restore-CalibState($prev) {
@@ -7498,11 +8586,13 @@ function Restore-CalibState($prev) {
     if (-not $script:Restore) { [void](Save-Config) }
 }
 
-function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string]$okText, [string]$okGlyph, [string]$countFmt, [string]$checkLabel, [string]$stopOn, [string]$stopOff) {
+function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string]$okText, [string]$okGlyph, [string]$countFmt, [string]$checkLabel, [string]$stopOn, [string]$stopOff, [int]$Seconds = -1, [switch]$NeedCheck) {
     # Fenetre d avertissement a compte a rebours : $okText / Annuler ; sans reponse, validation automatique au bout de
     # $script:CalibConfirmSeconds (0 = pas de delai), pour qu une sequence sans surveillance ne reste pas bloquee.
     # $countFmt : ligne du decompte ({0} = secondes). $checkLabel : case facultative ; la cocher ou la decocher arrete le
     # decompte (l utilisateur est present), la ligne affiche alors $stopOn ou $stopOff. Renvoie @{ Ok ; Checked ; Auto }.
+    # 12.7 : Seconds : delai propre a cette fenetre (-1 : CalibConfirmSeconds ; 0 : aucun) ; NeedCheck : $okText inactif tant
+    # que la case n est pas cochee (calibration B : la disquette inseree doit etre une autre disquette sacrifiee)
     $w = 560
     $dlg = New-Object System.Windows.Forms.Form
     $dlg.Name = $name; $dlg.Text = $title
@@ -7550,8 +8640,14 @@ function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string
     $dlg.AcceptButton = $btnOk; $dlg.CancelButton = $btnNo
     $dlg.Controls.AddRange(@($pic, $lbl, $lblCount, $btnOk, $btnNo))
     if ($chk) { $dlg.Controls.Add($chk) }
-    $sec = [int]$script:CalibConfirmSeconds
+    $sec = if ($Seconds -ge 0) { $Seconds } else { [int]$script:CalibConfirmSeconds }
     $script:CalConfirm = @{ Left = $sec; Auto = $false; Dlg = $dlg; Count = $lblCount; Tmr = $null; Fmt = $countFmt; StopOn = $stopOn; StopOff = $stopOff }
+    # Bouton inactif : fond gris (le style principal, plat, ne grise que le texte)
+    if ($NeedCheck -and $chk) {
+        $btnOk.Enabled = $false; $btnOk.BackColor = [System.Drawing.Color]::FromArgb(176, 186, 200); $script:CalConfirm.OkBtn = $btnOk
+        $chk.Add_CheckedChanged({ $c = $script:CalConfirm; if ($c -and $c.OkBtn) { $c.OkBtn.Enabled = $this.Checked; $c.OkBtn.BackColor = $(if ($this.Checked) { $script:Theme.Accent } else { [System.Drawing.Color]::FromArgb(176, 186, 200) }) } })
+    }
+    if ($NeedCheck -and $sec -le 0 -and $stopOff) { $lblCount.Text = $stopOff }
     $tmr = $null
     if ($sec -gt 0) {
         $lblCount.Text = ($countFmt -f "$sec")
@@ -7590,6 +8686,74 @@ function Show-CalibConfirm([string]$text, [string]$swapLabel) {
     # absente pour une calibration seule. Renvoie @{ Ok ; Swap ; Auto }.
     $r = Show-TimedConfirm 'frmCalibConfirm' (T 'Calibration precomp') $text (T 'Lancer la calibration') 'Diagnostic' (T "Sans réponse, la calibration démarre automatiquement dans {0} s.") $swapLabel (T "Compte à rebours arrêté : insérez la disquette sacrifiée, puis cliquez sur « Lancer la calibration ».") (T "Compte à rebours arrêté : cliquez sur « Lancer la calibration » pour calibrer avec la disquette insérée.")
     return @{ Ok = $r.Ok; Swap = $r.Checked; Auto = $r.Auto }
+}
+
+function Show-CalibSurface($opt, [string]$text) {
+    # Controle de surface : disquette de calibration douteuse a la premiere passe (Invoke-CalibAnalysis). Pas de compte a
+    # rebours ni de decision automatique : la disquette inseree est peut-etre celle a ecrire. Fermeture (croix, Echap) :
+    # Arreter. Renvoie @{ Choice = 'change' | 'continue' | 'stop' ; Swap }. 12.7 point 5 : $opt.Title, $opt.GoText (titre
+    # et bouton « Continuer » de la variante 'level' : « Disquette a ecrire defectueuse », « Ecrire quand meme »)
+    $w = 600
+    $dlg = New-Object System.Windows.Forms.Form
+    $dlg.Name = 'frmCalibSurface'; $dlg.Text = $(if ($opt.Title) { [string]$opt.Title } else { (T 'Contrôle de surface') })
+    $dlg.FormBorderStyle = 'FixedDialog'; $dlg.MaximizeBox = $false; $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false
+    $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font; $dlg.BackColor = [System.Drawing.Color]::White
+    $pic = New-Object System.Windows.Forms.PictureBox
+    $pic.Image = [System.Drawing.SystemIcons]::Warning.ToBitmap(); $pic.SizeMode = 'AutoSize'; $pic.Location = New-Object System.Drawing.Point(16, 16)
+    $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
+    $lbl = New-Object System.Windows.Forms.Label
+    $lbl.Name = 'lblSurfText'; $lbl.AutoSize = $false; $lbl.UseMnemonic = $false; $lbl.Text = $text; $lbl.Location = New-Object System.Drawing.Point(64, 16)
+    $lbl.Size = New-Object System.Drawing.Size($w, ([System.Windows.Forms.TextRenderer]::MeasureText($text, $dlg.Font, (New-Object System.Drawing.Size($w, 10000)), $tf).Height + 4))
+    $dlg.Controls.AddRange(@($pic, $lbl))
+    $y = $lbl.Bottom + 12
+    $chkNew = $null; $chkSwap = $null
+    if ($opt.Change) {
+        $chkNew = New-Object System.Windows.Forms.CheckBox
+        $chkNew.Name = 'chkSurfNew'; $chkNew.Text = (T "J'ai inséré une autre disquette"); $chkNew.AutoSize = $true; $chkNew.UseMnemonic = $false
+        $chkNew.Location = New-Object System.Drawing.Point(64, $y); $dlg.Controls.Add($chkNew); $y += 28
+        if ($opt.SwapBox) {
+            $sl = (T "J'ai inséré une disquette sacrifiée : me redemander {0} après la calibration") -f (T 'la disquette à écrire')
+            $chkSwap = New-Object System.Windows.Forms.CheckBox
+            $chkSwap.Name = 'chkSurfSwap'; $chkSwap.Text = $sl; $chkSwap.AutoSize = $false; $chkSwap.UseMnemonic = $false; $chkSwap.Enabled = $false
+            $chkSwap.CheckAlign = 'TopLeft'; $chkSwap.TextAlign = 'TopLeft'
+            $hs = [System.Windows.Forms.TextRenderer]::MeasureText($sl, $dlg.Font, (New-Object System.Drawing.Size(($w - 44), 10000)), $tf).Height
+            $chkSwap.Size = New-Object System.Drawing.Size(($w - 20), [math]::Max(24, ($hs + 6))); $chkSwap.Location = New-Object System.Drawing.Point(84, $y)
+            $dlg.Controls.Add($chkSwap); $y = $chkSwap.Bottom + 4
+        }
+        $y += 6
+    }
+    $btnStop = New-Object System.Windows.Forms.Button
+    $btnStop.Name = 'btnSurfStop'; $btnStop.Text = (T 'Arrêter'); $btnStop.Size = New-Object System.Drawing.Size(110, 34); $btnStop.DialogResult = [System.Windows.Forms.DialogResult]::Abort
+    $btnGo = New-Object System.Windows.Forms.Button
+    $btnGo.Name = 'btnSurfContinue'; $btnGo.Text = $(if ($opt.GoText) { [string]$opt.GoText } else { (T 'Continuer') }); $btnGo.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $btnGo.Size = New-Object System.Drawing.Size([math]::Max(130, [System.Windows.Forms.TextRenderer]::MeasureText($btnGo.Text, $dlg.Font).Width + 36), 34)
+    Set-Btn $btnStop '' 'normal'; Set-Btn $btnGo '' 'normal'
+    $btnStop.Location = New-Object System.Drawing.Point((64 + $w - $btnStop.Width), $y)
+    $btnGo.Location = New-Object System.Drawing.Point(($btnStop.Left - 8 - $btnGo.Width), $y)
+    $dlg.Controls.AddRange(@($btnGo, $btnStop))
+    if ($opt.Change) {
+        $btnCh = New-Object System.Windows.Forms.Button
+        $btnCh.Name = 'btnSurfChange'; $btnCh.Text = (T 'Changer de disquette'); $btnCh.Size = New-Object System.Drawing.Size(200, 34)
+        $btnCh.DialogResult = [System.Windows.Forms.DialogResult]::Retry; $btnCh.Enabled = $false
+        Set-Btn $btnCh '' 'normal'
+        $btnCh.Location = New-Object System.Drawing.Point(($btnGo.Left - 8 - $btnCh.Width), $y)
+        $dlg.Controls.Add($btnCh)
+        $chkNew.Add_CheckedChanged({
+            $f = $this.FindForm()
+            $b = $f.Controls.Find('btnSurfChange', $true); if ($b.Count) { $b[0].Enabled = $this.Checked }
+            $s = $f.Controls.Find('chkSurfSwap', $true); if ($s.Count) { $s[0].Enabled = $this.Checked; if (-not $this.Checked) { $s[0].Checked = $false } }
+        })
+    }
+    $dlg.ClientSize = New-Object System.Drawing.Size((64 + $w + 16), ($y + 34 + 16))
+    $dlg.CancelButton = $btnStop                   # Echap : Arreter ; croix : DialogResult Cancel, traite comme Arreter
+    $dlg.Add_Shown({ $this.Activate(); $b = $this.Controls.Find('btnSurfStop', $true); if ($b.Count) { $this.ActiveControl = $b[0] }; try { [System.Media.SystemSounds]::Exclamation.Play() } catch { } })
+    $swap = $false
+    # Image de l icone (ToBitmap) liberee avec la fenetre : PictureBox.Dispose ne libere pas son Image
+    $img = $pic.Image
+    try { $dr = $dlg.ShowDialog($form); $swap = [bool]($chkSwap -and $chkSwap.Checked) } finally { $dlg.Dispose(); if ($img) { $img.Dispose() } }
+    if ($dr -eq [System.Windows.Forms.DialogResult]::Retry) { return @{ Choice = 'change'; Swap = $swap } }
+    if ($dr -eq [System.Windows.Forms.DialogResult]::OK) { return @{ Choice = 'continue'; Swap = $false } }
+    return @{ Choice = 'stop'; Swap = $false }
 }
 
 # ============================== CALIBRATION RAPIDE (NIVEAU PAR DISQUETTE) ======
@@ -7708,6 +8872,9 @@ function Get-LevelRef([string]$fam, [bool]$heads, [string]$drive, [string]$img, 
     # raisons et notes parlent du type). Variables locales $nc et $pbits : $nCyl et $bits designeraient les parametres
     # types [int] (noms insensibles a la casse)
     $res = @{ Ok = $false; Class = 'redo'; Why = ''; Units = @(); Notes = @(); NCyl = 80; MaxCyl = 79; Family = $fam; Short = $false }
+    # 12.7 : pas de calibration rapide en haute densite (seuils regles sur des donnees double densite, non transposes) :
+    # hors domaine, sans offre de calibration complete en boucle
+    if ($fam -eq 'hd') { $res.Class = 'domain'; $res.Why = (T "la haute densité n'a pas encore de calibration rapide : faites une calibration complète"); return $res }
     $nc = if ($NCyl -gt 0) { $NCyl } else { Get-ImageCylinders $img }; if ($null -eq $nc) { $nc = 80 }
     $nc = [math]::Max(2, [math]::Min(84, [int]$nc)); $res.NCyl = $nc; $res.MaxCyl = $nc - 1
     $specs = @()
@@ -7763,7 +8930,7 @@ function Get-LevelRef([string]$fam, [bool]$heads, [string]$drive, [string]$img, 
                       Wit = [int[]]@($cd.Wit); Probe = $cd.Probe; CapLo = [int]$cd.CapLo; D0 = $d0; NHist = $nh }
     }
     if (@($specs | Where-Object { $_.Cv.Converged -eq $false }).Count -gt 0) { $res.Notes += (T 'Référence non convergée : ses cylindres hors tolérance sont exclus de la mesure ; une calibration complète en test fin est conseillée.') }
-    $kcv = @($specs | Where-Object { (Get-CurveCalc $_.Cv) -ne $script:CalibCalc })
+    $kcv = @($specs | Where-Object { (Get-CurveCalc $_.Cv) -ne (Get-CurveCalcRef $_.Cv) })
     if ($kcv.Count -gt 0) { $res.Notes += ((T "Référence faite avec le calcul de calibration {0}.") -f (Get-CurveCalcText $kcv[0].Cv)) }
     if (@($specs | Where-Object { [string]$_.Cv.Test -eq 'std' }).Count -gt 0) { $res.Notes += (T 'Référence en test standard : entre les cylindres mesurés, la forme est interpolée ; une référence en test fin est conseillée.') }
     if (@($cands | Where-Object { $_.Fallback }).Count -gt 0) { $res.Notes += (T "Trop peu de cylindres de mesure selon les règles habituelles : règles élargies (cylindres 0 et 1 admis, valeurs de 5 à 290 ns, résidu de référence jusqu'à 12 ns).") }
@@ -7993,6 +9160,7 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     $wu = if ($warm) { [math]::Max(0.0, [double]$script:CalWarmupMinutes) } else { 0.0 }
     $minutes = [math]::Max(1, [math]::Round($cyls.Count * 2 * 1.4 * 2 / 60 + $wu, 0))
     $script:AlignLoop = $false; $script:AlignNextAt = $null
+    $ans = $null                        # 12.7 : jamais celle d un appelant (portee dynamique)
     if (-not $NoConfirm) {
         $intro = if ($toWrite) { ((T "Calibration rapide avant l'écriture : {0} reçoit le motif de test sur ces seuls cylindres, au plus 3 fois, puis l'image.") -f "$target") + "`n`n" } else { '' }
         $bodyFmt = if ($Geom) { (T "Calibration rapide de la précompensation sur le lecteur {0} : seul le niveau de la courbe est mesuré, sur la disquette insérée.`n`nRéférence : calibration complète du {1} ({2}), dont la forme est reprise telle quelle.`nType de disquette : {3}, famille {4}.`nCylindres mesurés : {5} (2 faces), ÉCRASÉS à chaque passe ; 1 à 3 passes, 2 en général. Durée estimée : {6} min.") }
@@ -8010,6 +9178,7 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
     try { $pat = New-CalibPattern $fam $img $lr.NCyl }
     catch { [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)"),(T 'Calibration precomp'),'OK','Error'); return }
+    Set-CalibScale $fam     # 12.7 : bareme double densite (pas de calibration rapide en haute densite, Get-LevelRef)
     $units = @()
     foreach ($lu in $units0) {
         $u = New-CalibUnit $lu.Head
@@ -8030,6 +9199,8 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
         StartTime = (Get-Date); PassStart = (Get-Date); PhaseStart = (Get-Date); Phase = 'write'
         PassesDone = 0; TotalPasses = 2; WriteDurs = @(); ReadDurs = @(); EstTrack = 0.7; TrackWrites = 0
         Home = [bool]$Geom; Geom = $Geom                      # carte Calibration de l Accueil (progression sur la carte)
+        # 12.7 point 5 : controle de surface de la premiere passe (Invoke-LevelSurface)
+        AutoStart = [bool]($ans -and $ans.Auto); SurfDone = $false; Surf = $null; Medium = $null; SurfGross = $false; SurfKept = $false; Hold = $false
     }
     $kind = if ($slow -and $units[0].RefKey -eq $units[1].RefKey) { (T 'forme commune, niveau mesuré par tête') } elseif ($slow) { (T 'une courbe par tête') } else { (T 'courbe commune') }
     $lf = if ($Geom) { (T "=== Calibration rapide : lecteur {0}, type {1} ({2}, {3}) ===") } else { (T "=== Calibration rapide : lecteur {0}, image {1} ({2}, {3}) ===") }
@@ -8051,8 +9222,10 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     if ($warm) { Start-CalibWarmup } else { New-CalibPass }
 }
 
-function Invoke-LevelStep($cal) {
-    # Apres chaque passe : estimation par unite, arret (niveau verifie, echec, bascule anticipee, dernier essai) ou passe suivante
+function Invoke-LevelStep($cal, $tracks = $null) {
+    # Apres chaque passe : estimation par unite, arret (niveau verifie, echec, bascule anticipee, dernier essai) ou passe suivante.
+    # 12.7 point 5 : premiere passe, pistes relues ($tracks) : etat de la surface de la disquette d abord (Invoke-LevelSurface)
+    if ($null -ne $tracks -and [int]$cal.LPass -eq 1 -and -not $cal.SurfDone) { if (-not (Invoke-LevelSurface $cal $tracks)) { return } }
     $p = [int]$cal.LPass
     foreach ($u in $cal.Units) {
         if ($u.Done) { continue }
@@ -8167,6 +9340,24 @@ function Complete-LevelCalib {
         $pbWCal.Visible = $false
         $nw = (@($fails | Where-Object { $_.Fail -eq 'nowrite' }).Count -gt 0)
         $lblWCal.Text = $(if ($nw) { (T 'Calibration rapide : une face ne réagit pas à la précompensation (voir le journal).') } else { (T 'Calibration rapide sans mesure exploitable.') })
+        if ($toWrite -and $cal.SurfKept) {
+            # 12.7 point 5 : « Ecrire quand meme » choisi dans la fenetre « Disquette a ecrire defectueuse » (face sans
+            # cylindre mesurable, par exemple) : l image est ecrite comme annonce, avec la courbe du lecteur (champs
+            # --precomp inchanges, aucun niveau mesure), comme une ecriture sans reference (decision 4)
+            $script:AfterCalib = ''
+            Append-Log (T "Mesure de la disquette sans niveau exploitable : écriture poursuivie à votre demande avec la courbe du lecteur, sans niveau mesuré.")
+            if ($script:Restore) {
+                $r = $script:Restore
+                $nt = (T "niveau non mesuré : {0}") -f $(if ($nw) { (T 'une face ne réagit pas à la précompensation') } else { (T 'calibration rapide sans mesure exploitable') })
+                $bt = if ($r.CalibUsed) { ((T "calibration existante ({0}), pas de recalibration") -f "$($r.CalibUsed.Text)") + ' ; ' } elseif ($r.CalSwap) { ((T "faite sur une disquette sacrifiée ({0})") -f "$($r.Calib)") + ' ; ' } else { '' }
+                $r.Level = @{ State = 'warn'; Text = "$bt$nt"; Report = $nt }
+                $r.InCall = $true
+            }
+            try { Start-ImageWrite -NoWarmup:([bool]$cal.WarmSkip) } finally { if ($script:Restore) { $script:Restore.InCall = $false; $script:Restore.Idle = Get-Date } }
+            if ($script:Restore -and -not ($script:GwProc -and -not $script:GwProc.HasExited) -and $script:Chain.Count -eq 0) { Stop-Restore (T 'l''écriture n''a pas démarré après la calibration, voir le journal') }
+            return
+        }
+        Set-HomeProgDone $cal 'stop'
         if ($toWrite) { $script:AfterCalib = ''; Append-Log $(if ($nw) { (T 'Écriture annulée : une face ne réagit pas à la précompensation.') } else { (T 'Écriture annulée : calibration rapide sans mesure exploitable.') }) }
         if ($script:Restore) { Stop-Restore $(if ($nw) { (T 'une face ne réagit pas à la précompensation') } else { (T 'calibration rapide sans mesure exploitable') }) }
         return
@@ -8244,6 +9435,15 @@ function Complete-LevelCalib {
         $script:LevelShifts[$hk] = $rec
         $recs += ,$rec; $verdicts += $verdict
     }
+    # 12.7 point 5 : etat de la surface de la disquette a la premiere passe (Invoke-LevelSurface) : disquette douteuse,
+    # defaut grossier poursuivi ou sans fenetre (calibration rapide sans ecriture) : reserve si la fenetre de decision
+    # s ouvre pour une autre raison
+    # Defaut de vitesse seul (arbitrage 12, Test-CalibSpeedOnly) : reserve qui nomme le controle de vitesse, pas le support
+    if ($issues.Count -gt 0 -and $cal.Surf -and ($cal.Surf.Defective -or $cal.SurfGross)) {
+        $issues.Add($(if ($cal.Surf.Defective) { Format-CalibSurfaceReserve $cal.Surf }
+                      elseif (Test-CalibSpeedOnly $cal.Surf $cal.Medium) { (T "contrôle de vitesse et de densité : {0} à la première passe") -f (Format-CalibSurfaceVerdict $cal.Surf $cal.Medium) }
+                      else { (T "support : {0} à la première passe") -f (Format-CalibSurfaceVerdict $cal.Surf $cal.Medium) }))
+    }
     if (-not $script:Restore) { [void](Save-Config) }
     $fieldsPrev = @{ Prof = $cmbWProfile.SelectedIndex; On = $chkWPrecomp.Checked; P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Lbl = $lblWProfileInfo.Text }
     # Carte Calibration de l Accueil : profil place dans les champs --precomp seulement si l image de l onglet Ecriture est
@@ -8302,11 +9502,14 @@ function Complete-LevelCalib {
                 Append-Log (T 'Calibration rapide abandonnée à votre demande : niveau non conservé, champs --precomp rétablis.')
             }
             if ($toWrite) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : résultat de calibration refusé.'); if ($script:Restore) { Stop-Restore (T 'résultat de calibration refusé') } }
+            Set-HomeProgDone $cal 'abandon' $issues[0]
             return
         }
-        if ($choice -eq 'full') { Start-LevelFallback $cal ($issues -join ' ; ') $toWrite $noFields; return }
+        # Calibration complete demandee : bilan avec reserves, remplace par la progression si elle demarre
+        if ($choice -eq 'full') { Set-HomeProgDone $cal 'warn' $issues[0]; Start-LevelFallback $cal ($issues -join ' ; ') $toWrite $noFields; return }
         Append-Log (T 'Calibration : résultat accepté malgré les réserves.')
     }
+    Set-HomeProgDone $cal $(if ($issues.Count -gt 0) { 'warn' } else { 'ok' }) $(if ($issues.Count -gt 0) { $issues[0] } else { '' })
     if ($toWrite) {
         $script:AfterCalib = ''
         Append-Log (T 'Calibration rapide terminée : écriture de l''image avec le niveau mesuré.')
@@ -8343,9 +9546,11 @@ function Start-LevelFallback($cal, [string]$why, [bool]$toWrite, [bool]$noFields
     if (-not $script:Cal -and $toWrite) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : la calibration n''a pas été lancée.') }
 }
 
-function Start-LevelBeforeWrite([string]$mode, [switch]$Restore) {
+function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measure) {
     # Ecriture depuis la Bibliotheque ou restauration avec « Test rapide » : niveau mesure sur la disquette a ecrire ;
-    # sans reference utilisable, calibration complete en test fin d abord (sauf en restauration : jamais refaite)
+    # sans reference utilisable, calibration complete en test fin d abord (sauf en restauration : jamais refaite).
+    # 12.7 point 5, Measure : mesure ajoutee a une ecriture lente par la case « Mesurer la disquette » (liste au test
+    # standard ou fin) : sans reference utilisable, aucune calibration complete imposee, ecriture avec la courbe du lecteur
     $img = $txtWFile.Text
     $fam = Get-ImageFamily $img
     $nfc = Get-CalibCylinders $img $cmbWFmt.Text      # image secteur sans geometrie : cylindres du format choisi
@@ -8360,6 +9565,13 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore) {
     if ($Restore) {
         Append-Log ((T "Restauration : niveau non mesuré ({0}) : écriture avec la calibration existante.") -f "$($lr.Why)")
         if ($script:Restore) { $script:Restore.LevelNote = $lr.Why }
+        Start-ImageWrite; return
+    }
+    if ($Measure) {
+        # Arbitrage 16 : sans aucune courbe applicable (Get-FamilyCurves, tableau protege : pas de @() autour), le mode Auto
+        # ecrit avec le profil d origine
+        if ((Get-FamilyCurves $fam ($mode -eq 'slow')).Count -gt 0) { Append-Log ((T "Mesure de la disquette avant l'écriture non faite : {0}. Écriture avec la courbe du lecteur ; une calibration complète en test fin servira de référence aux prochaines mesures.") -f "$($lr.Why)") }
+        else { Append-Log ((T "Mesure de la disquette avant l'écriture non faite : {0}. Écriture avec le profil d'origine ; une calibration complète en test fin servira de référence aux prochaines mesures.") -f "$($lr.Why)") }
         Start-ImageWrite; return
     }
     # Hors domaine : ecriture avec la courbe du lecteur, sauf si elle est plus courte que l image (gw appliquerait la valeur
@@ -8425,7 +9637,8 @@ function Test-CalibImage($Geom = $null) {
     # Controles communs a la calibration complete et a la calibration rapide (memes messages) ; $null si refus. Geom :
     # type de disquette de la carte Calibration de l Accueil (image de geometrie de New-CalibGeometry, sans format gw) a la
     # place de l image et du format de l onglet Ecriture. Format gw explicite de la table non calibrable (FM, GCR, codage
-    # propre, secteurs durs, 360 tr/min, cellule hors plage : Get-FormatCalibInfo) : refus.
+    # propre, secteurs durs, ED, 360 tr/min, cellule hors plage : Get-FormatCalibInfo) : refus. 12.7 : image haute densite
+    # admise si elle est calibrable (famille hd, Get-HdCalibFamily).
     if (-not $script:ScpStatsOk) {
         [void][System.Windows.Forms.MessageBox]::Show((T 'Calibration : module d''analyse SCP indisponible (Add-Type).'),(T 'Calibration precomp'),'OK','Warning'); return $null
     }
@@ -8441,22 +9654,25 @@ function Test-CalibImage($Geom = $null) {
     if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) {
         [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration impossible sur un flux ({0}) : la calibration ne détermine la densité que d'une image à bits ou secteurs (ADF, IPF, HFE, IMG...).") -f "$ext"),(T 'Calibration precomp'),'OK','Warning'); return $null
     }
+    $fci = if ($fmt -and $fmt -ne '(auto)' -and $script:GwFormats.Contains($fmt)) { Get-FormatCalibInfo $fmt } else { $null }
     $hd = Get-HighDensityReason $img $fmt
-    if ($hd) {
-        [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration non prise en charge pour une image haute densité ({0}) : les profils calibrés sont ceux des familles double densité (standard 2 µs, long track 1,89 µs).") -f "$hd"),(T 'Calibration precomp'),'OK','Warning'); return $null
+    # 12.7 : haute densite calibrable (famille hd) admise ; sinon refus, avec la raison du format s il est explicite
+    if ($hd -and -not (Get-HdCalibFamily $img $fmt)) {
+        $msg = if ($fci -and -not $fci.Cal) { (T "Calibration non prise en charge pour le format {0} : {1}.") -f "$fmt", "$($fci.Why)" }
+               else { (T "Calibration non prise en charge pour cette image haute densité ({0}) : seule la haute densité MFM à 1 µs par cellule et à 300 tr/min se calibre ; la très haute densité (ED), les codages propres et la haute densité à 360 tr/min ne se calibrent pas.") -f "$hd" }
+        [void](Show-AppMessage $msg (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
     if ($chkWHard.Checked -or $chkWTG43.Checked) {
         [void][System.Windows.Forms.MessageBox]::Show((T 'Calibration non prise en charge avec secteurs durs ou lecteur 8 pouces (TG43) : l''analyse de flux est calibrée pour le MFM double densité.'),(T 'Calibration precomp'),'OK','Warning'); return $null
     }
     $oor = Get-CellOutOfRange $img
     if ($null -ne $oor) {
-        [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration non prise en charge : cellule de l'image de {0} ns, hors de la plage mesurable (1 700 à 2 300 ns, MFM double densité).") -f "$oor"),(T 'Calibration precomp'),'OK','Warning'); return $null
+        [void](Show-AppMessage ((T "Calibration non prise en charge : cellule de l'image de {0} ns, hors des plages mesurables (900 à 1 100 ns en haute densité, 1 700 à 2 300 ns en double densité).") -f "$oor") (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
-    $fci = if ($fmt -and $fmt -ne '(auto)' -and $script:GwFormats.Contains($fmt)) { Get-FormatCalibInfo $fmt } else { $null }
     if ($fci -and -not $fci.Cal) {
         [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration non prise en charge pour le format {0} : {1}.") -f "$fmt", "$($fci.Why)"),(T 'Calibration precomp'),'OK','Warning'); return $null
     }
-    $family = Get-ImageFamily $img
+    $family = Get-ImageFamily $img $fmt
     $cc = Get-CalibCylinders $img $fmt
     $nCyl = $cc.NCyl
     $cylSrc = if ($Geom) { [string]$Geom.CylSrc } else { [string]$cc.Src }
@@ -8483,6 +9699,12 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     if ($fine) { $cyls = @(0..$maxCyl) }
     else { $cyls = @(0..$maxCyl | Where-Object { $_ % 10 -eq 0 }); if ($cyls -notcontains $maxCyl) { $cyls += $maxCyl } }
     $cyls = @($cyls | Sort-Object -Unique)
+    # 12.7 : calibration B (« Refaire sur une autre disquette ») : reglages de la calibration A controles avant le premier gw
+    $redo = [bool]($script:CalRedo -and $script:CalRedo.Stage -eq 'confirm')
+    if ($redo) {
+        $why = Get-CalibRedoMismatch $script:CalRedo.ACal $family $cyls $slow $fine "$($cmbDrive.Text)" $img $Geom
+        if ($why) { [void](Show-AppMessage ((T "Calibration B impossible : réglage différent de la calibration A ({0}). La décision sur la courbe A est rouverte.") -f "$why") (T 'Calibration precomp') 'OK' 'Warning'); return }
+    }
     $nPassEst = $script:CalCoarse.Count + $script:CalMaxVerify
     # Duree estimee : passes d ecriture et de relecture, plus le prechauffage du lecteur (borne haute : il est reduit ou
     # saute si le lecteur vient de servir, plan recalcule apres l avertissement par Start-CalibWarmup)
@@ -8513,7 +9735,11 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     $choice = if ($toWrite) { (T "Pour épargner {0}, cochez la case ci-dessous (le compte à rebours s'arrête), remplacez-la par une disquette sacrifiée (sans valeur, jamais l'original), puis cliquez sur « Lancer la calibration » : après la calibration, l'application vous demandera de remettre {0}. Sinon, la calibration utilise la disquette insérée.") -f "$target" }
               else { (T 'Insérez de préférence une disquette sacrifiée (vierge ou sans valeur), puis validez.') }
     $swapLabel = if ($toWrite) { (T "J'ai inséré une disquette sacrifiée : me redemander {0} après la calibration") -f "$target" } else { '' }
-    $ans = Show-CalibConfirm ($Intro + $auto + $body + "`n`n" + $wear + "`n`n" + $choice) $swapLabel
+    if ($redo) {
+        # Confirmation sans compte a rebours : la case est obligatoire (une disquette de valeur est peut-etre inseree)
+        $rc = Show-TimedConfirm 'frmCalibRedo' (T 'Calibration sur une autre disquette') ($Intro + $body + "`n`n" + $wear) (T 'Lancer la calibration B') 'Diagnostic' '' (T "J'ai retiré la disquette de la calibration A et inséré une autre disquette sacrifiée") '' (T "Pas de démarrage automatique : cochez la case, puis cliquez sur « Lancer la calibration B ».") -Seconds 0 -NeedCheck
+        $ans = @{ Ok = ($rc.Ok -and $rc.Checked); Swap = $false; Auto = $false }
+    } else { $ans = Show-CalibConfirm ($Intro + $auto + $body + "`n`n" + $wear + "`n`n" + $choice) $swapLabel }
     if (-not $ans.Ok) { return }
     if ($ans.Auto) { Append-Log ((T "Calibration : avertissement validé automatiquement après {0} s sans réponse.") -f "$($script:CalibConfirmSeconds)") }
     if ($ans.Swap) { Append-Log ((T "Calibration sur une disquette sacrifiée : {0} sera redemandée avant l'écriture.") -f "$target") }
@@ -8521,13 +9747,22 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
     try { $pat = New-CalibPattern $family $img $nCyl }
     catch { [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)"),(T 'Calibration precomp'),'OK','Error'); return }
+    if ($redo -and [int]$pat.Bits -ne [int]$script:CalRedo.ACal.PatternBits) {
+        [void](Show-AppMessage ((T "Calibration B impossible : réglage différent de la calibration A ({0}). La décision sur la courbe A est rouverte.") -f (T 'densité du motif')) (T 'Calibration precomp') 'OK' 'Warning'); return
+    }
+    if ($redo) {
+        $script:CalRedo.Stage = 'running'
+        Append-Log ((T "=== Calibration B sur une autre disquette, mêmes réglages que la calibration A du {0} : les deux courbes seront comparées ===") -f "$($script:CalRedo.ADate)")
+        Append-Log (T "Calibration B : autre disquette sacrifiée déclarée insérée (case cochée) ; l'application ne peut pas distinguer deux disquettes.")
+    }
     # Ecriture lente : une unite par tete (mesures, courbe et verification separees) ; sinon une unite pour les deux tetes
     # @() autour du if : une seule unite resterait sinon une hashtable nue ($cal.Units[0] = $null)
+    Set-CalibScale $family     # 12.7 : bareme de la famille (amplitudes haute densite), apres les sorties anticipees
     $units = @(if ($slow) { (New-CalibUnit 0), (New-CalibUnit 1) } else { New-CalibUnit $null })
     foreach ($u in $units) { foreach ($c in $cyls) { $u.Results[[int]$c] = @{} } }
     $script:Cal = @{
         Mode = $(if ($fine) { 'fine' } else { 'std' }); Cyls = $cyls; MaxCyl = $maxCyl; Family = $family; Slow = $slow
-        Image = $img; Pattern = $pat.Path; PatternBits = $pat.Bits; MaxCoarse = 200; Drive = $cmbDrive.Text; TSpec = "c=${cylList}:h=0-1"; CylList = $cylList
+        Image = $img; Pattern = $pat.Path; PatternBits = $pat.Bits; MaxCoarse = [int](@($script:CalCoarse) | Measure-Object -Maximum).Maximum; Drive = $cmbDrive.Text; TSpec = "c=${cylList}:h=0-1"; CylList = $cylList
         Stage = 'coarse'; Values = @($script:CalCoarse); Index = 0; Value = 0; ValueTxt = ''; Spec = ''
         Units = $units; VerifyCount = 0; Swap = [bool]$ans.Swap; LevelAfter = [bool]$LevelAfter
         Scp = (Join-Path $script:TempDir 'precomp-calib.scp'); Writes = (New-Object System.Collections.Queue); ReadArgs = @()
@@ -8535,6 +9770,12 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         StartTime = (Get-Date); PassStart = (Get-Date); PhaseStart = (Get-Date); Phase = 'write'
         PassesDone = 0; TotalPasses = $nPassEst; WriteDurs = @(); ReadDurs = @(); EstTrack = 0.7
         Home = [bool]$Geom; Geom = $Geom; NoWarmup = [bool]$NoWarmup   # carte Calibration de l Accueil
+        # 12.7 : controle de surface de la passe 1 (Invoke-CalibAnalysis) : avertissement valide seul, numero de la disquette
+        # (Restart-PrecompCalib), bilan, defaut grossier, fenetre ouverte (Hold) ; Redo : calibration B (point 2) ; Cyls0 :
+        # cylindres de test de depart, controle d identite de la calibration B (Cyls s etend aux mesures complementaires du
+        # test standard, Start-CalibDensify)
+        AutoStart = [bool]$ans.Auto; Disk = 1; SurfDone = $false; Surf = $null; Medium = $null; SurfGross = $false; SurfKept = $false; Hold = $false; Redo = $redo
+        Cyls0 = [int[]]@($cyls)
     }
     if ($Geom) {
         # Densite du type choisi (source de Get-FormatCalibInfo), et non « HFE, bits par piste de l image » de la geometrie
@@ -8564,6 +9805,9 @@ function Update-CalibProgress {
     # mesurees (ecriture et relecture separees) ; avant toute mesure, 0,7 s par piste et par phase.
     $cal = $script:Cal
     if (-not $cal) { return }
+    # 12.7 : fenetre du controle de surface ouverte (Invoke-CalibAnalysis) : libelle fige (la minuterie principale appelle
+    # cette fonction pendant la boucle modale : la barre avancerait et le temps restant baisserait)
+    if ($cal.Hold) { $lblWCal.Text = (T "Calibration en attente : contrôle de surface, décision demandée (lecteur {0}).") -f "$($cal.Drive)"; return }
     # Libelles au format court du prechauffage de l ecriture : avancement et temps restant en tete, details ensuite entre
     # parentheses (libelle coupe a la largeur de l onglet a la taille minimale de la fenetre)
     if ($cal.Stage -eq 'warmup') {
@@ -8588,18 +9832,45 @@ function Update-CalibProgress {
     $remaining = $pass * ($total - $done)
     $phaseTxt = if ($cal.Phase -eq 'write') { (T 'écriture') } else { (T 'relecture') }
     $pbWCal.Value = [math]::Max(0, [math]::Min(100, $pct))
-    $fmt = if ($cal.Mode -eq 'level') { (T "Calibration rapide : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") } else { (T "Calibration : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
+    $fmt = if ($cal.Mode -eq 'level') { (T "Calibration rapide : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
+           elseif ($cal.Redo) { (T "Calibration B : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
+           else { (T "Calibration : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
     $lblWCal.Text = ($fmt -f "$([math]::Min($total, $cal.PassesDone + 1))", "$total", "$($cal.ValueTxt)", "$phaseTxt", "$pct", (Format-CalDuration $remaining))
 }
 
 function Stop-PrecompCalib {
-    # Abandon (bouton Arreter, erreur gw, fichier manquant) : etat remis a zero, barre masquee
+    # Abandon (bouton Arreter, erreur gw, fichier manquant) : etat remis a zero, barre masquee ; bilan de l Accueil (12.7)
+    # 12.7 point 2 : calibration B arretee : decision sur la courbe A seule, differee au minuteur principal (Resume-CalibRedo)
+    if ($script:CalRedo -and $script:CalRedo.Stage -eq 'running') { $script:CalRedo.Stage = 'interrupted'; if (-not $script:CalRedo.Why) { $script:CalRedo.Why = (T 'calibration interrompue') } }
+    $cal = $script:Cal
     $script:Cal = $null
     $pbWCal.Visible = $false
     $lblWCal.Text = (T 'Calibration precomp interrompue.')
     Append-Log (T 'Calibration precomp interrompue.')
+    Set-HomeProgDone $cal 'stop'
     if ($script:AfterCalib) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : calibration interrompue.') }
     if ($script:Restore) { Stop-Restore (T 'calibration interrompue') }
+}
+
+function Restart-PrecompCalib($cal, [bool]$swap) {
+    # Controle de surface, « Changer de disquette » : meme calibration reprise a la premiere passe sur la disquette
+    # nouvellement inseree, sans nouvel avertissement (la case de la fenetre l a confirme) ; seuls les unites, le compte des
+    # passes et l heure de debut repartent de zero ; prechauffage selon l activite du lecteur (Get-CalWarmupPlan).
+    Set-CalibScale ([string]$cal.Family)     # 12.7 : bareme de la famille (deja pose par Start-PrecompCalib)
+    $units = @(if ($cal.Slow) { (New-CalibUnit 0), (New-CalibUnit 1) } else { New-CalibUnit $null })
+    foreach ($u in $units) { foreach ($c in $cal.Cyls) { $u.Results[[int]$c] = @{} } }
+    $cal.Units = $units; $cal.Stage = 'coarse'; $cal.Index = 0; $cal.Value = 0; $cal.ValueTxt = ''; $cal.Spec = ''; $cal.VerifyCount = 0
+    $cal.PassesDone = 0; $cal.TotalPasses = $script:CalCoarse.Count + $script:CalMaxVerify; $cal.StartTime = Get-Date
+    $cal.SurfDone = $false; $cal.Surf = $null; $cal.Medium = $null; $cal.SurfGross = $false; $cal.SurfKept = $false; $cal.Hold = $false
+    $cal.AutoStart = $false; $cal.Disk = 1 + [int]$cal.Disk
+    Append-Log ((T "=== Calibration precomp reprise sur une autre disquette (disquette {0}) : mêmes réglages, cylindres {1} ===") -f "$($cal.Disk)", "$($cal.CylList)")
+    if ($swap -and -not $cal.Swap) {
+        $cal.Swap = $true
+        Append-Log ((T "Calibration sur une disquette sacrifiée : {0} sera redemandée avant l'écriture.") -f (T 'la disquette à écrire'))
+    }
+    $pbWCal.Value = 0
+    Update-CalibProgress
+    Start-CalibWarmup
 }
 
 function Get-CalWarmupPlan([string]$key, [double]$minutes) {
@@ -8856,6 +10127,398 @@ function Set-CalibEstimates($u, [string]$when = '') {
     return $true
 }
 
+# 12.7 : controle de surface de la disquette de calibration a la passe 1 (fonctions pures, appelees par Invoke-CalibAnalysis
+# et Complete-PrecompCalib). Defaut grossier (arbitrage 1) : fenetre sans compte a rebours pendant la calibration ;
+# disquette douteuse sans defaut grossier : reserve « support » de la fenetre de decision ; bilan par face toujours au journal
+function Get-CalibSurface($tracks, [int[]]$cyls) {
+    # Controle de surface de la disquette de calibration sur la relecture de la passe 1 (motif ecrit a 0 ns, 3 tours) :
+    # par face et par cylindre teste, trous de signal (Dropouts), hors classe (OutOfClass, juges seulement sous
+    # CalSurfShiftMax ns de decalage), ecart du nombre de flux entre tours (NFlux), piste illisible (absente ou sans tour
+    # mesurable). Face douteuse : CalSurfMinBad pistes defectueuses au moins, ou CalSurfFrac des cylindres testes, ou
+    # CalSurfRun cylindres testes consecutifs, ou hors classe sur toute la face. Seuils provisoires (H). Par face aussi :
+    # tours avec trous de signal (DropTot) sur les tours relus (RevTot), pour le journal.
+    $res = @{ Faces = @{}; Bad = @(); Defective = $false; Why = @() }
+    foreach ($h in 0, 1) {
+        $rows = @()
+        foreach ($c in $cyls) {
+            $tn = [int]$c * 2 + $h
+            $r = @{ C = [int]$c; Missing = $true; Valid = 0; NRev = 0; DropRevs = 0; Ooc = 0.0; Stab = 0; Shift = [double]::NaN }
+            if ($tracks.ContainsKey($tn)) {
+                $revs = @($tracks[$tn] | Where-Object { $null -ne $_ })
+                $r.NRev = $revs.Count; $r.Missing = ($revs.Count -eq 0)
+                $sh = @(); $oc = @(); $nf = @()
+                foreach ($x in $revs) {
+                    if ([int]$x.Dropouts -gt 0) { $r.DropRevs++ }
+                    $oc += [double]$x.OutOfClass; $nf += [int]$x.NFlux
+                    if ($null -ne $x.Shift -and -not [double]::IsNaN([double]$x.Shift)) { $sh += [double]$x.Shift }
+                }
+                $r.Valid = $sh.Count
+                if ($oc.Count -gt 0) { $r.Ooc = Get-Median $oc }
+                if ($nf.Count -gt 0) { $r.Stab = [int](($nf | Measure-Object -Maximum).Maximum - ($nf | Measure-Object -Minimum).Minimum) }
+                if ($sh.Count -gt 0) { $r.Shift = ($sh | Measure-Object -Average).Average }
+            }
+            $rows += $r
+        }
+        # Reference de la face : pistes mesurables (et, pour les hors classe, de decalage jugeable)
+        $ok = @($rows | Where-Object { $_.Valid -gt 0 })
+        $jo = @($ok | Where-Object { [math]::Abs($_.Shift) -le $script:CalSurfShiftMax })
+        $mo = if ($jo.Count) { Get-Median @($jo | ForEach-Object { $_.Ooc }) } else { 0.0 }
+        $ao = if ($jo.Count) { 1.4826 * (Get-Median @($jo | ForEach-Object { [math]::Abs($_.Ooc - $mo) })) } else { 0.0 }
+        $ms = if ($ok.Count) { Get-Median @($ok | ForEach-Object { $_.Stab }) } else { 0.0 }
+        $as = if ($ok.Count) { 1.4826 * (Get-Median @($ok | ForEach-Object { [math]::Abs($_.Stab - $ms) })) } else { 0.0 }
+        $to = [math]::Max([double]$script:CalSurfOocFloor, $mo + $script:CalSurfMadK * [math]::Max(1.0, $ao))
+        $ts = [math]::Max([double]$script:CalSurfStabFloor, $ms + $script:CalSurfMadK * [math]::Max(1.0, $as))
+        $bad = @(); $part = @(); $nj = @(); $run = 0; $top = 0; $smax = 0; $dt = 0; $rt = 0
+        foreach ($r in $rows) {
+            $why = @()
+            $dt += [int]$r.DropRevs; $rt += [int]$r.NRev
+            if ($r.Missing -or $r.Valid -eq 0) { $why += 'unread' }
+            else {
+                if ($r.Valid -lt $r.NRev) { $part += $r.C }
+                if ($r.DropRevs -ge $script:CalSurfDropRevs) { $why += 'drop' }
+                if ([math]::Abs($r.Shift) -gt $script:CalSurfShiftMax) { $nj += $r.C }
+                elseif ($r.Ooc -gt $to) { $why += 'ooc' }
+                if ($r.Stab -gt $ts) { $why += 'stab' }
+                if ($r.Stab -gt $smax) { $smax = $r.Stab }
+            }
+            if ($why.Count) { $bad += @{ C = $r.C; H = $h; Why = $why }; $run++; if ($run -gt $top) { $top = $run } } else { $run = 0 }
+        }
+        $need = [math]::Max([int]$script:CalSurfMinBad, [int][math]::Ceiling($script:CalSurfFrac * $rows.Count))
+        $noisy = ($jo.Count -ge 3 -and $mo -gt $script:CalSurfOocFloor)
+        $def = ($bad.Count -ge $need) -or ($top -ge $script:CalSurfRun) -or $noisy
+        $res.Faces[$h] = @{ N = $rows.Count; Bad = $bad; Part = $part; NotJudged = $nj; OocMed = $mo; OocThr = $to; StabMax = $smax; StabThr = $ts; Run = $top; Need = $need; Noisy = $noisy; Defective = $def
+                            DropTot = $dt; RevTot = $rt }
+        $res.Bad += $bad
+        if ($def) { $res.Defective = $true; $res.Why += $h }
+    }
+    return $res
+}
+
+function Get-CalibSurfaceOptions([bool]$restore, [bool]$redo, [bool]$toWrite, [bool]$swap) {
+    # Boutons et texte de la fenetre du controle de surface selon le contexte. Restauration sans disquette sacrifiee :
+    # la destination, deja sondee, ne peut pas etre changee ici.
+    if ($restore) { return @{ Change = $swap; SwapBox = $false; Variant = $(if ($swap) { 'restore-swap' } else { 'restore' }) } }
+    if ($redo) { return @{ Change = $true; SwapBox = $false; Variant = 'redo' } }
+    if ($toWrite -and $swap) { return @{ Change = $true; SwapBox = $false; Variant = 'swap' } }
+    if ($toWrite) { return @{ Change = $true; SwapBox = $true; Variant = 'write' } }
+    return @{ Change = $true; SwapBox = $false; Variant = 'normal' }
+}
+
+function Get-CalibSurfaceReasons($bad) {
+    # Defauts d une face regroupes par nature : « trous de signal aux cylindres 9-11 ; illisible aux cylindres 40 »
+    $names = [ordered]@{ unread = (T 'illisible'); drop = (T 'trous de signal'); ooc = (T 'intervalles hors classe'); stab = (T "lecture différente d'un tour à l'autre") }
+    $parts = @()
+    foreach ($k in @($names.Keys)) {
+        $cs = [int[]]@(@($bad) | Where-Object { @($_.Why) -contains $k } | ForEach-Object { [int]$_.C } | Sort-Object -Unique)
+        if ($cs.Count) { $parts += ((T "{0} aux cylindres {1}") -f "$($names[$k])", (Format-CylList $cs)) }
+    }
+    return ($parts -join ' ; ')
+}
+
+function Format-CalibSurfaceShort($sf) {
+    # Resume du verdict : « face 1 : 3 piste(s) défectueuse(s) sur 80 ; face 0 : hors classe sur toute la face »
+    $p = @()
+    foreach ($h in 0, 1) {
+        $f = $sf.Faces[$h]
+        if (-not $f -or -not $f.Defective) { continue }
+        if ($f.Noisy) { $p += ((T "face {0} : hors classe sur toute la face") -f "$h") }
+        else { $p += ((T "face {0} : {1} piste(s) défectueuse(s) sur {2}") -f "$h", "$(@($f.Bad).Count)", "$($f.N)") }
+    }
+    return ($p -join ' ; ')
+}
+
+function Get-CalibSurfaceFaceLines($sf) {
+    # Bilan de chaque face, tous ses compteurs (journal ; 12.7 point 5 : fenetre de la disquette a ecrire)
+    $faces = @()
+    foreach ($h in 0, 1) {
+        $f = $sf.Faces[$h]
+        $det = if (@($f.Bad).Count) { ' (' + (Get-CalibSurfaceReasons $f.Bad) + ')' } else { '' }
+        $s = (T "face {0} : {1} cylindres, {2} défectueux{3}, trous de signal dans {4} tour(s) sur {5}, hors classe {6} par tour en médiane (seuil {7}), écart du nombre de flux entre tours jusqu'à {8} (seuil {9})") -f "$h", "$($f.N)", "$(@($f.Bad).Count)", $det, "$([int]$f.DropTot)", "$([int]$f.RevTot)", (Format-UiNum $f.OocMed), (Format-UiNum $f.OocThr), "$($f.StabMax)", (Format-UiNum $f.StabThr)
+        if (@($f.NotJudged).Count) { $s += (T ", non jugés sur les hors classe aux cylindres {0} (décalage au-delà de {1} ns)") -f (Format-CylList ([int[]]$f.NotJudged)), "$($script:CalSurfShiftMax)" }
+        if (@($f.Part).Count) { $s += (T ", lecture partielle aux cylindres {0}") -f (Format-CylList ([int[]]$f.Part)) }
+        $faces += $s
+    }
+    return ,$faces
+}
+
+function Format-CalibSurfaceFaceDefect($f, [int]$h) {
+    # 12.7, arbitrage 14 : defauts d une face douteuse dans la fenetre du controle de surface, avec tous les compteurs
+    # releves : hors classe sur toute la face, pistes defectueuses par nature, tours avec trous de signal
+    $p = @()
+    if ($f.Noisy) { $p += ((T 'intervalles hors classe sur toute la face ({0} par tour en médiane)') -f (Format-UiNum $f.OocMed)) }
+    if (@($f.Bad).Count) { $p += (Get-CalibSurfaceReasons $f.Bad) }
+    if ([int]$f.DropTot -gt 0) { $p += ((T 'trous de signal dans {0} tour(s) sur {1}') -f "$([int]$f.DropTot)", "$([int]$f.RevTot)") }
+    return ((T "face {0} : {1}") -f "$h", ($p -join ' ; '))
+}
+
+function Test-CalibCleanHint($sf, $mc, [bool]$hd) {
+    # 12.7, arbitrage 14 : conseil de nettoyer les tetes seulement pour des trous de signal (pistes defectueuses par trous
+    # reproductibles) sur les deux faces d un support a la bonne densite : vitesse et densite relues conformes
+    # (Get-CalibMediumCheck). Jamais en haute densite : des trous sur les deux faces y viennent le plus souvent d une
+    # disquette double densite, que le nombre de flux relu ne distingue pas (cas D2 de l addendum HD : flux a 99 %, cas X3
+    # de cross127) ; le paragraphe haute densite de la fenetre donne alors la cause probable
+    if ($hd) { return $false }
+    foreach ($h in 0, 1) {
+        $f = $sf.Faces[$h]
+        if (-not $f -or @(@($f.Bad) | Where-Object { @($_.Why) -contains 'drop' }).Count -eq 0) { return $false }
+    }
+    if ($mc -and ($mc.Flux -or $mc.Rot)) { return $false }
+    return $true
+}
+
+function Format-CalibSurfaceLog($sf, [bool]$std, [string]$verdict = 'hold') {
+    # Lignes du journal : bilan des deux faces (toujours, donnees pour recaler les seuils), puis verdict. $verdict : 'hold'
+    # (disquette douteuse : decision demandee), 'reserve' (douteuse sans defaut grossier : reserve au bilan, arbitrage 1 de
+    # la 12.7), 'none' (bilan seul : l appelant ecrit le verdict d un defaut grossier)
+    $faces = Get-CalibSurfaceFaceLines $sf
+    $sfx = if ($std) { (T ' ; contrôle partiel en test standard, cylindres de test seulement') } else { '' }
+    $lines = @((T "Contrôle de surface (passe 1, motif écrit sans précompensation) : {0}{1}.") -f ($faces -join ' ; '), $sfx)
+    if ($verdict -eq 'none') { return ,$lines }
+    if ($sf.Defective) {
+        if ($verdict -eq 'reserve') { $lines += ((T "Contrôle de surface : disquette de calibration douteuse ({0}) ; la calibration continue, avec une réserve au bilan.") -f (Format-CalibSurfaceShort $sf)) }
+        else { $lines += ((T "Contrôle de surface : disquette de calibration douteuse ({0}) : décision demandée.") -f (Format-CalibSurfaceShort $sf)) }
+    }
+    elseif (@($sf.Bad).Count) {
+        $p = @(); foreach ($h in 0, 1) { $b = @($sf.Faces[$h].Bad); if ($b.Count) { $p += ((T "face {0} : {1}") -f "$h", (Get-CalibSurfaceReasons $b)) } }
+        $lines += ((T "Contrôle de surface : défaut ponctuel de la disquette de calibration ({0}) ; la calibration continue.") -f ($p -join ' ; '))
+    }
+    return ,$lines
+}
+
+function Get-CalibSurfaceText($sf, $opt, [bool]$std, [bool]$autoStart, [string[]]$Extra = @(), [string[]]$Notes = @(), $Medium = $null, [bool]$Hd = $false) {
+    # Texte de la fenetre du controle de surface (lblSurfText). Extra : lignes de la vitesse du lecteur et de la densite
+    # relue (Get-CalibMediumCheck) apres celles des faces ; Notes : paragraphes qui les expliquent. 12.7 : $opt.Speed (defaut
+    # de vitesse seul, Test-CalibSpeedOnly) : en-tete qui nomme le lecteur, sans la phrase sur le support ; $opt.Change
+    # faux hors restauration : premiere ligne des choix (« Changer de disquette ») retiree. Arbitrage 14 : chaque face
+    # douteuse avec tous ses compteurs (Format-CalibSurfaceFaceDefect) ; conseil de nettoyer les tetes seulement pour des
+    # trous de signal sur les deux faces a la bonne densite (Test-CalibCleanHint ; Medium, Hd : famille haute densite)
+    $spd = [bool]$opt.Speed
+    $t = if ($spd) { (T 'Le lecteur ne tourne pas à la vitesse de ce type de disquette. Le contrôle de la première passe, où le motif de test est écrit sans précompensation puis relu sur 3 tours, a trouvé :') } else { (T "La disquette de calibration semble défectueuse. Le contrôle de surface de la première passe, où le motif de test est écrit sans précompensation puis relu sur 3 tours, a trouvé :") }
+    foreach ($h in 0, 1) {
+        $f = $sf.Faces[$h]
+        if (-not $f.Defective) { continue }
+        $t += "`n  - " + (Format-CalibSurfaceFaceDefect $f $h)
+    }
+    foreach ($x in @($Extra)) { if ($x) { $t += "`n  - " + $x } }
+    if ($spd) { $t += "`n" } else { $t += "`n`n" + (T "Sur une telle disquette, la calibration risque de mesurer le défaut du support plutôt que le besoin du lecteur.") }
+    foreach ($x in @($Notes)) { if ($x) { $t += "`n" + $x } }
+    if (Test-CalibCleanHint $sf $Medium $Hd) { $t += "`n" + (T "Des trous de signal sur les deux faces viennent souvent de têtes sales : nettoyez-les (carte « Nettoyer les têtes du lecteur » de l'Accueil), puis recommencez.") }
+    if ($std) { $t += "`n" + (T 'Test standard : seuls les cylindres de test ont été contrôlés.') }
+    $t += "`n`n"
+    $pre = ''
+    switch ($opt.Variant) {
+        'write' {
+            $pre = (T "La disquette insérée est la disquette à écrire : elle recevra le motif de test, puis l'image.") + "`n"
+            if ($autoStart) { $pre += (T "L'avertissement a été validé automatiquement : la disquette insérée est donc celle à écrire.") + "`n" }
+            $act = (T "Changer de disquette : insérez une autre disquette et cochez la première case ; cochez aussi la seconde si c'est une disquette sacrifiée, la disquette à écrire vous sera alors redemandée après la calibration. La calibration reprend à la première passe, avec les mêmes réglages et sans nouvel avertissement.`nContinuer : la calibration se poursuit sur cette disquette, puis l'image y est écrite.`nArrêter : la calibration s'arrête et l'image n'est pas écrite.")
+        }
+        'swap' { $act = (T "Changer de disquette : insérez une autre disquette sacrifiée, cochez la case, puis cliquez sur « Changer de disquette » ; la calibration reprend à la première passe, avec les mêmes réglages, et la disquette à écrire vous sera redemandée ensuite.`nContinuer : la calibration se poursuit sur cette disquette.`nArrêter : la calibration s'arrête et l'image n'est pas écrite.") }
+        'restore-swap' { $act = (T "Changer de disquette : insérez une autre disquette sacrifiée, cochez la case, puis cliquez sur « Changer de disquette » ; la calibration reprend à la première passe, et la disquette de destination vous sera redemandée ensuite.`nContinuer : la calibration se poursuit sur cette disquette.`nArrêter : la calibration et la restauration s'arrêtent.") }
+        'restore' {
+            # Defaut de vitesse seul (arbitrage 12) : une autre disquette de destination n y changerait rien
+            $act = if ($spd) { (T "Continuer : la calibration se poursuit sur cette disquette, puis la copie y est écrite.`nArrêter : la calibration et la restauration s'arrêtent.") }
+                   else { (T "La calibration se fait sur la disquette de destination, déjà contrôlée par la restauration : elle ne peut pas être changée ici.`nContinuer : la calibration se poursuit sur cette disquette, puis la copie y est écrite.`nArrêter : la calibration et la restauration s'arrêtent ; relancez la restauration avec une autre disquette de destination.") }
+        }
+        'redo' { $act = (T "Changer de disquette : insérez une autre disquette sacrifiée, cochez la case, puis cliquez sur « Changer de disquette » ; la calibration B reprend à la première passe.`nContinuer : la calibration B se poursuit sur cette disquette.`nArrêter : la calibration B s'arrête, puis vous décidez de la courbe A.") }
+        default { $act = (T "Changer de disquette : insérez une autre disquette sacrifiée, cochez la case, puis cliquez sur « Changer de disquette » ; la calibration reprend à la première passe, avec les mêmes réglages et sans nouvel avertissement.`nContinuer : la calibration se poursuit sur cette disquette.`nArrêter : la calibration s'arrête, rien de plus n'est écrit.") }
+    }
+    if (-not $opt.Change -and $opt.Variant -ne 'restore') { $act = (@($act -split "`n") | Select-Object -Skip 1) -join "`n" }
+    $t += $pre + $act
+    $t += "`n`n" + (T "Pas de décision automatique : la calibration attend votre réponse. Fermer la fenêtre équivaut à « Arrêter ».")
+    return $t
+}
+
+function Get-CalibMediumCheck($tracks, [int[]]$cyls, [int]$bits, [int]$rpm) {
+    # 12.7 : vitesse du lecteur et densite relue a la passe 1 (champs IndexMs et NFlux de ScpRev, deja lus), toutes
+    # familles. En calibration, la cellule mesuree vaut duree du tour / cellules du motif : « cellule a +/- 10 % de celle
+    # du motif » (arbitrage 1) equivaut a « tour a +/- 10 % de 60 000 / tr/min ms ». Flux attendus par tour :
+    # CalFluxPerCell x cellules. Par piste : mediane des tours ; tour sans IndexMs positif (objets simules des tests) :
+    # ignore ; face sans piste mesuree : non jugee, absente de la ligne de journal (aucune ligne si aucune face).
+    $revMs = 60000.0 / [double]$rpm; $nfx = $script:CalFluxPerCell * [double]$bits
+    $res = @{ Faces = @{}; Gross = $false; Rot = $false; Flux = $false; Lines = @(); Log = $null; RevMs = $revMs }
+    $parts = @()
+    foreach ($h in 0, 1) {
+        $tr = @(); $fr = @(); $im = @()
+        foreach ($c in $cyls) {
+            $tn = [int]$c * 2 + $h
+            if (-not $tracks.ContainsKey($tn)) { continue }
+            $revs = @($tracks[$tn] | Where-Object { $null -ne $_ -and $null -ne $_.IndexMs -and [double]$_.IndexMs -gt 0 })
+            if ($revs.Count -eq 0) { continue }
+            $m = [double](Get-Median @($revs | ForEach-Object { [double]$_.IndexMs }))
+            $im += $m; $tr += $m / $revMs
+            $fr += [double](Get-Median @($revs | ForEach-Object { [double]$_.NFlux })) / $nfx
+        }
+        $n = $tr.Count
+        $f = @{ N = $n; RevMed = [double]::NaN; FluxMed = [double]::NaN; RotBad = 0; FluxBad = 0; RotGross = $false; FluxGross = $false }
+        if ($n -gt 0) {
+            $f.RevMed = [double](Get-Median $im); $f.FluxMed = [double](Get-Median $fr)
+            $f.RotBad = @($tr | Where-Object { [math]::Abs($_ - 1.0) -gt $script:CalSurfRotTol }).Count
+            $f.FluxBad = @($fr | Where-Object { [math]::Abs($_ - 1.0) -gt $script:CalSurfFluxTol }).Count
+            $need = [math]::Max(1, [int][math]::Ceiling($script:CalSurfGrossFrac * $n))
+            $f.RotGross = ($f.RotBad -ge $need); $f.FluxGross = ($f.FluxBad -ge $need)
+            $parts += ((T "face {0} : tour de {1} ms en médiane ({2} ms attendues), flux à {3} % du motif") -f "$h", (Format-UiNum $f.RevMed '0.00'), (Format-UiNum $revMs '0.#'), (Format-UiNum (100.0 * $f.FluxMed) '0.0'))
+            if ($f.RotGross) { $res.Rot = $true; $res.Lines += ((T "face {0} : tour de {1} ms en médiane au lieu de {2} ms ({3} piste(s) sur {4}) : lecteur à environ {5} tr/min, ce type de disquette en demande {6}") -f "$h", (Format-UiNum $f.RevMed '0.0'), (Format-UiNum $revMs '0.#'), "$($f.RotBad)", "$n", "$([int][math]::Round(60000.0 / $f.RevMed))", "$rpm") }
+            if ($f.FluxGross) { $res.Flux = $true; $res.Lines += ((T "face {0} : nombre de flux à {1} % de celui du motif en médiane ({2} piste(s) sur {3} à plus de {4} % d'écart) : la densité relue n'est pas celle du motif écrit") -f "$h", (Format-UiNum (100.0 * $f.FluxMed) '0'), "$($f.FluxBad)", "$n", (Format-UiNum (100.0 * $script:CalSurfFluxTol) '0')) }
+        }
+        $res.Faces[$h] = $f
+    }
+    $res.Gross = ($res.Rot -or $res.Flux)
+    if ($parts.Count -gt 0) { $res.Log = ((T "Contrôle de vitesse et de densité (passe 1) : {0}.") -f ($parts -join ' ; ')) }
+    return $res
+}
+
+function Test-CalibSurfaceGross($sf, $mc) {
+    # Arbitrage 1 de la 12.7 : defaut grossier de la disquette de calibration, qui ouvre la fenetre du controle de surface
+    # pendant la calibration ; une face suffit : au moins CalSurfGrossFrac de ses cylindres testes defectueux selon les
+    # regles de Get-CalibSurface (une face sans aucun tour mesurable en fait partie : toutes ses pistes sont illisibles),
+    # ou vitesse du lecteur ou densite relue hors tolerance (Get-CalibMediumCheck, arbitrage 10). Disquette douteuse
+    # sans defaut grossier : reserve au bilan (Format-CalibSurfaceReserve), sans fenetre pendant la calibration.
+    if ($mc -and $mc.Gross) { return $true }
+    foreach ($h in 0, 1) {
+        $f = $sf.Faces[$h]
+        if (-not $f -or [int]$f.N -le 0) { continue }
+        if (@($f.Bad).Count -ge [math]::Max(1, [int][math]::Ceiling($script:CalSurfGrossFrac * [int]$f.N))) { return $true }
+    }
+    return $false
+}
+
+function Test-CalibSpeedOnly($sf, $mc) {
+    # 12.7 : defaut grossier de la seule vitesse du lecteur (duree du tour hors tolerance, Get-CalibMediumCheck), sans face
+    # defectueuse au controle de surface : le lecteur est en cause, pas la disquette (addendum HD, § 4.4 : paragraphe de
+    # vitesse). Fenetre sans « Changer de disquette » ni paragraphe haute densite, verdicts qui nomment le lecteur
+    if (-not $mc -or -not $mc.Rot) { return $false }
+    if ($sf -and ($sf.Defective -or (Test-CalibSurfaceGross $sf $null))) { return $false }
+    return $true
+}
+
+function Format-CalibSurfaceVerdict($sf, $mc) {
+    # Resume d un defaut grossier (journal, bilan d une calibration poursuivie) : faces douteuses, puis vitesse du lecteur
+    # et densite relue hors tolerance
+    $p = @()
+    $s = Format-CalibSurfaceShort $sf; if ($s) { $p += $s }
+    if ($mc -and $mc.Rot) { $p += (T 'vitesse du lecteur différente de celle du type de disquette') }
+    if ($mc -and $mc.Flux) { $p += (T 'densité relue différente de celle du motif') }
+    return ($p -join ' ; ')
+}
+
+function Format-CalibSurfaceReserve($sf) {
+    # Arbitrage 1 de la 12.7 : reserve de la fenetre de decision pour une disquette douteuse sans defaut grossier (pistes
+    # defectueuses de la passe 1 par face et par nature ; intervalles hors classe sur toute une face)
+    $p = @(); $n = 0
+    foreach ($h in 0, 1) {
+        $f = $sf.Faces[$h]
+        if (-not $f) { continue }
+        if ($f.Noisy) { $p += ((T "face {0} : intervalles hors classe sur toute la face ({1} par tour en médiane)") -f "$h", (Format-UiNum $f.OocMed)) }
+        $b = @($f.Bad); $n += $b.Count
+        if ($b.Count) { $p += ((T "face {0} : {1}") -f "$h", (Get-CalibSurfaceReasons $b)) }
+    }
+    if ($n -eq 0) { return ((T "support : {0} à la première passe") -f ($p -join ' ; ')) }
+    return ((T "support : {0} piste(s) défectueuse(s) à la première passe ({1})") -f "$n", ($p -join ' ; '))
+}
+
+function Get-LevelSurface($tracks, $cal, [int]$rpm) {
+    # 12.7 point 5 : controle de surface (Get-CalibSurface) et de vitesse et de densite (Get-CalibMediumCheck) de la
+    # premiere passe de la calibration rapide, chaque face sur ses cylindres ecrits a cette passe (cibles de ses unites :
+    # cylindres de niveau, temoins de marche et du plafond ; courbe commune : memes cylindres pour les deux faces). Les
+    # deux fonctions jugent chaque face a part : appel par face quand les cylindres different (pistes de la seule face
+    # pour Get-CalibMediumCheck : une ligne de vitesse par face). Renvoie @{ Surf ; Medium ; Logs }.
+    $cy = @{ 0 = @{}; 1 = @{} }
+    foreach ($u in @($cal.Units)) {
+        $hs = if ($null -eq $u.Head) { @(0, 1) } else { @([int]$u.Head) }
+        foreach ($c in @($u.LTarget.Keys)) { foreach ($h in $hs) { $cy[$h][[int]$c] = $true } }
+    }
+    $c0 = [int[]]@($cy[0].Keys | Sort-Object); $c1 = [int[]]@($cy[1].Keys | Sort-Object)
+    $bits = [int]$cal.PatternBits
+    if (($c0 -join ',') -eq ($c1 -join ',')) {
+        $mc = Get-CalibMediumCheck $tracks $c0 $bits $rpm
+        return @{ Surf = (Get-CalibSurface $tracks $c0); Medium = $mc; Logs = @($(if ($mc.Log) { $mc.Log })) }
+    }
+    $sf = @{ Faces = @{}; Bad = @(); Defective = $false; Why = @() }
+    $mc = @{ Faces = @{}; Gross = $false; Rot = $false; Flux = $false; Lines = @(); Log = $null; RevMs = 60000.0 / [double]$rpm }
+    $logs = @()
+    foreach ($h in 0, 1) {
+        $cs = if ($h -eq 0) { $c0 } else { $c1 }
+        $f = (Get-CalibSurface $tracks $cs).Faces[$h]
+        $sf.Faces[$h] = $f; $sf.Bad += @($f.Bad)
+        if ($f.Defective) { $sf.Defective = $true; $sf.Why += $h }
+        $th = @{}; foreach ($c in $cs) { $tn = [int]$c * 2 + $h; if ($tracks.ContainsKey($tn)) { $th[$tn] = $tracks[$tn] } }
+        $m1 = Get-CalibMediumCheck $th $cs $bits $rpm
+        $mc.Faces[$h] = $m1.Faces[$h]
+        if ($m1.Rot) { $mc.Rot = $true }
+        if ($m1.Flux) { $mc.Flux = $true }
+        $mc.Lines += @($m1.Lines)
+        if ($m1.Log) { $logs += $m1.Log }
+    }
+    $mc.Gross = ($mc.Rot -or $mc.Flux)
+    return @{ Surf = $sf; Medium = $mc; Logs = $logs }
+}
+
+function Get-LevelSurfaceText($sf, $mc, [bool]$restore, [bool]$spd, [string[]]$notes) {
+    # 12.7 point 5 : texte de la fenetre « Disquette a ecrire defectueuse » : synthese par face (compteurs du journal),
+    # vitesse et densite relue, risque, conseil de nettoyage (arbitrage 14), choix, absence de decision automatique
+    $t = if ($spd) { (T 'Le lecteur ne tourne pas à la vitesse de ce type de disquette. La première passe de la mesure du niveau, où le motif de test est écrit sur les cylindres mesurés puis relu sur 3 tours, a trouvé :') }
+         else { (T 'La disquette à écrire semble défectueuse. La première passe de la mesure du niveau, où le motif de test est écrit sur les cylindres mesurés puis relu sur 3 tours, a trouvé :') }
+    foreach ($x in (Get-CalibSurfaceFaceLines $sf)) { $t += "`n  - " + $x }
+    foreach ($x in @($mc.Lines)) { if ($x) { $t += "`n  - " + $x } }
+    if ($spd) { $t += "`n" } else { $t += "`n`n" + (T "Sur une telle disquette, l'image risque d'être mal écrite et mal relue.") }
+    foreach ($x in @($notes)) { if ($x) { $t += "`n" + $x } }
+    if (Test-CalibCleanHint $sf $mc $false) { $t += "`n" + (T "Des trous de signal sur les deux faces viennent souvent de têtes sales : nettoyez-les (carte « Nettoyer les têtes du lecteur » de l'Accueil), puis recommencez.") }
+    # Restauration, defaut de vitesse seul (arbitrage 12) : une autre disquette de destination n y changerait rien
+    $t += "`n`n" + $(if ($restore -and $spd) { (T "Écrire quand même : la mesure du niveau se poursuit, puis la copie est écrite sur cette disquette.`nArrêter : la restauration s'arrête.") }
+                     elseif ($restore) { (T "Écrire quand même : la mesure du niveau se poursuit, puis la copie est écrite sur cette disquette.`nArrêter : la restauration s'arrête ; relancez-la avec une autre disquette de destination.") }
+                     else { (T "Écrire quand même : la mesure du niveau se poursuit, puis l'image est écrite sur cette disquette.`nArrêter : rien de plus n'est écrit, l'image n'est pas écrite.") })
+    $t += "`n`n" + (T "Pas de décision automatique : l'écriture attend votre réponse. Fermer la fenêtre équivaut à « Arrêter ».")
+    return $t
+}
+
+function Invoke-LevelSurface($cal, $tracks) {
+    # 12.7 point 5 : etat de la surface de la disquette sur la relecture de la premiere passe de la calibration rapide
+    # (regles du controle de surface du point 1, cylindres mesures : Get-LevelSurface). Bilan par face toujours au
+    # journal. Defaut grossier (arbitrage 1 ; vitesse et densite : arbitrage 10) avant une ecriture : fenetre bloquante sans
+    # compte a rebours (Show-CalibSurface, variante 'level' : « Ecrire quand meme », « Arreter », fermeture = Arreter),
+    # avant l ecriture de l image ; defaut modere, ou defaut grossier d une calibration rapide sans ecriture : journal, et
+    # reserve de la fenetre de decision si elle s ouvre (Complete-LevelCalib). Renvoie $false si l ecriture est arretee.
+    $cal.SurfDone = $true
+    $rpm = if ($cal.Rpm) { [int]$cal.Rpm } else { 300 }
+    $r = Get-LevelSurface $tracks $cal $rpm
+    $sf = $r.Surf; $mc = $r.Medium
+    $gross = Test-CalibSurfaceGross $sf $mc
+    $cal.Surf = $sf; $cal.Medium = $mc; $cal.SurfGross = $gross
+    Append-Log ((T 'Contrôle de surface de la disquette (calibration rapide, passe 1, cylindres mesurés seulement) : {0}.') -f ((Get-CalibSurfaceFaceLines $sf) -join ' ; '))
+    foreach ($l in @($r.Logs)) { Append-Log $l }
+    $verdict = Format-CalibSurfaceVerdict $sf $mc
+    # Decision 3 de decisions127-p5.md : liste « Calibration precomp » au test rapide (index 2 ; en restauration, celle d avant
+    # la restauration) : chemins de la 12.6, sans fenetre ; journal et reserve seulement
+    $cm = if ($script:Restore -and $script:Restore.Saved) { [int]$script:Restore.Saved.CalMode } else { [int]$cmbWCalMode.SelectedIndex }
+    if ($gross -and $script:AfterCalib -eq 'write' -and $cm -ne 2) {
+        # Arbitrage 12 : defaut de vitesse seul : journal et titre qui ne mettent pas la disquette en cause
+        $spd = Test-CalibSpeedOnly $sf $mc
+        if ($spd) { Append-Log ((T 'Contrôle de vitesse et de densité : {0} : décision demandée.') -f "$verdict") }
+        else { Append-Log ((T 'Contrôle de surface : disquette à écrire défectueuse ({0}) : décision demandée.') -f "$verdict") }
+        $notes = @()
+        if ($mc.Rot) { $notes += (T "Vitesse du lecteur différente de celle du type de disquette : un format à 300 tr/min demande un lecteur à 300 tr/min (3,5 pouces, ou 5,25 pouces double densité), un format à 360 tr/min un lecteur à 360 tr/min (5,25 pouces haute densité, ou 3,5 pouces réglé à 360 tr/min). Changer de disquette n'y change rien.") }
+        $opt = @{ Change = $false; SwapBox = $false; Variant = 'level'; Title = $(if ($spd) { (T 'Contrôle de surface') } else { (T 'Disquette à écrire défectueuse') }); GoText = (T 'Écrire quand même') }
+        $txt = Get-LevelSurfaceText $sf $mc ([bool]$script:Restore) $spd $notes
+        $cal.Hold = $true; Update-CalibProgress; if ($cal.Home) { Update-HomeCalibCard }
+        if ($script:Restore) { $script:Restore.InCall = $true }
+        try { $ch = Show-CalibSurface $opt $txt }
+        finally { $cal.Hold = $false; if ($script:Restore) { $script:Restore.InCall = $false; $script:Restore.Idle = Get-Date } }
+        if ($ch.Choice -ne 'continue') {
+            Append-Log (T "Contrôle de surface : écriture arrêtée à votre demande, l'image n'est pas écrite.")
+            Stop-PrecompCalib; return $false
+        }
+        $cal.SurfKept = $true
+        Append-Log (T 'Contrôle de surface : écriture poursuivie sur cette disquette à votre demande.')
+        return $true
+    }
+    if ($gross -or $sf.Defective) { Append-Log ((T "Contrôle de surface : disquette douteuse ({0}) ; la calibration rapide continue, avec une réserve si la fenêtre de décision s'ouvre.") -f "$verdict") }
+    elseif (@($sf.Bad).Count) {
+        $p = @(); foreach ($h in 0, 1) { $b = @($sf.Faces[$h].Bad); if ($b.Count) { $p += ((T "face {0} : {1}") -f "$h", (Get-CalibSurfaceReasons $b)) } }
+        Append-Log ((T 'Contrôle de surface : défaut ponctuel de la disquette ({0}) ; la calibration rapide continue.') -f ($p -join ' ; '))
+    }
+    return $true
+}
+
 function Invoke-CalibAnalysis {
     $cal = $script:Cal
     if (-not $cal) { return }
@@ -8867,7 +10530,7 @@ function Invoke-CalibAnalysis {
         if ($cal.Stage -eq 'level' -and $u.Done) { continue }
         # Moyenne des deux faces (profil commun) ou face de l unite seule (ecriture lente) ; erreur-type combinee
         $heads = if ($null -eq $u.Head) { @(0, 1) } else { @([int]$u.Head) }
-        $shifts = @(); $scores = @(); $bad = @()
+        $shifts = @(); $scores = @(); $bad = @(); $one = @()
         if ($cal.Stage -eq 'verify' -and $null -ne $u.VerifyList) {
             # Verification ciblee : la mesure de la passe precedente, prise a l ancienne valeur, ne vaut plus pour ces
             # cylindres ; non relus a cette passe, ils restent « non relus » (jamais juges sur un residu perime)
@@ -8885,14 +10548,17 @@ function Invoke-CalibAnalysis {
             if ($cal.Stage -eq 'verify' -and $null -ne $u.VerifyList -and @($u.VerifyList) -notcontains [int]$c) { continue }
             if ($cal.Stage -eq 'level' -and -not $u.LTarget.ContainsKey([int]$c)) { continue }
             if ($null -ne $u.Writes) { $u.Writes[[int]$c] = 1 + [int]$u.Writes[[int]$c] }   # piste ecrite a cette passe
-            $sv = @(); $ev = @(); $jv = @()
+            $sv = @(); $ev = @(); $jv = @(); $fm = @{}; $miss = @()
             foreach ($h in $heads) {
                 $tn = [int]$c * 2 + $h
-                if (-not $tracks.ContainsKey($tn)) { continue }
-                $m = Get-CalibTrackMeasure $tracks[$tn]; if ($m) { $sv += $m.Shift; $ev += $m.SE }
+                if (-not $tracks.ContainsKey($tn)) { $miss += $h; continue }
+                $m = Get-CalibTrackMeasure $tracks[$tn]; if ($m) { $sv += $m.Shift; $ev += $m.SE; $fm[[int]$h] = $m } else { $miss += $h }
                 $j = Get-CalibTrackScore $tracks[$tn]; if ($j -lt 9999) { $jv += $j }
             }
             if ($sv.Count -eq 0) { $bad += $c; continue }
+            # 12.7 : courbe commune mesuree sur une seule face a cette passe (l autre illisible) : valeur inchangee (celle de la
+            # face lue), signalee sur la ligne de la passe et au bilan
+            if ($heads.Count -gt 1 -and $miss.Count -eq 1) { $one += ,@([int]$c, [int]$miss[0]); $u.OneFace["$c|$($miss[0])"] = $true }
             $sh = ($sv | Measure-Object -Average).Average
             $se = [double]::NaN
             if (@($ev | Where-Object { [double]::IsNaN([double]$_) }).Count -eq 0) { $q = 0.0; foreach ($x in $ev) { $q += $x * $x }; $se = [math]::Sqrt($q) / $ev.Count }
@@ -8904,6 +10570,17 @@ function Invoke-CalibAnalysis {
                 'densify' { Add-CalibPoint $u.Results[[int]$c] ([int]$u.Dense[[int]$c]) $meas }
                 'level'   { Add-CalibPoint $u.Results[[int]$c] ([int]$u.LTarget[[int]$c]) $meas }
                 default   { $u.Verify[[int]$c] = $meas; $u.VerifyP[[int]$c] = Get-SpecValue $u.Profile ([int]$c) }
+            }
+            # 12.7 : mesures des passes de mesure gardees par face (comparaison de deux calibrations, Get-FaceEstimates) ;
+            # sans effet sur la courbe
+            $xw = $null
+            if ($cal.Stage -eq 'coarse') { $xw = [int]$cal.Value } elseif ($cal.Stage -eq 'bracket') { $xw = [int]$u.Bracket[[int]$c] } elseif ($cal.Stage -eq 'densify') { $xw = [int]$u.Dense[[int]$c] }
+            if ($null -ne $xw) {
+                foreach ($h in @($fm.Keys)) {
+                    if (-not $u.Face.ContainsKey($h)) { $u.Face[$h] = @{} }
+                    if (-not $u.Face[$h].ContainsKey([int]$c)) { $u.Face[$h][[int]$c] = @{} }
+                    Add-CalibPoint $u.Face[$h][[int]$c] $xw @{ Shift = [double]$fm[$h].Shift; SE = $fm[$h].SE; Score = [double]::NaN }
+                }
             }
             $shifts += $sh; if (-not [double]::IsNaN($jt)) { $scores += $jt }
         }
@@ -8917,16 +10594,67 @@ function Invoke-CalibAnalysis {
             }
         }
         $badTxt = if ($bad.Count -gt 0) { ((T ", illisibles : {0}") -f "$($bad -join ',')") } else { '' }
+        $oneTxt = ''
+        foreach ($hm in @($one | ForEach-Object { $_[1] } | Sort-Object -Unique)) { $oneTxt += (T ", mesurés sans la face {0} : {1}") -f "$hm", (Format-CylList ([int[]]@($one | Where-Object { $_[1] -eq $hm } | ForEach-Object { $_[0] }))) }
         if ($shifts.Count -gt 0) {
             $st = $shifts | Measure-Object -Average -Minimum -Maximum
             $scTxt = if ($scores.Count -gt 0) { "$([math]::Round(($scores | Measure-Object -Average).Average, 0))" } else { '-' }
-            Append-Log ((T "  {0} : décalage résiduel moyen {1} ns (de {2} à {3}), score jitter moyen {4}, {5} cylindre(s){6}") -f "$($u.Prefix)$($cal.ValueTxt)", (Format-LevelNum $st.Average), (Format-LevelNum $st.Minimum), (Format-LevelNum $st.Maximum), "$scTxt", "$($shifts.Count)", "$badTxt")
+            Append-Log ((T "  {0} : décalage résiduel moyen {1} ns (de {2} à {3}), score jitter moyen {4}, {5} cylindre(s){6}") -f "$($u.Prefix)$($cal.ValueTxt)", (Format-LevelNum $st.Average), (Format-LevelNum $st.Minimum), (Format-LevelNum $st.Maximum), "$scTxt", "$($shifts.Count)", "$badTxt$oneTxt")
         } elseif (($cal.Stage -ne 'bracket' -or $u.Bracket.Count -gt 0) -and ($cal.Stage -ne 'densify' -or $u.Dense.Count -gt 0) -and ($cal.Stage -ne 'verify' -or $null -eq $u.VerifyList -or @($u.VerifyList).Count -gt 0)) {
-            Append-Log ((T "  {0} : aucun cylindre mesurable{1}") -f "$($u.Prefix)$($cal.ValueTxt)", "$badTxt")
+            Append-Log ((T "  {0} : aucun cylindre mesurable{1}") -f "$($u.Prefix)$($cal.ValueTxt)", "$badTxt$oneTxt")
         }
     }
-    if ($cal.Stage -eq 'level') { Invoke-LevelStep $cal; return }
+    if ($cal.Stage -eq 'level') { Invoke-LevelStep $cal $tracks; return }
     if ($cal.Stage -eq 'coarse') {
+        # 12.7 : controle de surface de la disquette de calibration sur la relecture de la passe 1 (motif ecrit a 0 ns, 3 tours),
+        # avec la vitesse du lecteur et la densite relue : bilan au journal a chaque calibration. Defaut grossier
+        # (arbitrage 1) : fenetre sans compte a rebours (Show-CalibSurface) ; disquette douteuse sans defaut grossier :
+        # reserve de la fenetre de decision (Complete-PrecompCalib), sans fenetre pendant la calibration
+        if ([int]$cal.Index -eq 0 -and -not $cal.SurfDone) {
+            $cal.SurfDone = $true
+            $std = ([string]$cal.Mode -eq 'std')
+            $rpm = if ($cal.Rpm) { [int]$cal.Rpm } else { 300 }
+            $sf = Get-CalibSurface $tracks ([int[]]$cal.Cyls)
+            $mc = Get-CalibMediumCheck $tracks ([int[]]$cal.Cyls) ([int]$cal.PatternBits) $rpm
+            $gross = Test-CalibSurfaceGross $sf $mc
+            $cal.Surf = $sf; $cal.Medium = $mc; $cal.SurfGross = $gross
+            # Format-CalibSurfaceLog rend son tableau de lignes protege (operateur virgule) : pas de @() autour
+            foreach ($l in (Format-CalibSurfaceLog $sf $std $(if ($gross) { 'none' } else { 'reserve' }))) { Append-Log $l }
+            if ($mc.Log) { Append-Log $mc.Log }
+            # Haute densite : decalage hors de la plage de mesure a la premiere passe (addendum HD de la 12.7)
+            $hdFam = (@('hd', 'hd360') -contains [string]$cal.Family)
+            if ($hdFam) {
+                $lim = $script:CalHdShiftCells * 60000000000.0 / ([double]$rpm * [double]$cal.PatternBits)
+                $oc = @()
+                foreach ($c in $cal.Cyls) { foreach ($h in 0, 1) { $tn = [int]$c * 2 + $h; if ($tracks.ContainsKey($tn)) { $m = Get-CalibTrackMeasure $tracks[$tn]; if ($m -and [math]::Abs([double]$m.Shift) -gt $lim) { $oc += [int]$c } } } }
+                if ($oc.Count) { Append-Log ((T "Haute densité : décalage de plus de {0} ns à la première passe (précompensation nulle) aux cylindres {1} : la mesure y sort de sa plage de validité (0,2 cellule) et sous-estime le besoin, qui dépasse probablement la borne de {2} ns.") -f (Format-UiNum $lim '0'), (Format-CylList ([int[]]@($oc | Sort-Object -Unique))), "$($script:CalHardNs)") }
+            }
+            if ($gross) {
+                # 12.7 : defaut de vitesse seul : lecteur en cause, pas la disquette (Test-CalibSpeedOnly)
+                $spd = Test-CalibSpeedOnly $sf $mc
+                $notes = @()
+                if ($mc.Rot) { $notes += (T "Vitesse du lecteur différente de celle du type de disquette : un format à 300 tr/min demande un lecteur à 300 tr/min (3,5 pouces, ou 5,25 pouces double densité), un format à 360 tr/min un lecteur à 360 tr/min (5,25 pouces haute densité, ou 3,5 pouces réglé à 360 tr/min). Changer de disquette n'y change rien.") }
+                if ($hdFam -and -not $spd) { $notes += (T "En haute densité, ce résultat vient le plus souvent d'une disquette double densité (sans trou de densité), d'un lecteur sans mode haute densité, ou d'un lecteur resté en double densité (option « Densel » de l'onglet Écriture, pour un lecteur qui suit la broche 2). Utilisez une disquette haute densité sacrifiée dans un lecteur haute densité.") }
+                if ($spd) { Append-Log ((T 'Contrôle de vitesse et de densité : {0} : décision demandée.') -f (Format-CalibSurfaceVerdict $sf $mc)) }
+                else { Append-Log ((T "Contrôle de surface : disquette de calibration douteuse ({0}) : décision demandée.") -f (Format-CalibSurfaceVerdict $sf $mc)) }
+                $redo = [bool]($script:CalRedo -and $script:CalRedo.Stage -eq 'running')
+                $opt = Get-CalibSurfaceOptions ([bool]$script:Restore) $redo ($script:AfterCalib -eq 'write') ([bool]$cal.Swap)
+                if ($spd) { $opt.Speed = $true; $opt.Change = $false; $opt.SwapBox = $false }
+                $txt = Get-CalibSurfaceText $sf $opt $std ([bool]$cal.AutoStart) -Extra @($mc.Lines) -Notes @($notes) -Medium $mc -Hd $hdFam
+                $cal.Hold = $true; Update-CalibProgress; if ($cal.Home) { Update-HomeCalibCard }
+                if ($script:Restore) { $script:Restore.InCall = $true }
+                try { $ch = Show-CalibSurface $opt $txt }
+                finally { $cal.Hold = $false; if ($script:Restore) { $script:Restore.InCall = $false; $script:Restore.Idle = Get-Date } }
+                if ($ch.Choice -eq 'change') { Restart-PrecompCalib $cal ([bool]$ch.Swap); return }
+                if ($ch.Choice -eq 'stop') {
+                    if ($redo) { $script:CalRedo.Why = $(if ($spd) { (T 'vitesse du lecteur différente de celle du type de disquette') } else { (T 'disquette B défectueuse au contrôle de surface') }) }
+                    Append-Log (T "Contrôle de surface : calibration arrêtée à votre demande, rien de plus n'est écrit.")
+                    Stop-PrecompCalib; return
+                }
+                $cal.SurfKept = $true
+                Append-Log (T 'Contrôle de surface : calibration poursuivie sur cette disquette à votre demande.')
+            }
+        }
         $cal.Index++
         if ($cal.Index -lt $cal.Values.Count) { New-CalibPass; return }
         foreach ($u in $cal.Units) {
@@ -8943,7 +10671,7 @@ function Invoke-CalibAnalysis {
                 $pts = $u.Results[[int]$c]
                 $top = [int](@($pts.Keys | ForEach-Object { [int]$_ }) | Measure-Object -Maximum).Maximum
                 if ($u.Kind[[int]$c] -ne 'interp' -and [double]$pts[$top].Shift -gt 0 -and $top -lt $script:CalMaxNs) {
-                    $u.Bracket[[int]$c] = [int][math]::Min($script:CalMaxNs, [math]::Max($top + 40, [math]::Round([double]$u.Est[[int]$c] + $script:CalBracketMargin)))
+                    $u.Bracket[[int]$c] = [int][math]::Min($script:CalMaxNs, [math]::Max($top + $script:CalBracketStep, [math]::Round([double]$u.Est[[int]$c] + $script:CalBracketMargin)))
                     $need = $true
                 }
             }
@@ -9057,13 +10785,19 @@ function Complete-PrecompCalib {
     $lblWCal.Text = ((T "Calibration terminée en {0}") -f (Format-CalDuration $elapsedTotal))
     if (@($cal.Units | Where-Object { -not $_.Profile -or -not $_.Fit }).Count -gt 0) {
         Append-Log (T 'Calibration precomp : aucune mesure exploitable, profil inchangé.')
+        Set-HomeProgDone $cal 'stop' (T 'Calibration precomp : aucune mesure exploitable, profil inchangé.')
         if ($script:AfterCalib) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : calibration sans mesure exploitable.') }
         if ($script:Restore) { Stop-Restore (T 'calibration sans mesure exploitable') }
+        # 12.7 point 2 : calibration B sans mesure exploitable : decision sur la courbe A seule, ouverte tout de suite
+        if ($script:CalRedo -and $script:CalRedo.Stage -eq 'running') { $script:CalRedo.Stage = 'interrupted'; $script:CalRedo.Why = (T 'aucune mesure exploitable'); Resume-CalibRedo }
         return
     }
     $famTxt = Get-CalibFamilyName $cal.Family
     $allConv = $true; $anySat = $false; $anyCeil = $false
     $issues = New-Object System.Collections.Generic.List[string]
+    # 12.7 : nature de chaque reserve, tenue en parallele de $issues (drift, contra, contra-nodrift, nonconv, sat, floor,
+    # dev, surface) : reserves liees au support (« Refaire sur une autre disquette », point 2)
+    $kinds = New-Object System.Collections.Generic.List[string]
     foreach ($u in $cal.Units) {
         if ($u.Verify.Count -gt 0) {
             $resTxt = (@($u.Verify.Keys | Sort-Object | ForEach-Object { "c$_=$('{0:+0.0;-0.0;0.0}' -f [double]$u.Verify[$_].Shift)" + $(if (@($u.Outliers) -contains [int]$_) { " ($(Get-KindName 'outlier'))" } else { '' }) })) -join ' '
@@ -9083,7 +10817,7 @@ function Complete-PrecompCalib {
             $lt += (T " Les résidus des cylindres relus à la dernière vérification sont jugés sans ce décalage ; les témoins, inchangés, sur leur mesure précédente, sauf ceux d'un écart systématique, jugés sur leur relecture.")
             Append-Log ($u.Prefix + $lt)
             # Derive forte : retiree du jugement, mais signalee (lecteur ou support instable d une passe a l autre)
-            if ([math]::Abs([double]$dft.D) -gt 2.0 * [double]$script:CalResidual) { $issues.Add($u.Prefix + ((T "dérive du lecteur de {0} ns entre deux vérifications (lecteur ou support instable ?)") -f ('{0:+0.0;-0.0;0.0}' -f [double]$dft.D))) }
+            if ([math]::Abs([double]$dft.D) -gt 2.0 * [double]$script:CalResidual) { $issues.Add($u.Prefix + ((T "dérive du lecteur de {0} ns entre deux vérifications (lecteur ou support instable ?)") -f ('{0:+0.0;-0.0;0.0}' -f [double]$dft.D))); $kinds.Add('drift') }
         }
         elseif (@($u.Witness).Count -gt 0 -and $u.VerifyPrev.Count -gt 0) {
             Append-Log ($u.Prefix + ((T "Dérive du lecteur non mesurée : {0} témoin(s) exploitable(s) sur {1}, {2} au moins nécessaires ; résidus jugés sans correction de dérive, témoins sur leur mesure précédente.") -f "$($dft.NW)", "$(@($u.Witness).Count)", "$([int]$u.WitMin)"))
@@ -9100,8 +10834,8 @@ function Complete-PrecompCalib {
             $em = [double](@($cn | ForEach-Object { [double]$dft.Contra[$_].E }) | Measure-Object -Maximum).Maximum
             $cl = Format-CylList $cn
             Append-Log ($u.Prefix + ((T "Zone non reproductible d'une vérification à l'autre aux cylindres {0} : les deux vérifications placent le besoin de part et d'autre de la valeur écrite. La courbe y prend la médiane des passes de mesure et des deux vérifications, dans l'intervalle des deux valeurs écrites et sans dépasser les cylindres vérifiés voisins (écart entre les vérifications jusqu'à {1} ns de précompensation).") -f "$cl", (Format-LevelNum $em)))
-            if ($em -gt [double]$script:CalContraMaxNs) { $issues.Add($u.Prefix + ((T "vérifications contradictoires aux cylindres {0} (écart jusqu'à {1} ns : lecteur ou support instable ?)") -f "$cl", (Format-LevelNum $em))) }
-            elseif (-not $dft.Use) { $issues.Add($u.Prefix + ((T "vérifications contradictoires aux cylindres {0} sans mesure de la dérive du lecteur (écart jusqu'à {1} ns : dérive du lecteur ou zone non reproductible ?)") -f "$cl", (Format-LevelNum $em))) }
+            if ($em -gt [double]$script:CalContraMaxNs) { $issues.Add($u.Prefix + ((T "vérifications contradictoires aux cylindres {0} (écart jusqu'à {1} ns : lecteur ou support instable ?)") -f "$cl", (Format-LevelNum $em))); $kinds.Add('contra') }
+            elseif (-not $dft.Use) { $issues.Add($u.Prefix + ((T "vérifications contradictoires aux cylindres {0} sans mesure de la dérive du lecteur (écart jusqu'à {1} ns : dérive du lecteur ou zone non reproductible ?)") -f "$cl", (Format-LevelNum $em))); $kinds.Add('contra-nodrift') }
         }
         # Filet du lissage de la zone : cylindre verifie hors zone deplace malgre tout (test standard : cylindre interpole
         # entre la zone et lui), sans nouvelle mesure ; son residu n est pas enregistre
@@ -9118,10 +10852,10 @@ function Complete-PrecompCalib {
         if (@($u.Warn.Spot).Count -gt 0) {
             Append-Log ($u.Prefix + ((T "Écarts locaux non retenus : {0}. Hors tolérance, mais sous les seuils ci-dessus : ces écarts ne sont pas corrigés.") -f (@($u.Warn.Spot) -join ', ')))
         }
-        if ($u.Warn.NonConv.Count -gt 0) { $issues.Add($u.Prefix + ((T "non convergée aux cylindres {0}") -f ($u.Warn.NonConv -join ', '))) }
-        if ($u.Warn.Sat.Count -gt 0) { $issues.Add($u.Prefix + ((T "plafond de {0} ns atteint aux cylindres {1} (support fatigué ?)") -f "$($script:CalHardNs)", ($u.Warn.Sat -join ', '))) }
-        if ($u.Warn.Floor.Count -gt 0) { $issues.Add($u.Prefix + ((T "précompensation nulle encore excessive aux cylindres {0}") -f ($u.Warn.Floor -join ', '))) }
-        if ($u.Warn.Dev.Count -gt 0) { $issues.Add($u.Prefix + ((T "courbe éloignée des mesures (courbe moins mesure) : {0}") -f ($u.Warn.Dev -join ', '))) }
+        if ($u.Warn.NonConv.Count -gt 0) { $issues.Add($u.Prefix + ((T "non convergée aux cylindres {0}") -f ($u.Warn.NonConv -join ', '))); $kinds.Add('nonconv') }
+        if ($u.Warn.Sat.Count -gt 0) { $issues.Add($u.Prefix + ((T "plafond de {0} ns atteint aux cylindres {1} (support fatigué ?)") -f "$($script:CalHardNs)", ($u.Warn.Sat -join ', '))); $kinds.Add('sat') }
+        if ($u.Warn.Floor.Count -gt 0) { $issues.Add($u.Prefix + ((T "précompensation nulle encore excessive aux cylindres {0}") -f ($u.Warn.Floor -join ', '))); $kinds.Add('floor') }
+        if ($u.Warn.Dev.Count -gt 0) { $issues.Add($u.Prefix + ((T "courbe éloignée des mesures (courbe moins mesure) : {0}") -f ($u.Warn.Dev -join ', '))); $kinds.Add('dev') }
         if ($u.Warn.NonConv.Count -gt 0) {
             $allConv = $false
             Append-Log ($u.Prefix + ((T "Calibration non convergée aux cylindres {0} : résidu hors tolérance après la dernière vérification, la courbe ne suit pas la mesure à ces cylindres. Refaire la calibration en test fin, ou sur une autre disquette sacrifiée.") -f ($u.Warn.NonConv -join ', ')))
@@ -9144,7 +10878,7 @@ function Complete-PrecompCalib {
         $bk = @($u.Warn.Breaks)
         if ($bk.Count -ge 2) { Append-Log ($u.Prefix + ((T "Changement de sens du besoin entre c{0} et c{1} : courbe monotone par segments. La même signature sur une autre disquette désigne le lecteur, sinon le support.") -f "$($bk[0])", "$($bk[1])")) }
         elseif ($bk.Count -eq 1) { Append-Log ($u.Prefix + ((T "Le besoin redescend à partir de c{0} : courbe monotone par segments. La même signature sur une autre disquette désigne le lecteur, sinon le support.") -f "$($bk[0])")) }
-        if ($u.Warn.Dev.Count -gt 0) { Append-Log ($u.Prefix + ((T "Écart à la courbe de plus de 15 ns et de trois incertitudes (courbe moins mesure) : {0}.") -f ($u.Warn.Dev -join ', '))) }
+        if ($u.Warn.Dev.Count -gt 0) { Append-Log ($u.Prefix + ((T "Écart à la courbe de plus de {1} ns et de trois incertitudes (courbe moins mesure) : {0}.") -f ($u.Warn.Dev -join ', '), (Format-UiNum $script:CalDevNs))) }
         # Calibration precedente du meme lecteur (encore en memoire, remplacee plus bas) : la forme de la courbe tient au
         # lecteur, son niveau au support ; un ecart net, ou un plafond nouveau, designe le support de calibration
         $pkey = if ($null -eq $u.Head) { $cal.Family } else { "$($cal.Family)_h$($u.Head)" }
@@ -9161,9 +10895,9 @@ function Complete-PrecompCalib {
                 if ($u.Warn.Sat.Count -gt 0 -and $ptop -lt $pmax) {
                     Append-Log ($u.Prefix + (T "Plafond atteint alors que la calibration précédente du même lecteur ne l'atteignait pas : support de calibration probablement fatigué (sinon têtes à nettoyer, ou autre lecteur sous la même lettre)."))
                 }
-                # Besoin au-dela du plafond des mesures : signale seulement une hausse nette (plus de 15 ns sur le maximum
-                # des cylindres communs), pas une courbe qui passe de 298 a 305 ns
-                elseif (@($u.Warn.Beyond).Count -gt 0 -and $ptop -le $script:CalMaxNs -and $ptop -lt $pmax -and [int](@($nv[0..($nn - 1)]) | Measure-Object -Maximum).Maximum - $ptop -gt 15) {
+                # Besoin au-dela du plafond des mesures : signale seulement une hausse nette (plus de CalDevNs, 15 ns en double
+                # densite, sur le maximum des cylindres communs), pas une courbe qui passe de 298 a 305 ns
+                elseif (@($u.Warn.Beyond).Count -gt 0 -and $ptop -le $script:CalMaxNs -and $ptop -lt $pmax -and [int](@($nv[0..($nn - 1)]) | Measure-Object -Maximum).Maximum - $ptop -gt $script:CalDevNs) {
                     Append-Log ($u.Prefix + ((T "Besoin au-delà de {0} ns alors que la calibration précédente du même lecteur ne dépassait pas cette valeur : support de calibration probablement fatigué (sinon têtes à nettoyer, ou autre lecteur sous la même lettre).") -f "$($script:CalMaxNs)"))
                 }
             }
@@ -9185,19 +10919,43 @@ function Complete-PrecompCalib {
                 Append-Log ($u.Prefix + ((T "Forme comparée à la calibration précédente du lecteur {0} ({1}), sur {2} cylindres mesurés par les deux : niveau {3} ns, écart de forme {4} ns (au plus {5} ns, à c{6}).") -f "$($cal.Drive)", "$($prev.Date)", "$($dd2.Count)", ('{0:+0;-0;0}' -f [math]::Round($mv, 0)), ('{0:0.#}' -f [math]::Round($sdv, 1)), ('{0:+0;-0;0}' -f [math]::Round($dd2[$wc] - $mv, 0)), "$wc"))
             }
         }
+        # 12.7 : courbe commune mesuree sur une seule face a au moins une passe (valeur de l autre face, ecart des tetes non compense)
+        if ($null -eq $u.Head -and $u.OneFace -and $u.OneFace.Count -gt 0) {
+            foreach ($hm in 0, 1) {
+                $oc = [int[]]@(@($u.OneFace.Keys) | Where-Object { $_ -like "*|$hm" } | ForEach-Object { [int](($_ -split '\|')[0]) } | Sort-Object -Unique)
+                if ($oc.Count) { Append-Log ($u.Prefix + ((T "Cylindres mesurés sans la face {0} à au moins une passe : {1}. En courbe commune, leur valeur vient de l'autre face seule : l'écart entre les têtes n'y est pas compensé. Refaire la calibration en écriture lente (une courbe par tête), ou sur une autre disquette.") -f "$hm", (Format-CylList $oc))) }
+            }
+        }
         if ($u.Warn.Extrap.Count + $u.Warn.Cap.Count -gt 0) {
             Append-Log ($u.Prefix + ((T "Valeurs peu fiables : {0} extrapolée(s) au-delà des mesures ({1}), {2} plafonnée(s) à 0 ou {3} ns ({4}).") -f "$($u.Warn.Extrap.Count)", ($(if ($u.Warn.Extrap.Count) { $u.Warn.Extrap -join ',' } else { '-' })), "$($u.Warn.Cap.Count)", "$($script:CalHardNs)", ($(if ($u.Warn.Cap.Count) { $u.Warn.Cap -join ',' } else { '-' }))))
         }
     }
+    # 12.7 : controle de surface de la passe 1. Defaut grossier, calibration poursuivie a la demande de l utilisateur :
+    # journal, et reserve si la fenetre de decision s ouvre pour une autre raison. Disquette douteuse sans defaut grossier
+    # (arbitrage 1) : reserve « support », qui ouvre la fenetre de decision
+    # Defaut de vitesse seul (Test-CalibSpeedOnly) : bilan et reserve qui nomment le lecteur, reserve 'speed' (pas liee au
+    # support : pas de « Refaire sur une autre disquette » pour elle seule). $surfIssue : bilan de l Accueil
+    $surfIssue = ''
+    if ($cal.SurfKept -and $cal.Surf) {
+        $st = Format-CalibSurfaceVerdict $cal.Surf $cal.Medium
+        if (Test-CalibSpeedOnly $cal.Surf $cal.Medium) {
+            Append-Log ((T 'Contrôle de vitesse et de densité de la première passe : {0} ; calibration poursuivie à votre demande : la courbe a été mesurée avec un lecteur qui ne tourne pas à la vitesse de ce type de disquette.') -f "$st")
+            $surfIssue = (T 'contrôle de vitesse et de densité : {0}, calibration poursuivie à votre demande') -f "$st"; $surfKind = 'speed'
+        } else {
+            Append-Log ((T "Contrôle de surface de la première passe : disquette jugée douteuse ({0}), calibration poursuivie à votre demande : la courbe peut refléter ce support plutôt que le lecteur.") -f "$st")
+            $surfIssue = (T "contrôle de surface : disquette de calibration douteuse ({0}), calibration poursuivie à votre demande") -f "$st"; $surfKind = 'surface'
+        }
+        if ($issues.Count -gt 0) { $issues.Add($surfIssue); $kinds.Add($surfKind) }
+    }
+    elseif ($cal.Surf -and $cal.Surf.Defective -and -not $cal.SurfGross) { $issues.Add((Format-CalibSurfaceReserve $cal.Surf)); $kinds.Add('surface') }
     if ($anyCeil -and $cal.Swap) { Append-Log ((T "Calibration faite sur une disquette sacrifiée dont le besoin dépasse {0} ns : si elle est fatiguée, la courbe surestime le besoin de la disquette à écrire. Préférez une disquette sacrifiée en bon état.") -f "$($script:CalMaxNs)") }
     # Etat precedent (courbes et profils remplaces ci-dessous) : retabli si l utilisateur refuse un resultat douteux
-    $prevCal = @{ Std = $script:PrecompStd; Long = $script:PrecompLong; Curves = @{}; Levels = $script:LevelShifts.Clone()
-                  Prof = $cmbWProfile.SelectedIndex; On = $chkWPrecomp.Checked; P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Lbl = $lblWProfileInfo.Text }
-    foreach ($u in $cal.Units) { $pk = if ($null -eq $u.Head) { $cal.Family } else { "$($cal.Family)_h$($u.Head)" }; $prevCal.Curves[$pk] = $script:PrecompCurves[$pk] }
+    $prevCal = Get-CalibSnapshot @($cal.Units | ForEach-Object { Get-CalibUnitKey $cal $_ })
     # Profil commun : remplace celui de la famille. Ecriture lente : courbes par tete, le profil commun est conserve.
     if (-not $cal.Slow) {
         $spec = $cal.Units[0].Profile
-        if ($cal.Family -eq 'long') { $script:PrecompLong = $spec } else { $script:PrecompStd = $spec }
+        # 12.7 : haute densite : profil tire de sa courbe commune (Get-HdProfile), aucun profil de famille a remplacer
+        if ($cal.Family -eq 'long') { $script:PrecompLong = $spec } elseif ([string]$cal.Family -ne 'hd') { $script:PrecompStd = $spec }
     }
     $date = Get-Date -Format 'dd/MM/yyyy HH:mm'
     foreach ($u in $cal.Units) {
@@ -9207,7 +10965,7 @@ function Complete-PrecompCalib {
         foreach ($c in $cs) { foreach ($x in @($u.Results[$c].Keys)) { if ([int]$x -gt $maxX) { $maxX = [int]$x } } }
         $script:PrecompCurves[$key] = @{
             Family = $famTxt; Head = $u.Head; Drive = $cal.Drive; Date = $date; Model = $u.Fit.Model; Spec = $u.Profile; Method = 'motif'
-            Version = $script:Version; Algo = $script:CalibAlgo; Calc = $script:CalibCalc; Breaks = [int[]]@($u.Fit.Breaks)
+            Version = $script:Version; Algo = $script:CalibAlgo; Calc = $(if ([string]$cal.Family -eq 'hd') { $script:CalibCalcHd } else { $script:CalibCalc }); Breaks = [int[]]@($u.Fit.Breaks)
             Values = [int[]]@($u.Fit.Values); Cyls = [int[]]$cs
             Ys = [double[]]@($cs | ForEach-Object { [math]::Round([double]$u.Est[$_], 1) })
             Sig = [double[]]@($cs | ForEach-Object { [math]::Round($(if ($u.Sig.ContainsKey($_)) { [double]$u.Sig[$_] } else { 5.0 }), 1) })
@@ -9249,7 +11007,7 @@ function Complete-PrecompCalib {
             Append-Log $line
         }
     }
-    Append-Log ((T "Courbe obtenue avec le calcul de calibration v{0}.") -f "$($script:CalibCalc)")
+    Append-Log ((T "Courbe obtenue avec le calcul de calibration v{0}.") -f "$(if ([string]$cal.Family -eq 'hd') { $script:CalibCalcHd } else { $script:CalibCalc })")
     if ($script:Restore) {
         if ($cal.Slow) { Append-Log ((T "Profils par tête appliqués par le mode Auto en écriture lente à toute image {0} ; ils seront enregistrés dans la configuration à la fin de la restauration.") -f "$famTxt") }
         else { Append-Log ((T "Profil appliqué par le mode Auto à toute image {0} ; il sera enregistré dans la configuration à la fin de la restauration.") -f "$famTxt") }
@@ -9257,14 +11015,23 @@ function Complete-PrecompCalib {
     elseif ($cal.Slow) { Append-Log ((T "Profils par tête enregistrés dans la configuration et appliqués par le mode Auto en écriture lente à toute image {0}.") -f "$famTxt") }
     else { Append-Log ((T "Profil enregistré dans la configuration et appliqué par le mode Auto à toute image {0}.") -f "$famTxt") }
     if (-not $script:Restore) { [void](Save-Config) }      # restauration : enregistree par Close-Restore, onglet Ecriture retabli
+    # 12.7 : fin de la calibration B : comparaison avec la courbe A et choix, meme sans reserve
+    if ($script:CalRedo -and $script:CalRedo.Stage -eq 'running') { Complete-CalibRedo $cal @($issues) @($kinds) $prevCal; return }
     if ($issues.Count -gt 0) {
-        # Resultat douteux : courbe montree, l utilisateur choisit de continuer (ecrire, ou conserver la courbe) ou
-        # d arreter (calibration precedente retablie). Restauration : sequence occupee pendant la fenetre (chien de garde).
+        # Resultat douteux : courbe montree, l utilisateur choisit de continuer (ecrire, ou conserver la courbe), d arreter
+        # (calibration precedente retablie) ou, pour une reserve qui peut venir du support, de refaire la calibration sur une
+        # autre disquette (Start-CalibRedo). Restauration : sequence occupee pendant la fenetre (chien de garde).
         $toWrite = ($script:AfterCalib -eq 'write')
         Append-Log ((T "Calibration : résultat douteux ({0}) : courbe affichée, décision demandée.") -f ($issues -join ' ; '))
-        if ($script:Restore) { $script:Restore.InCall = $true }
-        try { $choice = Show-CalibReview $cal @($issues) $toWrite }
-        finally { if ($script:Restore) { $script:Restore.InCall = $false; $script:Restore.Idle = Get-Date } }
+        $offerRedo = Test-CalibRedoOffer ([bool]$script:Restore) ([bool]$script:CalRedo) @($kinds)
+        while ($true) {
+            if ($script:Restore) { $script:Restore.InCall = $true }
+            try { $choice = Show-CalibReview $cal @($issues) $toWrite $false $false $offerRedo $null }
+            finally { if ($script:Restore) { $script:Restore.InCall = $false; $script:Restore.Idle = Get-Date } }
+            if ($choice -ne 'redo') { break }
+            # B lancee : la suite (comparaison, choix) a lieu a la fin de B ; sinon la fenetre de A se rouvre
+            if (Start-CalibRedo $cal @($issues) @($kinds) $prevCal $toWrite) { return }
+        }
         if ($choice -eq 'stop') {
             Restore-CalibState $prevCal
             $lblWCal.Text = (T 'Calibration abandonnée : la calibration précédente est rétablie.')
@@ -9274,10 +11041,13 @@ function Complete-PrecompCalib {
                 Append-Log (T 'Écriture annulée : résultat de calibration refusé.')
                 if ($script:Restore) { Stop-Restore (T 'résultat de calibration refusé') }
             }
+            Set-HomeProgDone $cal 'abandon' $issues[0]
             return
         }
         Append-Log (T 'Calibration : résultat accepté malgré les réserves.')
     }
+    # Accueil : bilan avec reserves aussi apres « Continuer » sur un defaut grossier, sans autre reserve (12.7)
+    Set-HomeProgDone $cal $(if ($issues.Count -gt 0 -or $surfIssue) { 'warn' } else { 'ok' }) $(if ($issues.Count -gt 0) { $issues[0] } else { $surfIssue })
     if ($script:AfterCalib -eq 'write') {
         # Ecriture rapide ou lente : l image est ecrite tout de suite avec le profil obtenu (courbe visible par le bouton Courbe)
         $script:AfterCalib = ''
@@ -9315,6 +11085,82 @@ function Complete-PrecompCalib {
         return
     }
     Show-PrecompCurve $cal.Family $cal.Slow
+}
+
+# ============================== CALIBRATION B (12.7) ===========================
+# « Refaire sur une autre disquette » (fenetre de decision d une calibration complete) : la courbe A est mise de cote en
+# memoire, la calibration d avant A est retablie, la meme calibration (B) est refaite sur une autre disquette sacrifiee,
+# puis les deux courbes sont comparees face par face et l utilisateur choisit A, B ou aucune, sans fusion des mesures.
+# Sur disque pendant B : la calibration d avant A (A perdue si l application est fermee, limite acceptee). Etat :
+# $script:CalRedo (Stage 'confirm', 'running', 'interrupted'), en memoire seulement.
+
+function Start-CalibRedo($cal, [string[]]$issues, [string[]]$kinds, $prevCal, [bool]$toWrite) {
+    # « Refaire sur une autre disquette » (fenetre de decision de la calibration A, Complete-PrecompCalib) : courbe A mise de
+    # cote en memoire, calibration d avant A retablie, meme calibration (B) relancee sur une autre disquette sacrifiee apres
+    # une confirmation sans compte a rebours ; aucune fusion des mesures. Ecriture qui suivait A : annulee si B est lancee.
+    # $true : B lancee ; $false : B non lancee, courbe A retablie (la fenetre de A se rouvre).
+    $keys = @($cal.Units | ForEach-Object { Get-CalibUnitKey $cal $_ })
+    $aCurves = @{}; foreach ($k in $keys) { if ($script:PrecompCurves[$k]) { $aCurves[$k] = $script:PrecompCurves[$k].Clone() } }
+    $aDate = if ($script:PrecompCurves[$keys[0]]) { [string]$script:PrecompCurves[$keys[0]].Date } else { '' }
+    $script:CalRedo = @{ Stage = 'confirm'; ACal = $cal; AIssues = @($issues); AKinds = @($kinds); AKeys = $keys; ACurves = $aCurves
+                         AState = (Get-CalibSnapshot $keys); PrevA = $prevCal; ADate = $aDate; Why = '' }
+    Restore-CalibState $prevCal
+    Append-Log ((T "Calibration : « Refaire sur une autre disquette » : courbe A du {0} mise de côté, calibration précédente rétablie pendant la calibration B.") -f "$aDate")
+    $svAfter = $script:AfterCalib; $script:AfterCalib = ''
+    # Arbitrage 2 : courbe A perdue si l application est fermee pendant B, dit dans la confirmation
+    $intro = ((T "Calibration B sur une autre disquette sacrifiée, avec les réglages de la calibration A du {0}.`n`nRetirez la disquette de la calibration A et insérez une AUTRE disquette sacrifiée : sans valeur, jamais l'original ni la disquette à écrire. L'application ne peut pas distinguer deux disquettes : la case ci-dessous fait foi. Les deux courbes seront ensuite comparées face par face, et vous choisirez celle à conserver.") -f "$aDate") + "`n`n" +
+             (T "Pendant la calibration B, la configuration garde la calibration d'avant la calibration A : si vous fermez l'application avant la fin de la calibration B, la courbe A est perdue.") + "`n`n"
+    if ($cal.Home) {
+        if ($cal.Geom -and -not (Test-Path -LiteralPath ([string]$cal.Geom.Img))) { try { [void](New-CalibGeometry (Get-HomeCalibInfo ([string]$cal.Geom.Fmt)) ([int]$cal.MaxCyl + 1)) } catch { } }
+        Start-PrecompCalib -Intro $intro -Geom $cal.Geom -Heads ([bool]$cal.Slow) -Test ([string]$cal.Mode) -NoWarmup:([bool]$cal.NoWarmup)
+    } else {
+        Start-PrecompCalib -Intro $intro -Heads ([bool]$cal.Slow) -Test ([string]$cal.Mode) -NoWarmup:([bool]$cal.NoWarmup)
+    }
+    if ($script:Cal) {
+        if ($toWrite) { Append-Log (T "Écriture annulée : calibration refaite sur une autre disquette ; relancez l'écriture depuis la Bibliothèque une fois la courbe choisie.") }
+        if ($cal.Home) { $script:HomeCalBusy = $true }
+        return $true
+    }
+    Restore-CalibState $script:CalRedo.AState
+    $script:CalRedo = $null; $script:AfterCalib = $svAfter
+    Append-Log (T 'Calibration B non lancée : la courbe A est rétablie, décision sur la courbe A.')
+    return $false
+}
+
+function Complete-CalibRedo($cal, [string[]]$issues, [string[]]$kinds, $prevCal) {
+    # Fin de la calibration B (Complete-PrecompCalib, B deja enregistree) : comparaison avec la courbe A, toujours montree, puis
+    # choix : courbe B (rien a faire), courbe A (etat « A appliquee » retabli) ou aucune (calibration d avant A retablie).
+    # Bilan de la zone de progression de l Accueil (Set-HomeProgDone) selon le choix.
+    $r = $script:CalRedo; $script:CalRedo = $null
+    $rep = Get-CalibRedoReport $r $cal @($issues) @($kinds)
+    foreach ($l in @($rep.Log)) { Append-Log $l }
+    $choice = Show-CalibReview $cal @($issues) $false $false $false $false @{ Mode = 'ab'; Curves = $rep.Curves; Zones = $rep.Zones; Text = $rep.Text; Pick = $rep.Pick }
+    switch ($choice) {
+        'keepA' { Restore-CalibState $r.AState; $lblWCal.Text = (T "Courbe A conservée : la calibration B n'est pas retenue."); Append-Log (T 'Calibration B : courbe A conservée à votre demande, courbe B abandonnée.'); $hk = 'warn' }
+        'stop'  { Restore-CalibState $prevCal; $lblWCal.Text = (T 'Calibrations A et B abandonnées : la calibration précédente est rétablie.'); Append-Log (T 'Calibrations A et B abandonnées à votre demande : la calibration précédente est rétablie.'); $hk = 'abandon' }
+        default { $lblWCal.Text = (T 'Courbe B conservée : calibration refaite sur une autre disquette.'); Append-Log (T 'Calibration B : courbe B conservée.'); $hk = $(if (@($issues).Count -gt 0) { 'warn' } else { 'ok' }) }
+    }
+    Set-HomeProgDone $cal $hk
+    if ($r.ACal.Home) { Update-HomeCalibCard }
+    if ($choice -ne 'stop') { Show-PrecompCurve $cal.Family $cal.Slow }
+}
+
+function Resume-CalibRedo {
+    # Calibration B arretee avant sa fin (bouton Arreter, erreur gw, controle de surface, aucune mesure exploitable) : decision
+    # sur la courbe A seule. Minuteur principal (application au repos, aucune fenetre modale) ou Complete-PrecompCalib.
+    $r = $script:CalRedo
+    if (-not $r -or $r.Stage -ne 'interrupted') { return }
+    $script:CalRedo = $null                                   # avant la fenetre : le minuteur ne la rouvre pas
+    Append-Log ((T "Calibration B arrêtée avant sa fin ({0}) : décision sur la courbe A.") -f "$($r.Why)")
+    $iss = @($r.AIssues)
+    $txt = ((T "La calibration B s'est arrêtée avant sa fin ({0}) : aucune comparaison n'est possible.") -f "$($r.Why)") + "`n" + ((T "Réserves de la courbe A ({0}) :") -f "$($r.ADate)") + "`n" +
+           ((@($iss) | ForEach-Object { "  - $_" }) -join "`n") + "`n`n" + (T "Conserver la courbe A : elle est rétablie et enregistrée.`nAbandonner la courbe : la calibration d'avant la calibration A reste en place.`nFermer la fenêtre : la courbe A est conservée.")
+    $cvs = @($r.AKeys | ForEach-Object { $r.ACurves[$_] } | Where-Object { $_ })
+    $choice = Show-CalibReview $r.ACal $iss $false $false $false $false @{ Mode = 'aonly'; Curves = $cvs; Zones = @(); Text = $txt; Pick = $null }
+    if ($choice -eq 'stop') { $lblWCal.Text = (T 'Calibration B arrêtée : la courbe A est abandonnée, la calibration précédente reste en place.'); Append-Log (T 'Courbe A abandonnée à votre demande : la calibration précédente reste en place.'); $hk = 'abandon' }
+    else { Restore-CalibState $r.AState; $lblWCal.Text = (T 'Calibration B arrêtée : la courbe A est conservée.'); Append-Log (T 'Courbe A conservée à votre demande.'); $hk = 'warn' }
+    Set-HomeProgDone $r.ACal $hk
+    if ($r.ACal.Home) { Update-HomeCalibCard }
 }
 
 # ============================== CONTROLE APRES ECRITURE ========================
@@ -9600,14 +11446,16 @@ function Test-HdFormat([string]$fmt) {
 }
 
 function Get-CellOutOfRange([string]$path) {
-    # Cellule d une image IPF ou HFE hors de la plage que la calibration sait mesurer : ScpStats exige des 2T entre
-    # 3 et 5 us, soit une cellule de 1,5 a 2,5 us ; marge retenue 1 700 a 2 300 ns (MFM double densite, long track
-    # compris). Renvoie la cellule arrondie (ns), $null si elle est dans la plage ou non lue (autres formats).
+    # Cellule d une image IPF ou HFE hors des plages que la calibration sait mesurer : ScpStats exige des 2T entre
+    # 3 et 5 us, soit une cellule de 1,5 a 2,5 us ; marges retenues 1 700 a 2 300 ns (MFM double densite, long track
+    # compris) et, 12.7, 900 a 1 100 ns (haute densite). Renvoie la cellule arrondie (ns), $null si elle est dans une
+    # plage ou non lue (autres formats).
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
     $info = $null
     try { switch ($ext) { '.ipf' { $info = Get-IpfCellInfo $path } '.hfe' { $info = Get-HfeCellInfo $path } } } catch { return $null }
     if ($null -eq $info -or [double]::IsNaN([double]$info.CellNs)) { return $null }
-    if ($info.CellNs -lt 1700 -or $info.CellNs -gt 2300) { return [int][math]::Round($info.CellNs, 0) }
+    $cn = [double]$info.CellNs
+    if (-not (($cn -ge 1700 -and $cn -le 2300) -or ($cn -ge 900 -and $cn -le 1100))) { return [int][math]::Round($cn, 0) }
     return $null
 }
 
@@ -9622,8 +11470,8 @@ function Get-DriveReadArgs {
 }
 
 function Get-HighDensityReason([string]$path, [string]$fmt) {
-    # Image ou format haute densite ; $null sinon. Les familles de calibration (standard 2 us, long track 1,89 us) sont
-    # double densite : une calibration HD ecraserait la courbe standard, appliquee ensuite aux disquettes DD.
+    # Image ou format haute densite ; $null sinon. 12.7 : une haute densite calibrable a sa propre famille (hd,
+    # Get-HdCalibFamily), distincte des familles double densite (standard 2 us, long track 1,89 us).
     # Sans format explicite : format implicite de gw pour l extension (HDM, XDF, FDI, DIM, DCP : pc98.2hd ou 2hs ;
     # D2M, D4M : CMD FD2000 HD, FD4000 ED), image secteur brute de 1 200 000 octets ou plus, mode de la premiere
     # piste d un IMD.
@@ -9650,6 +11498,32 @@ function Get-HighDensityReason([string]$path, [string]$fmt) {
         $info = $null
         switch ($ext) { '.ipf' { $info = Get-IpfCellInfo $path } '.hfe' { $info = Get-HfeCellInfo $path } }
         if ($null -ne $info -and $info.CellNs -lt 1500) { return ((T "image haute densité, cellule {0} ns") -f "$([math]::Round($info.CellNs, 0))") }
+    } catch { }
+    return $null
+}
+
+function Get-HdCalibFamily([string]$path, [string]$fmt) {
+    # 12.7 : famille de calibration haute densite d une image : 'hd' (MFM, 1 us par cellule, 300 tr/min) ou $null (double
+    # densite, ou haute densite non calibrable : ED, codages propres, 360 tr/min). Format explicite de la table, ou
+    # implicite de l extension (meme table que Get-HighDensityReason) : sa famille (Get-FormatCalibInfo), le format
+    # l emporte ; sinon ADF HD ; sinon IPF ou HFE de cellule 900 a 1 100 ns (cellule lue pour un tour de 200 ms : un HFE
+    # haute densite a 360 tr/min se lit a 1 200 ns, hors plage, comme en 12.6).
+    $ext = [System.IO.Path]::GetExtension($path).ToLower()
+    $f = $fmt
+    if (-not $f -or $f -eq '(auto)') {
+        $def = @{ '.hdm' = 'pc98.2hd'; '.xdf' = 'pc98.2hd'; '.fdi' = 'pc98.2hd'; '.dim' = 'pc98.2hd'; '.dcp' = 'pc98.2hd'
+                  '.d2m' = 'commodore.cmd.fd2000.hd'; '.d4m' = 'commodore.cmd.fd4000.ed' }
+        $f = if ($def.ContainsKey($ext)) { $def[$ext] } else { '' }
+    }
+    if ($f -and $script:GwFormats.Contains($f)) {
+        if ([string](Get-FormatCalibInfo $f).Cal -eq 'hd') { return 'hd' }
+        return $null
+    }
+    try {
+        if ($ext -eq '.adf' -and (Test-AdfHd $path)) { return 'hd' }
+        $info = $null
+        switch ($ext) { '.ipf' { $info = Get-IpfCellInfo $path } '.hfe' { $info = Get-HfeCellInfo $path } }
+        if ($null -ne $info -and [double]$info.CellNs -ge 900 -and [double]$info.CellNs -le 1100) { return 'hd' }
     } catch { }
     return $null
 }
@@ -10471,7 +12345,7 @@ function Get-RestoreCalibInfo([string]$fam, [int]$nCyl = 0) {
         if ($cv.Method -ne 'motif') { $n += (T 'mesurée sur le contenu d''une image, avant le motif de test') }
         if ($cv.Drive -and [string]$cv.Drive -ne $script:Restore.Dst) { $n += ((T "mesurée sur le lecteur {0}") -f "$($cv.Drive)") }
         if ($cv.Converged -eq $false) { $n += (T 'non convergée') }
-        if ((Get-CurveCalc $cv) -ne $script:CalibCalc) { $n += ((T "calcul de calibration {0}") -f (Get-CurveCalcText $cv)) }
+        if ((Get-CurveCalc $cv) -ne (Get-CurveCalcRef $cv)) { $n += ((T "calcul de calibration {0}") -f (Get-CurveCalcText $cv)) }
         if (Test-CurveAtMax $cv) { $n += ((T "courbe au plafond de {0} ns de son calcul") -f "$(Get-CurveMaxNs $cv)") }
         $vc = @($cv.Values).Count
         if ($nCyl -gt 0 -and $vc -lt $nCyl - 4) { $n += ((T "courbe de {0} cylindres pour une image de {1}") -f "$vc", "$nCyl") }
@@ -10511,8 +12385,9 @@ function Start-RestoreWrite {
         Set-Num $numWRepair $script:RestoreRules.RepairPasses
         $chkWNoVerify.Checked = $false; $chkWPostCheck.Checked = $true; $chkWPrecomp.Checked = $true
         # Test rapide choisi dans l onglet Ecriture avant la restauration : niveau mesure sur la destination quand une
-        # calibration existe (ou apres une calibration sur disquette sacrifiee) ; une calibration n est jamais refaite
-        $lvl = ($r.Saved -and [int]$r.Saved.CalMode -eq 2)
+        # calibration existe (ou apres une calibration sur disquette sacrifiee) ; une calibration n est jamais refaite.
+        # 12.7 point 5 : de meme avec la case « Mesurer la disquette avant l ecriture lente » (liste au test standard ou fin)
+        $lvl = ($r.Saved -and ([int]$r.Saved.CalMode -eq 2 -or $chkWLevel.Checked))
         $cmbWCalMode.SelectedIndex = 1
         Update-PrecompForImage $r.Orig
         $r.SwapBack = $false
@@ -10792,7 +12667,7 @@ function Close-Restore {
 
 # --- Configuration -------------------------------------------------------------
 function Set-Defaults {
-    $script:CalHardNs = $script:CalHardNsDefault
+    $script:CalHardNs = $script:CalHardNsDefault; $script:CalHardNsUser = $script:CalHardNs; Set-CalibScale ''   # 12.7 : bareme double densite
     $script:CalWarmupMinutes = [double]$script:CalWarmupDefault
     $script:HomeCalFmt = 'amiga.amigados'
     $cmbDrive.SelectedIndex = 0
@@ -10817,6 +12692,7 @@ function Set-Defaults {
     $txtWPrecomp1.Text = $script:PrecompStd
     $chkWSlow.Checked = $false
     $chkWWarm.Checked = $true
+    $chkWLevel.Checked = $true
     Update-SlowUi
     $chkWPostCheck.Checked = $true
     $numWRepair.Value = 3
@@ -10894,6 +12770,7 @@ function Save-Config {
     foreach ($k in $script:CurveKeys) {
         $cv = $script:PrecompCurves[$k]
         if (-not $cv -and $oc -and $oc.Curves.Contains($k)) { $cv = $oc.Curves[$k] }
+        if (-not $cv -and $k -like 'hd*') { continue }   # 12.7 : cles haute densite ecrites seulement avec une courbe (configuration DD inchangee)
         $curvesCfg[$k] = ConvertTo-CurveConfig $cv
     }
     $lvCfg = @(@($script:LevelShifts.Values) | Where-Object { $_ } | ForEach-Object { ConvertTo-LevelConfig $_ })
@@ -10920,9 +12797,10 @@ function Save-Config {
             precompStd = $(if ($oc -and $oc.Std -and -not $script:PrecompCurves['std']) { $oc.Std } else { $script:PrecompStd })
             precompLong = $(if ($oc -and $oc.Long -and -not $script:PrecompCurves['long']) { $oc.Long } else { $script:PrecompLong })
             precompThresholdNs = [int]$script:PrecompThresholdNs
-            precompMaxNs = [int]$script:CalHardNs   # borne des valeurs calibrees (300 a 470 ns, 400 par defaut)
+            precompMaxNs = [int]$script:CalHardNsUser   # borne des valeurs calibrees (300 a 470 ns, 400 par defaut ; 12.7 : celle de la double densite, la haute densite en prend la moitie)
             calWarmupMinutes = [double]$script:CalWarmupMinutes   # prechauffage du lecteur avant une calibration complete ou une ecriture lente (0 a 30 min, 5 par defaut, 0 : aucun)
             slowWarmup = [bool]$chkWWarm.Checked                  # case « Prechauffer le lecteur avant l ecriture lente »
+            levelBeforeWrite = [bool]$chkWLevel.Checked           # 12.7 : case « Mesurer la disquette avant l ecriture lente »
             calibVersion = $script:Version     # version de l application qui a enregistre (information)
             calibCalc = $script:CalibCalc      # calcul de calibration courant ; chaque courbe porte le sien (calc)
             calibAlgo = $script:CalibAlgo
@@ -11105,6 +12983,7 @@ function Load-Config {
     $script:CalHardNs = [int][math]::Max($script:CalHardMinNs, [math]::Min($script:CalHardMaxNs, $hn))
     if ($script:CalHardNs -ne $hn) { Append-Log ((T "Borne de précompensation (precompMaxNs) de {0} ns ramenée à {1} ns : elle va de {2} à {3} ns. Au-delà de 470 ns, la précompensation déplacerait une transition d'un quart de cellule en long track (1,89 µs).") -f "$hraw", "$($script:CalHardNs)", "$($script:CalHardMinNs)", "$($script:CalHardMaxNs)") }
     elseif ($script:CalHardNs -ne $script:CalHardNsDefault) { Append-Log ((T "Borne de précompensation réglée dans la configuration (precompMaxNs) : {0} ns, au lieu de {1} ns par défaut.") -f "$($script:CalHardNs)", "$($script:CalHardNsDefault)") }
+    $script:CalHardNsUser = $script:CalHardNs; Set-CalibScale ''   # 12.7 : borne configuree, bareme double densite
     # Prechauffage du lecteur avant une calibration complete (minutes, decimales admises) : ramene a 0..30 min ; valeur
     # illisible : defaut, signale
     $wraw = Get-Cfg $w 'calWarmupMinutes' $null
@@ -11128,6 +13007,7 @@ function Load-Config {
     if ($calPurged -and $cmbWProfile.Text -ne (T 'Manuel')) { $txtWPrecomp.Text = $script:PrecompStd; $txtWPrecomp1.Text = $script:PrecompStd }
     $chkWSlow.Checked  = [bool](Get-Cfg $w 'slowWrite' $false)
     $chkWWarm.Checked  = [bool](Get-Cfg $w 'slowWarmup' $true)
+    $chkWLevel.Checked = [bool](Get-Cfg $w 'levelBeforeWrite' $true)
     Update-SlowUi
     $txtWTracks.Text   = [string](Get-Cfg $w 'tracks' '')
     Set-Combo $cmbWDensel (Get-Cfg $w 'densel' '(non)')
@@ -11253,6 +13133,14 @@ function Append-Log([string]$text) {
     }
     $txtLog.SelectionStart = $txtLog.TextLength
     $txtLog.ScrollToCaret()
+}
+
+function Show-AppMessage([string]$text, [string]$title, [string]$buttons = 'OK', [string]$icon = 'Information') {
+    # 12.7 : boite de message du code nouveau ou modifie depuis la 12.7 : message ecrit dans le journal, puis affiche. Point
+    # unique que les fins de test redefinissent (message enregistre sans affichage : aucune boite modale sur le bureau
+    # pendant un banc). Renvoie le DialogResult de la boite.
+    Append-Log $text
+    return [System.Windows.Forms.MessageBox]::Show($text, $title, $buttons, $icon)
 }
 
 function Get-SpecCount([string]$spec) {
@@ -11645,6 +13533,14 @@ $timer.Add_Tick({
     # Calibration precomp : barre globale et temps restant ; prechauffage d une ecriture lente
     if ($script:Cal) { Update-CalibProgress } elseif ($script:WriteWarm) { Update-WriteWarmupProgress }
     if ($script:HomeCalBusy) { Update-HomeCalibCard }     # carte Calibration de l Accueil : progression, puis bilan
+    # 12.7 : bareme de calibration remis a la double densite une fois l application au repos (filet de securite ; chaque
+    # calibration pose le sien a son debut). Fenetre principale (ShowDialog, donc modale) exclue, comme pour Resume-CalibRedo
+    if ($script:CalScaleFam -ne 'dd' -and -not (Test-HomeCalibBusy) -and -not $script:CalRedo -and @([System.Windows.Forms.Application]::OpenForms | Where-Object { $_.Modal -and $_.Visible -and -not [object]::ReferenceEquals($_, $form) }).Count -eq 0) { Set-CalibScale '' }
+    # 12.7 point 2 : calibration B arretee avant sa fin (Stop-PrecompCalib) : decision sur la courbe A, ouverte ici une fois
+    # l application au repos et sans autre fenetre modale (Stop-PrecompCalib est appele pendant le traitement de la fin
+    # de gw, ou une fenetre modale le bloquerait). La fenetre principale, affichee par ShowDialog, est modale : exclue
+    if ($script:CalRedo -and $script:CalRedo.Stage -eq 'interrupted' -and -not (Test-HomeCalibBusy) -and @([System.Windows.Forms.Application]::OpenForms | Where-Object { $_.Modal -and $_.Visible -and -not [object]::ReferenceEquals($_, $form) }).Count -eq 0) { Resume-CalibRedo }
+    Update-HomeProgress                                   # 12.7 : zone de progression de l Accueil, puis bilan
     # Bouton « Passer le prechauffage » : visible pendant tout prechauffage (ecriture lente, calibration), inactif une fois
     # clique ; Enregistrer et Reinitialiser (inactifs pendant une operation) lui cedent leur place dans la barre
     $wcur = if ($script:WriteWarm) { $script:WriteWarm } elseif ($script:Cal -and $script:Cal.Stage -eq 'warmup') { $script:Cal } else { $null }

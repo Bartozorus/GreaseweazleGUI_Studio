@@ -5,6 +5,52 @@ Le numéro de version est celui de `$script:Version` dans `src/GreaseweazleGUI.p
 
 Chaque version s'ouvre sur un résumé de ce qu'elle apporte, puis classe ses changements en Nouveautés, Améliorations et Corrections. La rubrique « À savoir pour la mise à jour » indique ce qu'il faut faire en installant la version, par exemple recalibrer un lecteur. « Pour les développeurs » regroupe la compilation, la publication et le format de configuration. Le fonctionnement détaillé est décrit dans le [wiki](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki).
 
+## [12.7] - 2026-10-19
+
+Les disquettes haute densité MFM à 300 tr/min (Amiga HD, PC 1,44 Mo et une dizaine d'autres formats) se calibrent désormais. Avant chaque écriture lente, l'application mesure la disquette à écrire : son niveau de précompensation et l'état de sa surface. Une calibration complète contrôle aussi sa disquette et la vitesse du lecteur, et peut être refaite sur une autre disquette pour comparer les deux courbes.
+
+### Nouveautés
+
+- **Calibration haute densité.** La carte « Calibrer le lecteur » de l'Accueil et le bouton « Calibrer » de l'onglet « Écriture » calibrent maintenant les types haute densité MFM à 300 tr/min : Amiga HD, PC 1,44 Mo, formats 1,6 Mo et 1,68 Mo, entre autres. Leur courbe, « Haute densité 1 us », commune ou par tête, s'ajoute aux courbes double densité sans les modifier. En profil « Auto (selon image) », une image haute densité reçoit ensuite cette courbe.
+- **Mesure de la disquette avant l'écriture lente.** Avant d'écrire l'image, l'application mesure sur la disquette insérée son niveau de précompensation propre et l'état de sa surface. Elle reprend pour cela la forme de la dernière calibration complète en test fin du lecteur, puis écrit l'image avec ce niveau. La case « Mesurer la disquette avant l'écriture lente », sous « ÉCRIRE LA DISQUETTE », est cochée par défaut ; elle vaut aussi pour la « Bibliothèque » et la restauration.
+- **Disquette à écrire défectueuse.** Si la mesure trouve la disquette nettement défectueuse, la fenêtre « Disquette à écrire défectueuse » s'ouvre avant l'écriture de l'image. Elle propose « Écrire quand même » ou « Arrêter », sans compte à rebours. Un lecteur qui ne tourne pas à la vitesse du type de disquette est désigné comme tel.
+- **Contrôle de surface de la disquette de calibration.** La première passe d'une calibration complète écrit déjà le motif de test, puis le relit. L'application y repère désormais les pertes de signal, les durées anormales et les lectures qui changent d'un tour à l'autre, sans écriture supplémentaire. Si la disquette paraît très défectueuse, la fenêtre « Contrôle de surface » propose « Changer de disquette », « Continuer » ou « Arrêter ». Elle n'a pas de compte à rebours. Un défaut moins marqué apparaît comme une réserve à la fin de la calibration.
+- **Contrôle de la vitesse du lecteur.** Cette même passe vérifie la durée d'un tour et la densité relue. Un lecteur qui ne tourne pas à la vitesse du type choisi, par exemple un lecteur 5,25 pouces haute densité à 360 tr/min pour un format à 300 tr/min, ouvre aussi la fenêtre. Elle désigne alors le lecteur, et ne propose pas de changer de disquette.
+- **Changer de disquette en cours de calibration.** Après avoir inséré une autre disquette et coché « J'ai inséré une autre disquette », la calibration reprend à la première passe avec les mêmes réglages, sans nouvel avertissement. Avant une écriture depuis la « Bibliothèque », une seconde case déclare une disquette sacrifiée : la disquette à écrire vous est alors redemandée à la fin.
+- **« Refaire sur une autre disquette ».** Ce bouton apparaît dans la fenêtre de décision quand une réserve peut venir du support : calibration non convergée, plafond atteint, précompensation nulle encore excessive, vérifications contradictoires, défaut du contrôle de surface. La courbe obtenue est mise de côté et la calibration précédente rétablie. La même calibration est refaite sur une autre disquette sacrifiée, après une confirmation sans compte à rebours.
+- **Comparaison des deux calibrations.** Une fenêtre superpose les courbes A et B et les compare face par face : niveau, forme, zones où elles divergent. Vous conservez la courbe A, la courbe B, ou aucune des deux ; fermer la fenêtre conserve B. Les mesures des deux disquettes ne sont jamais mélangées. Quand c'est possible, la fenêtre conseille une courbe et dit pourquoi.
+- **Progression sur l'Accueil.** Pendant une calibration ou le préchauffage d'une écriture lente, une zone remplace le titre de l'Accueil : ce qui est en cours, la barre de progression et son détail. Après une calibration lancée depuis l'Accueil, elle affiche le bilan, avec « Afficher la courbe » et « Fermer ». Quand le journal est masqué, le lien « Afficher le journal » l'affiche au bilan ; pendant les écritures et relectures, le bouton « Afficher journal » de la barre reste disponible.
+
+### Améliorations
+
+- **Cylindre mesuré sur une seule face.** Avec une courbe commune, quand une face d'un cylindre ne peut pas être relue, la mesure de l'autre face est utilisée seule. Le journal le signale désormais sur la ligne de la passe et dans le bilan, avec le conseil de recalibrer en écriture lente ou sur une autre disquette.
+- **Progression de la calibration.** Pendant la fenêtre « Contrôle de surface », la barre et la carte « Calibrer le lecteur » indiquent « Calibration en attente » au lieu d'avancer. Pendant une calibration refaite, le libellé commence par « Calibration B ».
+- **Effacer les calibrations.** La confirmation rappelle qu'en haute densité l'écriture reprend le profil d'origine, sans calibration automatique.
+
+### À savoir pour la mise à jour
+
+- Le calcul de calibration double densité reste en version 12.6 : vos courbes sont reprises sans question. La haute densité a son propre calcul, en version 12.7 : un futur réglage de la haute densité ne touchera pas vos courbes double densité.
+- La calibration haute densité est nouvelle. Ses réglages sont provisoires et seront ajustés d'après les premières mesures sur matériel réel. Il faut une disquette haute densité sacrifiée, avec son trou de densité, et un lecteur haute densité.
+- L'écriture d'une image haute densité ne calibre jamais automatiquement, et la calibration rapide n'existe pas encore en haute densité. Sans courbe, l'image reçoit le profil d'origine 0=70:40=100:65=140, que recevaient déjà les ADF et IMG haute densité. Les HFE et IPF haute densité, qui recevaient le profil long track, reçoivent désormais celui-ci.
+- Le contrôle de toutes les pistes après l'écriture reste impossible en haute densité.
+- Restent non calibrables : la haute densité à 360 tr/min (PC 1,2 Mo, entre autres), pas encore validée sur un lecteur réel, la très haute densité (2,88 Mo), le FM, le GCR, les codages propres et la double densité à 360 tr/min. La fenêtre de la carte en donne la raison.
+- Le contrôle de surface repère les pertes de signal. Une zone du support qui enregistre autrement, sans perdre de signal, ne se voit qu'en comparant deux disquettes. Ses critères sont provisoires. En test standard, seuls les cylindres de test sont contrôlés et comparés.
+- « Refaire sur une autre disquette » n'est proposé ni pendant une restauration, ni après une calibration rapide. Avant une écriture depuis la « Bibliothèque », il annule l'écriture : relancez-la une fois la courbe choisie.
+- Pendant la calibration refaite, c'est la calibration précédente qui est enregistrée : si vous fermez l'application avant la fin, la première courbe est perdue. La comparaison n'est conservée que dans le journal.
+- Chaque écriture lente dure environ 1 minute de plus. Elle écrit d'abord le motif de test au plus 3 fois sur quelques cylindres de la disquette à écrire, que l'image recouvre ensuite. Décochez « Mesurer la disquette avant l'écriture lente » pour retrouver le comportement de la 12.6.
+- La mesure n'est jamais faite quand l'image ne recouvrirait pas ces cylindres, par exemple une image à une seule face ou un champ « Pistes » limité. Elle ne l'est pas non plus en haute densité. Le journal en donne chaque fois la raison.
+- Sans calibration complète en test fin du lecteur, l'écriture se fait sans mesure, avec la courbe du lecteur ou le profil d'origine. Avec « Test rapide : niveau par disquette » dans la liste « Calibration précomp », l'écriture se comporte comme en 12.6 et la case est inactive.
+- La fenêtre « Disquette à écrire défectueuse » n'a pas de compte à rebours : une écriture lente lancée sans surveillance peut l'attendre.
+- Une version antérieure de l'application qui relit cette configuration ignore les courbes haute densité et le réglage de la mesure, et les efface à son prochain enregistrement.
+
+### Pour les développeurs
+
+- Configuration, section `write` : clés `precompCurves.hd`, `precompCurves.hd_h0` et `precompCurves.hd_h1`, écrites seulement quand la courbe existe ; leur `calc` vaut `12.7`. `precompMaxNs` reste la borne double densité ; la haute densité en prend la moitié.
+- Configuration, section `write` : clé `levelBeforeWrite` (booléen, `true` par défaut), case `chkWLevel` de la mesure avant l'écriture lente.
+- Nouvelles fenêtres `frmCalibSurface` (contrôle de surface, et disquette à écrire défectueuse pendant la mesure) et `frmCalibRedo` (confirmation de la calibration B). Dans `frmCalibReview`, nouveaux boutons `btnRevRedo` et, en comparaison, `btnRevKeepA`. `Show-TimedConfirm` gagne `-Seconds` et `-NeedCheck`.
+- Les boîtes de message du code nouveau ou modifié passent par `Show-AppMessage`, qui écrit aussi le message au journal.
+- Aucun bloc C# modifié ; `CalibCalc` reste 12.6, `CalibCalcHd` vaut 12.7.
+
 ## [12.6] - 2026-10-17
 
 L'Accueil gagne deux cartes : « Calibrer le lecteur », pour tous les types de disquette, et « Nettoyer les têtes du lecteur », avec une procédure illustrée. Le lecteur est préchauffé avant une calibration complète et avant une écriture lente. Une calibration n'est plus déclarée « NON CONVERGÉE » quand ses deux vérifications se contredisent sur une zone.
