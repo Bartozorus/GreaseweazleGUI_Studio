@@ -103,7 +103,7 @@ Install-Module -Name ps2exe -Scope CurrentUser
 powershell -ExecutionPolicy Bypass -File .\Build-Exe.ps1
 ```
 
-Le script lit la version dans `src/GreaseweazleGUI.ps1` (variable `$script:Version`), supprime l'exe précédent, compile `src/GreaseweazleGUI.ps1` avec l'icône `src/GreaseweazleGUI.ico`, écrit `dist/GreaseweazleGUI.exe` puis le signe (voir ci-dessous). Si PS2EXE ne produit rien, le script échoue au lieu de réutiliser un ancien exe. Le dossier `dist/` est ignoré par git.
+Le script assemble d'abord les modules de `src/modules/` dans `src/GreaseweazleGUI.ps1` (`tools/Assemble-Source.ps1`, voir [src/modules/README.md](src/modules/README.md)). Il s'arrête si l'assemblage échoue ou modifie ce fichier, qui doit alors être contrôlé avant la compilation. Il lit ensuite la version dans `src/GreaseweazleGUI.ps1` (variable `$script:Version`), supprime l'exe précédent, compile `src/GreaseweazleGUI.ps1` avec l'icône `src/GreaseweazleGUI.ico`, écrit `dist/GreaseweazleGUI.exe` puis le signe (voir ci-dessous). Si PS2EXE ne produit rien, le script échoue au lieu de réutiliser un ancien exe. Le dossier `dist/` est ignoré par git.
 
 ### Signature
 
@@ -115,7 +115,7 @@ Un certificat auto-signé n'est reconnu que sur les machines qui lui font confia
 
 Le workflow GitHub Actions [release.yml](.github/workflows/release.yml) compile l'exécutable sur un runner Windows et l'attache à une release GitHub à chaque tag `vX.Y`, avec pour notes la section correspondante du CHANGELOG.
 
-1. Mettre à jour `$script:Version` dans `src/GreaseweazleGUI.ps1` et le [CHANGELOG](CHANGELOG.md).
+1. Mettre à jour `$script:Version` dans `src/modules/000-entete.ps1`, réassembler (`tools/Assemble-Source.ps1`), puis mettre à jour le [CHANGELOG](CHANGELOG.md).
 2. Commit, puis tag et push :
 
    ```powershell
@@ -146,11 +146,16 @@ La page [Compilation et publication](https://github.com/Bartozorus/GreaseweazleG
 .
 ├── .github/workflows/release.yml   Compilation et release à chaque tag vX.Y
 ├── src/
-│   ├── GreaseweazleGUI.ps1         Application (script unique)
+│   ├── modules/                    Source, en modules NNN-nom.ps1 (README.md : modifier, réassembler)
+│   ├── GreaseweazleGUI.ps1         Application (script unique), assemblée depuis modules/
+│   ├── GreaseweazleGUI.map.json    Lignes de chaque module dans le script assemblé (générée)
 │   └── GreaseweazleGUI.ico         Icône de l'exécutable
+├── tools/
+│   ├── Assemble-Source.ps1         Assemblage des modules et contrôle (-Check)
+│   └── Resolve-ModuleLine.ps1      Ligne du script assemblé vers module:ligne, et l'inverse
 ├── dist/                           Sortie de Build-Exe.ps1 (ignoré par git)
 ├── .editorconfig, .gitattributes   Encodage et fins de ligne (CRLF pour .ps1, LF pour .md)
-├── Build-Exe.ps1                   Compilation PS2EXE et signature auto-signée
+├── Build-Exe.ps1                   Assemblage, compilation PS2EXE et signature auto-signée
 ├── CHANGELOG.md
 ├── LICENSE
 └── README.md

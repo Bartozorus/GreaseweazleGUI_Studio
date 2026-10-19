@@ -25,6 +25,9 @@
 #   (magasins utilisateur, pas besoin d'admin). Les suivantes le réutilisent.
 #
 # La version de l'exe est lue dans src\GreaseweazleGUI.ps1 ($script:Version = 'X.Y').
+#
+# Avant la compilation, src\modules est assemblé dans src\GreaseweazleGUI.ps1 par
+# tools\Assemble-Source.ps1 ; un échec arrête la construction (src\modules\README.md).
 # =============================================================================
 param(
     [switch]$Sign = $true,                           # signer l'exe après compilation (-Sign:$false pour désactiver)
@@ -57,6 +60,19 @@ $src    = Join-Path $here 'src\GreaseweazleGUI.ps1'
 $ico    = Join-Path $here 'src\GreaseweazleGUI.ico'
 $outDir = Join-Path $here 'dist'
 $out    = Join-Path $outDir 'GreaseweazleGUI.exe'
+
+# --- Assemblage : src\modules -> src\GreaseweazleGUI.ps1 (tools\Assemble-Source.ps1) ---
+# La source se modifie dans src\modules (src\modules\README.md). Toute erreur d'assemblage arrête la construction :
+# module invalide, ou src\GreaseweazleGUI.ps1 modifié à la main depuis le dernier assemblage. Un fichier assemblé
+# qui change ici n'est pas celui qui a été contrôlé : la construction s'arrête aussi, pour le contrôler d'abord.
+$asm = Join-Path $here 'tools\Assemble-Source.ps1'
+if (-not (Test-Path -LiteralPath $asm)) { throw "Introuvable : $asm" }
+Write-Host 'Assemblage de src\modules ...' -ForegroundColor Cyan
+$asmRes = & $asm -Root $here -PassThru
+if ($asmRes.SourceWritten) {
+    throw "src\GreaseweazleGUI.ps1 vient d'être régénéré depuis les modules : ce n'est pas le fichier contrôlé. Lancez les contrôles et les tests sur ce fichier, puis relancez Build-Exe.ps1."
+}
+Write-Host "OK : $($asmRes.Modules.Count) modules, $($asmRes.Lines) lignes, SHA-256 $($asmRes.Sha256)" -ForegroundColor Green
 
 if (-not (Test-Path -LiteralPath $src)) { throw "Introuvable : $src" }
 if (-not (Test-Path -LiteralPath $outDir)) { [void](New-Item -ItemType Directory -Path $outDir) }
