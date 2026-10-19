@@ -384,7 +384,13 @@ function Update-HomeCalibDialog {
             $lc = @{}
             foreach ($u in @($lr.Units)) { foreach ($c in @(@($u.LCyls) + @($u.Wit) + @($(if ($null -ne $u.Probe) { $u.Probe })))) { $lc[[int]$c] = $true } }
             $s.Quick.Enabled = $true
-            $s.Quick.Text = ((T "Test rapide (niveau de la disquette insérée) : environ {0} min") -f "$([math]::Max(1, [math]::Round($lc.Count * 2 * 1.4 * 2 / 60, 0)))")
+            # 12.8 (lot 1c) : par tete, 2 passes en general, 3 avec 2 cylindres de controle quand la forme est adaptee
+            $qLo = [math]::Max(1, [math]::Round($lc.Count * 2 * 1.4 * 2 / 60, 0))
+            if ($heads) {
+                $qHi = [math]::Max($qLo, [math]::Round(($lc.Count + [int]$script:LevelAdaptCtlCyls) * 2 * 1.4 * 3 / 60, 0))
+                $qd = if ($qHi -gt $qLo) { (T '{0} à {1}') -f "$qLo", "$qHi" } else { "$qLo" }
+                $s.Quick.Text = ((T "Test rapide (niveau et forme de la disquette insérée) : {0} min") -f "$qd")
+            } else { $s.Quick.Text = ((T "Test rapide (niveau de la disquette insérée) : environ {0} min") -f "$qLo") }
             $s.QuickTxt.Text = ((T "Forme reprise de la calibration complète du {0}. Insérez la disquette que vous allez écrire : le profil obtenu ne vaut que pour elle.") -f "$($lr.Units[0].Cv.Date)")
         } else {
             if ($s.Quick.Checked) { $s.Fine.Checked = $true }

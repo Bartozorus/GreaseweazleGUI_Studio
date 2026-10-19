@@ -1,16 +1,22 @@
 ﻿# ============================== FONCTIONS : CALIBRATION : FENETRES =============
 
-function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerFull = $false, [bool]$noFields = $false, [bool]$offerRedo = $false, $compare = $null) {
+function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerFull = $false, [bool]$noFields = $false, [bool]$offerRedo = $false, $compare = $null, [bool]$warnKeep = $false, $lvl2 = $null) {
     # Calibration au resultat douteux (non convergee, limite de 0 ou CalHardNs, ecart aux mesures, forme qui ne colle pas en
     # mode rapide) : la courbe obtenue est montree et l utilisateur decide. Pas de validation automatique : la decision
     # demande de regarder la courbe. Renvoie 'keep' (conserver / ecrire), 'stop' (abandonner) ou 'full' (calibration
     # complete, mode rapide seulement). Fermeture de la fenetre : arreter avant une ecriture, conserver sinon. noFields :
     # calibration rapide de la carte Calibration de l Accueil dont le profil n est pas place dans les champs --precomp.
+    # 12.8 (lot 1c, point 2) : warnKeep (calibration rapide avant une ecriture, Complete-LevelCalib : niveau non verifie et
+    # forme non conforme) : « Ecrire l image » sans le style principal, avertissement lblRevWarn au-dessus des boutons.
     # 12.7 point 2 : offerRedo : bouton « Refaire sur une autre disquette » ('redo'). compare = @{ Mode = 'ab' | 'aonly' ;
     # Curves ; Zones ; Text ; Pick } : fenetre de comparaison des calibrations A et B ('keep' : courbe B, 'keepA' : courbe
     # A, 'stop' : aucune ; fermeture : 'keep') ou decision sur la courbe A seule apres une calibration B interrompue
     # ('keep' : courbe A, 'stop' : aucune ; fermeture : 'keep'). Courbes dessinees : copies de $compare.Curves.
     # Get-FamilyCurves renvoie deja un tableau protege (operateur virgule) : pas de @() autour, sinon tableau imbrique
+    # 12.8 (lot 1c, § 7 et 10.1) : lvl2 = @{ WarnText ; Info ; BrandAsk ; Brand ; Brands } (Get-LevelReviewPlan) : texte de
+    # l avertissement (forme non conforme ou forme adaptee avec reserve) ; fenetre « information » (courbe adaptee et
+    # verifiee : en-tete propre, « Ecrire l image » principal) ; champ de marque cmbRevBrand (« Memoriser cette forme pour
+    # la marque »), lu dans $script:CalReviewBrand a la fermeture
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }   # elle dessine ces memes donnees
     if ($compare) { $script:CurveData = @($compare.Curves); $script:CurveLevel = @{}; $script:CurveZones = @($compare.Zones) }
     else {
@@ -29,7 +35,12 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
     $dlg.KeyPreview = $true                        # Echap : comme la croix de la fenetre
     $dlg.Add_KeyDown({ if ($_.KeyCode -eq [System.Windows.Forms.Keys]::Escape) { $_.Handled = $true; $this.Close() } })
     $lvl = ($cal.Mode -eq 'level')
-    $head = if ($toWrite -and $lvl) { (T "Écrire l'image : l'image est écrite avec le niveau mesuré.`nArrêter : l'image n'est pas écrite ; le niveau n'est pas conservé et les profils de la référence sont rétablis.") }
+    $infoWin = [bool]($lvl2 -and $lvl2.Info -and $lvl -and -not $compare)
+    # 12.8 (FIX1C, constat 7) : « verifiee » seulement si le niveau de chaque tete adaptee a ete verifie (Verified) ; sinon
+    # la reserve « niveau de la courbe adaptee non verifie » de la meme fenetre est rappelee
+    $head = if ($toWrite -and $lvl -and $infoWin -and $lvl2.Verified -ne $false) { (T "Écrire l'image : l'image est écrite avec la courbe adaptée à cette disquette, vérifiée par une écriture du motif.`nArrêter : l'image n'est pas écrite ; le niveau n'est pas conservé et les profils de la référence sont rétablis.") }
+            elseif ($toWrite -and $lvl -and $infoWin) { (T "Écrire l'image : l'image est écrite avec la courbe adaptée à cette disquette ; son niveau a été décalé sans nouvelle écriture du motif (voir ci-dessus).`nArrêter : l'image n'est pas écrite ; le niveau n'est pas conservé et les profils de la référence sont rétablis.") }
+            elseif ($toWrite -and $lvl) { (T "Écrire l'image : l'image est écrite avec le niveau mesuré.`nArrêter : l'image n'est pas écrite ; le niveau n'est pas conservé et les profils de la référence sont rétablis.") }
             elseif ($toWrite) { (T "Écrire l'image : la courbe est conservée et l'image est écrite avec elle.`nArrêter : l'image n'est pas écrite et cette calibration n'est pas conservée (la calibration précédente est rétablie).") }
             elseif ($lvl -and $noFields) { (T "Conserver le niveau : il est enregistré pour cette disquette et reste affiché dans la fenêtre Courbe ; les champs --precomp ne sont pas modifiés.`nAbandonner le niveau : il n'est pas enregistré.") }
             elseif ($lvl) { (T "Conserver le niveau : le profil décalé reste dans les champs --precomp, pour cette disquette seulement.`nAbandonner le niveau : les champs --precomp reprennent leurs valeurs d'avant la calibration rapide.") }
@@ -38,7 +49,8 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
     # 12.7 : ligne placee apres les autres (les fins de test n impriment que les premieres lignes, ou celles qui commencent
     # par Conserver, Abandonner ou Calibration complete)
     if ($offerRedo -and -not $compare) { $head += "`n" + $(if ($toWrite) { (T "Refaire sur une autre disquette : l'écriture est annulée ; cette courbe est mise de côté, la même calibration est refaite sur une autre disquette sacrifiée, puis vous choisissez la courbe. Relancez ensuite l'écriture depuis la Bibliothèque.") } else { (T "Refaire sur une autre disquette : cette courbe est mise de côté et la calibration précédente rétablie ; la même calibration est refaite sur une autre disquette sacrifiée, puis les deux courbes sont comparées et vous choisissez celle à conserver.") }) }
-    $txt = (T "La calibration ne donne pas un bon résultat :") + "`n" + ((@($issues) | ForEach-Object { "  - $_" }) -join "`n") + "`n`n" + $head
+    $intro = if ($infoWin) { (T 'La calibration rapide a adapté la courbe à cette disquette :') } else { (T "La calibration ne donne pas un bon résultat :") }
+    $txt = $intro + "`n" + ((@($issues) | ForEach-Object { "  - $_" }) -join "`n") + "`n`n" + $head
     if ($compare) { $txt = [string]$compare.Text }
     $lbl = New-Object System.Windows.Forms.Label
     $lbl.Name = 'lblRevText'; $lbl.AutoSize = $false; $lbl.UseMnemonic = $false; $lbl.Text = $txt; $lbl.Dock = 'Top'
@@ -62,6 +74,42 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
     $bar = New-Object System.Windows.Forms.Panel
     $bar.Dock = 'Bottom'; $bar.Height = 56; $bar.BackColor = $script:Theme.Page
     $bar.Width = $dlg.ClientSize.Width             # avant les boutons : leur ancrage a droite se mesure sur cette largeur
+    # 12.8 (lot 1c, point 2) : avertissement au-dessus des boutons, hauteur mesuree a la largeur minimale de la fenetre ;
+    # boutons places dessous ($by), barre de 78 px au moins
+    $warn = ($warnKeep -and $toWrite -and $lvl -and -not $compare)
+    $by = 11
+    if ($warn) {
+        $lblWarn = New-Object System.Windows.Forms.Label
+        $lblWarn.Name = 'lblRevWarn'; $lblWarn.AutoSize = $false; $lblWarn.UseMnemonic = $false; $lblWarn.Font = $bold; $lblWarn.ForeColor = $script:Theme.WarnInk
+        $lblWarn.Text = if ($lvl2 -and $lvl2.WarnText) { [string]$lvl2.WarnText } else { (T "Attention : niveau non vérifié et forme non conforme. La courbe que « Écrire l'image » utiliserait n'a pas été vérifiée sur cette disquette ; vers le centre, elle peut s'écarter de son besoin de plusieurs dizaines de ns.") }
+        $wMin = [math]::Max(200, $dlg.MinimumSize.Width - ($dlg.Width - $dlg.ClientSize.Width) - 32)
+        $hW = [System.Windows.Forms.TextRenderer]::MeasureText($lblWarn.Text, $bold, (New-Object System.Drawing.Size($wMin, 10000)), $tf).Height
+        $lblWarn.Location = New-Object System.Drawing.Point(16, 8); $lblWarn.Size = New-Object System.Drawing.Size(($dlg.ClientSize.Width - 32), ($hW + 2)); $lblWarn.Anchor = 'Top,Left,Right'
+        $bar.Controls.Add($lblWarn)
+        $by = $lblWarn.Bottom + 8
+        $bar.Height = [math]::Max(78, $by + 34 + 11)
+    }
+    # 12.8 (lot 1c, § 10.1) : fenetre « information » d une courbe adaptee et verifiee sur toutes les tetes : marque a
+    # memoriser (champ libre, preremplie par la marque choisie, vide si la disquette s en ecarte), au-dessus des boutons
+    $cmbBrand = $null
+    if ($infoWin -and $lvl2.BrandAsk -and -not $warn) {
+        $lblBrand = New-Object System.Windows.Forms.Label
+        $lblBrand.Name = 'lblRevBrand'; $lblBrand.AutoSize = $true; $lblBrand.UseMnemonic = $false; $lblBrand.Text = (T 'Mémoriser cette forme pour la marque :')
+        # 12.8 (FIX1C, constat 8) : police de la fenetre posee avant la mesure (la barre n est pas encore dans la fenetre :
+        # sinon PreferredWidth est mesure dans la police par defaut et le libelle recouvre la liste)
+        $lblBrand.Font = $dlg.Font
+        $lblBrand.Location = New-Object System.Drawing.Point(16, 14)
+        $bar.Controls.Add($lblBrand)
+        $cmbBrand = New-Object System.Windows.Forms.ComboBox
+        $cmbBrand.Name = 'cmbRevBrand'; $cmbBrand.DropDownStyle = 'DropDown'; $cmbBrand.Width = 300
+        foreach ($bn in @($lvl2.Brands)) { if ($bn) { [void]$cmbBrand.Items.Add([string]$bn) } }
+        $cmbBrand.Text = [string]$lvl2.Brand
+        $cmbBrand.Location = New-Object System.Drawing.Point((16 + $lblBrand.PreferredWidth + 8), 10)
+        $bar.Controls.Add($cmbBrand)
+        if ($tip) { $tip.SetToolTip($cmbBrand, (T "Nom libre : marque, année ou lot. Une marque déjà mesurée sert de point de départ : sa forme et son niveau, mémorisés avec la référence actuelle du lecteur. La mesure reste faite sur la disquette insérée.")) }
+        $by = 44
+        $bar.Height = [math]::Max(78, $by + 34 + 11)
+    }
     $btnOk = New-Object System.Windows.Forms.Button
     $btnOk.Name = 'btnRevKeep'; $btnOk.Size = New-Object System.Drawing.Size(200, 34); $btnOk.Anchor = 'Top,Right'
     $btnOk.Text = if ($ab) { (T 'Conserver la courbe B') } elseif ($aonly) { (T 'Conserver la courbe A') } elseif ($toWrite) { (T "Écrire l'image") } elseif ($lvl) { (T 'Conserver le niveau') } else { (T 'Conserver la courbe') }
@@ -71,16 +119,17 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
     $btnNo.Text = if ($ab) { (T 'Abandonner les deux') } elseif ($aonly) { (T 'Abandonner la courbe') } elseif ($toWrite) { (T 'Arrêter') } elseif ($lvl) { (T 'Abandonner le niveau') } else { (T 'Abandonner la courbe') }
     $btnNo.DialogResult = [System.Windows.Forms.DialogResult]::Abort
     # Comparaison : style principal pour la courbe conseillee seulement (aucune mise en avant sans courbe conseillee)
-    Set-Btn $btnOk $(if ($toWrite -and -not $compare) { 'Save' } else { '' }) $(if ($ab -and $compare.Pick -ne 'B') { 'normal' } else { 'primary' }); Set-Btn $btnNo '' 'normal'
-    $btnNo.Location = New-Object System.Drawing.Point(($dlg.ClientSize.Width - 16 - $btnNo.Width), 11)
-    $btnOk.Location = New-Object System.Drawing.Point(($btnNo.Left - 8 - $btnOk.Width), 11)
+    # 12.8 (lot 1c, point 2) : avertissement : « Ecrire l image » sans le style principal
+    Set-Btn $btnOk $(if ($toWrite -and -not $compare) { 'Save' } else { '' }) $(if (($ab -and $compare.Pick -ne 'B') -or $warn) { 'normal' } else { 'primary' }); Set-Btn $btnNo '' 'normal'
+    $btnNo.Location = New-Object System.Drawing.Point(($dlg.ClientSize.Width - 16 - $btnNo.Width), $by)
+    $btnOk.Location = New-Object System.Drawing.Point(($btnNo.Left - 8 - $btnOk.Width), $by)
     $bar.Controls.AddRange(@($btnOk, $btnNo))
     if ($offerFull) {
         $btnFull = New-Object System.Windows.Forms.Button
         $btnFull.Name = 'btnRevFull'; $btnFull.Size = New-Object System.Drawing.Size(200, 34); $btnFull.Anchor = 'Top,Right'
         $btnFull.Text = (T 'Calibration complète'); $btnFull.DialogResult = [System.Windows.Forms.DialogResult]::Retry
         Set-Btn $btnFull '' 'normal'
-        $btnFull.Location = New-Object System.Drawing.Point(($btnOk.Left - 8 - $btnFull.Width), 11)
+        $btnFull.Location = New-Object System.Drawing.Point(($btnOk.Left - 8 - $btnFull.Width), $by)
         $bar.Controls.Add($btnFull)
     }
     # 12.7 point 2 : « Refaire sur une autre disquette » (reserve qui peut venir du support), a gauche de btnRevKeep ;
@@ -91,7 +140,7 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
         $btnRedo.Name = 'btnRevRedo'; $btnRedo.Size = New-Object System.Drawing.Size(240, 34); $btnRedo.Anchor = 'Top,Right'
         $btnRedo.Text = (T 'Refaire sur une autre disquette'); $btnRedo.DialogResult = [System.Windows.Forms.DialogResult]::Ignore
         Set-Btn $btnRedo '' 'normal'
-        $btnRedo.Location = New-Object System.Drawing.Point(($btnOk.Left - 8 - $btnRedo.Width), 11)
+        $btnRedo.Location = New-Object System.Drawing.Point(($btnOk.Left - 8 - $btnRedo.Width), $by)
         $bar.Controls.Add($btnRedo)
     }
     if ($ab) {
@@ -99,7 +148,7 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
         $btnKeepA.Name = 'btnRevKeepA'; $btnKeepA.Size = New-Object System.Drawing.Size(200, 34); $btnKeepA.Anchor = 'Top,Right'
         $btnKeepA.Text = (T 'Conserver la courbe A'); $btnKeepA.DialogResult = [System.Windows.Forms.DialogResult]::Yes
         Set-Btn $btnKeepA '' $(if ($compare.Pick -eq 'A') { 'primary' } else { 'normal' })
-        $btnKeepA.Location = New-Object System.Drawing.Point(($btnOk.Left - 8 - $btnKeepA.Width), 11)
+        $btnKeepA.Location = New-Object System.Drawing.Point(($btnOk.Left - 8 - $btnKeepA.Width), $by)
         $bar.Controls.Add($btnKeepA)
     }
     if ($compare) {
@@ -117,7 +166,7 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
     $dlg.Add_Shown({ $this.Activate(); try { [System.Media.SystemSounds]::Exclamation.Play() } catch { } })
     # 12.7 : zone de progression de l Accueil gardee pendant la decision (Update-HomeProgress, mode 'hold')
     $script:HomeProgHold = $true
-    try { $dr = $dlg.ShowDialog($form) } finally { $dlg.Dispose(); $script:HomeProgHold = $false; $script:CurveZones = @() }
+    try { $dr = $dlg.ShowDialog($form); if ($cmbBrand) { $script:CalReviewBrand = [string]$cmbBrand.Text } } finally { $dlg.Dispose(); $script:HomeProgHold = $false; $script:CurveZones = @() }
     if ($dr -eq [System.Windows.Forms.DialogResult]::OK) { return 'keep' }
     if ($dr -eq [System.Windows.Forms.DialogResult]::Retry) { return 'full' }
     if ($dr -eq [System.Windows.Forms.DialogResult]::Ignore) { return 'redo' }
@@ -148,7 +197,7 @@ function Restore-CalibState($prev) {
     if (-not $script:Restore) { [void](Save-Config) }
 }
 
-function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string]$okText, [string]$okGlyph, [string]$countFmt, [string]$checkLabel, [string]$stopOn, [string]$stopOff, [int]$Seconds = -1, [switch]$NeedCheck) {
+function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string]$okText, [string]$okGlyph, [string]$countFmt, [string]$checkLabel, [string]$stopOn, [string]$stopOff, [int]$Seconds = -1, [switch]$NeedCheck, $Combo = $null) {
     # Fenetre d avertissement a compte a rebours : $okText / Annuler ; sans reponse, validation automatique au bout de
     # $script:CalibConfirmSeconds (0 = pas de delai), pour qu une sequence sans surveillance ne reste pas bloquee.
     # $countFmt : ligne du decompte ({0} = secondes). $checkLabel : case facultative ; la cocher ou la decocher arrete le
@@ -177,6 +226,24 @@ function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string
         $chk.Size = New-Object System.Drawing.Size($w, [math]::Max(24, ($hc + 6))); $chk.Location = New-Object System.Drawing.Point(64, $y)
         $y = $chk.Bottom + 8
     }
+    # 12.8 (lot 1c, § 10.1) : liste modifiable facultative ($Combo = @{ Label ; Items ; Text ; Tip }) : marque de la
+    # disquette inseree (cmbCalBrand) ; saisir ou choisir arrete le compte a rebours, comme la case
+    $cmb = $null; $lblCmb = $null
+    if ($Combo) {
+        $lblCmb = New-Object System.Windows.Forms.Label
+        $lblCmb.Name = 'lblCalBrand'; $lblCmb.AutoSize = $true; $lblCmb.UseMnemonic = $false; $lblCmb.Text = [string]$Combo.Label
+        # 12.8 (FIX1C, constat 8) : police de la fenetre posee avant la mesure de PreferredWidth (libelle ajoute plus tard)
+        $lblCmb.Font = $dlg.Font
+        $lblCmb.Location = New-Object System.Drawing.Point(64, ($y + 4))
+        $cmb = New-Object System.Windows.Forms.ComboBox
+        $cmb.Name = 'cmbCalBrand'; $cmb.DropDownStyle = 'DropDown'
+        foreach ($it in @($Combo.Items)) { if ($it) { [void]$cmb.Items.Add([string]$it) } }
+        $cmb.Text = [string]$Combo.Text
+        $lx = 64 + $lblCmb.PreferredWidth + 8
+        $cmb.Location = New-Object System.Drawing.Point($lx, $y); $cmb.Width = [math]::Max(160, 64 + $w - $lx)
+        if ($Combo.Tip -and $tip) { $tip.SetToolTip($cmb, [string]$Combo.Tip) }
+        $y = $cmb.Bottom + 10
+    }
     $lblCount = New-Object System.Windows.Forms.Label
     $lblCount.Name = 'lblCalCount'; $lblCount.AutoSize = $false; $lblCount.Font = $bold
     $lblCount.Location = New-Object System.Drawing.Point(64, $y); $lblCount.ForeColor = $script:Theme.Warn
@@ -202,6 +269,7 @@ function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string
     $dlg.AcceptButton = $btnOk; $dlg.CancelButton = $btnNo
     $dlg.Controls.AddRange(@($pic, $lbl, $lblCount, $btnOk, $btnNo))
     if ($chk) { $dlg.Controls.Add($chk) }
+    if ($cmb) { $dlg.Controls.Add($lblCmb); $dlg.Controls.Add($cmb) }
     $sec = if ($Seconds -ge 0) { $Seconds } else { [int]$script:CalibConfirmSeconds }
     $script:CalConfirm = @{ Left = $sec; Auto = $false; Dlg = $dlg; Count = $lblCount; Tmr = $null; Fmt = $countFmt; StopOn = $stopOn; StopOff = $stopOff }
     # Bouton inactif : fond gris (le style principal, plat, ne grise que le texte)
@@ -232,22 +300,34 @@ function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string
             $c.Count.Text = if ($this.Checked) { $c.StopOn } else { $c.StopOff }
         })
     }
+    if ($cmb -and $tmr) {
+        # Gestionnaires poses apres le texte initial : seule une saisie ou un choix de l utilisateur arrete le decompte
+        $script:CalConfirm.Chk = $chk
+        $stopCmb = {
+            $c = $script:CalConfirm
+            if (-not $c -or -not $c.Tmr -or -not $c.Tmr.Enabled) { return }
+            $c.Tmr.Stop()
+            $c.Count.Text = if ($c.Chk -and $c.Chk.Checked) { $c.StopOn } else { $c.StopOff }
+        }
+        $cmb.Add_TextUpdate($stopCmb); $cmb.Add_SelectionChangeCommitted($stopCmb)
+    }
     $dlg.Add_Shown({ $this.Activate(); try { [System.Media.SystemSounds]::Exclamation.Play() } catch { } })
     if ($tmr) { $tmr.Start() }
     try { $dr = $dlg.ShowDialog($form) }
     finally { if ($tmr) { $tmr.Stop(); $tmr.Dispose() } }
-    $res = @{ Ok = ($dr -eq [System.Windows.Forms.DialogResult]::OK); Checked = [bool]($chk -and $chk.Checked); Auto = [bool]$script:CalConfirm.Auto }
+    $res = @{ Ok = ($dr -eq [System.Windows.Forms.DialogResult]::OK); Checked = [bool]($chk -and $chk.Checked); Auto = [bool]$script:CalConfirm.Auto; ComboText = $(if ($cmb) { [string]$cmb.Text } else { $null }) }
     $script:CalConfirm = $null
     $dlg.Dispose()
     return $res
 }
 
-function Show-CalibConfirm([string]$text, [string]$swapLabel) {
+function Show-CalibConfirm([string]$text, [string]$swapLabel, $brand = $null) {
     # Avertissement avant une calibration : la disquette inseree recoit le motif de test a chaque passe, ce qui use le
     # support. $swapLabel : case « disquette sacrifiee » (la disquette a ecrire est redemandee apres la calibration),
-    # absente pour une calibration seule. Renvoie @{ Ok ; Swap ; Auto }.
-    $r = Show-TimedConfirm 'frmCalibConfirm' (T 'Calibration precomp') $text (T 'Lancer la calibration') 'Diagnostic' (T "Sans réponse, la calibration démarre automatiquement dans {0} s.") $swapLabel (T "Compte à rebours arrêté : insérez la disquette sacrifiée, puis cliquez sur « Lancer la calibration ».") (T "Compte à rebours arrêté : cliquez sur « Lancer la calibration » pour calibrer avec la disquette insérée.")
-    return @{ Ok = $r.Ok; Swap = $r.Checked; Auto = $r.Auto }
+    # absente pour une calibration seule. 12.8 (lot 1c) : $brand = @{ Label ; Items ; Text ; Tip } : champ de la marque
+    # de la disquette (calibration rapide). Renvoie @{ Ok ; Swap ; Auto ; Brand }.
+    $r = Show-TimedConfirm 'frmCalibConfirm' (T 'Calibration precomp') $text (T 'Lancer la calibration') 'Diagnostic' (T "Sans réponse, la calibration démarre automatiquement dans {0} s.") $swapLabel (T "Compte à rebours arrêté : insérez la disquette sacrifiée, puis cliquez sur « Lancer la calibration ».") (T "Compte à rebours arrêté : cliquez sur « Lancer la calibration » pour calibrer avec la disquette insérée.") -Combo $brand
+    return @{ Ok = $r.Ok; Swap = $r.Checked; Auto = $r.Auto; Brand = $r.ComboText }
 }
 
 function Show-CalibSurface($opt, [string]$text) {

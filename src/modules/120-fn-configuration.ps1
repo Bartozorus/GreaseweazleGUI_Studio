@@ -283,6 +283,58 @@ function Set-Defaults {
     Update-CurveButton $txtWFile.Text
 }
 
+function Backup-ConfigBeforeRef([string[]]$keys, [string]$why = 'replace') {
+    # 12.8 (lot 1c, point 4) : copie octet pour octet du fichier de configuration sur disque (dernier etat enregistre, qui
+    # contient encore la reference en place), juste avant qu une reference existante soit remplacee ($why 'replace' :
+    # Complete-PrecompCalib, toute calibration complete) ou effacee ('reset' : Reset-CalibProfiles). Rien si aucune des
+    # cles n a de courbe (courbe d un autre calcul en attente du choix comprise) ou sans fichier. Nom :
+    # <fichier>.ref-<familles>-<AAAAMMJJ-HHMM>.bak, a cote du fichier, date de la plus recente des references remplacees
+    # (meme nom : meme reference, copie remplacee par l etat plus recent) ; date de modification de la copie mise a l heure
+    # de la copie (rotation : copies les plus recentes, meme apres le retablissement manuel d une ancienne copie).
+    # Rotation : ConfigRefBackupKeep copies gardees, les plus anciennes <fichier>.ref-*.bak supprimees (copies de
+    # l application seulement), une ligne de journal par fichier. Echec de la copie : une ligne de journal, l operation
+    # continue, sans rotation. Retablir une copie reste manuel (application fermee). Renvoie le chemin de la copie ou $null
+    $oc = $script:OldCalib
+    $cvs = @{}
+    foreach ($k in @($keys | Where-Object { $_ } | Sort-Object -Unique)) {
+        $cv = $script:PrecompCurves[$k]
+        if (-not $cv -and $oc -and $oc.Curves -and $oc.Curves.Contains($k)) { $cv = $oc.Curves[$k] }
+        if ($cv) { $cvs[$k] = $cv }
+    }
+    if ($cvs.Count -eq 0) { return $null }
+    $cfg = [string]$script:ConfigFile
+    if (-not $cfg -or -not (Test-Path -LiteralPath $cfg -PathType Leaf)) { return $null }
+    $newest = @($cvs.Keys | Sort-Object { Get-CurveDate $cvs[$_] } -Descending)[0]
+    $dt = Get-CurveDate $cvs[$newest]
+    $stamp = if ($dt -ne [datetime]::MinValue) { $dt.ToString('yyyyMMdd-HHmm', [System.Globalization.CultureInfo]::InvariantCulture) } else { 'sans-date' }
+    $fams = @($cvs.Keys | ForEach-Object { if ($_ -like 'hd*') { 'hd' } elseif ($_ -like 'long*') { 'long' } else { 'std' } } | Sort-Object -Unique)
+    $leaf = [System.IO.Path]::GetFileName($cfg); $dir = Split-Path -Parent $cfg
+    $bak = Join-Path $dir ($leaf + '.ref-' + ($fams -join '+') + '-' + $stamp + '.bak')
+    $famTxt = (@($fams | ForEach-Object { Get-CalibFamilyName $_ })) -join ', '
+    $dateTxt = [string]$cvs[$newest].Date
+    try {
+        # File.Copy : copie du fichier seul (jamais dans un dossier de ce nom), remplace une copie de meme nom
+        [System.IO.File]::Copy($cfg, $bak, $true)
+        [System.IO.File]::SetLastWriteTime($bak, (Get-Date))
+    } catch {
+        $msg = ([string]$(if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $_.Exception.Message })).Trim().TrimEnd('.')
+        if ($why -eq 'reset') { Append-Log ((T "Configuration non sauvegardée avant l'effacement des calibrations ({0}) : {1}. L'effacement continue sans copie.") -f "$famTxt", "$msg") }
+        else { Append-Log ((T "Configuration non sauvegardée avant le remplacement de la référence {0} : {1}. La calibration continue sans copie.") -f "$famTxt", "$msg") }
+        return $null
+    }
+    if ($why -eq 'reset') { Append-Log ((T "Configuration sauvegardée avant l'effacement des calibrations (référence {0} du {1}) : {2}") -f "$famTxt", "$dateTxt", "$bak") }
+    else { Append-Log ((T "Configuration sauvegardée avant le remplacement de la référence {0} du {1} : {2}") -f "$famTxt", "$dateTxt", "$bak") }
+    $keep = [math]::Max(1, [int]$script:ConfigRefBackupKeep)
+    try {
+        $bakName = [System.IO.Path]::GetFileName($bak)
+        $all = @(Get-ChildItem -LiteralPath $dir -File -ErrorAction Stop | Where-Object { $_.Name -like ($leaf + '.ref-*.bak') -and $_.Name -ne $bakName } | Sort-Object LastWriteTime -Descending)
+        foreach ($f in @($all | Select-Object -Skip ($keep - 1))) {
+            try { Remove-Item -LiteralPath $f.FullName -Force -ErrorAction Stop; Append-Log ((T "Ancienne sauvegarde de configuration supprimée ({1} gardées) : {0}") -f "$($f.FullName)", "$keep") } catch { }
+        }
+    } catch { }
+    return $bak
+}
+
 function Save-Config {
     $delays = @{}
     foreach ($k in $script:DelayCtrls.Keys) {
@@ -299,6 +351,8 @@ function Save-Config {
     }
     $lvCfg = @(@($script:LevelShifts.Values) | Where-Object { $_ } | ForEach-Object { ConvertTo-LevelConfig $_ })
     if ($oc) { $lvCfg += @(@($oc.Levels.Values) | Where-Object { $_ -and -not $script:PrecompCurves[$_.RefKey] } | ForEach-Object { ConvertTo-LevelConfig $_ }) }
+    # 12.8 (lot 1c, § 10.2) : memoire par marque de disquette (une 12.7 l ignore)
+    $brCfg = @(@($script:LevelBrands) | Where-Object { $_ } | ForEach-Object { ConvertTo-LevelBrandConfig $_ })
     $cfg = [ordered]@{
         _comment = (T 'Configuration GreaseweazleGUI - régénérée automatiquement. Supprimable sans risque.')
         _saved   = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
@@ -325,7 +379,8 @@ function Save-Config {
             calibCalc = $script:CalibCalc      # calcul de calibration courant ; chaque courbe porte le sien (calc)
             calibAlgo = $script:CalibAlgo
             precompCurves = $curvesCfg
-            levelAlgo = $script:LevelAlgo; levelShifts = $lvCfg
+            levelAlgo = $script:LevelFormat; levelShifts = $lvCfg   # 12.8 (G2) : format 'lvl1', relu par une 12.7
+            levelBrand = [string]$script:LevelBrand; levelBrands = $brCfg
             tracks = $txtWTracks.Text; densel = $cmbWDensel.Text
             fakeIndex = $txtWFakeIdx.Text; diskdefs = $txtWDiskdefs.Text
         }
@@ -466,17 +521,25 @@ function Load-Config {
     else { $script:PrecompLong = $script:PrecompLongDefault; if ($old.Contains('long')) { $oldLong = $cfgLong } elseif ($cfgLong -ne $script:PrecompLongDefault) { $lostProf = $true } }
     # Niveaux de la calibration rapide : gardes avec leur reference (meme courbe, meme lecteur, meme algorithme de niveau) ;
     # ceux d une reference mise de cote le sont avec elle
+    # 12.8 (lot 1c, § 12.1) : format 'lvl1' (12.7 et 12.8) ou 'lvl2' ; enregistrement 'lvl1' (relu avec s = b = 0) ou
+    # 'lvl2' (forme adaptee)
     $script:LevelShifts = @{}; $oldLv = @{}
-    if ([string](Get-Cfg $w 'levelAlgo' '') -eq $script:LevelAlgo) {
+    if (@('lvl1', 'lvl2') -contains [string](Get-Cfg $w 'levelAlgo' '')) {
         foreach ($o in @(Get-Cfg $w 'levelShifts' @())) {
             $lr = ConvertFrom-LevelConfig $o
-            if (-not $lr -or $lr.LevelAlgo -ne $script:LevelAlgo) { continue }
+            if (-not $lr -or @('lvl1', 'lvl2') -notcontains [string]$lr.LevelAlgo) { continue }
             $rc = $script:PrecompCurves[$lr.RefKey]; $tgt = $script:LevelShifts
             if (-not $rc -and $old.Contains($lr.RefKey)) { $rc = $old[$lr.RefKey]; $tgt = $oldLv }
             if (-not $rc -or [string]$rc.Date -ne [string]$lr.RefDate -or [string]$rc.Drive -ne [string]$lr.Drive) { continue }
             $tgt["$($lr.RefKey)|$($lr.Tag)"] = $lr
         }
     }
+    # 12.8 (lot 1c, § 10.2) : memoire par marque ; entrees gardees quelle que soit leur reference (une entree d une autre
+    # reference n est plus un point de depart, Test-LevelBrandValid) ; entree illisible : ignoree, une ligne de journal
+    $script:LevelBrand = [string](Get-Cfg $w 'levelBrand' '')
+    $script:LevelBrands = @(); $brBad = 0
+    foreach ($o in @(Get-Cfg $w 'levelBrands' @())) { $en = ConvertFrom-LevelBrandConfig $o; if ($en) { $script:LevelBrands += ,$en } else { $brBad++ } }
+    if ($brBad -gt 0) { Append-Log ((T 'Mémoire par marque de disquette : {0} entrée(s) illisible(s) ignorée(s).') -f "$brBad") }
     $script:OldCalib = $null
     $calPurged = $lostProf
     if ($old.Count -gt 0) {

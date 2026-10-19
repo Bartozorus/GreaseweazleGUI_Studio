@@ -334,7 +334,7 @@ function Format-CurveTable($cvs) {
         $lrs = Get-CurveLevelRecs $cv
         foreach ($rec in @($lrs)) {
             $vk = if ([string]$rec.Shape -eq 'mismatch') { 'mismatch' } else { [string]$rec.Verdict }
-            $vt = @{ ok = (T 'conforme'); approx = (T 'approximative'); mismatch = (T 'NON CONFORME'); sat = (T 'non vérifiée, plafond atteint'); low = (T 'non vérifiée, plancher atteint'); few = (T 'non vérifiée, trop peu de cylindres mesurés') }[$vk]
+            $vt = @{ ok = (T 'conforme'); approx = (T 'approximative'); mismatch = (T 'NON CONFORME'); sat = (T 'non vérifiée, plafond atteint'); low = (T 'non vérifiée, plancher atteint'); few = (T 'non vérifiée, trop peu de cylindres mesurés'); adapte = (T 'adaptée à cette disquette') }[$vk]
             $hp = if ($null -eq $rec.Head) { '' } else { (T '[tête {0}] ') -f "$($rec.Head)" }
             $lines += ($hp + ((T "Dernière calibration rapide ({0}, lecteur {1}) : niveau {2} ns ± {3} ; écart de forme {4} ns ; forme {5} ; {6} passe(s) ; profil appliqué : {7}") -f "$($rec.Date)", "$($rec.Drive)", ('{0:+0;-0;0}' -f [int]$rec.Delta), (Format-LevelNum $rec.SE), (Format-LevelNum $rec.Tau), "$vt", "$($rec.Passes)", "$($rec.Spec)"))
             for ($i = 0; $i -lt @($rec.Cyls).Count; $i++) {
@@ -724,7 +724,36 @@ function ConvertTo-LevelConfig($r) {
                        delta = $r.Delta; est = $r.Est; se = $r.SE; tau = $r.Tau; verdict = $r.Verdict; shape = $r.Shape; reasons = @($r.Reasons); conv = [bool]$r.Conv; passes = $r.Passes
                        cyls = @($r.Cyls); zs = @($r.Zs); ds = @($r.Ds); sigs = @($r.Sigs); kinds = @($r.Kinds); values = @($r.Values); spec = $r.Spec
                        sat = @($r.Sat); floor = @($r.Floor); hist = @(@($r.Hist) | ForEach-Object { [ordered]@{ date = $_.Date; delta = $_.Delta } })
-                       version = $r.Version; algo = $r.Algo; levelAlgo = $r.LevelAlgo }
+                       version = $r.Version; algo = $r.Algo; levelAlgo = $r.LevelAlgo
+                       # 12.8 (lot 1c, § 12.1) : forme adaptee (s, b, modele), mode, marque, cylindres de controle, pente
+                       s = $(if ($null -ne $r.S) { [double]$r.S } else { 0.0 }); b = $(if ($null -ne $r.B) { [double]$r.B } else { 0.0 })
+                       model = $(if ($r.Model) { [string]$r.Model } else { 'M0' }); mode = $(if ($r.Mode) { [string]$r.Mode } else { 'lvl1' })
+                       brand = [string]$r.Brand; ctl = @(@($r.Ctl) | Where-Object { $null -ne $_ }); k = $r.K }
+}
+
+function ConvertTo-LevelBrandConfig($en) {
+    # 12.8 (lot 1c, § 10.2) : entree de la memoire de marque (tableau plat dans la configuration, profondeur JSON limitee)
+    if (-not $en) { return $null }
+    return [ordered]@{ brand = [string]$en.Brand; drive = [string]$en.Drive; refKey = [string]$en.RefKey; tag = [string]$en.Tag; head = $en.Head
+                       family = [string]$en.Family; refDate = [string]$en.RefDate; levelAlgo = 'lvl2'; model = [string]$en.Model
+                       a = [double]$en.A; s = [double]$en.S; b = [double]$en.B; n = [int]$en.N; date = [string]$en.Date
+                       levels = @(@($en.Levels) | Where-Object { $_ } | ForEach-Object { [ordered]@{ date = [string]$_.Date; delta = [int]$_.Delta } })
+                       shapes = @(@($en.Shapes) | Where-Object { $_ } | ForEach-Object { [ordered]@{ date = [string]$_.Date; s = [double]$_.S; b = [double]$_.B } }) }
+}
+
+function ConvertFrom-LevelBrandConfig($o) {
+    # Entree illisible : $null (ignoree par Load-Config, une ligne de journal)
+    if (-not $o) { return $null }
+    try {
+        $en = @{ Brand = ([string]$o.brand).Trim(); Drive = [string]$o.drive; RefKey = [string]$o.refKey; Tag = [string]$o.tag
+                 Head = $(if ($null -ne $o.head) { [int]$o.head } else { $null }); Family = [string]$o.family; RefDate = [string]$o.refDate
+                 LevelAlgo = [string]$o.levelAlgo; Model = $(if ($o.model) { [string]$o.model } else { 'M0' }); A = [double]$o.a; S = [double]$o.s; B = [double]$o.b
+                 N = [int]$o.n; Date = [string]$o.date
+                 Levels = @(@($o.levels) | Where-Object { $_ } | ForEach-Object { @{ Date = [string]$_.date; Delta = [int]$_.delta } })
+                 Shapes = @(@($o.shapes) | Where-Object { $_ } | ForEach-Object { @{ Date = [string]$_.date; S = [double]$_.s; B = [double]$_.b } }) }
+        if (-not $en.Brand -or -not $en.RefKey -or -not $en.RefDate) { return $null }
+        return $en
+    } catch { return $null }
 }
 
 function ConvertFrom-LevelConfig($o) {
@@ -736,7 +765,12 @@ function ConvertFrom-LevelConfig($o) {
                 Cyls = [int[]]@($o.cyls); Zs = [double[]]@($o.zs); Ds = [double[]]@($o.ds); Sigs = [double[]]@($o.sigs); Kinds = [string[]]@($o.kinds)
                 Values = [int[]]@($o.values); Spec = [string]$o.spec; Sat = [int[]]@(@($o.sat) | Where-Object { $null -ne $_ }); Floor = [int[]]@(@($o.floor) | Where-Object { $null -ne $_ })
                 Hist = @(@($o.hist) | Where-Object { $_ } | ForEach-Object { @{ Date = [string]$_.date; Delta = [int]$_.delta } })
-                Version = [string]$o.version; Algo = [string]$o.algo; LevelAlgo = [string]$o.levelAlgo }
+                Version = [string]$o.version; Algo = [string]$o.algo; LevelAlgo = [string]$o.levelAlgo
+                # 12.8 (lot 1c, § 12.1) : champs absents d un enregistrement lvl1 : s = b = 0, M0, lvl1, sans marque
+                S = $(if ($null -ne $o.s) { [double]$o.s } else { 0.0 }); B = $(if ($null -ne $o.b) { [double]$o.b } else { 0.0 })
+                Model = $(if ($o.model) { [string]$o.model } else { 'M0' }); Mode = $(if ($o.mode) { [string]$o.mode } else { 'lvl1' })
+                Brand = [string]$o.brand; Ctl = [int[]]@(@($o.ctl) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ })
+                K = $(if ($null -ne $o.k) { [double]$o.k } else { $null }) }
         if (-not $r.RefKey -or $r.Values.Count -lt 2 -or $r.Cyls.Count -ne $r.Zs.Count) { return $null }
         return $r
     } catch { return $null }

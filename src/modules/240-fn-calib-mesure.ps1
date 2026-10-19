@@ -152,8 +152,12 @@ function Reset-CalibProfiles {
     # 12.7 : boite par Show-AppMessage (code modifie), comme les autres messages de la 12.7
     $r = Show-AppMessage $msg (T 'Effacer les calibrations') 'YesNo' 'Warning'
     if ($r -ne 'Yes') { return }
+    # 12.8 (lot 1c, point 4) : copie du fichier de configuration avant l effacement des courbes (sans courbe : rien)
+    [void](Backup-ConfigBeforeRef @($curves) 'reset')
     foreach ($k in $script:CurveKeys) { $script:PrecompCurves[$k] = $null }
     $script:LevelShifts = @{}; $script:OldCalib = $null
+    # 12.8 (lot 1c, § 10.5) : memoires par marque effacees avec les calibrations (apres la copie ci-dessus)
+    $script:LevelBrands = @()
     $script:PrecompStd = $script:PrecompStdDefault; $script:PrecompLong = $script:PrecompLongDefault
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
     Update-PrecompForImage $txtWFile.Text

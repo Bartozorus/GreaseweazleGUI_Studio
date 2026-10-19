@@ -104,7 +104,10 @@ $script:PrecompCurves = @{ std = $null; long = $null; std_h0 = $null; std_h1 = $
 $script:CurveKeys = @('std', 'long', 'std_h0', 'std_h1', 'long_h0', 'long_h1', 'hd', 'hd_h0', 'hd_h1')
 # Calibration rapide (niveau par disquette) : la forme vient d une calibration complete (reference), seul le niveau est
 # mesure sur la disquette a ecrire. (H) : seuils a recaler sur materiel reel.
-$script:LevelAlgo       = 'lvl1'
+# 12.8 (lot 1c) : calibration rapide adaptative 'lvl2' (journal, enregistrements adaptes) ; write.levelAlgo garde le
+# format 'lvl1' (G2) : une 12.7 relit les niveaux ordinaires et ignore seuls les enregistrements adaptes ('lvl2')
+$script:LevelAlgo       = 'lvl2'
+$script:LevelFormat     = 'lvl1'
 $script:LevelCyls       = 6      # cylindres de niveau par unite
 $script:LevelMinCyls    = 4
 $script:LevelMaxPasses  = 3
@@ -121,6 +124,44 @@ $script:LevelHistMax    = 10
 $script:LevelFatigueNs  = 25.0   # (H)
 $script:LevelKMin       = 0.3    # pente minimale admise (ns de decalage par ns de precomp) pour estimer le niveau
 $script:LevelShifts     = @{}    # 'cle de courbe|c|0|1' -> resultat de la derniere calibration rapide
+# 12.8 (lot 1c, c1-design.md § 4) : calibration rapide adaptative (module 265), variante prudente V3, reglages (H) faits sur
+# la grille du simulateur (v128\c1), plats sauf mention ; c1-linearite.md : aucun ne change
+$script:LevelAdaptDeltaMin  = 16     # base minimale des deux precompensations d un cylindre (ns) : pente propre a 10 % pres
+$script:LevelAdaptOvershoot = 1.3    # passe de mesure : correction de la passe 1 x 1,3, pour encadrer le zero
+$script:LevelAdaptKRatioLo  = 0.5    # pente propre plausible, en fraction de la pente de reference
+$script:LevelAdaptKRatioHi  = 1.7
+$script:LevelAdaptMinFit    = 6      # cylindres d ajustement au moins pour 3 parametres (5 pour 2, 3 pour le niveau seul)
+$script:LevelAdaptParsimony = 0.15   # penalite de la validation croisee par terme de forme
+$script:LevelAdaptCoefZ     = 2.0    # terme de forme retenu au-dela de 2 erreurs-types
+$script:LevelAdaptEffMin    = 8.0    # effet minimal d une forme sur la face (ns), sinon niveau seul
+$script:LevelAdaptSMax      = 0.60   # echelle plausible (refus au-dela)
+$script:LevelAdaptBMax      = 60.0   # pente plausible, ns du premier au dernier cylindre (refus au-dela)
+$script:LevelAdaptLooFloor  = 15.0   # ecart isole en validation croisee : min(max(15 ; 4 et.) ; 20) ns
+$script:LevelAdaptLooK      = 4.0
+$script:LevelAdaptLooCap    = 20.0
+$script:LevelAdaptResOk     = 8.0    # zone de reserve : residu d ajustement au-dela (ns)
+$script:LevelAdaptCtlCyls   = 2      # cylindres de controle hors ajustement (zone c60 et au-dela, et bout de face)
+$script:LevelAdaptCtlLo     = 60
+$script:LevelAdaptCtlK      = 3.0    # tolerance d un controle : 3 et., bornee a 10..15 ns
+$script:LevelAdaptCtlFloor  = 10.0
+$script:LevelAdaptCtlCap    = 15.0
+$script:LevelAdaptBigEffect = 15.0   # effet qui ouvre la fenetre « a surveiller » (= seuil f = 1 de Test-LevelShape)
+$script:LevelAdaptPersist   = 2      # declencheur B a la passe 2 confirme par les zeros a la pente de reference
+$script:LevelNwcDelta       = 24     # base de confirmation d une pente nulle (ns)
+$script:LevelAdaptTrigF1    = $false # declenchement des la passe 1 sur une forme non conforme a f = 1 (non retenu, § 2.3)
+# 12.8 (lot 1c, § 10) : memoire de la correction par marque de disquette (write.levelBrand, write.levelBrands)
+$script:LevelBrandMax        = 30    # entrees gardees (les plus anciennes supprimees)
+$script:LevelBrandKeepLevels = 10    # niveaux gardes par entree
+$script:LevelBrandKeepShapes = 5     # formes gardees par entree ; point de depart = medianes
+$script:LevelBrand  = ''             # derniere marque choisie (vide : non precisee)
+$script:LevelBrands = @()            # entrees : marque x lecteur x reference x tete
+$script:LevelPostForce = $false      # G1 : controle apres ecriture impose par une courbe adaptee (Start-ImageWrite)
+$script:CalReviewBrand = $null       # marque nommee dans la fenetre de decision (Show-CalibReview)
+# 12.8 (lot 1c, point 4) : copies GreaseweazleGUI.json.ref-*.bak gardees (Backup-ConfigBeforeRef, les plus recentes)
+$script:ConfigRefBackupKeep = 10
+# 12.8 (lot 1c, point 3) : repli « Calibration complete » demande par Start-LevelFallback (@{ Swap }) : confirmation sans
+# compte a rebours, case « disquette sacrifiee » obligatoire ; lu et remis a $null au debut de Start-PrecompCalib
+$script:CalFallbackAsk = $null
 # 12.7 : bareme de la calibration par famille. Les amplitudes ci-dessus (ns de precompensation, ou de decalage rapporte a
 # la cellule) sont celles de la double densite (2 us). Haute densite (1 us, famille hd) : amplitudes x CalHdK, d apres la
 # plage de mesure de ScpStats.Analyze (sans biais jusqu a 0,2 cellule : 400 ns a 2 us, 200 ns a 1 us, simulation du

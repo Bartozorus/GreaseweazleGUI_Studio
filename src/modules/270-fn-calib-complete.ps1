@@ -5,7 +5,12 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     # LevelAfter : apres une calibration sur disquette sacrifiee, le niveau de la disquette a ecrire est mesure.
     # Carte Calibration de l Accueil : Geom (type de disquette, image de geometrie), Heads (une courbe par tete) et Test
     # ('std' ou 'fine') a la place de l image, de la case Ecriture lente et du mode de l onglet Ecriture ; NoWarmup :
-    # prechauffage du lecteur desactive pour cette calibration (case de la fenetre de la carte)
+    # prechauffage du lecteur desactive pour cette calibration (case de la fenetre de la carte).
+    # 12.8 (lot 1c, point 3) : repli « Calibration complete » de la calibration rapide ($script:CalFallbackAsk, pose par
+    # Start-LevelFallback ; lu et remis a $null ici, avant toute sortie) : confirmation commune frmConfirm (Show-AppConfirm),
+    # sans compte a rebours, case « disquette sacrifiee » obligatoire. Variable et non parametre : signature inchangee
+    # (enveloppes de make-test et des fins de test)
+    $fb = $script:CalFallbackAsk; $script:CalFallbackAsk = $null
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     $script:Cal = $null
     $chk = Test-CalibImage $Geom
@@ -68,6 +73,16 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         # Confirmation sans compte a rebours : la case est obligatoire (une disquette de valeur est peut-etre inseree)
         $rc = Show-TimedConfirm 'frmCalibRedo' (T 'Calibration sur une autre disquette') ($Intro + $body + "`n`n" + $wear) (T 'Lancer la calibration B') 'Diagnostic' '' (T "J'ai retiré la disquette de la calibration A et inséré une autre disquette sacrifiée") '' (T "Pas de démarrage automatique : cochez la case, puis cliquez sur « Lancer la calibration B ».") -Seconds 0 -NeedCheck
         $ans = @{ Ok = ($rc.Ok -and $rc.Checked); Swap = $false; Auto = $false }
+    } elseif ($fb) {
+        # Repli apres la calibration rapide : la disquette inseree est peut-etre celle a ecrire ; jamais de demarrage
+        # automatique. Reponse au journal (Show-AppConfirm), puis ligne du point 3
+        $cq = @{ Title = (T 'Calibration precomp'); Heading = (T 'Calibration complète sur une disquette sacrifiée'); Level = 'warn'; Picto = 'warn'
+                 Text = ($Intro + $body + "`n`n" + $wear + "`n`n" + (T "Pas de démarrage automatique : cochez la case, puis cliquez sur « Lancer la calibration complète »."))
+                 Check = (T "J'ai retiré la disquette à écrire et inséré une disquette sacrifiée, de la marque de mes disquettes habituelles : elle deviendra la référence du lecteur")
+                 GoText = (T 'Lancer la calibration complète'); GoGlyph = 'Diagnostic' }
+        $okFb = [bool](Show-AppConfirm @cq)
+        Append-Log $(if ($okFb) { (T "Calibration complète après la calibration rapide : lancée (case « disquette sacrifiée » cochée).") } else { (T 'Calibration complète après la calibration rapide : annulée.') })
+        $ans = @{ Ok = $okFb; Swap = ($okFb -and [bool]$fb.Swap); Auto = $false }
     } else { $ans = Show-CalibConfirm ($Intro + $auto + $body + "`n`n" + $wear + "`n`n" + $choice) $swapLabel }
     if (-not $ans.Ok) { return }
     if ($ans.Auto) { Append-Log ((T "Calibration : avertissement validé automatiquement après {0} s sans réponse.") -f "$($script:CalibConfirmSeconds)") }
@@ -385,7 +400,13 @@ function New-CalibPass {
             $lc = [int[]]@($u.LTarget.Keys | ForEach-Object { [int]$_ } | Sort-Object)
             foreach ($c in $lc) { $all[$c] = $true }
             $lv = '{0:+0;-0;0}' -f [int]$u.D
-            if ($null -eq $u.Head) { $parts += ((T "niveau {0} ns") -f "$lv") } else { $parts += ((T "tête {0} {1} ns") -f "$($u.Head)", "$lv") }
+            # 12.8 (lot 1c, § 11.2) : tete en passe de mesure, de verification ou de confirmation de la pente
+            $md = [string]$u.Mode
+            if ($null -eq $u.Head) { $parts += ((T "niveau {0} ns") -f "$lv") }
+            elseif ($md -eq 'meas') { $parts += ((T 'tête {0} mesure adaptative') -f "$($u.Head)") }
+            elseif ($md -eq 'verif') { $parts += ((T 'tête {0} courbe adaptée') -f "$($u.Head)") }
+            elseif ($md -eq 'nwc') { $parts += ((T 'tête {0} confirmation de la pente') -f "$($u.Head)") }
+            else { $parts += ((T "tête {0} {1} ns") -f "$($u.Head)", "$lv") }
             if ($cal.Slow) { $writes += ,@("c=$(Format-CylList $lc):h=$($u.Head)", (Get-BracketSpec $u.LTarget)); $cal.TrackWrites += $lc.Count }
             else { $writes += ,@("c=$(Format-CylList $lc):h=0-1", (Get-BracketSpec $u.LTarget)); $cal.TrackWrites += 2 * $lc.Count }
         }
@@ -488,6 +509,23 @@ function Set-CalibEstimates($u, [string]$when = '') {
     return $true
 }
 
+function Write-CalibPassLog($plog, [string]$label) {
+    # 12.8 (lot 1c, point 1, etendu a la calibration complete) : mesures par cylindre d une passe de calibration, rapide
+    # ou complete, au journal seulement (ni courbe, ni niveaux, ni historique). $plog : face -> mesures @{ C ; W ; Role ;
+    # Shift ; SE } (Invoke-CalibAnalysis). Une ligne par face lue, prefixe « [tete h] », courbe commune comprise (la courbe
+    # commune prend la moyenne des deux faces). Element « c<cyl>[ (role)] <valeur ecrite> -> <decalage> ± <erreur-type> »,
+    # en ns, une decimale au format de la langue (Format-UiNum), « - » sans erreur-type ; cylindres croissants, separes
+    # par « ; ». Format stable, lu par un script (c1\lin\analyze_percyl.py)
+    foreach ($h in @($plog.Keys | Sort-Object)) {
+        $items = @(@($plog[$h]) | Sort-Object { [int]$_.C } | ForEach-Object {
+            $se = if ($null -eq $_.SE -or [double]::IsNaN([double]$_.SE)) { '-' } else { Format-UiNum ([double]$_.SE) '0.0' }
+            "c$($_.C)$($_.Role) $($_.W) -> $(Format-UiNum ([double]$_.Shift) '+0.0;-0.0;0.0') ± $se"
+        })
+        if ($items.Count -eq 0) { continue }
+        Append-Log ((T "{0}Mesures de la passe {1} (valeur écrite -> décalage ± erreur-type, ns) : {2}.") -f ((T '[tête {0}] ') -f "$h"), "$label", ($items -join ' ; '))
+    }
+}
+
 function Invoke-CalibAnalysis {
     $cal = $script:Cal
     if (-not $cal) { return }
@@ -505,6 +543,7 @@ function Invoke-CalibAnalysis {
         # Moyenne des deux faces (profil commun) ou face de l unite seule (ecriture lente) ; erreur-type combinee
         $heads = if ($null -eq $u.Head) { @(0, 1) } else { @([int]$u.Head) }
         $shifts = @(); $scores = @(); $bad = @(); $one = @()
+        $plog = @{}      # 12.8 (lot 1c, point 1) : face -> mesures de la passe (Write-CalibPassLog), journal seulement
         if ($cal.Stage -eq 'verify' -and $null -ne $u.VerifyList) {
             # Verification ciblee : la mesure de la passe precedente, prise a l ancienne valeur, ne vaut plus pour ces
             # cylindres ; non relus a cette passe, ils restent « non relus » (jamais juges sur un residu perime)
@@ -542,8 +581,22 @@ function Invoke-CalibAnalysis {
                 'coarse'  { Add-CalibPoint $u.Results[[int]$c] ([int]$cal.Value) $meas }
                 'bracket' { Add-CalibPoint $u.Results[[int]$c] ([int]$u.Bracket[[int]$c]) $meas }
                 'densify' { Add-CalibPoint $u.Results[[int]$c] ([int]$u.Dense[[int]$c]) $meas }
-                'level'   { Add-CalibPoint $u.Results[[int]$c] ([int]$u.LTarget[[int]$c]) $meas }
+                'level'   {
+                    Add-CalibPoint $u.Results[[int]$c] ([int]$u.LTarget[[int]$c]) $meas
+                    # 12.8 (lot 1c) : mesures brutes de chaque passe (passe, valeur ecrite, mesure) : passe de verification
+                    # de la calibration rapide adaptative
+                    if ($null -ne $u.Raw) { if (-not $u.Raw.ContainsKey([int]$c)) { $u.Raw[[int]$c] = @() }; $u.Raw[[int]$c] += ,@([int]$cal.LPass, [int]$u.LTarget[[int]$c], $meas) }
+                }
                 default   { $u.Verify[[int]$c] = $meas; $u.VerifyP[[int]$c] = Get-SpecValue $u.Profile ([int]$c) }
+            }
+            # 12.8 (lot 1c, point 1) : mesure de chaque face lue avec la valeur ecrite a cette passe (journal seulement :
+            # ni courbe, ni niveaux, ni historique) ; role du cylindre : temoin de marche ou du plafond (calibration rapide),
+            # temoin de derive (verification ciblee)
+            $xv = switch ($cal.Stage) { 'coarse' { [int]$cal.Value } 'bracket' { [int]$u.Bracket[[int]$c] } 'densify' { [int]$u.Dense[[int]$c] } 'level' { [int]$u.LTarget[[int]$c] } default { [int]$u.VerifyP[[int]$c] } }
+            $role = if ($cal.Stage -eq 'level') { Get-LevelCylRole $u ([int]$c) } elseif ($cal.Stage -eq 'verify' -and $null -ne $u.VerifyList -and @($u.Witness) -contains [int]$c) { ' ' + (T '(témoin)') } else { '' }
+            foreach ($h in @($fm.Keys)) {
+                if (-not $plog.ContainsKey([int]$h)) { $plog[[int]$h] = @() }
+                $plog[[int]$h] += ,@{ C = [int]$c; W = $xv; Role = $role; Shift = [double]$fm[$h].Shift; SE = $fm[$h].SE }
             }
             # 12.7 : mesures des passes de mesure gardees par face (comparaison de deux calibrations, Get-FaceEstimates) ;
             # sans effet sur la courbe
@@ -577,6 +630,11 @@ function Invoke-CalibAnalysis {
         } elseif (($cal.Stage -ne 'bracket' -or $u.Bracket.Count -gt 0) -and ($cal.Stage -ne 'densify' -or $u.Dense.Count -gt 0) -and ($cal.Stage -ne 'verify' -or $null -eq $u.VerifyList -or @($u.VerifyList).Count -gt 0)) {
             Append-Log ((T "  {0} : aucun cylindre mesurable{1}") -f "$($u.Prefix)$($cal.ValueTxt)", "$badTxt$oneTxt")
         }
+        # 12.8 (lot 1c, point 1, etendu a la calibration complete) : mesures par cylindre de la passe, une ligne par face,
+        # ecrites avant toute decision ; calibration rapide : zeros des cylindres mesures deux fois ou plus
+        $plab = switch ($cal.Stage) { 'coarse' { "$([int]$cal.Index + 1)" } 'level' { "$($cal.LPass)" } 'verify' { (T "vérification {0}") -f "$($cal.VerifyCount)" } default { "$($cal.ValueTxt)" } }
+        Write-CalibPassLog $plog $plab
+        if ($cal.Stage -eq 'level') { Write-LevelPassLog $cal $u ([int]$cal.LPass) }
     }
     if ($cal.Stage -eq 'level') { Invoke-LevelStep $cal $tracks; return }
     if ($cal.Stage -eq 'coarse') {
@@ -1223,6 +1281,10 @@ function Complete-PrecompCalib {
     }
     elseif ($cal.Surf -and $cal.Surf.Defective -and -not $cal.SurfGross) { $issues.Add((Format-CalibSurfaceReserve $cal.Surf)); $kinds.Add('surface') }
     if ($anyCeil -and $cal.Swap) { Append-Log ((T "Calibration faite sur une disquette sacrifiée dont le besoin dépasse {0} ns : si elle est fatiguée, la courbe surestime le besoin de la disquette à écrire. Préférez une disquette sacrifiée en bon état.") -f "$($script:CalMaxNs)") }
+    # 12.8 (lot 1c, point 4) : copie du fichier de configuration avant le remplacement de la reference (toute calibration
+    # complete : bouton Calibrer, carte de l Accueil, calibration avant une ecriture, repli du point 3, calibration B,
+    # restauration) ; sans courbe a remplacer : rien
+    [void](Backup-ConfigBeforeRef @($cal.Units | ForEach-Object { Get-CalibUnitKey $cal $_ }) 'replace')
     # Etat precedent (courbes et profils remplaces ci-dessous) : retabli si l utilisateur refuse un resultat douteux
     $prevCal = Get-CalibSnapshot @($cal.Units | ForEach-Object { Get-CalibUnitKey $cal $_ })
     # Profil commun : remplace celui de la famille. Ecriture lente : courbes par tete, le profil commun est conserve.
@@ -1250,6 +1312,16 @@ function Complete-PrecompCalib {
             Slope =$(if ($null -ne $u.Slope) { [math]::Round([double]$u.Slope, 3) } else { $null }); Bits = [int]$cal.PatternBits; Test = [string]$cal.Mode
         }
     }
+    # 12.8 (lot 1c, § 10.5) : marques memorisees avec la reference remplacee : gardees, mais plus point de depart (date de
+    # reference differente) ; une copie .bak retablie ou l abandon de la nouvelle courbe les rend de nouveau valables
+    $brOld = @()
+    foreach ($u in $cal.Units) {
+        $key = if ($null -eq $u.Head) { $cal.Family } else { "$($cal.Family)_h$($u.Head)" }
+        $pc = $prevCal.Curves[$key]
+        if ($pc) { $brOld += @(Get-LevelBrandsOfRef $key ([string]$pc.Date) ([string]$cal.Drive)) }
+    }
+    $brOld = @($brOld | Sort-Object -Unique)
+    if ($brOld.Count -gt 0) { Append-Log ((T 'Marques mémorisées avec la référence précédente ({0}) : elles seront mesurées de nouveau à leur prochaine calibration rapide.') -f ($brOld -join ', ')) }
     # Nouvelle reference de forme : les niveaux mesures avec la precedente sont abandonnes
     $dropped = @()
     foreach ($u in $cal.Units) {

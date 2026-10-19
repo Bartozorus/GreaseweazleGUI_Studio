@@ -62,6 +62,9 @@ function Get-AppBusy([switch]$Text) {
 
 function Get-LogColor([string]$line) {
     if ($line -match '^>>>') { return $script:LogColors.cmd }
+    # 12.8 (lot 1c, point 1) : mesures par cylindre d une passe de calibration (« erreur-type », « standard error ») :
+    # donnees, jamais une erreur (le journal masque ne s ouvre pas pour elles)
+    if ($line -match '^\[[^\]]+\] (Mesures de la passe .+ \(valeur écrite -> |Pass .+ measurements \(written value -> )') { return $script:LogColors.dim }
     # Lignes de synthese du controle apres ecriture : simples comptes par etat (« 0 critique(s) » n est pas une erreur)
     if ($line -match '^(Contrôle complet|Full check|Remesure après réécriture|Re-measure after rewrite)\b') { return $script:LogColors.std }
     if ($line -match 'FATAL|ERREUR|ERROR|ECHEC|ÉCHEC|FAILED|Command Failed|Write ?Protect|CRITIQUE|CRITICAL|ILLISIBLE|UNREADABLE|introuvable|not found|code retour : [1-9]|exit code: [1-9]|support fatigué|worn media|réécriture automatique non lancée|automatic rewrite not started|RESTAURATION ÉCHOUÉE|RESTORE FAILED') { return $script:LogColors.err }

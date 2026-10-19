@@ -52,6 +52,9 @@ function Start-ImageWrite([switch]$NoWarmup) {
     # Ecriture de l image avec les parametres de l onglet (bouton ECRIRE, ecriture rapide ou lente, fin de calibration automatique)
     # Ecriture lente : prechauffage du lecteur avant la premiere ecriture (Start-WriteWarmup, chaine d ecriture prete) ;
     # NoWarmup : prechauffage passe a la demande de l utilisateur pendant la calibration qui precede
+    # 12.8 (lot 1c, G1) : courbe adaptee a cette disquette par la calibration rapide qui precede : controle apres ecriture
+    # impose, meme case decochee (drapeau lu une fois)
+    $postForce = [bool]$script:LevelPostForce; $script:LevelPostForce = $false
     if (-not (Test-Path -LiteralPath $txtWFile.Text)) {
         [void][System.Windows.Forms.MessageBox]::Show((T 'Fichier image introuvable.'),(T 'Erreur'),'OK','Warning'); return
     }
@@ -165,11 +168,19 @@ function Start-ImageWrite([switch]$NoWarmup) {
     }
     # Prechauffage de l ecriture lente (Start-WriteWarmup) : un cylindre sur 10 des pistes ecrites, tetes ecrites
     $warmTs = if ($slow) { Get-WriteWarmupTSpec $userTs ([int[]]$heads) $txtWFile.Text } else { $null }
-    $blocker = if ($chkWPostCheck.Checked) { Get-WriteCheckBlocker $txtWFile.Text $cmbWFmt.Text } else { $null }
+    # 12.8 (FIX1C, constat 3, G1) : controle impose aussi quand un profil ecrit est la courbe adaptee d une calibration
+    # rapide (bouton Calibrer au test rapide, puis ECRIRE sans nouvelle mesure), meme case decochee ; la ligne de journal
+    # est celle de Complete-LevelCalib, ecrite ici quand le drapeau n a pas ete pose
+    if (-not $postForce) {
+        $wsp = if ($slow) { @($heads | ForEach-Object { $headPc[$_] }) } else { @($pc0) }
+        if (Test-LevelAdaptedSpec ([string[]]@($wsp | Where-Object { $_ }))) { $postForce = $true; Append-Log (T 'Contrôle après écriture imposé : courbe adaptée à cette disquette.') }
+    }
+    $post = ([bool]$chkWPostCheck.Checked -or $postForce)
+    $blocker = if ($post) { Get-WriteCheckBlocker $txtWFile.Text $cmbWFmt.Text } else { $null }
     if ($blocker) {
         Append-Log ((T "Contrôle de toutes les pistes non applicable ({0}) : l'analyse de flux est calibrée pour le MFM double densité. Écriture sans contrôle.") -f "$blocker")
     }
-    if ($chkWPostCheck.Checked -and -not $blocker) {
+    if ($post -and -not $blocker) {
         # Options de lecteur reprises par les relectures de controle (gw read les accepte toutes)
         $readOpts = @(Get-DriveReadArgs)
         New-WriteCheck $base $txtWFile.Text $userTs ([int]$numWRepair.Value) $readOpts $headPc

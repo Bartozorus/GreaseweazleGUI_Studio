@@ -220,28 +220,12 @@ function Get-LevelEstimate($u, [int]$pass) {
         if ($z.Kind -eq 'cap') { if ([double]$z.Est -le 0) { $floored += [int]$c } else { $capped += [int]$c }; $kinds[[int]$c] = 'cap'; continue }
         $ds[[int]$c] = [double]$z.Est - [double]$u.V[[int]$c]; $sg[[int]$c] = [double]$z.Sig; $kinds[[int]$c] = [string]$z.Kind
     }
-    $cs = @($ds.Keys | ForEach-Object { [int]$_ } | Sort-Object)
-    $t0 = [math]::Pow([double]$script:LevelShapeFloor, 2)
-    $w = @{}; foreach ($c in $cs) { $w[$c] = 1.0 / ([math]::Pow($sg[$c], 2) + $t0) }
-    $outl = @(); $scatter = 0
-    if ($cs.Count -ge 1) {
-        $m = Get-WeightedMedian ([double[]]@($cs | ForEach-Object { $ds[$_] })) ([double[]]@($cs | ForEach-Object { $w[$_] }))
-        $iso = @($cs | Where-Object { [math]::Abs($ds[$_] - $m) -gt [math]::Max(15.0, 4.0 * $sg[$_]) })
-        if ($iso.Count -eq 1 -and $cs.Count -ge 5) { $outl = $iso } elseif ($iso.Count -ge 2) { $scatter = $iso.Count }
-    }
-    $keep = @($cs | Where-Object { $outl -notcontains $_ })
-    $n = $keep.Count
-    $e = @{ N = $n; K = $k; KRaw = $kRaw; KSpan = $kSpan; Ds = $ds; Sigs = $sg; Kinds = $kinds; Capped = $capped; Floored = $floored; Outliers = $outl; Scatter = $scatter; Keep = $keep; W = $w
-            Delta = [double]::NaN; SE = [double]::NaN; Tau = 0.0; Rbar = [double]::NaN; RTol = [double]$script:CalResidual * [math]::Min(1.0, $k / 2.0); Wit = @{}; ProbeZ = $null; ProbeKind = '' }
+    # 12.8 (lot 1c) : partie statistique commune avec Get-LevelKrefEstimate (Get-LevelStats, calcul inchange)
+    $st = Get-LevelStats $ds $sg
+    $keep = $st.Keep; $n = $st.N
+    $e = @{ N = $n; K = $k; KRaw = $kRaw; KSpan = $kSpan; Ds = $ds; Sigs = $sg; Kinds = $kinds; Capped = $capped; Floored = $floored; Outliers = $st.Outliers; Scatter = $st.Scatter; Keep = $keep; W = $st.W
+            Delta = $st.Delta; SE = $st.SE; Tau = $st.Tau; Rbar = [double]::NaN; RTol = [double]$script:CalResidual * [math]::Min(1.0, $k / 2.0); Wit = @{}; ProbeZ = $null; ProbeKind = '' }
     if ($n -ge 1) {
-        $sw = 0.0; $swd = 0.0; foreach ($c in $keep) { $sw += $w[$c]; $swd += $w[$c] * $ds[$c] }
-        $dh = $swd / $sw; $e.Delta = $dh
-        if ($n -ge 2) {
-            $chi = 0.0; $ss = 0.0; $ms = 0.0
-            foreach ($c in $keep) { $chi += $w[$c] * [math]::Pow($ds[$c] - $dh, 2); $ss += [math]::Pow($ds[$c] - $dh, 2); $ms += [math]::Pow($sg[$c], 2) }
-            $e.SE = [math]::Sqrt(1.0 / $sw) * [math]::Sqrt([math]::Max(1.0, $chi / ($n - 1)))
-            $e.Tau = [math]::Sqrt([math]::Max(0.0, $ss / ($n - 1) - $ms / $n))
-        } else { $e.SE = [math]::Sqrt(1.0 / $sw) }
         $rs = @()
         foreach ($c in $keep) {
             $tg = [int]$u.LTarget[[int]$c]
@@ -265,6 +249,34 @@ function Get-LevelEstimate($u, [int]$pass) {
         if ($z) { $e.ProbeZ = [double]$z.Est; $e.ProbeKind = [string]$z.Kind }
     }
     return $e
+}
+
+function Get-LevelStats($ds, $sg) {
+    # Partie statistique de Get-LevelEstimate : poids avec plancher tau0 (LevelShapeFloor), ecart isole ou dispersion
+    # (mediane ponderee), niveau, erreur-type, ecart de forme tau. 12.8 (lot 1c) : aussi pour Get-LevelKrefEstimate
+    $cs = @($ds.Keys | ForEach-Object { [int]$_ } | Sort-Object)
+    $t0 = [math]::Pow([double]$script:LevelShapeFloor, 2)
+    $w = @{}; foreach ($c in $cs) { $w[$c] = 1.0 / ([math]::Pow($sg[$c], 2) + $t0) }
+    $outl = @(); $scatter = 0
+    if ($cs.Count -ge 1) {
+        $m = Get-WeightedMedian ([double[]]@($cs | ForEach-Object { $ds[$_] })) ([double[]]@($cs | ForEach-Object { $w[$_] }))
+        $iso = @($cs | Where-Object { [math]::Abs($ds[$_] - $m) -gt [math]::Max(15.0, 4.0 * $sg[$_]) })
+        if ($iso.Count -eq 1 -and $cs.Count -ge 5) { $outl = $iso } elseif ($iso.Count -ge 2) { $scatter = $iso.Count }
+    }
+    $keep = @($cs | Where-Object { $outl -notcontains $_ })
+    $n = $keep.Count
+    $st = @{ N = $n; Ds = $ds; Sigs = $sg; Outliers = $outl; Scatter = $scatter; Keep = $keep; W = $w; Delta = [double]::NaN; SE = [double]::NaN; Tau = 0.0 }
+    if ($n -ge 1) {
+        $sw = 0.0; $swd = 0.0; foreach ($c in $keep) { $sw += $w[$c]; $swd += $w[$c] * $ds[$c] }
+        $dh = $swd / $sw; $st.Delta = $dh
+        if ($n -ge 2) {
+            $chi = 0.0; $ss = 0.0; $ms = 0.0
+            foreach ($c in $keep) { $chi += $w[$c] * [math]::Pow($ds[$c] - $dh, 2); $ss += [math]::Pow($ds[$c] - $dh, 2); $ms += [math]::Pow($sg[$c], 2) }
+            $st.SE = [math]::Sqrt(1.0 / $sw) * [math]::Sqrt([math]::Max(1.0, $chi / ($n - 1)))
+            $st.Tau = [math]::Sqrt([math]::Max(0.0, $ss / ($n - 1) - $ms / $n))
+        } else { $st.SE = [math]::Sqrt(1.0 / $sw) }
+    }
+    return $st
 }
 
 function Test-LevelShape($e, $u, [double]$f = 1.0) {
@@ -328,12 +340,15 @@ function Build-LevelValues($u, [int]$d, $e) {
     # Noms distincts de la reference ($ref) et de sa valeur ($rv) : PowerShell ignore la casse ($V et $v seraient une
     # seule variable)
     $max = [int]$script:CalHardNs; $rmax = Get-CurveMaxNs $u.Cv; $ref = @($u.V); $n = $ref.Count
+    # 12.8 (FIX1C, constat 4) : Clip decide sur la reference du lecteur (V0) ; avec le point de depart d une marque (V'),
+    # une valeur de V' au-dela de la borne est un besoin de cette disquette : Sat (reserve « plafond »), jamais Clip
+    $ref0 = if ($null -ne $u.V0 -and @($u.V0).Count -eq $n) { @($u.V0) } else { $ref }
     $out = New-Object int[] $n; $sat = @(); $floor = @(); $clip = @()
     for ($c = 0; $c -lt $n; $c++) {
         $rv = [int]$ref[$c]
         # Reference au-dela de la borne actuelle (courbe calculee avec une borne plus haute) : ecretee a la borne, niveau
         # applique, sans Sat (la borne est un reglage, pas un besoin de cette disquette)
-        if ($rv -gt $max) {
+        if ([int]$ref0[$c] -gt $max) {
             $raw = if ($rv -ge $rmax) { $rv + [math]::Max(0, $d) } else { $rv + $d }
             if ($raw -gt $max) { $clip += $c }
             $out[$c] = [int][math]::Max(0, [math]::Min($max, $raw)); continue
@@ -365,7 +380,7 @@ function Build-LevelValues($u, [int]$d, $e) {
                 $raw = [math]::Round($y0 + $tt * ($y1 - $y0))
                 if ($note -eq 'cap') {
                     $lb = [double]$ref[$c] + [math]::Max(0, $d)
-                    if ([double]$ref[$c] -gt $max) { $clip += $c } elseif ($c -eq $p -or $lb -gt $max) { $sat += $c }
+                    if ([double]$ref0[$c] -gt $max) { $clip += $c } elseif ($c -eq $p -or $lb -gt $max) { $sat += $c }
                     $raw = [math]::Max($raw, [math]::Min([double]$max, $lb))
                 }
                 $out[$c] = [int][math]::Max(0, [math]::Min($max, $raw))
@@ -375,11 +390,39 @@ function Build-LevelValues($u, [int]$d, $e) {
     return @{ Values = $out; Sat = $sat; Floor = $floor; ProbeNote = $note; Clip = $clip }
 }
 
+function New-LevelCalUnits($lr, [string]$brand, [string]$drive) {
+    # Unites de la calibration rapide (Start-LevelCalib ; suite calib-lvl2, sans interface) : une par tete ou une pour la
+    # courbe commune, cibles de la premiere passe. 12.8 (lot 1c) : etat de la calibration rapide adaptative ; V0 :
+    # reference du lecteur (ShapeV), V : reference ou point de depart de la marque (V', Set-LevelBrandStart) ; cylindres
+    # de controle (ecriture lente) choisis sur la reference du lecteur (V0, FIX1C), les memes que ceux de l avertissement
+    $units = @()
+    $slow = ($null -ne @($lr.Units)[0].Head)
+    foreach ($lu in @($lr.Units)) {
+        $u = New-CalibUnit $lu.Head
+        foreach ($key in 'RefKey', 'Tag', 'Cv', 'V', 'KRef', 'LCyls', 'Wit', 'Probe', 'CapLo', 'D0', 'NHist') { $u[$key] = $lu[$key] }
+        $u.D = [int]$lu.D0; $u.LTarget = @{}; $u.Done = $false; $u.Conv = $false; $u.Fail = ''; $u.Early = $false; $u.Sat = $false; $u.Low = $false; $u.Few = $false; $u.ProbeOnly = $false
+        $u.Level = $null; $u.Passes = 0; $u.ProbeDone = $false; $u.ProbeZ = $null; $u.Est = $null; $u.Shape = $null
+        $u.Mode = 'lvl1'; $u.Raw = @{}; $u.V0 = [int[]]@($lu.V); $u.Memo = $null; $u.BrandEntry = $null; $u.AN = $null; $u.AV = $null; $u.VR = $null
+        $u.Named = @{}; $u.Refus = ''; $u.Trig = $null; $u.Note = ''; $u.AdaptNote = ''; $u.AdaptLog = $null; $u.Ctl = [int[]]@()
+        Set-LevelBrandStart @{ Drive = $drive; Family = [string]$lr.Family } $u $brand
+        $u.ShapeV = New-LevelShape $u.V0
+        foreach ($c in @(@($u.LCyls) + @($u.Wit) + @($(if ($null -ne $u.Probe) { $u.Probe })))) { $u.Results[[int]$c] = @{} }
+        Set-LevelTargets $u
+        $units += ,$u
+    }
+    if ($slow) {
+        $ctl = Get-LevelCtlCyls $units ([int]$lr.MaxCyl)
+        foreach ($u in $units) { $u.Ctl = $ctl; foreach ($x in $ctl) { if (-not $u.Results.ContainsKey([int]$x)) { $u.Results[[int]$x] = @{} } } }
+    }
+    return ,$units
+}
+
 function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = $null) {
     # Calibration rapide : avertissement (sauf NoConfirm), motif, unites, premiere passe. Geom : type de disquette de la
     # carte Calibration de l Accueil (image de geometrie, Start-HomeCalib) a la place de l image de l onglet Ecriture
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     $script:Cal = $null
+    $script:LevelPostForce = $false
     $chk = Test-CalibImage $Geom
     if (-not $chk) { return }
     $img = $chk.Img; $fam = $lr.Family
@@ -396,43 +439,57 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     }
     $cyls = [int[]]@($all.Keys | Sort-Object)
     $cylTxt = if (@($sets | Sort-Object -Unique).Count -le 1) { $sets[0] } else { ((@(0..($units0.Count - 1) | ForEach-Object { (T "tête {0} : {1}") -f "$($units0[$_].Head)", "$($sets[$_])" })) -join ' ; ') }
+    # 12.8 (lot 1c) : cylindres de controle de la calibration rapide adaptative (ecriture lente, une courbe par tete ; la
+    # courbe commune n est pas adaptee, G6), choisis sous le dernier cylindre de l image
+    $ctl0 = if ($slow) { Get-LevelCtlCyls $units0 ([int]$lr.MaxCyl) } else { [int[]]@() }
+    $ctlTxt = if ($ctl0.Count -gt 0) { Format-CylList $ctl0 } else { '-' }
     $ref0 = $units0[0].Cv
     $testTxt = if ([string]$ref0.Test -eq 'fine') { (T 'test fin') } else { (T 'test standard') }
     # Calibration rapide avant une ecriture lente : prechauffage du lecteur avant la mesure du niveau (case « Prechauffer le
     # lecteur ») ; duree comprise dans l estimation (borne haute : reduit ou saute si le lecteur vient de servir)
     $warm = ($toWrite -and $chkWSlow.Checked -and $chkWWarm.Checked)
     $wu = if ($warm) { [math]::Max(0.0, [double]$script:CalWarmupMinutes) } else { 0.0 }
-    $minutes = [math]::Max(1, [math]::Round($cyls.Count * 2 * 1.4 * 2 / 60 + $wu, 0))
+    # 12.8 (lot 1c) : 2 passes en general, 3 passes avec 2 cylindres de controle de plus quand la forme est adaptee
+    $minLo = [math]::Max(1, [math]::Round($cyls.Count * 2 * 1.4 * 2 / 60 + $wu, 0))
+    $minHi = [math]::Max($minLo, [math]::Round(($cyls.Count + $ctl0.Count) * 2 * 1.4 * 3 / 60 + $wu, 0))
+    $minutes = if ($slow -and $minHi -gt $minLo) { (T '{0} à {1}') -f "$minLo", "$minHi" } else { "$minLo" }
     $script:AlignLoop = $false; $script:AlignNextAt = $null
     $ans = $null                        # 12.7 : jamais celle d un appelant (portee dynamique)
+    $brand = ''
     if (-not $NoConfirm) {
         $intro = if ($toWrite) { ((T "Calibration rapide avant l'écriture : {0} reçoit le motif de test sur ces seuls cylindres, au plus 3 fois, puis l'image.") -f "$target") + "`n`n" } else { '' }
-        $bodyFmt = if ($Geom) { (T "Calibration rapide de la précompensation sur le lecteur {0} : seul le niveau de la courbe est mesuré, sur la disquette insérée.`n`nRéférence : calibration complète du {1} ({2}), dont la forme est reprise telle quelle.`nType de disquette : {3}, famille {4}.`nCylindres mesurés : {5} (2 faces), ÉCRASÉS à chaque passe ; 1 à 3 passes, 2 en général. Durée estimée : {6} min.") }
-                   else { (T "Calibration rapide de la précompensation sur le lecteur {0} : seul le niveau de la courbe est mesuré, sur la disquette insérée.`n`nRéférence : calibration complète du {1} ({2}), dont la forme est reprise telle quelle.`nImage : {3}, famille {4}.`nCylindres mesurés : {5} (2 faces), ÉCRASÉS à chaque passe ; 1 à 3 passes, 2 en général. Durée estimée : {6} min.") }
-        $body = $bodyFmt -f "$($cmbDrive.Text)", "$($ref0.Date)", "$testTxt", "$($chk.Label)", (Get-CalibFamilyName $fam), "$cylTxt", "$minutes"
+        # 12.8 (lot 1c) : courbe commune (ecriture rapide) : seul le niveau est mesure (G6), textes de la 12.7
+        $bodyFmt = if (-not $slow -and $Geom) { (T "Calibration rapide de la précompensation sur le lecteur {0} : seul le niveau de la courbe est mesuré, sur la disquette insérée.`n`nRéférence : calibration complète du {1} ({2}), dont la forme est reprise telle quelle.`nType de disquette : {3}, famille {4}.`nCylindres mesurés : {5} (2 faces), ÉCRASÉS à chaque passe ; 1 à 3 passes, 2 en général. Durée estimée : {6} min.") }
+                   elseif (-not $slow) { (T "Calibration rapide de la précompensation sur le lecteur {0} : seul le niveau de la courbe est mesuré, sur la disquette insérée.`n`nRéférence : calibration complète du {1} ({2}), dont la forme est reprise telle quelle.`nImage : {3}, famille {4}.`nCylindres mesurés : {5} (2 faces), ÉCRASÉS à chaque passe ; 1 à 3 passes, 2 en général. Durée estimée : {6} min.") }
+                   elseif ($Geom) { (T "Calibration rapide de la précompensation sur le lecteur {0} : le niveau de la courbe est mesuré sur la disquette insérée, et sa forme aussi si elle diffère de la référence.`n`nRéférence : calibration complète du {1} ({2}) ; sa forme est reprise, puis adaptée à cette disquette si la mesure le demande.`nType de disquette : {3}, famille {4}.`nCylindres mesurés : {5} (2 faces), ÉCRASÉS à chaque passe, plus 2 cylindres de contrôle ({7}) si la forme est adaptée ; 1 à 3 passes, 2 en général, 3 quand la forme est adaptée. Durée estimée : {6} min.") }
+                   else { (T "Calibration rapide de la précompensation sur le lecteur {0} : le niveau de la courbe est mesuré sur la disquette insérée, et sa forme aussi si elle diffère de la référence.`n`nRéférence : calibration complète du {1} ({2}) ; sa forme est reprise, puis adaptée à cette disquette si la mesure le demande.`nImage : {3}, famille {4}.`nCylindres mesurés : {5} (2 faces), ÉCRASÉS à chaque passe, plus 2 cylindres de contrôle ({7}) si la forme est adaptée ; 1 à 3 passes, 2 en général, 3 quand la forme est adaptée. Durée estimée : {6} min.") }
+        $body = $bodyFmt -f "$($cmbDrive.Text)", "$($ref0.Date)", "$testTxt", "$($chk.Label)", (Get-CalibFamilyName $fam), "$cylTxt", "$minutes", "$ctlTxt"
         if ($wu -gt 0) { $body += "`n" + ((T "Préchauffage du lecteur avant la mesure du niveau : jusqu'à {0} de lecture sans écriture (moins si le lecteur vient de servir), compris dans la durée estimée.") -f (Format-CalDuration (60 * $wu))) }
         $tail = if ($toWrite) { (T "Le niveau dépend du support : il doit être mesuré sur la disquette qui recevra l'image. N'insérez pas de disquette sacrifiée. Une calibration complète écrit le motif 4 à 8 fois sur ses cylindres de test ; la calibration rapide, 3 fois au plus.") }
                 elseif ($Geom) { (T "Aucune image n'est écrite. Insérez la disquette que vous allez écrire : le profil obtenu ne vaut que pour elle ; il est placé dans les champs --precomp de l'onglet Écriture si son image est de la même famille.") }
                 else { (T "Aucune image n'est écrite. Insérez la disquette que vous allez écrire : le profil obtenu est placé dans les champs --precomp et ne vaut que pour elle.") }
-        $ans = Show-CalibConfirm ($intro + $body + "`n`n" + $tail) ''
+        # 12.8 (lot 1c, § 10.1) : marque de la disquette inseree (champ libre, derniere marque choisie par defaut), ecriture
+        # lente seulement (la courbe commune n est pas adaptee)
+        $bi = $null
+        if ($slow) {
+            $bi = Get-LevelBrandItems ([string]$cmbDrive.Text) $units0 $fam
+            $bi.Label = (T 'Marque de la disquette insérée :'); $bi.Text = [string]$script:LevelBrand
+            $bi.Tip = (T "Nom libre : marque, année ou lot. Une marque déjà mesurée sert de point de départ : sa forme et son niveau, mémorisés avec la référence actuelle du lecteur. La mesure reste faite sur la disquette insérée.")
+        }
+        $ans = Show-CalibConfirm ($intro + $body + "`n`n" + $tail) '' $bi
         if (-not $ans.Ok) { return }
         if ($ans.Auto) { Append-Log ((T "Calibration : avertissement validé automatiquement après {0} s sans réponse.") -f "$($script:CalibConfirmSeconds)") }
+        if ($bi) { $brand = Get-LevelBrandName ([string]$ans.Brand) $bi.Map; $script:LevelBrand = $brand }
+    } elseif ($slow) {
+        # Mesure apres une calibration sur disquette sacrifiee (sans avertissement) : derniere marque choisie
+        $brand = [string]$script:LevelBrand
     }
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
     try { $pat = New-CalibPattern $fam $img $lr.NCyl }
     catch { [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)"),(T 'Calibration precomp'),'OK','Error'); return }
     Set-CalibScale $fam     # 12.7 : bareme double densite (pas de calibration rapide en haute densite, Get-LevelRef)
-    $units = @()
-    foreach ($lu in $units0) {
-        $u = New-CalibUnit $lu.Head
-        foreach ($key in 'RefKey', 'Tag', 'Cv', 'V', 'KRef', 'LCyls', 'Wit', 'Probe', 'CapLo', 'D0', 'NHist') { $u[$key] = $lu[$key] }
-        $u.D = [int]$lu.D0; $u.LTarget = @{}; $u.Done = $false; $u.Conv = $false; $u.Fail = ''; $u.Early = $false; $u.Sat = $false; $u.Low = $false; $u.Few = $false; $u.ProbeOnly = $false
-        $u.Level = $null; $u.Passes = 0; $u.ProbeDone = $false; $u.ProbeZ = $null; $u.Est = $null; $u.Shape = $null
-        foreach ($c in @(@($u.LCyls) + @($u.Wit) + @($(if ($null -ne $u.Probe) { $u.Probe })))) { $u.Results[[int]$c] = @{} }
-        Set-LevelTargets $u
-        $units += ,$u
-    }
+    $units = New-LevelCalUnits $lr $brand ([string]$cmbDrive.Text)
     $cylList = Format-CylList $cyls
     $script:Cal = @{
         Mode = 'level'; Stage = 'level'; LPass = 1; Cyls = $cyls; MaxCyl = $lr.MaxCyl; Family = $fam; Slow = $slow
@@ -445,16 +502,23 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
         Home = [bool]$Geom; Geom = $Geom                      # carte Calibration de l Accueil (progression sur la carte)
         # 12.7 point 5 : controle de surface de la premiere passe (Invoke-LevelSurface)
         AutoStart = [bool]($ans -and $ans.Auto); SurfDone = $false; Surf = $null; Medium = $null; SurfGross = $false; SurfKept = $false; Hold = $false
+        # 12.8 (lot 1c) : marque de la disquette inseree (§ 10)
+        Brand = $brand
     }
     $kind = if ($slow -and $units[0].RefKey -eq $units[1].RefKey) { (T 'forme commune, niveau mesuré par tête') } elseif ($slow) { (T 'une courbe par tête') } else { (T 'courbe commune') }
     $lf = if ($Geom) { (T "=== Calibration rapide : lecteur {0}, type {1} ({2}, {3}) ===") } else { (T "=== Calibration rapide : lecteur {0}, image {1} ({2}, {3}) ===") }
     Append-Log ($lf -f "$($cmbDrive.Text)", "$($chk.Label)", (Get-CalibFamilyName $fam), "$kind")
+    if ($brand) { Append-Log $(if ($NoConfirm) { (T 'Marque de la disquette insérée : « {0} » (dernière marque choisie).') -f "$brand" } else { (T 'Marque de la disquette insérée : « {0} ».') -f "$brand" }) }
     foreach ($u in $units) {
         $tt = if ([string]$u.Cv.Test -eq 'fine') { (T 'test fin') } else { (T 'test standard') }
         Append-Log ((T "{0}Référence de forme : calibration complète ({1}) du {2}, lecteur {3} ; cylindres de niveau : {4}.") -f "$($u.Prefix)", "$tt", "$($u.Cv.Date)", "$($u.Cv.Drive)", (Format-CylList ([int[]]@($u.LCyls))))
         if (@($u.Wit).Count -eq 2) { Append-Log ((T "{0}Témoins de marche : c{1} et c{2} (contrôle de la forme, hors calcul du niveau).") -f "$($u.Prefix)", "$($u.Wit[0])", "$($u.Wit[1])") }
         if ($null -ne $u.Probe) { Append-Log ((T "{0}Témoin du plafond : c{1} (référence au plafond de {3} ns de son calcul, de c{2} à c{1}).") -f "$($u.Prefix)", "$($u.Probe)", "$($u.CapLo)", "$(Get-CurveMaxNs $u.Cv)") }
-        if ($u.D0 -ne 0) { Append-Log ((T "{0}Niveau de départ : {1} ns (médiane de la référence et des {2} derniers niveaux mesurés avec elle).") -f "$($u.Prefix)", ('{0:+0;-0;0}' -f $u.D0), "$($u.NHist)") }
+        if ($u.Memo) {
+            $mm = $u.Memo
+            Append-Log ((T '{0}Point de départ : forme mémorisée pour la marque « {1} » (niveau {2} ns, échelle {3} %, pente {4} ns de c0 à c{5} ; {6} mesure(s), dernière le {7}).') -f "$($u.Prefix)", "$($mm.Brand)", (Format-LevelSigned $mm.A), (Format-UiNum ([math]::Round(100 * [double]$mm.S, 1)) '+0.0;-0.0;0.0'), (Format-LevelSigned $mm.B), "$(@($u.V0).Count - 1)", "$($mm.N)", "$($mm.LastDate)")
+        }
+        if ($u.D0 -ne 0 -and -not $u.Memo) { Append-Log ((T "{0}Niveau de départ : {1} ns (médiane de la référence et des {2} derniers niveaux mesurés avec elle).") -f "$($u.Prefix)", ('{0:+0;-0;0}' -f $u.D0), "$($u.NHist)") }
     }
     Append-Log (T 'Cylindres de niveau choisis parmi les cylindres mesurés et vérifiés de la référence ; exclus : cylindres 0 et 1, changements de sens et leurs voisins, pentes raides, valeurs hors de 20 à 260 ns, points isolés ou hors tolérance.')
     foreach ($nt in @($lr.Notes)) { Append-Log $nt }
@@ -466,14 +530,88 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     if ($warm) { Start-CalibWarmup } else { New-CalibPass }
 }
 
+function Invoke-LevelDecide($cal, $u, $e, [int]$p, $J) {
+    # Decision 12.7 d Invoke-LevelStep pour une unite apres l estimation $e de la passe p (arret : niveau verifie, echec,
+    # bascule anticipee, dernier essai ; sinon cibles de la passe suivante). 12.8 (lot 1c) : lignes du journal ajoutees a
+    # $J (@{ Est ; Text }), ecrites par l appelant ; renvoie le motif : nomeas, nowrite, few, verifie, probe (niveau
+    # verifie, passe du seul temoin du plafond), repli, max_passes, stable ou next
+    if ($e.N + @($e.Capped).Count + @($e.Floored).Count -lt 3) { $u.Fail = 'nomeas'; $u.Done = $true; return 'nomeas' }
+    if ($null -ne $u.Head -and $p -ge 2 -and $null -ne $e.KRaw -and $e.KRaw -ge [math]::Max(-0.2, -0.5 * [double]$u.KRef) -and [double]$u.KRef * [double]$e.KSpan -ge 4.0) { $u.Fail = 'nowrite'; $u.Done = $true; return 'nowrite' }
+    if ($e.N -lt 3) {
+        $nm = $e.N + @($e.Capped).Count + @($e.Floored).Count
+        if (2 * @($e.Floored).Count -gt $nm) { $u.Low = $true } elseif (2 * @($e.Capped).Count -gt $nm) { $u.Sat = $true } else { $u.Few = $true }
+        $u.Level = if ($e.N -ge 1 -and -not [double]::IsNaN([double]$e.Delta)) { [int][math]::Round([double]$e.Delta) } else { [int]$u.D }
+        $u.Conv = $false; $u.Done = $true; return 'few'
+    }
+    $dh = [double]$e.Delta
+    $dv = @($e.Keep | ForEach-Object { $e.Ds[$_] })
+    $J.Add(@{ Est = $true; Text = ($u.Prefix + ((T "Niveau estimé : {0} ns ± {1} ({2} cylindres ; écarts à la forme de {3} à {4} ns ; écart de forme {5} ns).") -f ('{0:+0.0;-0.0;0.0}' -f $dh), ('{0:0.#}' -f [math]::Round($e.SE, 1)), "$($e.N)", ('{0:+0.0;-0.0;0.0}' -f (($dv | Measure-Object -Minimum).Minimum - $dh)), ('{0:+0.0;-0.0;0.0}' -f (($dv | Measure-Object -Maximum).Maximum - $dh)), ('{0:0.#}' -f [math]::Round($e.Tau, 1)))) })
+    if (-not [double]::IsNaN([double]$e.Rbar) -and [math]::Abs($e.Rbar) -le $e.RTol) {
+        $u.Level = [int]$u.D; $u.Conv = $true
+        $J.Add(@{ Est = $false; Text = ($u.Prefix + ((T "Niveau vérifié à la passe {0} : décalage résiduel moyen {1} ns (tolérance {2}) : niveau retenu {3} ns.") -f "$p", ('{0:0.#}' -f [math]::Round($e.Rbar, 1)), ('{0:0.#}' -f [math]::Round($e.RTol, 1)), ('{0:+0;-0;0}' -f $u.Level))) })
+        if ($null -ne $u.Probe -and -not $u.ProbeDone -and $null -ne $u.ProbeZ -and $p -lt $script:LevelMaxPasses) {
+            # Temoin du plafond non resolu : une passe de plus sur ce seul cylindre, ecrit a son zero estime
+            $u.ProbeOnly = $true
+            $u.LTarget = @{ ([int]$u.Probe) = [int][math]::Max(0, [math]::Min([int]$script:CalHardNs, [math]::Round([double]$u.ProbeZ))) }
+            return 'probe'
+        }
+        $u.Done = $true
+        return 'verifie'
+    }
+    if ($p -eq 1 -and $cal.CanFallback -and (Test-LevelShape $e $u 2.0).Verdict -eq 'mismatch') { $u.Level = [int][math]::Round($dh); $u.Conv = $false; $u.Early = $true; $u.Done = $true; return 'repli' }
+    if ($p -ge $script:LevelMaxPasses) {
+        $u.Level = [int][math]::Round($dh); $u.Conv = $false; $u.Done = $true
+        $J.Add(@{ Est = $false; Text = ($u.Prefix + ((T "Niveau non vérifié après {0} passes (décalage résiduel moyen {1} ns, tolérance {2}) : niveau estimé {3} ns retenu.") -f "$p", ('{0:0.#}' -f [math]::Round($e.Rbar, 1)), ('{0:0.#}' -f [math]::Round($e.RTol, 1)), ('{0:+0;-0;0}' -f $u.Level))) })
+        return 'max_passes'
+    }
+    $dn = [int][math]::Round($dh)
+    $mv = [math]::Max([int]$script:LevelMinMove, [int][math]::Ceiling(4.0 / [double]$u.KRef))
+    if ($p -eq 1 -and [math]::Abs($dn - $u.D) -lt $mv) {
+        $sg = [math]::Sign($dh - $u.D); if ($sg -eq 0) { $sg = $(if ($e.Rbar -gt 0) { 1 } else { -1 }) }
+        $dn = [int]$u.D + $mv * $sg
+    }
+    if ($dn -eq $u.D) {
+        # [1] Estimation stable mais residu hors tolerance (ou non mesure) : niveau garde, non verifie
+        $u.Level = [int]$u.D; $u.Conv = $false; $u.Done = $true
+        $J.Add(@{ Est = $false; Text = ($u.Prefix + ((T "Niveau stable mais non vérifié à la passe {0} (décalage résiduel moyen {1} ns, tolérance {2}) : niveau {3} ns retenu.") -f "$p", (Format-LevelNum $e.Rbar), (Format-LevelNum $e.RTol), ('{0:+0;-0;0}' -f $u.Level))) })
+        return 'stable'
+    }
+    $J.Add(@{ Est = $false; Text = ($u.Prefix + ((T "Niveau hors tolérance (décalage résiduel moyen {0} ns, tolérance {1}) : passe suivante à {2} ns.") -f ('{0:0.#}' -f [math]::Round($e.Rbar, 1)), ('{0:0.#}' -f [math]::Round($e.RTol, 1)), ('{0:+0;-0;0}' -f $dn))) })
+    $u.D = $dn
+    Set-LevelTargets $u
+    return 'next'
+}
+
+function Write-LevelDecideLog($J, [switch]$NoEst, [switch]$EstOnly) {
+    if ($null -eq $J) { return }
+    foreach ($x in $J) {
+        if ($NoEst -and $x.Est) { continue }
+        if ($EstOnly -and -not $x.Est) { continue }
+        Append-Log $x.Text
+    }
+}
+
 function Invoke-LevelStep($cal, $tracks = $null) {
     # Apres chaque passe : estimation par unite, arret (niveau verifie, echec, bascule anticipee, dernier essai) ou passe suivante.
     # 12.7 point 5 : premiere passe, pistes relues ($tracks) : etat de la surface de la disquette d abord (Invoke-LevelSurface)
-    if ($null -ne $tracks -and [int]$cal.LPass -eq 1 -and -not $cal.SurfDone) { if (-not (Invoke-LevelSurface $cal $tracks)) { return } }
+    # 12.8 (lot 1c) : calibration rapide adaptative (module 265, c1-design.md § 3.2) : decision 12.7 calculee sur une copie
+    # de l unite ; forme non conforme et garde-fous respectes : passe de mesure (Mode 'meas'), puis de verification
+    # ('verif') ; pente nulle sur une base etroite : passe de confirmation ('nwc') ; sinon decision 12.7 appliquee telle quelle
+    if ($null -ne $tracks -and [int]$cal.LPass -eq 1 -and -not $cal.SurfDone) {
+        if (-not (Invoke-LevelSurface $cal $tracks)) { return }
+        # Pistes signalees par le controle de surface : nommees, ecartees d un ajustement eventuel
+        if ($cal.Surf -and $cal.Surf.Faces) {
+            foreach ($u in $cal.Units) {
+                if ($null -eq $u.Head -or $null -eq $u.Named -or -not $cal.Surf.Faces[[int]$u.Head]) { continue }
+                foreach ($b in @($cal.Surf.Faces[[int]$u.Head].Bad)) { if ($b) { $u.Named[[int]$b.C] = (T 'piste signalée par le contrôle de surface') } }
+            }
+        }
+    }
     $p = [int]$cal.LPass
     foreach ($u in $cal.Units) {
         if ($u.Done) { continue }
         $u.Passes = $p
+        $pfx = $u.Prefix
         if ($u.ProbeOnly) {
             # Passe du seul temoin du plafond, ecrit a son zero estime : le niveau est deja verifie
             $z = Get-LevelZero $u.Results[[int]$u.Probe] ([double]$u.Est.K)
@@ -485,63 +623,161 @@ function Invoke-LevelStep($cal, $tracks = $null) {
             }
             $u.ProbeOnly = $false; $u.Done = $true; continue
         }
-        $e = Get-LevelEstimate $u $p
-        $u.Est = $e
-        if ($null -ne $u.Probe -and -not $u.ProbeDone -and $null -ne $e.ProbeZ) {
-            $pp = $u.Results[[int]$u.Probe]; $tg = [int]$u.LTarget[[int]$u.Probe]
-            $atTol = ($pp -and $pp.ContainsKey($tg) -and [math]::Abs([double]$pp[$tg].Shift) -le (Get-ResidualTol $pp[$tg]))
-            if ($e.ProbeKind -eq 'cap' -or ($e.ProbeKind -eq 'interp' -and @($pp.Keys).Count -ge 2) -or $atTol) { $u.ProbeDone = $true }
-            $u.ProbeZ = $e.ProbeZ
-        }
-        if ($e.N + @($e.Capped).Count + @($e.Floored).Count -lt 3) { $u.Fail = 'nomeas'; $u.Done = $true; continue }
-        if ($null -ne $u.Head -and $p -ge 2 -and $null -ne $e.KRaw -and $e.KRaw -ge [math]::Max(-0.2, -0.5 * [double]$u.KRef) -and [double]$u.KRef * [double]$e.KSpan -ge 4.0) { $u.Fail = 'nowrite'; $u.Done = $true; continue }
-        if ($e.N -lt 3) {
-            $nm = $e.N + @($e.Capped).Count + @($e.Floored).Count
-            if (2 * @($e.Floored).Count -gt $nm) { $u.Low = $true } elseif (2 * @($e.Capped).Count -gt $nm) { $u.Sat = $true } else { $u.Few = $true }
-            $u.Level = if ($e.N -ge 1 -and -not [double]::IsNaN([double]$e.Delta)) { [int][math]::Round([double]$e.Delta) } else { [int]$u.D }
-            $u.Conv = $false; $u.Done = $true; continue
-        }
-        $dh = [double]$e.Delta
-        $dv = @($e.Keep | ForEach-Object { $e.Ds[$_] })
-        Append-Log ($u.Prefix + ((T "Niveau estimé : {0} ns ± {1} ({2} cylindres ; écarts à la forme de {3} à {4} ns ; écart de forme {5} ns).") -f ('{0:+0.0;-0.0;0.0}' -f $dh), ('{0:0.#}' -f [math]::Round($e.SE, 1)), "$($e.N)", ('{0:+0.0;-0.0;0.0}' -f (($dv | Measure-Object -Minimum).Minimum - $dh)), ('{0:+0.0;-0.0;0.0}' -f (($dv | Measure-Object -Maximum).Maximum - $dh)), ('{0:0.#}' -f [math]::Round($e.Tau, 1))))
-        if (-not [double]::IsNaN([double]$e.Rbar) -and [math]::Abs($e.Rbar) -le $e.RTol) {
-            $u.Level = [int]$u.D; $u.Conv = $true
-            Append-Log ($u.Prefix + ((T "Niveau vérifié à la passe {0} : décalage résiduel moyen {1} ns (tolérance {2}) : niveau retenu {3} ns.") -f "$p", ('{0:0.#}' -f [math]::Round($e.Rbar, 1)), ('{0:0.#}' -f [math]::Round($e.RTol, 1)), ('{0:+0;-0;0}' -f $u.Level)))
-            if ($null -ne $u.Probe -and -not $u.ProbeDone -and $null -ne $u.ProbeZ -and $p -lt $script:LevelMaxPasses) {
-                # Temoin du plafond non resolu : une passe de plus sur ce seul cylindre, ecrit a son zero estime
-                $u.ProbeOnly = $true
-                $u.LTarget = @{ ([int]$u.Probe) = [int][math]::Max(0, [math]::Min([int]$script:CalHardNs, [math]::Round([double]$u.ProbeZ))) }
+        if (-not $u.Mode) { $u.Mode = 'lvl1' }
+        if ($u.Mode -eq 'lvl1') {
+            $e = Get-LevelEstimate $u $p
+            $u.Est = $e
+            if ($null -ne $u.Probe -and -not $u.ProbeDone -and $null -ne $e.ProbeZ) {
+                $pp = $u.Results[[int]$u.Probe]; $tg = [int]$u.LTarget[[int]$u.Probe]
+                $atTol = ($pp -and $pp.ContainsKey($tg) -and [math]::Abs([double]$pp[$tg].Shift) -le (Get-ResidualTol $pp[$tg]))
+                if ($e.ProbeKind -eq 'cap' -or ($e.ProbeKind -eq 'interp' -and @($pp.Keys).Count -ge 2) -or $atTol) { $u.ProbeDone = $true }
+                $u.ProbeZ = $e.ProbeZ
+            }
+            # Decision 12.7 sur une copie de l unite (les objets mesures sont partages, la decision ne les modifie pas)
+            $uc = $u.Clone()
+            $J = New-Object System.Collections.Generic.List[object]
+            $dec = Invoke-LevelDecide $cal $uc $e $p $J
+            if ($dec -eq 'nowrite' -and $p -lt $script:LevelMaxPasses -and [double]$e.KSpan -lt $script:LevelAdaptDeltaMin -and
+                @((Get-LevelFitCyls $u) | Where-Object { [int]$u.Writes[$_] -gt 2 }).Count -eq 0) {
+                # Pente apparente nulle sur une base etroite : derive du lecteur possible ; confirmation sur LevelNwcDelta ns
+                Append-Log ($pfx + ((T "Pente apparente nulle sur une base de {0} ns seulement (dérive du lecteur possible) : confirmation à la passe {1} sur une base de {2} ns.") -f (Format-UiNum ([math]::Round([double]$e.KSpan, 1)) '0.#'), "$($p + 1)", "$($script:LevelNwcDelta)"))
+                Set-LevelNwcTargets $u
                 continue
             }
-            $u.Done = $true
+            $trig = $null
+            if (-not $uc.Fail) {
+                if ($dec -eq 'repli') { $trig = @{ Type = 'A'; Reasons = @((Test-LevelShape $e $u 2.0).Reasons) } }
+                elseif ($p -eq 1 -and -not $cal.CanFallback -and $dec -eq 'next' -and (Test-LevelShape $e $u 2.0).Verdict -eq 'mismatch') { $trig = @{ Type = 'A'; Reasons = @((Test-LevelShape $e $u 2.0).Reasons) } }
+                elseif ($script:LevelAdaptTrigF1 -and $p -eq 1 -and $dec -eq 'next' -and (Test-LevelShape $e $u 1.0).Verdict -eq 'mismatch') { $trig = @{ Type = 'A'; Reasons = @((Test-LevelShape $e $u 1.0).Reasons) } }
+                elseif ($p -le 2 -and (@('verifie', 'probe', 'stable', 'max_passes') -contains $dec -or ($dec -eq 'next' -and $p -eq 2))) {
+                    $sh1 = Test-LevelShape $e $u 1.0
+                    if ($sh1.Verdict -eq 'mismatch') {
+                        # Declencheur B a la passe 2 : forme aussi non conforme avec les zeros a la pente de reference (une
+                        # derive entre deux passes proches ne cree pas de forme fictive)
+                        $pers = ($p -eq 1) -or ($script:LevelAdaptPersist -lt 2) -or ((Test-LevelShape (Get-LevelKrefEstimate $u) $u 1.0).Verdict -eq 'mismatch')
+                        if ($pers) { $trig = @{ Type = 'B'; Reasons = @($sh1.Reasons) } }
+                    }
+                }
+            }
+            if ($trig) {
+                $el = Test-LevelAdaptEligible $cal $u $e
+                if (-not $el.Ok) {
+                    if ($dec -eq 'repli' -or $trig.Type -eq 'B') {
+                        $u.AdaptLog = $pfx + ((T "Calibration rapide adaptative non tentée : {0}.") -f "$($el.Why)")
+                        if ($el.G6) { $uc.AdaptNote = $pfx + ((T 'calibration rapide adaptative non tentée : {0}') -f "$($el.Why)") }
+                    }
+                    $trig = $null
+                }
+            }
+            if (-not $trig) {
+                $al = $u.AdaptLog
+                foreach ($k in @($uc.Keys)) { $u[$k] = $uc[$k] }
+                Write-LevelDecideLog $J
+                if ($al) { Append-Log $al; $u.AdaptLog = $null }
+                continue
+            }
+            # Declenchement : la decision 12.7 est gardee pour un refus eventuel (declenchement a la passe 2) ; seule la ligne
+            # « Niveau estime » est ecrite
+            Write-LevelDecideLog $J -EstOnly
+            $u.Trig = @{ Type = $trig.Type; Pass = $p; Reasons = $trig.Reasons; Dec = $dec; Unit = $uc; J = $J }
+            $ctlTxt = if (@($u.Ctl).Count -gt 0) { Format-CylList ([int[]]@($u.Ctl)) } else { '-' }
+            if ($p -eq 1) {
+                Append-Log ($pfx + ((T "Forme non conforme à la passe 1 ({0}) : calibration rapide adaptative, passe 2 de mesure à une autre précompensation sur les mêmes cylindres (pente propre et vrai zéro de chaque cylindre) ; cylindres de contrôle hors ajustement : {1}.") -f (@($trig.Reasons) -join ' ; '), "$ctlTxt"))
+                Set-LevelAdaptTargets $cal $u $e
+                continue
+            }
+            # Passe 2 : les deux passes lvl1 servent de mesure, analyse immediate, verification a la passe 3
+            Append-Log ($pfx + ((T "Forme non conforme à la passe 2 ({0}) : forme ajustée sur les passes 1 et 2, vérification à la passe 3 ; cylindres de contrôle : {1}.") -f (@($trig.Reasons) -join ' ; '), "$ctlTxt"))
+            $u.Mode = 'meas'
+            $cal.TotalPasses = [math]::Max([int]$cal.TotalPasses, [int]$script:LevelMaxPasses)
+        }
+        if ($u.Mode -eq 'nwc') {
+            $e = Get-LevelEstimate $u $p
+            $u.Est = $e
+            $kr = if ($null -ne $e.KRaw) { Format-UiNum ([math]::Round(-[double]$e.KRaw / [double]$u.KRef, 1)) '0.#' } else { '-' }
+            if ($null -ne $e.KRaw -and $e.KRaw -ge [math]::Max(-0.2, -0.5 * [double]$u.KRef) -and [double]$u.KRef * [double]$e.KSpan -ge 4.0) {
+                Append-Log ($pfx + ((T 'Pente nulle confirmée sur une base de {0} ns.') -f (Format-UiNum ([math]::Round([double]$e.KSpan, 1)) '0.#')))
+                $u.Fail = 'nowrite'; $u.Done = $true
+                continue
+            }
+            $u.Level = [int][math]::Round([double]$e.Delta); $u.Conv = $false; $u.Done = $true; $u.Mode = 'lvl1'
+            $u.Note = $pfx + ((T 'pente nulle de la passe {0} non confirmée sur une base de {1} ns (pente {2} fois la référence) : dérive du lecteur probable, niveau {3} ns non vérifié') -f "$($p - 1)", "$($script:LevelNwcDelta)", "$kr", ('{0:+0;-0;0}' -f [int]$u.Level))
+            Append-Log ($pfx + ((T "Pente de la face confirmée sur une base de {0} ns ({1} fois la référence) : la pente nulle de la passe {2} venait d'une dérive du lecteur ou du bruit ; niveau estimé {3} ns, non vérifié.") -f (Format-UiNum ([math]::Round([double]$e.KSpan, 1)) '0.#'), "$kr", "$($p - 1)", ('{0:+0;-0;0}' -f [int]$u.Level)))
             continue
         }
-        if ($p -eq 1 -and $cal.CanFallback -and (Test-LevelShape $e $u 2.0).Verdict -eq 'mismatch') { $u.Level = [int][math]::Round($dh); $u.Conv = $false; $u.Early = $true; $u.Done = $true; continue }
-        if ($p -ge $script:LevelMaxPasses) {
-            $u.Level = [int][math]::Round($dh); $u.Conv = $false; $u.Done = $true
-            Append-Log ($u.Prefix + ((T "Niveau non vérifié après {0} passes (décalage résiduel moyen {1} ns, tolérance {2}) : niveau estimé {3} ns retenu.") -f "$p", ('{0:0.#}' -f [math]::Round($e.Rbar, 1)), ('{0:0.#}' -f [math]::Round($e.RTol, 1)), ('{0:+0;-0;0}' -f $u.Level)))
+        if ($u.Mode -eq 'meas') {
+            $an = Get-LevelAdaptFit $u
+            $u.AN = $an
+            Write-LevelAdaptFitLog $u $an
+            foreach ($k in @($an.Named.Keys)) { $u.Named[[int]$k] = $an.Named[$k] }
+            if ($an.Why -eq 'nowrite') { $u.Fail = 'nowrite'; $u.Done = $true; continue }
+            if (-not $an.Ok) {
+                $u.Refus = [string]$an.Why
+                Append-Log ($pfx + ((T 'Adaptation refusée : {0}. Courbe de la référence décalée conservée.') -f "$($an.Why)"))
+                $tr = $u.Trig
+                if ([int]$tr.Pass -eq 2) {
+                    # Declenchement a la passe 2 : decision 12.7 d origine appliquee (niveau verifie, stable, ou passe 3)
+                    $mine = @{ AN = $u.AN; Named = $u.Named; Refus = $u.Refus; Trig = $u.Trig }
+                    foreach ($k in @($tr.Unit.Keys)) { $u[$k] = $tr.Unit[$k] }
+                    foreach ($k in @($mine.Keys)) { $u[$k] = $mine[$k] }
+                    $u.Mode = 'lvl1'
+                    Write-LevelDecideLog $tr.J -NoEst
+                    continue
+                }
+                if ($tr.Type -eq 'B') {
+                    # Declenche a la passe 1 apres un niveau verifie : niveau 12.7 garde, forme non conforme
+                    $u.Level = $tr.Unit.Level; $u.Conv = $tr.Unit.Conv; $u.Done = $true; $u.Mode = 'refus'
+                    continue
+                }
+                Set-LevelLevelOnly $u $an
+                $u.Early = $true; $u.Done = $true; $u.Mode = 'refus'
+                continue
+            }
+            Set-LevelVerifTargets $cal $u $an
             continue
         }
-        $dn = [int][math]::Round($dh)
-        $mv = [math]::Max([int]$script:LevelMinMove, [int][math]::Ceiling(4.0 / [double]$u.KRef))
-        if ($p -eq 1 -and [math]::Abs($dn - $u.D) -lt $mv) {
-            $sg = [math]::Sign($dh - $u.D); if ($sg -eq 0) { $sg = $(if ($e.Rbar -gt 0) { 1 } else { -1 }) }
-            $dn = [int]$u.D + $mv * $sg
-        }
-        if ($dn -eq $u.D) {
-            # [1] Estimation stable mais residu hors tolerance (ou non mesure) : niveau garde, non verifie
-            $u.Level = [int]$u.D; $u.Conv = $false; $u.Done = $true
-            Append-Log ($u.Prefix + ((T "Niveau stable mais non vérifié à la passe {0} (décalage résiduel moyen {1} ns, tolérance {2}) : niveau {3} ns retenu.") -f "$p", (Format-LevelNum $e.Rbar), (Format-LevelNum $e.RTol), ('{0:+0;-0;0}' -f $u.Level)))
+        if ($u.Mode -eq 'verif') {
+            $vr = Test-LevelAdaptVerify $u $p
+            $u.VR = $vr
+            $an = $u.AN
+            if ($vr.Why) {
+                $u.Refus = [string]$vr.Why
+                Append-Log ($pfx + ((T 'Adaptation refusée : {0}. Courbe de la référence décalée conservée.') -f "$($vr.Why)"))
+                Set-LevelLevelOnly $u $an
+                $u.Early = $true; $u.Done = $true; $u.Mode = 'refus'
+                foreach ($c in @($vr.NewBad)) { $u.Named[[int]$c] = (T 'hors de la forme à la vérification') }
+                foreach ($x in @($vr.BadCtl)) { $u.Named[[int]$x] = (T 'contrôle hors tolérance') }
+                continue
+            }
+            foreach ($c in @($vr.NonRep)) { $u.Named[[int]$c] = (T 'écart non reproduit à la vérification (non reproductible)') }
+            $u.Conv = [bool]$vr.Conv
+            $u.Level = [int][math]::Round([double]$an.Fit.Coef['a'] + [double]$vr.Delta)
+            $u.Done = $true; $u.Mode = 'adapte'
             continue
         }
-        Append-Log ($u.Prefix + ((T "Niveau hors tolérance (décalage résiduel moyen {0} ns, tolérance {1}) : passe suivante à {2} ns.") -f ('{0:0.#}' -f [math]::Round($e.Rbar, 1)), ('{0:0.#}' -f [math]::Round($e.RTol, 1)), ('{0:+0;-0;0}' -f $dn)))
-        $u.D = $dn
-        Set-LevelTargets $u
     }
-    if (@($cal.Units | Where-Object { $_.Fail -or $_.Early }).Count -gt 0) {
-        # Bascule anticipee ou echec d une tete : l autre tete, non terminee, garde son niveau estime (non verifie)
-        foreach ($u in @($cal.Units | Where-Object { -not $_.Done })) { $u.Level = [int][math]::Round([double]$u.Est.Delta); $u.Conv = $false; $u.Done = $true }
+    $adapting = (@($cal.Units | Where-Object { -not $_.Done -and @('meas', 'verif', 'nwc') -contains [string]$_.Mode }).Count -gt 0)
+    $early = (@($cal.Units | Where-Object { $_.Early }).Count -gt 0)
+    if ((@($cal.Units | Where-Object { $_.Fail }).Count -gt 0) -or ($early -and -not $adapting)) {
+        # Echec d une tete, ou bascule anticipee sans autre face en cours d adaptation : l autre tete, non terminee, garde
+        # son niveau estime (non verifie) ; une face en cours d adaptation garde le niveau seul de ses zeros mesures
+        foreach ($u in @($cal.Units | Where-Object { -not $_.Done })) {
+            if (@('meas', 'verif') -contains [string]$u.Mode) {
+                Set-LevelLevelOnly $u $u.AN
+                $u.Mode = 'refus'
+                if (-not $u.Refus) { $u.Refus = (T "calibration arrêtée par l'autre face") }
+            } else {
+                $u.Level = [int][math]::Round([double]$u.Est.Delta); $u.Conv = $false
+                if ($u.Mode) { $u.Mode = 'lvl1' }
+            }
+            $u.Done = $true
+        }
         Complete-LevelCalib; return
+    }
+    if ($early) {
+        # Repli d une face pendant l adaptation de l autre : la face adaptee termine sa verification (une passe), une face
+        # encore en lvl1 s arrete comme apres une bascule anticipee (niveau estime, non verifie)
+        foreach ($u in @($cal.Units | Where-Object { -not $_.Done -and (-not $_.Mode -or [string]$_.Mode -eq 'lvl1') })) { $u.Level = [int][math]::Round([double]$u.Est.Delta); $u.Conv = $false; $u.Done = $true }
     }
     if (@($cal.Units | Where-Object { -not $_.Done }).Count -gt 0) {
         $cal.LPass++; $cal.TotalPasses = [math]::Max([int]$cal.TotalPasses, [int]$cal.LPass)
@@ -550,9 +786,50 @@ function Invoke-LevelStep($cal, $tracks = $null) {
     Complete-LevelCalib
 }
 
+function Get-LevelCylRole($u, [int]$c) {
+    # 12.8 (lot 1c, point 1) : role d un cylindre de la calibration rapide dans les lignes du journal (Write-CalibPassLog,
+    # Write-LevelPassLog) : temoin de marche, temoin du plafond ; cylindre de niveau : aucun
+    if (@($u.Wit) -contains $c) { return ' ' + (T '(témoin)') }
+    if ($null -ne $u.Probe -and [int]$u.Probe -eq $c) { return ' ' + (T '(plafond)') }
+    # 12.8 (lot 1c) : cylindre de controle de la calibration rapide adaptative (hors ajustement)
+    if (@($u.Ctl) -contains $c) { return ' ' + (T '(contrôle)') }
+    return ''
+}
+
+function Write-LevelPassLog($cal, $u, [int]$p) {
+    # 12.8 (lot 1c, point 1) : zeros de la calibration rapide apres la passe p, des qu un cylindre a ete mesure a deux
+    # valeurs ecrites ou plus, au journal seulement (ni niveaux, ni historique, ni courbe), avant toute decision
+    # (Invoke-LevelStep). Element « c<cyl>[ (role)] <zero><marque> ± <incertitude> (<pente propre / pente de reference>) » :
+    # zero en ns de precompensation (Get-LevelZero, pente de l estimation de la passe, comme Invoke-LevelStep), marque *
+    # (extrapole) ou ^ (borne a 0 ou CalHardNs) ; pente propre : corde des deux valeurs ecrites extremes, « - » sur moins de
+    # 4 ns. Prefixe de l unite : « [tete h] », aucun pour la courbe commune (moyenne des deux faces)
+    $cyls = @(@(@($u.LCyls) + @($u.Wit) + @($(if ($null -ne $u.Probe) { $u.Probe })) + @($u.Ctl)) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Sort-Object -Unique)
+    $two = @($cyls | Where-Object { $u.Results[$_] -and @($u.Results[$_].Keys).Count -ge 2 })
+    if ($two.Count -eq 0) { return }
+    $k = if ($u.ProbeOnly -and $u.Est) { [double]$u.Est.K } else { [double](Get-LevelEstimate $u $p).K }
+    $mark = @{ interp = ''; extrap = '*'; cap = '^' }
+    $items = @()
+    foreach ($c in $two) {
+        $pts = $u.Results[$c]
+        $z = Get-LevelZero $pts $k
+        if (-not $z) { continue }
+        $xs = @($pts.Keys | ForEach-Object { [int]$_ } | Sort-Object)
+        $ratio = '-'
+        if (($xs[-1] - $xs[0]) -ge 4 -and [double]$u.KRef -gt 0) {
+            $ko = -([double]$pts[$xs[-1]].Shift - [double]$pts[$xs[0]].Shift) / ($xs[-1] - $xs[0])
+            $ratio = Format-UiNum ($ko / [double]$u.KRef) '0.00'
+        }
+        $sg = if ($null -eq $z.Sig -or [double]::IsNaN([double]$z.Sig)) { '-' } else { Format-UiNum ([double]$z.Sig) '0.0' }
+        $items += "c$c$(Get-LevelCylRole $u $c) $(Format-UiNum ([double]$z.Est) '0.0')$($mark[[string]$z.Kind]) ± $sg ($ratio)"
+    }
+    if ($items.Count -eq 0) { return }
+    Append-Log ((T "{0}Zéros après la passe {1} (pente propre, × référence) : {2}.") -f "$($u.Prefix)", "$p", ($items -join ' ; '))
+}
+
 function Get-LevelLabel($rec) {
-    # « +12 ns » (profil commun) ou « tête 0 +12 ns »
+    # « +12 ns » (profil commun) ou « tete 0 +12 ns » ; 12.8 (lot 1c) : « (forme adaptee) » pour une courbe adaptee
     $v = '{0:+0;-0;0} ns' -f [int]$rec.Delta
+    if ($rec.Model -and [string]$rec.Model -ne 'M0') { $v += ' ' + (T '(forme adaptée)') }
     if ($null -eq $rec.Head) { return $v }
     return ((T "tête {0} {1}") -f "$($rec.Head)", "$v")
 }
@@ -566,6 +843,174 @@ function Set-LevelFields($recs, [bool]$slow) {
         if ($r0.Count -gt 0) { $txtWPrecomp.Text = $r0[0].Spec }
         if ($r1.Count -gt 0) { $txtWPrecomp1.Text = $r1[0].Spec }
     } elseif ($rs.Count -gt 0) { $txtWPrecomp.Text = $rs[0].Spec; $txtWPrecomp1.Text = $rs[0].Spec }
+}
+
+function Get-LevelUnitResults($cal, [string]$date) {
+    # Bilan de chaque tete de la calibration rapide sans echec : courbe, verdict, reserves, journal, enregistrement dans
+    # $script:LevelShifts (historique, niveau de depart). 12.8 (lot 1c) : tetes adaptees ou refusees par
+    # Get-LevelAdaptOutcome ; tetes lvl1 : regles 12.7. Info : reserve « information » (plafond, a surveiller, niveau de
+    # la courbe adaptee non verifie) de la fenetre de decision. Sans fenetre ni configuration (suite calib-lvl2)
+    $issues = New-Object System.Collections.Generic.List[string]
+    $info = New-Object System.Collections.Generic.List[bool]
+    $recs = @(); $prevRecs = @{}; $verdicts = @()
+    foreach ($u in $cal.Units) {
+        $e = $u.Est; $pfx = $u.Prefix
+        $ad = (@('adapte', 'refus') -contains [string]$u.Mode)
+        $model = 'M0'; $cs = 0.0; $cb = 0.0; $kk = if ($e) { [double]$e.K } else { $null }
+        if ($ad) {
+            $ao = Get-LevelAdaptOutcome $cal $u
+            $shape = $ao.Shape; $u.Shape = $shape
+            $bv = @{ Values = $ao.Values; Sat = @($ao.Sat); Floor = @($ao.Floor); Clip = @($ao.Clip) }
+            $verdict = [string]$ao.Verdict
+            foreach ($x in $ao.Issues) { $issues.Add([string]$x.Text); $info.Add([bool]$x.Info) }
+            $model = [string]$ao.Model; $cs = [double]$ao.S; $cb = [double]$ao.B; if ($null -ne $ao.K) { $kk = [double]$ao.K }
+        } else {
+            $shape = Test-LevelShape $e $u 1.0; $u.Shape = $shape
+            $bv = Build-LevelValues $u ([int]$u.Level) $e
+            foreach ($c in @($e.Outliers)) { Append-Log ($pfx + ((T "Écart isolé à c{0} ({1} ns par rapport à la forme) : défaut ponctuel probable de cette disquette, écarté du niveau.") -f "$c", ('{0:+0;-0;0}' -f [math]::Round($e.Ds[[int]$c] - $e.Delta, 0)))) }
+            $verdict = if ($u.Sat) { 'sat' } elseif ($u.Low) { 'low' } elseif ($u.Few) { 'few' } else { $shape.Verdict }
+            switch ($shape.Verdict) {
+                'ok'       { Append-Log ($pfx + ((T "Forme conforme à la référence (écart de forme {0} ns).") -f ('{0:0.#}' -f [math]::Round($e.Tau, 1)))) }
+                'approx'   { Append-Log ($pfx + ((T "Forme approximative (écart de forme {0} ns) : courbe décalée appliquée ; une calibration complète de cette disquette serait plus précise.") -f ('{0:0.#}' -f [math]::Round($e.Tau, 1)))) }
+                'mismatch' { Append-Log ($pfx + ((T "Forme non conforme à la référence : {0}.") -f ($shape.Reasons -join ' ; '))); $issues.Add($pfx + ((T "forme non conforme à la référence : {0}") -f ($shape.Reasons -join ' ; '))); $info.Add($false) }
+            }
+            if (-not $u.Conv) { $issues.Add($pfx + ((T "niveau non vérifié par une écriture du motif ({0} passe(s))") -f "$($u.Passes)")); $info.Add($false) }
+            if ($u.Sat) { $issues.Add($pfx + ((T 'besoin au-delà de {0} ns sur la plupart des cylindres mesurés (support fatigué ?)') -f "$($script:CalHardNs)")); $info.Add($false) }
+            if ($u.Low) { $issues.Add($pfx + (T 'précompensation nulle encore excessive sur la plupart des cylindres mesurés')); $info.Add($false) }
+            if ($u.Few) { $issues.Add($pfx + ((T "niveau estimé sur {0} cylindre(s) de niveau seulement ({1} au plafond ou au plancher)") -f "$($e.N)", "$(@($e.Capped).Count + @($e.Floored).Count)")); $info.Add($false) }
+            # [3] Cylindres de niveau bornes (zero au-dela de CalHardNs ou sous 0 ns) loin du niveau retenu : ecartes, signales
+            $bnd = @(@(@($e.Capped) | Where-Object { [int]$u.V[[int]$_] + [int]$u.Level -lt [int]$script:CalHardNs - 15 }) + @(@($e.Floored) | Where-Object { [int]$u.V[[int]$_] + [int]$u.Level -gt 15 }))
+            if (-not $u.Sat -and -not $u.Low -and $bnd.Count -gt 0) {
+                $bt = (T "besoin hors de 0 à {1} ns aux cylindres de niveau {0}, loin du niveau de cette disquette : écartés du niveau") -f (Format-CylList ([int[]]@($bnd | Sort-Object))), "$($script:CalHardNs)"
+                Append-Log ($pfx + $bt + '.'); $issues.Add($pfx + $bt); $info.Add($false)
+            }
+            if ($bv.Sat.Count -gt 0 -and $u.Memo) {
+                # 12.8 (FIX1C, constat 5) : courbe de la marque (V', forme adaptee) : libelle neutre du plafond (§ 11.2)
+                Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs).") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat))))
+                $issues.Add($pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs)") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)))); $info.Add($true)
+            } elseif ($bv.Sat.Count -gt 0) {
+                Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec le niveau de cette disquette ({2} ns par rapport à la référence) : support probablement fatigué, ces cylindres resteront sous-compensés.") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)), ('{0:+0;-0;0}' -f [int]$u.Level)))
+                $issues.Add($pfx + ((T "plafond de {0} ns atteint aux cylindres {1} (support fatigué ?)") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)))); $info.Add($true)
+            }
+            if (@($bv.Clip).Count -gt 0) {
+                Append-Log ($pfx + ((T "Référence calculée avec une borne de {0} ns, au-delà de la borne actuelle (precompMaxNs = {1} ns) aux cylindres {2} : valeurs ramenées à {1} ns.") -f "$(Get-CurveMaxNs $u.Cv)", "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Clip))))
+            }
+            if ($bv.Floor.Count -gt 0) {
+                Append-Log ($pfx + ((T "Précompensation nulle encore excessive aux cylindres {0} avec le niveau de cette disquette : ces cylindres resteront sur-compensés.") -f (Format-CylList ([int[]]$bv.Floor))))
+                $issues.Add($pfx + ((T "précompensation nulle encore excessive aux cylindres {0}") -f (Format-CylList ([int[]]$bv.Floor)))); $info.Add($false)
+            }
+            if ($bv.ProbeNote -eq 'interp') { Append-Log ($pfx + ((T "Zone plafonnée de la référence (c{0} à c{1}) : besoin mesuré au témoin c{1} : {2} ns ; zone interpolée jusqu'à cette valeur.") -f "$($u.CapLo)", "$($u.Probe)", ('{0:0.#}' -f [math]::Round($e.ProbeZ, 0)))) }
+            elseif ($bv.ProbeNote -eq 'unresolved') {
+                $ut = (T "témoin du plafond c{0} non résolu : zone de c{1} à c{0} laissée à la référence ({2} ns, plafond de son calcul), relevée du niveau s'il est positif, sans mesure sur cette disquette") -f "$($u.Probe)", "$($u.CapLo)", "$(Get-CurveMaxNs $u.Cv)"
+                Append-Log ($pfx + $ut + '.'); $issues.Add($pfx + $ut); $info.Add($false)
+            }
+            elseif ($bv.ProbeNote -eq 'cap') { Append-Log ($pfx + ((T "Zone plafonnée de la référence (c{0} à c{1}) : le besoin dépasse encore {2} ns au témoin c{1} ; zone portée jusqu'à {2} ns.") -f "$($u.CapLo)", "$($u.Probe)", "$($script:CalHardNs)")) }
+            # 12.8 (lot 1c) : adaptation refusee apres un declenchement a la passe 2 (decision 12.7 appliquee), pente nulle non
+            # confirmee (dérive du lecteur), adaptation non tentee (courbe commune, temoin du plafond : G6)
+            if ($u.Refus) { $issues.Add($pfx + ((T 'adaptation refusée : {0}') -f "$($u.Refus)")); $info.Add($false) }
+            if ($u.Note) { $issues.Add([string]$u.Note); $info.Add($false) }
+            if ($u.AdaptNote) { $issues.Add([string]$u.AdaptNote); $info.Add($false) }
+        }
+        # Courbe de la marque (V') appliquee par une tete lvl1 ou refusee : forme de la marque enregistree
+        if ([string]$u.Mode -ne 'adapte' -and $u.Memo) { $model = $(if ($u.Memo.Model) { [string]$u.Memo.Model } else { 'Msb' }); $cs = [double]$u.Memo.S; $cb = [double]$u.Memo.B }
+        # Historique avec la meme reference : support fatigue (12.8, G4 : par rapport a la marque de depart), derive de la
+        # reference ; courbe adaptee : libelle neutre a la place de l alerte de fatigue
+        $hk = "$($u.RefKey)|$($u.Tag)"; $old = $script:LevelShifts[$hk]; $prevRecs[$hk] = $old
+        $hist = @(); if ($old -and [string]$old.RefDate -eq [string]$u.Cv.Date) { $hist = @($old.Hist) }
+        $fh = if ($u.Memo) { @($u.Memo.Hist) } else { $hist }
+        if ($fh.Count -ge 3 -and $verdict -ne 'adapte' -and $null -ne $u.Level) {
+            $hv = @($fh | Select-Object -Last 5 | ForEach-Object { [double]$_.Delta }); $med = [double](Get-Median $hv)
+            if ([int]$u.Level - $med -gt $script:LevelFatigueNs) {
+                if ($u.Memo) { Append-Log ((T "{0}Cette disquette demande {1} ns de plus que la marque « {2} » (médiane de {3} mesures) : disquette probablement fatiguée, l'écriture y sera moins sûre.") -f "$pfx", ('{0:0.#}' -f [math]::Round([int]$u.Level - $med, 0)), "$($u.Memo.Brand)", "$($hv.Count)") }
+                else { Append-Log ($pfx + ((T "Cette disquette demande {0} ns de plus que la médiane des {1} dernières disquettes mesurées avec cette référence : support probablement fatigué, l'écriture y sera moins sûre.") -f ('{0:0.#}' -f [math]::Round([int]$u.Level - $med, 0)), "$($hv.Count)")) }
+            }
+        }
+        if (-not $ad -and -not $u.Memo -and $hist.Count -ge 3) {
+            $l5 = @(@($hist | Select-Object -Last 4 | ForEach-Object { [double]$_.Delta }) + @([double]$u.Level))
+            if ($l5.Count -ge 5 -and (@($l5 | Where-Object { $_ -gt $script:LevelFatigueNs }).Count -eq 5 -or @($l5 | Where-Object { $_ -lt -$script:LevelFatigueNs }).Count -eq 5)) {
+                Append-Log ($pfx + ((T "Les {0} dernières disquettes s'écartent toutes de la référence dans le même sens (de {1} à {2} ns) : la référence a peut-être été mesurée sur une disquette atypique. Une nouvelle calibration complète en test fin, sur une disquette sacrifiée en bon état, est conseillée.") -f "$($l5.Count)", ('{0:+0;-0;0}' -f ($l5 | Measure-Object -Minimum).Minimum), ('{0:+0;-0;0}' -f ($l5 | Measure-Object -Maximum).Maximum)))
+            }
+        }
+        # Niveau de depart des disquettes de cette reference (D0) : tete non adaptee, forme conforme ou approximative,
+        # niveau verifie, sans forme de marque au depart (12.8 : une disquette d une autre marque ne le deplace pas)
+        if (($verdict -eq 'ok' -or $verdict -eq 'approx') -and $u.Conv -and -not $u.Early -and -not $u.Memo) { $hist = @(@($hist) + @(@{ Date = $date; Delta = [int]$u.Level })) }
+        if ($hist.Count -gt $script:LevelHistMax) { $hist = @($hist | Select-Object -Last $script:LevelHistMax) }
+        # Mesures : cylindres de niveau, temoins de marche et du plafond ; tete adaptee : zeros mesures a deux precompensations
+        $mc = @(); $mz = @(); $md = @(); $ms = @(); $mk = @()
+        $an = $u.AN
+        if ($ad -and $an -and $an.Zs -and $an.Zs.Count -gt 0) {
+            foreach ($ci in @($an.Zs.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
+                $z = $an.Zs[$ci]
+                $mc += $ci; $mz += [math]::Round([double]$z.Est, 1); $md += [math]::Round([double]$z.Est - [double]$u.ShapeV.V[$ci], 1); $ms += [math]::Round([double]$z.Sig, 1)
+                $mk += $(if ($u.Named.ContainsKey($ci)) { 'outlier' } elseif (@($u.Wit) -contains $ci) { 'witness' } else { [string]$z.Kind })
+            }
+        } else {
+            foreach ($c in @($u.LCyls)) {
+                $ci = [int]$c
+                if ($e.Ds.ContainsKey($ci)) { $mc += $ci; $mz += [math]::Round([double]$u.V[$ci] + $e.Ds[$ci], 1); $md += [math]::Round($e.Ds[$ci], 1); $ms += [math]::Round($e.Sigs[$ci], 1); $mk += $(if (@($e.Outliers) -contains $ci) { 'outlier' } else { [string]$e.Kinds[$ci] }) }
+                elseif (@($e.Capped) -contains $ci) { $mc += $ci; $mz += [double]$script:CalHardNs; $md += [math]::Round([double]$script:CalHardNs - [double]$u.V[$ci], 1); $ms += 0.0; $mk += 'cap' }
+                elseif (@($e.Floored) -contains $ci) { $mc += $ci; $mz += 0.0; $md += [math]::Round(-[double]$u.V[$ci], 1); $ms += 0.0; $mk += 'cap' }
+            }
+            foreach ($c in @($u.Wit)) { $wz = $e.Wit[[int]$c]; if ($wz) { $mc += [int]$c; $mz += [math]::Round($wz.Z, 1); $md += [math]::Round($wz.D, 1); $ms += [math]::Round($wz.Sig, 1); $mk += 'witness' } }
+            if ($null -ne $u.Probe -and $null -ne $e.ProbeZ) { $mc += [int]$u.Probe; $mz += [math]::Round([double]$e.ProbeZ, 1); $md += [math]::Round([double]$e.ProbeZ - [double]$u.V[[int]$u.Probe], 1); $ms += 0.0; $mk += 'probe' }
+        }
+        $rEst = [double]$e.Delta; $rSe = [double]$e.SE; $rTau = [double]$e.Tau
+        if ([string]$u.Mode -eq 'adapte' -and $an -and $an.Fit) { $rEst = [double]$an.Fit.Coef['a']; $rSe = [math]::Sqrt([math]::Max(0.0, [double]$an.Fit.Cov[0][0])); $rTau = [double]$an.Fit.Tau }
+        $rec = @{ RefKey = $u.RefKey; Tag = $u.Tag; Head = $u.Head; Drive = $cal.Drive; Date = $date; RefDate = [string]$u.Cv.Date; RefTest = [string]$u.Cv.Test
+                  Delta = [int]$u.Level; Est = [math]::Round($rEst, 1); SE = [math]::Round($rSe, 1); Tau = [math]::Round($rTau, 1)
+                  Verdict = $verdict; Shape = [string]$shape.Verdict; Reasons = [string[]]@($shape.Reasons); Conv = [bool]$u.Conv; Passes = [int]$u.Passes
+                  Cyls = [int[]]$mc; Zs = [double[]]$mz; Ds = [double[]]$md; Sigs = [double[]]$ms; Kinds = [string[]]$mk
+                  Values = [int[]]$bv.Values; Spec = (Build-CurveProfile $bv.Values); Sat = [int[]]@($bv.Sat); Floor = [int[]]@($bv.Floor)
+                  Hist = @($hist); Version = $script:Version; Algo = $script:CalibAlgo
+                  # 12.8 (lot 1c, G2) : 'lvl2' seulement pour une forme adaptee (une 12.7 relit les autres et ignore celles-ci)
+                  LevelAlgo = $(if ($model -ne 'M0') { 'lvl2' } else { 'lvl1' }); Model = $model; S = [math]::Round($cs, 4); B = [math]::Round($cb, 2)
+                  Mode = $(if ($u.Mode) { [string]$u.Mode } else { 'lvl1' }); Brand = [string]$cal.Brand; Ctl = [int[]]@($u.Ctl); K = $(if ($null -ne $kk) { [math]::Round($kk, 3) } else { $null }) }
+        $script:LevelShifts[$hk] = $rec
+        $recs += ,$rec; $verdicts += $verdict
+    }
+    # 12.7 point 5 : etat de la surface de la disquette a la premiere passe (Invoke-LevelSurface) : disquette douteuse,
+    # defaut grossier poursuivi ou sans fenetre (calibration rapide sans ecriture) : reserve si la fenetre de decision
+    # s ouvre pour une autre raison
+    # Defaut de vitesse seul (arbitrage 12, Test-CalibSpeedOnly) : reserve qui nomme le controle de vitesse, pas le support
+    if ($issues.Count -gt 0 -and $cal.Surf -and ($cal.Surf.Defective -or $cal.SurfGross)) {
+        $issues.Add($(if ($cal.Surf.Defective) { Format-CalibSurfaceReserve $cal.Surf }
+                      elseif (Test-CalibSpeedOnly $cal.Surf $cal.Medium) { (T "contrôle de vitesse et de densité : {0} à la première passe") -f (Format-CalibSurfaceVerdict $cal.Surf $cal.Medium) }
+                      else { (T "support : {0} à la première passe") -f (Format-CalibSurfaceVerdict $cal.Surf $cal.Medium) }))
+        $info.Add($false)
+    }
+    return @{ Issues = $issues; Info = $info; Recs = $recs; PrevRecs = $prevRecs; Verdicts = $verdicts }
+}
+
+function Get-LevelReviewPlan($cal, $res, [bool]$toWrite) {
+    # 12.8 (lot 1c, § 7, G3) : fenetre de decision de la calibration rapide. Avertissement (point 2) : une tete a une forme
+    # non conforme non adaptee ET un niveau non verifie, ou une forme adaptee avec reserve. « Calibration complete »
+    # (G3) : seulement apres une forme non conforme non adaptee (repli ou refus), jamais pour un plafond, un « a
+    # surveiller », un niveau adapte non verifie ou une reserve. Information : reserves d information seules et une tete
+    # adaptee (ou partie de la forme d une marque, FIX1C) : « Ecrire l image » principal, en-tete de la courbe adaptee
+    # (Verified : niveau verifie sur toutes les tetes adaptees), champ de marque si toutes les tetes sont verifiees
+    # (adaptees sans reserve, ou niveau verifie)
+    $units = @($cal.Units)
+    $adapted = @($units | Where-Object { [string]$_.Mode -eq 'adapte' -and $_.AN -and [string]$_.AN.Model -ne 'M0' })
+    # 12.8 (FIX1C, constat 5) : tete partie de la forme memorisee d une marque, sans nouvelle adaptation (courbe V' et
+    # niveau) : courbe adaptee elle aussi, fenetre « information » aux memes conditions
+    $memoCv = @($units | Where-Object { $_.Memo -and @('adapte', 'refus') -notcontains [string]$_.Mode })
+    # 12.8 (FIX1C, constat 7) : en-tete « verifiee par une ecriture du motif » seulement si aucune tete adaptee (niveau seul
+    # confirme compris) n a un niveau decale sans nouvelle ecriture
+    $verified = (@($units | Where-Object { [string]$_.Mode -eq 'adapte' -and -not $_.Conv }).Count -eq 0)
+    $mm = @($units | Where-Object { $_.Shape -and [string]$_.Shape.Verdict -eq 'mismatch' })
+    $warnMm = (@($mm | Where-Object { -not $_.Conv }).Count -gt 0)
+    $resv = @($adapted | Where-Object { $_.Conv -and @($_.AN.Reserve).Count -gt 0 })
+    $warnText = if ($warnMm) { (T "Attention : niveau non vérifié et forme non conforme. La courbe que « Écrire l'image » utiliserait n'a pas été vérifiée sur cette disquette ; vers le centre, elle peut s'écarter de son besoin de plusieurs dizaines de ns.") }
+                elseif ($resv.Count -gt 0) { (T "Attention : forme adaptée avec réserve (c{0} suspect). La courbe a été vérifiée, mais un défaut local de cette disquette est possible ; le contrôle après écriture sera fait.") -f "$($resv[0].AN.Suspect)" }
+                else { '' }
+    $offerFull = [bool](($cal.CanFallback -or -not $toWrite) -and $mm.Count -gt 0)
+    $infoOnly = ($res.Issues.Count -gt 0 -and -not ($res.Info -contains $false))
+    $infoWin = [bool]($infoOnly -and -not $warnText -and -not $offerFull -and ($adapted.Count + $memoCv.Count) -gt 0)
+    $brandAsk = [bool]($infoWin -and $cal.Slow -and @($units | Where-Object { -not (Get-LevelBrandVerified $_) }).Count -eq 0)
+    $prefill = [string]$cal.Brand
+    if ($brandAsk -and $prefill -and @(Get-LevelBrandPlan $cal $prefill | Where-Object { $_.Differs }).Count -gt 0) { $prefill = '' }
+    $names = @(@($script:LevelBrands) | Where-Object { $_ -and [string]$_.Drive -eq [string]$cal.Drive } | Sort-Object { Get-CurveDate $_ } -Descending | ForEach-Object { [string]$_.Brand } | Select-Object -Unique)
+    return @{ Warn = [bool]$warnText; WarnText = $warnText; OfferFull = $offerFull; Info = $infoWin; BrandAsk = $brandAsk; Brand = $prefill; Brands = $names; Adapted = $adapted; MemoCurve = $memoCv; Verified = $verified }
 }
 
 function Complete-LevelCalib {
@@ -607,87 +1052,8 @@ function Complete-LevelCalib {
         return
     }
     $date = Get-Date -Format 'dd/MM/yyyy HH:mm'
-    $issues = New-Object System.Collections.Generic.List[string]
-    $recs = @(); $prevRecs = @{}; $verdicts = @()
-    foreach ($u in $cal.Units) {
-        $e = $u.Est; $pfx = $u.Prefix
-        $shape = Test-LevelShape $e $u 1.0; $u.Shape = $shape
-        $bv = Build-LevelValues $u ([int]$u.Level) $e
-        foreach ($c in @($e.Outliers)) { Append-Log ($pfx + ((T "Écart isolé à c{0} ({1} ns par rapport à la forme) : défaut ponctuel probable de cette disquette, écarté du niveau.") -f "$c", ('{0:+0;-0;0}' -f [math]::Round($e.Ds[[int]$c] - $e.Delta, 0)))) }
-        $verdict = if ($u.Sat) { 'sat' } elseif ($u.Low) { 'low' } elseif ($u.Few) { 'few' } else { $shape.Verdict }
-        switch ($shape.Verdict) {
-            'ok'       { Append-Log ($pfx + ((T "Forme conforme à la référence (écart de forme {0} ns).") -f ('{0:0.#}' -f [math]::Round($e.Tau, 1)))) }
-            'approx'   { Append-Log ($pfx + ((T "Forme approximative (écart de forme {0} ns) : courbe décalée appliquée ; une calibration complète de cette disquette serait plus précise.") -f ('{0:0.#}' -f [math]::Round($e.Tau, 1)))) }
-            'mismatch' { Append-Log ($pfx + ((T "Forme non conforme à la référence : {0}.") -f ($shape.Reasons -join ' ; '))); $issues.Add($pfx + ((T "forme non conforme à la référence : {0}") -f ($shape.Reasons -join ' ; '))) }
-        }
-        if (-not $u.Conv) { $issues.Add($pfx + ((T "niveau non vérifié par une écriture du motif ({0} passe(s))") -f "$($u.Passes)")) }
-        if ($u.Sat) { $issues.Add($pfx + ((T 'besoin au-delà de {0} ns sur la plupart des cylindres mesurés (support fatigué ?)') -f "$($script:CalHardNs)")) }
-        if ($u.Low) { $issues.Add($pfx + (T 'précompensation nulle encore excessive sur la plupart des cylindres mesurés')) }
-        if ($u.Few) { $issues.Add($pfx + ((T "niveau estimé sur {0} cylindre(s) de niveau seulement ({1} au plafond ou au plancher)") -f "$($e.N)", "$(@($e.Capped).Count + @($e.Floored).Count)")) }
-        # [3] Cylindres de niveau bornes (zero au-dela de CalHardNs ou sous 0 ns) loin du niveau retenu : ecartes, signales
-        $bnd = @(@(@($e.Capped) | Where-Object { [int]$u.V[[int]$_] + [int]$u.Level -lt [int]$script:CalHardNs - 15 }) + @(@($e.Floored) | Where-Object { [int]$u.V[[int]$_] + [int]$u.Level -gt 15 }))
-        if (-not $u.Sat -and -not $u.Low -and $bnd.Count -gt 0) {
-            $bt = (T "besoin hors de 0 à {1} ns aux cylindres de niveau {0}, loin du niveau de cette disquette : écartés du niveau") -f (Format-CylList ([int[]]@($bnd | Sort-Object))), "$($script:CalHardNs)"
-            Append-Log ($pfx + $bt + '.'); $issues.Add($pfx + $bt)
-        }
-        if ($bv.Sat.Count -gt 0) {
-            Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec le niveau de cette disquette ({2} ns par rapport à la référence) : support probablement fatigué, ces cylindres resteront sous-compensés.") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)), ('{0:+0;-0;0}' -f [int]$u.Level)))
-            $issues.Add($pfx + ((T "plafond de {0} ns atteint aux cylindres {1} (support fatigué ?)") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat))))
-        }
-        if (@($bv.Clip).Count -gt 0) {
-            Append-Log ($pfx + ((T "Référence calculée avec une borne de {0} ns, au-delà de la borne actuelle (precompMaxNs = {1} ns) aux cylindres {2} : valeurs ramenées à {1} ns.") -f "$(Get-CurveMaxNs $u.Cv)", "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Clip))))
-        }
-        if ($bv.Floor.Count -gt 0) {
-            Append-Log ($pfx + ((T "Précompensation nulle encore excessive aux cylindres {0} avec le niveau de cette disquette : ces cylindres resteront sur-compensés.") -f (Format-CylList ([int[]]$bv.Floor))))
-            $issues.Add($pfx + ((T "précompensation nulle encore excessive aux cylindres {0}") -f (Format-CylList ([int[]]$bv.Floor))))
-        }
-        if ($bv.ProbeNote -eq 'interp') { Append-Log ($pfx + ((T "Zone plafonnée de la référence (c{0} à c{1}) : besoin mesuré au témoin c{1} : {2} ns ; zone interpolée jusqu'à cette valeur.") -f "$($u.CapLo)", "$($u.Probe)", ('{0:0.#}' -f [math]::Round($e.ProbeZ, 0)))) }
-        elseif ($bv.ProbeNote -eq 'unresolved') {
-            $ut = (T "témoin du plafond c{0} non résolu : zone de c{1} à c{0} laissée à la référence ({2} ns, plafond de son calcul), relevée du niveau s'il est positif, sans mesure sur cette disquette") -f "$($u.Probe)", "$($u.CapLo)", "$(Get-CurveMaxNs $u.Cv)"
-            Append-Log ($pfx + $ut + '.'); $issues.Add($pfx + $ut)
-        }
-        elseif ($bv.ProbeNote -eq 'cap') { Append-Log ($pfx + ((T "Zone plafonnée de la référence (c{0} à c{1}) : le besoin dépasse encore {2} ns au témoin c{1} ; zone portée jusqu'à {2} ns.") -f "$($u.CapLo)", "$($u.Probe)", "$($script:CalHardNs)")) }
-        # Historique avec la meme reference : support fatigue, derive de la reference
-        $hk = "$($u.RefKey)|$($u.Tag)"; $old = $script:LevelShifts[$hk]; $prevRecs[$hk] = $old
-        $hist = @(); if ($old -and [string]$old.RefDate -eq [string]$u.Cv.Date) { $hist = @($old.Hist) }
-        if ($hist.Count -ge 3) {
-            $hv = @($hist | Select-Object -Last 5 | ForEach-Object { [double]$_.Delta }); $med = [double](Get-Median $hv)
-            if ([int]$u.Level - $med -gt $script:LevelFatigueNs) { Append-Log ($pfx + ((T "Cette disquette demande {0} ns de plus que la médiane des {1} dernières disquettes mesurées avec cette référence : support probablement fatigué, l'écriture y sera moins sûre.") -f ('{0:0.#}' -f [math]::Round([int]$u.Level - $med, 0)), "$($hv.Count)")) }
-            $l5 = @(@($hist | Select-Object -Last 4 | ForEach-Object { [double]$_.Delta }) + @([double]$u.Level))
-            if ($l5.Count -ge 5 -and (@($l5 | Where-Object { $_ -gt $script:LevelFatigueNs }).Count -eq 5 -or @($l5 | Where-Object { $_ -lt -$script:LevelFatigueNs }).Count -eq 5)) {
-                Append-Log ($pfx + ((T "Les {0} dernières disquettes s'écartent toutes de la référence dans le même sens (de {1} à {2} ns) : la référence a peut-être été mesurée sur une disquette atypique. Une nouvelle calibration complète en test fin, sur une disquette sacrifiée en bon état, est conseillée.") -f "$($l5.Count)", ('{0:+0;-0;0}' -f ($l5 | Measure-Object -Minimum).Minimum), ('{0:+0;-0;0}' -f ($l5 | Measure-Object -Maximum).Maximum)))
-            }
-        }
-        if (($verdict -eq 'ok' -or $verdict -eq 'approx') -and $u.Conv -and -not $u.Early) { $hist = @(@($hist) + @(@{ Date = $date; Delta = [int]$u.Level })) }
-        if ($hist.Count -gt $script:LevelHistMax) { $hist = @($hist | Select-Object -Last $script:LevelHistMax) }
-        # Mesures : cylindres de niveau, temoins de marche et du plafond
-        $mc = @(); $mz = @(); $md = @(); $ms = @(); $mk = @()
-        foreach ($c in @($u.LCyls)) {
-            $ci = [int]$c
-            if ($e.Ds.ContainsKey($ci)) { $mc += $ci; $mz += [math]::Round([double]$u.V[$ci] + $e.Ds[$ci], 1); $md += [math]::Round($e.Ds[$ci], 1); $ms += [math]::Round($e.Sigs[$ci], 1); $mk += $(if (@($e.Outliers) -contains $ci) { 'outlier' } else { [string]$e.Kinds[$ci] }) }
-            elseif (@($e.Capped) -contains $ci) { $mc += $ci; $mz += [double]$script:CalHardNs; $md += [math]::Round([double]$script:CalHardNs - [double]$u.V[$ci], 1); $ms += 0.0; $mk += 'cap' }
-            elseif (@($e.Floored) -contains $ci) { $mc += $ci; $mz += 0.0; $md += [math]::Round(-[double]$u.V[$ci], 1); $ms += 0.0; $mk += 'cap' }
-        }
-        foreach ($c in @($u.Wit)) { $wz = $e.Wit[[int]$c]; if ($wz) { $mc += [int]$c; $mz += [math]::Round($wz.Z, 1); $md += [math]::Round($wz.D, 1); $ms += [math]::Round($wz.Sig, 1); $mk += 'witness' } }
-        if ($null -ne $u.Probe -and $null -ne $e.ProbeZ) { $mc += [int]$u.Probe; $mz += [math]::Round([double]$e.ProbeZ, 1); $md += [math]::Round([double]$e.ProbeZ - [double]$u.V[[int]$u.Probe], 1); $ms += 0.0; $mk += 'probe' }
-        $rec = @{ RefKey = $u.RefKey; Tag = $u.Tag; Head = $u.Head; Drive = $cal.Drive; Date = $date; RefDate = [string]$u.Cv.Date; RefTest = [string]$u.Cv.Test
-                  Delta = [int]$u.Level; Est = [math]::Round([double]$e.Delta, 1); SE = [math]::Round([double]$e.SE, 1); Tau = [math]::Round([double]$e.Tau, 1)
-                  Verdict = $verdict; Shape = [string]$shape.Verdict; Reasons = [string[]]@($shape.Reasons); Conv = [bool]$u.Conv; Passes = [int]$u.Passes
-                  Cyls = [int[]]$mc; Zs = [double[]]$mz; Ds = [double[]]$md; Sigs = [double[]]$ms; Kinds = [string[]]$mk
-                  Values = [int[]]$bv.Values; Spec = (Build-CurveProfile $bv.Values); Sat = [int[]]@($bv.Sat); Floor = [int[]]@($bv.Floor)
-                  Hist = @($hist); Version = $script:Version; Algo = $script:CalibAlgo; LevelAlgo = $script:LevelAlgo }
-        $script:LevelShifts[$hk] = $rec
-        $recs += ,$rec; $verdicts += $verdict
-    }
-    # 12.7 point 5 : etat de la surface de la disquette a la premiere passe (Invoke-LevelSurface) : disquette douteuse,
-    # defaut grossier poursuivi ou sans fenetre (calibration rapide sans ecriture) : reserve si la fenetre de decision
-    # s ouvre pour une autre raison
-    # Defaut de vitesse seul (arbitrage 12, Test-CalibSpeedOnly) : reserve qui nomme le controle de vitesse, pas le support
-    if ($issues.Count -gt 0 -and $cal.Surf -and ($cal.Surf.Defective -or $cal.SurfGross)) {
-        $issues.Add($(if ($cal.Surf.Defective) { Format-CalibSurfaceReserve $cal.Surf }
-                      elseif (Test-CalibSpeedOnly $cal.Surf $cal.Medium) { (T "contrôle de vitesse et de densité : {0} à la première passe") -f (Format-CalibSurfaceVerdict $cal.Surf $cal.Medium) }
-                      else { (T "support : {0} à la première passe") -f (Format-CalibSurfaceVerdict $cal.Surf $cal.Medium) }))
-    }
+    $res = Get-LevelUnitResults $cal $date
+    $issues = $res.Issues; $recs = $res.Recs; $prevRecs = $res.PrevRecs; $verdicts = $res.Verdicts
     if (-not $script:Restore) { [void](Save-Config) }
     $fieldsPrev = @{ Prof = $cmbWProfile.SelectedIndex; On = $chkWPrecomp.Checked; P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Lbl = $lblWProfileInfo.Text }
     # Carte Calibration de l Accueil : profil place dans les champs --precomp seulement si l image de l onglet Ecriture est
@@ -697,11 +1063,17 @@ function Complete-LevelCalib {
         if ($cmbWProfile.SelectedIndex -ne 0) { $cmbWProfile.SelectedIndex = 0 }   # Auto : profil decale remplace au prochain changement d image
         Set-LevelFields $recs $cal.Slow
     }
+    $plan = Get-LevelReviewPlan $cal $res $toWrite
+    # 12.8 (lot 1c) : courbe adaptee a cette disquette (forme ajustee, ou forme d une marque memorisee au depart)
+    $adCurve = ($plan.Adapted.Count -gt 0) -or (@($cal.Units | Where-Object { $_.Memo -and [string]$_.Mode -ne 'adapte' }).Count -gt 0)
     $lvlTxt = (@($recs | ForEach-Object { Get-LevelLabel $_ })) -join ', '
     $sv = @($cal.Units | ForEach-Object { [string]$_.Shape.Verdict })
-    $shapeTxt = if ($sv -contains 'mismatch') { (T 'NON CONFORME') } elseif ($verdicts -contains 'sat' -or $verdicts -contains 'low') { ((T 'non vérifiée (limite de 0 ou {0} ns atteinte)') -f "$($script:CalHardNs)") } elseif ($verdicts -contains 'few') { (T 'non vérifiée (trop peu de cylindres mesurés)') } elseif ($sv -contains 'approx') { (T 'approximative') } else { (T 'conforme') }
+    $shapeTxt = if ($sv -contains 'mismatch') { (T 'NON CONFORME') } elseif ($verdicts -contains 'sat' -or $verdicts -contains 'low') { ((T 'non vérifiée (limite de 0 ou {0} ns atteinte)') -f "$($script:CalHardNs)") } elseif ($verdicts -contains 'few') { (T 'non vérifiée (trop peu de cylindres mesurés)') } elseif ($sv -contains 'adapte' -or @($plan.MemoCurve).Count -gt 0) { (T 'adaptée à cette disquette') } elseif ($sv -contains 'approx') { (T 'approximative') } else { (T 'conforme') }
     $lblWCal.Text = ((T "Calibration rapide terminée en {0} : niveau {1}, forme {2}.") -f (Format-CalDuration $elapsed), "$lvlTxt", "$shapeTxt")
-    if ($toFields) { $lblWProfileInfo.Text = ((T "Profil {0} de cette disquette (calibration rapide du {1}, lecteur {2}) : référence du {3} décalée de {4}. À n'utiliser que pour cette disquette (bouton Courbe).") -f "$famTxt", "$date", "$($cal.Drive)", "$($recs[0].RefDate)", "$lvlTxt") }
+    if ($toFields) {
+        if ($adCurve) { $lblWProfileInfo.Text = ((T "Profil {0} de cette disquette (calibration rapide du {1}, lecteur {2}) : référence du {3} adaptée à cette disquette ({4}){5}. À n'utiliser que pour cette disquette (bouton Courbe).") -f "$famTxt", "$date", "$($cal.Drive)", "$($recs[0].RefDate)", "$lvlTxt", $(if ($cal.Brand) { (T ', marque « {0} »') -f "$($cal.Brand)" } else { '' })) }
+        else { $lblWProfileInfo.Text = ((T "Profil {0} de cette disquette (calibration rapide du {1}, lecteur {2}) : référence du {3} décalée de {4}. À n'utiliser que pour cette disquette (bouton Courbe).") -f "$famTxt", "$date", "$($cal.Drive)", "$($recs[0].RefDate)", "$lvlTxt") }
+    }
     else { Append-Log ((T "Calibration rapide depuis l'Accueil : l'image de l'onglet Écriture n'est pas de la famille {0}, le profil de cette disquette n'est pas placé dans ses champs --precomp ; il reste affiché dans la fenêtre Courbe (dernière calibration rapide).") -f "$famTxt") }
     Append-Log ((T "Calibration rapide terminée en {0} : {1} passe(s), {2} écritures de piste sur {3} cylindres (2 faces), aucune ailleurs.") -f (Format-CalDuration $elapsed), "$($cal.PassesDone)", "$($cal.TrackWrites)", "$(@($cal.Cyls).Count)")
     Append-Log ((T "Niveau retenu : {0}.") -f "$lvlTxt")
@@ -724,12 +1096,16 @@ function Complete-LevelCalib {
         if ($issues.Count -gt 0) { $lt += ' ; ' + ($issues -join ' ; ') }
         $r.Level = @{ State = $(if ($issues.Count -gt 0 -or $cn -or ($r.CalibUsed -and $r.CalibUsed.Notes.Count -gt 0)) { 'warn' } else { 'ok' }); Text = $(if ($base) { "$base ; $lt" } else { $lt }); Report = $lt }
     }
+    $brandName = [string]$cal.Brand; $brandExplicit = $false
     if ($issues.Count -gt 0) {
         Append-Log ((T "Calibration : résultat douteux ({0}) : courbe affichée, décision demandée.") -f ($issues -join ' ; '))
         if ($script:Restore) { $script:Restore.InCall = $true }
         # Carte Calibration de l Accueil sans profil dans les champs --precomp : textes de la decision sans ces champs
         $noFields = ([bool]$cal.Home -and -not $toFields)
-        try { $choice = Show-CalibReview $cal @($issues) $toWrite ([bool]($cal.CanFallback -or -not $toWrite)) $noFields }
+        # 12.8 (lot 1c, point 2, § 7, G3) : avertissement, « Calibration complete » et fenetre « information » (Get-LevelReviewPlan)
+        $script:CalReviewBrand = $null
+        $lv2 = @{ WarnText = $plan.WarnText; Info = $plan.Info; BrandAsk = $plan.BrandAsk; Brand = $plan.Brand; Brands = $plan.Brands; Verified = $plan.Verified }
+        try { $choice = Show-CalibReview $cal @($issues) $toWrite $plan.OfferFull $noFields $false $null $plan.Warn $lv2 }
         finally { if ($script:Restore) { $script:Restore.InCall = $false; $script:Restore.Idle = Get-Date } }
         if ($choice -eq 'stop') {
             # Resultat refuse : niveaux precedents retablis, champs ramenes a la reference
@@ -745,6 +1121,8 @@ function Complete-LevelCalib {
                 $lblWCal.Text = (T 'Calibration rapide abandonnée : champs --precomp rétablis.')
                 Append-Log (T 'Calibration rapide abandonnée à votre demande : niveau non conservé, champs --precomp rétablis.')
             }
+            # 12.8 (lot 1c, point 1) : mesures des passes (Write-CalibPassLog, Write-LevelPassLog) gardees au journal
+            Append-Log (T "Résultat refusé : les mesures ci-dessus restent au journal, rien n'est enregistré pour cette disquette.")
             if ($toWrite) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : résultat de calibration refusé.'); if ($script:Restore) { Stop-Restore (T 'résultat de calibration refusé') } }
             Set-HomeProgDone $cal 'abandon' $issues[0]
             return
@@ -752,11 +1130,24 @@ function Complete-LevelCalib {
         # Calibration complete demandee : bilan avec reserves, remplace par la progression si elle demarre
         if ($choice -eq 'full') { Set-HomeProgDone $cal 'warn' $issues[0]; Start-LevelFallback $cal ($issues -join ' ; ') $toWrite $noFields; return }
         Append-Log (T 'Calibration : résultat accepté malgré les réserves.')
+        # 12.8 (lot 1c, § 10.1) : marque nommee dans la fenetre « information » (champ vide : rien n est memorise)
+        if ($plan.BrandAsk -and $null -ne $script:CalReviewBrand) {
+            $brandName = ([string]$script:CalReviewBrand).Trim(); $brandExplicit = [bool]$brandName
+            Append-Log $(if ($brandName) { (T 'Marque nommée dans la fenêtre de décision : « {0} ».') -f "$brandName" } else { (T 'Marque non nommée dans la fenêtre de décision : forme non mémorisée.') })
+        }
+    }
+    # 12.8 (lot 1c, § 10.4, G5) : memoire de la marque (resultat accepte)
+    if ($brandName) {
+        Update-LevelBrands $cal $brandName $brandExplicit
+        if (-not $script:Restore) { [void](Save-Config) }
     }
     Set-HomeProgDone $cal $(if ($issues.Count -gt 0) { 'warn' } else { 'ok' }) $(if ($issues.Count -gt 0) { $issues[0] } else { '' })
     if ($toWrite) {
         $script:AfterCalib = ''
         Append-Log (T 'Calibration rapide terminée : écriture de l''image avec le niveau mesuré.')
+        # 12.8 (lot 1c, G1) : courbe adaptee a cette disquette : controle apres ecriture impose, meme case decochee (parade au
+        # risque residuel d un defaut confondu avec la forme, a c2, et a l usure lisse : la consequence se voit a l ecriture)
+        if ($adCurve) { $script:LevelPostForce = $true; Append-Log (T 'Contrôle après écriture imposé : courbe adaptée à cette disquette.') }
         if ($script:Restore) { $script:Restore.InCall = $true }
         # Prechauffage passe pendant la calibration (bouton « Passer le prechauffage ») : pas de second prechauffage
         try { Start-ImageWrite -NoWarmup:([bool]$cal.WarmSkip) } finally { if ($script:Restore) { $script:Restore.InCall = $false; $script:Restore.Idle = Get-Date } }
@@ -776,9 +1167,16 @@ function Start-LevelFallback($cal, [string]$why, [bool]$toWrite, [bool]$noFields
     # devient la nouvelle reference ; sur disquette sacrifiee, le niveau de la disquette a ecrire est mesure ensuite.
     # noFields : calibration rapide de l Accueil dont le profil n est pas dans les champs --precomp (Complete-LevelCalib)
     Append-Log ((T "Calibration complète demandée après la calibration rapide ({0}).") -f "$why")
-    $introFmt = if ($noFields) { (T "La calibration rapide ne convient pas à cette disquette ({0}).`nCalibration complète en test fin ci-dessous : elle devient la nouvelle référence de forme du lecteur {1}. Annuler : rien de plus n'est écrit.") }
-                else { (T "La calibration rapide ne convient pas à cette disquette ({0}).`nCalibration complète en test fin ci-dessous : elle devient la nouvelle référence de forme du lecteur {1}. Annuler : rien de plus n'est écrit ; le profil décalé reste dans les champs --precomp.") }
+    # 12.8 (lot 1c, point 3, exception a D7 acceptee le 19/10) : confirmation sans compte a rebours, case « disquette
+    # sacrifiee » obligatoire (Start-PrecompCalib, $script:CalFallbackAsk) ; avant une ecriture, la disquette a ecrire est
+    # redemandee apres la calibration, puis mesuree (Swap, LevelAfter). Forme non conforme : texte du point 3 ; autre
+    # reserve : texte de la 12.7, refus par « Fermer »
+    $mm = (@($cal.Units | Where-Object { $_.Shape -and [string]$_.Shape.Verdict -eq 'mismatch' }).Count -gt 0)
+    $introFmt = if ($mm) { (T "La forme de cette disquette ne correspond pas à la référence et n'a pas pu être adaptée ({0}). La calibration complète mesure de nouveau le lecteur sur une disquette sacrifiée : elle remplace la référence de forme du lecteur {1}, utilisée ensuite pour toutes vos disquettes. Une sauvegarde de la configuration est faite avant. Fermer : rien de plus n'est écrit.") }
+                elseif ($noFields) { (T "La calibration rapide ne convient pas à cette disquette ({0}).`nCalibration complète en test fin ci-dessous : elle devient la nouvelle référence de forme du lecteur {1}. Fermer : rien de plus n'est écrit.") }
+                else { (T "La calibration rapide ne convient pas à cette disquette ({0}).`nCalibration complète en test fin ci-dessous : elle devient la nouvelle référence de forme du lecteur {1}. Fermer : rien de plus n'est écrit ; le profil décalé reste dans les champs --precomp.") }
     $intro = ($introFmt -f "$why", "$($cal.Drive)") + "`n`n"
+    $script:CalFallbackAsk = @{ Swap = [bool]($toWrite -and -not $cal.Home) }
     # Carte Calibration de l Accueil : meme type de disquette (image de geometrie), et non l image de l onglet Ecriture
     if ($cal.Home) {
         Start-PrecompCalib -ForceFine -Intro $intro -Geom $cal.Geom -Heads ([bool]$cal.Slow)

@@ -38,7 +38,8 @@ Dans tous les modules, aucune instruction n'est à cheval sur deux modules, et c
 | `230-fn-calib-courbe.ps1` | Calibration : échelle, ajustement, dessin et configuration des courbes |
 | `240-fn-calib-mesure.ps1` | Calibration : unités, motif, zéros, vérification, dérive, comparaison des courbes, anciennes calibrations |
 | `250-fn-calib-fenetres.ps1` | Fenêtres de décision, de confirmation et de contrôle de surface de la calibration |
-| `260-fn-calib-rapide.ps1` | Calibration rapide (niveau par disquette) |
+| `260-fn-calib-rapide.ps1` | Calibration rapide (niveau par disquette) : référence, passes, décision, bilan, fenêtre de décision |
+| `265-fn-calib-adaptative.ps1` | Calibration rapide adaptative (12.8, lot 1c) : forme de la disquette (moindres carrés, validation croisée, contrôles), passes de mesure et de vérification, mémoire par marque |
 | `270-fn-calib-complete.ps1` | Calibration complète : lancement, préchauffage, passes, analyse, fin |
 | `280-fn-calib-surface.ps1` | Contrôle de surface et de vitesse des calibrations |
 | `290-fn-calib-b.ps1` | « Refaire sur une autre disquette » (calibration B) |

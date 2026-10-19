@@ -38,6 +38,7 @@ $script:Theme = @{
     Danger  = [System.Drawing.Color]::FromArgb(196, 60, 52)
     Ok      = [System.Drawing.Color]::FromArgb(46, 139, 87)
     Warn    = [System.Drawing.Color]::FromArgb(214, 140, 30)
+    WarnInk = [System.Drawing.Color]::FromArgb(176, 104, 10)   # 12.8 (D17) : texte d avertissement sur fond clair
     Muted   = [System.Drawing.Color]::FromArgb(110, 116, 128)
     Page    = [System.Drawing.Color]::FromArgb(250, 251, 253)
     Window  = [System.Drawing.Color]::FromArgb(236, 239, 244)
