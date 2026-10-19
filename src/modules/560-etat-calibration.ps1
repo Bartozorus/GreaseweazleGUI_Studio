@@ -48,6 +48,9 @@ $script:CalDriftMinWit   = 6            # temoins necessaires pour retirer cette
 $script:CalContraMaxNs   = 12           # verifications contradictoires : ecart entre elles (ns de precomp) au-dela duquel la fenetre de decision s ouvre (H)
 $script:CalContraMinNs   = 2            # verifications contradictoires : ecart minimal (ns de precomp) quand la tolerance de la verification 1 n est pas convertible
 $script:CalMaxVerify = 2                # passes de verification au plus
+# 12.8 (lot 1b) : nouvel essai automatique, apres la derniere verification, des cylindres non converges dont la cause
+# n est pas exclue (Get-CalibRetestPlan) : passes de verification ciblees de plus, au plus
+$script:CalMaxRetest = 1
 $script:CalBracketMargin = 80           # passe d encadrement : estimation + marge (ns) pour un cylindre encore sous-compense a 200 ns
 # --- Controle de surface de la passe 1 (seuils provisoires (H)) ------------------------------------------------------
 $script:CalSurfDropRevs  = 2      # trous de signal (>= 20 us) dans au moins ce nombre de tours : defaut reproductible (H)

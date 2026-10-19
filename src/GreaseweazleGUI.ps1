@@ -412,8 +412,6 @@ $script:I18n['test fin, tous les cylindres'] = 'fine test, every cylinder'
 $script:I18n['test standard, un cylindre sur 10'] = 'standard test, one cylinder in 10'
 $script:I18n["Calibration de la précompensation sur le lecteur {0} ({1}).`n`nImage : {2}, famille {3}, {4}.`nMotif de test : données pseudo-aléatoires générées à la densité de l'image, son contenu n'est pas écrit.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes."] = "Precompensation calibration on drive {0} ({1}).`n`nImage: {2}, family {3}, {4}.`nTest pattern: pseudo-random data generated at the image's density, its content is not written.`nTest cylinders: {5} (both sides), OVERWRITTEN on every pass. Estimated time: {6} min for {7} passes."
 $script:I18n["ATTENTION : la calibration écrit le motif de test sur les mêmes pistes à chaque passe ({0} passes prévues, jusqu'à {1} {2}). Ces écritures répétées sollicitent le support magnétique et peuvent le fatiguer."] = 'WARNING: calibration writes the test pattern to the same tracks on every pass ({0} passes planned, up to {1} {2}). These repeated writes stress the magnetic media and can wear it out.'
-$script:I18n['si la courbe demande un encadrement'] = 'if the curve needs a bracketing pass'
-$script:I18n['si la courbe demande un encadrement ou des mesures complémentaires (30 cylindres au plus)'] = 'if the curve needs a bracketing pass or additional measurements (30 cylinders at most)'
 $script:I18n["Pour épargner {0}, cochez la case ci-dessous (le compte à rebours s'arrête), remplacez-la par une disquette sacrifiée (sans valeur, jamais l'original), puis cliquez sur « Lancer la calibration » : après la calibration, l'application vous demandera de remettre {0}. Sinon, la calibration utilise la disquette insérée."] = 'To spare {0}, tick the box below (the countdown stops), replace it with a sacrificial disk (worthless, never the original), then click "Start the calibration": after the calibration, the application will ask you to put {0} back. Otherwise, the calibration uses the inserted disk.'
 $script:I18n["Compte à rebours arrêté : insérez la disquette sacrifiée, puis cliquez sur « Lancer la calibration »."] = 'Countdown stopped: insert the sacrificial disk, then click "Start the calibration".'
 $script:I18n["Compte à rebours arrêté : cliquez sur « Lancer la calibration » pour calibrer avec la disquette insérée."] = 'Countdown stopped: click "Start the calibration" to calibrate with the inserted disk.'
@@ -1503,6 +1501,21 @@ $script:I18n["Liste « Calibration précomp » au « Test rapide » : la disquet
 $script:I18n["Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)"] = 'Measure the disk before the write: always with "Quick test" (precompensation level and surface state)'
 $script:I18n["Bibliothèque : opération terminée, réglages de l'onglet Écriture rétablis (le préréglage de la Bibliothèque n'est pas enregistré)."] = 'Library: operation finished, Write tab settings restored (the Library preset is not saved).'
 $script:I18n["Nettoyage de l'onglet Outils : ancien réglage par défaut (3 passes, {0} ms par position) remplacé par le nouveau, 3 passes de {1} ms par position, comme le préréglage « Standard » de la fenêtre « Nettoyage des têtes »."] = 'Tools tab cleaning: former default setting (3 passes, {0} ms per position) replaced by the new one, 3 passes of {1} ms per position, like the "Standard" preset of the "Head cleaning" window.'
+# 12.8, lot 1b : nouvel essai automatique des cylindres non converges
+$script:I18n["Si des cylindres restent non convergés, un nouvel essai automatique ajoute au plus {0} min (une passe de vérification ciblée)."] = 'If cylinders remain not converged, an automatic retest adds {0} min at most (one targeted verification pass).'
+$script:I18n['si la courbe demande un encadrement ou un nouvel essai des cylindres non convergés'] = 'if the curve needs a bracketing pass or a retest of the non-converged cylinders'
+$script:I18n['si la courbe demande un encadrement, des mesures complémentaires (30 cylindres au plus) ou un nouvel essai des cylindres non convergés'] = 'if the curve needs a bracketing pass, additional measurements (30 cylinders at most) or a retest of the non-converged cylinders'
+$script:I18n["Calibration : nouvel essai automatique des cylindres non convergés {0} (vérification {1})"] = 'Calibration: automatic retest of the non-converged cylinders {0} (verification {1})'
+$script:I18n["Calibration : passe de vérification {0}/{1} du nouvel essai, cylindres relus (non convergés, voisins immédiats et cylindres modifiés) : {2}"] = 'Calibration: verification pass {0}/{1} of the retest, cylinders read again (non-converged, immediate neighbours and changed cylinders): {2}'
+$script:I18n["Calibration : pas de nouvel essai automatique des cylindres non convergés {0} : {1}."] = 'Calibration: no automatic retest of the non-converged cylinders {0}: {1}.'
+$script:I18n['disquette de calibration douteuse au contrôle de surface'] = 'calibration disk doubtful at the surface check'
+$script:I18n['forte dérive du lecteur entre deux vérifications ({0} ns)'] = 'strong drive drift between two verifications ({0} ns)'
+$script:I18n['dérive du lecteur non retirée (témoins insuffisants)'] = 'drive drift not removed (not enough witnesses)'
+$script:I18n["zone non reproductible d'une vérification à l'autre"] = 'zone not reproducible from one verification to the next'
+$script:I18n["cylindres non reproductibles d'une vérification à l'autre"] = 'cylinders not reproducible from one verification to the next'
+$script:I18n['pistes déjà écrites le nombre maximal de fois annoncé ({0})'] = 'tracks already written the announced maximum number of times ({0})'
+$script:I18n['précompensation visée hors de ses limites (0 ou {0} ns)'] = 'target precompensation outside its limits (0 or {0} ns)'
+$script:I18n["Dérive du lecteur depuis la vérification {0}, nouvel essai compris : {1} ± {2} ns de décalage commun sur {3} cylindres témoins (dispersion {4}), soit {5} ns jusqu'à la vérification {6}, puis {7} ns jusqu'à la vérification {8}."] = 'Drive drift since verification {0}, retest included: {1} ± {2} ns of common offset on {3} witness cylinders (spread {4}), that is {5} ns up to verification {6}, then {7} ns up to verification {8}.'
 function T([string]$s) {
     if ($script:Lang -eq 'fr') { return $s }
     $t = $script:I18n[$s]
@@ -8344,6 +8357,13 @@ function Add-DriftWitnesses($u) {
     $cand = @($u.Verify.Keys | ForEach-Object { [int]$_ } | Where-Object {
         @($u.VerifyList) -notcontains $_ -and @($u.Outliers) -notcontains $_ -and $u.VerifyP.ContainsKey($_) -and $_ -lt $vals.Count -and
         [int]$vals[$_] -eq [int]$u.VerifyP[$_] -and [int]$vals[$_] -gt 0 -and [int]$vals[$_] -lt $script:CalHardNs } | Sort-Object)
+    # 12.8 (lot 1b) : jamais au-dela du nombre d ecritures par piste annonce par l avertissement (WriteMax), repli compris.
+    # Sans effet a la verification 2 (une piste n est ecrite qu une fois par passe) ; passe du nouvel essai : piste deja
+    # ecrite WriteMax fois exclue
+    if ($script:Cal -and [int]$script:Cal.WriteMax -gt 0 -and $null -ne $u.Writes) {
+        $wcap = [int]$script:Cal.WriteMax
+        $cand = @($cand | Where-Object { 1 + [int]$u.Writes[[int]$_] -le $wcap })
+    }
     if ($null -ne $u.Writes -and $u.Writes.Count -gt 0) {
         $wmax = [int](@($u.Writes.Values) | Measure-Object -Maximum).Maximum
         $vmax = [int](@(@($u.VerifyList) | ForEach-Object { 1 + [int]$u.Writes[[int]$_] }) | Measure-Object -Maximum).Maximum
@@ -8397,7 +8417,10 @@ function Get-VerifyDrift($u) {
         $p2 = [double]$u.VerifyP[$c]; $r2 = [double]$u.Verify[$c].Shift
         if ([double]::IsNaN($r1) -or [double]::IsNaN($r2)) { continue }
         $o = @{ C = $c; Obs = $r2 - $r1; Exp = $sl * ($p2 - $p1); P1 = $p1; R1 = $r1; P2 = $p2; R2 = $r2 }
-        if ($p2 -eq $p1) { $wit += ,$o } else { $cor += ,$o }
+        # 12.8 (lot 1b) : temoin = cylindre choisi par Add-DriftWitnesses (Witness). Passe du nouvel essai : cylindres vises
+        # ou voisins relus a leur valeur inchangee, choisis pour leur residu : ni temoins ni corriges (juges sur leur
+        # relecture, derive retiree). Verification 2 : tout cylindre relu a sa valeur inchangee est un temoin (inchange)
+        if ($p2 -eq $p1) { if (@($u.Witness) -contains $c) { $wit += ,$o } } else { $cor += ,$o }
     }
     $res.NW = $wit.Count
     $wm = if ($u.WitMin) { [int]$u.WitMin } else { [int]$script:CalDriftMinWit }
@@ -8636,7 +8659,10 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
     #  Contra  : zone non reproductible, verifications contradictoires (Get-VerifyDrift) : courbe a la mediane des passes de
     #            mesure et des deux verifications (Set-VerifyContra), hors du jugement de convergence (jamais Sat ni Floor :
     #            besoin entre les deux valeurs ecrites). Liste lue par Complete-PrecompCalib (journal, Res, champ contra).
+    #  NonConvC / NonConvR (12.8, lot 1b) : cylindres de NonConv, et pour ceux qui ont un residu, le residu juge (R) et la
+    #            valeur ecrite a sa mesure (P) : nouvel essai automatique (Get-CalibRetestPlan). Sans effet sur le reste.
     $nonConv = @(); $sat = @(); $floor = @(); $dev = @(); $extrap = @(); $cap = @(); $spot = @(); $beyond = @(); $nonRepro = @(); $contra = @()
+    $ncC = @(); $ncR = @{}
     $outl = @{}; foreach ($c in @($u.Outliers)) { $outl[[int]$c] = $true }
     $vals = @($u.Fit.Values)
     $fl = Get-ResidualFlags $u
@@ -8658,12 +8684,12 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
         if ($dft.NonRepro.ContainsKey($c)) { $z = $dft.NonRepro[$c]; $nonRepro += ((T "c{0} ({1} puis {2} ns)") -f "$c", (Format-LevelNum $z.Z1), (Format-LevelNum $z.Z2)); continue }
         if ($out) {
             $txt = "c{0} ({1:+0.0;-0.0})" -f $c, $r
-            if ($fl.Bad.ContainsKey($c)) { $nonConv += $txt }
+            if ($fl.Bad.ContainsKey($c)) { $nonConv += $txt; $ncC += $c; $ncR[$c] = @{ R = $r; P = $pw } }
             else { $spot += $txt }            # ecart local non retenu par Get-ResidualFlags
         }
     }
     foreach ($c in @($u.Est.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
-        if (-not $u.Verify.ContainsKey($c) -and -not $outl.ContainsKey($c)) { $nonConv += ("c{0} ({1})" -f $c, (T 'non relu')) }
+        if (-not $u.Verify.ContainsKey($c) -and -not $outl.ContainsKey($c)) { $nonConv += ("c{0} ({1})" -f $c, (T 'non relu')); $ncC += $c }
     }
     foreach ($c in @($u.Est.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
         if ($c -lt $vals.Count -and -not $outl.ContainsKey($c)) {
@@ -8676,7 +8702,7 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
     for ($c = 0; $c -lt $vals.Count; $c++) { $x = [int]$vals[$c]; if ($x -gt $script:CalMaxNs -and ($x -lt $script:CalHardNs -or $sat.Count -eq 0)) { $beyond += $c } }
     return @{ NonConv = $nonConv; Sat = $sat; Floor = $floor; Dev = $dev; Extrap = $extrap; Cap = $cap; Isolated = @($u.Outliers | ForEach-Object { "c$_" }); Breaks = @($u.Fit.Breaks)
               Spot = $spot; Sigma = $fl.Sigma; NDiff = $fl.NDiff; Hard = $fl.Hard; HardPair = $fl.HardPair; Beyond = [int[]]$beyond
-              Drift = $dft; NonRepro = $nonRepro; Contra = [int[]]$contra }
+              Drift = $dft; NonRepro = $nonRepro; Contra = [int[]]$contra; NonConvC = [int[]]@($ncC | Sort-Object -Unique); NonConvR = $ncR }
 }
 
 function Get-KindName([string]$k) {
@@ -10250,14 +10276,22 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     $bodyFmt = if ($Geom) { (T "Calibration de la précompensation sur le lecteur {0} ({1}).`n`nType de disquette : {2}, famille {3}, {4}.`nMotif de test : données pseudo-aléatoires générées à la densité de ce type.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes.") }
                else { (T "Calibration de la précompensation sur le lecteur {0} ({1}).`n`nImage : {2}, famille {3}, {4}.`nMotif de test : données pseudo-aléatoires générées à la densité de l'image, son contenu n'est pas écrit.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes.") }
     $body = $bodyFmt -f "$($cmbDrive.Text)", "$modeTxt", "$($chk.Label)", "$famTxt", "$cylSrc", "$cylList", "$minutes", "$nPassEst"
+    # 12.8 (lot 1b) : nouvel essai automatique des cylindres non converges : supplement borne d une passe de verification
+    # ciblee (Get-CalibRetestMinutes), et non un total (la duree estimee ne compte ni l encadrement ni les mesures
+    # complementaires du test standard)
+    $minRetest = Get-CalibRetestMinutes $cyls.Count $maxCyl $fine
+    $body += "`n" + ((T "Si des cylindres restent non convergés, un nouvel essai automatique ajoute au plus {0} min (une passe de vérification ciblée).") -f "$minRetest")
     if ($wu -gt 0) { $body += "`n" + ((T "Préchauffage du lecteur avant la première passe : jusqu'à {0} de lecture sans écriture (moins si le lecteur vient de servir), compris dans la durée estimée.") -f (Format-CalDuration (60 * $wu))) }
     # Courbe remplacee d un autre nombre de cylindres (plus de 4 d ecart, seuil de Get-LevelRef) : la nouvelle s applique
     # ensuite a toutes les images de la famille (meme phrase que la fenetre de la carte Calibration de l Accueil)
     $cvr = $script:PrecompCurves[$(if ($slow) { "${family}_h0" } else { $family })]
     if ($cvr -and [math]::Abs(@($cvr.Values).Count - $nCyl) -gt 4) { $body += "`n" + ((T "La courbe actuelle couvre {0} cylindres : elle sera remplacée par une courbe de {1} cylindres, appliquée à toutes les images de la famille {2}.") -f "$(@($cvr.Values).Count)", "$nCyl", "$famTxt") }
-    # Passes supplementaires possibles : encadrement (1), mesures complementaires du test standard (2, 30 cylindres au plus)
+    # Passes supplementaires possibles : encadrement (1), mesures complementaires du test standard (2, 30 cylindres au plus).
+    # Ecritures par piste au plus : $nPassMax, celui de la 12.7. 12.8 (lot 1b) : le nouvel essai des cylindres non converges
+    # le respecte (decisions128.md : « nombre d ecritures par piste respecte ») : WriteMax, garde de Get-CalibRetestPlan et
+    # de Add-DriftWitnesses ; une piste deja ecrite $nPassMax fois n est ni visee, ni relue, ni temoin
     $nPassMax = $nPassEst + 1 + $(if ($fine) { 0 } else { 2 })
-    $extra = if ($fine) { (T 'si la courbe demande un encadrement') } else { (T 'si la courbe demande un encadrement ou des mesures complémentaires (30 cylindres au plus)') }
+    $extra = if ($fine) { (T 'si la courbe demande un encadrement ou un nouvel essai des cylindres non convergés') } else { (T 'si la courbe demande un encadrement, des mesures complémentaires (30 cylindres au plus) ou un nouvel essai des cylindres non convergés') }
     $wear = (T "ATTENTION : la calibration écrit le motif de test sur les mêmes pistes à chaque passe ({0} passes prévues, jusqu'à {1} {2}). Ces écritures répétées sollicitent le support magnétique et peuvent le fatiguer.") -f "$nPassEst", "$nPassMax", "$extra"
     $choice = if ($toWrite) { (T "Pour épargner {0}, cochez la case ci-dessous (le compte à rebours s'arrête), remplacez-la par une disquette sacrifiée (sans valeur, jamais l'original), puis cliquez sur « Lancer la calibration » : après la calibration, l'application vous demandera de remettre {0}. Sinon, la calibration utilise la disquette insérée.") -f "$target" }
               else { (T 'Insérez de préférence une disquette sacrifiée (vierge ou sans valeur), puis validez.') }
@@ -10303,6 +10337,8 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         # test standard, Start-CalibDensify)
         AutoStart = [bool]$ans.Auto; Disk = 1; SurfDone = $false; Surf = $null; Medium = $null; SurfGross = $false; SurfKept = $false; Hold = $false; Redo = $redo
         Cyls0 = [int[]]@($cyls)
+        # 12.8 (lot 1b) : passes de nouvel essai faites (Start-CalibRetest) ; ecritures par piste annoncees au plus
+        Retests = 0; WriteMax = [int]$nPassMax
     }
     if ($Geom) {
         # Densite du type choisi (source de Get-FormatCalibInfo), et non « HFE, bits par piste de l image » de la geometrie
@@ -10318,6 +10354,16 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     $pbWCal.Value = 0; $pbWCal.Visible = $true; $lblWCal.Visible = $true
     Update-CalibProgress
     Start-CalibWarmup      # prechauffage du lecteur s il y a lieu, puis premiere passe de mesure
+}
+
+function Get-CalibRetestMinutes([int]$nCyls, [int]$maxCyl, [bool]$fine) {
+    # 12.8 (lot 1b) : duree au plus du nouvel essai automatique des cylindres non converges (avertissement de
+    # Start-PrecompCalib), au rythme de la duree estimee (2 pistes par cylindre, 1,4 s par piste et par passe) : une passe
+    # de verification ciblee, bornee par une passe sur tous les cylindres que la calibration peut tester (test standard :
+    # 30 cylindres complementaires au plus, Start-CalibDensify), arrondie a la minute superieure ; sans prechauffage (il
+    # precede la premiere passe)
+    $n = [math]::Min($maxCyl + 1, $nCyls + $(if ($fine) { 0 } else { 30 }))
+    return [int][math]::Max(1, [math]::Ceiling($n * 2 * 1.4 / 60))
 }
 
 function Format-CalDuration([double]$sec) {
@@ -10389,7 +10435,7 @@ function Restart-PrecompCalib($cal, [bool]$swap) {
     $cal.Units = $units; $cal.Stage = 'coarse'; $cal.Index = 0; $cal.Value = 0; $cal.ValueTxt = ''; $cal.Spec = ''; $cal.VerifyCount = 0
     $cal.PassesDone = 0; $cal.TotalPasses = $script:CalCoarse.Count + $script:CalMaxVerify; $cal.StartTime = Get-Date
     $cal.SurfDone = $false; $cal.Surf = $null; $cal.Medium = $null; $cal.SurfGross = $false; $cal.SurfKept = $false; $cal.Hold = $false
-    $cal.AutoStart = $false; $cal.Disk = 1 + [int]$cal.Disk
+    $cal.AutoStart = $false; $cal.Disk = 1 + [int]$cal.Disk; $cal.Retests = 0
     Append-Log ((T "=== Calibration precomp reprise sur une autre disquette (disquette {0}) : mêmes réglages, cylindres {1} ===") -f "$($cal.Disk)", "$($cal.CylList)")
     if ($swap -and -not $cal.Swap) {
         $cal.Swap = $true
@@ -10577,8 +10623,13 @@ function New-CalibPass {
             $writes += ,@("c=$(Format-CylList ([int[]]$lst)):h=$($u.Head)", $u.Profile)
         }
         if ($null -ne $cal.Units[0].VerifyList) {
-            Append-Log ((T "Calibration : passe de vérification {0}/{1} ciblée sur les cylindres modifiés : {2}") -f "$($cal.VerifyCount)", "$($script:CalMaxVerify)", ((@($cal.Units | Where-Object { @($_.VerifyList).Count -gt 0 } | ForEach-Object { $uu = $_; "$($uu.Prefix)$(Format-CylList ([int[]]@(@($uu.VerifyList) | Where-Object { @($uu.Witness) -notcontains $_ })))" })) -join ' ; '))
-            $wt = @($cal.Units | Where-Object { @($_.Witness).Count -gt 0 } | ForEach-Object { "$($_.Prefix)$(Format-CylList ([int[]]@($_.Witness)))" })
+            $vlTxt = (@($cal.Units | Where-Object { @($_.VerifyList).Count -gt 0 } | ForEach-Object { $uu = $_; "$($uu.Prefix)$(Format-CylList ([int[]]@(@($uu.VerifyList) | Where-Object { @($uu.Witness) -notcontains $_ })))" })) -join ' ; '
+            # 12.8 (lot 1b) : passe du nouvel essai (Start-CalibRetest), numerotee apres les verifications prevues
+            if ([int]$cal.Retests -gt 0) { Append-Log ((T "Calibration : passe de vérification {0}/{1} du nouvel essai, cylindres relus (non convergés, voisins immédiats et cylindres modifiés) : {2}") -f "$($cal.VerifyCount)", "$([int]$cal.VerifyCount)", "$vlTxt") }
+            else { Append-Log ((T "Calibration : passe de vérification {0}/{1} ciblée sur les cylindres modifiés : {2}") -f "$($cal.VerifyCount)", "$($script:CalMaxVerify)", "$vlTxt") }
+            # 12.8 (lot 1b) : unites ecrites a cette passe seulement (passe du nouvel essai : une tete hors nouvel essai garde
+            # les temoins de son jugement, sans etre ecrite)
+            $wt = @($cal.Units | Where-Object { @($_.Witness).Count -gt 0 -and @($_.VerifyList).Count -gt 0 } | ForEach-Object { "$($_.Prefix)$(Format-CylList ([int[]]@($_.Witness)))" })
             if ($wt.Count -gt 0) { Append-Log ((T "Calibration : témoins de dérive, réécrits à leur valeur inchangée et relus pour mesurer l'écart du lecteur entre deux vérifications : {0}") -f ($wt -join ' ; ')) }
         } else {
             Append-Log ((T "Calibration : passe de vérification {0}/{1}, tête 0 puis tête 1, profils {2} et {3}") -f "$($cal.VerifyCount)", "$($script:CalMaxVerify)", "$($cal.Units[0].Profile)", "$($cal.Units[1].Profile)")
@@ -10589,7 +10640,10 @@ function New-CalibPass {
         $u0 = $cal.Units[0]
         if ($null -ne $u0.VerifyList) {
             $lst = [int[]]@($u0.VerifyList)
-            Append-Log ((T "Calibration : passe de vérification {0}/{1} ciblée sur les cylindres modifiés : {2}") -f "$($cal.VerifyCount)", "$($script:CalMaxVerify)", (Format-CylList ([int[]]@($lst | Where-Object { @($u0.Witness) -notcontains $_ }))))
+            $vlTxt = Format-CylList ([int[]]@($lst | Where-Object { @($u0.Witness) -notcontains $_ }))
+            # 12.8 (lot 1b) : passe du nouvel essai (Start-CalibRetest), numerotee apres les verifications prevues
+            if ([int]$cal.Retests -gt 0) { Append-Log ((T "Calibration : passe de vérification {0}/{1} du nouvel essai, cylindres relus (non convergés, voisins immédiats et cylindres modifiés) : {2}") -f "$($cal.VerifyCount)", "$([int]$cal.VerifyCount)", "$vlTxt") }
+            else { Append-Log ((T "Calibration : passe de vérification {0}/{1} ciblée sur les cylindres modifiés : {2}") -f "$($cal.VerifyCount)", "$($script:CalMaxVerify)", "$vlTxt") }
             if (@($u0.Witness).Count -gt 0) { Append-Log ((T "Calibration : témoins de dérive, réécrits à leur valeur inchangée et relus pour mesurer l'écart du lecteur entre deux vérifications : {0}") -f (Format-CylList ([int[]]@($u0.Witness)))) }
             $writes += ,@("c=$(Format-CylList $lst):h=0-1", $cal.Spec)
             $readTs = "c=$(Format-CylList $lst):h=0-1"
@@ -10663,6 +10717,9 @@ function Invoke-CalibAnalysis {
     $cal.PassesDone++
     foreach ($u in $cal.Units) {
         if ($cal.Stage -eq 'level' -and $u.Done) { continue }
+        # 12.8 (lot 1b) : passe du nouvel essai : seules les unites concernees (InRetest) ; les autres gardent l etat de leur
+        # derniere verification (VerifyPrev, ReadLast, temoins : jugement inchange)
+        if ($cal.Stage -eq 'verify' -and [int]$cal.Retests -gt 0 -and -not $u.InRetest) { continue }
         # Moyenne des deux faces (profil commun) ou face de l unite seule (ecriture lente) ; erreur-type combinee
         $heads = if ($null -eq $u.Head) { @(0, 1) } else { @([int]$u.Head) }
         $shifts = @(); $scores = @(); $bad = @(); $one = @()
@@ -10831,6 +10888,8 @@ function Invoke-CalibAnalysis {
     # Ecriture lente : chaque tete est corrigee d apres sa propre mesure ; une nouvelle passe reverifie les deux.
     $again = $false
     foreach ($u in $cal.Units) {
+        # 12.8 (lot 1b) : apres la passe du nouvel essai, unites non concernees laissees telles quelles
+        if ([int]$cal.Retests -gt 0 -and -not $u.InRetest) { continue }
         # Points de la passe : seulement les cylindres relus a cette passe (verification ciblee : VerifyList)
         $readNow = if ($null -ne $u.VerifyList) { @(@($u.VerifyList) | Where-Object { @($u.Witness) -notcontains [int]$_ }) } else { @($u.Verify.Keys | ForEach-Object { [int]$_ }) }
         foreach ($c in @($u.Verify.Keys)) { if ($readNow -contains [int]$c) { Add-CalibPoint $u.Results[[int]$c] ([int]$u.VerifyP[[int]$c]) $u.Verify[$c] } }
@@ -10847,7 +10906,8 @@ function Invoke-CalibAnalysis {
             }
             $delta[[int]$c] = $d
         }
-        if ($corr -eq 0 -or $cal.VerifyCount -ge $script:CalMaxVerify) { continue }
+        # 12.8 (lot 1b) : aucune correction apres la passe du nouvel essai : jugement final
+        if ($corr -eq 0 -or $cal.VerifyCount -ge $script:CalMaxVerify -or [int]$cal.Retests -gt 0) { continue }
         # Courbe monotone par segments : pres d un changement de sens, les mesures des premieres passes (cylindres ecrits
         # seuls, loin du zero) et celles de la verification (profil complet ecrit dans l ordre, comme l image) peuvent
         # differer bien au-dela de leur incertitude. Une correction par l estimation combinee, dans des segments figes,
@@ -10906,10 +10966,163 @@ function Invoke-CalibAnalysis {
         $cal.VerifyCount++
         New-CalibPass; return
     }
+    # 12.8 (lot 1b) : cylindres encore non converges sans cause exclue : une passe de nouvel essai au plus, puis jugement
+    # final (Start-CalibRetest). Sans cylindre non converge, rien ne change
+    if (Start-CalibRetest $cal) { return }
     # Derniere verification : zones aux verifications contradictoires ramenees a la mediane (sans nouvelle passe)
     foreach ($u in $cal.Units) { [void](Set-VerifyContra $u) }
     $cal.TotalPasses = $cal.PassesDone
     Complete-PrecompCalib
+}
+
+function Get-CalibRetestPlan($cal) {
+    # 12.8 (lot 1b, decisions128.md) : plan du nouvel essai automatique apres la derniere verification, sans rien modifier.
+    # Par unite, cylindres non converges (Get-CalibWarnings : NonConvC, residu juge NonConvR) dont la cause n est pas
+    # exclue. Causes exclues pour toute l unite : disquette douteuse au controle de surface de la premiere passe (reserve
+    # « support » ; defaut de vitesse seul : non), derive du lecteur forte (au-dela de 2 tolerances, reserve « derive »)
+    # ou non retiree (verification ciblee sans assez de temoins), zone non reproductible (Contra), cylindres non
+    # reproductibles. Pour un cylindre : valeur visee au plafond (CalHardNs) ou au plancher (0), ou piste deja ecrite le
+    # nombre de fois annonce par l avertissement (WriteMax, maximum de la 12.7 : le nouvel essai ne le releve pas).
+    # Valeur visee : zero de la mesure jugee, valeur ecrite - residu juge / pente de l unite (residu juge : derive retiree,
+    # temoin sur sa mesure precedente, comme Get-CalibWarnings), bornee par les cylindres verifies non vises voisins dans le
+    # sens du segment ; cylindre « non relu » : relu a sa valeur. Courbe corrigee comme a la verification
+    # (Add-CurveCorrection : 0 aux autres cylindres verifies, monotonie par segments). Relus :
+    # cylindres vises, leurs voisins immediats parmi les cylindres mesures (hors points isoles) et les cylindres dont la
+    # valeur change ; temoins de derive ajoutes par Start-CalibRetest (Add-DriftWitnesses).
+    # Renvoie @{ Go ; Skip } : plans @{ U ; NonConv ; Targets ; Why ; Values ; Profile ; List ; Corr } (Skip : NonConv, Why).
+    $go = @(); $skip = @()
+    $surf = [bool](($cal.SurfKept -and $cal.Surf -and -not (Test-CalibSpeedOnly $cal.Surf $cal.Medium)) -or ($cal.Surf -and $cal.Surf.Defective -and -not $cal.SurfGross))
+    $wmax = [int]$cal.WriteMax
+    foreach ($u in @($cal.Units)) {
+        if (-not $u.Fit -or -not $u.Profile) { continue }
+        $w = Get-CalibWarnings $u ([int]$cal.MaxCyl)
+        $nc = [int[]]@(@($w.NonConvC) | Where-Object { $null -ne $_ })
+        if ($nc.Count -eq 0) { continue }
+        $p = @{ U = $u; NonConv = $nc; Targets = @(); Why = ''; Values = $null; Profile = ''; List = @(); Corr = 0 }
+        $dft = $w.Drift
+        if ($surf) { $p.Why = (T 'disquette de calibration douteuse au contrôle de surface') }
+        elseif ($dft.Use -and [math]::Abs([double]$dft.D) -gt 2.0 * [double]$script:CalResidual) { $p.Why = (T 'forte dérive du lecteur entre deux vérifications ({0} ns)') -f ('{0:+0.0;-0.0;0.0}' -f [double]$dft.D) }
+        elseif (-not $dft.Use -and $u.VerifyPrev -and $u.VerifyPrev.Count -gt 0) { $p.Why = (T 'dérive du lecteur non retirée (témoins insuffisants)') }
+        elseif (@(@($w.Contra) | Where-Object { $null -ne $_ }).Count -gt 0) { $p.Why = (T "zone non reproductible d'une vérification à l'autre") }
+        elseif (@($w.NonRepro).Count -gt 0) { $p.Why = (T "cylindres non reproductibles d'une vérification à l'autre") }
+        if ($p.Why) { $skip += $p; continue }
+        $sl = if ($null -ne $u.Slope -and [double]$u.Slope -lt -0.2) { [double]$u.Slope } else { -2.0 }
+        $vals = @($u.Fit.Values)
+        $delta = @{}
+        foreach ($k in @($u.Verify.Keys)) { $c = [int]$k; if (@($u.Outliers) -notcontains $c -and $c -lt $vals.Count) { $delta[$c] = 0.0 } }
+        $lim = @(); $full = @()
+        foreach ($c in $nc) {
+            if ($c -ge $vals.Count) { continue }
+            if ($wmax -gt 0 -and $null -ne $u.Writes -and 1 + [int]$u.Writes[$c] -gt $wmax) { $full += $c; continue }
+            if ($w.NonConvR -and $w.NonConvR.ContainsKey($c)) {
+                $r = [double]$w.NonConvR[$c].R
+                $z = [math]::Round([double]$w.NonConvR[$c].P - $r / $sl, 0)
+                if (($r -gt 0 -and $z -ge [double]$script:CalHardNs) -or ($r -lt 0 -and $z -le 0)) { $lim += $c; continue }
+                $delta[$c] = $z - [double]$vals[$c]
+            } else { $delta[$c] = 0.0 }               # non relu : relu a sa valeur
+            $p.Targets += $c
+        }
+        $wTxt = (T 'pistes déjà écrites le nombre maximal de fois annoncé ({0})') -f "$wmax"
+        $lTxt = (T 'précompensation visée hors de ses limites (0 ou {0} ns)') -f "$($script:CalHardNs)"
+        if ($lim.Count) { $skip += @{ U = $u; NonConv = [int[]]$lim; Why = $lTxt } }
+        if ($full.Count) { $skip += @{ U = $u; NonConv = [int[]]$full; Why = $wTxt } }
+        if ($p.Targets.Count -eq 0) { continue }
+        # Valeur visee bornee par les cylindres verifies non vises les plus proches dans son segment, dans le sens du segment
+        # (points fixes, meme regle que Set-VerifyContra) : le lissage croissant ne deplace aucun cylindre deja juge, et un
+        # besoin que la courbe monotone ne peut pas suivre reste non converge sans degrader ses voisins (derniere passe :
+        # aucun cylindre deplace ne pourrait etre corrige ensuite)
+        $segs = if ($u.Fit.Segs) { @($u.Fit.Segs) } else { @(@{ Lo = 0; Hi = $vals.Count - 1; Dir = 1 }) }
+        $fix = @($delta.Keys | ForEach-Object { [int]$_ } | Where-Object { @($p.Targets) -notcontains $_ } | Sort-Object)
+        foreach ($c in @($p.Targets)) {
+            $sg = $null; foreach ($g in $segs) { if ($c -ge [int]$g.Lo -and $c -le [int]$g.Hi) { $sg = $g; break } }
+            if (-not $sg) { continue }
+            $t = [double]$vals[$c] + [double]$delta[$c]
+            $fl = @($fix | Where-Object { $_ -ge [int]$sg.Lo -and $_ -lt $c }); $fr = @($fix | Where-Object { $_ -gt $c -and $_ -le [int]$sg.Hi })
+            $a = if ($fl.Count) { [double]$vals[$fl[-1]] } else { $null }; $b = if ($fr.Count) { [double]$vals[$fr[0]] } else { $null }
+            if ([int]$sg.Dir -lt 0) { $x = $a; $a = $b; $b = $x }
+            if ($null -ne $a) { $t = [math]::Max($t, $a) }
+            if ($null -ne $b) { $t = [math]::Min($t, $b) }
+            $delta[$c] = $t - [double]$vals[$c]
+        }
+        $newVals = Add-CurveCorrection $u.Fit.Values $delta $u.Fit.Segs
+        $p.Values = $newVals; $p.Profile = Build-CurveProfile $newVals
+        $p.Corr = @($p.Targets | Where-Object { [int]$newVals[$_] -ne [int]$vals[$_] }).Count
+        $cs = [int[]]@($u.Est.Keys | ForEach-Object { [int]$_ } | Where-Object { @($u.Outliers) -notcontains $_ } | Sort-Object)
+        $set = @{}
+        foreach ($c in $p.Targets) {
+            $set[[int]$c] = $true
+            $i = [array]::IndexOf($cs, [int]$c)
+            if ($i -gt 0) { $set[$cs[$i - 1]] = $true }
+            if ($i -ge 0 -and $i + 1 -lt $cs.Count) { $set[$cs[$i + 1]] = $true }
+        }
+        $chg = @($u.Est.Keys | ForEach-Object { [int]$_ } | Where-Object { $_ -lt $newVals.Count -and (-not $u.VerifyP.ContainsKey($_) -or [int]$newVals[$_] -ne [int]$u.VerifyP[$_]) })
+        foreach ($c in $chg) { $set[[int]$c] = $true }
+        # Garde : un cylindre dont la valeur change doit etre relu ; voisin deja ecrit WriteMax fois : non relu
+        $over = @($set.Keys | ForEach-Object { [int]$_ } | Where-Object { $wmax -gt 0 -and $null -ne $u.Writes -and 1 + [int]$u.Writes[$_] -gt $wmax })
+        if (@($over | Where-Object { $chg -contains $_ }).Count -gt 0) { $skip += @{ U = $u; NonConv = [int[]]$p.Targets; Why = $wTxt }; continue }
+        $p.List = [int[]]@($set.Keys | ForEach-Object { [int]$_ } | Where-Object { $over -notcontains $_ } | Sort-Object)
+        $go += $p
+    }
+    return @{ Go = $go; Skip = $skip }
+}
+
+function Start-CalibRetest($cal) {
+    # 12.8 (lot 1b) : nouvel essai automatique des cylindres non converges (Get-CalibRetestPlan), CalMaxRetest fois au plus :
+    # passe de verification ciblee avec la correction tiree de la verification precedente, puis jugement final
+    # (Invoke-CalibAnalysis, sans autre correction). Mesures des unites concernees ramenees au repere de leur jugement :
+    # temoin juge sur sa mesure precedente, cylindre relu a la derniere verification derive retiree (residu brut garde dans
+    # Raw : journal et courbe enregistree) ; la derive mesuree a la passe se compte depuis ce repere. Unites sans nouvel
+    # essai : ni ecrites, ni relues, ni jugees a nouveau (InRetest). Le controle de surface reste celui de la premiere passe
+    # (a6verify, synthese par. 44). Renvoie $true si la passe est lancee.
+    if (-not $cal -or [int]$cal.Retests -ge [int]$script:CalMaxRetest) { return $false }
+    $plan = Get-CalibRetestPlan $cal
+    foreach ($p in @($plan.Skip)) { Append-Log ($p.U.Prefix + ((T "Calibration : pas de nouvel essai automatique des cylindres non convergés {0} : {1}.") -f (Format-CylList ([int[]]@($p.NonConv))), "$($p.Why)")) }
+    if (@($plan.Go).Count -eq 0) { return $false }
+    $cal.Retests = 1 + [int]$cal.Retests
+    $vLast = [int]$cal.VerifyCount             # derniere verification avant le nouvel essai
+    $cal.VerifyCount++
+    $cal.TotalPasses = $cal.PassesDone + 1
+    $lt = (@($plan.Go | ForEach-Object { "$($_.U.Prefix)$(Format-CylList ([int[]]@($_.Targets)))" })) -join ' ; '
+    Append-Log ((T "Calibration : nouvel essai automatique des cylindres non convergés {0} (vérification {1})") -f "$lt", "$($cal.VerifyCount)")
+    foreach ($u in @($cal.Units)) { $u.InRetest = $false; $u.VerifyList = @() }
+    foreach ($p in @($plan.Go)) {
+        $u = $p.U
+        $dft = Get-VerifyDrift $u
+        # Derive deja mesuree a la derniere verification (DriftBase, DriftBaseV) : celle du nouvel essai se compte depuis le
+        # meme repere, cumulee ; la reserve « derive » de Complete-PrecompCalib juge le dernier intervalle seul. Sans derive
+        # mesuree : aucune (chemins de la 12.7)
+        $u.DriftBase = $null; $u.DriftBaseV = $null
+        if ($dft.Use) { $u.DriftBase = [double]$dft.D; $u.DriftBaseV = $vLast }
+        foreach ($k in @($u.Verify.Keys)) {
+            $c = [int]$k
+            # Temoin : jugement sur sa mesure precedente ; sa derniere mesure brute reste celle du journal (LogRaw, lu
+            # seulement par la ligne « Residu apres verification » ; Res de la courbe : mesure precedente, comme en 12.7)
+            if (@($u.Witness) -contains $c -and $u.VerifyPrev -and $u.VerifyPrev.ContainsKey($c) -and -not $dft.Sys.ContainsKey($c)) { $m = $u.VerifyPrev[$c].Meas.Clone(); $m.LogRaw = [double]$u.Verify[$c].Shift; $u.Verify[$c] = $m; $u.VerifyP[$c] = [int]$u.VerifyPrev[$c].P }
+            elseif ($dft.Use -and $u.ReadLast -and $u.ReadLast.ContainsKey($c)) { $m = $u.Verify[$c]; $u.Verify[$c] = @{ Shift = [double]$m.Shift - [double]$dft.D; SE = $m.SE; Score = $m.Score; Raw = [double]$m.Shift } }
+        }
+        $u.VerifyPrev = @{}; $u.ReadLast = @{}; $u.Witness = @()
+        if ($p.Profile -ne $u.Profile) {
+            $base = ([string]$u.Fit.Model) -replace '\+c$', ''
+            $u.Fit = @{ Model = "$base+c"; A = $u.Fit.A; B = $u.Fit.B; Chi = $u.Fit.Chi; Values = $p.Values; Breaks = $u.Fit.Breaks; Segs = $u.Fit.Segs; Outliers = $u.Fit.Outliers }
+            $u.Profile = $p.Profile
+            Append-Log ($u.Prefix + ((T "{0} cylindre(s) corrigé(s), résidu hors tolérance, nouveau profil : {1}") -f "$($p.Corr)", "$($u.Profile)"))
+        }
+        $u.VerifyList = @($p.List)
+        Add-DriftWitnesses $u
+        $u.InRetest = $true
+    }
+    New-CalibPass
+    return $true
+}
+
+function Get-CalibDriftStep($u, $dft) {
+    # 12.8 (lot 1b) : derive du lecteur du dernier intervalle entre deux verifications (ns de decalage), jugee par la
+    # reserve « derive » de Complete-PrecompCalib (seuil fait pour un intervalle, comme l exclusion du nouvel essai). Apres
+    # un nouvel essai, la derive mesuree (Get-VerifyDrift) se compte depuis le repere du jugement, cumulee : la part deja
+    # mesuree a la derniere verification d avant le nouvel essai (DriftBase, Start-CalibRetest) en est retiree. Sans
+    # DriftBase : derive mesuree telle quelle (12.7)
+    if ($null -ne $u.DriftBase) { return [double]$dft.D - [double]$u.DriftBase }
+    return [double]$dft.D
 }
 
 function Complete-PrecompCalib {
@@ -10935,7 +11148,9 @@ function Complete-PrecompCalib {
     $kinds = New-Object System.Collections.Generic.List[string]
     foreach ($u in $cal.Units) {
         if ($u.Verify.Count -gt 0) {
-            $resTxt = (@($u.Verify.Keys | Sort-Object | ForEach-Object { "c$_=$('{0:+0.0;-0.0;0.0}' -f [double]$u.Verify[$_].Shift)" + $(if (@($u.Outliers) -contains [int]$_) { " ($(Get-KindName 'outlier'))" } else { '' }) })) -join ' '
+            # 12.8 (lot 1b) : derniere mesure brute d une mesure ramenee au repere du jugement avant un nouvel essai (LogRaw :
+            # temoin, Raw : cylindre relu, derive retiree)
+            $resTxt = (@($u.Verify.Keys | Sort-Object | ForEach-Object { "c$_=$('{0:+0.0;-0.0;0.0}' -f $(if ($null -ne $u.Verify[$_].LogRaw) { [double]$u.Verify[$_].LogRaw } elseif ($null -ne $u.Verify[$_].Raw) { [double]$u.Verify[$_].Raw } else { [double]$u.Verify[$_].Shift }))" + $(if (@($u.Outliers) -contains [int]$_) { " ($(Get-KindName 'outlier'))" } else { '' }) })) -join ' '
             Append-Log ($u.Prefix + ((T "Résidu après vérification (ns, tolérance {0}, élargie à 3 erreurs-types si la mesure est plus bruitée) : {1}") -f "$($script:CalResidual)", "$resTxt"))
         }
         $u.Warn = Get-CalibWarnings $u $cal.MaxCyl
@@ -10943,7 +11158,13 @@ function Complete-PrecompCalib {
         if ($dft.Use) {
             $sla = if ($null -ne $u.Slope -and [double]$u.Slope -lt -0.2) { [math]::Abs([double]$u.Slope) } else { 2.0 }
             $dsp = if ([double]$dft.SRaw -ge 1.0) { "$(Format-LevelNum $dft.SRaw) ns" } else { (T 'moins de 1 ns') }
-            $lt = (T "Dérive du lecteur entre les deux vérifications : {0} ± {1} ns de décalage commun sur {2} cylindres témoins (dispersion {3}).") -f ('{0:+0.0;-0.0;0.0}' -f [double]$dft.D), (Format-LevelNum $dft.E), "$($dft.NW)", "$dsp"
+            # 12.8 (lot 1b) : apres un nouvel essai, derive comptee depuis le repere du jugement (DriftBase : part deja mesuree
+            # a la derniere verification d avant le nouvel essai) ; $dIv : dernier intervalle seul, juge par la reserve
+            $dIv = Get-CalibDriftStep $u $dft
+            if ($null -ne $u.DriftBase) {
+                $lt = (T "Dérive du lecteur depuis la vérification {0}, nouvel essai compris : {1} ± {2} ns de décalage commun sur {3} cylindres témoins (dispersion {4}), soit {5} ns jusqu'à la vérification {6}, puis {7} ns jusqu'à la vérification {8}.") -f "$([int]$u.DriftBaseV - 1)", ('{0:+0.0;-0.0;0.0}' -f [double]$dft.D), (Format-LevelNum $dft.E), "$($dft.NW)", "$dsp", ('{0:+0.0;-0.0;0.0}' -f [double]$u.DriftBase), "$([int]$u.DriftBaseV)", ('{0:+0.0;-0.0;0.0}' -f $dIv), "$($cal.VerifyCount)"
+            }
+            else { $lt = (T "Dérive du lecteur entre les deux vérifications : {0} ± {1} ns de décalage commun sur {2} cylindres témoins (dispersion {3}).") -f ('{0:+0.0;-0.0;0.0}' -f [double]$dft.D), (Format-LevelNum $dft.E), "$($dft.NW)", "$dsp" }
             $pdv = [math]::Round([math]::Abs([double]$dft.D) / $sla, 1); $pd = Format-LevelNum $pdv
             if ($pdv -le 0) { }
             elseif ([double]$dft.D -gt 0) { $lt += (T " Le besoin de précompensation était plus élevé de {0} ns à la dernière vérification.") -f "$pd" }
@@ -10951,8 +11172,9 @@ function Complete-PrecompCalib {
             if ([int]$dft.NC -gt 0) { $lt += (T " Écart des cylindres corrigés à leur prédiction, dérive comprise : {0} ns en médiane sur {1}.") -f ('{0:+0.0;-0.0;0.0}' -f [double]$dft.DC), "$($dft.NC)" }
             $lt += (T " Les résidus des cylindres relus à la dernière vérification sont jugés sans ce décalage ; les témoins, inchangés, sur leur mesure précédente, sauf ceux d'un écart systématique, jugés sur leur relecture.")
             Append-Log ($u.Prefix + $lt)
-            # Derive forte : retiree du jugement, mais signalee (lecteur ou support instable d une passe a l autre)
-            if ([math]::Abs([double]$dft.D) -gt 2.0 * [double]$script:CalResidual) { $issues.Add($u.Prefix + ((T "dérive du lecteur de {0} ns entre deux vérifications (lecteur ou support instable ?)") -f ('{0:+0.0;-0.0;0.0}' -f [double]$dft.D))); $kinds.Add('drift') }
+            # Derive forte : retiree du jugement, mais signalee (lecteur ou support instable d une passe a l autre) ; seuil
+            # fait pour un intervalle entre deux verifications (12.8 : le dernier, apres un nouvel essai)
+            if ([math]::Abs($dIv) -gt 2.0 * [double]$script:CalResidual) { $issues.Add($u.Prefix + ((T "dérive du lecteur de {0} ns entre deux vérifications (lecteur ou support instable ?)") -f ('{0:+0.0;-0.0;0.0}' -f $dIv))); $kinds.Add('drift') }
         }
         elseif (@($u.Witness).Count -gt 0 -and $u.VerifyPrev.Count -gt 0) {
             Append-Log ($u.Prefix + ((T "Dérive du lecteur non mesurée : {0} témoin(s) exploitable(s) sur {1}, {2} au moins nécessaires ; résidus jugés sans correction de dérive, témoins sur leur mesure précédente.") -f "$($dft.NW)", "$(@($u.Witness).Count)", "$([int]$u.WitMin)"))
@@ -11105,7 +11327,7 @@ function Complete-PrecompCalib {
             Ys = [double[]]@($cs | ForEach-Object { [math]::Round([double]$u.Est[$_], 1) })
             Sig = [double[]]@($cs | ForEach-Object { [math]::Round($(if ($u.Sig.ContainsKey($_)) { [double]$u.Sig[$_] } else { 5.0 }), 1) })
             Kinds = [string[]]@($cs | ForEach-Object { [string]$u.Kind[$_] })
-            Res = [double[]]@($cs | ForEach-Object { if (@($u.Warn.Contra) -contains $_ -or @($u.ContraMoved) -contains $_) { [double]::NaN } elseif (@($u.Witness) -contains $_ -and $u.VerifyPrev.ContainsKey($_) -and -not $u.Warn.Drift.Sys.ContainsKey($_)) { [math]::Round([double]$u.VerifyPrev[$_].Shift, 1) } elseif ($u.Verify.ContainsKey($_)) { [math]::Round([double]$u.Verify[$_].Shift, 1) } else { [double]::NaN } })
+            Res = [double[]]@($cs | ForEach-Object { if (@($u.Warn.Contra) -contains $_ -or @($u.ContraMoved) -contains $_) { [double]::NaN } elseif (@($u.Witness) -contains $_ -and $u.VerifyPrev.ContainsKey($_) -and -not $u.Warn.Drift.Sys.ContainsKey($_)) { [math]::Round($(if ($u.VerifyPrev[$_].Meas -and $null -ne $u.VerifyPrev[$_].Meas.Raw) { [double]$u.VerifyPrev[$_].Meas.Raw } else { [double]$u.VerifyPrev[$_].Shift }), 1) } elseif ($u.Verify.ContainsKey($_)) { [math]::Round($(if ($null -ne $u.Verify[$_].Raw) { [double]$u.Verify[$_].Raw } else { [double]$u.Verify[$_].Shift }), 1) } else { [double]::NaN } })
             Converged = ($u.Warn.NonConv.Count -eq 0); MaxX = $maxX; MaxNs = [int]$script:CalHardNs
             Contra = [int[]]@(@($u.Warn.Contra) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Sort-Object)
             Slope =$(if ($null -ne $u.Slope) { [math]::Round([double]$u.Slope, 3) } else { $null }); Bits = [int]$cal.PatternBits; Test = [string]$cal.Mode
@@ -13925,6 +14147,9 @@ $script:CalDriftMinWit   = 6            # temoins necessaires pour retirer cette
 $script:CalContraMaxNs   = 12           # verifications contradictoires : ecart entre elles (ns de precomp) au-dela duquel la fenetre de decision s ouvre (H)
 $script:CalContraMinNs   = 2            # verifications contradictoires : ecart minimal (ns de precomp) quand la tolerance de la verification 1 n est pas convertible
 $script:CalMaxVerify = 2                # passes de verification au plus
+# 12.8 (lot 1b) : nouvel essai automatique, apres la derniere verification, des cylindres non converges dont la cause
+# n est pas exclue (Get-CalibRetestPlan) : passes de verification ciblees de plus, au plus
+$script:CalMaxRetest = 1
 $script:CalBracketMargin = 80           # passe d encadrement : estimation + marge (ns) pour un cylindre encore sous-compense a 200 ns
 # --- Controle de surface de la passe 1 (seuils provisoires (H)) ------------------------------------------------------
 $script:CalSurfDropRevs  = 2      # trous de signal (>= 20 us) dans au moins ce nombre de tours : defaut reproductible (H)

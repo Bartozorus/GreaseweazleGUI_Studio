@@ -435,6 +435,13 @@ function Add-DriftWitnesses($u) {
     $cand = @($u.Verify.Keys | ForEach-Object { [int]$_ } | Where-Object {
         @($u.VerifyList) -notcontains $_ -and @($u.Outliers) -notcontains $_ -and $u.VerifyP.ContainsKey($_) -and $_ -lt $vals.Count -and
         [int]$vals[$_] -eq [int]$u.VerifyP[$_] -and [int]$vals[$_] -gt 0 -and [int]$vals[$_] -lt $script:CalHardNs } | Sort-Object)
+    # 12.8 (lot 1b) : jamais au-dela du nombre d ecritures par piste annonce par l avertissement (WriteMax), repli compris.
+    # Sans effet a la verification 2 (une piste n est ecrite qu une fois par passe) ; passe du nouvel essai : piste deja
+    # ecrite WriteMax fois exclue
+    if ($script:Cal -and [int]$script:Cal.WriteMax -gt 0 -and $null -ne $u.Writes) {
+        $wcap = [int]$script:Cal.WriteMax
+        $cand = @($cand | Where-Object { 1 + [int]$u.Writes[[int]$_] -le $wcap })
+    }
     if ($null -ne $u.Writes -and $u.Writes.Count -gt 0) {
         $wmax = [int](@($u.Writes.Values) | Measure-Object -Maximum).Maximum
         $vmax = [int](@(@($u.VerifyList) | ForEach-Object { 1 + [int]$u.Writes[[int]$_] }) | Measure-Object -Maximum).Maximum
@@ -488,7 +495,10 @@ function Get-VerifyDrift($u) {
         $p2 = [double]$u.VerifyP[$c]; $r2 = [double]$u.Verify[$c].Shift
         if ([double]::IsNaN($r1) -or [double]::IsNaN($r2)) { continue }
         $o = @{ C = $c; Obs = $r2 - $r1; Exp = $sl * ($p2 - $p1); P1 = $p1; R1 = $r1; P2 = $p2; R2 = $r2 }
-        if ($p2 -eq $p1) { $wit += ,$o } else { $cor += ,$o }
+        # 12.8 (lot 1b) : temoin = cylindre choisi par Add-DriftWitnesses (Witness). Passe du nouvel essai : cylindres vises
+        # ou voisins relus a leur valeur inchangee, choisis pour leur residu : ni temoins ni corriges (juges sur leur
+        # relecture, derive retiree). Verification 2 : tout cylindre relu a sa valeur inchangee est un temoin (inchange)
+        if ($p2 -eq $p1) { if (@($u.Witness) -contains $c) { $wit += ,$o } } else { $cor += ,$o }
     }
     $res.NW = $wit.Count
     $wm = if ($u.WitMin) { [int]$u.WitMin } else { [int]$script:CalDriftMinWit }
@@ -727,7 +737,10 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
     #  Contra  : zone non reproductible, verifications contradictoires (Get-VerifyDrift) : courbe a la mediane des passes de
     #            mesure et des deux verifications (Set-VerifyContra), hors du jugement de convergence (jamais Sat ni Floor :
     #            besoin entre les deux valeurs ecrites). Liste lue par Complete-PrecompCalib (journal, Res, champ contra).
+    #  NonConvC / NonConvR (12.8, lot 1b) : cylindres de NonConv, et pour ceux qui ont un residu, le residu juge (R) et la
+    #            valeur ecrite a sa mesure (P) : nouvel essai automatique (Get-CalibRetestPlan). Sans effet sur le reste.
     $nonConv = @(); $sat = @(); $floor = @(); $dev = @(); $extrap = @(); $cap = @(); $spot = @(); $beyond = @(); $nonRepro = @(); $contra = @()
+    $ncC = @(); $ncR = @{}
     $outl = @{}; foreach ($c in @($u.Outliers)) { $outl[[int]$c] = $true }
     $vals = @($u.Fit.Values)
     $fl = Get-ResidualFlags $u
@@ -749,12 +762,12 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
         if ($dft.NonRepro.ContainsKey($c)) { $z = $dft.NonRepro[$c]; $nonRepro += ((T "c{0} ({1} puis {2} ns)") -f "$c", (Format-LevelNum $z.Z1), (Format-LevelNum $z.Z2)); continue }
         if ($out) {
             $txt = "c{0} ({1:+0.0;-0.0})" -f $c, $r
-            if ($fl.Bad.ContainsKey($c)) { $nonConv += $txt }
+            if ($fl.Bad.ContainsKey($c)) { $nonConv += $txt; $ncC += $c; $ncR[$c] = @{ R = $r; P = $pw } }
             else { $spot += $txt }            # ecart local non retenu par Get-ResidualFlags
         }
     }
     foreach ($c in @($u.Est.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
-        if (-not $u.Verify.ContainsKey($c) -and -not $outl.ContainsKey($c)) { $nonConv += ("c{0} ({1})" -f $c, (T 'non relu')) }
+        if (-not $u.Verify.ContainsKey($c) -and -not $outl.ContainsKey($c)) { $nonConv += ("c{0} ({1})" -f $c, (T 'non relu')); $ncC += $c }
     }
     foreach ($c in @($u.Est.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
         if ($c -lt $vals.Count -and -not $outl.ContainsKey($c)) {
@@ -767,7 +780,7 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
     for ($c = 0; $c -lt $vals.Count; $c++) { $x = [int]$vals[$c]; if ($x -gt $script:CalMaxNs -and ($x -lt $script:CalHardNs -or $sat.Count -eq 0)) { $beyond += $c } }
     return @{ NonConv = $nonConv; Sat = $sat; Floor = $floor; Dev = $dev; Extrap = $extrap; Cap = $cap; Isolated = @($u.Outliers | ForEach-Object { "c$_" }); Breaks = @($u.Fit.Breaks)
               Spot = $spot; Sigma = $fl.Sigma; NDiff = $fl.NDiff; Hard = $fl.Hard; HardPair = $fl.HardPair; Beyond = [int[]]$beyond
-              Drift = $dft; NonRepro = $nonRepro; Contra = [int[]]$contra }
+              Drift = $dft; NonRepro = $nonRepro; Contra = [int[]]$contra; NonConvC = [int[]]@($ncC | Sort-Object -Unique); NonConvR = $ncR }
 }
 
 function Get-KindName([string]$k) {
