@@ -179,9 +179,21 @@ function Update-CalibProgress {
     $lblWCal.Text = ($fmt -f "$([math]::Min($total, $cal.PassesDone + 1))", "$total", "$($cal.ValueTxt)", "$phaseTxt", "$pct", (Format-CalDuration $remaining))
 }
 
-function Stop-PrecompCalib {
+function Stop-PrecompCalib([switch]$GwError) {
     # Abandon (bouton Arreter, erreur gw, fichier manquant) : etat remis a zero, barre masquee ; bilan de l Accueil (12.7)
     # 12.7 point 2 : calibration B arretee : decision sur la courbe A seule, differee au minuteur principal (Resume-CalibRedo)
+    # 12.8 (VAL01, decisions128.md) : GwError (code retour de gw, operation incomplete, gw non lance, releve absent ou
+    # illisible) pendant la passe du nouvel essai : etat de la derniere verification retabli (Restore-CalibRetestPre), son
+    # jugement est garde ; fin differee au minuteur principal (Complete-CalibRetestEnd : aucune fenetre modale pendant le
+    # traitement de la fin de gw), sans ecrire l image. Calibration B : elle reste en cours, la comparaison A/B suit sa fin.
+    # Restauration : deja arretee par l appelant, sinon arretee ici. Bouton Arreter (sans GwError) : abandon, comme en 12.7
+    if ($GwError -and $script:Cal -and -not $script:Cal.RetestEnd -and (Restore-CalibRetestPre $script:Cal)) {
+        $script:Cal.RetestEnd = $true
+        Append-Log ((T "Calibration : erreur gw pendant la passe du nouvel essai : jugement de la vérification {0} conservé, la calibration se termine sans le nouvel essai.") -f "$($script:Cal.VerifyCount)")
+        if ($script:AfterCalib) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : erreur gw pendant le nouvel essai de la calibration.') }
+        if ($script:Restore) { Stop-Restore (T 'erreur gw pendant le nouvel essai de la calibration') }
+        return
+    }
     if ($script:CalRedo -and $script:CalRedo.Stage -eq 'running') { $script:CalRedo.Stage = 'interrupted'; if (-not $script:CalRedo.Why) { $script:CalRedo.Why = (T 'calibration interrompue') } }
     $cal = $script:Cal
     $script:Cal = $null
@@ -479,8 +491,10 @@ function Set-CalibEstimates($u, [string]$when = '') {
 function Invoke-CalibAnalysis {
     $cal = $script:Cal
     if (-not $cal) { return }
-    if (-not (Test-Path -LiteralPath $cal.Scp)) { Append-Log (T 'Calibration : fichier SCP absent, analyse impossible.'); Stop-PrecompCalib; return }
-    try { $tracks = Read-ScpFile $cal.Scp ([int]$cal.PatternBits) } catch { Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)"); Stop-PrecompCalib; return }
+    # 12.8 (VAL01) : releve absent ou illisible : erreur de la passe (GwError : passe du nouvel essai, jugement de la
+    # derniere verification garde ; sinon abandon, comme en 12.7)
+    if (-not (Test-Path -LiteralPath $cal.Scp)) { Append-Log (T 'Calibration : fichier SCP absent, analyse impossible.'); Stop-PrecompCalib -GwError; return }
+    try { $tracks = Read-ScpFile $cal.Scp ([int]$cal.PatternBits) } catch { Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)"); Stop-PrecompCalib -GwError; return }
     $cal.ReadDurs += ((Get-Date) - $cal.PhaseStart).TotalSeconds
     $cal.PassesDone++
     foreach ($u in $cal.Units) {
@@ -734,6 +748,8 @@ function Invoke-CalibAnalysis {
         $cal.VerifyCount++
         New-CalibPass; return
     }
+    # 12.8 (VAL01) : apres la passe du nouvel essai : correction sans effet, valeur d avant retablie (Restore-CalibRetestNoEffect)
+    if ([int]$cal.Retests -gt 0) { Restore-CalibRetestNoEffect $cal }
     # 12.8 (lot 1b) : cylindres encore non converges sans cause exclue : une passe de nouvel essai au plus, puis jugement
     # final (Start-CalibRetest). Sans cylindre non converge, rien ne change
     if (Start-CalibRetest $cal) { return }
@@ -757,7 +773,9 @@ function Get-CalibRetestPlan($cal) {
     # (Add-CurveCorrection : 0 aux autres cylindres verifies, monotonie par segments). Relus :
     # cylindres vises, leurs voisins immediats parmi les cylindres mesures (hors points isoles) et les cylindres dont la
     # valeur change ; temoins de derive ajoutes par Start-CalibRetest (Add-DriftWitnesses).
-    # Renvoie @{ Go ; Skip } : plans @{ U ; NonConv ; Targets ; Why ; Values ; Profile ; List ; Corr } (Skip : NonConv, Why).
+    # Renvoie @{ Go ; Skip } : plans @{ U ; NonConv ; Targets ; Why ; Values ; Profile ; List ; Corr ; NcR } (Skip : NonConv,
+    # Why). NcR (12.8, VAL01) : residus juges et valeurs ecrites avant le nouvel essai (NonConvR), pour la correction sans
+    # effet (Restore-CalibRetestNoEffect).
     $go = @(); $skip = @()
     $surf = [bool](($cal.SurfKept -and $cal.Surf -and -not (Test-CalibSpeedOnly $cal.Surf $cal.Medium)) -or ($cal.Surf -and $cal.Surf.Defective -and -not $cal.SurfGross))
     $wmax = [int]$cal.WriteMax
@@ -766,7 +784,7 @@ function Get-CalibRetestPlan($cal) {
         $w = Get-CalibWarnings $u ([int]$cal.MaxCyl)
         $nc = [int[]]@(@($w.NonConvC) | Where-Object { $null -ne $_ })
         if ($nc.Count -eq 0) { continue }
-        $p = @{ U = $u; NonConv = $nc; Targets = @(); Why = ''; Values = $null; Profile = ''; List = @(); Corr = 0 }
+        $p = @{ U = $u; NonConv = $nc; Targets = @(); Why = ''; Values = $null; Profile = ''; List = @(); Corr = 0; NcR = $w.NonConvR }
         $dft = $w.Drift
         if ($surf) { $p.Why = (T 'disquette de calibration douteuse au contrôle de surface') }
         elseif ($dft.Use -and [math]::Abs([double]$dft.D) -gt 2.0 * [double]$script:CalResidual) { $p.Why = (T 'forte dérive du lecteur entre deux vérifications ({0} ns)') -f ('{0:+0.0;-0.0;0.0}' -f [double]$dft.D) }
@@ -853,8 +871,15 @@ function Start-CalibRetest($cal) {
     $lt = (@($plan.Go | ForEach-Object { "$($_.U.Prefix)$(Format-CylList ([int[]]@($_.Targets)))" })) -join ' ; '
     Append-Log ((T "Calibration : nouvel essai automatique des cylindres non convergés {0} (vérification {1})") -f "$lt", "$($cal.VerifyCount)")
     foreach ($u in @($cal.Units)) { $u.InRetest = $false; $u.VerifyList = @() }
+    # 12.8 (VAL01) : derniere verification d avant le nouvel essai (erreur gw pendant la passe : Restore-CalibRetestPre)
+    $cal.RtVLast = $vLast
     foreach ($p in @($plan.Go)) {
         $u = $p.U
+        # 12.8 (VAL01) : etat de la derniere verification, avant le repere du jugement et la correction (RtPre : erreur gw
+        # pendant la passe, jugement de cette verification garde) ; references gardees, chaque champ est remplace ci-dessous
+        # (jamais modifie en place), Verify et VerifyP copies
+        $u.RtPre = @{ Verify = $u.Verify.Clone(); VerifyP = $u.VerifyP.Clone(); VerifyPrev = $u.VerifyPrev; ReadLast = $u.ReadLast; Witness = @($u.Witness)
+                      Fit = $u.Fit; Profile = $u.Profile; WitCand = $u.WitCand; WitMin = $u.WitMin }
         $dft = Get-VerifyDrift $u
         # Derive deja mesuree a la derniere verification (DriftBase, DriftBaseV) : celle du nouvel essai se compte depuis le
         # meme repere, cumulee ; la reserve « derive » de Complete-PrecompCalib juge le dernier intervalle seul. Sans derive
@@ -869,6 +894,19 @@ function Start-CalibRetest($cal) {
             elseif ($dft.Use -and $u.ReadLast -and $u.ReadLast.ContainsKey($c)) { $m = $u.Verify[$c]; $u.Verify[$c] = @{ Shift = [double]$m.Shift - [double]$dft.D; SE = $m.SE; Score = $m.Score; Raw = [double]$m.Shift } }
         }
         $u.VerifyPrev = @{}; $u.ReadLast = @{}; $u.Witness = @()
+        # 12.8 (VAL01) : avant la correction, pour la correction sans effet (Restore-CalibRetestNoEffect) : courbe, estimations
+        # (Set-CalibEstimates les remplace), residus juges des cylindres vises (NcR) et, pour chaque cylindre relu, mesure dans
+        # le repere du jugement, valeur ecrite et mesures des passes (Add-CalibPoint les complete en place : copie)
+        $cy = @{}
+        foreach ($c in @($p.List)) {
+            $ci = [int]$c; $has = $u.Verify.ContainsKey($ci)
+            $rs = @{}; if ($u.Results.ContainsKey($ci)) { foreach ($x in @($u.Results[$ci].Keys)) { $rs[$x] = $u.Results[$ci][$x] } }
+            $cy[$ci] = @{ Has = $has; M = $(if ($has) { $u.Verify[$ci] } else { $null }); P = $(if ($u.VerifyP.ContainsKey($ci)) { $u.VerifyP[$ci] } else { $null }); Res = $rs }
+        }
+        $bf = @{}
+        foreach ($c in @($p.Targets)) { $ci = [int]$c; if ($p.NcR -and $p.NcR.ContainsKey($ci) -and $u.Verify.ContainsKey($ci)) { $bf[$ci] = @{ R = [double]$p.NcR[$ci].R; P = $p.NcR[$ci].P; SE = $u.Verify[$ci].SE } } }
+        $u.RtSnap = @{ Fit = $u.Fit; Profile = $u.Profile; Est = $u.Est; Sig = $u.Sig; Kind = $u.Kind; Own = $u.Own; Slope = $u.Slope; Cyl = $cy; Before = $bf
+                       VKeys = [int[]]@($u.Verify.Keys | ForEach-Object { [int]$_ } | Where-Object { @($u.Outliers) -notcontains $_ }) }
         if ($p.Profile -ne $u.Profile) {
             $base = ([string]$u.Fit.Model) -replace '\+c$', ''
             $u.Fit = @{ Model = "$base+c"; A = $u.Fit.A; B = $u.Fit.B; Chi = $u.Fit.Chi; Values = $p.Values; Breaks = $u.Fit.Breaks; Segs = $u.Fit.Segs; Outliers = $u.Fit.Outliers }
@@ -891,6 +929,117 @@ function Get-CalibDriftStep($u, $dft) {
     # DriftBase : derive mesuree telle quelle (12.7)
     if ($null -ne $u.DriftBase) { return [double]$dft.D - [double]$u.DriftBase }
     return [double]$dft.D
+}
+
+function Restore-CalibRetestNoEffect($cal) {
+    # 12.8 (VAL01, decisions128.md) : apres la passe du nouvel essai, correction sans effet : un cylindre vise encore non
+    # converge dont le residu juge n a pas bouge, au bruit pres, alors que sa valeur ecrite a change, reprend sa valeur
+    # d avant le nouvel essai, avec la mesure, les mesures des passes et l estimation qui vont avec (RtSnap,
+    # Start-CalibRetest) : il reste non converge, juge sur sa derniere verification d avant (repere du jugement).
+    # Critere, par cylindre : dP = valeur ecrite a la passe - valeur d avant, dR = residu juge apres - residu juge avant ;
+    # seuil s = max(2 ns ; 2 x ecart-type de dR), ecart-type de dR = racine(SE avant^2 + SE apres^2), au moins racine(2) x
+    # bruit de mesure estime de l unite (Get-ResidualFlags : dispersion des residus voisins, bien plus forte que l erreur-type
+    # d une piste) ; sans effet si |dR| < s et si la correction devait deplacer le residu d au moins s (|pente x dP| >= s ;
+    # sinon, effet trop faible pour etre distingue du bruit : rien n est retabli). Courbe : valeurs d avant si aucun
+    # cylindre vise n a repondu, sinon corrections des seuls cylindres qui ont repondu (Add-CurveCorrection, segments
+    # d avant) ; retablissement abandonne si un cylindre mesure ne garde ni sa valeur de la passe ni celle d avant
+    # (monotonie avec un voisin corrige : ligne de journal). Ecritures par piste : inchangees (pistes ecrites).
+    # FIXVAL01 : cylindres retablis gardes dans RtKept : Get-CalibWarnings les juge NON CONVERGES tant qu ils sont hors
+    # tolerance, meme si leur voisinage apres la passe (cylindres corriges, bruit) en ferait un ecart local non retenu.
+    foreach ($u in @($cal.Units)) {
+        $s = $u.RtSnap
+        if ($null -ne $u.RtSnap) { $u.RtSnap = $null }
+        if ($null -ne $u.RtPre) { $u.RtPre = $null }
+        if (-not $u.InRetest -or -not $s -or $s.Before.Count -eq 0) { continue }
+        $w = Get-CalibWarnings $u ([int]$cal.MaxCyl)
+        $sl = if ($null -ne $s.Slope -and [double]$s.Slope -lt -0.2) { [double]$s.Slope } else { -2.0 }
+        $sig = [double]$w.Sigma
+        $old = [int[]]@($s.Fit.Values); $cur = [int[]]@($u.Fit.Values)
+        $no = @(); $thrMax = 0.0
+        foreach ($c in @($s.Before.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
+            if (-not $w.NonConvR -or -not $w.NonConvR.ContainsKey($c) -or $c -ge $cur.Count) { continue }
+            $b = $s.Before[$c]; $a = $w.NonConvR[$c]
+            if ($null -eq $a.P -or $null -eq $b.P) { continue }
+            $dP = [double]$a.P - [double]$b.P
+            if ([math]::Abs($dP) -lt 1) { continue }
+            $q = 0.0
+            foreach ($x in @($b.SE, $u.Verify[$c].SE)) { if ($null -ne $x -and -not [double]::IsNaN([double]$x)) { $q += [double]$x * [double]$x } }
+            $sd = [math]::Sqrt($q)
+            if (-not [double]::IsNaN($sig)) { $sd = [math]::Max($sd, [math]::Sqrt(2.0) * $sig) }
+            $thr = [math]::Max(2.0, 2.0 * $sd)
+            if ([math]::Abs([double]$a.R - [double]$b.R) -lt $thr -and [math]::Abs($sl * $dP) -ge $thr) { $no += $c; $thrMax = [math]::Max($thrMax, $thr) }
+        }
+        if ($no.Count -eq 0) { continue }
+        $resp = @(@($s.Before.Keys) | ForEach-Object { [int]$_ } | Where-Object { $no -notcontains $_ -and $_ -lt $cur.Count -and $cur[$_] -ne $old[$_] })
+        $full = ($resp.Count -eq 0)
+        if ($full) { $new = [int[]]$old.Clone() }
+        else {
+            $delta = @{}
+            foreach ($c in @($s.VKeys)) { if ($c -lt $old.Count) { $delta[[int]$c] = 0.0 } }
+            foreach ($c in $resp) { $delta[$c] = [double]$cur[$c] - [double]$old[$c] }
+            $new = [int[]](Add-CurveCorrection $old $delta $s.Fit.Segs)
+        }
+        # Coherence : chaque cylindre mesure garde la valeur de sa mesure (celle de la passe, ou celle d avant retablie)
+        $ok = ($new.Count -eq $cur.Count)
+        foreach ($c in @($no)) { if ($ok -and $new[$c] -ne $old[$c]) { $ok = $false } }
+        foreach ($k in @($u.Verify.Keys)) {
+            $c = [int]$k
+            if (-not $ok -or $c -ge $new.Count -or $new[$c] -eq $cur[$c]) { continue }
+            if (-not ($new[$c] -eq $old[$c] -and $s.Cyl.ContainsKey($c))) { $ok = $false }
+        }
+        if (-not $ok) {
+            Append-Log ($u.Prefix + ((T "Calibration : correction du nouvel essai sans effet aux cylindres {0}, valeur d'avant le nouvel essai non rétablie : la courbe ne resterait pas monotone avec les cylindres corrigés voisins.") -f (Format-CylList ([int[]]$no))))
+            continue
+        }
+        for ($c = 0; $c -lt $new.Count; $c++) {
+            if ($new[$c] -eq $cur[$c] -or -not $s.Cyl.ContainsKey($c)) { continue }
+            $y = $s.Cyl[$c]
+            if ($y.Has) { $u.Verify[$c] = $y.M; if ($null -ne $y.P) { $u.VerifyP[$c] = $y.P } } else { [void]$u.Verify.Remove($c); [void]$u.VerifyP.Remove($c) }
+            [void]$u.VerifyPrev.Remove($c); [void]$u.ReadLast.Remove($c)
+            $u.VerifyList = @(@($u.VerifyList) | Where-Object { [int]$_ -ne $c })
+            $u.Results[$c] = $y.Res
+            foreach ($f in 'Est', 'Sig', 'Kind', 'Own') { if ($s[$f].ContainsKey($c)) { $u[$f][$c] = $s[$f][$c] } }
+        }
+        if ($full) { $u.Fit = $s.Fit; $u.Profile = $s.Profile; $u.Slope = $s.Slope }
+        else {
+            $base = ([string]$u.Fit.Model) -replace '\+c$', ''
+            $u.Fit = @{ Model = "$base+c"; A = $u.Fit.A; B = $u.Fit.B; Chi = $u.Fit.Chi; Values = $new; Breaks = $u.Fit.Breaks; Segs = $u.Fit.Segs; Outliers = $u.Fit.Outliers }
+            $u.Profile = Build-CurveProfile $new
+        }
+        $u.RtKept = [int[]]$no
+        Append-Log ($u.Prefix + ((T "Calibration : correction du nouvel essai sans effet aux cylindres {0} (résidu inchangé à {1} ns près alors que la valeur écrite a changé) : valeur d'avant le nouvel essai rétablie, ces cylindres restent non convergés.") -f (Format-CylList ([int[]]$no)), (Format-LevelNum $thrMax)))
+    }
+}
+
+function Restore-CalibRetestPre($cal) {
+    # 12.8 (VAL01) : passe du nouvel essai interrompue par une erreur gw (Stop-PrecompCalib -GwError) : unites remises dans
+    # l etat de leur derniere verification (RtPre, Start-CalibRetest), avant le repere du jugement et la correction ; les
+    # mesures des passes n ont pas change (la passe n a pas ete analysee). $true si une passe du nouvel essai etait en cours.
+    if (-not $cal -or [string]$cal.Stage -ne 'verify' -or [int]$cal.Retests -le 0 -or $null -eq $cal.RtVLast) { return $false }
+    $us = @($cal.Units | Where-Object { $_.RtPre })
+    if ($us.Count -eq 0) { return $false }
+    foreach ($u in $us) {
+        $s = $u.RtPre
+        $u.Verify = $s.Verify; $u.VerifyP = $s.VerifyP; $u.VerifyPrev = $s.VerifyPrev; $u.ReadLast = $s.ReadLast; $u.Witness = @($s.Witness)
+        $u.Fit = $s.Fit; $u.Profile = $s.Profile; $u.WitCand = $s.WitCand; $u.WitMin = $s.WitMin; $u.DriftBase = $null; $u.DriftBaseV = $null
+        $u.RtPre = $null; $u.RtSnap = $null
+    }
+    foreach ($u in @($cal.Units)) { $u.InRetest = $false; $u.VerifyList = @() }
+    $cal.VerifyCount = [int]$cal.RtVLast; $cal.RtVLast = $null
+    $cal.TotalPasses = $cal.PassesDone
+    return $true
+}
+
+function Complete-CalibRetestEnd {
+    # 12.8 (VAL01) : fin differee d une calibration dont la passe du nouvel essai a echoue (Stop-PrecompCalib -GwError),
+    # appelee par le minuteur principal une fois gw fini et sans autre fenetre modale : comme la fin d une derniere
+    # verification sans nouvel essai (zones contradictoires, puis Complete-PrecompCalib et sa fenetre de decision)
+    $cal = $script:Cal
+    if (-not $cal -or -not $cal.RetestEnd) { return }
+    $cal.RetestEnd = $false
+    foreach ($u in $cal.Units) { [void](Set-VerifyContra $u) }
+    $cal.TotalPasses = $cal.PassesDone
+    Complete-PrecompCalib
 }
 
 function Complete-PrecompCalib {

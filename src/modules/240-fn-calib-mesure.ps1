@@ -739,9 +739,13 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
     #            besoin entre les deux valeurs ecrites). Liste lue par Complete-PrecompCalib (journal, Res, champ contra).
     #  NonConvC / NonConvR (12.8, lot 1b) : cylindres de NonConv, et pour ceux qui ont un residu, le residu juge (R) et la
     #            valeur ecrite a sa mesure (P) : nouvel essai automatique (Get-CalibRetestPlan). Sans effet sur le reste.
+    #  12.8 (FIXVAL01) : cylindre dont la valeur d avant le nouvel essai a ete retablie (RtKept, correction sans effet,
+    #            Restore-CalibRetestNoEffect) et encore hors tolerance : NON CONVERGE (decisions128.md, « Lot 1b termine »),
+    #            quel que soit le jugement de son voisinage apres la passe (ecart local, bruit) ; ni Spot, ni converge.
     $nonConv = @(); $sat = @(); $floor = @(); $dev = @(); $extrap = @(); $cap = @(); $spot = @(); $beyond = @(); $nonRepro = @(); $contra = @()
     $ncC = @(); $ncR = @{}
     $outl = @{}; foreach ($c in @($u.Outliers)) { $outl[[int]$c] = $true }
+    $kept = @{}; if ($u.RtKept) { foreach ($c in @($u.RtKept)) { if ($null -ne $c) { $kept[[int]$c] = $true } } }
     $vals = @($u.Fit.Values)
     $fl = Get-ResidualFlags $u
     $dft = Get-VerifyDrift $u
@@ -762,7 +766,7 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
         if ($dft.NonRepro.ContainsKey($c)) { $z = $dft.NonRepro[$c]; $nonRepro += ((T "c{0} ({1} puis {2} ns)") -f "$c", (Format-LevelNum $z.Z1), (Format-LevelNum $z.Z2)); continue }
         if ($out) {
             $txt = "c{0} ({1:+0.0;-0.0})" -f $c, $r
-            if ($fl.Bad.ContainsKey($c)) { $nonConv += $txt; $ncC += $c; $ncR[$c] = @{ R = $r; P = $pw } }
+            if ($fl.Bad.ContainsKey($c) -or $kept.ContainsKey($c)) { $nonConv += $txt; $ncC += $c; $ncR[$c] = @{ R = $r; P = $pw } }
             else { $spot += $txt }            # ecart local non retenu par Get-ResidualFlags
         }
     }

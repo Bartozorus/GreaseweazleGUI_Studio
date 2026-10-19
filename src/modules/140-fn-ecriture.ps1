@@ -492,8 +492,9 @@ function Start-WriteTabWrite {
     # (Start-LevelBeforeWrite -Measure), puis ecriture. Haute densite : ligne de journal, puis ecriture. Sinon :
     # Start-ImageWrite, comme en 12.6 (jamais de calibration automatique depuis ce bouton en test standard ou fin).
     # 12.8 (D5) : liste au « Test rapide » : meme regle que la Bibliotheque, ecriture rapide ou lente : niveau mesure sur
-    # la disquette a ecrire (Start-LevelBeforeWrite, calibration complete en test fin d abord sans reference), memes
-    # conditions (densite, profil Auto, --precomp, image qui recouvre le motif)
+    # la disquette a ecrire (Start-LevelBeforeWrite ; sans reference utilisable : ecriture refusee, jamais de calibration
+    # complete depuis ce bouton, validation du 19/10), memes conditions (densite, profil Auto, --precomp, image qui
+    # recouvre le motif)
     $img = $txtWFile.Text
     $mode = if ($chkWSlow.Checked) { 'slow' } else { 'fast' }
     $quick = ((Get-Setting 'calMode') -eq 'level')

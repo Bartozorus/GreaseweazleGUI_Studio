@@ -156,7 +156,7 @@ function Reset-GwSequence {
     $script:Chain.Clear(); $script:WriteQueue.Clear(); $script:Detect = $null
     Stop-WriteWarmup
     if ($script:Rep) { Stop-WriteCheck }
-    if ($script:Cal) { Stop-PrecompCalib }
+    if ($script:Cal) { Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
     if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : {0}") -f (T 'gw n''a pas pu être lancé.')) }
     if ($script:Restore) { Stop-Restore (T 'gw n''a pas pu être lancé') }
 }

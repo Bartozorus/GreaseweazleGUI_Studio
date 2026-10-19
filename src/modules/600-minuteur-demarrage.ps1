@@ -47,7 +47,7 @@ $timer.Add_Tick({
                     # Restauration : raison exacte d abord, sauf si le controle a deja un bilan (il l ecrira dans le rapport)
                     if ($script:Restore -and -not ($script:Rep -and $script:Rep.Round -gt 0)) { Stop-Restore $why }
                     if ($script:Rep) { Stop-WriteCheck -GwError }
-                    if ($script:Cal) { Stop-PrecompCalib }
+                    if ($script:Cal) { Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
                     if ($script:Restore) { Stop-Restore $why }
                 }
             }
@@ -68,7 +68,7 @@ $timer.Add_Tick({
                     if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : gw a retourné le code {0}. Voir le journal.") -f "$code") }
                     if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; $lblAlVerdict.Text = (T 'Mesure interrompue (erreur gw)') }
                     if ($script:Rep) { Stop-WriteCheck -GwError }
-                    if ($script:Cal) { Stop-PrecompCalib }
+                    if ($script:Cal) { Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
                 }
             }
             if ($code -ne 0 -and -not $soft -and $script:Restore -and -not $script:Restore.Waiting) { Stop-Restore ((T "gw a retourné le code {0}, voir le journal") -f "$code") }
@@ -97,6 +97,10 @@ $timer.Add_Tick({
     # l application au repos et sans autre fenetre modale (Stop-PrecompCalib est appele pendant le traitement de la fin
     # de gw, ou une fenetre modale le bloquerait). La fenetre principale, affichee par ShowDialog, est modale : exclue
     if ($script:CalRedo -and $script:CalRedo.Stage -eq 'interrupted' -and -not (Get-AppBusy) -and @([System.Windows.Forms.Application]::OpenForms | Where-Object { $_.Modal -and $_.Visible -and -not [object]::ReferenceEquals($_, $form) }).Count -eq 0) { Resume-CalibRedo }
+    # 12.8 (VAL01) : erreur gw pendant la passe du nouvel essai (Stop-PrecompCalib -GwError) : fin de la calibration sur le
+    # jugement de la derniere verification, ici une fois gw fini, sans etape en attente ni autre fenetre modale (la fin peut
+    # ouvrir la fenetre de decision, jamais pendant le traitement de la fin de gw). Bouton Arreter entre-temps : abandon
+    if ($script:Cal -and $script:Cal.RetestEnd -and -not $script:GwProc -and $script:Chain.Count -eq 0 -and @([System.Windows.Forms.Application]::OpenForms | Where-Object { $_.Modal -and $_.Visible -and -not [object]::ReferenceEquals($_, $form) }).Count -eq 0) { Complete-CalibRetestEnd }
     Update-HomeProgress                                   # 12.7 : zone de progression de l Accueil, puis bilan
     # Bouton « Passer le prechauffage » : visible pendant tout prechauffage (ecriture lente, calibration), inactif une fois
     # clique ; Enregistrer et Reinitialiser (inactifs pendant une operation) lui cedent leur place dans la barre

@@ -791,8 +791,10 @@ function Start-LevelFallback($cal, [string]$why, [bool]$toWrite, [bool]$noFields
 }
 
 function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measure) {
-    # Ecriture depuis la Bibliotheque ou restauration avec « Test rapide » : niveau mesure sur la disquette a ecrire ;
-    # sans reference utilisable, calibration complete en test fin d abord (sauf en restauration : jamais refaite).
+    # Ecriture depuis la Bibliotheque, le bouton ECRIRE (12.8, D5) ou la restauration avec « Test rapide » : niveau mesure
+    # sur la disquette a ecrire. 12.8 (validation du 19/10) : sans reference utilisable, ecriture refusee (Bibliotheque et
+    # ECRIRE ; 12.7 : calibration complete en test fin d abord, sur la disquette a ecrire) ; restauration : ecriture avec
+    # la calibration existante, jamais refaite.
     # 12.7 point 5, Measure : mesure ajoutee a une ecriture lente par la case « Mesurer la disquette » (liste au test
     # standard ou fin) : sans reference utilisable, aucune calibration complete imposee, ecriture avec la courbe du lecteur
     $img = $txtWFile.Text
@@ -819,16 +821,21 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
         Start-ImageWrite; return
     }
     # Hors domaine : ecriture avec la courbe du lecteur, sauf si elle est plus courte que l image (gw appliquerait la valeur
-    # de son dernier cylindre a tous les suivants) : calibration complete, comme sans reference
+    # de son dernier cylindre a tous les suivants) : refus, comme sans reference
     if ($lr.Class -eq 'domain' -and -not $lr.Short) {
         Append-Log ((T "Calibration rapide non applicable à cette image : {0}. Écriture avec la courbe du lecteur, sans mesure du niveau.") -f "$($lr.Why)")
         Start-ImageWrite; return
     }
-    Append-Log ((T "Calibration rapide impossible : {0}. Calibration complète en test fin d'abord : elle devient la référence de forme du lecteur.") -f "$($lr.Why)")
-    $intro = ((T "Calibration rapide impossible : {0}.`nCalibration complète en test fin ci-dessous : elle devient la référence de forme du lecteur {1}, reprise ensuite par la calibration rapide de chaque disquette. Une disquette sacrifiée en bon état, du même type que la disquette à écrire, donne la meilleure référence.") -f "$($lr.Why)", "$($cmbDrive.Text)") + "`n`n"
-    $script:AfterCalib = 'write'
-    Start-PrecompCalib -ForceFine -Intro $intro -LevelAfter
-    if (-not $script:Cal) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : la calibration n''a pas été lancée.') }
+    # 12.8 (decisions128.md, validations du 19/10) : aucune reference utilisable (aucune courbe de la famille, autre lecteur,
+    # mesure sur le contenu d une image, reference trop courte...) : ecriture refusee, rien n est ecrit ni calibre sur la
+    # disquette a ecrire. La reference se fait a part, sur une disquette sacrifiee, par la carte « Calibrer le lecteur » de
+    # l Accueil ; Oui : Accueil affiche (Show-Tab, la carte y est). Premiere ligne du message : ligne de journal du refus
+    # (Show-AppMessage ecrit le message au journal)
+    $script:AfterCalib = ''
+    $msg = ((T "Écriture refusée : le test rapide n'a pas de référence utilisable pour cette image ({0}). Rien n'a été écrit.") -f "$($lr.Why)") + "`n`n" +
+           ((T "Le test rapide mesure la disquette à écrire à partir d'une calibration complète du lecteur {0}, faite au préalable sur une disquette sacrifiée du même type que la disquette à écrire. Calibrez d'abord le lecteur : carte « Calibrer le lecteur » de l'Accueil, avec une disquette sacrifiée.") -f "$($cmbDrive.Text)") + "`n`n" +
+           (T "Afficher maintenant l'Accueil et sa carte « Calibrer le lecteur » ?")
+    if ("$(Show-AppMessage $msg (T 'Calibration precomp') 'YesNo' 'Warning')" -eq 'Yes') { Show-Tab $tabH }
 }
 
 function Start-LevelCalibButton {

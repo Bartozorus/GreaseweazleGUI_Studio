@@ -338,6 +338,23 @@ function Set-ConfirmGo([bool]$on) {
     if ($s.GoStyle -ne $st) { $s.GoStyle = $st; $old = $b.Image; Set-Btn $b $s.Glyph $st; if ($old) { $old.Dispose() } }
 }
 
+function Get-ConfirmShort([string]$heading, [string]$text, [int]$max = 100) {
+    # 12.8 : question de frmConfirm en court pour le journal (Show-AppConfirm) : titre du bandeau, sinon premiere phrase du
+    # texte ; sur une ligne, $max caracteres au plus (coupe au dernier espace, points de suspension)
+    $q = ("$heading" -replace '\s+', ' ').Trim()
+    if (-not $q) {
+        $t = ("$text" -replace '\s+', ' ').Trim()
+        $m = [regex]::Match($t, '^.+?[.!?](?=\s|$)')
+        $q = if ($m.Success) { $m.Value } else { $t }
+    }
+    if ($q.Length -gt $max) {
+        $cut = $q.Substring(0, $max - 1); $sp = $cut.LastIndexOf(' ')
+        if ($sp -gt $max / 2) { $cut = $cut.Substring(0, $sp) }
+        $q = $cut.TrimEnd(' ', ',', ';', ':') + [char]0x2026
+    }
+    return $q
+}
+
 function Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [string]$Check = '', [string]$GoText = '', [string]$GoGlyph = '', [string]$Level = 'warn', [string]$Picto = 'warn') {
     # Confirmation d une action qui engage une disquette ou le materiel (frmConfirm), au modele de frmClean (A4 § 2.4,
     # R1 a R8) : bandeau de la couleur du niveau (danger, warn, info), avec pictogramme GDI+, titre et texte ; case de
@@ -345,7 +362,9 @@ function Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [strin
     # cochee) ; bouton principal, puis Fermer (CancelButton : Fermer, Echap et la croix refusent). Aucun AcceptButton et
     # focus sur la case, ou sur Fermer sans case : Entree ne confirme rien. Renvoie $true seulement pour le bouton
     # principal, case cochee. Banc : Name frmConfirm, chkConfirm, btnConfirmGo, btnConfirmClose (fins de test par
-    # OpenForms ; minuteur de securite de make-test : Fermer). Rien n est ecrit dans le journal.
+    # OpenForms ; minuteur de securite de make-test : Fermer). 12.8 (validation du 19/10) : chaque reponse est notee au
+    # journal, en une ligne : question en court (Get-ConfirmShort) et reponse, confirmee ou refusee (Fermer, Echap, croix,
+    # ou bouton principal sans la case).
     if (-not $GoText) { $GoText = (T 'Continuer') }
     $W = 600; $tw = $W - 128
     $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
@@ -409,7 +428,9 @@ function Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [strin
     else { $dlg.ActiveControl = $btnCl }
     try {
         $dr = if ($form.Visible) { $dlg.ShowDialog($form) } else { $dlg.ShowDialog() }
-        return [bool]($dr -eq [System.Windows.Forms.DialogResult]::OK -and (-not $chk -or $chk.Checked))
+        $ok = [bool]($dr -eq [System.Windows.Forms.DialogResult]::OK -and (-not $chk -or $chk.Checked))
+        Append-Log ((T "Confirmation : {0} : {1}") -f (Get-ConfirmShort $Heading $Text), $(if ($ok) { (T 'confirmée') } else { (T 'refusée (Fermer)') }))
+        return $ok
     } finally {
         $script:ConfirmDlg = $prev
         foreach ($b in @($btnGo, $btnCl)) { if ($b.Image) { $i = $b.Image; $b.Image = $null; $i.Dispose() } }

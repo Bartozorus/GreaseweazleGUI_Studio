@@ -901,7 +901,7 @@ $script:I18n["Copie de flux : l'application ne peut pas vérifier que la disquet
 $script:I18n['La copie a été écrite tête par tête et elle est identique à l''original, secteur par secteur. Le contrôle des pistes ne s''applique pas à ce format (haute densité).'] = 'The copy was written head by head and it is identical to the original, sector by sector. The track check does not apply to this format (high density).'
 $script:I18n['fenêtre fermée pendant la restauration'] = 'window closed during the restore'
 $script:I18n['Test rapide : niveau par disquette'] = 'Quick test: level per disk'
-$script:I18n["Test standard (un cylindre sur 10) ou test fin (tous les cylindres) : calibration complète, qui mesure la courbe de précompensation du lecteur ; elle est faite une fois, puis réutilisée.`nTest rapide : la forme de la courbe vient de la dernière calibration complète du lecteur (la référence). Avant chaque écriture (bouton ÉCRIRE, Bibliothèque, restauration), et avec « Calibrer », seul son niveau est mesuré sur la disquette insérée : 4 à 9 cylindres par tête, 1 à 3 écritures du motif par piste. Sans référence utilisable, une calibration complète en test fin est faite d'abord ; elle devient la référence.`nMême réglage que le test choisi dans la fenêtre de la carte « Calibrer le lecteur » de l'Accueil, retenu quand la calibration y est lancée."] = "Standard test (one cylinder in 10) or fine test (every cylinder): full calibration, which measures the precompensation curve of the drive; it is done once, then reused.`nQuick test: the shape of the curve comes from the last full calibration of the drive (the reference). Before each write (WRITE button, Library, restore), and with `"Calibrate`", only its level is measured on the inserted disk: 4 to 9 cylinders per head, 1 to 3 writes of the pattern per track. Without a usable reference, a full fine-test calibration is done first; it becomes the reference.`nSame setting as the test chosen in the window of the `"Calibrate the drive`" card on the Home tab, kept when the calibration is started there."
+$script:I18n["Test standard (un cylindre sur 10) ou test fin (tous les cylindres) : calibration complète, qui mesure la courbe de précompensation du lecteur ; elle est faite une fois, puis réutilisée.`nTest rapide : la forme de la courbe vient de la dernière calibration complète du lecteur (la référence). Avant chaque écriture (bouton ÉCRIRE, Bibliothèque, restauration), et avec « Calibrer », seul son niveau est mesuré sur la disquette insérée : 4 à 9 cylindres par tête, 1 à 3 écritures du motif par piste. Sans référence utilisable, l'écriture est refusée (bouton ÉCRIRE, Bibliothèque) : calibrez d'abord le lecteur sur une disquette sacrifiée, par la carte « Calibrer le lecteur » de l'Accueil ; « Calibrer » propose alors une calibration complète en test fin, qui devient la référence.`nMême réglage que le test choisi dans la fenêtre de la carte « Calibrer le lecteur » de l'Accueil, retenu quand la calibration y est lancée."] = "Standard test (one cylinder in 10) or fine test (every cylinder): full calibration, which measures the precompensation curve of the drive; it is done once, then reused.`nQuick test: the shape of the curve comes from the last full calibration of the drive (the reference). Before each write (WRITE button, Library, restore), and with `"Calibrate`", only its level is measured on the inserted disk: 4 to 9 cylinders per head, 1 to 3 writes of the pattern per track. Without a usable reference, the write is refused (WRITE button, Library): first calibrate the drive on a sacrificial disk, with the `"Calibrate the drive`" card on the Home tab; `"Calibrate`" then offers a full fine-test calibration, which becomes the reference.`nSame setting as the test chosen in the window of the `"Calibrate the drive`" card on the Home tab, kept when the calibration is started there."
 $script:I18n['Test rapide : mesure seulement le niveau de la disquette insérée, sur la forme de la dernière calibration complète du lecteur ; le profil obtenu est placé dans les champs --precomp, pour cette disquette.'] = 'Quick test: only measures the level of the inserted disk, on the shape of the last full calibration of the drive; the resulting profile is placed in the --precomp fields, for this disk.'
 $script:I18n['témoin de marche'] = 'step witness'
 $script:I18n['témoin du plafond'] = 'ceiling witness'
@@ -982,8 +982,6 @@ $script:I18n["La calibration rapide ne convient pas à cette disquette ({0}).`nC
 $script:I18n['Écriture annulée : la calibration rapide n''a pas été lancée.'] = 'Write cancelled: the quick calibration was not started.'
 $script:I18n["Restauration : niveau non mesuré ({0}) : écriture avec la calibration existante."] = 'Restore: level not measured ({0}): writing with the existing calibration.'
 $script:I18n["Calibration rapide non applicable à cette image : {0}. Écriture avec la courbe du lecteur, sans mesure du niveau."] = 'Quick calibration not applicable to this image: {0}. Writing with the drive curve, without measuring the level.'
-$script:I18n["Calibration rapide impossible : {0}. Calibration complète en test fin d'abord : elle devient la référence de forme du lecteur."] = 'Quick calibration impossible: {0}. Full fine-test calibration first: it becomes the shape reference of the drive.'
-$script:I18n["Calibration rapide impossible : {0}.`nCalibration complète en test fin ci-dessous : elle devient la référence de forme du lecteur {1}, reprise ensuite par la calibration rapide de chaque disquette. Une disquette sacrifiée en bon état, du même type que la disquette à écrire, donne la meilleure référence."] = "Quick calibration impossible: {0}.`nFull fine-test calibration below: it becomes the shape reference of drive {1}, then reused by the quick calibration of each disk. A sacrificial disk in good condition, of the same type as the disk to be written, gives the best reference."
 $script:I18n["Calibration rapide non applicable à cette image : {0}."] = 'Quick calibration not applicable to this image: {0}.'
 $script:I18n["Raison : {0}.`n`nLa calibration rapide reprend la forme d'une calibration complète du lecteur {1}. Lancez d'abord une calibration complète en test fin : elle devient la référence de forme du lecteur, reprise ensuite par chaque calibration rapide."] = "Reason: {0}.`n`nThe quick calibration reuses the shape of a full calibration of drive {1}. Run a full fine-test calibration first: it becomes the shape reference of the drive, then reused by every quick calibration."
 $script:I18n["Calibration rapide : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})"] = 'Quick calibration: {4} %, about {5} left (pass {0}/{1}, {2}, {3})'
@@ -1516,6 +1514,19 @@ $script:I18n["cylindres non reproductibles d'une vérification à l'autre"] = 'c
 $script:I18n['pistes déjà écrites le nombre maximal de fois annoncé ({0})'] = 'tracks already written the announced maximum number of times ({0})'
 $script:I18n['précompensation visée hors de ses limites (0 ou {0} ns)'] = 'target precompensation outside its limits (0 or {0} ns)'
 $script:I18n["Dérive du lecteur depuis la vérification {0}, nouvel essai compris : {1} ± {2} ns de décalage commun sur {3} cylindres témoins (dispersion {4}), soit {5} ns jusqu'à la vérification {6}, puis {7} ns jusqu'à la vérification {8}."] = 'Drive drift since verification {0}, retest included: {1} ± {2} ns of common offset on {3} witness cylinders (spread {4}), that is {5} ns up to verification {6}, then {7} ns up to verification {8}.'
+# 12.8, VAL01 (validations du 19/10) : test rapide sans reference, journal de frmConfirm, correction sans effet et erreur gw
+# pendant le nouvel essai
+$script:I18n["Écriture refusée : le test rapide n'a pas de référence utilisable pour cette image ({0}). Rien n'a été écrit."] = 'Write refused: the quick test has no usable reference for this image ({0}). Nothing was written.'
+$script:I18n["Le test rapide mesure la disquette à écrire à partir d'une calibration complète du lecteur {0}, faite au préalable sur une disquette sacrifiée du même type que la disquette à écrire. Calibrez d'abord le lecteur : carte « Calibrer le lecteur » de l'Accueil, avec une disquette sacrifiée."] = "The quick test measures the disk to be written from a full calibration of drive {0}, made beforehand on a sacrificial disk of the same type as the disk to be written. First calibrate the drive: `"Calibrate the drive`" card on the Home tab, with a sacrificial disk."
+$script:I18n["Afficher maintenant l'Accueil et sa carte « Calibrer le lecteur » ?"] = "Show the Home tab and its `"Calibrate the drive`" card now?"
+$script:I18n['Confirmation : {0} : {1}'] = 'Confirmation: {0}: {1}'
+$script:I18n['confirmée'] = 'confirmed'
+$script:I18n['refusée (Fermer)'] = 'declined (Close)'
+$script:I18n["Calibration : correction du nouvel essai sans effet aux cylindres {0} (résidu inchangé à {1} ns près alors que la valeur écrite a changé) : valeur d'avant le nouvel essai rétablie, ces cylindres restent non convergés."] = 'Calibration: retest correction without effect at cylinders {0} (residual unchanged within {1} ns although the written value changed): value from before the retest restored, these cylinders remain not converged.'
+$script:I18n["Calibration : correction du nouvel essai sans effet aux cylindres {0}, valeur d'avant le nouvel essai non rétablie : la courbe ne resterait pas monotone avec les cylindres corrigés voisins."] = 'Calibration: retest correction without effect at cylinders {0}, value from before the retest not restored: the curve would not remain monotonic with the corrected neighbouring cylinders.'
+$script:I18n['Calibration : erreur gw pendant la passe du nouvel essai : jugement de la vérification {0} conservé, la calibration se termine sans le nouvel essai.'] = 'Calibration: gw error during the retest pass: judgement of verification {0} kept, the calibration ends without the retest.'
+$script:I18n['Écriture annulée : erreur gw pendant le nouvel essai de la calibration.'] = 'Write cancelled: gw error during the calibration retest.'
+$script:I18n['erreur gw pendant le nouvel essai de la calibration'] = 'gw error during the calibration retest'
 function T([string]$s) {
     if ($script:Lang -eq 'fr') { return $s }
     $t = $script:I18n[$s]
@@ -2542,6 +2553,23 @@ function Set-ConfirmGo([bool]$on) {
     if ($s.GoStyle -ne $st) { $s.GoStyle = $st; $old = $b.Image; Set-Btn $b $s.Glyph $st; if ($old) { $old.Dispose() } }
 }
 
+function Get-ConfirmShort([string]$heading, [string]$text, [int]$max = 100) {
+    # 12.8 : question de frmConfirm en court pour le journal (Show-AppConfirm) : titre du bandeau, sinon premiere phrase du
+    # texte ; sur une ligne, $max caracteres au plus (coupe au dernier espace, points de suspension)
+    $q = ("$heading" -replace '\s+', ' ').Trim()
+    if (-not $q) {
+        $t = ("$text" -replace '\s+', ' ').Trim()
+        $m = [regex]::Match($t, '^.+?[.!?](?=\s|$)')
+        $q = if ($m.Success) { $m.Value } else { $t }
+    }
+    if ($q.Length -gt $max) {
+        $cut = $q.Substring(0, $max - 1); $sp = $cut.LastIndexOf(' ')
+        if ($sp -gt $max / 2) { $cut = $cut.Substring(0, $sp) }
+        $q = $cut.TrimEnd(' ', ',', ';', ':') + [char]0x2026
+    }
+    return $q
+}
+
 function Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [string]$Check = '', [string]$GoText = '', [string]$GoGlyph = '', [string]$Level = 'warn', [string]$Picto = 'warn') {
     # Confirmation d une action qui engage une disquette ou le materiel (frmConfirm), au modele de frmClean (A4 § 2.4,
     # R1 a R8) : bandeau de la couleur du niveau (danger, warn, info), avec pictogramme GDI+, titre et texte ; case de
@@ -2549,7 +2577,9 @@ function Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [strin
     # cochee) ; bouton principal, puis Fermer (CancelButton : Fermer, Echap et la croix refusent). Aucun AcceptButton et
     # focus sur la case, ou sur Fermer sans case : Entree ne confirme rien. Renvoie $true seulement pour le bouton
     # principal, case cochee. Banc : Name frmConfirm, chkConfirm, btnConfirmGo, btnConfirmClose (fins de test par
-    # OpenForms ; minuteur de securite de make-test : Fermer). Rien n est ecrit dans le journal.
+    # OpenForms ; minuteur de securite de make-test : Fermer). 12.8 (validation du 19/10) : chaque reponse est notee au
+    # journal, en une ligne : question en court (Get-ConfirmShort) et reponse, confirmee ou refusee (Fermer, Echap, croix,
+    # ou bouton principal sans la case).
     if (-not $GoText) { $GoText = (T 'Continuer') }
     $W = 600; $tw = $W - 128
     $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
@@ -2613,7 +2643,9 @@ function Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [strin
     else { $dlg.ActiveControl = $btnCl }
     try {
         $dr = if ($form.Visible) { $dlg.ShowDialog($form) } else { $dlg.ShowDialog() }
-        return [bool]($dr -eq [System.Windows.Forms.DialogResult]::OK -and (-not $chk -or $chk.Checked))
+        $ok = [bool]($dr -eq [System.Windows.Forms.DialogResult]::OK -and (-not $chk -or $chk.Checked))
+        Append-Log ((T "Confirmation : {0} : {1}") -f (Get-ConfirmShort $Heading $Text), $(if ($ok) { (T 'confirmée') } else { (T 'refusée (Fermer)') }))
+        return $ok
     } finally {
         $script:ConfirmDlg = $prev
         foreach ($b in @($btnGo, $btnCl)) { if ($b.Image) { $i = $b.Image; $b.Image = $null; $i.Dispose() } }
@@ -2779,7 +2811,7 @@ function Reset-GwSequence {
     $script:Chain.Clear(); $script:WriteQueue.Clear(); $script:Detect = $null
     Stop-WriteWarmup
     if ($script:Rep) { Stop-WriteCheck }
-    if ($script:Cal) { Stop-PrecompCalib }
+    if ($script:Cal) { Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
     if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : {0}") -f (T 'gw n''a pas pu être lancé.')) }
     if ($script:Restore) { Stop-Restore (T 'gw n''a pas pu être lancé') }
 }
@@ -4474,8 +4506,9 @@ function Start-WriteTabWrite {
     # (Start-LevelBeforeWrite -Measure), puis ecriture. Haute densite : ligne de journal, puis ecriture. Sinon :
     # Start-ImageWrite, comme en 12.6 (jamais de calibration automatique depuis ce bouton en test standard ou fin).
     # 12.8 (D5) : liste au « Test rapide » : meme regle que la Bibliotheque, ecriture rapide ou lente : niveau mesure sur
-    # la disquette a ecrire (Start-LevelBeforeWrite, calibration complete en test fin d abord sans reference), memes
-    # conditions (densite, profil Auto, --precomp, image qui recouvre le motif)
+    # la disquette a ecrire (Start-LevelBeforeWrite ; sans reference utilisable : ecriture refusee, jamais de calibration
+    # complete depuis ce bouton, validation du 19/10), memes conditions (densite, profil Auto, --precomp, image qui
+    # recouvre le motif)
     $img = $txtWFile.Text
     $mode = if ($chkWSlow.Checked) { 'slow' } else { 'fast' }
     $quick = ((Get-Setting 'calMode') -eq 'level')
@@ -8661,9 +8694,13 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
     #            besoin entre les deux valeurs ecrites). Liste lue par Complete-PrecompCalib (journal, Res, champ contra).
     #  NonConvC / NonConvR (12.8, lot 1b) : cylindres de NonConv, et pour ceux qui ont un residu, le residu juge (R) et la
     #            valeur ecrite a sa mesure (P) : nouvel essai automatique (Get-CalibRetestPlan). Sans effet sur le reste.
+    #  12.8 (FIXVAL01) : cylindre dont la valeur d avant le nouvel essai a ete retablie (RtKept, correction sans effet,
+    #            Restore-CalibRetestNoEffect) et encore hors tolerance : NON CONVERGE (decisions128.md, « Lot 1b termine »),
+    #            quel que soit le jugement de son voisinage apres la passe (ecart local, bruit) ; ni Spot, ni converge.
     $nonConv = @(); $sat = @(); $floor = @(); $dev = @(); $extrap = @(); $cap = @(); $spot = @(); $beyond = @(); $nonRepro = @(); $contra = @()
     $ncC = @(); $ncR = @{}
     $outl = @{}; foreach ($c in @($u.Outliers)) { $outl[[int]$c] = $true }
+    $kept = @{}; if ($u.RtKept) { foreach ($c in @($u.RtKept)) { if ($null -ne $c) { $kept[[int]$c] = $true } } }
     $vals = @($u.Fit.Values)
     $fl = Get-ResidualFlags $u
     $dft = Get-VerifyDrift $u
@@ -8684,7 +8721,7 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
         if ($dft.NonRepro.ContainsKey($c)) { $z = $dft.NonRepro[$c]; $nonRepro += ((T "c{0} ({1} puis {2} ns)") -f "$c", (Format-LevelNum $z.Z1), (Format-LevelNum $z.Z2)); continue }
         if ($out) {
             $txt = "c{0} ({1:+0.0;-0.0})" -f $c, $r
-            if ($fl.Bad.ContainsKey($c)) { $nonConv += $txt; $ncC += $c; $ncR[$c] = @{ R = $r; P = $pw } }
+            if ($fl.Bad.ContainsKey($c) -or $kept.ContainsKey($c)) { $nonConv += $txt; $ncC += $c; $ncR[$c] = @{ R = $r; P = $pw } }
             else { $spot += $txt }            # ecart local non retenu par Get-ResidualFlags
         }
     }
@@ -10092,8 +10129,10 @@ function Start-LevelFallback($cal, [string]$why, [bool]$toWrite, [bool]$noFields
 }
 
 function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measure) {
-    # Ecriture depuis la Bibliotheque ou restauration avec « Test rapide » : niveau mesure sur la disquette a ecrire ;
-    # sans reference utilisable, calibration complete en test fin d abord (sauf en restauration : jamais refaite).
+    # Ecriture depuis la Bibliotheque, le bouton ECRIRE (12.8, D5) ou la restauration avec « Test rapide » : niveau mesure
+    # sur la disquette a ecrire. 12.8 (validation du 19/10) : sans reference utilisable, ecriture refusee (Bibliotheque et
+    # ECRIRE ; 12.7 : calibration complete en test fin d abord, sur la disquette a ecrire) ; restauration : ecriture avec
+    # la calibration existante, jamais refaite.
     # 12.7 point 5, Measure : mesure ajoutee a une ecriture lente par la case « Mesurer la disquette » (liste au test
     # standard ou fin) : sans reference utilisable, aucune calibration complete imposee, ecriture avec la courbe du lecteur
     $img = $txtWFile.Text
@@ -10120,16 +10159,21 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
         Start-ImageWrite; return
     }
     # Hors domaine : ecriture avec la courbe du lecteur, sauf si elle est plus courte que l image (gw appliquerait la valeur
-    # de son dernier cylindre a tous les suivants) : calibration complete, comme sans reference
+    # de son dernier cylindre a tous les suivants) : refus, comme sans reference
     if ($lr.Class -eq 'domain' -and -not $lr.Short) {
         Append-Log ((T "Calibration rapide non applicable à cette image : {0}. Écriture avec la courbe du lecteur, sans mesure du niveau.") -f "$($lr.Why)")
         Start-ImageWrite; return
     }
-    Append-Log ((T "Calibration rapide impossible : {0}. Calibration complète en test fin d'abord : elle devient la référence de forme du lecteur.") -f "$($lr.Why)")
-    $intro = ((T "Calibration rapide impossible : {0}.`nCalibration complète en test fin ci-dessous : elle devient la référence de forme du lecteur {1}, reprise ensuite par la calibration rapide de chaque disquette. Une disquette sacrifiée en bon état, du même type que la disquette à écrire, donne la meilleure référence.") -f "$($lr.Why)", "$($cmbDrive.Text)") + "`n`n"
-    $script:AfterCalib = 'write'
-    Start-PrecompCalib -ForceFine -Intro $intro -LevelAfter
-    if (-not $script:Cal) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : la calibration n''a pas été lancée.') }
+    # 12.8 (decisions128.md, validations du 19/10) : aucune reference utilisable (aucune courbe de la famille, autre lecteur,
+    # mesure sur le contenu d une image, reference trop courte...) : ecriture refusee, rien n est ecrit ni calibre sur la
+    # disquette a ecrire. La reference se fait a part, sur une disquette sacrifiee, par la carte « Calibrer le lecteur » de
+    # l Accueil ; Oui : Accueil affiche (Show-Tab, la carte y est). Premiere ligne du message : ligne de journal du refus
+    # (Show-AppMessage ecrit le message au journal)
+    $script:AfterCalib = ''
+    $msg = ((T "Écriture refusée : le test rapide n'a pas de référence utilisable pour cette image ({0}). Rien n'a été écrit.") -f "$($lr.Why)") + "`n`n" +
+           ((T "Le test rapide mesure la disquette à écrire à partir d'une calibration complète du lecteur {0}, faite au préalable sur une disquette sacrifiée du même type que la disquette à écrire. Calibrez d'abord le lecteur : carte « Calibrer le lecteur » de l'Accueil, avec une disquette sacrifiée.") -f "$($cmbDrive.Text)") + "`n`n" +
+           (T "Afficher maintenant l'Accueil et sa carte « Calibrer le lecteur » ?")
+    if ("$(Show-AppMessage $msg (T 'Calibration precomp') 'YesNo' 'Warning')" -eq 'Yes') { Show-Tab $tabH }
 }
 
 function Start-LevelCalibButton {
@@ -10411,9 +10455,21 @@ function Update-CalibProgress {
     $lblWCal.Text = ($fmt -f "$([math]::Min($total, $cal.PassesDone + 1))", "$total", "$($cal.ValueTxt)", "$phaseTxt", "$pct", (Format-CalDuration $remaining))
 }
 
-function Stop-PrecompCalib {
+function Stop-PrecompCalib([switch]$GwError) {
     # Abandon (bouton Arreter, erreur gw, fichier manquant) : etat remis a zero, barre masquee ; bilan de l Accueil (12.7)
     # 12.7 point 2 : calibration B arretee : decision sur la courbe A seule, differee au minuteur principal (Resume-CalibRedo)
+    # 12.8 (VAL01, decisions128.md) : GwError (code retour de gw, operation incomplete, gw non lance, releve absent ou
+    # illisible) pendant la passe du nouvel essai : etat de la derniere verification retabli (Restore-CalibRetestPre), son
+    # jugement est garde ; fin differee au minuteur principal (Complete-CalibRetestEnd : aucune fenetre modale pendant le
+    # traitement de la fin de gw), sans ecrire l image. Calibration B : elle reste en cours, la comparaison A/B suit sa fin.
+    # Restauration : deja arretee par l appelant, sinon arretee ici. Bouton Arreter (sans GwError) : abandon, comme en 12.7
+    if ($GwError -and $script:Cal -and -not $script:Cal.RetestEnd -and (Restore-CalibRetestPre $script:Cal)) {
+        $script:Cal.RetestEnd = $true
+        Append-Log ((T "Calibration : erreur gw pendant la passe du nouvel essai : jugement de la vérification {0} conservé, la calibration se termine sans le nouvel essai.") -f "$($script:Cal.VerifyCount)")
+        if ($script:AfterCalib) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : erreur gw pendant le nouvel essai de la calibration.') }
+        if ($script:Restore) { Stop-Restore (T 'erreur gw pendant le nouvel essai de la calibration') }
+        return
+    }
     if ($script:CalRedo -and $script:CalRedo.Stage -eq 'running') { $script:CalRedo.Stage = 'interrupted'; if (-not $script:CalRedo.Why) { $script:CalRedo.Why = (T 'calibration interrompue') } }
     $cal = $script:Cal
     $script:Cal = $null
@@ -10711,8 +10767,10 @@ function Set-CalibEstimates($u, [string]$when = '') {
 function Invoke-CalibAnalysis {
     $cal = $script:Cal
     if (-not $cal) { return }
-    if (-not (Test-Path -LiteralPath $cal.Scp)) { Append-Log (T 'Calibration : fichier SCP absent, analyse impossible.'); Stop-PrecompCalib; return }
-    try { $tracks = Read-ScpFile $cal.Scp ([int]$cal.PatternBits) } catch { Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)"); Stop-PrecompCalib; return }
+    # 12.8 (VAL01) : releve absent ou illisible : erreur de la passe (GwError : passe du nouvel essai, jugement de la
+    # derniere verification garde ; sinon abandon, comme en 12.7)
+    if (-not (Test-Path -LiteralPath $cal.Scp)) { Append-Log (T 'Calibration : fichier SCP absent, analyse impossible.'); Stop-PrecompCalib -GwError; return }
+    try { $tracks = Read-ScpFile $cal.Scp ([int]$cal.PatternBits) } catch { Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)"); Stop-PrecompCalib -GwError; return }
     $cal.ReadDurs += ((Get-Date) - $cal.PhaseStart).TotalSeconds
     $cal.PassesDone++
     foreach ($u in $cal.Units) {
@@ -10966,6 +11024,8 @@ function Invoke-CalibAnalysis {
         $cal.VerifyCount++
         New-CalibPass; return
     }
+    # 12.8 (VAL01) : apres la passe du nouvel essai : correction sans effet, valeur d avant retablie (Restore-CalibRetestNoEffect)
+    if ([int]$cal.Retests -gt 0) { Restore-CalibRetestNoEffect $cal }
     # 12.8 (lot 1b) : cylindres encore non converges sans cause exclue : une passe de nouvel essai au plus, puis jugement
     # final (Start-CalibRetest). Sans cylindre non converge, rien ne change
     if (Start-CalibRetest $cal) { return }
@@ -10989,7 +11049,9 @@ function Get-CalibRetestPlan($cal) {
     # (Add-CurveCorrection : 0 aux autres cylindres verifies, monotonie par segments). Relus :
     # cylindres vises, leurs voisins immediats parmi les cylindres mesures (hors points isoles) et les cylindres dont la
     # valeur change ; temoins de derive ajoutes par Start-CalibRetest (Add-DriftWitnesses).
-    # Renvoie @{ Go ; Skip } : plans @{ U ; NonConv ; Targets ; Why ; Values ; Profile ; List ; Corr } (Skip : NonConv, Why).
+    # Renvoie @{ Go ; Skip } : plans @{ U ; NonConv ; Targets ; Why ; Values ; Profile ; List ; Corr ; NcR } (Skip : NonConv,
+    # Why). NcR (12.8, VAL01) : residus juges et valeurs ecrites avant le nouvel essai (NonConvR), pour la correction sans
+    # effet (Restore-CalibRetestNoEffect).
     $go = @(); $skip = @()
     $surf = [bool](($cal.SurfKept -and $cal.Surf -and -not (Test-CalibSpeedOnly $cal.Surf $cal.Medium)) -or ($cal.Surf -and $cal.Surf.Defective -and -not $cal.SurfGross))
     $wmax = [int]$cal.WriteMax
@@ -10998,7 +11060,7 @@ function Get-CalibRetestPlan($cal) {
         $w = Get-CalibWarnings $u ([int]$cal.MaxCyl)
         $nc = [int[]]@(@($w.NonConvC) | Where-Object { $null -ne $_ })
         if ($nc.Count -eq 0) { continue }
-        $p = @{ U = $u; NonConv = $nc; Targets = @(); Why = ''; Values = $null; Profile = ''; List = @(); Corr = 0 }
+        $p = @{ U = $u; NonConv = $nc; Targets = @(); Why = ''; Values = $null; Profile = ''; List = @(); Corr = 0; NcR = $w.NonConvR }
         $dft = $w.Drift
         if ($surf) { $p.Why = (T 'disquette de calibration douteuse au contrôle de surface') }
         elseif ($dft.Use -and [math]::Abs([double]$dft.D) -gt 2.0 * [double]$script:CalResidual) { $p.Why = (T 'forte dérive du lecteur entre deux vérifications ({0} ns)') -f ('{0:+0.0;-0.0;0.0}' -f [double]$dft.D) }
@@ -11085,8 +11147,15 @@ function Start-CalibRetest($cal) {
     $lt = (@($plan.Go | ForEach-Object { "$($_.U.Prefix)$(Format-CylList ([int[]]@($_.Targets)))" })) -join ' ; '
     Append-Log ((T "Calibration : nouvel essai automatique des cylindres non convergés {0} (vérification {1})") -f "$lt", "$($cal.VerifyCount)")
     foreach ($u in @($cal.Units)) { $u.InRetest = $false; $u.VerifyList = @() }
+    # 12.8 (VAL01) : derniere verification d avant le nouvel essai (erreur gw pendant la passe : Restore-CalibRetestPre)
+    $cal.RtVLast = $vLast
     foreach ($p in @($plan.Go)) {
         $u = $p.U
+        # 12.8 (VAL01) : etat de la derniere verification, avant le repere du jugement et la correction (RtPre : erreur gw
+        # pendant la passe, jugement de cette verification garde) ; references gardees, chaque champ est remplace ci-dessous
+        # (jamais modifie en place), Verify et VerifyP copies
+        $u.RtPre = @{ Verify = $u.Verify.Clone(); VerifyP = $u.VerifyP.Clone(); VerifyPrev = $u.VerifyPrev; ReadLast = $u.ReadLast; Witness = @($u.Witness)
+                      Fit = $u.Fit; Profile = $u.Profile; WitCand = $u.WitCand; WitMin = $u.WitMin }
         $dft = Get-VerifyDrift $u
         # Derive deja mesuree a la derniere verification (DriftBase, DriftBaseV) : celle du nouvel essai se compte depuis le
         # meme repere, cumulee ; la reserve « derive » de Complete-PrecompCalib juge le dernier intervalle seul. Sans derive
@@ -11101,6 +11170,19 @@ function Start-CalibRetest($cal) {
             elseif ($dft.Use -and $u.ReadLast -and $u.ReadLast.ContainsKey($c)) { $m = $u.Verify[$c]; $u.Verify[$c] = @{ Shift = [double]$m.Shift - [double]$dft.D; SE = $m.SE; Score = $m.Score; Raw = [double]$m.Shift } }
         }
         $u.VerifyPrev = @{}; $u.ReadLast = @{}; $u.Witness = @()
+        # 12.8 (VAL01) : avant la correction, pour la correction sans effet (Restore-CalibRetestNoEffect) : courbe, estimations
+        # (Set-CalibEstimates les remplace), residus juges des cylindres vises (NcR) et, pour chaque cylindre relu, mesure dans
+        # le repere du jugement, valeur ecrite et mesures des passes (Add-CalibPoint les complete en place : copie)
+        $cy = @{}
+        foreach ($c in @($p.List)) {
+            $ci = [int]$c; $has = $u.Verify.ContainsKey($ci)
+            $rs = @{}; if ($u.Results.ContainsKey($ci)) { foreach ($x in @($u.Results[$ci].Keys)) { $rs[$x] = $u.Results[$ci][$x] } }
+            $cy[$ci] = @{ Has = $has; M = $(if ($has) { $u.Verify[$ci] } else { $null }); P = $(if ($u.VerifyP.ContainsKey($ci)) { $u.VerifyP[$ci] } else { $null }); Res = $rs }
+        }
+        $bf = @{}
+        foreach ($c in @($p.Targets)) { $ci = [int]$c; if ($p.NcR -and $p.NcR.ContainsKey($ci) -and $u.Verify.ContainsKey($ci)) { $bf[$ci] = @{ R = [double]$p.NcR[$ci].R; P = $p.NcR[$ci].P; SE = $u.Verify[$ci].SE } } }
+        $u.RtSnap = @{ Fit = $u.Fit; Profile = $u.Profile; Est = $u.Est; Sig = $u.Sig; Kind = $u.Kind; Own = $u.Own; Slope = $u.Slope; Cyl = $cy; Before = $bf
+                       VKeys = [int[]]@($u.Verify.Keys | ForEach-Object { [int]$_ } | Where-Object { @($u.Outliers) -notcontains $_ }) }
         if ($p.Profile -ne $u.Profile) {
             $base = ([string]$u.Fit.Model) -replace '\+c$', ''
             $u.Fit = @{ Model = "$base+c"; A = $u.Fit.A; B = $u.Fit.B; Chi = $u.Fit.Chi; Values = $p.Values; Breaks = $u.Fit.Breaks; Segs = $u.Fit.Segs; Outliers = $u.Fit.Outliers }
@@ -11123,6 +11205,117 @@ function Get-CalibDriftStep($u, $dft) {
     # DriftBase : derive mesuree telle quelle (12.7)
     if ($null -ne $u.DriftBase) { return [double]$dft.D - [double]$u.DriftBase }
     return [double]$dft.D
+}
+
+function Restore-CalibRetestNoEffect($cal) {
+    # 12.8 (VAL01, decisions128.md) : apres la passe du nouvel essai, correction sans effet : un cylindre vise encore non
+    # converge dont le residu juge n a pas bouge, au bruit pres, alors que sa valeur ecrite a change, reprend sa valeur
+    # d avant le nouvel essai, avec la mesure, les mesures des passes et l estimation qui vont avec (RtSnap,
+    # Start-CalibRetest) : il reste non converge, juge sur sa derniere verification d avant (repere du jugement).
+    # Critere, par cylindre : dP = valeur ecrite a la passe - valeur d avant, dR = residu juge apres - residu juge avant ;
+    # seuil s = max(2 ns ; 2 x ecart-type de dR), ecart-type de dR = racine(SE avant^2 + SE apres^2), au moins racine(2) x
+    # bruit de mesure estime de l unite (Get-ResidualFlags : dispersion des residus voisins, bien plus forte que l erreur-type
+    # d une piste) ; sans effet si |dR| < s et si la correction devait deplacer le residu d au moins s (|pente x dP| >= s ;
+    # sinon, effet trop faible pour etre distingue du bruit : rien n est retabli). Courbe : valeurs d avant si aucun
+    # cylindre vise n a repondu, sinon corrections des seuls cylindres qui ont repondu (Add-CurveCorrection, segments
+    # d avant) ; retablissement abandonne si un cylindre mesure ne garde ni sa valeur de la passe ni celle d avant
+    # (monotonie avec un voisin corrige : ligne de journal). Ecritures par piste : inchangees (pistes ecrites).
+    # FIXVAL01 : cylindres retablis gardes dans RtKept : Get-CalibWarnings les juge NON CONVERGES tant qu ils sont hors
+    # tolerance, meme si leur voisinage apres la passe (cylindres corriges, bruit) en ferait un ecart local non retenu.
+    foreach ($u in @($cal.Units)) {
+        $s = $u.RtSnap
+        if ($null -ne $u.RtSnap) { $u.RtSnap = $null }
+        if ($null -ne $u.RtPre) { $u.RtPre = $null }
+        if (-not $u.InRetest -or -not $s -or $s.Before.Count -eq 0) { continue }
+        $w = Get-CalibWarnings $u ([int]$cal.MaxCyl)
+        $sl = if ($null -ne $s.Slope -and [double]$s.Slope -lt -0.2) { [double]$s.Slope } else { -2.0 }
+        $sig = [double]$w.Sigma
+        $old = [int[]]@($s.Fit.Values); $cur = [int[]]@($u.Fit.Values)
+        $no = @(); $thrMax = 0.0
+        foreach ($c in @($s.Before.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
+            if (-not $w.NonConvR -or -not $w.NonConvR.ContainsKey($c) -or $c -ge $cur.Count) { continue }
+            $b = $s.Before[$c]; $a = $w.NonConvR[$c]
+            if ($null -eq $a.P -or $null -eq $b.P) { continue }
+            $dP = [double]$a.P - [double]$b.P
+            if ([math]::Abs($dP) -lt 1) { continue }
+            $q = 0.0
+            foreach ($x in @($b.SE, $u.Verify[$c].SE)) { if ($null -ne $x -and -not [double]::IsNaN([double]$x)) { $q += [double]$x * [double]$x } }
+            $sd = [math]::Sqrt($q)
+            if (-not [double]::IsNaN($sig)) { $sd = [math]::Max($sd, [math]::Sqrt(2.0) * $sig) }
+            $thr = [math]::Max(2.0, 2.0 * $sd)
+            if ([math]::Abs([double]$a.R - [double]$b.R) -lt $thr -and [math]::Abs($sl * $dP) -ge $thr) { $no += $c; $thrMax = [math]::Max($thrMax, $thr) }
+        }
+        if ($no.Count -eq 0) { continue }
+        $resp = @(@($s.Before.Keys) | ForEach-Object { [int]$_ } | Where-Object { $no -notcontains $_ -and $_ -lt $cur.Count -and $cur[$_] -ne $old[$_] })
+        $full = ($resp.Count -eq 0)
+        if ($full) { $new = [int[]]$old.Clone() }
+        else {
+            $delta = @{}
+            foreach ($c in @($s.VKeys)) { if ($c -lt $old.Count) { $delta[[int]$c] = 0.0 } }
+            foreach ($c in $resp) { $delta[$c] = [double]$cur[$c] - [double]$old[$c] }
+            $new = [int[]](Add-CurveCorrection $old $delta $s.Fit.Segs)
+        }
+        # Coherence : chaque cylindre mesure garde la valeur de sa mesure (celle de la passe, ou celle d avant retablie)
+        $ok = ($new.Count -eq $cur.Count)
+        foreach ($c in @($no)) { if ($ok -and $new[$c] -ne $old[$c]) { $ok = $false } }
+        foreach ($k in @($u.Verify.Keys)) {
+            $c = [int]$k
+            if (-not $ok -or $c -ge $new.Count -or $new[$c] -eq $cur[$c]) { continue }
+            if (-not ($new[$c] -eq $old[$c] -and $s.Cyl.ContainsKey($c))) { $ok = $false }
+        }
+        if (-not $ok) {
+            Append-Log ($u.Prefix + ((T "Calibration : correction du nouvel essai sans effet aux cylindres {0}, valeur d'avant le nouvel essai non rétablie : la courbe ne resterait pas monotone avec les cylindres corrigés voisins.") -f (Format-CylList ([int[]]$no))))
+            continue
+        }
+        for ($c = 0; $c -lt $new.Count; $c++) {
+            if ($new[$c] -eq $cur[$c] -or -not $s.Cyl.ContainsKey($c)) { continue }
+            $y = $s.Cyl[$c]
+            if ($y.Has) { $u.Verify[$c] = $y.M; if ($null -ne $y.P) { $u.VerifyP[$c] = $y.P } } else { [void]$u.Verify.Remove($c); [void]$u.VerifyP.Remove($c) }
+            [void]$u.VerifyPrev.Remove($c); [void]$u.ReadLast.Remove($c)
+            $u.VerifyList = @(@($u.VerifyList) | Where-Object { [int]$_ -ne $c })
+            $u.Results[$c] = $y.Res
+            foreach ($f in 'Est', 'Sig', 'Kind', 'Own') { if ($s[$f].ContainsKey($c)) { $u[$f][$c] = $s[$f][$c] } }
+        }
+        if ($full) { $u.Fit = $s.Fit; $u.Profile = $s.Profile; $u.Slope = $s.Slope }
+        else {
+            $base = ([string]$u.Fit.Model) -replace '\+c$', ''
+            $u.Fit = @{ Model = "$base+c"; A = $u.Fit.A; B = $u.Fit.B; Chi = $u.Fit.Chi; Values = $new; Breaks = $u.Fit.Breaks; Segs = $u.Fit.Segs; Outliers = $u.Fit.Outliers }
+            $u.Profile = Build-CurveProfile $new
+        }
+        $u.RtKept = [int[]]$no
+        Append-Log ($u.Prefix + ((T "Calibration : correction du nouvel essai sans effet aux cylindres {0} (résidu inchangé à {1} ns près alors que la valeur écrite a changé) : valeur d'avant le nouvel essai rétablie, ces cylindres restent non convergés.") -f (Format-CylList ([int[]]$no)), (Format-LevelNum $thrMax)))
+    }
+}
+
+function Restore-CalibRetestPre($cal) {
+    # 12.8 (VAL01) : passe du nouvel essai interrompue par une erreur gw (Stop-PrecompCalib -GwError) : unites remises dans
+    # l etat de leur derniere verification (RtPre, Start-CalibRetest), avant le repere du jugement et la correction ; les
+    # mesures des passes n ont pas change (la passe n a pas ete analysee). $true si une passe du nouvel essai etait en cours.
+    if (-not $cal -or [string]$cal.Stage -ne 'verify' -or [int]$cal.Retests -le 0 -or $null -eq $cal.RtVLast) { return $false }
+    $us = @($cal.Units | Where-Object { $_.RtPre })
+    if ($us.Count -eq 0) { return $false }
+    foreach ($u in $us) {
+        $s = $u.RtPre
+        $u.Verify = $s.Verify; $u.VerifyP = $s.VerifyP; $u.VerifyPrev = $s.VerifyPrev; $u.ReadLast = $s.ReadLast; $u.Witness = @($s.Witness)
+        $u.Fit = $s.Fit; $u.Profile = $s.Profile; $u.WitCand = $s.WitCand; $u.WitMin = $s.WitMin; $u.DriftBase = $null; $u.DriftBaseV = $null
+        $u.RtPre = $null; $u.RtSnap = $null
+    }
+    foreach ($u in @($cal.Units)) { $u.InRetest = $false; $u.VerifyList = @() }
+    $cal.VerifyCount = [int]$cal.RtVLast; $cal.RtVLast = $null
+    $cal.TotalPasses = $cal.PassesDone
+    return $true
+}
+
+function Complete-CalibRetestEnd {
+    # 12.8 (VAL01) : fin differee d une calibration dont la passe du nouvel essai a echoue (Stop-PrecompCalib -GwError),
+    # appelee par le minuteur principal une fois gw fini et sans autre fenetre modale : comme la fin d une derniere
+    # verification sans nouvel essai (zones contradictoires, puis Complete-PrecompCalib et sa fenetre de decision)
+    $cal = $script:Cal
+    if (-not $cal -or -not $cal.RetestEnd) { return }
+    $cal.RetestEnd = $false
+    foreach ($u in $cal.Units) { [void](Set-VerifyContra $u) }
+    $cal.TotalPasses = $cal.PassesDone
+    Complete-PrecompCalib
 }
 
 function Complete-PrecompCalib {
@@ -13038,7 +13231,7 @@ $cmbWCalMode.SelectedIndex = 0
 # 12.8 (D5) : case « Mesurer la disquette » cochee et verrouillee au « Test rapide » (Update-SlowUi), a chaque changement
 # de la liste
 $cmbWCalMode.Add_SelectedIndexChanged({ Update-SlowUi })
-$tip.SetToolTip($cmbWCalMode, (T "Test standard (un cylindre sur 10) ou test fin (tous les cylindres) : calibration complète, qui mesure la courbe de précompensation du lecteur ; elle est faite une fois, puis réutilisée.`nTest rapide : la forme de la courbe vient de la dernière calibration complète du lecteur (la référence). Avant chaque écriture (bouton ÉCRIRE, Bibliothèque, restauration), et avec « Calibrer », seul son niveau est mesuré sur la disquette insérée : 4 à 9 cylindres par tête, 1 à 3 écritures du motif par piste. Sans référence utilisable, une calibration complète en test fin est faite d'abord ; elle devient la référence.`nMême réglage que le test choisi dans la fenêtre de la carte « Calibrer le lecteur » de l'Accueil, retenu quand la calibration y est lancée."))
+$tip.SetToolTip($cmbWCalMode, (T "Test standard (un cylindre sur 10) ou test fin (tous les cylindres) : calibration complète, qui mesure la courbe de précompensation du lecteur ; elle est faite une fois, puis réutilisée.`nTest rapide : la forme de la courbe vient de la dernière calibration complète du lecteur (la référence). Avant chaque écriture (bouton ÉCRIRE, Bibliothèque, restauration), et avec « Calibrer », seul son niveau est mesuré sur la disquette insérée : 4 à 9 cylindres par tête, 1 à 3 écritures du motif par piste. Sans référence utilisable, l'écriture est refusée (bouton ÉCRIRE, Bibliothèque) : calibrez d'abord le lecteur sur une disquette sacrifiée, par la carte « Calibrer le lecteur » de l'Accueil ; « Calibrer » propose alors une calibration complète en test fin, qui devient la référence.`nMême réglage que le test choisi dans la fenêtre de la carte « Calibrer le lecteur » de l'Accueil, retenu quand la calibration y est lancée."))
 $btnWCalib = New-Object System.Windows.Forms.Button
 $btnWCalib.Text = (T 'Calibrer'); $btnWCalib.Location = '425,104'; $btnWCalib.Size = '120,26'
 $tip.SetToolTip($btnWCalib, (T "Calibre la précompensation pour ce lecteur d'écriture : chaque passe écrit sur les cylindres de test un motif de test pseudo-aléatoire, à la densité de l'image, avec une valeur de precomp puis, en vérification, le profil obtenu ; elle le relit en flux et mesure le décalage de pic. Une courbe donne ensuite une valeur par cylindre ; le profil est enregistré pour la famille de l'image (standard ou long track) et appliqué ensuite par le mode Auto. Le contenu de l'image n'est pas écrit. La disquette insérée est écrasée. Test standard : un cylindre sur 10, quelques minutes. Test fin : tous les cylindres, un quart d'heure environ."))
@@ -14350,7 +14543,7 @@ $timer.Add_Tick({
                     # Restauration : raison exacte d abord, sauf si le controle a deja un bilan (il l ecrira dans le rapport)
                     if ($script:Restore -and -not ($script:Rep -and $script:Rep.Round -gt 0)) { Stop-Restore $why }
                     if ($script:Rep) { Stop-WriteCheck -GwError }
-                    if ($script:Cal) { Stop-PrecompCalib }
+                    if ($script:Cal) { Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
                     if ($script:Restore) { Stop-Restore $why }
                 }
             }
@@ -14371,7 +14564,7 @@ $timer.Add_Tick({
                     if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : gw a retourné le code {0}. Voir le journal.") -f "$code") }
                     if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; $lblAlVerdict.Text = (T 'Mesure interrompue (erreur gw)') }
                     if ($script:Rep) { Stop-WriteCheck -GwError }
-                    if ($script:Cal) { Stop-PrecompCalib }
+                    if ($script:Cal) { Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
                 }
             }
             if ($code -ne 0 -and -not $soft -and $script:Restore -and -not $script:Restore.Waiting) { Stop-Restore ((T "gw a retourné le code {0}, voir le journal") -f "$code") }
@@ -14400,6 +14593,10 @@ $timer.Add_Tick({
     # l application au repos et sans autre fenetre modale (Stop-PrecompCalib est appele pendant le traitement de la fin
     # de gw, ou une fenetre modale le bloquerait). La fenetre principale, affichee par ShowDialog, est modale : exclue
     if ($script:CalRedo -and $script:CalRedo.Stage -eq 'interrupted' -and -not (Get-AppBusy) -and @([System.Windows.Forms.Application]::OpenForms | Where-Object { $_.Modal -and $_.Visible -and -not [object]::ReferenceEquals($_, $form) }).Count -eq 0) { Resume-CalibRedo }
+    # 12.8 (VAL01) : erreur gw pendant la passe du nouvel essai (Stop-PrecompCalib -GwError) : fin de la calibration sur le
+    # jugement de la derniere verification, ici une fois gw fini, sans etape en attente ni autre fenetre modale (la fin peut
+    # ouvrir la fenetre de decision, jamais pendant le traitement de la fin de gw). Bouton Arreter entre-temps : abandon
+    if ($script:Cal -and $script:Cal.RetestEnd -and -not $script:GwProc -and $script:Chain.Count -eq 0 -and @([System.Windows.Forms.Application]::OpenForms | Where-Object { $_.Modal -and $_.Visible -and -not [object]::ReferenceEquals($_, $form) }).Count -eq 0) { Complete-CalibRetestEnd }
     Update-HomeProgress                                   # 12.7 : zone de progression de l Accueil, puis bilan
     # Bouton « Passer le prechauffage » : visible pendant tout prechauffage (ecriture lente, calibration), inactif une fois
     # clique ; Enregistrer et Reinitialiser (inactifs pendant une operation) lui cedent leur place dans la barre
