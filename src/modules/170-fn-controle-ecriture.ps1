@@ -36,6 +36,8 @@ function New-WriteCheck([string[]]$base, [string]$image, [string]$userTSpec, [in
     $script:AlignLoop = $false; $script:AlignNextAt = $null; $script:AlLastMove = 0
     $lblWCal.Text = (T 'Écriture en cours, contrôle de toutes les pistes ensuite.')
     $pbWCal.Visible = $false; $lblWCal.Visible = $true
+    # 12.8 (lot 3a) : resultat de l onglet Qualite grise et marque « controle en cours » pendant l ecriture et le controle
+    Set-QualityPending 'check'
 }
 
 function Test-SourceMayHaveWeak([string]$path) {
@@ -108,6 +110,7 @@ function Invoke-RepNextCmd {
     if ($rep.Round -eq 0) { $lblWCal.Text = (T 'Contrôle après écriture : relecture de toutes les pistes...') }
     elseif ($cmd[0] -eq 'write') { $lblWCal.Text = ((T "Contrôle après écriture : réécriture {0}/{1} de {2} piste(s) faible(s)...") -f "$($rep.Round)", "$($rep.Max)", "$($rep.Weak.Count)") }
     else { $lblWCal.Text = ((T "Contrôle après écriture : remesure {0}/{1} de {2} piste(s)...") -f "$($rep.Round)", "$($rep.Max)", "$($rep.Weak.Count)") }
+    Set-QualityRunText $lblWCal.Text                      # 12.8 (lot 3a) : etape du controle sur la carte de l onglet Qualite
     Start-Gw $cmd
 }
 
@@ -117,7 +120,7 @@ function Start-WriteCheck {
     if (-not $rep) { return }
     Merge-RepRetries
     if (-not $script:ScpStatsOk) {
-        Append-Log (T 'Contrôle après écriture : module d''analyse SCP indisponible, contrôle ignoré.'); $script:Rep = $null
+        Append-Log (T 'Contrôle après écriture : module d''analyse SCP indisponible, contrôle ignoré.'); $script:Rep = $null; Set-QualityStale 'checkabort'
         if ($script:Restore) { Stop-Restore (T 'contrôle des pistes indisponible') }
         return
     }
@@ -225,8 +228,9 @@ function Invoke-WriteCheckAnalysis {
 function Show-WriteCheckTable($rep) {
     # Etat final de chaque piste controlee (derniere mesure) dans l onglet Qualite, avec reecritures et retries
     $keys = Sort-TrackKeys @($rep.State.Keys)
-    $last = @{}; $total = 0.0; $count = 0
-    $lvAl.Columns[1].Width = $(if (@($rep.State.Values | Where-Object { $_.Weak }).Count -gt 0) { 280 } else { 200 })
+    $last = @{}; $total = 0.0; $count = 0; $nBad = 0
+    # 12.8 (lot 3b) : icone d etat de 16 px devant le texte de la colonne Etat
+    $lvAl.Columns[1].Width = $(if (@($rep.State.Values | Where-Object { $_.Weak }).Count -gt 0) { 302 } else { 222 })
     $lvAl.BeginUpdate()
     try {
         $lvAl.Items.Clear()
@@ -236,7 +240,7 @@ function Show-WriteCheckTable($rep) {
             if ($rep.Rewrites.ContainsKey($k)) { $mark = ((T " (réécrite x{0})") -f "$($rep.Rewrites[$k])") }
             elseif ($rep.Retries.ContainsKey($k)) { $mark = ((T " (essais x{0})") -f "$($rep.Retries[$k])") }
             [void]$lvAl.Items.Add((New-AlignRow $k $m $mark '-' -1))
-            if ($m.Bad) { $last[$k] = @{ Score = 9999; Jitter = 0; Asym = 0; Err = 0; Stab = 0; Cell = 0 }; continue }
+            if ($m.Bad) { $last[$k] = @{ Score = 9999; Jitter = 0; Asym = 0; Err = 0; Stab = 0; Cell = 0 }; $nBad++; continue }
             $last[$k] = @{ Score = $m.Score; Jitter = $m.J; Asym = $m.Asym; Err = $m.Ooc; Stab = $m.Stab; Cell = $m.Cell }
             $total += $m.Score; $count++
         }
@@ -253,14 +257,18 @@ function Show-WriteCheckTable($rep) {
         $(if ($crtK.Count -gt 0) { (T "Zone instable sur une piste déjà critique dans la source : {0}") -f "$(Format-TrackList $crtK)" }),
         $(if ($unkK.Count -gt 0) { (T "Zone instable non jugée (la source peut contenir une protection) : {0}") -f "$(Format-TrackList $unkK)" }))
     $script:AlignLast = $last
+    # 12.8 (lot 3) : resultat du controle sur la carte de l onglet Qualite ; son etat (COPIE SAINE, pistes faibles) suit
+    # dans Complete-WriteCheck (Set-QualityCheckState)
+    $res = @{ Kind = 'check'; Score = $null; Lvl = 3; Count = $count; Bad = $nBad; Health = -1; CheckLvl = -1; Weak = 0; HealthText = ''; HealthSub = '' }
     if ($count -gt 0) {
         $avg = [math]::Round($total / $count, 0); $lvl = Get-AlLevel 'score' $avg
-        $lblAlVerdict.Text = ((T "Contrôle après écriture : score moyen {0} ({1}) sur {2} piste(s) lisible(s)") -f "$avg", "$($script:AlNames[$lvl])", "$count")
-        $lblAlVerdict.BackColor = $script:AlColors[$lvl]; $lblAlVerdict.ForeColor = $script:AlFg[$lvl]
+        $res.Score = $avg; $res.Lvl = $lvl
+        $res.ScoreText = ((T "Contrôle après écriture : score moyen {0} ({1}) sur {2} piste(s) lisible(s)") -f "$avg", "$($script:AlNames[$lvl])", "$count")
     } else {
-        $lblAlVerdict.Text = (T 'Aucune piste analysable'); $lblAlVerdict.BackColor = $script:AlColors[3]; $lblAlVerdict.ForeColor = $script:AlFg[3]
+        $res.ScoreText = (T 'Aucune piste analysable')
     }
     Render-AlignBars
+    Set-QualityResult $res
 }
 
 function Complete-WriteCheck([switch]$GwError) {
@@ -293,12 +301,14 @@ function Complete-WriteCheck([switch]$GwError) {
     } else {
         $txt = ((T "CONTRÔLE APRÈS ÉCRITURE : {0} piste(s) encore faible(s) après {1} passe(s) de réécriture : {2}  ->  support fatigué, réécrire sur une autre disquette") -f "$($weak.Count)", "$($rep.Round)", "$(Format-TrackList $weak)"); $lvl = 3
     }
-    $lblAlHealth.Text = $txt; $lblAlHealth.BackColor = $script:AlColors[$lvl]; $lblAlHealth.ForeColor = $script:AlFg[$lvl]
-    $lblWCal.Text = $txt; $lblWCal.Visible = $true
     Append-Log $txt
     # Bilan exploitable par la restauration (accroche : le controle vide la chaine d etapes, rien ne le suit)
     $short = if ($GwError) { (T 'contrôle interrompu par une erreur gw') } elseif ($lvl -eq 0) { (T "{0}/{1} pistes saines") -f "$nOk", "$n" }
              elseif ($n -eq 0) { (T 'aucune piste mesurée') } else { (T "{0} piste(s) faible(s) : {1}") -f "$($weak.Count)", "$(Format-TrackList $weak)" }
+    # 12.8 (lot 3) : verdict sur la carte de l onglet Qualite (texte complet dans l infobulle) et dans l onglet Ecriture,
+    # avec l icone d etat (niveau 0 : h0, 2 : h1, 3 : h2) et son encre
+    Set-QualityCheckState $lvl $txt $short $weak.Count
+    Set-WCalVerdict $txt $(if ($lvl -le 0) { 'h0' } elseif ($lvl -le 2) { 'h1' } else { 'h2' })
     $script:LastCheck = @{ Ok = ($lvl -eq 0); Level = $lvl; Text = $txt; Short = $short; Weak = $weak; Measured = $n; Rounds = $rep.Round; Rewrites = $nRew; GwError = [bool]$GwError }
     if ($script:Restore) {
         if ($GwError) { Stop-Restore (T 'erreur gw pendant le contrôle des pistes') } else { Invoke-RestoreNext }
@@ -333,7 +343,8 @@ function Stop-WriteCheck([switch]$GwError) {
     if (-not $script:Rep) { return }
     if ($GwError -and $script:Rep.Round -gt 0 -and $script:Rep.State.Count -gt 0) { Update-RepPartial; Complete-WriteCheck -GwError; return }
     $script:Rep = $null
-    $lblWCal.Text = (T 'Contrôle après écriture interrompu.')
+    Set-WCalVerdict (T 'Contrôle après écriture interrompu.') 'h1'     # 12.8 (lot 3) : icone d etat dans l onglet Ecriture
     Append-Log (T 'Contrôle après écriture interrompu.')
+    Set-QualityStale 'checkabort'                         # 12.8 (lot 3a) : resultat de l onglet Qualite perime
     if ($script:Restore) { Stop-Restore (T 'contrôle des pistes interrompu') }
 }

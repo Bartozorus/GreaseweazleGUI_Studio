@@ -33,6 +33,7 @@ Dans tous les modules, aucune instruction n'est à cheval sur deux modules, et c
 | `180-fn-comparaison.ps1` | Comparaison d'une image et d'une disquette, détection automatique du format de la comparaison |
 | `185-fn-detection-format.ps1` | Détection du format (12.8) : d'une disquette, pour la restauration et la comparaison (`Invoke-DiskFormatDetect`, `Select-DiskFormat`), et d'une image de référence (`Get-RefImageFormat`, `Select-RefDecodeFormat`) |
 | `190-fn-qualite-alignement.ps1` | Lecture des SCP, alignement, jitter, métriques de piste, analyse de l'onglet Qualité |
+| `195-fn-qualite-affichage.ps1` | Affichage de la qualité (12.8, lot 3) : état unique `$script:QualView` (`Set-QualityPending`, `Set-QualityResult`, `Set-QualityStale`), carte de résultat `pnlQualCard`, pictogrammes de score et d'état (`New-QualityPicto`), ressources GDI+ en cache, icônes d'état de l'onglet Écriture et de la restauration |
 | `200-fn-accueil-calibration.ps1` | Carte « Calibrer le lecteur », zone de progression et courbe de l'Accueil |
 | `210-fn-nettoyage.ps1` | Nettoyage des têtes : pictogrammes, fenêtre, déroulement |
 | `220-fn-profil-precomp.ps1` | Détection de la cellule, profil de précompensation de l'image |

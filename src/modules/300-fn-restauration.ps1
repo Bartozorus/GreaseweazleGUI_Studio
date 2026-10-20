@@ -119,11 +119,15 @@ function Update-RsRules {
 }
 
 function Set-RsStep([int]$i, [string]$state, [string]$detail = '') {
+    # 12.8 (lot 3b) : glyphe garde dans le texte (infobulle, rapport) ; l etape est dessinee avec l icone d etat de 16 px
+    # (Draw-RsStepLabel, d apres Tag) ; « ! » en Theme.WarnInk (Theme.Warn : 2,75:1 sur blanc, sous le minimum du texte)
     $g = @{ pending = '○'; run = '▶'; ok = '✓'; fail = '✗'; skip = '–'; warn = '!' }[$state]
-    $c = @{ pending = $script:Theme.Muted; run = $script:Theme.Accent; ok = $script:Theme.Ok; fail = $script:Theme.Danger; skip = $script:Theme.Muted; warn = $script:Theme.Warn }[$state]
+    $c = @{ pending = $script:Theme.Muted; run = $script:Theme.Accent; ok = $script:Theme.Ok; fail = $script:Theme.Danger; skip = $script:Theme.Muted; warn = $script:Theme.WarnInk }[$state]
     $l = $script:RsStepLabels[$i]
+    $l.Tag = $state
     $l.Text = "$g  " + $script:RsStepNames[$i] + $(if ($detail) { "  -  $detail" } else { '' })
     $l.ForeColor = $c
+    $l.Invalidate()
     $l.Font = if ($state -eq 'run') { $bold } else { $form.Font }
     $tip.SetToolTip($l, $l.Text)
     if ($script:Restore) {
@@ -867,10 +871,15 @@ function Write-RestoreReport([bool]$ok, [string]$verdict) {
     catch { Append-Log ((T "Rapport non enregistré : {0}") -f "$($_.Exception.Message)") }
 }
 
-function Show-RestoreResult([bool]$ok, [string]$text) {
+function Show-RestoreResult([bool]$ok, [string]$text, [string]$icon = '') {
+    # 12.8 (lot 3b) : icone d etat de 48 px dans la marge gauche du verdict : h0 reussie, h1 reussie avec reserve, h2 echouee
+    $script:RsResultIcon = $(if ($icon) { $icon } elseif ($ok) { 'h0' } else { 'h2' })
     $lblRsResult.Text = $text
-    $lblRsResult.BackColor = if ($ok) { [System.Drawing.Color]::FromArgb(222, 244, 228) } else { [System.Drawing.Color]::FromArgb(252, 226, 224) }
-    $lblRsResult.ForeColor = if ($ok) { [System.Drawing.Color]::FromArgb(20, 90, 45) } else { [System.Drawing.Color]::FromArgb(140, 30, 25) }
+    # 12.8 (FIX3) : reussie avec reserve (h1) : teinte « stop » de frmClean et encre Theme.WarnInk (4,84:1), comme l icone h1
+    # de la carte et de l onglet Ecriture, et non le vert de la reussite
+    $warnRes = ($ok -and $script:RsResultIcon -eq 'h1')
+    $lblRsResult.BackColor = if ($warnRes) { [System.Drawing.Color]::FromArgb(253, 243, 228) } elseif ($ok) { [System.Drawing.Color]::FromArgb(222, 244, 228) } else { [System.Drawing.Color]::FromArgb(252, 226, 224) }
+    $lblRsResult.ForeColor = if ($warnRes) { $script:Theme.WarnInk } elseif ($ok) { [System.Drawing.Color]::FromArgb(20, 90, 45) } else { [System.Drawing.Color]::FromArgb(140, 30, 25) }
     $pnlRsWait.Visible = $false; $lblRsNow.Text = ''
     $lblRsResult.Visible = $true; $lblRsResult.BringToFront(); $lblRsRules.Visible = $false
     $tabRs.ScrollControlIntoView($lblRsResult)
@@ -905,7 +914,7 @@ function Finish-Restore {
     }
     Append-Log $verdict
     Write-RestoreReport $ok $verdict
-    Show-RestoreResult $ok ($verdict + "`n`n" + $detail)
+    Show-RestoreResult $ok ($verdict + "`n`n" + $detail) $(if ($ok -and ($nWeak -gt 0 -or $nPres -gt 0)) { 'h1' } else { '' })
     Close-Restore
 }
 

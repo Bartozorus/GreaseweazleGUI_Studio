@@ -16,6 +16,8 @@ function Invoke-NextChainStep {
         $script:AfterCalib = ''
         if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : {0}") -f "$($_.Exception.Message)") }
         if ($script:Restore) { Stop-Restore ((T "erreur interne : {0}") -f "$($_.Exception.Message)") }
+        # 12.8 (lot 3a) : mesure de qualite en cours sans analyse : resultat affiche perime
+        if ($script:QualView.State -eq 'run' -and $script:QualView.Kind -eq 'measure') { $script:AlignLoop = $false; Set-QualityStale 'error' }
     }
 }
 
@@ -67,6 +69,13 @@ function Get-LogColor([string]$line) {
     if ($line -match '^\[[^\]]+\] (Mesures de la passe .+ \(valeur écrite -> |Pass .+ measurements \(written value -> )') { return $script:LogColors.dim }
     # Lignes de synthese du controle apres ecriture : simples comptes par etat (« 0 critique(s) » n est pas une erreur)
     if ($line -match '^(Contrôle complet|Full check|Remesure après réécriture|Re-measure after rewrite)\b') { return $script:LogColors.std }
+    # 12.8 (lot 3a) : lignes de qualite, une couleur par niveau. « erreurs » / « errors » du texte de SUPPORT SAIN et
+    # « critique(s) non comptee(s) » d un controle sans piste faible ne les font plus passer en rouge (motifs generaux
+    # ci-dessous) : etat du support SAIN / A SURVEILLER / CRITIQUE ; score moyen EXCELLENT ou BON / MOYEN / MAUVAIS ;
+    # bilan du controle apres ecriture sans piste faible
+    if ($line -match '^(Mesure : SUPPORT SAIN|Measurement: MEDIA HEALTHY)\b|^(Mesure : score moyen|Measurement: average score) \d+ \((EXCELLENT|BON|GOOD)\)|^(CONTRÔLE APRÈS ÉCRITURE : \d+/\d+ pistes saines|POST-WRITE CHECK: \d+/\d+ healthy tracks)') { return $script:LogColors.ok }
+    if ($line -match '^(Mesure : SUPPORT À SURVEILLER|Measurement: MEDIA TO WATCH)\b|^(Mesure : score moyen|Measurement: average score) \d+ \((MOYEN|AVERAGE)\)') { return $script:LogColors.warn }
+    if ($line -match '^(Mesure : SUPPORT CRITIQUE|Measurement: MEDIA CRITICAL)\b|^(Mesure : score moyen|Measurement: average score) \d+ \((MAUVAIS|POOR)\)') { return $script:LogColors.err }
     if ($line -match 'FATAL|ERREUR|ERROR|ECHEC|ÉCHEC|FAILED|Command Failed|Write ?Protect|CRITIQUE|CRITICAL|ILLISIBLE|UNREADABLE|introuvable|not found|code retour : [1-9]|exit code: [1-9]|support fatigué|worn media|réécriture automatique non lancée|automatic rewrite not started|RESTAURATION ÉCHOUÉE|RESTORE FAILED') { return $script:LogColors.err }
     if ($line -match 'Verify Failure|Retry #|nécessité de nouveaux essais|needed retries|À SURVEILLER|TO WATCH|marginal|DIFF[EÉ]RENT|Interrompu|Interrupted|aborted|non applicable|not applicable|réécriture automatique désactivée|automatic rewrite disabled|Aucune réécriture automatique|No automatic rewrite|non convergée|not converged|NON CONVERGÉE|NOT CONVERGED|Valeurs peu fiables|Unreliable values|Écart à la courbe|Deviation from the curve|Giving up|zone instable|unstable zone|non jugée|not judged|probablement fatigué|probably worn') { return $script:LogColors.warn }
     if ($line -match 'All tracks verified|code retour : 0|exit code: 0|SAIN|HEALTHY|IDENTIQUE|IDENTICAL|EXCELLENT|aucune piste n|no track needed|RESTAURATION RÉUSSIE|RESTORE SUCCEEDED') { return $script:LogColors.ok }
@@ -162,6 +171,8 @@ function Reset-GwSequence {
     if ($script:Cal) { Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
     if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : {0}") -f (T 'gw n''a pas pu être lancé.')) }
     if ($script:Restore) { Stop-Restore (T 'gw n''a pas pu être lancé') }
+    # 12.8 (lot 3a) : mesure de qualite sans lecture : erreur gw, resultat affiche perime
+    if ($script:QualView.State -eq 'run' -and $script:QualView.Kind -eq 'measure') { $script:AlignLoop = $false; $script:AlignNextAt = $null; Set-QualityStale 'gwerror' }
 }
 
 function Start-DriveDetect([string]$mode) {
@@ -322,6 +333,10 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
         $script:OutStdoutTask = $script:OutStdoutReader.ReadLineAsync()
         $script:OutStderrTask = $script:OutStderrReader.ReadLineAsync()
         Set-Busy $true
+        # 12.8 (lot 3a) : disquette ecrite ou effacee hors d un controle apres ecriture (calibration, ecriture sans controle,
+        # effacement) : le resultat de l onglet Qualite ne la decrit plus
+        # 12.8 (FIX3) : verdict du controle precedent (onglet Ecriture) masque
+        if (($first -eq 'write' -or $first -eq 'erase') -and -not $script:Rep) { Set-QualityStale 'written'; Hide-WCalVerdict }
     } catch {
         Append-Log ((T "ERREUR lancement : {0}") -f "$($_.Exception.Message)")
         $script:GwProc = $null; $script:GwSoft = $false; $script:GwDriveKey = $null

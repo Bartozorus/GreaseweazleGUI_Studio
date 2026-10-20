@@ -220,7 +220,7 @@ $script:AlColors = @{
     0 = [System.Drawing.Color]::FromArgb(86, 196, 108)    # excellent (vert franc)
     1 = [System.Drawing.Color]::FromArgb(188, 214, 94)    # bon (vert-jaune)
     2 = [System.Drawing.Color]::FromArgb(245, 176, 66)    # moyen (orange)
-    3 = [System.Drawing.Color]::FromArgb(233, 86, 80)     # mauvais (rouge)
+    3 = $script:Theme.Danger                              # mauvais (rouge) ; 12.8 (D17) : texte blanc a 5,19:1 (233,86,80 : 3,55:1)
 }
 # texte lisible (noir ou blanc) sur chaque couleur d'etat
 $script:AlFg = @{
@@ -274,6 +274,7 @@ $btnAlStart.Add_Click({
     }
     $script:AlignLoop = [bool]$chkAlLoop.Checked
     $script:AlLastMove = 0
+    $script:QualView.Pass = 0                             # 12.8 (lot 3a) : nouvelle serie, passes de la mesure continue depuis 1
     Start-AlignCycle
 })
 
@@ -296,10 +297,10 @@ $tip.SetToolTip($btnAlReset, (T 'Efface le meilleur score, la tendance, la réf�
 $btnAlReset.Add_Click({
     $script:AlignBest = @{}; $script:AlignPrev = $null; $script:AlignRef = $null; $script:AlignLast = $null
     $script:AlPos = $null; $script:AlLastMove = 0; $script:AlPosScores = @{}; $script:AlignRefLabel = ''
-    $lblAlRef.Text = (T 'Aucune référence'); $lblAlHealth.Text = (T 'Lancez une mesure'); $lblAlHealth.BackColor = [System.Drawing.SystemColors]::Control
-    $lblAlVerdict.Text = ''; $lblAlVerdict.BackColor = [System.Drawing.SystemColors]::Control
+    $lblAlRef.Text = (T 'Aucune référence')
     $lblAlPos.Text = ''; $lblAlReco.Text = ''
     $lvAl.Items.Clear(); $pnlAlBars.Invalidate()
+    Reset-QualityView                                     # 12.8 (lot 3a) : carte vide, plus aucun resultat
 })
 
 $chkAlGuide = New-Object System.Windows.Forms.CheckBox
@@ -330,21 +331,16 @@ $btnAlMinus.Add_Click({ if ($null -eq $script:AlPos) { $script:AlPos = 0 }; $scr
 $lblAlPos = New-Object System.Windows.Forms.Label
 $lblAlPos.Location = '508,101'; $lblAlPos.AutoSize = $true; $lblAlPos.Text = ''; $lblAlPos.ForeColor = 'Gray'; $lblAlPos.Visible = $false
 
-# --- Verdict 1 : etat du support (la question d'un collectionneur)
-$lblAlHealth = New-Object System.Windows.Forms.Label
-$lblAlHealth.Location = '10,126'; $lblAlHealth.Size = '768,34'; $lblAlHealth.Anchor = 'Top,Left,Right'
-$lblAlHealth.Font = New-Object System.Drawing.Font('Segoe UI', 13, [System.Drawing.FontStyle]::Bold)
-$lblAlHealth.TextAlign = 'MiddleCenter'; $lblAlHealth.BorderStyle = 'FixedSingle'
-$lblAlHealth.Text = (T 'Lancez une mesure')
-$tip.SetToolTip($lblAlHealth, (T "État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter.`nIndépendant du contenu : comparable d'une disquette à l'autre."))
-
-# --- Verdict 2 : qualite de lecture (score, pour comparer lecteurs et reglages)
-$lblAlVerdict = New-Object System.Windows.Forms.Label
-$lblAlVerdict.Location = '10,163'; $lblAlVerdict.Size = '768,24'; $lblAlVerdict.Anchor = 'Top,Left,Right'
-$lblAlVerdict.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Bold)
-$lblAlVerdict.TextAlign = 'MiddleCenter'
-$lblAlVerdict.Text = ''
-$tip.SetToolTip($lblAlVerdict, (T "Score de qualité de lecture (plus bas = mieux). Dépend du contenu : à comparer uniquement sur une même image`n(deux lecteurs, deux précompensations, deux réglages)."))
+# --- Carte de resultat (12.8, lot 3b, variante A : D14) : score de lecture (barres de signal, niveau, tendance) a gauche,
+# etat du support a droite, pastille « en cours » ou « perime » (D16). Remplace le bandeau d etat et la ligne de score de
+# la 12.7. Dessinee dans un bitmap par Render-QualityCard (module 195), d apres $script:QualView ; textes complets dans
+# l infobulle (Update-QualityView)
+$pnlQualCard = New-Object System.Windows.Forms.Panel
+$pnlQualCard.Name = 'pnlQualCard'
+$pnlQualCard.Location = '10,126'; $pnlQualCard.Size = '768,58'; $pnlQualCard.Anchor = 'Top,Left,Right'
+$pnlQualCard.BackColor = [System.Drawing.Color]::White; $pnlQualCard.BackgroundImageLayout = 'None'
+$pnlQualCard.AccessibleRole = 'StaticText'
+$pnlQualCard.Add_Resize({ Render-QualityCard })
 
 $lblAlReco = New-Object System.Windows.Forms.Label
 $lblAlReco.Location = '10,188'; $lblAlReco.Size = '768,20'; $lblAlReco.Anchor = 'Top,Left,Right'
@@ -363,41 +359,29 @@ $lvAl.Location = '10,266'; $lvAl.Size = '768,60'; $lvAl.Anchor = 'Top,Bottom,Lef
 $lvAl.View = 'Details'; $lvAl.FullRowSelect = $true; $lvAl.GridLines = $false; $lvAl.Font = $monoBig
 $lvAl.OwnerDraw = $true; $lvAl.HeaderStyle = 'Nonclickable'
 $lvAl.BackColor = [System.Drawing.Color]::White
+# 12.8 (lot 3) : pinceaux, stylo et formats en cache (Get-QualBrush, Get-QualPen, Get-QualSf : plus d allocation a chaque
+# dessin) ; cases grises tant que le resultat affiche n est pas le resultat courant (mesure en cours, perime : D16) ;
+# icones de 16 px (D15) devant l etat et devant le score, d apres Item.Tag (New-AlignRow)
 $lvAl.Add_DrawColumnHeader({
     param($s0, $e)
-    $e.Graphics.FillRectangle((New-Object System.Drawing.SolidBrush($script:Theme.Accent2)), $e.Bounds)
-    $fmt = New-Object System.Drawing.StringFormat
-    $fmt.LineAlignment = 'Center'; $fmt.Alignment = $(if ($e.ColumnIndex -eq 0) { 'Near' } else { 'Center' })
+    $e.Graphics.FillRectangle((Get-QualBrush $script:Theme.Accent2), $e.Bounds)
     $r = [System.Drawing.RectangleF]::new($e.Bounds.X + 4, $e.Bounds.Y, $e.Bounds.Width - 8, $e.Bounds.Height)
-    $e.Graphics.DrawString($e.Header.Text, $bold, [System.Drawing.Brushes]::White, $r, $fmt)
+    $e.Graphics.DrawString($e.Header.Text, $bold, [System.Drawing.Brushes]::White, $r, (Get-QualSf $(if ($e.ColumnIndex -eq 0) { 'hnear' } else { 'hcenter' })))
 })
-$lvAl.Add_DrawSubItem({
-    param($s0, $e)
-    $row = $e.Item.Index
-    $baseBg = if ($row % 2) { [System.Drawing.Color]::FromArgb(243, 246, 250) } else { [System.Drawing.Color]::White }
-    $bg = if ($e.SubItem.BackColor -ne [System.Drawing.Color]::Empty -and $e.SubItem.BackColor.ToArgb() -ne [System.Drawing.SystemColors]::Window.ToArgb() -and $e.SubItem.BackColor.ToArgb() -ne 0) { $e.SubItem.BackColor } else { $baseBg }
-    $e.Graphics.FillRectangle((New-Object System.Drawing.SolidBrush($bg)), $e.Bounds)
-    $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(225, 229, 235))
-    $e.Graphics.DrawLine($pen, $e.Bounds.Right - 1, $e.Bounds.Top, $e.Bounds.Right - 1, $e.Bounds.Bottom)
-    $fg = if ($e.SubItem.ForeColor -ne [System.Drawing.Color]::Empty) { $e.SubItem.ForeColor } else { [System.Drawing.Color]::FromArgb(32, 36, 44) }
-    $fnt = if ($e.SubItem.Font) { $e.SubItem.Font } else { $lvAl.Font }
-    $fmt = New-Object System.Drawing.StringFormat
-    $fmt.LineAlignment = 'Center'; $fmt.Alignment = $(if ($e.ColumnIndex -eq 0) { 'Near' } else { 'Center' })
-    $fmt.FormatFlags = [System.Drawing.StringFormatFlags]::NoWrap; $fmt.Trimming = 'EllipsisCharacter'
-    $r = [System.Drawing.RectangleF]::new($e.Bounds.X + 4, $e.Bounds.Y, $e.Bounds.Width - 8, $e.Bounds.Height)
-    $e.Graphics.DrawString($e.SubItem.Text, $fnt, (New-Object System.Drawing.SolidBrush($fg)), $r, $fmt)
-})
+$lvAl.Add_DrawSubItem({ param($s0, $e) Draw-AlSubItem $e $lvAl.Font })
 $imgRow = New-Object System.Windows.Forms.ImageList
 $imgRow.ImageSize = New-Object System.Drawing.Size(1, 24)
 $lvAl.SmallImageList = $imgRow
-foreach ($c in @(@((T 'Piste'),60),@((T 'État'),140),@((T 'Erreurs'),70),@((T 'Trous'),78),@('Stab',55),@((T 'Jitter ns'),80),@('Score',65),@((T 'vs réf'),70),@('Asym.',70),@((T 'Cell ns'),75))) {
+# 12.8 (lot 3b) : colonnes Etat et Score elargies pour l icone de 16 px (140 -> 162, 65 -> 80)
+foreach ($c in @(@((T 'Piste'),60),@((T 'État'),162),@((T 'Erreurs'),70),@((T 'Trous'),78),@('Stab',55),@((T 'Jitter ns'),80),@('Score',80),@((T 'vs réf'),70),@('Asym.',70),@((T 'Cell ns'),75))) {
     [void]$lvAl.Columns.Add($c[0], $c[1])
 }
 
 $tabAl.Controls.AddRange(@((New-Label (T 'Mesure :') '10,14'), $cmbAlPreset, (New-Label (T 'Cylindres :') '238,14'), $txtAlCyls,
     (New-Label (T 'Têtes :') '488,14'), $cmbAlHead, (New-Label (T 'Tours :') '598,14'), $numAlRevs, $chkAlLoop, $numAlPause,
     $btnAlStart, $btnAlRef, $btnAlReset, $chkAlGuide, $lblAlRef,
-    $btnAlPos0, $btnAlPlus, $btnAlMinus, $lblAlPos, $lblAlHealth, $lblAlVerdict, $lblAlReco, $pnlAlBars, $lvAl))
+    $btnAlPos0, $btnAlPlus, $btnAlMinus, $lblAlPos, $pnlQualCard, $lblAlReco, $pnlAlBars, $lvAl))
+Update-QualityView                                        # 12.8 (lot 3) : carte vide (« Aucune mesure »)
 
 # ============================== OUTILS =========================================
 $tabT = New-TabPage (T 'Outils')

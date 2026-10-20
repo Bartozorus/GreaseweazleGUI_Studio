@@ -168,7 +168,6 @@ $script:I18n["Mesure : référence fixée ({0})."] = "Measurement: reference set
 $script:I18n['Réinitialiser'] = 'Reset'
 $script:I18n['Efface le meilleur score, la tendance, la référence et le guide.'] = 'Clears the best score, the trend, the reference and the guide.'
 $script:I18n['Aucune référence'] = 'No reference'
-$script:I18n['Lancez une mesure'] = 'Run a measurement'
 $script:I18n['Mode réglage du lecteur (guide)'] = 'Drive adjustment mode (guide)'
 $script:I18n['Affiche les boutons du guide d''alignement (positions du stepper, recommandations avancer/reculer).'] = 'Shows the alignment guide buttons (stepper positions, forward/back recommendations).'
 $script:I18n['Repère (position 0)'] = 'Mark (position 0)'
@@ -1752,6 +1751,45 @@ $script:I18n['(contrôle)'] = '(check)'
 $script:I18n['tête {0} mesure adaptative'] = 'head {0} adaptive measurement'
 $script:I18n['tête {0} courbe adaptée'] = 'head {0} adapted curve'
 $script:I18n['tête {0} confirmation de la pente'] = 'head {0} slope confirmation'
+# 12.8 (lot 3) : carte de resultat de l onglet Qualite (variante A, A2 § 3.5), etats de l affichage
+$script:I18n['score · plus bas = mieux'] = 'score · lower = better'
+$script:I18n['Aucune mesure'] = 'No measurement'
+$script:I18n['Insérez une disquette, puis cliquez sur « MESURER LA DISQUETTE ».'] = 'Insert a disk, then click "MEASURE THE DISK".'
+$script:I18n['État du support : après la mesure'] = 'Media condition: after the measurement'
+$script:I18n['Mesure en cours'] = 'Measuring'
+$script:I18n['Contrôle après écriture en cours'] = 'Post-write check in progress'
+$script:I18n['Lecture de {0} cylindre(s), tête(s) {1}, {2} tour(s) (lecteur {3})'] = 'Reading {0} cylinder(s), head(s) {1}, {2} revolution(s) (drive {3})'
+$script:I18n['Résultat précédent ({0}), remplacé à la fin de la mesure'] = 'Previous result ({0}), replaced when the measurement ends'
+$script:I18n['Résultat précédent ({0}), remplacé à la fin'] = 'Previous result ({0}), replaced at the end'
+$script:I18n['Résultat précédent ({0}), remplacé à la fin du contrôle'] = 'Previous result ({0}), replaced when the check ends'
+$script:I18n['MESURE EN COURS'] = 'MEASURING'
+$script:I18n['MESURE CONTINUE · PASSE {0}'] = 'LOOP · PASS {0}'
+$script:I18n['CONTRÔLE EN COURS'] = 'CHECKING'
+$script:I18n["Contrôle après écriture : en attente de la fin de l'écriture"] = 'Post-write check: waiting for the write to finish'
+$script:I18n['PÉRIMÉ'] = 'OUT OF DATE'
+$script:I18n['Mesure interrompue : résultat de {0}'] = 'Measurement aborted: result from {0}'
+$script:I18n['Mesure impossible : fichier de lecture absent ou illisible'] = 'Measurement impossible: read file missing or unreadable'
+$script:I18n['Seuils de jitter modifiés : relancez la mesure'] = 'Jitter thresholds changed: measure again'
+$script:I18n['Disquette écrite depuis la mesure'] = 'Disk written since the measurement'
+$script:I18n['Mieux que la mesure précédente ({0})'] = 'Better than the previous measurement ({0})'
+$script:I18n['Moins bien que la mesure précédente ({0})'] = 'Worse than the previous measurement ({0})'
+$script:I18n['Stable'] = 'Stable'
+$script:I18n['meilleur {0} · réf. {1}'] = 'best {0} · ref. {1}'
+$script:I18n['meilleur {0}'] = 'best {0}'
+$script:I18n['sur {0} piste(s) lisible(s), {1} illisible(s) non comptée(s)'] = 'over {0} readable track(s), {1} unreadable not counted'
+$script:I18n['{0} piste(s) illisible(s) non comptée(s)'] = '{0} unreadable track(s) not counted'
+$script:I18n['Contrôle après écriture : sur {0} piste(s) lisible(s)'] = 'Post-write check: over {0} readable track(s)'
+$script:I18n['Contrôle après écriture : sur {0} piste(s) lisible(s), {1} illisible(s) non comptée(s)'] = 'Post-write check: over {0} readable track(s), {1} unreadable not counted'
+$script:I18n['Vérifiez la disquette, le lecteur et le format'] = 'Check the disk, the drive and the format'
+$script:I18n['SUPPORT SAIN'] = 'MEDIA HEALTHY'
+$script:I18n['SUPPORT À SURVEILLER'] = 'MEDIA TO WATCH'
+$script:I18n['SUPPORT CRITIQUE'] = 'MEDIA CRITICAL'
+$script:I18n['{0}/{1} pistes propres'] = '{0}/{1} clean tracks'
+$script:I18n['{0}/{1} piste(s) marginale(s) : {2}'] = '{0}/{1} marginal track(s): {2}'
+$script:I18n['{0} piste(s) en erreur : {1}'] = '{0} track(s) in error: {1}'
+$script:I18n['lecteur {0}, têtes {1}, {2} tours · {3}'] = 'drive {0}, heads {1}, {2} revs · {3}'
+$script:I18n['COPIE SAINE'] = 'HEALTHY COPY'
+$script:I18n['{0} PISTE(S) FAIBLE(S)'] = '{0} WEAK TRACK(S)'
 function T([string]$s) {
     if ($script:Lang -eq 'fr') { return $s }
     $t = $script:I18n[$s]
@@ -2327,6 +2365,15 @@ $script:AlPos       = $null     # guide : position courante du stepper en crans 
 $script:AlLastMove  = 0         # guide : dernier deplacement declare (+1 / -1 / 0)
 $script:AlPosScores = @{}       # guide : position -> meilleur score moyen mesure a cette position
 $script:AlignRef    = $null     # reference memorisee (meme structure)
+# 12.8 (lot 3) : etat unique de l affichage de l onglet Qualite (Set-QualityPending, Set-QualityResult, Set-QualityStale,
+# Reset-QualityView ; module 195) : empty | run | result | stale ; contenu de la carte calcule (QualCard) ; ressources GDI+
+# en cache (pinceaux, stylos, polices, formats, pictogrammes), liberees a la fermeture ; icones d etat de l onglet Ecriture
+# (verdict du controle apres ecriture) et du verdict de la restauration
+$script:QualView = @{ State = 'empty'; Kind = ''; Reason = ''; At = $null; Has = $false; Pass = 0; Drive = ''; Heads = ''; Revs = 0; NCyl = 0; RunText = ''; Res = $null }
+$script:QualCard = $null
+$script:QualGdi = @{}
+$script:WCalIcon = $null
+$script:RsResultIcon = $null
 
 # Profils de precompensation (mesures le 06/10/2026, lecteur A600 en ecriture, relecture A600)
 $script:PrecompStd  = '0=70:40=100:65=140'          # cellule 2 us : AmigaDOS, ADF, formats IBM/Atari
@@ -2910,6 +2957,8 @@ function Invoke-NextChainStep {
         $script:AfterCalib = ''
         if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : {0}") -f "$($_.Exception.Message)") }
         if ($script:Restore) { Stop-Restore ((T "erreur interne : {0}") -f "$($_.Exception.Message)") }
+        # 12.8 (lot 3a) : mesure de qualite en cours sans analyse : resultat affiche perime
+        if ($script:QualView.State -eq 'run' -and $script:QualView.Kind -eq 'measure') { $script:AlignLoop = $false; Set-QualityStale 'error' }
     }
 }
 
@@ -2961,6 +3010,13 @@ function Get-LogColor([string]$line) {
     if ($line -match '^\[[^\]]+\] (Mesures de la passe .+ \(valeur écrite -> |Pass .+ measurements \(written value -> )') { return $script:LogColors.dim }
     # Lignes de synthese du controle apres ecriture : simples comptes par etat (« 0 critique(s) » n est pas une erreur)
     if ($line -match '^(Contrôle complet|Full check|Remesure après réécriture|Re-measure after rewrite)\b') { return $script:LogColors.std }
+    # 12.8 (lot 3a) : lignes de qualite, une couleur par niveau. « erreurs » / « errors » du texte de SUPPORT SAIN et
+    # « critique(s) non comptee(s) » d un controle sans piste faible ne les font plus passer en rouge (motifs generaux
+    # ci-dessous) : etat du support SAIN / A SURVEILLER / CRITIQUE ; score moyen EXCELLENT ou BON / MOYEN / MAUVAIS ;
+    # bilan du controle apres ecriture sans piste faible
+    if ($line -match '^(Mesure : SUPPORT SAIN|Measurement: MEDIA HEALTHY)\b|^(Mesure : score moyen|Measurement: average score) \d+ \((EXCELLENT|BON|GOOD)\)|^(CONTRÔLE APRÈS ÉCRITURE : \d+/\d+ pistes saines|POST-WRITE CHECK: \d+/\d+ healthy tracks)') { return $script:LogColors.ok }
+    if ($line -match '^(Mesure : SUPPORT À SURVEILLER|Measurement: MEDIA TO WATCH)\b|^(Mesure : score moyen|Measurement: average score) \d+ \((MOYEN|AVERAGE)\)') { return $script:LogColors.warn }
+    if ($line -match '^(Mesure : SUPPORT CRITIQUE|Measurement: MEDIA CRITICAL)\b|^(Mesure : score moyen|Measurement: average score) \d+ \((MAUVAIS|POOR)\)') { return $script:LogColors.err }
     if ($line -match 'FATAL|ERREUR|ERROR|ECHEC|ÉCHEC|FAILED|Command Failed|Write ?Protect|CRITIQUE|CRITICAL|ILLISIBLE|UNREADABLE|introuvable|not found|code retour : [1-9]|exit code: [1-9]|support fatigué|worn media|réécriture automatique non lancée|automatic rewrite not started|RESTAURATION ÉCHOUÉE|RESTORE FAILED') { return $script:LogColors.err }
     if ($line -match 'Verify Failure|Retry #|nécessité de nouveaux essais|needed retries|À SURVEILLER|TO WATCH|marginal|DIFF[EÉ]RENT|Interrompu|Interrupted|aborted|non applicable|not applicable|réécriture automatique désactivée|automatic rewrite disabled|Aucune réécriture automatique|No automatic rewrite|non convergée|not converged|NON CONVERGÉE|NOT CONVERGED|Valeurs peu fiables|Unreliable values|Écart à la courbe|Deviation from the curve|Giving up|zone instable|unstable zone|non jugée|not judged|probablement fatigué|probably worn') { return $script:LogColors.warn }
     if ($line -match 'All tracks verified|code retour : 0|exit code: 0|SAIN|HEALTHY|IDENTIQUE|IDENTICAL|EXCELLENT|aucune piste n|no track needed|RESTAURATION RÉUSSIE|RESTORE SUCCEEDED') { return $script:LogColors.ok }
@@ -3056,6 +3112,8 @@ function Reset-GwSequence {
     if ($script:Cal) { Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
     if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : {0}") -f (T 'gw n''a pas pu être lancé.')) }
     if ($script:Restore) { Stop-Restore (T 'gw n''a pas pu être lancé') }
+    # 12.8 (lot 3a) : mesure de qualite sans lecture : erreur gw, resultat affiche perime
+    if ($script:QualView.State -eq 'run' -and $script:QualView.Kind -eq 'measure') { $script:AlignLoop = $false; $script:AlignNextAt = $null; Set-QualityStale 'gwerror' }
 }
 
 function Start-DriveDetect([string]$mode) {
@@ -3216,6 +3274,10 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
         $script:OutStdoutTask = $script:OutStdoutReader.ReadLineAsync()
         $script:OutStderrTask = $script:OutStderrReader.ReadLineAsync()
         Set-Busy $true
+        # 12.8 (lot 3a) : disquette ecrite ou effacee hors d un controle apres ecriture (calibration, ecriture sans controle,
+        # effacement) : le resultat de l onglet Qualite ne la decrit plus
+        # 12.8 (FIX3) : verdict du controle precedent (onglet Ecriture) masque
+        if (($first -eq 'write' -or $first -eq 'erase') -and -not $script:Rep) { Set-QualityStale 'written'; Hide-WCalVerdict }
     } catch {
         Append-Log ((T "ERREUR lancement : {0}") -f "$($_.Exception.Message)")
         $script:GwProc = $null; $script:GwSoft = $false; $script:GwDriveKey = $null
@@ -5157,6 +5219,7 @@ function Start-WriteWarmup([string]$tspec, [bool]$noWarm) {
     $ro = @(Get-DriveReadArgs)
     if ($chkWHard.Checked) { $ro += '--hard-sectors' }
     if ($chkWTG43.Checked) { $ro += '--gen-tg43' }
+    Hide-WCalVerdict                                      # 12.8 (FIX3) : verdict du controle precedent, non retabli a la fin
     $script:WriteWarm = @{
         Drive = $drv; Rest = @($script:Chain.ToArray()); WarmSec = [double]$plan.Sec; WarmStart = (Get-Date)
         WarmReads = 0; WarmFails = 0; WarmFailRun = 0; WarmDurs = @(); WarmReadStart = $null; WarmSkip = $false; WarmScp = $scp
@@ -5269,6 +5332,8 @@ function New-WriteCheck([string[]]$base, [string]$image, [string]$userTSpec, [in
     $script:AlignLoop = $false; $script:AlignNextAt = $null; $script:AlLastMove = 0
     $lblWCal.Text = (T 'Écriture en cours, contrôle de toutes les pistes ensuite.')
     $pbWCal.Visible = $false; $lblWCal.Visible = $true
+    # 12.8 (lot 3a) : resultat de l onglet Qualite grise et marque « controle en cours » pendant l ecriture et le controle
+    Set-QualityPending 'check'
 }
 
 function Test-SourceMayHaveWeak([string]$path) {
@@ -5341,6 +5406,7 @@ function Invoke-RepNextCmd {
     if ($rep.Round -eq 0) { $lblWCal.Text = (T 'Contrôle après écriture : relecture de toutes les pistes...') }
     elseif ($cmd[0] -eq 'write') { $lblWCal.Text = ((T "Contrôle après écriture : réécriture {0}/{1} de {2} piste(s) faible(s)...") -f "$($rep.Round)", "$($rep.Max)", "$($rep.Weak.Count)") }
     else { $lblWCal.Text = ((T "Contrôle après écriture : remesure {0}/{1} de {2} piste(s)...") -f "$($rep.Round)", "$($rep.Max)", "$($rep.Weak.Count)") }
+    Set-QualityRunText $lblWCal.Text                      # 12.8 (lot 3a) : etape du controle sur la carte de l onglet Qualite
     Start-Gw $cmd
 }
 
@@ -5350,7 +5416,7 @@ function Start-WriteCheck {
     if (-not $rep) { return }
     Merge-RepRetries
     if (-not $script:ScpStatsOk) {
-        Append-Log (T 'Contrôle après écriture : module d''analyse SCP indisponible, contrôle ignoré.'); $script:Rep = $null
+        Append-Log (T 'Contrôle après écriture : module d''analyse SCP indisponible, contrôle ignoré.'); $script:Rep = $null; Set-QualityStale 'checkabort'
         if ($script:Restore) { Stop-Restore (T 'contrôle des pistes indisponible') }
         return
     }
@@ -5458,8 +5524,9 @@ function Invoke-WriteCheckAnalysis {
 function Show-WriteCheckTable($rep) {
     # Etat final de chaque piste controlee (derniere mesure) dans l onglet Qualite, avec reecritures et retries
     $keys = Sort-TrackKeys @($rep.State.Keys)
-    $last = @{}; $total = 0.0; $count = 0
-    $lvAl.Columns[1].Width = $(if (@($rep.State.Values | Where-Object { $_.Weak }).Count -gt 0) { 280 } else { 200 })
+    $last = @{}; $total = 0.0; $count = 0; $nBad = 0
+    # 12.8 (lot 3b) : icone d etat de 16 px devant le texte de la colonne Etat
+    $lvAl.Columns[1].Width = $(if (@($rep.State.Values | Where-Object { $_.Weak }).Count -gt 0) { 302 } else { 222 })
     $lvAl.BeginUpdate()
     try {
         $lvAl.Items.Clear()
@@ -5469,7 +5536,7 @@ function Show-WriteCheckTable($rep) {
             if ($rep.Rewrites.ContainsKey($k)) { $mark = ((T " (réécrite x{0})") -f "$($rep.Rewrites[$k])") }
             elseif ($rep.Retries.ContainsKey($k)) { $mark = ((T " (essais x{0})") -f "$($rep.Retries[$k])") }
             [void]$lvAl.Items.Add((New-AlignRow $k $m $mark '-' -1))
-            if ($m.Bad) { $last[$k] = @{ Score = 9999; Jitter = 0; Asym = 0; Err = 0; Stab = 0; Cell = 0 }; continue }
+            if ($m.Bad) { $last[$k] = @{ Score = 9999; Jitter = 0; Asym = 0; Err = 0; Stab = 0; Cell = 0 }; $nBad++; continue }
             $last[$k] = @{ Score = $m.Score; Jitter = $m.J; Asym = $m.Asym; Err = $m.Ooc; Stab = $m.Stab; Cell = $m.Cell }
             $total += $m.Score; $count++
         }
@@ -5486,14 +5553,18 @@ function Show-WriteCheckTable($rep) {
         $(if ($crtK.Count -gt 0) { (T "Zone instable sur une piste déjà critique dans la source : {0}") -f "$(Format-TrackList $crtK)" }),
         $(if ($unkK.Count -gt 0) { (T "Zone instable non jugée (la source peut contenir une protection) : {0}") -f "$(Format-TrackList $unkK)" }))
     $script:AlignLast = $last
+    # 12.8 (lot 3) : resultat du controle sur la carte de l onglet Qualite ; son etat (COPIE SAINE, pistes faibles) suit
+    # dans Complete-WriteCheck (Set-QualityCheckState)
+    $res = @{ Kind = 'check'; Score = $null; Lvl = 3; Count = $count; Bad = $nBad; Health = -1; CheckLvl = -1; Weak = 0; HealthText = ''; HealthSub = '' }
     if ($count -gt 0) {
         $avg = [math]::Round($total / $count, 0); $lvl = Get-AlLevel 'score' $avg
-        $lblAlVerdict.Text = ((T "Contrôle après écriture : score moyen {0} ({1}) sur {2} piste(s) lisible(s)") -f "$avg", "$($script:AlNames[$lvl])", "$count")
-        $lblAlVerdict.BackColor = $script:AlColors[$lvl]; $lblAlVerdict.ForeColor = $script:AlFg[$lvl]
+        $res.Score = $avg; $res.Lvl = $lvl
+        $res.ScoreText = ((T "Contrôle après écriture : score moyen {0} ({1}) sur {2} piste(s) lisible(s)") -f "$avg", "$($script:AlNames[$lvl])", "$count")
     } else {
-        $lblAlVerdict.Text = (T 'Aucune piste analysable'); $lblAlVerdict.BackColor = $script:AlColors[3]; $lblAlVerdict.ForeColor = $script:AlFg[3]
+        $res.ScoreText = (T 'Aucune piste analysable')
     }
     Render-AlignBars
+    Set-QualityResult $res
 }
 
 function Complete-WriteCheck([switch]$GwError) {
@@ -5526,12 +5597,14 @@ function Complete-WriteCheck([switch]$GwError) {
     } else {
         $txt = ((T "CONTRÔLE APRÈS ÉCRITURE : {0} piste(s) encore faible(s) après {1} passe(s) de réécriture : {2}  ->  support fatigué, réécrire sur une autre disquette") -f "$($weak.Count)", "$($rep.Round)", "$(Format-TrackList $weak)"); $lvl = 3
     }
-    $lblAlHealth.Text = $txt; $lblAlHealth.BackColor = $script:AlColors[$lvl]; $lblAlHealth.ForeColor = $script:AlFg[$lvl]
-    $lblWCal.Text = $txt; $lblWCal.Visible = $true
     Append-Log $txt
     # Bilan exploitable par la restauration (accroche : le controle vide la chaine d etapes, rien ne le suit)
     $short = if ($GwError) { (T 'contrôle interrompu par une erreur gw') } elseif ($lvl -eq 0) { (T "{0}/{1} pistes saines") -f "$nOk", "$n" }
              elseif ($n -eq 0) { (T 'aucune piste mesurée') } else { (T "{0} piste(s) faible(s) : {1}") -f "$($weak.Count)", "$(Format-TrackList $weak)" }
+    # 12.8 (lot 3) : verdict sur la carte de l onglet Qualite (texte complet dans l infobulle) et dans l onglet Ecriture,
+    # avec l icone d etat (niveau 0 : h0, 2 : h1, 3 : h2) et son encre
+    Set-QualityCheckState $lvl $txt $short $weak.Count
+    Set-WCalVerdict $txt $(if ($lvl -le 0) { 'h0' } elseif ($lvl -le 2) { 'h1' } else { 'h2' })
     $script:LastCheck = @{ Ok = ($lvl -eq 0); Level = $lvl; Text = $txt; Short = $short; Weak = $weak; Measured = $n; Rounds = $rep.Round; Rewrites = $nRew; GwError = [bool]$GwError }
     if ($script:Restore) {
         if ($GwError) { Stop-Restore (T 'erreur gw pendant le contrôle des pistes') } else { Invoke-RestoreNext }
@@ -5566,8 +5639,9 @@ function Stop-WriteCheck([switch]$GwError) {
     if (-not $script:Rep) { return }
     if ($GwError -and $script:Rep.Round -gt 0 -and $script:Rep.State.Count -gt 0) { Update-RepPartial; Complete-WriteCheck -GwError; return }
     $script:Rep = $null
-    $lblWCal.Text = (T 'Contrôle après écriture interrompu.')
+    Set-WCalVerdict (T 'Contrôle après écriture interrompu.') 'h1'     # 12.8 (lot 3) : icone d etat dans l onglet Ecriture
     Append-Log (T 'Contrôle après écriture interrompu.')
+    Set-QualityStale 'checkabort'                         # 12.8 (lot 3a) : resultat de l onglet Qualite perime
     if ($script:Restore) { Stop-Restore (T 'contrôle des pistes interrompu') }
 }
 # ============================== FONCTIONS : COMPARAISON ========================
@@ -6523,9 +6597,9 @@ function Get-AlignCyls {
 
 function Start-AlignCycle {
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
-    $cyls = Get-AlignCyls
-    if (-not $cyls -or $cyls.Count -eq 0) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Indiquez au moins un cylindre valide (0-83).'),(T 'Alignement'),'OK','Warning')
+    $cyls = @(Get-AlignCyls)
+    if ($cyls.Count -eq 0) {
+        [void](Show-AppMessage (T 'Indiquez au moins un cylindre valide (0-83).') (T 'Alignement') 'OK' 'Warning')
         $script:AlignLoop = $false; return
     }
     if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
@@ -6534,6 +6608,8 @@ function Start-AlignCycle {
     $cspec = ($cyls -join ',')
     $hspec = if ($cmbAlHead.Text -eq '0+1') { '0-1' } else { $cmbAlHead.Text }
     $script:AlignArgs = @('read') + (Get-CommonArgs) + @("--revs=$($numAlRevs.Value)", "--tracks=c=${cspec}:h=$hspec", "`"$($script:AlignTmp)`"")
+    # 12.8 (lot 3a) : resultat precedent grise et marque « en cours » jusqu a la fin de l analyse (D16)
+    Set-QualityPending 'measure' @{ Drive = [string]$cmbDrive.Text; Heads = [string]$cmbAlHead.Text; Revs = [int]$numAlRevs.Value; NCyl = $cyls.Count }
     $script:Chain.Clear()
     $script:Chain.Enqueue({ Start-Gw $script:AlignArgs })
     $script:Chain.Enqueue({ Invoke-AlignAnalysis })
@@ -6553,8 +6629,11 @@ function Get-AlLevel([string]$kind, [double]$v) {
 }
 
 function Draw-AlignBars($g, $size) {
+    # 12.8 (lot 3) : police, stylo et pinceaux en cache (Get-QualFont, Get-QualPen, Get-QualBrush) ; barres grises tant
+    # que le resultat affiche n est pas le resultat courant (mesure en cours, perime : D16)
     $g.Clear([System.Drawing.Color]::White)
-    $font = New-Object System.Drawing.Font('Segoe UI', 8)
+    $font = Get-QualFont 'Segoe UI' 8
+    $grey = ($script:QualView.State -ne 'result')
     if (-not $script:AlignLast -or $script:AlignLast.Count -eq 0) {
         $g.DrawString((T 'Barres de score par cylindre : apparaissent après la première mesure.'), $font, [System.Drawing.Brushes]::Gray, 8, 26); return
     }
@@ -6567,7 +6646,7 @@ function Draw-AlignBars($g, $size) {
     foreach ($k in $script:AlignBest.Keys) { if ($k -ne '_global' -and $script:AlignBest[$k] -lt 2000 -and $script:AlignBest[$k] -gt $peak) { $peak = $script:AlignBest[$k] } }
     $maxScore = [math]::Max(100.0, [math]::Ceiling($peak * 1.15 / 50) * 50)
     # axe
-    $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::Gainsboro)
+    $pen = Get-QualPen ([System.Drawing.Color]::Gainsboro) 1
     foreach ($frac in 0.25,0.5,0.75) { $y = [int]($h - 14 - ($h - 24) * $frac); $g.DrawLine($pen, $left, $y, $size.Width - 6, $y) }
     $g.DrawString('0', $font, [System.Drawing.Brushes]::Gray, 2, $h - 22)
     $g.DrawString([string][int]$maxScore, $font, [System.Drawing.Brushes]::Gray, 2, 2)
@@ -6578,7 +6657,7 @@ function Draw-AlignBars($g, $size) {
         $sc = [math]::Min($st.Score, $maxScore)
         $bh = [int](($h - 24) * ($sc / $maxScore)); if ($bh -lt 2) { $bh = 2 }
         $lvl = Get-AlLevel 'score' $st.Score
-        $brush = New-Object System.Drawing.SolidBrush($script:AlColors[$lvl])
+        $brush = Get-QualBrush $(if ($grey) { [System.Drawing.Color]::FromArgb(196, 201, 210) } else { $script:AlColors[$lvl] })
         $g.FillRectangle($brush, $x, $h - 14 - $bh, $bw, $bh)
         $g.DrawRectangle([System.Drawing.Pens]::DimGray, $x, $h - 14 - $bh, $bw, $bh)
         # repere reference (trait noir) et meilleur (trait bleu)
@@ -6592,8 +6671,9 @@ function Draw-AlignBars($g, $size) {
             $g.DrawLine([System.Drawing.Pens]::RoyalBlue, $x - 2, $by, $x + $bw + 2, $by)
         }
         $label = if ($cmbAlHead.Text -eq '0+1') { "c$k" } else { "c$($k -replace '\.\d+$','')" }
-        $g.DrawString($label, $font, [System.Drawing.Brushes]::Black, $x, $h - 14)
-        $g.DrawString(('{0:N0}' -f $st.Score), $font, [System.Drawing.Brushes]::Black, $x, [math]::Max(0, $h - 14 - $bh - 14))
+        $ink = if ($grey) { Get-QualBrush $script:Theme.Muted } else { [System.Drawing.Brushes]::Black }
+        $g.DrawString($label, $font, $ink, $x, $h - 14)
+        $g.DrawString(('{0:N0}' -f $st.Score), $font, $ink, $x, [math]::Max(0, $h - 14 - $bh - 14))
         $i++
     }
 }
@@ -6671,8 +6751,15 @@ function Set-JitterThresholds([int]$ok, [int]$watch) {
     # Bornes : SAIN de 30 a 300 ns, A SURVEILLER au moins 10 ns au-dessus, 600 ns au plus
     $ok = [math]::Max(30, [math]::Min(300, $ok))
     $watch = [math]::Max($ok + 10, [math]::Min(600, $watch))
+    $changed = ($ok -ne [int]$script:JitterOk -or $watch -ne [int]$script:JitterWatch)
     $script:JitterOk = $ok; $script:JitterWatch = $watch
     Update-QualityTip
+    # 12.8 (lot 3a) : etats affiches calcules avec les anciens seuils, non recalculables (AlignLast ne garde ni les trous ni
+    # les zones instables) : resultat declare perime ; sans effet sans resultat affiche (chargement, Set-Defaults).
+    # 12.8 (FIX3) : ni pendant une mesure ou un controle en cours (Reinitialiser des parametres pendant la pause d une
+    # mesure continue, passe suivante lancee par le minuteur sous la boite) : son analyse prendra les nouveaux seuils, et
+    # l etat « en cours » garde les arrets sur erreur gw de la mesure continue
+    if ($changed -and $script:QualView.State -ne 'run') { Set-QualityStale 'thresholds' }
 }
 
 function Get-JitterPresets {
@@ -6816,6 +6903,7 @@ function New-AlignRow([string]$lab, $m, [string]$mark, [string]$delta, [int]$del
         $state = if ($m.Missing) { (T 'ABSENTE') } else { (T 'ILLISIBLE') }
         foreach ($v in @(($state + $mark),'-','-','-','-','-','-','-','-')) { [void]$it.SubItems.Add([string]$v) }
         $it.SubItems[1].BackColor = $script:AlColors[3]; $it.SubItems[1].ForeColor = [System.Drawing.Color]::White; $it.SubItems[1].Font = $bold
+        $it.Tag = @{ State = $(if ($m.Missing) { 'h2a' } else { 'h2' }); Score = '' }   # 12.8 (lot 3b) : icones 16 px (DrawSubItem)
         return $it
     }
     $hl = [int]$m.Level
@@ -6833,6 +6921,8 @@ function New-AlignRow([string]$lab, $m, [string]$mark, [string]$delta, [int]$del
     $lvSc  = Get-AlLevel 'score' $m.Score; $it.SubItems[6].BackColor = $script:AlColors[$lvSc];  $it.SubItems[6].ForeColor = $script:AlFg[$lvSc]
     if ($deltaLvl -ge 0) { $it.SubItems[7].BackColor = $script:AlColors[$deltaLvl]; $it.SubItems[7].ForeColor = $script:AlFg[$deltaLvl] }
     $lvAs  = Get-AlLevel 'asym' $m.Asym;  $it.SubItems[8].BackColor = $script:AlColors[$lvAs];   $it.SubItems[8].ForeColor = $script:AlFg[$lvAs]
+    # 12.8 (lot 3b, D15) : icone d etat (colonne Etat) et icone de score (colonne Score), 16 px, dessinees par DrawSubItem
+    $it.Tag = @{ State = $(if ($m.Unjudged -and $hl -eq 0) { 'hq' } else { "h$hl" }); Score = "q$lvSc" }
     return $it
 }
 
@@ -6865,13 +6955,16 @@ function Get-UnstableClusters([string[]]$keys, [int]$minRun = 3) {
 }
 
 function Invoke-AlignAnalysis {
+    # 12.8 (lot 3a) : analyse impossible : resultat affiche declare perime (ou carte vide avec la raison)
     if (-not $script:AlignTmp -or -not (Test-Path -LiteralPath $script:AlignTmp)) {
-        Append-Log (T 'Mesure : fichier SCP absent, analyse impossible.'); $script:AlignLoop = $false; return
+        Append-Log (T 'Mesure : fichier SCP absent, analyse impossible.'); $script:AlignLoop = $false; Set-QualityStale 'noscp'; return
     }
-    try { $tracks = Read-ScpFile $script:AlignTmp } catch { Append-Log ((T "Mesure : {0}") -f "$($_.Exception.Message)"); $script:AlignLoop = $false; return }
+    try { $tracks = Read-ScpFile $script:AlignTmp } catch { Append-Log ((T "Mesure : {0}") -f "$($_.Exception.Message)"); $script:AlignLoop = $false; Set-QualityStale 'noscp'; return }
 
-    $last = @{}; $watch = @(); $crit = @(); $weakL = @()
-    $lvAl.Columns[1].Width = 200
+    $last = @{}; $watch = @(); $crit = @(); $weakL = @(); $critK = @(); $nBad = 0
+    $res = @{ Kind = 'measure'; Score = $null; Lvl = 3; Count = 0; Bad = 0; Health = 0; NTracks = 0; WatchKeys = @(); CritKeys = @()
+              HealthText = ''; ScoreText = ''; Prev = $null; Best = $null; RefAvg = $null }
+    $lvAl.Columns[1].Width = 222                          # 12.8 (lot 3b) : icone d etat de 16 px devant le texte
     $lvAl.BeginUpdate()
     try {
         $lvAl.Items.Clear()
@@ -6883,7 +6976,7 @@ function Invoke-AlignAnalysis {
             if ($m.Bad) {
                 [void]$lvAl.Items.Add((New-AlignRow $lab $m '' '-' -1))
                 $last[$key] = @{ Score = 9999; Jitter = 0; Asym = 0; Err = 0; Stab = 0; Cell = 0 }
-                $crit += ((T "{0} (illisible)") -f "$lab"); continue
+                $crit += ((T "{0} (illisible)") -f "$lab"); $critK += $lab; $nBad++; continue
             }
             # Zone instable : la piste ne se relit pas pareil d un tour a l autre, elle n est pas propre (protection ou
             # defaut du support, l application ne peut pas trancher sur une disquette inconnue) : au moins A SURVEILLER
@@ -6893,7 +6986,7 @@ function Invoke-AlignAnalysis {
             $last[$key] = @{ Score = $sc; Jitter = $m.J; Asym = $m.Asym; Err = $m.Ooc; Stab = $m.Stab; Cell = $m.Cell }
             $hl = $m.Level
             if ($m.Weak) { $weakL += $lab }
-            if ($hl -eq 1) { $watch += $lab } elseif ($hl -eq 2) { $crit += ((T "{0} ({1} err/tour)") -f "$lab", "$([math]::Round($m.Ooc,0))") }
+            if ($hl -eq 1) { $watch += $lab } elseif ($hl -eq 2) { $crit += ((T "{0} ({1} err/tour)") -f "$lab", "$([math]::Round($m.Ooc,0))"); $critK += $lab }
 
             $delta = '-'; $deltaLvl = -1
             if ($script:AlignRef -and $script:AlignRef.ContainsKey($key) -and $script:AlignRef[$key].Score -gt 0) {
@@ -6906,18 +6999,16 @@ function Invoke-AlignAnalysis {
         $script:AlignLast = $last
         $nTracks = $tracks.Count
 
-        # --- Verdict 1 : etat du support
+        # --- Verdict 1 : etat du support (12.8, lot 3b : carte de resultat ; texte complet dans l infobulle et le journal)
+        $res.NTracks = $nTracks; $res.WatchKeys = @($watch); $res.CritKeys = @($critK); $res.Bad = $nBad
         if ($crit.Count -gt 0) {
-            $lblAlHealth.Text = ((T "SUPPORT CRITIQUE  -  {0} piste(s) en erreur : {1}   ->  dump flux immédiat conseillé") -f "$($crit.Count)", "$($crit -join ', ')")
-            $lblAlHealth.BackColor = $script:AlColors[3]; $lblAlHealth.ForeColor = $script:AlFg[3]
+            $res.Health = 2; $res.HealthText = ((T "SUPPORT CRITIQUE  -  {0} piste(s) en erreur : {1}   ->  dump flux immédiat conseillé") -f "$($crit.Count)", "$($crit -join ', ')")
         } elseif ($watch.Count -gt 0) {
-            $lblAlHealth.Text = ((T "SUPPORT À SURVEILLER  -  {0}/{1} piste(s) marginale(s) : {2}   ->  dump flux recommandé") -f "$($watch.Count)", "$nTracks", "$($watch -join ', ')")
-            $lblAlHealth.BackColor = $script:AlColors[2]; $lblAlHealth.ForeColor = $script:AlFg[2]
+            $res.Health = 1; $res.HealthText = ((T "SUPPORT À SURVEILLER  -  {0}/{1} piste(s) marginale(s) : {2}   ->  dump flux recommandé") -f "$($watch.Count)", "$nTracks", "$($watch -join ', ')")
         } else {
-            $lblAlHealth.Text = ((T "SUPPORT SAIN  -  {0}/{1} pistes propres (erreurs, trous, stabilité, jitter dans les normes)") -f "$nTracks", "$nTracks")
-            $lblAlHealth.BackColor = $script:AlColors[0]; $lblAlHealth.ForeColor = $script:AlFg[0]
+            $res.Health = 0; $res.HealthText = ((T "SUPPORT SAIN  -  {0}/{1} pistes propres (erreurs, trous, stabilité, jitter dans les normes)") -f "$nTracks", "$nTracks")
         }
-        Append-Log ((T "Mesure : {0}") -f "$($lblAlHealth.Text)")
+        Append-Log ((T "Mesure : {0}") -f "$($res.HealthText)")
         if ($weakL.Count -gt 0) { Append-Log ((T "Mesure : zone instable d'un tour à l'autre sur {0} piste(s) : {1}. Bits faibles d'une protection contre la copie probable, ou défaut localisé du support : une copie faite depuis un flux n'en écrit qu'un tour et ne les reproduit pas fidèlement.") -f "$($weakL.Count)", "$($weakL -join ', ')") }
         $clu = @(Get-UnstableClusters $weakL)
         if ($clu.Count -gt 0) { Append-Log ((T "Mesure : pistes instables sur des cylindres voisins d'une même face ({0}) : défaut du support probable (rayure, usure) plutôt qu'une protection.") -f "$($clu -join ', ')") }
@@ -6930,26 +7021,642 @@ function Invoke-AlignAnalysis {
             if ($null -ne $script:AlignPrev) {
                 if ($avg -lt $script:AlignPrev - 2) { $trend = (T '   MIEUX (v)') } elseif ($avg -gt $script:AlignPrev + 2) { $trend = (T '   MOINS BIEN (^)') } else { $trend = (T '   stable') }
             }
+            $res.Prev = $script:AlignPrev
             $script:AlignPrev = $avg
             $lvlAvg = Get-AlLevel 'score' $avg
             $refTxt = ''
             if ($script:AlignRef) {
                 $refScores = @($script:AlignRef.Values | ForEach-Object { $_.Score } | Where-Object { $_ -lt 9999 })
-                if ($refScores.Count -gt 0) { $refAvg = [math]::Round(($refScores | Measure-Object -Average).Average, 0); $refTxt = ((T "   |   référence {0}") -f "$refAvg") }
+                if ($refScores.Count -gt 0) { $refAvg = [math]::Round(($refScores | Measure-Object -Average).Average, 0); $refTxt = ((T "   |   référence {0}") -f "$refAvg"); $res.RefAvg = $refAvg }
             }
-            $lblAlVerdict.Text = ((T "Qualité de lecture : score {0} - {1}{2}{3}   |   meilleur {4}") -f "$avg", "$($script:AlNames[$lvlAvg])", "$trend", "$refTxt", "$($script:AlignBest['_global'])")
-            $lblAlVerdict.BackColor = $script:AlColors[$lvlAvg]; $lblAlVerdict.ForeColor = $script:AlFg[$lvlAvg]
+            $res.Score = $avg; $res.Lvl = $lvlAvg; $res.Count = $count; $res.Best = $script:AlignBest['_global']
+            $res.ScoreText = ((T "Qualité de lecture : score {0} - {1}{2}{3}   |   meilleur {4}") -f "$avg", "$($script:AlNames[$lvlAvg])", "$trend", "$refTxt", "$($script:AlignBest['_global'])")
             Append-Log ((T "Mesure : score moyen {0} ({1}){2}") -f "$avg", "$($script:AlNames[$lvlAvg])", "$trend")
             Update-AlignGuide $avg
             $bn = if ($weakL.Count -gt 0) { ((T "Zone instable d'un tour à l'autre (protection contre la copie ou défaut du support) : {0}") -f "$($weakL -join ', ')") + $(if ($clu.Count -gt 0) { (T " ; cylindres voisins {0} : défaut du support probable") -f "$($clu -join ', ')" } else { '' }) } else { '' }
             Set-UnstableBanner @($bn)
         } else {
-            $lblAlVerdict.Text = (T 'Aucune piste analysable'); $lblAlVerdict.BackColor = $script:AlColors[3]; $lblAlVerdict.ForeColor = $script:AlFg[3]
+            $res.ScoreText = (T 'Aucune piste analysable')
+            Set-UnstableBanner @('')                      # 12.8 (FIX3) : bandeau d une mesure precedente retire
         }
     } finally { $lvAl.EndUpdate() }
     Render-AlignBars
+    Set-QualityResult $res                                # 12.8 (lot 3a) : carte, tableau et barres en couleurs
 
     if ($script:AlignLoop) { $script:AlignNextAt = (Get-Date).AddSeconds([int]$numAlPause.Value) }
+}
+# ============================== FONCTIONS : QUALITE, AFFICHAGE (12.8, LOT 3) ===
+# Etat unique de l affichage de l onglet Qualite & alignement ($script:QualView, A2 § 2.2) : vide, en cours, resultat,
+# perime ; jamais efface pendant une mesure, mais grise et marque (D16). Carte de resultat de la variante A (D14), dessinee
+# dans un bitmap (fond de pnlQualCard) : pas de grisage des libelles quand Set-Busy desactive les onglets, pas de
+# clignotement en mesure continue. Pictogrammes de score (barres de signal) et d etat (coche, !, croix) en GDI+ (D15),
+# couleurs Theme.Ok / Good / WarnInk / Danger (D17). Ressources GDI+ (pinceaux, stylos, polices, formats, icones) en cache
+# dans $script:QualGdi, liberees a la fermeture de la fenetre (Clear-QualityGdi).
+
+# --- Ressources GDI+ en cache -----------------------------------------------------------------------------------------
+function Get-QualBrush([System.Drawing.Color]$c) {
+    $k = 'b' + $c.ToArgb()
+    $o = $script:QualGdi[$k]
+    if (-not $o) { $o = New-Object System.Drawing.SolidBrush($c); $script:QualGdi[$k] = $o }
+    return $o
+}
+
+function Get-QualPen([System.Drawing.Color]$c, [single]$w = 1) {
+    $k = 'p' + $c.ToArgb() + '|' + $w
+    $o = $script:QualGdi[$k]
+    if (-not $o) { $o = New-Object System.Drawing.Pen($c, $w); $script:QualGdi[$k] = $o }
+    return $o
+}
+
+function Get-QualFont([string]$fam, [single]$size, [string]$style = 'Regular') {
+    $k = "f$fam|$size|$style"
+    $o = $script:QualGdi[$k]
+    if (-not $o) { $o = New-Object System.Drawing.Font($fam, $size, [System.Drawing.FontStyle]$style); $script:QualGdi[$k] = $o }
+    return $o
+}
+
+function Get-QualSf([string]$kind) {
+    # Formats du tableau : 'near' / 'center' (cellules : une ligne, points de suspension), 'hnear' / 'hcenter' (en-tetes)
+    $k = "s$kind"
+    $o = $script:QualGdi[$k]
+    if (-not $o) {
+        $o = New-Object System.Drawing.StringFormat
+        $o.LineAlignment = [System.Drawing.StringAlignment]::Center
+        $o.Alignment = $(if ($kind -match 'near$') { [System.Drawing.StringAlignment]::Near } else { [System.Drawing.StringAlignment]::Center })
+        if ($kind -notmatch '^h') { $o.FormatFlags = [System.Drawing.StringFormatFlags]::NoWrap; $o.Trimming = [System.Drawing.StringTrimming]::EllipsisCharacter }
+        $script:QualGdi[$k] = $o
+    }
+    return $o
+}
+
+function Clear-QualityGdi {
+    # Fermeture de la fenetre : pinceaux, stylos, polices, formats et icones du cache, bitmap de la carte
+    foreach ($o in @($script:QualGdi.Values)) { try { $o.Dispose() } catch { } }
+    $script:QualGdi.Clear()
+    if ($pnlQualCard -and $pnlQualCard.BackgroundImage) { $b = $pnlQualCard.BackgroundImage; $pnlQualCard.BackgroundImage = $null; $b.Dispose() }
+}
+
+# --- Couleurs et noms des niveaux -------------------------------------------------------------------------------------
+function Get-QualLevelColor([int]$lvl) {
+    # Couleur d un niveau de score (barres, bord de la carte) : EXCELLENT Ok, BON Good, MOYEN WarnInk, MAUVAIS Danger (D17)
+    switch ($lvl) { 0 { return $script:Theme.Ok } 1 { return $script:Theme.Good } 2 { return $script:Theme.WarnInk } default { return $script:Theme.Danger } }
+}
+
+function Get-QualInk([int]$lvl) {
+    # Encre du texte d un niveau sur fond blanc ou teinte (contraste >= 4,5:1, WCAG 2.1 SC 1.4.3) : vert 20,90,45 (8,3:1),
+    # vert-jaune 62,96,26 (7,3:1), Theme.WarnInk (5,3:1), rouge 140,30,25 (9,1:1)
+    switch ($lvl) {
+        0 { return [System.Drawing.Color]::FromArgb(20, 90, 45) }
+        1 { return [System.Drawing.Color]::FromArgb(62, 96, 26) }
+        2 { return $script:Theme.WarnInk }
+        default { return [System.Drawing.Color]::FromArgb(140, 30, 25) }
+    }
+}
+
+function Get-QualDimInk {
+    # 12.8 (FIX3) : encre grise du texte secondaire pose sur une teinte (carte en cours ou perimee, tableau grise, lignes
+    # paires 243,246,250) : 100,106,118, contraste >= 4,5:1 (4,78:1 sur la teinte « cur », 4,98:1 sur « skip », 5,01:1 sur
+    # les lignes paires) ; Theme.Muted n y fait que 4,13:1 a 4,33:1 (il reste sur fond blanc : 4,69:1)
+    return [System.Drawing.Color]::FromArgb(100, 106, 118)
+}
+
+function Get-AlName([int]$lvl) {
+    # Nom d un niveau de score dans la langue courante (la table $script:AlNames est fixee au demarrage)
+    switch ($lvl) { 0 { return 'EXCELLENT' } 1 { return (T 'BON') } 2 { return (T 'MOYEN') } default { return (T 'MAUVAIS') } }
+}
+
+# --- Pictogrammes -----------------------------------------------------------------------------------------------------
+function Draw-QualityState($g, [string]$kind, [single]$ring) {
+    # Etat sur la grille de 64 : h0 cercle Ok et coche, h1 triangle WarnInk et « ! », h2 cercle Danger et croix, h2a anneau
+    # et croix Danger (piste absente), hq cercle Muted et « ? », pend anneau Muted (etape en attente), skip anneau Muted et
+    # tiret (etape sans objet). Liseré blanc de $ring unites : lisible sur les cases colorees du tableau.
+    $th = $script:Theme; $wh = [System.Drawing.Color]::White
+    if ($kind -eq 'h1') {
+        $p = New-Object System.Drawing.Drawing2D.GraphicsPath
+        $p.AddPolygon([System.Drawing.PointF[]]@((New-Object System.Drawing.PointF(32, 7)), (New-Object System.Drawing.PointF(59, 56)), (New-Object System.Drawing.PointF(5, 56))))
+        $pr = New-Object System.Drawing.Pen($wh, [single](8 + 2 * $ring)); $pr.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
+        $g.DrawPath($pr, $p); $pr.Dispose()
+        $pc = New-Object System.Drawing.Pen($th.WarnInk, [single]8); $pc.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
+        $g.DrawPath($pc, $p); $pc.Dispose()
+        $g.FillPath((Get-QualBrush $th.WarnInk), $p); $p.Dispose()
+        $rr = New-RoundRect 28.5 20 7 22 3.5; $g.FillPath((Get-QualBrush $wh), $rr); $rr.Dispose()
+        $g.FillEllipse((Get-QualBrush $wh), [single]28.25, [single]45, [single]7.5, [single]7.5)
+        return
+    }
+    $c = switch ($kind) { 'h0' { $th.Ok } 'hq' { $th.Muted } 'pend' { $th.Muted } 'skip' { $th.Muted } default { $th.Danger } }
+    $g.FillEllipse((Get-QualBrush $wh), [single](4 - $ring), [single](4 - $ring), [single](56 + 2 * $ring), [single](56 + 2 * $ring))
+    if (@('h2a', 'pend', 'skip') -contains $kind) {
+        $pen = New-Object System.Drawing.Pen($c, [single]6)
+        $g.DrawEllipse($pen, [single]7, [single]7, [single]50, [single]50); $pen.Dispose()
+    } else { $g.FillEllipse((Get-QualBrush $c), [single]4, [single]4, [single]56, [single]56) }
+    $sc = if (@('h2a') -contains $kind) { $c } else { $wh }
+    $pen = New-Object System.Drawing.Pen($sc, [single]7)
+    $pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round; $pen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round; $pen.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
+    switch ($kind) {
+        'h0' { $g.DrawLines($pen, [System.Drawing.PointF[]]@((New-Object System.Drawing.PointF(18, 33)), (New-Object System.Drawing.PointF(28, 43)), (New-Object System.Drawing.PointF(46, 23)))) }
+        'skip' { $pen.Color = $c; $g.DrawLine($pen, [single]21, [single]32, [single]43, [single]32) }
+        'hq' {
+            $f = New-Object System.Drawing.Font('Segoe UI Semibold', [single]40, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
+            $sf = New-Object System.Drawing.StringFormat; $sf.Alignment = [System.Drawing.StringAlignment]::Center; $sf.LineAlignment = [System.Drawing.StringAlignment]::Center
+            $g.DrawString('?', $f, (Get-QualBrush $wh), (New-Object System.Drawing.RectangleF(4, 6, 56, 56)), $sf)
+            $f.Dispose(); $sf.Dispose()
+        }
+        'pend' { }
+        default { $g.DrawLine($pen, [single]22, [single]22, [single]42, [single]42); $g.DrawLine($pen, [single]42, [single]22, [single]22, [single]42) }
+    }
+    $pen.Dispose()
+}
+
+function Draw-QualityBars16($g, [int]$filled, [System.Drawing.Color]$fill) {
+    # Score a 16 px (A2 § 3.1) : 4 barres alignees sur les pixels, x = 0, 4, 8, 12, largeur 3, hauteurs 4, 7, 10, 13, base
+    # a la ligne 14, $filled pleines dans $fill, les autres 205,212,224 ; anticrenelage coupe (bords nets). 12.8 (FIX3) :
+    # liseré blanc de 1 px autour de chaque barre, a la place de la pastille blanche qui reduisait les barres a 2 px de
+    # large et 9 px de haut : lisible sur les cases colorees du tableau (barre pleine de la couleur de la case)
+    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::None
+    $wh = Get-QualBrush ([System.Drawing.Color]::White)
+    $empty = [System.Drawing.Color]::FromArgb(205, 212, 224)
+    for ($i = 0; $i -lt 4; $i++) { $hh = 4 + 3 * $i; $g.FillRectangle($wh, [int](4 * $i - 1), [int](14 - $hh), 5, [int]($hh + 2)) }
+    for ($i = 0; $i -lt 4; $i++) {
+        $hh = 4 + 3 * $i
+        $g.FillRectangle((Get-QualBrush $(if ($i -lt $filled) { $fill } else { $empty })), [int](4 * $i), [int](15 - $hh), 3, [int]$hh)
+    }
+}
+
+function Draw-QualityBars48($g, [int]$filled, [System.Drawing.Color]$fill, [bool]$outline) {
+    # Score sur la grille de 64 : pastille blanche en bas a droite (24,22 ; 40 x 40), 4 barres de 6 unites (hauteurs 8 a 29),
+    # $filled pleines dans $fill ; $outline : barres en contour de $fill (mesure en cours)
+    $rr = New-RoundRect 24 22 40 40 6
+    $g.FillPath((Get-QualBrush ([System.Drawing.Color]::White)), $rr)
+    $g.DrawPath((Get-QualPen ([System.Drawing.Color]::FromArgb(205, 212, 224)) 2), $rr); $rr.Dispose()
+    $empty = [System.Drawing.Color]::FromArgb(215, 220, 229)
+    for ($i = 0; $i -lt 4; $i++) {
+        $hh = 8 + 7 * $i; $x = 27.5 + 9 * $i
+        if ($outline) { $g.DrawRectangle((Get-QualPen $fill 2), [single]$x, [single](56 - $hh), [single]6, [single]$hh) }
+        else { $g.FillRectangle((Get-QualBrush $(if ($i -lt $filled) { $fill } else { $empty })), [single]$x, [single](56 - $hh), [single]6, [single]$hh) }
+    }
+}
+
+function New-QualityPicto([string]$kind, [int]$size, [string]$badge = '') {
+    # Pictogramme de qualite (A2 § 3.1, D15) en GDI+, comme New-CleanPicto (aucune image externe, aucun Add-Type) :
+    #  q0..q3 : score EXCELLENT, BON, MOYEN, MAUVAIS, barres de signal (4 a 1 pleine(s)) dans la couleur du niveau ;
+    #  s0..s3 : resultat precedent ou perime (barres du niveau en gris) ; none : aucune mesure (barres vides) ;
+    #  run : mesure en cours (horloge) ; bad : aucune piste lisible ; h0, h1, h2, h2a, hq, pend, skip : etats (Draw-QualityState).
+    # 16 px : jeu de pixels propre (barres sans anticrenelage) ; 48 px : disquette du logo, pastille de barres, horloge ou
+    # badge d etat $badge (h1, h2) en haut a droite ; autres tailles (20 px) : etats a l echelle de la grille de 64.
+    $bmp = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    try {
+        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+        $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+        $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+        $th = $script:Theme
+        $lvl = if ($kind -match '^[qs]([0-3])$') { [int]$Matches[1] } else { -1 }
+        if ($size -le 16) {
+            if ($kind -match '^q[0-3]$') { Draw-QualityBars16 $g (4 - $lvl) (Get-QualLevelColor $lvl) }
+            elseif ($kind -match '^s[0-3]$') { Draw-QualityBars16 $g (4 - $lvl) ([System.Drawing.Color]::FromArgb(150, 156, 168)) }
+            elseif ($kind -eq 'none') { Draw-QualityBars16 $g 0 $th.Muted }
+            elseif ($kind -eq 'run') {
+                $pen = Get-QualPen $th.Accent 1.6
+                $g.FillEllipse((Get-QualBrush ([System.Drawing.Color]::White)), [single]1.5, [single]1.5, [single]13, [single]13)
+                $g.DrawEllipse($pen, [single]1.5, [single]1.5, [single]13, [single]13)
+                $g.DrawLine($pen, [single]8, [single]8, [single]8, [single]4.2); $g.DrawLine($pen, [single]8, [single]8, [single]10.8, [single]8)
+            } else {
+                $g.ScaleTransform([single]($size / 64.0), [single]($size / 64.0))
+                Draw-QualityState $g $(if ($kind -eq 'bad') { 'h2' } else { $kind }) ([single](64.0 / $size))
+            }
+            return $bmp
+        }
+        $g.ScaleTransform([single]($size / 64.0), [single]($size / 64.0))
+        if ($size -lt 40 -or $kind -match '^h|^pend$|^skip$') { Draw-QualityState $g $kind ([single](64.0 / $size)); return $bmp }
+        # 48 px : disquette « donnees » du logo (grisee hors resultat), pastille de barres, horloge ou badge d etat
+        Draw-PictoFloppy $g 0 1 42 $false
+        if ($kind -match '^s[0-3]$|^none$') { $g.FillRectangle((Get-QualBrush ([System.Drawing.Color]::FromArgb(160, 255, 255, 255))), [single]0, [single]0, [single]44, [single]46) }
+        switch -regex ($kind) {
+            '^q[0-3]$' { Draw-QualityBars48 $g (4 - $lvl) (Get-QualLevelColor $lvl) $false }
+            '^s[0-3]$' { Draw-QualityBars48 $g (4 - $lvl) ([System.Drawing.Color]::FromArgb(160, 166, 178)) $false; Draw-PictoClock $g 52 12 10 $th.Muted }
+            '^none$' { Draw-QualityBars48 $g 0 $th.Muted $false }
+            '^run$' { Draw-QualityBars48 $g 0 $th.Accent $true; Draw-PictoClock $g 52 12 10 $th.Accent }
+            '^bad$' {
+                $rr = New-RoundRect 24 22 40 40 6; $g.FillPath((Get-QualBrush $th.Danger), $rr); $rr.Dispose()
+                $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::White, [single]6)
+                $pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round; $pen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+                $g.DrawLine($pen, [single]35, [single]33, [single]53, [single]51); $g.DrawLine($pen, [single]53, [single]33, [single]35, [single]51); $pen.Dispose()
+            }
+        }
+        if ($badge -and $kind -match '^q') {
+            $st = $g.Save()
+            $g.TranslateTransform([single]40, [single]0); $g.ScaleTransform([single](24 / 64.0), [single](24 / 64.0))
+            Draw-QualityState $g $badge ([single]8)
+            $g.Restore($st)
+        }
+        return $bmp
+    } finally { $g.Dispose() }
+}
+
+function New-QualityGreyBitmap($src) {
+    # Copie grisee et attenuee d un pictogramme (tableau et carte hors resultat : D16, griser et marquer)
+    $bmp = New-Object System.Drawing.Bitmap($src.Width, $src.Height, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $cm = New-Object System.Drawing.Imaging.ColorMatrix
+    $cm.Matrix00 = [single]0.3; $cm.Matrix01 = [single]0.3; $cm.Matrix02 = [single]0.3
+    $cm.Matrix10 = [single]0.59; $cm.Matrix11 = [single]0.59; $cm.Matrix12 = [single]0.59
+    $cm.Matrix20 = [single]0.11; $cm.Matrix21 = [single]0.11; $cm.Matrix22 = [single]0.11
+    $cm.Matrix33 = [single]0.55
+    $ia = New-Object System.Drawing.Imaging.ImageAttributes
+    $ia.SetColorMatrix($cm)
+    $g.DrawImage($src, (New-Object System.Drawing.Rectangle(0, 0, $src.Width, $src.Height)), 0, 0, $src.Width, $src.Height, [System.Drawing.GraphicsUnit]::Pixel, $ia)
+    $ia.Dispose(); $g.Dispose()
+    return $bmp
+}
+
+function Get-QualityIcon([string]$kind, [int]$size, [string]$badge = '', [switch]$Grey) {
+    # Pictogramme en cache (cree une fois, libere par Clear-QualityGdi)
+    $k = "i$kind|$size|$badge|$([bool]$Grey)"
+    $o = $script:QualGdi[$k]
+    if ($o) { return $o }
+    if ($Grey) { $o = New-QualityGreyBitmap (Get-QualityIcon $kind $size $badge) } else { $o = New-QualityPicto $kind $size $badge }
+    $script:QualGdi[$k] = $o
+    return $o
+}
+
+# --- Etat de l affichage ($script:QualView) ---------------------------------------------------------------------------
+# State : empty | run | result | stale ; Kind : measure (mesure, continue ou non) ou check (controle apres ecriture) ;
+# Has : un resultat existe (Res) ; Reason : code de la raison (stop, error, gwerror, noscp, thresholds, written,
+# checkabort) ; Pass : passe de la mesure continue ; Drive, Heads, Revs, NCyl : mesure en cours ; RunText : etape du
+# controle en cours ; Res : dernier resultat (Kind, At, Score, Lvl, Count, Bad, Health, HealthText, ScoreText...).
+
+function Set-QualityPending([string]$kind, $ctx = $null) {
+    # Debut d une mesure ou d un controle apres ecriture : resultat precedent grise, marque « en cours », jamais efface
+    $v = $script:QualView
+    $v.State = 'run'; $v.Kind = $kind; $v.Reason = ''; $v.RunText = ''
+    if ($kind -eq 'measure') {
+        $v.Pass = $(if ($script:AlignLoop) { [int]$v.Pass + 1 } else { 0 })
+        if ($ctx) { $v.Drive = [string]$ctx.Drive; $v.Heads = [string]$ctx.Heads; $v.Revs = [int]$ctx.Revs; $v.NCyl = [int]$ctx.NCyl }
+    } else { $v.Pass = 0; $v.RunText = (T "Contrôle après écriture : en attente de la fin de l'écriture") }
+    Update-QualityView
+}
+
+function Set-QualityRunText([string]$text) {
+    # Etape du controle apres ecriture en cours (relecture, reecriture, remesure), sur la carte
+    $v = $script:QualView
+    if ($v.State -ne 'run' -or $v.Kind -ne 'check' -or -not $text -or $v.RunText -eq $text) { return }
+    $v.RunText = $text
+    Update-QualityView
+}
+
+function Set-QualityResult($res) {
+    # Fin d une mesure (Invoke-AlignAnalysis) ou d un controle (Show-WriteCheckTable) : nouveau resultat affiche
+    $v = $script:QualView
+    if (-not $res.Kind) { $res.Kind = 'measure' }
+    $res.At = Get-Date
+    if ($res.Kind -eq 'measure' -and $v.State -eq 'run' -and $v.Kind -eq 'measure' -and $v.Drive) { $res.Ctx = @{ Drive = $v.Drive; Heads = $v.Heads; Revs = $v.Revs } }
+    $v.Res = $res; $v.State = 'result'; $v.Has = $true; $v.At = $res.At; $v.Reason = ''; $v.Kind = $res.Kind; $v.RunText = ''
+    Update-QualityView
+}
+
+function Set-QualityStale([string]$reason) {
+    # Resultat affiche qui ne correspond plus a la disquette ou aux reglages (arret, erreur, seuils, ecriture) : grise et
+    # marque « perime », avec la raison ; sans resultat, la carte reste vide avec la raison d un echec
+    $v = $script:QualView
+    if ($v.State -eq 'empty') { return }
+    $v.Reason = $reason; $v.RunText = ''
+    $v.State = $(if ($v.Has) { 'stale' } else { 'empty' })
+    Update-QualityView
+}
+
+function Reset-QualityView {
+    # Bouton Reinitialiser de l onglet : plus aucun resultat
+    $v = $script:QualView
+    $v.State = 'empty'; $v.Kind = ''; $v.Reason = ''; $v.At = $null; $v.Has = $false; $v.Pass = 0; $v.Res = $null; $v.RunText = ''
+    Update-QualityView
+}
+
+function Set-QualityCheckState([int]$lvl, [string]$text, [string]$short, [int]$nWeak) {
+    # Verdict du controle apres ecriture (Complete-WriteCheck, niveau 0, 2 ou 3) sur le resultat du controle
+    $r = $script:QualView.Res
+    if (-not $r -or $r.Kind -ne 'check') { return }
+    $r.CheckLvl = $lvl; $r.Health = $(if ($lvl -le 0) { 0 } elseif ($lvl -le 2) { 1 } else { 2 }); $r.HealthText = $text; $r.HealthSub = $short; $r.Weak = $nWeak
+    Update-QualityView
+}
+
+function Get-QualStaleText([string]$reason, [string]$at) {
+    # Texte de la raison d un resultat perime ($at : heure du resultat) ou d une carte vide apres un echec
+    switch ($reason) {
+        'gwerror'    { return (T 'Mesure interrompue (erreur gw)') }
+        'noscp'      { return (T 'Mesure impossible : fichier de lecture absent ou illisible') }
+        'thresholds' { return (T 'Seuils de jitter modifiés : relancez la mesure') }
+        'written'    { return (T 'Disquette écrite depuis la mesure') }
+        'checkabort' { return (T 'Contrôle après écriture interrompu.') }
+        default      { if ($at) { return ((T 'Mesure interrompue : résultat de {0}') -f $at) } else { return '' } }
+    }
+}
+
+function Get-QualStateTitle($r) {
+    if ([int]$r.Health -lt 0) { return '' }
+    if ($r.Kind -eq 'check') {
+        if ([int]$r.CheckLvl -le 0) { return (T 'COPIE SAINE') }
+        if ([int]$r.Weak -gt 0) { return ((T '{0} PISTE(S) FAIBLE(S)') -f "$($r.Weak)") }
+        return (T 'Aucune piste analysable')
+    }
+    switch ([int]$r.Health) { 0 { return (T 'SUPPORT SAIN') } 1 { return (T 'SUPPORT À SURVEILLER') } default { return (T 'SUPPORT CRITIQUE') } }
+}
+
+function Get-QualityCardModel($v) {
+    # Contenu de la carte (textes, couleurs, pictogrammes) pour l etat $v : fonction sans interface (niveau 2 du banc)
+    $th = $script:Theme; $wh = [System.Drawing.Color]::White
+    $edge = [System.Drawing.Color]::FromArgb(205, 212, 224)
+    $m = @{ Back = $wh; Bar = $edge; Icon = 'none'; Badge = ''; GreyIcon = $false; Score = [string][char]0x2013; ScoreInk = $th.Muted
+            Caption = (T 'score · plus bas = mieux'); CaptionInk = $th.Muted; Level = ''; LevelInk = $th.Muted; Line2 = ''; Line2Short = ''; Line2More = @()
+            Line2Ink = $th.Muted; StateIcon = ''; State = ''; StateInk = $th.Muted; Sub = ''; SubShort = ''; SubInk = $th.Muted; Chip = ''; ChipBack = $th.Muted
+            Tip = ''; Access = '' }
+    $r = $v.Res
+    $at = if ($r -and $r.At -is [datetime]) { $r.At.ToString('HH:mm') } else { '' }
+    # 12.8 (FIX3) : etape d un controle apres ecriture en cours, forme courte sans le prefixe « Controle apres ecriture : »
+    # (la pastille « CONTROLE EN COURS » le dit) ; infobulle : resultat precedent remplace a la fin du controle ; ligne 2
+    # complete d un resultat avec des pistes illisibles (D15), quand la carte n en montre qu une forme courte
+    $runShort = [string]$v.RunText -replace '^[^:]*:\s*', ''
+    if ($runShort) { $runShort = $runShort.Substring(0, 1).ToUpper() + $runShort.Substring(1) }
+    $prevTip = ''; $fullL2 = ''
+    $chipRun = if ($v.Kind -eq 'check') { (T 'CONTRÔLE EN COURS') } elseif ($script:AlignLoop -and [int]$v.Pass -gt 0) { (T 'MESURE CONTINUE · PASSE {0}') -f "$($v.Pass)" } else { (T 'MESURE EN COURS') }
+    $show = $null                       # resultat a afficher : $true en couleurs, $false grise
+    switch ($v.State) {
+        'run' {
+            $m.Chip = $chipRun; $m.ChipBack = $th.Accent; $m.Bar = $th.Accent
+            if ($v.Has -and $r) { $show = $false }
+            else {
+                $m.Back = [System.Drawing.Color]::FromArgb(234, 241, 251); $m.Icon = 'run'; $m.Score = [string][char]0x2026; $m.ScoreInk = $th.Accent
+                $m.LevelInk = $th.Accent2; $m.Line2Ink = $th.Accent
+                if ($v.Kind -eq 'check') { $m.Level = (T 'Contrôle après écriture en cours'); $m.Line2 = $v.RunText; $m.Line2Short = $runShort }
+                else {
+                    $m.Level = (T 'Mesure en cours')
+                    $m.Line2 = (T 'Lecture de {0} cylindre(s), tête(s) {1}, {2} tour(s) (lecteur {3})') -f "$($v.NCyl)", "$($v.Heads)", "$($v.Revs)", "$($v.Drive)"
+                }
+            }
+        }
+        'stale' {
+            $show = $false
+            $m.Back = [System.Drawing.Color]::FromArgb(244, 245, 247); $m.Chip = (T 'PÉRIMÉ'); $m.ChipBack = $th.Muted; $m.Bar = $th.Muted
+        }
+        'result' { if ($r) { $show = $true } }
+        default {
+            $m.Level = (T 'Aucune mesure')
+            $m.Line2 = Get-QualStaleText $v.Reason ''
+            if (-not $m.Line2 -or @('stop', 'error', 'thresholds', 'written') -contains $v.Reason) { $m.Line2 = (T 'Insérez une disquette, puis cliquez sur « MESURER LA DISQUETTE ».') }
+            $m.State = (T 'État du support : après la mesure')
+        }
+    }
+    if ($null -ne $show -and $r) {
+        $count = [int]$r.Count; $bad = [int]$r.Bad; $lvl = [int]$r.Lvl; $hl = [int]$r.Health
+        $m.State = Get-QualStateTitle $r
+        $m.StateIcon = $(if ($hl -ge 0) { "h$hl" } else { '' })
+        if ($r.Kind -eq 'check') { $m.Sub = [string]$r.HealthSub; $m.SubShort = $m.Sub }
+        else {
+            $keys = if ($hl -eq 2) { @($r.CritKeys) } elseif ($hl -eq 1) { @($r.WatchKeys) } else { @() }
+            $part = switch ($hl) {
+                0 { (T '{0}/{1} pistes propres') -f "$($r.NTracks)", "$($r.NTracks)" }
+                1 { (T '{0}/{1} piste(s) marginale(s) : {2}') -f "$($keys.Count)", "$($r.NTracks)", "$($keys -join ', ')" }
+                default { (T '{0} piste(s) en erreur : {1}') -f "$($keys.Count)", "$($keys -join ', ')" }
+            }
+            $m.SubShort = $part + ' · ' + $at
+            $m.Sub = if ($r.Ctx) { $part + ' · ' + ((T 'lecteur {0}, têtes {1}, {2} tours · {3}') -f "$($r.Ctx.Drive)", "$($r.Ctx.Heads)", "$($r.Ctx.Revs)", $at) } else { $m.SubShort }
+        }
+        if ($count -le 0) {
+            $m.Icon = 'bad'; $m.Level = (T 'Aucune piste analysable'); $m.Line2 = (T 'Vérifiez la disquette, le lecteur et le format')
+            $lvl = 3
+        } else {
+            $m.Score = "$($r.Score)"; $m.Level = Get-AlName $lvl
+            $m.Icon = "q$lvl"
+            if ($hl -ge 2 -or $bad -gt 0) { $m.Badge = 'h2' } elseif ($hl -eq 1) { $m.Badge = 'h1' }
+            if ($r.Kind -eq 'check') {
+                # 12.8 (FIX3) : formes courtes (ligne 2 de 272 a 283 px a la taille minimale de la fenetre) : sans le prefixe,
+                # puis le nombre de pistes illisibles non comptees seul (D15)
+                if ($bad -gt 0) {
+                    $m.Line2 = (T 'Contrôle après écriture : sur {0} piste(s) lisible(s), {1} illisible(s) non comptée(s)') -f "$count", "$bad"
+                    $m.Line2Short = (T 'sur {0} piste(s) lisible(s), {1} illisible(s) non comptée(s)') -f "$count", "$bad"
+                    $m.Line2More = @((T '{0} piste(s) illisible(s) non comptée(s)') -f "$bad")
+                } else { $m.Line2 = (T 'Contrôle après écriture : sur {0} piste(s) lisible(s)') -f "$count"; $m.Line2Short = $m.Line2 }
+            } else {
+                $p1 = @(); $p2 = @()
+                if ($null -ne $r.Prev) {
+                    if ([double]$r.Score -lt [double]$r.Prev - 2) { $p1 += ((T 'Mieux que la mesure précédente ({0})') -f "$($r.Prev)") }
+                    elseif ([double]$r.Score -gt [double]$r.Prev + 2) { $p1 += ((T 'Moins bien que la mesure précédente ({0})') -f "$($r.Prev)") }
+                    else { $p1 += (T 'Stable') }
+                }
+                $p2 += $(if ($null -ne $r.RefAvg) { (T 'meilleur {0} · réf. {1}') -f "$($r.Best)", "$($r.RefAvg)" } else { (T 'meilleur {0}') -f "$($r.Best)" })
+                $p3 = @(); if ($bad -gt 0) { $p3 += ((T 'sur {0} piste(s) lisible(s), {1} illisible(s) non comptée(s)') -f "$count", "$bad") }
+                $m.Line2 = @(@($p1) + @($p2) + @($p3)) -join ' · '
+                # 12.8 (FIX3) : formes courtes, la phrase des pistes illisibles d abord (D15) : sans « meilleur / réf. », puis
+                # cette phrase seule, puis le nombre de pistes illisibles non comptees seul
+                $m.Line2Short = @(@($p3) + @($p1)) -join ' · '
+                if ($bad -gt 0) { $m.Line2More = @($p3[0], ((T '{0} piste(s) illisible(s) non comptée(s)') -f "$bad")) }
+            }
+            if ($bad -gt 0) { $fullL2 = $m.Line2 }
+        }
+        if ($show) {
+            $m.Bar = $(if ($count -le 0) { $th.Danger } else { Get-QualLevelColor $lvl })
+            $m.ScoreInk = Get-QualInk $lvl; $m.LevelInk = Get-QualInk $lvl
+            $m.StateInk = Get-QualInk $(if ($hl -le 0) { 0 } elseif ($hl -eq 1) { 2 } else { 3 })
+        } else {
+            # Resultat precedent (mesure en cours) ou perime : memes textes en gris, pictogrammes gris ; ligne 2 : la raison
+            $m.GreyIcon = $true
+            $m.Icon = $(if ($count -le 0) { 'bad' } else { "s$lvl" }); $m.Badge = ''; $m.Line2More = @()
+            if ($v.State -eq 'stale') { $m.Line2 = Get-QualStaleText $v.Reason $at; $m.Line2Short = $m.Line2 }
+            elseif ($v.Kind -eq 'check' -and $v.RunText) {
+                # 12.8 (FIX3) : controle apres ecriture en cours : son etape (en attente de l ecriture, relecture, reecriture,
+                # remesure) en Accent, comme pour un premier controle ; le resultat precedent grise est explique dans l infobulle
+                $m.Line2 = [string]$v.RunText; $m.Line2Short = $runShort; $m.Line2Ink = $th.Accent
+                $prevTip = (T 'Résultat précédent ({0}), remplacé à la fin du contrôle') -f $at
+            } else {
+                $m.Line2 = (T 'Résultat précédent ({0}), remplacé à la fin de la mesure') -f $at
+                $m.Line2Short = (T 'Résultat précédent ({0}), remplacé à la fin') -f $at      # 12.8 (FIX3) : tient sur 272 px
+            }
+        }
+    }
+    if (-not $m.Line2Short) { $m.Line2Short = $m.Line2 }
+    if (-not $m.SubShort) { $m.SubShort = $m.Sub }
+    # 12.8 (FIX3) : texte gris pose sur une teinte (en cours, premiere mesure : « cur » 234,241,251 ; perime : « skip »
+    # 244,245,247) : gris plus fonce (Get-QualDimInk), pour un contraste >= 4,5:1 ; sur fond blanc, Theme.Muted (4,69:1)
+    if ($m.Back.ToArgb() -ne $wh.ToArgb()) {
+        $dim = Get-QualDimInk
+        foreach ($k in @('ScoreInk', 'CaptionInk', 'LevelInk', 'Line2Ink', 'StateInk', 'SubInk')) { if ($m[$k].ToArgb() -eq $th.Muted.ToArgb()) { $m[$k] = $dim } }
+    }
+    # Infobulle : etat d affichage, textes complets du resultat (listes de pistes), puis les deux definitions
+    $tips = @()
+    if ($m.Chip) { $tips += ($m.Chip + ' : ' + $m.Line2) } elseif ($v.State -eq 'empty' -and $m.Line2) { $tips += $m.Line2 }
+    if ($prevTip) { $tips += $prevTip }
+    if ($show -eq $true -and $fullL2) { $tips += $fullL2 }
+    if ($r -and $null -ne $show) { if ($r.HealthText) { $tips += [string]$r.HealthText }; if ($r.ScoreText) { $tips += [string]$r.ScoreText } }
+    $tips += ''
+    $tips += (T "État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter.`nIndépendant du contenu : comparable d'une disquette à l'autre.")
+    $tips += (T "Score de qualité de lecture (plus bas = mieux). Dépend du contenu : à comparer uniquement sur une même image`n(deux lecteurs, deux précompensations, deux réglages).")
+    $m.Tip = ($tips -join "`n").Trim()
+    $m.Access = @(@($m.Chip, "$($m.Score) $($m.Level)".Trim(), $m.State) | Where-Object { $_ -and $_ -ne [string][char]0x2013 }) -join ' ; '
+    return $m
+}
+
+# --- Rendu ------------------------------------------------------------------------------------------------------------
+function Update-QualityView {
+    # Rendu de $script:QualView : carte de resultat, infobulle, tableau et barres (grises hors resultat, D16)
+    $script:QualCard = Get-QualityCardModel $script:QualView
+    # 12.8 (FIX3) : bandeau orange des zones instables de la derniere mesure (Set-UnstableBanner) grise comme la carte tant
+    # que ce resultat n est pas le resultat courant (mesure en cours, perime) ; le guide d alignement, qui utilise la meme
+    # ligne, garde ses couleurs
+    if ($lblAlReco -and $script:UnstableBannerText -and $lblAlReco.Text -eq $script:UnstableBannerText) {
+        $lblAlReco.ForeColor = $(if ($script:QualView.State -eq 'result') { [System.Drawing.Color]::DarkOrange } else { $script:Theme.Muted })
+    }
+    if (-not $pnlQualCard) { return }
+    Render-QualityCard
+    $tip.SetToolTip($pnlQualCard, $script:QualCard.Tip)
+    $pnlQualCard.AccessibleName = $script:QualCard.Access
+    if ($lvAl) { $lvAl.Invalidate() }
+    if ($pnlAlBars) { $pnlAlBars.Invalidate() }
+}
+
+function Get-QualFitText([string]$long, [string]$short, $font, [int]$w, [string[]]$more = @()) {
+    # Texte long s il tient sur $w px, sinon sa forme courte (sans les details repris dans l infobulle) ; 12.8 (FIX3) : puis
+    # les formes plus courtes $more, dans l ordre ; aucune ne tient : la derniere (coupee par des points de suspension)
+    if (-not $long) { return $short }
+    $tf = [System.Windows.Forms.TextFormatFlags]::NoPrefix -bor [System.Windows.Forms.TextFormatFlags]::SingleLine
+    $sz = New-Object System.Drawing.Size(32000, 100)
+    $cands = @(@($long, $short) + @($more) | Where-Object { $_ })
+    foreach ($s in $cands) { if ([System.Windows.Forms.TextRenderer]::MeasureText($s, $font, $sz, $tf).Width -le $w) { return $s } }
+    return $cands[-1]
+}
+
+function Get-QualityCardLayout([int]$w, [int]$lx, [bool]$hasState, [bool]$hasSub = $true) {
+    # Zones de la carte de $w px de large (768 au minimum de la fenetre) : pictogramme et score a gauche, niveau et ligne 2
+    # a partir de $lx, separateur et zone d etat a droite ; sans etat a afficher (premiere mesure en cours), pas de
+    # separateur : la ligne 2 prend toute la largeur ; etat sans detail (carte vide) : separateur court, ligne 2 aussi
+    if (-not $hasState) { return @{ Lx = $lx; Sep = -1; SepBottom = 0; L2W = $w - $lx - 10; StX = $w; StW = 0 } }
+    $sep = [int]($lx + ($w - $lx) * 0.5)
+    if (-not $hasSub) { return @{ Lx = $lx; Sep = $sep; SepBottom = 28; L2W = $w - $lx - 10; StX = $sep + 12; StW = $w - $sep - 22 } }
+    return @{ Lx = $lx; Sep = $sep; SepBottom = 50; L2W = $sep - $lx - 10; StX = $sep + 12; StW = $w - $sep - 22 }
+}
+
+function Render-QualityCard {
+    # Carte (A2 § 3.2) dessinee dans un bitmap, fond de pnlQualCard : barre de couleur a gauche, pictogramme 48 px, score,
+    # legende, niveau, ligne 2, separateur, etat (pictogramme 20 px, titre, detail), pastille d etat d affichage
+    $m = $script:QualCard
+    if (-not $m -or -not $pnlQualCard) { return }
+    $w = [math]::Max(200, [int]$pnlQualCard.ClientSize.Width); $h = [math]::Max(40, [int]$pnlQualCard.ClientSize.Height)
+    $fScore = Get-QualFont 'Segoe UI Semibold' 22; $fSmall = Get-QualFont 'Segoe UI' 8.25; $fLevel = Get-QualFont 'Segoe UI Semibold' 12
+    $fState = Get-QualFont 'Segoe UI Semibold' 10.5; $fChip = Get-QualFont 'Segoe UI Semibold' 8.25
+    $one = [System.Windows.Forms.TextFormatFlags]::NoPrefix -bor [System.Windows.Forms.TextFormatFlags]::SingleLine
+    # Colonne du niveau apres la legende du score (« score · plus bas = mieux », plus longue en francais)
+    $capW = [System.Windows.Forms.TextRenderer]::MeasureText($m.Caption, $fSmall, (New-Object System.Drawing.Size(32000, 100)), $one).Width
+    $lay = Get-QualityCardLayout $w ([math]::Max(180, 66 + $capW + 8)) ([bool]($m.State -or $m.StateIcon)) ([bool]$m.Sub)
+    # Bitmap sans canal alpha : le texte GDI (TextRenderer) y est opaque
+    $bmp = New-Object System.Drawing.Bitmap($w, $h, [System.Drawing.Imaging.PixelFormat]::Format24bppRgb)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    try {
+        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+        $g.Clear($m.Back)
+        $edge = [System.Drawing.Color]::FromArgb(205, 212, 224)
+        $g.DrawRectangle((Get-QualPen $edge 1), 0, 0, ($w - 1), ($h - 1))
+        $g.FillRectangle((Get-QualBrush $m.Bar), 0, 0, 5, $h)
+        $tf = $one -bor [System.Windows.Forms.TextFormatFlags]::VerticalCenter -bor [System.Windows.Forms.TextFormatFlags]::EndEllipsis
+        if ($m.Icon) { $g.DrawImage((Get-QualityIcon $m.Icon 48 $m.Badge -Grey:([bool]$m.GreyIcon)), 12, 5, 48, 48) }
+        [System.Windows.Forms.TextRenderer]::DrawText($g, $m.Score, $fScore, (New-Object System.Drawing.Rectangle(64, 0, ($lay.Lx - 68), 40)), $m.ScoreInk, $m.Back, $tf)
+        [System.Windows.Forms.TextRenderer]::DrawText($g, $m.Caption, $fSmall, (New-Object System.Drawing.Rectangle(66, 38, ($lay.Lx - 70), 17)), $m.CaptionInk, $m.Back, $tf)
+        # Pastille « en cours » / « perime » : au bout de la ligne du niveau, avant le separateur ; en haut a droite de la carte
+        # sans zone d etat
+        $right = $(if ($lay.Sep -gt 0) { $lay.Sep - 10 } else { $w - 8 })
+        $lvW = $right - $lay.Lx
+        if ($m.Chip) {
+            $cw = [System.Windows.Forms.TextRenderer]::MeasureText($m.Chip, $fChip).Width + 14
+            $chipX = $right - $cw
+            $rr = New-RoundRect $chipX 8 $cw 18 9; $g.FillPath((Get-QualBrush $m.ChipBack), $rr); $rr.Dispose()
+            [System.Windows.Forms.TextRenderer]::DrawText($g, $m.Chip, $fChip, (New-Object System.Drawing.Rectangle($chipX, 8, $cw, 18)), [System.Drawing.Color]::White, $m.ChipBack,
+                ($one -bor [System.Windows.Forms.TextFormatFlags]::VerticalCenter -bor [System.Windows.Forms.TextFormatFlags]::HorizontalCenter))
+            $lvW = $chipX - 6 - $lay.Lx
+        }
+        [System.Windows.Forms.TextRenderer]::DrawText($g, $m.Level, $fLevel, (New-Object System.Drawing.Rectangle($lay.Lx, 4, [math]::Max(10, $lvW), 26)), $m.LevelInk, $m.Back, $tf)
+        $l2 = Get-QualFitText $m.Line2 $m.Line2Short $fSmall $lay.L2W $m.Line2More
+        [System.Windows.Forms.TextRenderer]::DrawText($g, $l2, $fSmall, (New-Object System.Drawing.Rectangle($lay.Lx, 32, $lay.L2W, 20)), $m.Line2Ink, $m.Back, $tf)
+        if ($lay.Sep -gt 0) {
+            $g.DrawLine((Get-QualPen $edge 1), $lay.Sep, 8, $lay.Sep, [math]::Min(($h - 8), $lay.SepBottom))
+            $tx = $lay.StX
+            if ($m.StateIcon) { $g.DrawImage((Get-QualityIcon $m.StateIcon 20 -Grey:([bool]$m.GreyIcon)), $lay.StX, 8, 20, 20); $tx = $lay.StX + 26 }
+            [System.Windows.Forms.TextRenderer]::DrawText($g, $m.State, $fState, (New-Object System.Drawing.Rectangle($tx, 6, [math]::Max(10, $w - 10 - $tx), 24)), $m.StateInk, $m.Back, $tf)
+            $sub = Get-QualFitText $m.Sub $m.SubShort $fSmall $lay.StW
+            [System.Windows.Forms.TextRenderer]::DrawText($g, $sub, $fSmall, (New-Object System.Drawing.Rectangle($lay.StX, 32, $lay.StW, 20)), $m.SubInk, $m.Back, $tf)
+        }
+    } finally { $g.Dispose() }
+    $old = $pnlQualCard.BackgroundImage
+    $pnlQualCard.BackgroundImage = $bmp
+    if ($old) { $old.Dispose() }
+}
+
+function Draw-AlSubItem($e, $font) {
+    # Case du tableau de l onglet Qualite (DrawSubItem de $lvAl ; fonction pour la tester sans afficher la fenetre : une
+    # ListView hors ecran ne recoit jamais ce dessin). Fond de la case (couleur du niveau) ou de la ligne ; gris tant que
+    # le resultat affiche n est pas le resultat courant (mesure en cours, perime : D16) ; icone de 16 px (D15) devant
+    # l etat (colonne 1) et devant le score (colonne 6), d apres Item.Tag (New-AlignRow) ; pinceaux, stylo et formats en
+    # cache (plus d allocation a chaque case)
+    $row = $e.Item.Index
+    $grey = ($script:QualView.State -ne 'result')
+    $baseBg = if ($row % 2) { [System.Drawing.Color]::FromArgb(243, 246, 250) } else { [System.Drawing.Color]::White }
+    $bg = if (-not $grey -and $e.SubItem.BackColor -ne [System.Drawing.Color]::Empty -and $e.SubItem.BackColor.ToArgb() -ne [System.Drawing.SystemColors]::Window.ToArgb() -and $e.SubItem.BackColor.ToArgb() -ne 0) { $e.SubItem.BackColor } else { $baseBg }
+    $e.Graphics.FillRectangle((Get-QualBrush $bg), $e.Bounds)
+    $e.Graphics.DrawLine((Get-QualPen ([System.Drawing.Color]::FromArgb(225, 229, 235)) 1), $e.Bounds.Right - 1, $e.Bounds.Top, $e.Bounds.Right - 1, $e.Bounds.Bottom)
+    $fg = if ($grey) { Get-QualDimInk } elseif ($e.SubItem.ForeColor -ne [System.Drawing.Color]::Empty) { $e.SubItem.ForeColor } else { [System.Drawing.Color]::FromArgb(32, 36, 44) }
+    $fnt = if ($e.SubItem.Font) { $e.SubItem.Font } else { $font }
+    $r = [System.Drawing.RectangleF]::new($e.Bounds.X + 4, $e.Bounds.Y, $e.Bounds.Width - 8, $e.Bounds.Height)
+    $ik = ''
+    if ($e.Item.Tag -is [hashtable]) { if ($e.ColumnIndex -eq 1) { $ik = [string]$e.Item.Tag.State } elseif ($e.ColumnIndex -eq 6) { $ik = [string]$e.Item.Tag.Score } }
+    if ($ik) {
+        $e.Graphics.DrawImage((Get-QualityIcon $ik 16 -Grey:$grey), ($e.Bounds.X + 3), ($e.Bounds.Y + [int][math]::Floor(($e.Bounds.Height - 16) / 2)), 16, 16)
+        $r = [System.Drawing.RectangleF]::new($e.Bounds.X + 22, $e.Bounds.Y, [math]::Max(1, $e.Bounds.Width - 26), $e.Bounds.Height)
+    }
+    $e.Graphics.DrawString($e.SubItem.Text, $fnt, (Get-QualBrush $fg), $r, (Get-QualSf $(if ($e.ColumnIndex -eq 0) { 'near' } else { 'center' })))
+}
+
+# --- Icones d etat hors de l onglet Qualite : onglet Ecriture, etapes et verdict de la restauration --------------------
+function Set-WCalVerdict([string]$text, [string]$kind) {
+    # Verdict du controle apres ecriture dans le libelle de l onglet Ecriture : icone d etat 16 px a gauche (h0, h1, h2) et
+    # encre de l etat ; retires des que le libelle prend un autre texte (TextChanged de $lblWCal : Clear-WCalVerdict)
+    $script:WCalIcon = @{ Kind = $kind; Text = $text }
+    $lblWCal.Padding = New-Object System.Windows.Forms.Padding(20, 0, 0, 0)
+    $lblWCal.ForeColor = Get-QualInk $(switch ($kind) { 'h0' { 0 } 'h1' { 2 } default { 3 } })
+    $lblWCal.Text = $text; $lblWCal.Visible = $true
+    $lblWCal.Invalidate()
+}
+
+function Clear-WCalVerdict {
+    if (-not $script:WCalIcon) { return }
+    $script:WCalIcon = $null
+    $lblWCal.Padding = New-Object System.Windows.Forms.Padding(0); $lblWCal.ForeColor = [System.Drawing.Color]::DimGray
+}
+
+function Hide-WCalVerdict {
+    # 12.8 (FIX3) : disquette ecrite ou effacee sans controle apres ecriture (Start-Gw), ou prechauffage d une ecriture
+    # (Start-WriteWarmup, qui retablit ensuite le libelle) : le verdict affiche du controle precedent ne la decrit plus ;
+    # libelle masque, icone et encre retirees. Sans effet sans verdict affiche (calibration : le libelle a deja change)
+    if (-not $script:WCalIcon) { return }
+    $lblWCal.Visible = $false
+    Clear-WCalVerdict
+}
+
+function Draw-WCalIcon($l, $e) {
+    if (-not $script:WCalIcon -or $l.Text -ne $script:WCalIcon.Text) { return }
+    $e.Graphics.DrawImage((Get-QualityIcon $script:WCalIcon.Kind 16), 1, [int][math]::Max(0, [math]::Floor(($l.Height - 16) / 2)), 16, 16)
+}
+
+function Draw-RsStepLabel($l, $e) {
+    # Etape de la restauration : icone d etat 16 px (D15, a la place des glyphes), puis le texte sans son glyphe, dans sa
+    # couleur, aussi quand Set-Busy desactive les onglets. Le texte du libelle garde son glyphe (infobulle, fins de test).
+    $g = $e.Graphics
+    $g.FillRectangle((Get-QualBrush $l.BackColor), $l.ClientRectangle)
+    $kind = switch ([string]$l.Tag) { 'run' { 'run' } 'ok' { 'h0' } 'fail' { 'h2' } 'warn' { 'h1' } 'skip' { 'skip' } default { 'pend' } }
+    $g.DrawImage((Get-QualityIcon $kind 16), 0, [int][math]::Max(0, [math]::Floor(($l.Height - 16) / 2)), 16, 16)
+    $txt = [string]$l.Text -replace '^\S+\s+', ''
+    $tf = [System.Windows.Forms.TextFormatFlags]::NoPrefix -bor [System.Windows.Forms.TextFormatFlags]::SingleLine -bor [System.Windows.Forms.TextFormatFlags]::VerticalCenter -bor [System.Windows.Forms.TextFormatFlags]::EndEllipsis
+    [System.Windows.Forms.TextRenderer]::DrawText($g, $txt, $l.Font, (New-Object System.Drawing.Rectangle(21, 0, [math]::Max(1, $l.Width - 21), $l.Height)), $l.ForeColor, $tf)
+}
+
+function Draw-RsResultIcon($e) {
+    # Verdict de la restauration : icone d etat 48 px dans la marge gauche (RESTAUREE h0, avec reserve h1, ECHOUEE h2)
+    if ($script:RsResultIcon) { $e.Graphics.DrawImage((Get-QualityIcon $script:RsResultIcon 48), 8, 8, 48, 48) }
 }
 # ============================== FONCTIONS : ACCUEIL : CALIBRATION ET PROGRESSION ===
 
@@ -7567,8 +8274,9 @@ function Fill-PictoDrop($g, $brush, [single]$cx, [single]$cy, [single]$r) {
     $p.CloseFigure(); $g.FillPath($brush, $p); $p.Dispose()
 }
 
-function Draw-PictoClock($g, [single]$cx, [single]$cy, [single]$r) {
-    $pen = New-Object System.Drawing.Pen($script:Theme.Accent, [single]2.5)
+function Draw-PictoClock($g, [single]$cx, [single]$cy, [single]$r, $color = $null) {
+    # 12.8 (lot 3) : couleur du trait en parametre (Theme.Accent par defaut) : pictogrammes de qualite en cours et perimes
+    $pen = New-Object System.Drawing.Pen($(if ($color) { [System.Drawing.Color]$color } else { $script:Theme.Accent }), [single]2.5)
     $g.FillEllipse([System.Drawing.Brushes]::White, [single]($cx - $r), [single]($cy - $r), [single](2 * $r), [single](2 * $r))
     $g.DrawEllipse($pen, [single]($cx - $r), [single]($cy - $r), [single](2 * $r), [single](2 * $r))
     $g.DrawLine($pen, $cx, $cy, $cx, [single]($cy - 0.65 * $r)); $g.DrawLine($pen, $cx, $cy, [single]($cx + 0.5 * $r), $cy)
@@ -14733,11 +15441,15 @@ function Update-RsRules {
 }
 
 function Set-RsStep([int]$i, [string]$state, [string]$detail = '') {
+    # 12.8 (lot 3b) : glyphe garde dans le texte (infobulle, rapport) ; l etape est dessinee avec l icone d etat de 16 px
+    # (Draw-RsStepLabel, d apres Tag) ; « ! » en Theme.WarnInk (Theme.Warn : 2,75:1 sur blanc, sous le minimum du texte)
     $g = @{ pending = '○'; run = '▶'; ok = '✓'; fail = '✗'; skip = '–'; warn = '!' }[$state]
-    $c = @{ pending = $script:Theme.Muted; run = $script:Theme.Accent; ok = $script:Theme.Ok; fail = $script:Theme.Danger; skip = $script:Theme.Muted; warn = $script:Theme.Warn }[$state]
+    $c = @{ pending = $script:Theme.Muted; run = $script:Theme.Accent; ok = $script:Theme.Ok; fail = $script:Theme.Danger; skip = $script:Theme.Muted; warn = $script:Theme.WarnInk }[$state]
     $l = $script:RsStepLabels[$i]
+    $l.Tag = $state
     $l.Text = "$g  " + $script:RsStepNames[$i] + $(if ($detail) { "  -  $detail" } else { '' })
     $l.ForeColor = $c
+    $l.Invalidate()
     $l.Font = if ($state -eq 'run') { $bold } else { $form.Font }
     $tip.SetToolTip($l, $l.Text)
     if ($script:Restore) {
@@ -15481,10 +16193,15 @@ function Write-RestoreReport([bool]$ok, [string]$verdict) {
     catch { Append-Log ((T "Rapport non enregistré : {0}") -f "$($_.Exception.Message)") }
 }
 
-function Show-RestoreResult([bool]$ok, [string]$text) {
+function Show-RestoreResult([bool]$ok, [string]$text, [string]$icon = '') {
+    # 12.8 (lot 3b) : icone d etat de 48 px dans la marge gauche du verdict : h0 reussie, h1 reussie avec reserve, h2 echouee
+    $script:RsResultIcon = $(if ($icon) { $icon } elseif ($ok) { 'h0' } else { 'h2' })
     $lblRsResult.Text = $text
-    $lblRsResult.BackColor = if ($ok) { [System.Drawing.Color]::FromArgb(222, 244, 228) } else { [System.Drawing.Color]::FromArgb(252, 226, 224) }
-    $lblRsResult.ForeColor = if ($ok) { [System.Drawing.Color]::FromArgb(20, 90, 45) } else { [System.Drawing.Color]::FromArgb(140, 30, 25) }
+    # 12.8 (FIX3) : reussie avec reserve (h1) : teinte « stop » de frmClean et encre Theme.WarnInk (4,84:1), comme l icone h1
+    # de la carte et de l onglet Ecriture, et non le vert de la reussite
+    $warnRes = ($ok -and $script:RsResultIcon -eq 'h1')
+    $lblRsResult.BackColor = if ($warnRes) { [System.Drawing.Color]::FromArgb(253, 243, 228) } elseif ($ok) { [System.Drawing.Color]::FromArgb(222, 244, 228) } else { [System.Drawing.Color]::FromArgb(252, 226, 224) }
+    $lblRsResult.ForeColor = if ($warnRes) { $script:Theme.WarnInk } elseif ($ok) { [System.Drawing.Color]::FromArgb(20, 90, 45) } else { [System.Drawing.Color]::FromArgb(140, 30, 25) }
     $pnlRsWait.Visible = $false; $lblRsNow.Text = ''
     $lblRsResult.Visible = $true; $lblRsResult.BringToFront(); $lblRsRules.Visible = $false
     $tabRs.ScrollControlIntoView($lblRsResult)
@@ -15519,7 +16236,7 @@ function Finish-Restore {
     }
     Append-Log $verdict
     Write-RestoreReport $ok $verdict
-    Show-RestoreResult $ok ($verdict + "`n`n" + $detail)
+    Show-RestoreResult $ok ($verdict + "`n`n" + $detail) $(if ($ok -and ($nWeak -gt 0 -or $nPres -gt 0)) { 'h1' } else { '' })
     Close-Restore
 }
 
@@ -15597,6 +16314,7 @@ $script:Theme = @{
     Accent2 = [System.Drawing.Color]::FromArgb(22, 54, 98)
     Danger  = [System.Drawing.Color]::FromArgb(196, 60, 52)
     Ok      = [System.Drawing.Color]::FromArgb(46, 139, 87)
+    Good    = [System.Drawing.Color]::FromArgb(96, 140, 44)    # 12.8 (D17) : niveau BON des icones de score ; 3,97:1 sur blanc (element graphique, >= 3:1)
     Warn    = [System.Drawing.Color]::FromArgb(214, 140, 30)
     WarnInk = [System.Drawing.Color]::FromArgb(156, 92, 8)     # 12.8 (D17) : texte d avertissement sur fond clair ; contraste WCAG 5,14:1 sur Page, 5,32:1 sur blanc, 4,61:1 sur Window (176,104,10 : 4,20:1 sur Page)
     Muted   = [System.Drawing.Color]::FromArgb(110, 116, 128)
@@ -15934,6 +16652,10 @@ $pbWCal = New-Object System.Windows.Forms.ProgressBar
 $pbWCal.Location = '12,136'; $pbWCal.Size = '300,16'; $pbWCal.Minimum = 0; $pbWCal.Maximum = 100; $pbWCal.Visible = $false
 $lblWCal = New-Object System.Windows.Forms.Label
 $lblWCal.Location = '320,137'; $lblWCal.AutoSize = $true; $lblWCal.ForeColor = 'DimGray'; $lblWCal.Visible = $false
+# 12.8 (lot 3b) : verdict du controle apres ecriture avec son icone d etat de 16 px et son encre (Set-WCalVerdict) ; tout
+# autre texte (calibration, prechauffage...) les retire
+$lblWCal.Add_Paint({ param($s, $e) Draw-WCalIcon $s $e })
+$lblWCal.Add_TextChanged({ if ($script:WCalIcon -and $lblWCal.Text -ne $script:WCalIcon.Text) { Clear-WCalVerdict } })
 
 $grpWOpt.Controls.AddRange(@($chkWPreErase, $chkWEraseEmpty, $chkWNoVerify, (New-Label (T 'Essais :') '500,26'), $numWRetries, $chkWSlow, $chkWPrecomp, $txtWPrecomp, $chkWPostCheck,
     $lblWPrecomp1, $txtWPrecomp1, (New-Label (T 'Calibration précomp :') '12,109'), $cmbWCalMode, $btnWCalib, $btnWCalReset, $pbWCal, $lblWCal, $lblWRepair, $numWRepair))
@@ -16220,7 +16942,7 @@ $script:AlColors = @{
     0 = [System.Drawing.Color]::FromArgb(86, 196, 108)    # excellent (vert franc)
     1 = [System.Drawing.Color]::FromArgb(188, 214, 94)    # bon (vert-jaune)
     2 = [System.Drawing.Color]::FromArgb(245, 176, 66)    # moyen (orange)
-    3 = [System.Drawing.Color]::FromArgb(233, 86, 80)     # mauvais (rouge)
+    3 = $script:Theme.Danger                              # mauvais (rouge) ; 12.8 (D17) : texte blanc a 5,19:1 (233,86,80 : 3,55:1)
 }
 # texte lisible (noir ou blanc) sur chaque couleur d'etat
 $script:AlFg = @{
@@ -16274,6 +16996,7 @@ $btnAlStart.Add_Click({
     }
     $script:AlignLoop = [bool]$chkAlLoop.Checked
     $script:AlLastMove = 0
+    $script:QualView.Pass = 0                             # 12.8 (lot 3a) : nouvelle serie, passes de la mesure continue depuis 1
     Start-AlignCycle
 })
 
@@ -16296,10 +17019,10 @@ $tip.SetToolTip($btnAlReset, (T 'Efface le meilleur score, la tendance, la réf�
 $btnAlReset.Add_Click({
     $script:AlignBest = @{}; $script:AlignPrev = $null; $script:AlignRef = $null; $script:AlignLast = $null
     $script:AlPos = $null; $script:AlLastMove = 0; $script:AlPosScores = @{}; $script:AlignRefLabel = ''
-    $lblAlRef.Text = (T 'Aucune référence'); $lblAlHealth.Text = (T 'Lancez une mesure'); $lblAlHealth.BackColor = [System.Drawing.SystemColors]::Control
-    $lblAlVerdict.Text = ''; $lblAlVerdict.BackColor = [System.Drawing.SystemColors]::Control
+    $lblAlRef.Text = (T 'Aucune référence')
     $lblAlPos.Text = ''; $lblAlReco.Text = ''
     $lvAl.Items.Clear(); $pnlAlBars.Invalidate()
+    Reset-QualityView                                     # 12.8 (lot 3a) : carte vide, plus aucun resultat
 })
 
 $chkAlGuide = New-Object System.Windows.Forms.CheckBox
@@ -16330,21 +17053,16 @@ $btnAlMinus.Add_Click({ if ($null -eq $script:AlPos) { $script:AlPos = 0 }; $scr
 $lblAlPos = New-Object System.Windows.Forms.Label
 $lblAlPos.Location = '508,101'; $lblAlPos.AutoSize = $true; $lblAlPos.Text = ''; $lblAlPos.ForeColor = 'Gray'; $lblAlPos.Visible = $false
 
-# --- Verdict 1 : etat du support (la question d'un collectionneur)
-$lblAlHealth = New-Object System.Windows.Forms.Label
-$lblAlHealth.Location = '10,126'; $lblAlHealth.Size = '768,34'; $lblAlHealth.Anchor = 'Top,Left,Right'
-$lblAlHealth.Font = New-Object System.Drawing.Font('Segoe UI', 13, [System.Drawing.FontStyle]::Bold)
-$lblAlHealth.TextAlign = 'MiddleCenter'; $lblAlHealth.BorderStyle = 'FixedSingle'
-$lblAlHealth.Text = (T 'Lancez une mesure')
-$tip.SetToolTip($lblAlHealth, (T "État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter.`nIndépendant du contenu : comparable d'une disquette à l'autre."))
-
-# --- Verdict 2 : qualite de lecture (score, pour comparer lecteurs et reglages)
-$lblAlVerdict = New-Object System.Windows.Forms.Label
-$lblAlVerdict.Location = '10,163'; $lblAlVerdict.Size = '768,24'; $lblAlVerdict.Anchor = 'Top,Left,Right'
-$lblAlVerdict.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Bold)
-$lblAlVerdict.TextAlign = 'MiddleCenter'
-$lblAlVerdict.Text = ''
-$tip.SetToolTip($lblAlVerdict, (T "Score de qualité de lecture (plus bas = mieux). Dépend du contenu : à comparer uniquement sur une même image`n(deux lecteurs, deux précompensations, deux réglages)."))
+# --- Carte de resultat (12.8, lot 3b, variante A : D14) : score de lecture (barres de signal, niveau, tendance) a gauche,
+# etat du support a droite, pastille « en cours » ou « perime » (D16). Remplace le bandeau d etat et la ligne de score de
+# la 12.7. Dessinee dans un bitmap par Render-QualityCard (module 195), d apres $script:QualView ; textes complets dans
+# l infobulle (Update-QualityView)
+$pnlQualCard = New-Object System.Windows.Forms.Panel
+$pnlQualCard.Name = 'pnlQualCard'
+$pnlQualCard.Location = '10,126'; $pnlQualCard.Size = '768,58'; $pnlQualCard.Anchor = 'Top,Left,Right'
+$pnlQualCard.BackColor = [System.Drawing.Color]::White; $pnlQualCard.BackgroundImageLayout = 'None'
+$pnlQualCard.AccessibleRole = 'StaticText'
+$pnlQualCard.Add_Resize({ Render-QualityCard })
 
 $lblAlReco = New-Object System.Windows.Forms.Label
 $lblAlReco.Location = '10,188'; $lblAlReco.Size = '768,20'; $lblAlReco.Anchor = 'Top,Left,Right'
@@ -16363,41 +17081,29 @@ $lvAl.Location = '10,266'; $lvAl.Size = '768,60'; $lvAl.Anchor = 'Top,Bottom,Lef
 $lvAl.View = 'Details'; $lvAl.FullRowSelect = $true; $lvAl.GridLines = $false; $lvAl.Font = $monoBig
 $lvAl.OwnerDraw = $true; $lvAl.HeaderStyle = 'Nonclickable'
 $lvAl.BackColor = [System.Drawing.Color]::White
+# 12.8 (lot 3) : pinceaux, stylo et formats en cache (Get-QualBrush, Get-QualPen, Get-QualSf : plus d allocation a chaque
+# dessin) ; cases grises tant que le resultat affiche n est pas le resultat courant (mesure en cours, perime : D16) ;
+# icones de 16 px (D15) devant l etat et devant le score, d apres Item.Tag (New-AlignRow)
 $lvAl.Add_DrawColumnHeader({
     param($s0, $e)
-    $e.Graphics.FillRectangle((New-Object System.Drawing.SolidBrush($script:Theme.Accent2)), $e.Bounds)
-    $fmt = New-Object System.Drawing.StringFormat
-    $fmt.LineAlignment = 'Center'; $fmt.Alignment = $(if ($e.ColumnIndex -eq 0) { 'Near' } else { 'Center' })
+    $e.Graphics.FillRectangle((Get-QualBrush $script:Theme.Accent2), $e.Bounds)
     $r = [System.Drawing.RectangleF]::new($e.Bounds.X + 4, $e.Bounds.Y, $e.Bounds.Width - 8, $e.Bounds.Height)
-    $e.Graphics.DrawString($e.Header.Text, $bold, [System.Drawing.Brushes]::White, $r, $fmt)
+    $e.Graphics.DrawString($e.Header.Text, $bold, [System.Drawing.Brushes]::White, $r, (Get-QualSf $(if ($e.ColumnIndex -eq 0) { 'hnear' } else { 'hcenter' })))
 })
-$lvAl.Add_DrawSubItem({
-    param($s0, $e)
-    $row = $e.Item.Index
-    $baseBg = if ($row % 2) { [System.Drawing.Color]::FromArgb(243, 246, 250) } else { [System.Drawing.Color]::White }
-    $bg = if ($e.SubItem.BackColor -ne [System.Drawing.Color]::Empty -and $e.SubItem.BackColor.ToArgb() -ne [System.Drawing.SystemColors]::Window.ToArgb() -and $e.SubItem.BackColor.ToArgb() -ne 0) { $e.SubItem.BackColor } else { $baseBg }
-    $e.Graphics.FillRectangle((New-Object System.Drawing.SolidBrush($bg)), $e.Bounds)
-    $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(225, 229, 235))
-    $e.Graphics.DrawLine($pen, $e.Bounds.Right - 1, $e.Bounds.Top, $e.Bounds.Right - 1, $e.Bounds.Bottom)
-    $fg = if ($e.SubItem.ForeColor -ne [System.Drawing.Color]::Empty) { $e.SubItem.ForeColor } else { [System.Drawing.Color]::FromArgb(32, 36, 44) }
-    $fnt = if ($e.SubItem.Font) { $e.SubItem.Font } else { $lvAl.Font }
-    $fmt = New-Object System.Drawing.StringFormat
-    $fmt.LineAlignment = 'Center'; $fmt.Alignment = $(if ($e.ColumnIndex -eq 0) { 'Near' } else { 'Center' })
-    $fmt.FormatFlags = [System.Drawing.StringFormatFlags]::NoWrap; $fmt.Trimming = 'EllipsisCharacter'
-    $r = [System.Drawing.RectangleF]::new($e.Bounds.X + 4, $e.Bounds.Y, $e.Bounds.Width - 8, $e.Bounds.Height)
-    $e.Graphics.DrawString($e.SubItem.Text, $fnt, (New-Object System.Drawing.SolidBrush($fg)), $r, $fmt)
-})
+$lvAl.Add_DrawSubItem({ param($s0, $e) Draw-AlSubItem $e $lvAl.Font })
 $imgRow = New-Object System.Windows.Forms.ImageList
 $imgRow.ImageSize = New-Object System.Drawing.Size(1, 24)
 $lvAl.SmallImageList = $imgRow
-foreach ($c in @(@((T 'Piste'),60),@((T 'État'),140),@((T 'Erreurs'),70),@((T 'Trous'),78),@('Stab',55),@((T 'Jitter ns'),80),@('Score',65),@((T 'vs réf'),70),@('Asym.',70),@((T 'Cell ns'),75))) {
+# 12.8 (lot 3b) : colonnes Etat et Score elargies pour l icone de 16 px (140 -> 162, 65 -> 80)
+foreach ($c in @(@((T 'Piste'),60),@((T 'État'),162),@((T 'Erreurs'),70),@((T 'Trous'),78),@('Stab',55),@((T 'Jitter ns'),80),@('Score',80),@((T 'vs réf'),70),@('Asym.',70),@((T 'Cell ns'),75))) {
     [void]$lvAl.Columns.Add($c[0], $c[1])
 }
 
 $tabAl.Controls.AddRange(@((New-Label (T 'Mesure :') '10,14'), $cmbAlPreset, (New-Label (T 'Cylindres :') '238,14'), $txtAlCyls,
     (New-Label (T 'Têtes :') '488,14'), $cmbAlHead, (New-Label (T 'Tours :') '598,14'), $numAlRevs, $chkAlLoop, $numAlPause,
     $btnAlStart, $btnAlRef, $btnAlReset, $chkAlGuide, $lblAlRef,
-    $btnAlPos0, $btnAlPlus, $btnAlMinus, $lblAlPos, $lblAlHealth, $lblAlVerdict, $lblAlReco, $pnlAlBars, $lvAl))
+    $btnAlPos0, $btnAlPlus, $btnAlMinus, $lblAlPos, $pnlQualCard, $lblAlReco, $pnlAlBars, $lvAl))
+Update-QualityView                                        # 12.8 (lot 3) : carte vide (« Aucune mesure »)
 
 # ============================== OUTILS =========================================
 $tabT = New-TabPage (T 'Outils')
@@ -16699,6 +17405,8 @@ for ($i = 0; $i -lt $script:RsStepNames.Count; $i++) {
     $l = New-Object System.Windows.Forms.Label
     $l.Location = New-Object System.Drawing.Point(404, (32 + 21 * $i)); $l.Size = '372,20'; $l.AutoEllipsis = $true
     $l.ForeColor = $script:Theme.Muted; $l.Text = "○  " + $script:RsStepNames[$i]
+    # 12.8 (lot 3b, D15) : icone d etat de 16 px a la place du glyphe, texte dans sa couleur meme onglets desactives
+    $l.Tag = 'pending'; $l.Add_Paint({ param($s, $e) Draw-RsStepLabel $s $e })
     $script:RsStepLabels += $l
 }
 $lblRsNow = New-Object System.Windows.Forms.Label
@@ -16722,9 +17430,11 @@ $pnlRsWait.Controls.AddRange(@($lblRsWait, $btnRsGo, $btnRsForce, $btnRsCancel))
 
 # Verdict final
 $lblRsResult = New-Object System.Windows.Forms.Label
-$lblRsResult.Location = '402,230'; $lblRsResult.AutoSize = $true; $lblRsResult.MaximumSize = New-Object System.Drawing.Size(374, 0); $lblRsResult.MinimumSize = New-Object System.Drawing.Size(374, 60)
-$lblRsResult.Visible = $false; $lblRsResult.Padding = New-Object System.Windows.Forms.Padding(8)
+$lblRsResult.Location = '402,230'; $lblRsResult.AutoSize = $true; $lblRsResult.MaximumSize = New-Object System.Drawing.Size(374, 0); $lblRsResult.MinimumSize = New-Object System.Drawing.Size(374, 64)
+# 12.8 (lot 3b) : icone d etat de 48 px dans la marge gauche (Show-RestoreResult, Draw-RsResultIcon)
+$lblRsResult.Visible = $false; $lblRsResult.Padding = New-Object System.Windows.Forms.Padding(64, 8, 8, 8)
 $lblRsResult.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 9.75)
+$lblRsResult.Add_Paint({ param($s, $e) Draw-RsResultIcon $e })
 
 $tabRs.Controls.AddRange(@($grpRsSrc, $grpRsCal, $grpRsDir, $btnRsStart, $lblRsRules, $lblRsStepsTitle) + $script:RsStepLabels + @($lblRsNow, $pnlRsWait, $lblRsResult))
 Set-Btn $btnRsStart 'History' 'primary'
@@ -16807,6 +17517,8 @@ $btnStop.Add_Click({
         if ($script:Rep) { Stop-WriteCheck }
         if ($script:Cal) { Stop-PrecompCalib }
         Append-Log (T '*** Interrompu par l''utilisateur ***')
+        # 12.8 (lot 3a) : mesure de qualite interrompue : resultat affiche perime (le controle l est par Stop-WriteCheck)
+        if ($script:QualView.State -eq 'run') { Set-QualityStale $(if ($script:QualView.Kind -eq 'check') { 'checkabort' } else { 'stop' }) }
     }
     if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; Append-Log (T 'Mesure continue arrêtée.') }
 })
@@ -17308,6 +18020,8 @@ $timer.Add_Tick({
                     if ($script:Cal) { Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
                     if ($script:Restore) { Stop-Restore $why }
                 }
+                # 12.8 (lot 3a) : mesure de qualite incomplete (pas d analyse) : erreur gw, resultat affiche perime
+                if ($script:QualView.State -eq 'run' -and $script:QualView.Kind -eq 'measure') { $script:AlignLoop = $false; $script:AlignNextAt = $null; Set-QualityStale 'gwerror' }
             }
             if (-not $script:Detect) { Append-Log '' }
             $script:GwProc = $null
@@ -17324,7 +18038,9 @@ $timer.Add_Tick({
                     Stop-WriteWarmup    # defensif : une lecture de prechauffage est « soft »
                     Append-Log (T 'Séquence interrompue : gw a retourné une erreur.')
                     if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : gw a retourné le code {0}. Voir le journal.") -f "$code") }
-                    if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; $lblAlVerdict.Text = (T 'Mesure interrompue (erreur gw)') }
+                    # 12.8 (lot 3a) : toute mesure de qualite (et non plus la seule mesure continue) : resultat affiche perime
+                    if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null }
+                    if ($script:QualView.State -eq 'run' -and $script:QualView.Kind -eq 'measure') { Set-QualityStale 'gwerror' }
                     if ($script:Rep) { Stop-WriteCheck -GwError }
                     if ($script:Cal) { Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
                 }
@@ -17418,6 +18134,8 @@ $form.Add_FormClosing({
     if ($script:LibRunspace) { try { $script:LibRunspace.Close(); $script:LibRunspace.Dispose() } catch { } }
     $timer.Stop()
 })
+# 12.8 (lot 3) : pinceaux, stylos, polices, formats et pictogrammes de l affichage de la qualite liberes avec la fenetre
+$form.Add_FormClosed({ Clear-QualityGdi })
 
 # Position du separateur : appliquee une fois la fenetre affichee (taille connue)
 $script:PendingSplit = 0

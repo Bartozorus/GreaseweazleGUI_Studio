@@ -28,6 +28,15 @@ $script:AlPos       = $null     # guide : position courante du stepper en crans 
 $script:AlLastMove  = 0         # guide : dernier deplacement declare (+1 / -1 / 0)
 $script:AlPosScores = @{}       # guide : position -> meilleur score moyen mesure a cette position
 $script:AlignRef    = $null     # reference memorisee (meme structure)
+# 12.8 (lot 3) : etat unique de l affichage de l onglet Qualite (Set-QualityPending, Set-QualityResult, Set-QualityStale,
+# Reset-QualityView ; module 195) : empty | run | result | stale ; contenu de la carte calcule (QualCard) ; ressources GDI+
+# en cache (pinceaux, stylos, polices, formats, pictogrammes), liberees a la fermeture ; icones d etat de l onglet Ecriture
+# (verdict du controle apres ecriture) et du verdict de la restauration
+$script:QualView = @{ State = 'empty'; Kind = ''; Reason = ''; At = $null; Has = $false; Pass = 0; Drive = ''; Heads = ''; Revs = 0; NCyl = 0; RunText = ''; Res = $null }
+$script:QualCard = $null
+$script:QualGdi = @{}
+$script:WCalIcon = $null
+$script:RsResultIcon = $null
 
 # Profils de precompensation (mesures le 06/10/2026, lecteur A600 en ecriture, relecture A600)
 $script:PrecompStd  = '0=70:40=100:65=140'          # cellule 2 us : AmigaDOS, ADF, formats IBM/Atari

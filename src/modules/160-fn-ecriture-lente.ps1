@@ -62,6 +62,7 @@ function Start-WriteWarmup([string]$tspec, [bool]$noWarm) {
     $ro = @(Get-DriveReadArgs)
     if ($chkWHard.Checked) { $ro += '--hard-sectors' }
     if ($chkWTG43.Checked) { $ro += '--gen-tg43' }
+    Hide-WCalVerdict                                      # 12.8 (FIX3) : verdict du controle precedent, non retabli a la fin
     $script:WriteWarm = @{
         Drive = $drv; Rest = @($script:Chain.ToArray()); WarmSec = [double]$plan.Sec; WarmStart = (Get-Date)
         WarmReads = 0; WarmFails = 0; WarmFailRun = 0; WarmDurs = @(); WarmReadStart = $null; WarmSkip = $false; WarmScp = $scp

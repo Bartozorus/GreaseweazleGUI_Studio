@@ -50,6 +50,8 @@ $timer.Add_Tick({
                     if ($script:Cal) { Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
                     if ($script:Restore) { Stop-Restore $why }
                 }
+                # 12.8 (lot 3a) : mesure de qualite incomplete (pas d analyse) : erreur gw, resultat affiche perime
+                if ($script:QualView.State -eq 'run' -and $script:QualView.Kind -eq 'measure') { $script:AlignLoop = $false; $script:AlignNextAt = $null; Set-QualityStale 'gwerror' }
             }
             if (-not $script:Detect) { Append-Log '' }
             $script:GwProc = $null
@@ -66,7 +68,9 @@ $timer.Add_Tick({
                     Stop-WriteWarmup    # defensif : une lecture de prechauffage est « soft »
                     Append-Log (T 'Séquence interrompue : gw a retourné une erreur.')
                     if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : gw a retourné le code {0}. Voir le journal.") -f "$code") }
-                    if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; $lblAlVerdict.Text = (T 'Mesure interrompue (erreur gw)') }
+                    # 12.8 (lot 3a) : toute mesure de qualite (et non plus la seule mesure continue) : resultat affiche perime
+                    if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null }
+                    if ($script:QualView.State -eq 'run' -and $script:QualView.Kind -eq 'measure') { Set-QualityStale 'gwerror' }
                     if ($script:Rep) { Stop-WriteCheck -GwError }
                     if ($script:Cal) { Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
                 }
@@ -160,6 +164,8 @@ $form.Add_FormClosing({
     if ($script:LibRunspace) { try { $script:LibRunspace.Close(); $script:LibRunspace.Dispose() } catch { } }
     $timer.Stop()
 })
+# 12.8 (lot 3) : pinceaux, stylos, polices, formats et pictogrammes de l affichage de la qualite liberes avec la fenetre
+$form.Add_FormClosed({ Clear-QualityGdi })
 
 # Position du separateur : appliquee une fois la fenetre affichee (taille connue)
 $script:PendingSplit = 0

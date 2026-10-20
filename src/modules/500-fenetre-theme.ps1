@@ -37,6 +37,7 @@ $script:Theme = @{
     Accent2 = [System.Drawing.Color]::FromArgb(22, 54, 98)
     Danger  = [System.Drawing.Color]::FromArgb(196, 60, 52)
     Ok      = [System.Drawing.Color]::FromArgb(46, 139, 87)
+    Good    = [System.Drawing.Color]::FromArgb(96, 140, 44)    # 12.8 (D17) : niveau BON des icones de score ; 3,97:1 sur blanc (element graphique, >= 3:1)
     Warn    = [System.Drawing.Color]::FromArgb(214, 140, 30)
     WarnInk = [System.Drawing.Color]::FromArgb(156, 92, 8)     # 12.8 (D17) : texte d avertissement sur fond clair ; contraste WCAG 5,14:1 sur Page, 5,32:1 sur blanc, 4,61:1 sur Window (176,104,10 : 4,20:1 sur Page)
     Muted   = [System.Drawing.Color]::FromArgb(110, 116, 128)

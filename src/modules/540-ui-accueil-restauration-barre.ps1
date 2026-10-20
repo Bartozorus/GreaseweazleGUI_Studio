@@ -133,6 +133,8 @@ for ($i = 0; $i -lt $script:RsStepNames.Count; $i++) {
     $l = New-Object System.Windows.Forms.Label
     $l.Location = New-Object System.Drawing.Point(404, (32 + 21 * $i)); $l.Size = '372,20'; $l.AutoEllipsis = $true
     $l.ForeColor = $script:Theme.Muted; $l.Text = "○  " + $script:RsStepNames[$i]
+    # 12.8 (lot 3b, D15) : icone d etat de 16 px a la place du glyphe, texte dans sa couleur meme onglets desactives
+    $l.Tag = 'pending'; $l.Add_Paint({ param($s, $e) Draw-RsStepLabel $s $e })
     $script:RsStepLabels += $l
 }
 $lblRsNow = New-Object System.Windows.Forms.Label
@@ -156,9 +158,11 @@ $pnlRsWait.Controls.AddRange(@($lblRsWait, $btnRsGo, $btnRsForce, $btnRsCancel))
 
 # Verdict final
 $lblRsResult = New-Object System.Windows.Forms.Label
-$lblRsResult.Location = '402,230'; $lblRsResult.AutoSize = $true; $lblRsResult.MaximumSize = New-Object System.Drawing.Size(374, 0); $lblRsResult.MinimumSize = New-Object System.Drawing.Size(374, 60)
-$lblRsResult.Visible = $false; $lblRsResult.Padding = New-Object System.Windows.Forms.Padding(8)
+$lblRsResult.Location = '402,230'; $lblRsResult.AutoSize = $true; $lblRsResult.MaximumSize = New-Object System.Drawing.Size(374, 0); $lblRsResult.MinimumSize = New-Object System.Drawing.Size(374, 64)
+# 12.8 (lot 3b) : icone d etat de 48 px dans la marge gauche (Show-RestoreResult, Draw-RsResultIcon)
+$lblRsResult.Visible = $false; $lblRsResult.Padding = New-Object System.Windows.Forms.Padding(64, 8, 8, 8)
 $lblRsResult.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 9.75)
+$lblRsResult.Add_Paint({ param($s, $e) Draw-RsResultIcon $e })
 
 $tabRs.Controls.AddRange(@($grpRsSrc, $grpRsCal, $grpRsDir, $btnRsStart, $lblRsRules, $lblRsStepsTitle) + $script:RsStepLabels + @($lblRsNow, $pnlRsWait, $lblRsResult))
 Set-Btn $btnRsStart 'History' 'primary'
@@ -241,6 +245,8 @@ $btnStop.Add_Click({
         if ($script:Rep) { Stop-WriteCheck }
         if ($script:Cal) { Stop-PrecompCalib }
         Append-Log (T '*** Interrompu par l''utilisateur ***')
+        # 12.8 (lot 3a) : mesure de qualite interrompue : resultat affiche perime (le controle l est par Stop-WriteCheck)
+        if ($script:QualView.State -eq 'run') { Set-QualityStale $(if ($script:QualView.Kind -eq 'check') { 'checkabort' } else { 'stop' }) }
     }
     if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; Append-Log (T 'Mesure continue arrêtée.') }
 })

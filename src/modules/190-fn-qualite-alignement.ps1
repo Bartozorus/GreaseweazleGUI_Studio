@@ -62,9 +62,9 @@ function Get-AlignCyls {
 
 function Start-AlignCycle {
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
-    $cyls = Get-AlignCyls
-    if (-not $cyls -or $cyls.Count -eq 0) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Indiquez au moins un cylindre valide (0-83).'),(T 'Alignement'),'OK','Warning')
+    $cyls = @(Get-AlignCyls)
+    if ($cyls.Count -eq 0) {
+        [void](Show-AppMessage (T 'Indiquez au moins un cylindre valide (0-83).') (T 'Alignement') 'OK' 'Warning')
         $script:AlignLoop = $false; return
     }
     if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
@@ -73,6 +73,8 @@ function Start-AlignCycle {
     $cspec = ($cyls -join ',')
     $hspec = if ($cmbAlHead.Text -eq '0+1') { '0-1' } else { $cmbAlHead.Text }
     $script:AlignArgs = @('read') + (Get-CommonArgs) + @("--revs=$($numAlRevs.Value)", "--tracks=c=${cspec}:h=$hspec", "`"$($script:AlignTmp)`"")
+    # 12.8 (lot 3a) : resultat precedent grise et marque « en cours » jusqu a la fin de l analyse (D16)
+    Set-QualityPending 'measure' @{ Drive = [string]$cmbDrive.Text; Heads = [string]$cmbAlHead.Text; Revs = [int]$numAlRevs.Value; NCyl = $cyls.Count }
     $script:Chain.Clear()
     $script:Chain.Enqueue({ Start-Gw $script:AlignArgs })
     $script:Chain.Enqueue({ Invoke-AlignAnalysis })
@@ -92,8 +94,11 @@ function Get-AlLevel([string]$kind, [double]$v) {
 }
 
 function Draw-AlignBars($g, $size) {
+    # 12.8 (lot 3) : police, stylo et pinceaux en cache (Get-QualFont, Get-QualPen, Get-QualBrush) ; barres grises tant
+    # que le resultat affiche n est pas le resultat courant (mesure en cours, perime : D16)
     $g.Clear([System.Drawing.Color]::White)
-    $font = New-Object System.Drawing.Font('Segoe UI', 8)
+    $font = Get-QualFont 'Segoe UI' 8
+    $grey = ($script:QualView.State -ne 'result')
     if (-not $script:AlignLast -or $script:AlignLast.Count -eq 0) {
         $g.DrawString((T 'Barres de score par cylindre : apparaissent après la première mesure.'), $font, [System.Drawing.Brushes]::Gray, 8, 26); return
     }
@@ -106,7 +111,7 @@ function Draw-AlignBars($g, $size) {
     foreach ($k in $script:AlignBest.Keys) { if ($k -ne '_global' -and $script:AlignBest[$k] -lt 2000 -and $script:AlignBest[$k] -gt $peak) { $peak = $script:AlignBest[$k] } }
     $maxScore = [math]::Max(100.0, [math]::Ceiling($peak * 1.15 / 50) * 50)
     # axe
-    $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::Gainsboro)
+    $pen = Get-QualPen ([System.Drawing.Color]::Gainsboro) 1
     foreach ($frac in 0.25,0.5,0.75) { $y = [int]($h - 14 - ($h - 24) * $frac); $g.DrawLine($pen, $left, $y, $size.Width - 6, $y) }
     $g.DrawString('0', $font, [System.Drawing.Brushes]::Gray, 2, $h - 22)
     $g.DrawString([string][int]$maxScore, $font, [System.Drawing.Brushes]::Gray, 2, 2)
@@ -117,7 +122,7 @@ function Draw-AlignBars($g, $size) {
         $sc = [math]::Min($st.Score, $maxScore)
         $bh = [int](($h - 24) * ($sc / $maxScore)); if ($bh -lt 2) { $bh = 2 }
         $lvl = Get-AlLevel 'score' $st.Score
-        $brush = New-Object System.Drawing.SolidBrush($script:AlColors[$lvl])
+        $brush = Get-QualBrush $(if ($grey) { [System.Drawing.Color]::FromArgb(196, 201, 210) } else { $script:AlColors[$lvl] })
         $g.FillRectangle($brush, $x, $h - 14 - $bh, $bw, $bh)
         $g.DrawRectangle([System.Drawing.Pens]::DimGray, $x, $h - 14 - $bh, $bw, $bh)
         # repere reference (trait noir) et meilleur (trait bleu)
@@ -131,8 +136,9 @@ function Draw-AlignBars($g, $size) {
             $g.DrawLine([System.Drawing.Pens]::RoyalBlue, $x - 2, $by, $x + $bw + 2, $by)
         }
         $label = if ($cmbAlHead.Text -eq '0+1') { "c$k" } else { "c$($k -replace '\.\d+$','')" }
-        $g.DrawString($label, $font, [System.Drawing.Brushes]::Black, $x, $h - 14)
-        $g.DrawString(('{0:N0}' -f $st.Score), $font, [System.Drawing.Brushes]::Black, $x, [math]::Max(0, $h - 14 - $bh - 14))
+        $ink = if ($grey) { Get-QualBrush $script:Theme.Muted } else { [System.Drawing.Brushes]::Black }
+        $g.DrawString($label, $font, $ink, $x, $h - 14)
+        $g.DrawString(('{0:N0}' -f $st.Score), $font, $ink, $x, [math]::Max(0, $h - 14 - $bh - 14))
         $i++
     }
 }
@@ -210,8 +216,15 @@ function Set-JitterThresholds([int]$ok, [int]$watch) {
     # Bornes : SAIN de 30 a 300 ns, A SURVEILLER au moins 10 ns au-dessus, 600 ns au plus
     $ok = [math]::Max(30, [math]::Min(300, $ok))
     $watch = [math]::Max($ok + 10, [math]::Min(600, $watch))
+    $changed = ($ok -ne [int]$script:JitterOk -or $watch -ne [int]$script:JitterWatch)
     $script:JitterOk = $ok; $script:JitterWatch = $watch
     Update-QualityTip
+    # 12.8 (lot 3a) : etats affiches calcules avec les anciens seuils, non recalculables (AlignLast ne garde ni les trous ni
+    # les zones instables) : resultat declare perime ; sans effet sans resultat affiche (chargement, Set-Defaults).
+    # 12.8 (FIX3) : ni pendant une mesure ou un controle en cours (Reinitialiser des parametres pendant la pause d une
+    # mesure continue, passe suivante lancee par le minuteur sous la boite) : son analyse prendra les nouveaux seuils, et
+    # l etat « en cours » garde les arrets sur erreur gw de la mesure continue
+    if ($changed -and $script:QualView.State -ne 'run') { Set-QualityStale 'thresholds' }
 }
 
 function Get-JitterPresets {
@@ -355,6 +368,7 @@ function New-AlignRow([string]$lab, $m, [string]$mark, [string]$delta, [int]$del
         $state = if ($m.Missing) { (T 'ABSENTE') } else { (T 'ILLISIBLE') }
         foreach ($v in @(($state + $mark),'-','-','-','-','-','-','-','-')) { [void]$it.SubItems.Add([string]$v) }
         $it.SubItems[1].BackColor = $script:AlColors[3]; $it.SubItems[1].ForeColor = [System.Drawing.Color]::White; $it.SubItems[1].Font = $bold
+        $it.Tag = @{ State = $(if ($m.Missing) { 'h2a' } else { 'h2' }); Score = '' }   # 12.8 (lot 3b) : icones 16 px (DrawSubItem)
         return $it
     }
     $hl = [int]$m.Level
@@ -372,6 +386,8 @@ function New-AlignRow([string]$lab, $m, [string]$mark, [string]$delta, [int]$del
     $lvSc  = Get-AlLevel 'score' $m.Score; $it.SubItems[6].BackColor = $script:AlColors[$lvSc];  $it.SubItems[6].ForeColor = $script:AlFg[$lvSc]
     if ($deltaLvl -ge 0) { $it.SubItems[7].BackColor = $script:AlColors[$deltaLvl]; $it.SubItems[7].ForeColor = $script:AlFg[$deltaLvl] }
     $lvAs  = Get-AlLevel 'asym' $m.Asym;  $it.SubItems[8].BackColor = $script:AlColors[$lvAs];   $it.SubItems[8].ForeColor = $script:AlFg[$lvAs]
+    # 12.8 (lot 3b, D15) : icone d etat (colonne Etat) et icone de score (colonne Score), 16 px, dessinees par DrawSubItem
+    $it.Tag = @{ State = $(if ($m.Unjudged -and $hl -eq 0) { 'hq' } else { "h$hl" }); Score = "q$lvSc" }
     return $it
 }
 
@@ -404,13 +420,16 @@ function Get-UnstableClusters([string[]]$keys, [int]$minRun = 3) {
 }
 
 function Invoke-AlignAnalysis {
+    # 12.8 (lot 3a) : analyse impossible : resultat affiche declare perime (ou carte vide avec la raison)
     if (-not $script:AlignTmp -or -not (Test-Path -LiteralPath $script:AlignTmp)) {
-        Append-Log (T 'Mesure : fichier SCP absent, analyse impossible.'); $script:AlignLoop = $false; return
+        Append-Log (T 'Mesure : fichier SCP absent, analyse impossible.'); $script:AlignLoop = $false; Set-QualityStale 'noscp'; return
     }
-    try { $tracks = Read-ScpFile $script:AlignTmp } catch { Append-Log ((T "Mesure : {0}") -f "$($_.Exception.Message)"); $script:AlignLoop = $false; return }
+    try { $tracks = Read-ScpFile $script:AlignTmp } catch { Append-Log ((T "Mesure : {0}") -f "$($_.Exception.Message)"); $script:AlignLoop = $false; Set-QualityStale 'noscp'; return }
 
-    $last = @{}; $watch = @(); $crit = @(); $weakL = @()
-    $lvAl.Columns[1].Width = 200
+    $last = @{}; $watch = @(); $crit = @(); $weakL = @(); $critK = @(); $nBad = 0
+    $res = @{ Kind = 'measure'; Score = $null; Lvl = 3; Count = 0; Bad = 0; Health = 0; NTracks = 0; WatchKeys = @(); CritKeys = @()
+              HealthText = ''; ScoreText = ''; Prev = $null; Best = $null; RefAvg = $null }
+    $lvAl.Columns[1].Width = 222                          # 12.8 (lot 3b) : icone d etat de 16 px devant le texte
     $lvAl.BeginUpdate()
     try {
         $lvAl.Items.Clear()
@@ -422,7 +441,7 @@ function Invoke-AlignAnalysis {
             if ($m.Bad) {
                 [void]$lvAl.Items.Add((New-AlignRow $lab $m '' '-' -1))
                 $last[$key] = @{ Score = 9999; Jitter = 0; Asym = 0; Err = 0; Stab = 0; Cell = 0 }
-                $crit += ((T "{0} (illisible)") -f "$lab"); continue
+                $crit += ((T "{0} (illisible)") -f "$lab"); $critK += $lab; $nBad++; continue
             }
             # Zone instable : la piste ne se relit pas pareil d un tour a l autre, elle n est pas propre (protection ou
             # defaut du support, l application ne peut pas trancher sur une disquette inconnue) : au moins A SURVEILLER
@@ -432,7 +451,7 @@ function Invoke-AlignAnalysis {
             $last[$key] = @{ Score = $sc; Jitter = $m.J; Asym = $m.Asym; Err = $m.Ooc; Stab = $m.Stab; Cell = $m.Cell }
             $hl = $m.Level
             if ($m.Weak) { $weakL += $lab }
-            if ($hl -eq 1) { $watch += $lab } elseif ($hl -eq 2) { $crit += ((T "{0} ({1} err/tour)") -f "$lab", "$([math]::Round($m.Ooc,0))") }
+            if ($hl -eq 1) { $watch += $lab } elseif ($hl -eq 2) { $crit += ((T "{0} ({1} err/tour)") -f "$lab", "$([math]::Round($m.Ooc,0))"); $critK += $lab }
 
             $delta = '-'; $deltaLvl = -1
             if ($script:AlignRef -and $script:AlignRef.ContainsKey($key) -and $script:AlignRef[$key].Score -gt 0) {
@@ -445,18 +464,16 @@ function Invoke-AlignAnalysis {
         $script:AlignLast = $last
         $nTracks = $tracks.Count
 
-        # --- Verdict 1 : etat du support
+        # --- Verdict 1 : etat du support (12.8, lot 3b : carte de resultat ; texte complet dans l infobulle et le journal)
+        $res.NTracks = $nTracks; $res.WatchKeys = @($watch); $res.CritKeys = @($critK); $res.Bad = $nBad
         if ($crit.Count -gt 0) {
-            $lblAlHealth.Text = ((T "SUPPORT CRITIQUE  -  {0} piste(s) en erreur : {1}   ->  dump flux immédiat conseillé") -f "$($crit.Count)", "$($crit -join ', ')")
-            $lblAlHealth.BackColor = $script:AlColors[3]; $lblAlHealth.ForeColor = $script:AlFg[3]
+            $res.Health = 2; $res.HealthText = ((T "SUPPORT CRITIQUE  -  {0} piste(s) en erreur : {1}   ->  dump flux immédiat conseillé") -f "$($crit.Count)", "$($crit -join ', ')")
         } elseif ($watch.Count -gt 0) {
-            $lblAlHealth.Text = ((T "SUPPORT À SURVEILLER  -  {0}/{1} piste(s) marginale(s) : {2}   ->  dump flux recommandé") -f "$($watch.Count)", "$nTracks", "$($watch -join ', ')")
-            $lblAlHealth.BackColor = $script:AlColors[2]; $lblAlHealth.ForeColor = $script:AlFg[2]
+            $res.Health = 1; $res.HealthText = ((T "SUPPORT À SURVEILLER  -  {0}/{1} piste(s) marginale(s) : {2}   ->  dump flux recommandé") -f "$($watch.Count)", "$nTracks", "$($watch -join ', ')")
         } else {
-            $lblAlHealth.Text = ((T "SUPPORT SAIN  -  {0}/{1} pistes propres (erreurs, trous, stabilité, jitter dans les normes)") -f "$nTracks", "$nTracks")
-            $lblAlHealth.BackColor = $script:AlColors[0]; $lblAlHealth.ForeColor = $script:AlFg[0]
+            $res.Health = 0; $res.HealthText = ((T "SUPPORT SAIN  -  {0}/{1} pistes propres (erreurs, trous, stabilité, jitter dans les normes)") -f "$nTracks", "$nTracks")
         }
-        Append-Log ((T "Mesure : {0}") -f "$($lblAlHealth.Text)")
+        Append-Log ((T "Mesure : {0}") -f "$($res.HealthText)")
         if ($weakL.Count -gt 0) { Append-Log ((T "Mesure : zone instable d'un tour à l'autre sur {0} piste(s) : {1}. Bits faibles d'une protection contre la copie probable, ou défaut localisé du support : une copie faite depuis un flux n'en écrit qu'un tour et ne les reproduit pas fidèlement.") -f "$($weakL.Count)", "$($weakL -join ', ')") }
         $clu = @(Get-UnstableClusters $weakL)
         if ($clu.Count -gt 0) { Append-Log ((T "Mesure : pistes instables sur des cylindres voisins d'une même face ({0}) : défaut du support probable (rayure, usure) plutôt qu'une protection.") -f "$($clu -join ', ')") }
@@ -469,24 +486,27 @@ function Invoke-AlignAnalysis {
             if ($null -ne $script:AlignPrev) {
                 if ($avg -lt $script:AlignPrev - 2) { $trend = (T '   MIEUX (v)') } elseif ($avg -gt $script:AlignPrev + 2) { $trend = (T '   MOINS BIEN (^)') } else { $trend = (T '   stable') }
             }
+            $res.Prev = $script:AlignPrev
             $script:AlignPrev = $avg
             $lvlAvg = Get-AlLevel 'score' $avg
             $refTxt = ''
             if ($script:AlignRef) {
                 $refScores = @($script:AlignRef.Values | ForEach-Object { $_.Score } | Where-Object { $_ -lt 9999 })
-                if ($refScores.Count -gt 0) { $refAvg = [math]::Round(($refScores | Measure-Object -Average).Average, 0); $refTxt = ((T "   |   référence {0}") -f "$refAvg") }
+                if ($refScores.Count -gt 0) { $refAvg = [math]::Round(($refScores | Measure-Object -Average).Average, 0); $refTxt = ((T "   |   référence {0}") -f "$refAvg"); $res.RefAvg = $refAvg }
             }
-            $lblAlVerdict.Text = ((T "Qualité de lecture : score {0} - {1}{2}{3}   |   meilleur {4}") -f "$avg", "$($script:AlNames[$lvlAvg])", "$trend", "$refTxt", "$($script:AlignBest['_global'])")
-            $lblAlVerdict.BackColor = $script:AlColors[$lvlAvg]; $lblAlVerdict.ForeColor = $script:AlFg[$lvlAvg]
+            $res.Score = $avg; $res.Lvl = $lvlAvg; $res.Count = $count; $res.Best = $script:AlignBest['_global']
+            $res.ScoreText = ((T "Qualité de lecture : score {0} - {1}{2}{3}   |   meilleur {4}") -f "$avg", "$($script:AlNames[$lvlAvg])", "$trend", "$refTxt", "$($script:AlignBest['_global'])")
             Append-Log ((T "Mesure : score moyen {0} ({1}){2}") -f "$avg", "$($script:AlNames[$lvlAvg])", "$trend")
             Update-AlignGuide $avg
             $bn = if ($weakL.Count -gt 0) { ((T "Zone instable d'un tour à l'autre (protection contre la copie ou défaut du support) : {0}") -f "$($weakL -join ', ')") + $(if ($clu.Count -gt 0) { (T " ; cylindres voisins {0} : défaut du support probable") -f "$($clu -join ', ')" } else { '' }) } else { '' }
             Set-UnstableBanner @($bn)
         } else {
-            $lblAlVerdict.Text = (T 'Aucune piste analysable'); $lblAlVerdict.BackColor = $script:AlColors[3]; $lblAlVerdict.ForeColor = $script:AlFg[3]
+            $res.ScoreText = (T 'Aucune piste analysable')
+            Set-UnstableBanner @('')                      # 12.8 (FIX3) : bandeau d une mesure precedente retire
         }
     } finally { $lvAl.EndUpdate() }
     Render-AlignBars
+    Set-QualityResult $res                                # 12.8 (lot 3a) : carte, tableau et barres en couleurs
 
     if ($script:AlignLoop) { $script:AlignNextAt = (Get-Date).AddSeconds([int]$numAlPause.Value) }
 }

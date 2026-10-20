@@ -67,8 +67,9 @@ function Fill-PictoDrop($g, $brush, [single]$cx, [single]$cy, [single]$r) {
     $p.CloseFigure(); $g.FillPath($brush, $p); $p.Dispose()
 }
 
-function Draw-PictoClock($g, [single]$cx, [single]$cy, [single]$r) {
-    $pen = New-Object System.Drawing.Pen($script:Theme.Accent, [single]2.5)
+function Draw-PictoClock($g, [single]$cx, [single]$cy, [single]$r, $color = $null) {
+    # 12.8 (lot 3) : couleur du trait en parametre (Theme.Accent par defaut) : pictogrammes de qualite en cours et perimes
+    $pen = New-Object System.Drawing.Pen($(if ($color) { [System.Drawing.Color]$color } else { $script:Theme.Accent }), [single]2.5)
     $g.FillEllipse([System.Drawing.Brushes]::White, [single]($cx - $r), [single]($cy - $r), [single](2 * $r), [single](2 * $r))
     $g.DrawEllipse($pen, [single]($cx - $r), [single]($cy - $r), [single](2 * $r), [single](2 * $r))
     $g.DrawLine($pen, $cx, $cy, $cx, [single]($cy - 0.65 * $r)); $g.DrawLine($pen, $cx, $cy, [single]($cx + 0.5 * $r), $cy)
