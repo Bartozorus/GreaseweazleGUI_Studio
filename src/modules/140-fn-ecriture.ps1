@@ -278,7 +278,8 @@ function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
 # Une ecriture depuis la Bibliotheque applique son prereglage aux controles de l onglet Ecriture (Set-WritePreset), le
 # temps de l operation seulement : l etat d avant (Save-WriteTabState) est ecrit a sa place dans la configuration
 # (Save-Config, Set-OpOverrideConfig), puis retabli quand plus rien ne tourne (Update-OpOverride, minuteur principal).
-# 12.7 : le prereglage devenait la configuration de l onglet Ecriture.
+# 12.7 : le prereglage devenait la configuration de l onglet Ecriture. 12.8, lot 2 : la restauration passe aussi par
+# cette surcharge (Kind 'restore', Started jamais pose : seule Close-Restore la termine).
 
 function Enter-OpOverride([string]$kind) {
     # Surcharge deja active (operation precedente non terminee) : l etat d origine est garde
@@ -294,7 +295,8 @@ function Exit-OpOverride([switch]$Keep) {
     $script:OpOverride = $null
     if ($Keep) { return }
     Restore-WriteTabState $o.Saved
-    Append-Log (T "Bibliothèque : opération terminée, réglages de l'onglet Écriture rétablis (le préréglage de la Bibliothèque n'est pas enregistré).")
+    # Restauration (12.8, lot 2) : reglages retablis sans ligne de journal, comme en 12.7
+    if ($o.Kind -eq 'library') { Append-Log (T "Bibliothèque : opération terminée, réglages de l'onglet Écriture rétablis (le préréglage de la Bibliothèque n'est pas enregistré).") }
     [void](Save-Config)
 }
 
@@ -482,13 +484,15 @@ function Get-LevelWriteSkip([string]$img, [string]$fmt, [string]$ts) {
     # journal, vide quand Start-ImageWrite refusera l ecriture lente (son message s affiche alors avant toute ecriture du
     # motif). Cas, dans cet ordre :
     #  - champ Pistes avec c=, h= ou step= (step= : pistes physiques que la mesure, sans le pas, ne vise pas) ;
-    #  - faces de l image inconnues avec « Effacer les pistes vides » : refus de Start-ImageWrite (memes regles, sans h=) ;
+    #  - faces de l image inconnues avec « Effacer les pistes vides », en ecriture lente : refus de Start-ImageWrite (memes
+    #    regles, sans h=). 12.8 (lot 2, PRE-BANC § 4) : en ecriture rapide, ce refus n existe pas (gw ecrit toutes les
+    #    pistes du format) : faces du format, comme sans la case (12.8 avant ce correctif : mesure sautee sans ligne) ;
     #  - image a une seule face : faces de l image (Get-ImageTrackSet), sinon tetes du format gw d une image secteur.
     $ts = "$ts".Trim()
     if ($ts -and [regex]::IsMatch(":$ts", ':\s*(c|h|step)\s*=')) { return @{ Why = ((T "Mesure de la disquette avant l'écriture non faite : le champ Pistes (« {0} ») limite les pistes écrites ; le motif de test resterait sur des cylindres que l'image ne recouvre pas. Écriture sans mesure.") -f "$ts") } }
     $set = Get-ImageTrackSet $img
     if ($null -eq $set) {
-        if ($chkWEraseEmpty.Checked) { return @{ Why = '' } }
+        if ($chkWEraseEmpty.Checked -and $chkWSlow.Checked) { return @{ Why = '' } }
         $fe = if ($fmt -and $fmt -ne '(auto)' -and $script:GwFormats.Contains($fmt)) { $script:GwFormats[$fmt] } else { $null }
         $hs = @(if ($fe -and [int]$fe.Heads -eq 1) { 0 } else { 0, 1 })
     } else { $hs = @(@($set.Keys) | ForEach-Object { [int](([string]$_ -split '\.')[1]) } | Sort-Object -Unique) }

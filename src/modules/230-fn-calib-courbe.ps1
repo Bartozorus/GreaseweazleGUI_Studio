@@ -638,6 +638,8 @@ function Show-PrecompCurve([string]$family, [bool]$preferHeads, $Owner = $null) 
 function Update-CurveButton([string]$path) {
     # Bouton « Courbe » : actif si une courbe calibree (commune ou par tete) existe pour la famille de l image courante
     # Avant l affichage de la fenetre : aucun acces au fichier (racine reseau possible) ; le gestionnaire Shown recalcule.
+    # 12.8 (lot 2) : cadre « 2. Calibration du lecteur » de la restauration mis a jour en meme temps (memes courbes)
+    Update-RsCalib
     if (-not $script:UiReady) { $path = '' }
     $fam = 'std'
     $ext = if ($path) { [System.IO.Path]::GetExtension($path).ToLower() } else { '' }

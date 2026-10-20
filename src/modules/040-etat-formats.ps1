@@ -71,6 +71,11 @@ $script:SettingDefs = [ordered]@{
     jitterWatch        = @{ Sec = 'quality'; Key = 'jitterWatch';        Type = 'int';    Def = $script:JitterStdWatch; Min = 40; Max = 600; Var = 'JitterWatch' }
     cleanPasses        = @{ Sec = 'tools';   Key = 'passes';             Type = 'int';    Def = 3;        Min = 1; Max = 20 }
     cleanLinger        = @{ Sec = 'tools';   Key = 'linger';             Type = 'int';    Def = 500;      Min = 0; Max = 5000 }
+    # 12.8 (lot 2, D13) : format de la restauration, dans l ordre de la liste cmbRsFmt : detection automatique, copie
+    # exacte du flux, puis les formats. Cle neuve : restore.format (12.7) n est pas relu, son defaut amiga.amigados n etant
+    # pas un choix de l utilisateur
+    restoreFormat      = @{ Sec = 'restore'; Key = 'formatChoice';       Type = 'enum';   Def = 'auto'
+                            Codes = @('auto', 'flux', 'amiga.amigados', 'amiga.amigados_hd', 'atarist.720', 'atarist.800', 'atarist.880', 'ibm.360', 'ibm.720', 'ibm.1440') }
 }
 $script:Settings    = @{}                                                   # cle -> valeur (reglages sans variable propre)
 $script:SettingCtl  = @{}                                                   # cle -> controles d onglet lies (Register-SettingCtl)
@@ -127,6 +132,15 @@ foreach ($fe in ($script:GwFormatTable -split '[;\r\n]+')) {
     $fp = @($fe.Trim() -split '\s+')
     if ($fp.Count -eq 6) { $script:GwFormats[$fp[0]] = @{ Cyls = [int]$fp[1]; Heads = [int]$fp[2]; Enc = $fp[3]; Rate = [int]$fp[4]; Rpm = [int]$fp[5] } }
 }
+# 12.8 (lot 2, D13) : format de la comparaison, liste cmbCmpFmt : detection automatique, puis les formats de la liste
+# ($Formats), dans son ordre ; codes suivants : les autres formats de gw, saisis dans la liste modifiable (Update-CmpFmtFound
+# les affiche). Cle neuve : compare.format (12.7) n est pas relu, son defaut amiga.amigados n etant pas un choix
+$script:SettingDefs['compareFormat'] = @{ Sec = 'compare'; Key = 'formatChoice'; Type = 'enum'; Def = 'auto'
+    Codes = @(@('auto') + @($Formats | Where-Object { $_ -ne '(auto)' }) + @($script:GwFormats.Keys | Where-Object { $Formats -notcontains $_ })) }
+$script:FmtDetect     = $null    # 12.8 (lot 2) : detection du format en cours (Invoke-DiskFormatDetect) : proprietaire, flux, lignes de gw
+$script:FmtDetectArgs = @()      # arguments de la commande gw de l etape de detection en cours
+$script:CmpAuto       = $null    # 12.8 (lot 2) : comparaison en detection automatique : reference, candidats, sonde de la disquette
+$script:CmpRefCyls    = 0        # cylindres de la reference au-dela du format (ADF de 81 a 83 cylindres), non compares (FIX2), 0 sinon
 $script:HomeCalApp  = @('app.long', 'app.flux', 'app.free')   # types d image de la carte sans format gw (Get-HomeCalibInfo)
 $script:HomeCalFmt  = 'amiga.amigados'   # dernier type choisi dans la carte (configuration ui.homeCalFormat)
 $script:HomeCalBusy = $false             # calibration lancee depuis l Accueil : progression affichee sur la carte

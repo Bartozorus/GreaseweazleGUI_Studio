@@ -161,10 +161,28 @@ $btnCmpRef.Add_Click({
     if ($d.ShowDialog() -eq 'OK') { $txtCmpRef.Text = $d.FileName }
 })
 
+# 12.8 (lot 2) : ligne du format detecte (Update-CmpFmtFound, Compare-Images), creee avant la liste liee
+$lblCmpFmtFound = New-Object System.Windows.Forms.Label
+$lblCmpFmtFound.Location = '350,84'; $lblCmpFmtFound.Size = '425,34'; $lblCmpFmtFound.Anchor = 'Top,Left,Right'
+$lblCmpFmtFound.AutoEllipsis = $true; $lblCmpFmtFound.ForeColor = $script:Theme.Muted
 $cmbCmpFmt = New-Object System.Windows.Forms.ComboBox
 $cmbCmpFmt.Location = '90,43'; $cmbCmpFmt.Width = 200
-[void]$cmbCmpFmt.Items.AddRange(($Formats | Where-Object { $_ -ne '(auto)' }))
-$tip.SetToolTip($cmbCmpFmt, (T "Format de décodage commun : la référence est convertie dans ce format,`nla disquette est lue dans ce format, puis les deux sont comparées octet par octet."))
+# 12.8 (lot 2, D13) : « (detection automatique) » en tete, puis les formats, dans l ordre des codes du reglage
+# compareFormat (compare.formatChoice) ; liste modifiable : un autre format de gw peut etre saisi, comme en 12.7
+$script:CmpAutoItem = (T '(détection automatique)')
+foreach ($cmpCode in @($script:SettingDefs['compareFormat'].Codes | Select-Object -First (1 + @($Formats | Where-Object { $_ -ne '(auto)' }).Count))) {
+    [void]$cmbCmpFmt.Items.Add($(if ($cmpCode -eq 'auto') { $script:CmpAutoItem } else { $cmpCode }))
+}
+Register-SettingCtl 'compareFormat' $cmbCmpFmt
+# Format saisi : reglage mis a jour des que le texte est un format de gw (une saisie incomplete ou inconnue ne change pas
+# le reglage ; la comparaison prend le texte affiche, Get-CmpFormatChoice) ; element choisi : meme code que la liaison
+$cmbCmpFmt.Add_TextChanged({
+    if ($script:SettingSync) { return }
+    $v = Get-CmpFormatChoice
+    if ($v -and (ConvertTo-SettingValue 'compareFormat' $v) -ceq $v) { Set-Setting 'compareFormat' $v $this }
+    else { $lblCmpFmtFound.Text = ''; $tip.SetToolTip($lblCmpFmtFound, '') }
+})
+$tip.SetToolTip($cmbCmpFmt, (T "Format de décodage commun : la référence est convertie dans ce format,`nla disquette est lue dans ce format, puis les deux sont comparées octet par octet.`n(détection automatique) : format déduit de la référence (taille et BPB d'un ADF, d'un ST ou d'un IMG ; décodage de deux pistes d'un IPF, d'un SCP ou d'un HFE), puis vérifié sur deux pistes de la disquette avant la lecture complète."))
 
 $numCmpRetries = New-Object System.Windows.Forms.NumericUpDown
 $numCmpRetries.Location = '365,43'; $numCmpRetries.Width = 55
@@ -175,7 +193,8 @@ $btnCmpFromWrite.Text = (T 'Reprendre l''image de l''onglet Écriture'); $btnCmp
 $btnCmpFromWrite.Add_Click({
     if ($txtWFile.Text) {
         $txtCmpRef.Text = $txtWFile.Text
-        if ($cmbWFmt.Text -and $cmbWFmt.Text -ne '(auto)') { Set-Combo $cmbCmpFmt $cmbWFmt.Text }
+        # 12.8 (A1 § 4.2) : onglet Ecriture sur « (auto) » : detection automatique
+        if ($cmbWFmt.Text -and $cmbWFmt.Text -ne '(auto)') { Set-Combo $cmbCmpFmt $cmbWFmt.Text } else { $cmbCmpFmt.SelectedIndex = 0 }
     }
 })
 
@@ -192,7 +211,7 @@ $txtCmpResult.BackColor = [System.Drawing.SystemColors]::Control
 
 $tabCmp.Controls.AddRange(@((New-Label (T 'Référence :') '10,17'), $txtCmpRef, $btnCmpRef,
     (New-Label (T 'Format :') '10,47'), $cmbCmpFmt, (New-Label (T 'Essais :') '305,47'), $numCmpRetries, $btnCmpFromWrite,
-    $btnCompare, $txtCmpResult))
+    $btnCompare, $lblCmpFmtFound, $txtCmpResult))
 
 # ============================== QUALITE & ALIGNEMENT ===========================
 $tabAl = New-TabPage (T 'Qualité & alignement')

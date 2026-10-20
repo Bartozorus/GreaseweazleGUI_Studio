@@ -30,7 +30,8 @@ Dans tous les modules, aucune instruction n'est à cheval sur deux modules, et c
 | `150-fn-pistes-densite.ps1` | Pistes et TSPEC, options de relecture du lecteur, haute densité |
 | `160-fn-ecriture-lente.ps1` | Écriture lente : file des commandes, préchauffage du lecteur |
 | `170-fn-controle-ecriture.ps1` | Contrôle après écriture, réécriture des pistes faibles |
-| `180-fn-comparaison.ps1` | Comparaison d'une image et d'une disquette |
+| `180-fn-comparaison.ps1` | Comparaison d'une image et d'une disquette, détection automatique du format de la comparaison |
+| `185-fn-detection-format.ps1` | Détection du format (12.8) : d'une disquette, pour la restauration et la comparaison (`Invoke-DiskFormatDetect`, `Select-DiskFormat`), et d'une image de référence (`Get-RefImageFormat`, `Select-RefDecodeFormat`) |
 | `190-fn-qualite-alignement.ps1` | Lecture des SCP, alignement, jitter, métriques de piste, analyse de l'onglet Qualité |
 | `200-fn-accueil-calibration.ps1` | Carte « Calibrer le lecteur », zone de progression et courbe de l'Accueil |
 | `210-fn-nettoyage.ps1` | Nettoyage des têtes : pictogrammes, fenêtre, déroulement |

@@ -15,6 +15,12 @@
 # la chaine d etapes : ils rappellent la restauration par des points d accroche (Complete-WriteCheck, fin de
 # Start-ImageWrite). Tout abandon passe par Stop-Restore (idempotent) ; un chien de garde dans le timer arrete une
 # sequence restee sans suite (aucun gw, aucune etape, aucun controle ni calibration en cours).
+# 12.8 (lot 2) : un seul lecteur, celui du bandeau, fige au lancement (D10) ; format choisi dans la liste, ou detection
+# automatique pendant l etape 1 (Start-RestoreDetect, Invoke-DiskFormatDetect et Select-DiskFormat du module 185,
+# Complete-RestoreDetection ; D13) : format inconnu en double densite ou protection probable -> copie exacte du flux,
+# lecture secteur incomplete -> relance d office en copie de flux (D12), disquette vierge ou format haute densite inconnu
+# -> arret avant toute ecriture ; reglages de l onglet Ecriture en
+# surcharge d operation (Enter-OpOverride 'restore') ; aucune reprise automatique apres un changement de disquette (D7).
 $script:Restore = $null
 $script:GwCapture = $null
 $script:LastCheck = $null

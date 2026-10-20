@@ -240,12 +240,8 @@ function Complete-DriveDetect {
     $pick = if ($dt.Found -contains $dt.Cur) { $dt.Cur } else { [string]$dt.Found[0] }
     if ($dt.Mode -ne 'auto') { Append-Log ((T "Lecteur(s) détecté(s) : {0}.") -f "$($dt.Found -join ', ')") }
     if ($pick -ne $dt.Cur) {
+        # 12.8 (D10) : la restauration suit le lecteur du bandeau, sans reglage propre a recaler
         Set-Combo $cmbDrive $pick
-        # Restauration a un seul lecteur (origine = destination = lecteur absent) seulement : jamais confondre deux lecteurs
-        if ($cmbRsSrc.Text -eq $dt.Cur -and $cmbRsDst.Text -eq $dt.Cur) {
-            Set-Combo $cmbRsSrc $pick; Set-Combo $cmbRsDst $pick
-            Append-Log ((T "Restauration : lecteur {0} remplacé par {1} (origine et destination).") -f "$($dt.Cur)", "$pick")
-        }
         Append-Log ((T "Lecteur {0} sélectionné : le lecteur {1} ne répond pas.") -f "$pick", "$($dt.Cur)")
     } else { Append-Log ((T "Lecteur {0} détecté.") -f "$pick") }
 }

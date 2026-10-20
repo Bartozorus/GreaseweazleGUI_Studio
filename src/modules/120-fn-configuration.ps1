@@ -121,10 +121,15 @@ function Update-SettingDependents([string]$k) {
     # Propagation d un changement : aiguillage statique (appels visibles par impact.ps1 et par static-check). Les controles
     # lies portent deja leurs gestionnaires (ecriture lente, mode de calibration, profil, mesure de qualite) ; restent ici
     # les reglages sans controle propre ou affiches ailleurs : duree du prechauffage (textes et cases de l onglet
-    # Ecriture), mesure de la disquette (case cochee et verrouillee en test rapide, D5)
+    # Ecriture), mesure de la disquette (case cochee et verrouillee en test rapide, D5) ; lot 2 : lecteur de la
+    # restauration (cadre 1, D10) et ligne du format detecte (D11) ; format de la comparaison (format saisi, ligne du format
+    # detecte, D13)
     switch ($k) {
         'warmMinutes'      { Update-SlowUi }
         'levelBeforeWrite' { Update-SlowUi }
+        'drive'            { Update-RsDrive }
+        'restoreFormat'    { Update-RsFmtFound }
+        'compareFormat'    { Update-CmpFmtFound }
     }
 }
 
@@ -255,11 +260,12 @@ function Set-Defaults {
     $chkAlGuide.Checked = $false
 
     $txtCmpRef.Text = ''
-    Set-Combo $cmbCmpFmt 'amiga.amigados'
+    # 12.8 (D13) : format de la comparaison (compareFormat, detection automatique) remis par Reset-Settings
     $numCmpRetries.Value = 10
     $txtCmpResult.Text = (T "Compare le contenu physique d'une disquette à une image de référence (IPF, ADF, SCP, HFE...).`r`n`r`n") +
                          (T "Principe : la référence est convertie par gw dans le format de décodage choisi, la disquette est`r`n") +
                          (T "lue dans ce même format, puis les deux fichiers sont comparés octet par octet, secteur par secteur.`r`n`r`n") +
+                         (T "Détection automatique (par défaut) : format déduit de la référence, puis vérifié sur deux pistes de la`r`ndisquette avant la lecture complète.`r`n`r`n") +
                          (T "Limite : seules les pistes décodables dans ce format sont comparées. Les pistes de protection`r`n") +
                          (T "(non-AmigaDOS) d'un IPF n'apparaissent pas dans la comparaison. Le flux brut (SCP) n'est jamais`r`n") +
                          (T "identique d'une lecture à l'autre : il n'existe pas de comparaison bit à bit au niveau flux.")
@@ -276,8 +282,9 @@ function Set-Defaults {
         $c.Num.Value = $c.Def
     }
 
-    $cmbRsSrc.SelectedItem = 'A'; $cmbRsDst.SelectedItem = 'A'; $cmbRsFmt.SelectedIndex = 1; $txtRsDir.Text = ''; $txtRsName.Text = ''
-    Update-RsRules; Reset-RsSteps
+    # 12.8 (D10, D13) : restauration a un seul lecteur (celui du bandeau) ; format (restore.formatChoice) dans la table
+    $txtRsDir.Text = ''; $txtRsName.Text = ''
+    Update-RsRules; Reset-RsSteps; Update-RsFmtFound
     $cmbHelpAct.SelectedItem = 'write'
     $txtC.Text = 'write --pre-erase --erase-empty --retries=10 --precomp 40=140 "jeu.ipf"'
     Update-CurveButton $txtWFile.Text
@@ -391,7 +398,8 @@ function Save-Config {
             densel = $cmbRDensel.Text; diskdefs = $txtRDiskdefs.Text
         }
         convert  = @{ input = $txtCvIn.Text; output = $txtCvOut.Text; format = $cmbCvFmt.Text; tracks = $txtCvTracks.Text }
-        compare  = @{ reference = $txtCmpRef.Text; format = $cmbCmpFmt.Text; retries = [int]$numCmpRetries.Value }
+        # 12.8 (D13) : compare.format (12.7) n est plus ecrit ; le format est compare.formatChoice (Export-Settings)
+        compare  = @{ reference = $txtCmpRef.Text; retries = [int]$numCmpRetries.Value }
         align    = @{ head = $cmbAlHead.Text; cyls = $txtAlCyls.Text; revs = [int]$numAlRevs.Value; loop = [bool]$chkAlLoop.Checked; pause = [int]$numAlPause.Value
                       guide = [bool]$chkAlGuide.Checked
                       reference = $(if ($script:AlignRef) { $r = @{}; foreach ($k in $script:AlignRef.Keys) { $r[$k] = [double]$script:AlignRef[$k].Score }; $r } else { $null })
@@ -404,13 +412,16 @@ function Save-Config {
         delays   = $delays
         free     = @{ command = $txtC.Text; helpAction = $cmbHelpAct.Text }
         ui       = @{ expert = [bool]$chkExpert.Checked; homeCalFormat = [string]$script:HomeCalFmt }   # type de la carte Calibration
-        restore  = @{ source = $cmbRsSrc.Text; target = $cmbRsDst.Text; folder = $txtRsDir.Text
-                      format = $(if ($cmbRsFmt.SelectedIndex -le 0) { 'flux' } else { $cmbRsFmt.Text }) }
+        # 12.8 (D10, D13) : restore.source, restore.target et restore.format (12.7) ne sont plus ecrits : ils disparaissent
+        # au premier enregistrement ; le format est restore.formatChoice, reglage de la table (Export-Settings)
+        restore  = @{ folder = $txtRsDir.Text }
     }
     # 12.8 (point 7) : reglages de la table (global.drive ; write.calMode, slowWrite, slowWarmup, calibWarmup,
     # calWarmupMinutes, levelBeforeWrite, precompProfileCode et precompProfile, precompThresholdNs ; ui.homeCalHeads et
-    # homeCalCyls ; align.presetCode et preset ; quality ; tools.passes et linger), puis, pendant une operation surchargee
-    # (D4 : ecriture depuis la Bibliotheque), reglages de l onglet Ecriture d avant l operation
+    # homeCalCyls ; align.presetCode et preset ; quality ; tools.passes et linger ; restore.formatChoice ;
+    # compare.formatChoice), puis, pendant
+    # une operation surchargee (D4 : ecriture depuis la Bibliotheque ; lot 2 : restauration), reglages de l onglet
+    # Ecriture d avant l operation
     Export-Settings $cfg
     if ($script:OpOverride) { Set-OpOverrideConfig $cfg }
     try {
@@ -625,7 +636,8 @@ function Load-Config {
 
     $cm = Get-Cfg $cfg 'compare' $null
     $txtCmpRef.Text = [string](Get-Cfg $cm 'reference' '')
-    Set-Combo $cmbCmpFmt (Get-Cfg $cm 'format' 'amiga.amigados')
+    # 12.8 (D13) : compare.format (12.7) non relu, son defaut amiga.amigados n etant pas un choix : compare.formatChoice,
+    # lu par Import-Settings, auto par defaut
     Set-Num $numCmpRetries (Get-Cfg $cm 'retries' 10)
 
     $t = Get-Cfg $cfg 'tools' $null
@@ -658,10 +670,9 @@ function Load-Config {
     # Type de disquette de la carte Calibration de l Accueil : nom de la table (format gw 1.23 ou type d image app.*)
     $hcf = [string](Get-Cfg $ui 'homeCalFormat' '')
     if ($hcf -and ($script:HomeCalApp -contains $hcf -or $script:GwFormats.Contains($hcf))) { $script:HomeCalFmt = $hcf }
+    # 12.8 (D10, D13) : restore.source et restore.target ignores (un seul lecteur) ; restore.format (12.7) non relu, son
+    # defaut amiga.amigados n etant pas un choix : restore.formatChoice, lu par Import-Settings, auto par defaut
     $rs = Get-Cfg $cfg 'restore' $null
-    Set-Combo $cmbRsSrc ([string](Get-Cfg $rs 'source' 'A')); Set-Combo $cmbRsDst ([string](Get-Cfg $rs 'target' 'A'))
-    $rf = [string](Get-Cfg $rs 'format' 'amiga.amigados')
-    if ($rf -eq 'flux') { $cmbRsFmt.SelectedIndex = 0 } else { Set-Combo $cmbRsFmt $rf }
     $txtRsDir.Text = [string](Get-Cfg $rs 'folder' '')
 
     return $true

@@ -137,7 +137,6 @@ $script:I18n['Indiquez un fichier de destination.'] = 'Specify a destination fil
 $script:I18n['Source :'] = 'Source:'
 $script:I18n['Destination :'] = 'Destination:'
 $script:I18n['Comparaison'] = 'Compare'
-$script:I18n["Format de décodage commun : la référence est convertie dans ce format,`nla disquette est lue dans ce format, puis les deux sont comparées octet par octet."] = "Common decoding format: the reference is converted to this format,`nthe disk is read in this format, then both are compared byte by byte."
 $script:I18n['Reprendre l''image de l''onglet Écriture'] = 'Use the image from the Write tab'
 $script:I18n['COMPARER LA DISQUETTE'] = 'COMPARE THE DISK'
 $script:I18n["ERREUR comparaison : {0}"] = "Compare ERROR: {0}"
@@ -628,11 +627,122 @@ $script:I18n['Ouvrir l''aide en ligne : premiers pas, glossaire des termes, dép
 $script:I18n['Restauration'] = 'Restore'
 $script:I18n['Copie exacte du flux (disquette protégée ou format inconnu)'] = 'Exact flux copy (copy-protected disk or unknown format)'
 $script:I18n['1. Disquette d''origine'] = '1. Original disk'
-$script:I18n["Lecteur qui lit la disquette d'origine (même convention que le choix Lecteur du bandeau).`nA/B = nappe PC avec twist, 0 à 3 = nappe droite (lecteur Amiga, par exemple)."] = "Drive that reads the original disk (same convention as the Drive choice in the banner).`nA/B = PC cable with twist, 0 to 3 = straight cable (Amiga drive, for example)."
-$script:I18n["Format de la disquette d'origine.`nAvec un format (amiga.amigados pour une disquette Amiga, par exemple) : chaque secteur est lu et vérifié, la copie est écrite avec la précompensation calibrée puis comparée secteur par secteur à l'original.`nCopie exacte du flux : pour une disquette protégée contre la copie ou d'un format absent de la liste ; le signal est recopié tel quel, sans précompensation ni comparaison par secteur."] = "Format of the original disk.`nWith a format (amiga.amigados for an Amiga disk, for example): every sector is read and checked, the copy is written with the calibrated precompensation, then compared sector by sector with the original.`nExact flux copy: for a copy-protected disk or a format not in the list; the signal is copied as is, without precompensation or sector comparison."
-$script:I18n['2. Disquette de destination'] = '2. Destination disk'
-$script:I18n["Lecteur qui écrit la copie. Même lecteur que l'origine : l'application vous demandera de changer de disquette entre la lecture et l'écriture."] = 'Drive that writes the copy. Same drive as the original: the application will ask you to swap disks between reading and writing.'
-$script:I18n['3. Sauvegarde de l''original'] = '3. Backup of the original'
+$script:I18n['Détection automatique (conseillée)'] = 'Automatic detection (recommended)'
+$script:I18n["Lecteur qui lit l'original puis écrit la copie : le choix « Lecteur » du bandeau. L'application vous demande de changer de disquette entre la lecture et l'écriture."] = 'Drive that reads the original, then writes the copy: the "Drive" choice in the banner. The application asks you to swap disks between reading and writing.'
+$script:I18n["{0}  (choix « Lecteur » du bandeau)"] = '{0}  ("Drive" choice in the banner)'
+$script:I18n["Format de la disquette d'origine.`nDétection automatique (conseillée) : le format est identifié à la lecture de l'original. Format non reconnu ou disquette protégée contre la copie : copie exacte du flux.`nAvec un format (amiga.amigados pour une disquette Amiga, par exemple) : chaque secteur est lu et vérifié, la copie est écrite avec la précompensation calibrée puis comparée secteur par secteur à l'original.`nCopie exacte du flux : pour une disquette protégée contre la copie ou d'un format absent de la liste ; le signal est recopié tel quel, sans précompensation ni comparaison par secteur."] = "Format of the original disk.`nAutomatic detection (recommended): the format is identified when the original is read. Unrecognised format or copy-protected disk: exact flux copy.`nWith a format (amiga.amigados for an Amiga disk, for example): every sector is read and checked, the copy is written with the calibrated precompensation, then compared sector by sector with the original.`nExact flux copy: for a copy-protected disk or a format not in the list; the signal is copied as is, without precompensation or sector comparison."
+$script:I18n['Format détecté à la lecture'] = 'Format detected when reading'
+$script:I18n['format détecté à la lecture'] = 'format detected when reading'
+$script:I18n['identification du format (pistes 0.0 et 0.1)'] = 'format identification (tracks 0.0 and 0.1)'
+$script:I18n["{0} secteur(s) illisible(s) en lecture secteur (pistes {1}) : protection contre la copie probable, ou têtes sales. Relance automatique de la lecture en copie exacte du flux, sans comparaison par secteur."] = '{0} unreadable sector(s) in the sector read (tracks {1}): probable copy protection, or dirty heads. The read is restarted automatically as an exact flux copy, without sector comparison.'
+$script:I18n["Restauration : {0}"] = 'Restore: {0}'
+$script:I18n['image de référence illisible'] = 'reference image unreadable'
+$script:I18n["référence {0} de {1} octets"] = '{0} reference of {1} bytes'
+$script:I18n[", {0} cylindres"] = ', {0} cylinders'
+$script:I18n["référence {0} de {1} octets, BPB {2} x {3} x {4}"] = '{0} reference of {1} bytes, BPB {2} x {3} x {4}'
+$script:I18n["référence {0} de {1} octets : taille et BPB non reconnus"] = '{0} reference of {1} bytes: size and BPB not recognised'
+$script:I18n["référence {0} de {1} octets, décodée par gw sur les pistes 0.0 et 0.1"] = '{0} reference of {1} bytes, decoded by gw on tracks 0.0 and 0.1'
+$script:I18n["extension {0} non prise en charge par la détection automatique"] = 'extension {0} not supported by the automatic detection'
+$script:I18n["Détection du format : {0} ; {1}."] = 'Format detection: {0}; {1}.'
+$script:I18n["format haute densité non reconnu ({0}) : une copie de flux ne pourrait pas être contrôlée. Si vous connaissez le format, choisissez-le dans la liste."] = 'high-density format not recognised ({0}): a flux copy could not be checked. If you know the format, choose it in the list.'
+$script:I18n['format haute densité non reconnu, arrêt avant toute écriture'] = 'high-density format not recognised, stop before any write'
+$script:I18n["Format non reconnu ({0}) : copie exacte du flux, sans comparaison par secteur."] = 'Unrecognised format ({0}): exact flux copy, without sector comparison.'
+$script:I18n['format non reconnu, copie exacte du flux'] = 'format not recognised, exact flux copy'
+$script:I18n['vide'] = 'empty'
+$script:I18n["AmigaDOS {0}/{1}, IBM {2} (pistes 0.0 et 0.1 : {3})"] = 'AmigaDOS {0}/{1}, IBM {2} (tracks 0.0 and 0.1: {3})'
+$script:I18n['aucune donnée lisible : disquette vierge, absente ou têtes sales'] = 'no readable data: blank or missing disk, or dirty heads'
+$script:I18n["aucun secteur, {0} piste(s) critique(s) sur {1} dans le flux"] = 'no sector, {0} critical track(s) out of {1} in the flux'
+$script:I18n['aucun secteur reconnu'] = 'no sector recognised'
+$script:I18n["Amiga haute densité ({0})"] = 'Amiga high density ({0})'
+$script:I18n["Amiga double densité ({0})"] = 'Amiga double density ({0})'
+$script:I18n["{0}, {1}/{2} secteurs"] = '{0}, {1}/{2} sectors'
+$script:I18n["{0} : piste {1} incomplète ({2}/{3} secteurs), protection contre la copie probable. Copie exacte du flux, sans comparaison par secteur."] = '{0}: track {1} incomplete ({2}/{3} sectors), probable copy protection. Exact flux copy, without sector comparison.'
+$script:I18n["protection contre la copie probable (piste {0} incomplète), copie exacte du flux"] = 'probable copy protection (track {0} incomplete), exact flux copy'
+$script:I18n["format retenu : {0}"] = 'format retained: {0}'
+$script:I18n['codage FM'] = 'FM encoding'
+$script:I18n["{0} et {1} secteurs sur les deux faces"] = '{0} and {1} sectors on the two sides'
+$script:I18n["secteur de démarrage : octet 0 = 0x{0:X2}, somme des mots 0x{1:X4}"] = 'boot sector: byte 0 = 0x{0:X2}, word sum 0x{1:X4}'
+$script:I18n["{0} secteurs par piste"] = '{0} sectors per track'
+$script:I18n["Atari ST, {0} secteurs de 512 octets ({1})"] = 'Atari ST, {0} sectors of 512 bytes ({1})'
+$script:I18n["{0} secteurs de 512 octets, format PC ({1})"] = '{0} sectors of 512 bytes, PC format ({1})'
+$script:I18n["ambiguïté : AmigaDOS {0}, IBM {1}"] = 'ambiguity: AmigaDOS {0}, IBM {1}'
+$script:I18n["aucun format reconnu sur les pistes 0.0 et 0.1 ({0})"] = 'no format recognised on tracks 0.0 and 0.1 ({0})'
+$script:I18n["{0}/{1} secteurs sur les pistes 0.0 et 0.1"] = '{0}/{1} sectors on tracks 0.0 and 0.1'
+$script:I18n["piste(s) {0} incomplète(s) : protection contre la copie probable, ces pistes ne peuvent pas être comparées au format {1}"] = 'track(s) {0} incomplete: probable copy protection, these tracks cannot be compared in the {1} format'
+$script:I18n['pistes 0.0 et 0.1'] = 'tracks 0.0 and 0.1'
+$script:I18n['aucun flux lu'] = 'no flux read'
+$script:I18n['détection automatique'] = 'automatic detection'
+$script:I18n['(détection automatique)'] = '(automatic detection)'
+$script:I18n["format de la référence non reconnu ({0}) : choisissez le format de décodage dans la liste."] = 'reference format not recognised ({0}): choose the decoding format in the list.'
+$script:I18n["Comparaison : format de la référence {0} ({1})."] = 'Compare: reference format {0} ({1}).'
+$script:I18n["Comparaison impossible : {0}"] = 'Cannot compare: {0}'
+$script:I18n["{0} (détecté : {1})"] = '{0} (detected: {1})'
+$script:I18n["Comparaison : référence de {0} cylindres ; gw ne lit que les {1} cylindres du format {2} : les cylindres {1} à {3} ne seront pas comparés."] = 'Compare: reference of {0} cylinders; gw reads only the {1} cylinders of the {2} format: cylinders {1} to {3} will not be compared.'
+$script:I18n["Comparaison : sonde de la disquette au format {0}, {1} : lecture complète."] = 'Compare: probe of the disk in format {0}, {1}: full read.'
+$script:I18n["Comparaison : aucun secteur au format {0} sur les pistes 0.0 et 0.1 de la disquette : détection de son format, sans lecture complète."] = 'Compare: no sector in format {0} on tracks 0.0 and 0.1 of the disk: detecting its format, without a full read.'
+$script:I18n['aucune donnée lisible'] = 'no readable data'
+$script:I18n['format non reconnu'] = 'format not recognised'
+$script:I18n["Format    : {0}"] = 'Format    : {0}'
+$script:I18n["Format    : {0} (détecté : {1} ; disquette {2})"] = 'Format    : {0} (detected: {1}; disk {2})'
+$script:I18n["Disquette : {0} ; détection : {1}"] = 'Disk      : {0}; detection: {1}'
+$script:I18n["RÉSULTAT : DIFFÉRENT - formats différents (référence {0}, disquette {1})"] = 'RESULT: DIFFERENT - different formats (reference {0}, disk {1})'
+$script:I18n["           aucun secteur au format {0} sur les pistes 0.0 et 0.1 de la disquette : pas de lecture complète."] = '           no sector in format {0} on tracks 0.0 and 0.1 of the disk: no full read.'
+$script:I18n["Référence {0}, disquette {1}"] = 'Reference {0}, disk {1}'
+$script:I18n["Comparaison : DIFFÉRENT - formats différents (référence {0}, disquette {1})"] = 'Compare: DIFFERENT - different formats (reference {0}, disk {1})'
+$script:I18n["cylindres {0} à {1} de la référence non relus : gw a lu la disquette sur {2} cylindres au format {3}"] = 'reference cylinders {0} to {1} not read: gw read the disk on {2} cylinders in format {3}'
+$script:I18n["Réserve : {0}."] = 'Note: {0}.'
+$script:I18n["{0} : {1} ; disquette {2}"] = '{0}: {1}; disk {2}'
+# 12.8, FIX2 (relecture adverse du lot 2) : detection, restauration, comparaison
+$script:I18n["Arrêt : {0}"] = 'Stopped: {0}'
+$script:I18n["Format détecté : {0}, copie exacte du flux"] = 'Detected format: {0}, exact flux copy'
+$script:I18n["{0} : copie exacte du flux"] = '{0}: exact flux copy'
+$script:I18n["Format détecté : {0} ({1})"] = 'Detected format: {0} ({1})'
+$script:I18n['lecture secteur incomplète'] = 'incomplete sector read'
+$script:I18n["{0} secteur(s) hors du format {1} ignoré(s) par gw en lecture secteur (pistes {2}), {3} secteur(s) illisible(s) : protection contre la copie ou format étendu probable. Relance automatique de la lecture en copie exacte du flux, sans comparaison par secteur."] = '{0} sector(s) outside the {1} format ignored by gw in the sector read (tracks {2}), {3} unreadable sector(s): probable copy protection or extended format. The read is restarted automatically as an exact flux copy, without sector comparison.'
+$script:I18n['relance : secteurs hors du format'] = 'restarted: sectors outside the format'
+$script:I18n['relance après une lecture secteur incomplète'] = 'restarted after an incomplete sector read'
+$script:I18n["Restauration : lecture secteur incomplète conservée : {0}"] = 'Restore: incomplete sector read kept: {0}'
+$script:I18n["{0} secteur(s) hors du format {1} ignoré(s) par gw (pistes {2}) : une copie secteur par secteur les perdrait (protection contre la copie, ou format étendu probable)."] = '{0} sector(s) outside the {1} format ignored by gw (tracks {2}): a sector-by-sector copy would lose them (probable copy protection, or extended format).'
+$script:I18n['Relancez avec « Copie exacte du flux », ou choisissez le format exact de la disquette.'] = 'Restart with "Exact flux copy", or choose the exact format of the disk.'
+$script:I18n["copie exacte du flux, {0}"] = 'exact flux copy, {0}'
+$script:I18n["Incomplète  : {0} (lecture secteur, {1} secteur(s) illisible(s), {2} hors du format ; relancée en copie exacte du flux)"] = 'Incomplete  : {0} (sector read, {1} unreadable sector(s), {2} outside the format; restarted as an exact flux copy)'
+$script:I18n['format haute densité non reconnu'] = 'high-density format not recognised'
+$script:I18n["Piste 0 sans donnée lisible, mais données sur {0} des {1} pistes sondées (cylindres 1, 40 et 79) : piste 0 non formatée, protection contre la copie probable. Copie exacte du flux, sans comparaison par secteur."] = 'Track 0 without readable data, but data on {0} of the {1} probed tracks (cylinders 1, 40 and 79): track 0 unformatted, probable copy protection. Exact flux copy, without sector comparison.'
+$script:I18n["{0} ; données sur {1} des {2} pistes sondées : piste 0 non formatée, copie exacte du flux"] = '{0}; data on {1} of the {2} probed tracks: track 0 unformatted, exact flux copy'
+$script:I18n['piste 0 non formatée'] = 'track 0 unformatted'
+$script:I18n["aucune donnée sur les {0} pistes sondées (cylindres 1, 40 et 79)"] = 'no data on the {0} probed tracks (cylinders 1, 40 and 79)'
+$script:I18n['protection contre la copie probable'] = 'probable copy protection'
+$script:I18n["Le secteur de démarrage annonce 40 cylindres : pour une disquette 5,25 pouces de 40 pistes dans un lecteur de 80 pistes, indiquez step=2 dans le champ Pistes de l'onglet Écriture."] = 'The boot sector announces 40 cylinders: for a 40-track 5.25-inch disk in an 80-track drive, enter step=2 in the Tracks field of the Write tab.'
+$script:I18n["Atari ST, {0} secteurs"] = 'Atari ST, {0} sectors'
+$script:I18n["PC, {0} secteurs"] = 'PC, {0} sectors'
+$script:I18n["le secteur de démarrage annonce {0} secteurs ({1} cylindres de {2} face(s) et {3} secteurs), le format {4} n'en lit que {5} ({6} cylindres)"] = 'the boot sector announces {0} sectors ({1} cylinders of {2} side(s) and {3} sectors), the {4} format reads only {5} ({6} cylinders)'
+$script:I18n["{0} : {1} ; une copie de flux haute densité ne pourrait pas être contrôlée : arrêt avant toute écriture."] = '{0}: {1}; a high-density flux copy could not be checked: stopped before any write.'
+$script:I18n["format haute densité étendu ({0} cylindres annoncés), arrêt avant toute écriture"] = 'extended high-density format ({0} cylinders announced), stopped before any write'
+$script:I18n['format haute densité étendu'] = 'extended high-density format'
+$script:I18n["{0} : {1}. Copie exacte du flux, sans comparaison par secteur."] = '{0}: {1}. Exact flux copy, without sector comparison.'
+$script:I18n["format étendu ({0} cylindres annoncés), copie exacte du flux"] = 'extended format ({0} cylinders announced), exact flux copy'
+$script:I18n['format étendu au-delà de ses cylindres'] = 'format extended beyond its cylinders'
+$script:I18n["format {0} détecté ensuite"] = 'format {0} detected next'
+$script:I18n["Comparaison : format {0} détecté sur la disquette, celui de la référence : lecture complète."] = 'Compare: format {0} detected on the disk, the same as the reference: full read.'
+$script:I18n['piste 0.0 ou 0.1 incomplète'] = 'track 0.0 or 0.1 incomplete'
+$script:I18n["{0} secteur(s) illisible(s) des deux côtés, non comparé(s) (pistes {1})"] = '{0} unreadable sector(s) on both sides, not compared (tracks {1})'
+$script:I18n["RÉSULTAT : IDENTIQUE SUR LES SECTEURS LUS - {0}"] = 'RESULT: IDENTICAL ON THE SECTORS READ - {0}'
+$script:I18n['           Ces secteurs portent des deux côtés le motif « secteur illisible » de gw (piste protégée, ou copie'] = '           These sectors carry the gw "unreadable sector" pattern on both sides (protected track, or failed'
+$script:I18n["           ratée) : ils ne sont pas vérifiés. Les autres secteurs correspondent octet pour octet au format {0}."] = '           copy): they are not checked. The other sectors match byte for byte in the {0} format.'
+$script:I18n["Comparaison : IDENTIQUE sur les secteurs lus ({0} octets) ; {1}"] = 'Compare: IDENTICAL on the sectors read ({0} bytes); {1}'
+$script:I18n["Format de décodage commun : la référence est convertie dans ce format,`nla disquette est lue dans ce format, puis les deux sont comparées octet par octet.`n(détection automatique) : format déduit de la référence (taille et BPB d'un ADF, d'un ST ou d'un IMG ; décodage de deux pistes d'un IPF, d'un SCP ou d'un HFE), puis vérifié sur deux pistes de la disquette avant la lecture complète."] = "Common decoding format: the reference is converted to this format,`nthe disk is read in this format, then both are compared byte by byte.`n(automatic detection): format deduced from the reference (size and BPB of an ADF, ST or IMG; decoding of two tracks of an IPF, SCP or HFE), then checked on two tracks of the disk before the full read."
+$script:I18n["Détection automatique (par défaut) : format déduit de la référence, puis vérifié sur deux pistes de la`r`ndisquette avant la lecture complète.`r`n`r`n"] = "Automatic detection (default): format deduced from the reference, then checked on two tracks of the`r`ndisk before the full read.`r`n`r`n"
+$script:I18n['2. Calibration du lecteur'] = '2. Drive calibration'
+$script:I18n['Double densité'] = 'Double density'
+$script:I18n['Haute densité'] = 'High density'
+$script:I18n["{0} : aucune courbe."] = '{0}: no curve.'
+$script:I18n["{0} : {1}."] = '{0}: {1}.'
+$script:I18n['lecteur {0}'] = 'drive {0}'
+$script:I18n["Une calibration existante n'est jamais refaite par la restauration. Sans courbe, le lecteur est calibré tête par tête en test fin, éventuellement sur une disquette sacrifiée, avant l'écriture de la copie."] = 'The restore never redoes an existing calibration. Without a curve, the drive is calibrated head by head with the fine test, possibly on a sacrificial disk, before the copy is written.'
+$script:I18n["Affiche la courbe de précompensation appliquée par la restauration, une courbe par tête si elle existe : haute densité pour un format haute densité choisi, sinon double densité."] = 'Shows the precompensation curve applied by the restore, one curve per head if it exists: high density for a chosen high-density format, otherwise double density.'
+$script:I18n['3. Sauvegarde (original lu, copie relue, rapport)'] = '3. Backup (original read, copy read back, report)'
+$script:I18n["Détection   : {0}"] = 'Detection   : {0}'
+$script:I18n["Lecteur     : {0}"] = 'Drive       : {0}'
 $script:I18n['Dossier où enregistrer la lecture de l''original, la relecture de la copie et le rapport'] = 'Folder where the read of the original, the read-back of the copy and the report are saved'
 $script:I18n["Dossier où sont enregistrés la lecture de l'original, la relecture de la copie et le rapport de restauration."] = 'Folder where the read of the original, the read-back of the copy and the restore report are saved.'
 $script:I18n['Nom des fichiers enregistrés, par exemple « Workbench 1.3 ». Vide : date et heure.'] = 'Name of the saved files, for example "Workbench 1.3". Empty: date and time.'
@@ -697,7 +807,6 @@ $script:I18n["Plafond atteint alors que la calibration précédente du même lec
 $script:I18n["Calibration faite sur une disquette sacrifiée dont le besoin dépasse {0} ns : si elle est fatiguée, la courbe surestime le besoin de la disquette à écrire. Préférez une disquette sacrifiée en bon état."] = 'Calibration made on a sacrificial disk whose need exceeds {0} ns: if that disk is worn, the curve overestimates the need of the disk to write. Prefer a sacrificial disk in good condition.'
 $script:I18n["Lecteur {0} : non pris en charge par cette carte (ligne de sélection absente)."] = 'Drive {0}: not supported by this board (select line missing).'
 $script:I18n["{0} et {1} utilisent la même ligne de sélection : la détection ne peut pas les distinguer (A ou B : nappe PC avec twist ; 0 à 3 : nappe droite)."] = '{0} and {1} use the same select line: the detection cannot tell them apart (A or B: PC cable with twist; 0 to 3: straight cable).'
-$script:I18n["Restauration : lecteur {0} remplacé par {1} (origine et destination)."] = 'Restore: drive {0} replaced by {1} (source and destination).'
 $script:I18n["Détection des lecteurs : aucun lecteur au dernier démarrage, seul le lecteur {0} est testé (carte « Tester le Greaseweazle » de l'Accueil : tous les lecteurs)."] = 'Drive detection: no drive at the last startup, only drive {0} is tested ("Test the Greaseweazle" card on the Home tab: all drives).'
 $script:I18n["Détection des lecteurs interrompue : {0}"] = 'Drive detection aborted: {0}'
 $script:I18n[' (zone instable)'] = ' (unstable zone)'
@@ -735,9 +844,6 @@ $script:I18n["Écrire l'image"] = 'Write the image'
 $script:I18n["Calibration terminée.`n`nRetirez la disquette sacrifiée du lecteur {0} et insérez la disquette à écrire, puis cliquez sur « Écrire l'image ».`nAnnuler : l'image n'est pas écrite."] = "Calibration complete.`n`nRemove the sacrificial disk from drive {0} and insert the disk to write, then click `"Write the image`".`nCancel: the image is not written."
 $script:I18n["Sans réponse, l'écriture de l'image démarre automatiquement dans {0} s."] = 'Without an answer, the image write starts automatically in {0} s.'
 $script:I18n["Calibration : remise de la disquette validée automatiquement après {0} s sans réponse."] = 'Calibration: disk swap confirmed automatically after {0} s without an answer.'
-$script:I18n["Sans réponse, reprise automatique dans {0} s."] = 'Without an answer, automatic resume in {0} s.'
-$script:I18n["reprise automatique après {0} s sans réponse : changement de disquette non confirmé"] = 'resumed automatically after {0} s without an answer: disk change not confirmed'
-$script:I18n["Restauration : reprise automatique après {0} s sans réponse."] = 'Restore: resumed automatically after {0} s without an answer.'
 $script:I18n['Régler le jitter'] = 'Adjust the jitter'
 $script:I18n["Choisir le jitter maximal d'une piste saine : plus il est strict, plus l'écriture lente réécrit de pistes."] = 'Maximum jitter of a healthy track: the stricter it is, the more tracks the slow write rewrites.'
 $script:I18n['Courbe de calibration'] = 'Calibration curve'
@@ -804,13 +910,11 @@ $script:I18n['original'] = 'original'
 $script:I18n["secteur par secteur, format {0}"] = 'sector by sector, format {0}'
 $script:I18n['copie exacte du flux, sans précompensation ni comparaison par secteur'] = 'exact flux copy, without precompensation or sector comparison'
 $script:I18n["Le lecteur {0} lit l'original, puis vous changez de disquette quand l'application vous le demande."] = 'Drive {0} reads the original, then you swap disks when the application asks.'
-$script:I18n["Le lecteur {0} lit l'original et le lecteur {1} écrit la copie."] = 'Drive {0} reads the original and drive {1} writes the copy.'
 $script:I18n["Restauration ({0}).`n`n{1}`n`n1. Insérez maintenant la disquette d'ORIGINE dans le lecteur {2}, de préférence protégée en écriture.`n2. Sa lecture est enregistrée dans :`n   {3}`n3. La disquette de destination sera entièrement effacée puis écrite.`n`nCommencer la lecture ?"] = "Restore ({0}).`n`n{1}`n`n1. Insert the ORIGINAL disk in drive {2} now, preferably write-protected.`n2. Its read is saved in:`n   {3}`n3. The destination disk will be fully erased, then written.`n`nStart reading?"
 $script:I18n['copie relue'] = 'copy read back'
 $script:I18n['rapport'] = 'report'
 $script:I18n["=== RESTAURATION : {0} ({1}) ==="] = '=== RESTORE: {0} ({1}) ==='
 $script:I18n["Original : lecteur {0} -> {1}"] = 'Original: drive {0} -> {1}'
-$script:I18n["Copie    : lecteur {0}"] = 'Copy    : drive {0}'
 $script:I18n['la lecture n''a produit aucun fichier (disquette absente ou lecteur incorrect ?)'] = 'the read produced no file (no disk, or wrong drive?)'
 $script:I18n['gw n''a imprimé aucun bilan de secteurs : format incorrect, ou disquette illisible ?'] = 'gw printed no sector summary: wrong format, or unreadable disk?'
 $script:I18n["{0} secteur(s) illisible(s) sur l'original (pistes {1}) : une copie fidèle est impossible. Nettoyez les têtes du lecteur et relancez, ou choisissez « Copie exacte du flux » si la disquette est protégée contre la copie."] = '{0} unreadable sector(s) on the original (tracks {1}): a faithful copy is impossible. Clean the drive heads and try again, or choose "Exact flux copy" if the disk is copy-protected.'
@@ -821,7 +925,6 @@ $script:I18n['aucune piste dans le flux lu.'] = 'no track in the flux read.'
 $script:I18n["{0} pistes : {1} saines, {2} à surveiller, {3} critiques"] = '{0} tracks: {1} healthy, {2} to watch, {3} critical'
 $script:I18n["Restauration : flux de l'original, {0}."] = 'Restore: flux of the original, {0}.'
 $script:I18n["Retirez l'ORIGINAL du lecteur {0} et rangez-le. Insérez la disquette de DESTINATION : tout son contenu sera remplacé."] = 'Remove the ORIGINAL from drive {0} and put it away. Insert the DESTINATION disk: all its content will be replaced.'
-$script:I18n["Vérifiez que la disquette de DESTINATION est dans le lecteur {0} : tout son contenu sera remplacé."] = 'Check that the DESTINATION disk is in drive {0}: all its content will be replaced.'
 $script:I18n["{0} piste(s) critique(s) dans la lecture : normal pour une protection, sinon nettoyez le lecteur et relancez."] = '{0} critical track(s) in the read: normal for a copy protection, otherwise clean the drive and try again.'
 $script:I18n['Puis cliquez sur « Continuer ».'] = 'Then click "Continue".'
 $script:I18n["Restauration : en attente de la disquette de destination dans le lecteur {0}."] = 'Restore: waiting for the destination disk in drive {0}.'
@@ -863,7 +966,6 @@ $script:I18n["Date        : {0}, durée {1} min"] = 'Date        : {0}, duration
 $script:I18n["Disquette   : {0}"] = 'Disk        : {0}'
 $script:I18n["Mode        : {0}"] = 'Mode        : {0}'
 $script:I18n['copie exacte du flux'] = 'exact flux copy'
-$script:I18n["Lecteurs    : origine {0}, destination {1}"] = 'Drives      : original {0}, destination {1}'
 $script:I18n["Original lu : {0}"] = 'Original    : {0}'
 $script:I18n["Copie relue : {0}"] = 'Read-back   : {0}'
 $script:I18n["Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), pré-effacement, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai."] = 'Rules       : read {0} revolutions, {1} retries x {2} series; head-by-head write, existing calibration kept (per-head calibration with the fine test if none exists), pre-erase, gw verification, {3} retries per track; check of all tracks, up to {4} rewrite passes; final read-back without retry.'
@@ -885,7 +987,6 @@ $script:I18n["gw a retourné le code {0}, voir le journal"] = 'gw returned code 
 $script:I18n["Une restauration est en cours. Quitter quand même ? La disquette de destination restera incomplète."] = 'A restore is running. Quit anyway? The destination disk will remain incomplete.'
 $script:I18n['Conseil : protégez-la en écriture avant de commencer.'] = 'Tip: write-protect it before you start.'
 $script:I18n['Disquette 3,5" : fenêtre de protection ouverte. 5,25" : encoche couverte. Ainsi, même une erreur de manipulation ne peut pas l''effacer.'] = '3.5" disk: protection window open. 5.25" disk: notch covered. This way, even a handling mistake cannot erase it.'
-$script:I18n['Vierge ou à sacrifier : tout son contenu sera remplacé.'] = 'Blank or expendable: all its content will be replaced.'
 $script:I18n["Règles appliquées à la copie : écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), pré-effacement, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original."] = 'Rules applied to the copy: head-by-head write with the existing drive calibration (per-head calibration if none exists), pre-erase, gw verification, {0} retries per track, check of all tracks (up to {1} rewrite passes), then read-back and comparison with the original.'
 $script:I18n['commande gw'] = 'gw command'
 $script:I18n['calibration'] = 'calibration'
@@ -2269,6 +2370,11 @@ $script:SettingDefs = [ordered]@{
     jitterWatch        = @{ Sec = 'quality'; Key = 'jitterWatch';        Type = 'int';    Def = $script:JitterStdWatch; Min = 40; Max = 600; Var = 'JitterWatch' }
     cleanPasses        = @{ Sec = 'tools';   Key = 'passes';             Type = 'int';    Def = 3;        Min = 1; Max = 20 }
     cleanLinger        = @{ Sec = 'tools';   Key = 'linger';             Type = 'int';    Def = 500;      Min = 0; Max = 5000 }
+    # 12.8 (lot 2, D13) : format de la restauration, dans l ordre de la liste cmbRsFmt : detection automatique, copie
+    # exacte du flux, puis les formats. Cle neuve : restore.format (12.7) n est pas relu, son defaut amiga.amigados n etant
+    # pas un choix de l utilisateur
+    restoreFormat      = @{ Sec = 'restore'; Key = 'formatChoice';       Type = 'enum';   Def = 'auto'
+                            Codes = @('auto', 'flux', 'amiga.amigados', 'amiga.amigados_hd', 'atarist.720', 'atarist.800', 'atarist.880', 'ibm.360', 'ibm.720', 'ibm.1440') }
 }
 $script:Settings    = @{}                                                   # cle -> valeur (reglages sans variable propre)
 $script:SettingCtl  = @{}                                                   # cle -> controles d onglet lies (Register-SettingCtl)
@@ -2325,6 +2431,15 @@ foreach ($fe in ($script:GwFormatTable -split '[;\r\n]+')) {
     $fp = @($fe.Trim() -split '\s+')
     if ($fp.Count -eq 6) { $script:GwFormats[$fp[0]] = @{ Cyls = [int]$fp[1]; Heads = [int]$fp[2]; Enc = $fp[3]; Rate = [int]$fp[4]; Rpm = [int]$fp[5] } }
 }
+# 12.8 (lot 2, D13) : format de la comparaison, liste cmbCmpFmt : detection automatique, puis les formats de la liste
+# ($Formats), dans son ordre ; codes suivants : les autres formats de gw, saisis dans la liste modifiable (Update-CmpFmtFound
+# les affiche). Cle neuve : compare.format (12.7) n est pas relu, son defaut amiga.amigados n etant pas un choix
+$script:SettingDefs['compareFormat'] = @{ Sec = 'compare'; Key = 'formatChoice'; Type = 'enum'; Def = 'auto'
+    Codes = @(@('auto') + @($Formats | Where-Object { $_ -ne '(auto)' }) + @($script:GwFormats.Keys | Where-Object { $Formats -notcontains $_ })) }
+$script:FmtDetect     = $null    # 12.8 (lot 2) : detection du format en cours (Invoke-DiskFormatDetect) : proprietaire, flux, lignes de gw
+$script:FmtDetectArgs = @()      # arguments de la commande gw de l etape de detection en cours
+$script:CmpAuto       = $null    # 12.8 (lot 2) : comparaison en detection automatique : reference, candidats, sonde de la disquette
+$script:CmpRefCyls    = 0        # cylindres de la reference au-dela du format (ADF de 81 a 83 cylindres), non compares (FIX2), 0 sinon
 $script:HomeCalApp  = @('app.long', 'app.flux', 'app.free')   # types d image de la carte sans format gw (Get-HomeCalibInfo)
 $script:HomeCalFmt  = 'amiga.amigados'   # dernier type choisi dans la carte (configuration ui.homeCalFormat)
 $script:HomeCalBusy = $false             # calibration lancee depuis l Accueil : progression affichee sur la carte
@@ -3019,12 +3134,8 @@ function Complete-DriveDetect {
     $pick = if ($dt.Found -contains $dt.Cur) { $dt.Cur } else { [string]$dt.Found[0] }
     if ($dt.Mode -ne 'auto') { Append-Log ((T "Lecteur(s) détecté(s) : {0}.") -f "$($dt.Found -join ', ')") }
     if ($pick -ne $dt.Cur) {
+        # 12.8 (D10) : la restauration suit le lecteur du bandeau, sans reglage propre a recaler
         Set-Combo $cmbDrive $pick
-        # Restauration a un seul lecteur (origine = destination = lecteur absent) seulement : jamais confondre deux lecteurs
-        if ($cmbRsSrc.Text -eq $dt.Cur -and $cmbRsDst.Text -eq $dt.Cur) {
-            Set-Combo $cmbRsSrc $pick; Set-Combo $cmbRsDst $pick
-            Append-Log ((T "Restauration : lecteur {0} remplacé par {1} (origine et destination).") -f "$($dt.Cur)", "$pick")
-        }
         Append-Log ((T "Lecteur {0} sélectionné : le lecteur {1} ne répond pas.") -f "$pick", "$($dt.Cur)")
     } else { Append-Log ((T "Lecteur {0} détecté.") -f "$pick") }
 }
@@ -3289,10 +3400,15 @@ function Update-SettingDependents([string]$k) {
     # Propagation d un changement : aiguillage statique (appels visibles par impact.ps1 et par static-check). Les controles
     # lies portent deja leurs gestionnaires (ecriture lente, mode de calibration, profil, mesure de qualite) ; restent ici
     # les reglages sans controle propre ou affiches ailleurs : duree du prechauffage (textes et cases de l onglet
-    # Ecriture), mesure de la disquette (case cochee et verrouillee en test rapide, D5)
+    # Ecriture), mesure de la disquette (case cochee et verrouillee en test rapide, D5) ; lot 2 : lecteur de la
+    # restauration (cadre 1, D10) et ligne du format detecte (D11) ; format de la comparaison (format saisi, ligne du format
+    # detecte, D13)
     switch ($k) {
         'warmMinutes'      { Update-SlowUi }
         'levelBeforeWrite' { Update-SlowUi }
+        'drive'            { Update-RsDrive }
+        'restoreFormat'    { Update-RsFmtFound }
+        'compareFormat'    { Update-CmpFmtFound }
     }
 }
 
@@ -3423,11 +3539,12 @@ function Set-Defaults {
     $chkAlGuide.Checked = $false
 
     $txtCmpRef.Text = ''
-    Set-Combo $cmbCmpFmt 'amiga.amigados'
+    # 12.8 (D13) : format de la comparaison (compareFormat, detection automatique) remis par Reset-Settings
     $numCmpRetries.Value = 10
     $txtCmpResult.Text = (T "Compare le contenu physique d'une disquette à une image de référence (IPF, ADF, SCP, HFE...).`r`n`r`n") +
                          (T "Principe : la référence est convertie par gw dans le format de décodage choisi, la disquette est`r`n") +
                          (T "lue dans ce même format, puis les deux fichiers sont comparés octet par octet, secteur par secteur.`r`n`r`n") +
+                         (T "Détection automatique (par défaut) : format déduit de la référence, puis vérifié sur deux pistes de la`r`ndisquette avant la lecture complète.`r`n`r`n") +
                          (T "Limite : seules les pistes décodables dans ce format sont comparées. Les pistes de protection`r`n") +
                          (T "(non-AmigaDOS) d'un IPF n'apparaissent pas dans la comparaison. Le flux brut (SCP) n'est jamais`r`n") +
                          (T "identique d'une lecture à l'autre : il n'existe pas de comparaison bit à bit au niveau flux.")
@@ -3444,8 +3561,9 @@ function Set-Defaults {
         $c.Num.Value = $c.Def
     }
 
-    $cmbRsSrc.SelectedItem = 'A'; $cmbRsDst.SelectedItem = 'A'; $cmbRsFmt.SelectedIndex = 1; $txtRsDir.Text = ''; $txtRsName.Text = ''
-    Update-RsRules; Reset-RsSteps
+    # 12.8 (D10, D13) : restauration a un seul lecteur (celui du bandeau) ; format (restore.formatChoice) dans la table
+    $txtRsDir.Text = ''; $txtRsName.Text = ''
+    Update-RsRules; Reset-RsSteps; Update-RsFmtFound
     $cmbHelpAct.SelectedItem = 'write'
     $txtC.Text = 'write --pre-erase --erase-empty --retries=10 --precomp 40=140 "jeu.ipf"'
     Update-CurveButton $txtWFile.Text
@@ -3559,7 +3677,8 @@ function Save-Config {
             densel = $cmbRDensel.Text; diskdefs = $txtRDiskdefs.Text
         }
         convert  = @{ input = $txtCvIn.Text; output = $txtCvOut.Text; format = $cmbCvFmt.Text; tracks = $txtCvTracks.Text }
-        compare  = @{ reference = $txtCmpRef.Text; format = $cmbCmpFmt.Text; retries = [int]$numCmpRetries.Value }
+        # 12.8 (D13) : compare.format (12.7) n est plus ecrit ; le format est compare.formatChoice (Export-Settings)
+        compare  = @{ reference = $txtCmpRef.Text; retries = [int]$numCmpRetries.Value }
         align    = @{ head = $cmbAlHead.Text; cyls = $txtAlCyls.Text; revs = [int]$numAlRevs.Value; loop = [bool]$chkAlLoop.Checked; pause = [int]$numAlPause.Value
                       guide = [bool]$chkAlGuide.Checked
                       reference = $(if ($script:AlignRef) { $r = @{}; foreach ($k in $script:AlignRef.Keys) { $r[$k] = [double]$script:AlignRef[$k].Score }; $r } else { $null })
@@ -3572,13 +3691,16 @@ function Save-Config {
         delays   = $delays
         free     = @{ command = $txtC.Text; helpAction = $cmbHelpAct.Text }
         ui       = @{ expert = [bool]$chkExpert.Checked; homeCalFormat = [string]$script:HomeCalFmt }   # type de la carte Calibration
-        restore  = @{ source = $cmbRsSrc.Text; target = $cmbRsDst.Text; folder = $txtRsDir.Text
-                      format = $(if ($cmbRsFmt.SelectedIndex -le 0) { 'flux' } else { $cmbRsFmt.Text }) }
+        # 12.8 (D10, D13) : restore.source, restore.target et restore.format (12.7) ne sont plus ecrits : ils disparaissent
+        # au premier enregistrement ; le format est restore.formatChoice, reglage de la table (Export-Settings)
+        restore  = @{ folder = $txtRsDir.Text }
     }
     # 12.8 (point 7) : reglages de la table (global.drive ; write.calMode, slowWrite, slowWarmup, calibWarmup,
     # calWarmupMinutes, levelBeforeWrite, precompProfileCode et precompProfile, precompThresholdNs ; ui.homeCalHeads et
-    # homeCalCyls ; align.presetCode et preset ; quality ; tools.passes et linger), puis, pendant une operation surchargee
-    # (D4 : ecriture depuis la Bibliotheque), reglages de l onglet Ecriture d avant l operation
+    # homeCalCyls ; align.presetCode et preset ; quality ; tools.passes et linger ; restore.formatChoice ;
+    # compare.formatChoice), puis, pendant
+    # une operation surchargee (D4 : ecriture depuis la Bibliotheque ; lot 2 : restauration), reglages de l onglet
+    # Ecriture d avant l operation
     Export-Settings $cfg
     if ($script:OpOverride) { Set-OpOverrideConfig $cfg }
     try {
@@ -3793,7 +3915,8 @@ function Load-Config {
 
     $cm = Get-Cfg $cfg 'compare' $null
     $txtCmpRef.Text = [string](Get-Cfg $cm 'reference' '')
-    Set-Combo $cmbCmpFmt (Get-Cfg $cm 'format' 'amiga.amigados')
+    # 12.8 (D13) : compare.format (12.7) non relu, son defaut amiga.amigados n etant pas un choix : compare.formatChoice,
+    # lu par Import-Settings, auto par defaut
     Set-Num $numCmpRetries (Get-Cfg $cm 'retries' 10)
 
     $t = Get-Cfg $cfg 'tools' $null
@@ -3826,10 +3949,9 @@ function Load-Config {
     # Type de disquette de la carte Calibration de l Accueil : nom de la table (format gw 1.23 ou type d image app.*)
     $hcf = [string](Get-Cfg $ui 'homeCalFormat' '')
     if ($hcf -and ($script:HomeCalApp -contains $hcf -or $script:GwFormats.Contains($hcf))) { $script:HomeCalFmt = $hcf }
+    # 12.8 (D10, D13) : restore.source et restore.target ignores (un seul lecteur) ; restore.format (12.7) non relu, son
+    # defaut amiga.amigados n etant pas un choix : restore.formatChoice, lu par Import-Settings, auto par defaut
     $rs = Get-Cfg $cfg 'restore' $null
-    Set-Combo $cmbRsSrc ([string](Get-Cfg $rs 'source' 'A')); Set-Combo $cmbRsDst ([string](Get-Cfg $rs 'target' 'A'))
-    $rf = [string](Get-Cfg $rs 'format' 'amiga.amigados')
-    if ($rf -eq 'flux') { $cmbRsFmt.SelectedIndex = 0 } else { Set-Combo $cmbRsFmt $rf }
     $txtRsDir.Text = [string](Get-Cfg $rs 'folder' '')
 
     return $true
@@ -4482,7 +4604,8 @@ function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
 # Une ecriture depuis la Bibliotheque applique son prereglage aux controles de l onglet Ecriture (Set-WritePreset), le
 # temps de l operation seulement : l etat d avant (Save-WriteTabState) est ecrit a sa place dans la configuration
 # (Save-Config, Set-OpOverrideConfig), puis retabli quand plus rien ne tourne (Update-OpOverride, minuteur principal).
-# 12.7 : le prereglage devenait la configuration de l onglet Ecriture.
+# 12.7 : le prereglage devenait la configuration de l onglet Ecriture. 12.8, lot 2 : la restauration passe aussi par
+# cette surcharge (Kind 'restore', Started jamais pose : seule Close-Restore la termine).
 
 function Enter-OpOverride([string]$kind) {
     # Surcharge deja active (operation precedente non terminee) : l etat d origine est garde
@@ -4498,7 +4621,8 @@ function Exit-OpOverride([switch]$Keep) {
     $script:OpOverride = $null
     if ($Keep) { return }
     Restore-WriteTabState $o.Saved
-    Append-Log (T "Bibliothèque : opération terminée, réglages de l'onglet Écriture rétablis (le préréglage de la Bibliothèque n'est pas enregistré).")
+    # Restauration (12.8, lot 2) : reglages retablis sans ligne de journal, comme en 12.7
+    if ($o.Kind -eq 'library') { Append-Log (T "Bibliothèque : opération terminée, réglages de l'onglet Écriture rétablis (le préréglage de la Bibliothèque n'est pas enregistré).") }
     [void](Save-Config)
 }
 
@@ -4686,13 +4810,15 @@ function Get-LevelWriteSkip([string]$img, [string]$fmt, [string]$ts) {
     # journal, vide quand Start-ImageWrite refusera l ecriture lente (son message s affiche alors avant toute ecriture du
     # motif). Cas, dans cet ordre :
     #  - champ Pistes avec c=, h= ou step= (step= : pistes physiques que la mesure, sans le pas, ne vise pas) ;
-    #  - faces de l image inconnues avec « Effacer les pistes vides » : refus de Start-ImageWrite (memes regles, sans h=) ;
+    #  - faces de l image inconnues avec « Effacer les pistes vides », en ecriture lente : refus de Start-ImageWrite (memes
+    #    regles, sans h=). 12.8 (lot 2, PRE-BANC § 4) : en ecriture rapide, ce refus n existe pas (gw ecrit toutes les
+    #    pistes du format) : faces du format, comme sans la case (12.8 avant ce correctif : mesure sautee sans ligne) ;
     #  - image a une seule face : faces de l image (Get-ImageTrackSet), sinon tetes du format gw d une image secteur.
     $ts = "$ts".Trim()
     if ($ts -and [regex]::IsMatch(":$ts", ':\s*(c|h|step)\s*=')) { return @{ Why = ((T "Mesure de la disquette avant l'écriture non faite : le champ Pistes (« {0} ») limite les pistes écrites ; le motif de test resterait sur des cylindres que l'image ne recouvre pas. Écriture sans mesure.") -f "$ts") } }
     $set = Get-ImageTrackSet $img
     if ($null -eq $set) {
-        if ($chkWEraseEmpty.Checked) { return @{ Why = '' } }
+        if ($chkWEraseEmpty.Checked -and $chkWSlow.Checked) { return @{ Why = '' } }
         $fe = if ($fmt -and $fmt -ne '(auto)' -and $script:GwFormats.Contains($fmt)) { $script:GwFormats[$fmt] } else { $null }
         $hs = @(if ($fe -and [int]$fe.Heads -eq 1) { 0 } else { 0, 1 })
     } else { $hs = @(@($set.Keys) | ForEach-Object { [int](([string]$_ -split '\.')[1]) } | Sort-Object -Unique) }
@@ -5466,36 +5592,172 @@ function Get-SectorsPerTrack([string]$fmt) {
     }
 }
 
+function Get-BadSectorIndexes([byte[]]$b) {
+    # Index des blocs de 512 octets remplis par gw du motif « -=[BAD SECTOR]=- » (secteur manquant a la lecture ou a la
+    # conversion : codecs AmigaDOS et IBM de gw 1.23) ; tableau vide sinon
+    $pat = [System.Text.Encoding]::ASCII.GetBytes('-=[BAD SECTOR]=-')
+    $list = New-Object System.Collections.Generic.List[int]
+    if ($null -eq $b) { return ,$list.ToArray() }
+    for ($s = 0; $s + 512 -le $b.Length; $s += 512) {
+        $same = $true
+        for ($i = 0; $i -lt 512; $i++) { if ($b[$s + $i] -ne $pat[$i % 16]) { $same = $false; break } }
+        if ($same) { $list.Add([int]($s / 512)) }
+    }
+    return ,$list.ToArray()
+}
+
+function Get-CmpFormatChoice {
+    # 12.8 (D13) : choix de la liste du format de la comparaison, d apres le texte affiche (un texte pose par le code ne
+    # remet pas SelectedIndex a -1) : 'auto' pour « (detection automatique) » (premier element, par defaut), sinon le
+    # format choisi ou saisi (liste modifiable : tout format de gw, comme en 12.7)
+    if ([string]$cmbCmpFmt.Text -eq $script:CmpAutoItem) { return 'auto' }
+    return ([string]$cmbCmpFmt.Text).Trim()
+}
+
+function Update-CmpFmtFound {
+    # 12.8 (D13) : reglage compareFormat (Update-SettingDependents) : liste resynchronisee quand elle n affiche pas le
+    # reglage (format saisi hors de la liste, que la liaison ne sait pas choisir ; texte saisi remplace par Set-Defaults
+    # ou Load-Config), sous la garde des liaisons ; une saisie en cours n est jamais touchee : seul un format valide met
+    # le reglage a jour (gestionnaire TextChanged, 530). Ligne sous la liste : « Format detecte a la lecture » en
+    # detection automatique, vide sinon ; le resultat de la detection y reste apres une comparaison, jusqu au prochain choix
+    if (-not $lblCmpFmtFound) { return }
+    $v = [string](Get-Setting 'compareFormat')
+    if ((Get-CmpFormatChoice) -cne $v) {
+        $i = [array]::IndexOf([string[]]$script:SettingDefs['compareFormat'].Codes, $v)
+        $sv = $script:SettingSync; $script:SettingSync = $true
+        try {
+            $cmbCmpFmt.SelectedIndex = -1
+            if ($i -ge 0 -and $i -lt $cmbCmpFmt.Items.Count) { $cmbCmpFmt.SelectedIndex = $i } else { $cmbCmpFmt.Text = $v }
+        } finally { $script:SettingSync = $sv }
+    }
+    $t = $(if ((Get-CmpFormatChoice) -eq 'auto') { (T 'Format détecté à la lecture') } else { '' })
+    $lblCmpFmtFound.Text = $t; $tip.SetToolTip($lblCmpFmtFound, $t)
+}
+
 function Start-Compare {
+    # 12.7 : reference convertie dans le format choisi (copiee si elle est deja decodee), disquette lue dans ce format,
+    # puis comparaison octet par octet (Compare-Images). 12.8 (lot 2, point 6 ; A1 § 4.2 ; D8, D13 ; decisions128) :
+    #  - detection automatique (premier element de la liste, par defaut) : format de la reference sans disque
+    #    (Get-RefImageFormat), ou par decodage de ses pistes 0.0 et 0.1 (IPF, SCP, HFE : Start-CompareRefDecode) ; puis
+    #    sonde de deux pistes de la disquette dans ce format ; aucun secteur : format de la disquette detecte
+    #    (Invoke-DiskFormatDetect) et resultat « formats differents » sans lecture complete ;
+    #  - lectures de la disquette avec les options de lecteur de l onglet Ecriture (Get-DriveReadArgs), comme la
+    #    restauration ;
+    #  - reference secteur de plus de cylindres que le format (ADF de 81 a 83 cylindres) : gw ne lit que les cylindres de
+    #    la definition du format (read.py v1.23 : « Out of range for format », piste non emise) ; FIX2 : plus de --tracks
+    #    au-dela du format (sans effet, tete deplacee pour rien, sans borne), les cylindres suivants sont signales en
+    #    reserve et non comptes comme differents.
     $ref = $txtCmpRef.Text
     if (-not $ref -or -not (Test-Path -LiteralPath $ref)) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Image de référence introuvable.'),(T 'Erreur'),'OK','Warning'); return
+        [void](Show-AppMessage (T 'Image de référence introuvable.') (T 'Erreur') 'OK' 'Warning'); return
     }
-    $fmt = $cmbCmpFmt.Text
-    if (-not $fmt) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Choisissez un format de décodage.'),(T 'Erreur'),'OK','Warning'); return
+    $choice = Get-CmpFormatChoice
+    if (-not $choice) {
+        [void](Show-AppMessage (T 'Choisissez un format de décodage.') (T 'Erreur') 'OK' 'Warning'); return
     }
-    if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
+    if (Get-AppBusy) { return }                           # 12.8 (D20) : test d occupation unique
 
     if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
-    $ext   = Get-DecodedExt $fmt
-    $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $script:CmpRefDecoded = Join-Path $script:TempDir "cmp-$stamp-reference$ext"
-    $script:CmpDiskRead   = Join-Path $script:TempDir "cmp-$stamp-disquette$ext"
-    $script:CmpFmt        = $fmt
-    $script:CmpRefName    = [System.IO.Path]::GetFileName($ref)
-    $retries = [int]$numCmpRetries.Value
-
-    $txtCmpResult.Text = ((T "Comparaison en cours...`r`nReference : {0}`r`nFormat    : {1}") -f "$ref", "$fmt")
-    Append-Log ((T "=== Comparaison : {0} ({1}) ===") -f "$script:CmpRefName", "$fmt")
-
+    $script:CmpStamp   = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $script:CmpRefName = [System.IO.Path]::GetFileName($ref)
     $script:CmpRefPath = $ref
-    $script:CmpRetries = $retries
+    $script:CmpRetries = [int]$numCmpRetries.Value
+    $script:CmpAuto    = $null
+    $script:Chain.Clear()
+    if ($choice -ne 'auto') { Start-CompareWith $choice; return }
+
+    $ri = Get-RefImageFormat $ref
+    $script:CmpAuto = @{ Ref = $ri; RefWhy = $ri.Why; Disk = ''; Cands = @(); Results = @(); Idx = 0 }
+    $txtCmpResult.Text = ((T "Comparaison en cours...`r`nReference : {0}`r`nFormat    : {1}") -f "$ref", (T 'détection automatique'))
+    $lblCmpFmtFound.Text = (T 'Format détecté à la lecture')
+    Append-Log ((T "=== Comparaison : {0} ({1}) ===") -f "$($script:CmpRefName)", (T 'détection automatique'))
+    if ($ri.Need -eq 'decode') { $script:CmpAuto.Cands = @($ri.Cands); Start-CompareRefDecode; return }
+    if (-not $ri.Format) { Stop-CompareAuto ((T "format de la référence non reconnu ({0}) : choisissez le format de décodage dans la liste.") -f $ri.Why); return }
+    Append-Log ((T "Comparaison : format de la référence {0} ({1}).") -f $ri.Format, $ri.Why)
+    Start-CompareWith $ri.Format
+}
+
+function Stop-CompareAuto([string]$why) {
+    # Detection automatique sans format de reference : rien n est lu sur la disquette
+    $script:Chain.Clear(); $script:GwCapture = $null; $script:CmpAuto = $null
+    $txtCmpResult.Text = ((T "ÉCHEC : {0}") -f $why)
+    $lblCmpFmtFound.Text = $why; $tip.SetToolTip($lblCmpFmtFound, $why)
+    Append-Log ((T "Comparaison impossible : {0}") -f $why)
+}
+
+function Start-CompareRefDecode {
+    # IPF, SCP, HFE en detection automatique : pistes 0.0 et 0.1 de la reference decodees par gw avec chaque candidat de
+    # Get-RefImageFormat, jusqu au premier dont les deux pistes sont completes ; puis Select-RefDecodeFormat
+    $a = $script:CmpAuto
+    if (-not $a) { return }
+    if ($a.Idx -ge @($a.Cands).Count) { Complete-CompareRefDecode; return }
+    $f = [string]@($a.Cands)[$a.Idx]
+    $out = Join-Path $script:TempDir ("cmp-$($script:CmpStamp)-reference-sonde$($a.Idx)" + (Get-DecodedExt $f))
+    $script:CmpGwArgs = @('convert', "--format=$f", '--tracks=c=0:h=0-1', "`"$($script:CmpRefPath)`"", "`"$out`"")
+    $script:GwCapture = New-Object System.Collections.Generic.List[string]
+    $script:Chain.Enqueue({ Start-Gw $script:CmpGwArgs })
+    $script:Chain.Enqueue({ Step-CompareRefDecode })
+    Invoke-NextChainStep
+}
+
+function Step-CompareRefDecode {
+    $a = $script:CmpAuto
+    if (-not $a) { return }
+    $lines = @(if ($script:GwCapture) { @($script:GwCapture) } else { @() }); $script:GwCapture = $null
+    $a.Results = @($a.Results) + ,@{ Fmt = [string]@($a.Cands)[$a.Idx]; Lines = $lines }
+    $a.Idx++
+    $sel = Select-RefDecodeFormat $a.Results
+    if ($sel.Format -and @($sel.Inc).Count -eq 0) { $a.Idx = @($a.Cands).Count }   # deux pistes completes : la suite est inutile
+    Start-CompareRefDecode
+}
+
+function Complete-CompareRefDecode {
+    $a = $script:CmpAuto
+    if (-not $a) { return }
+    $sel = Select-RefDecodeFormat $a.Results
+    if (-not $sel.Format) { Stop-CompareAuto ((T "format de la référence non reconnu ({0}) : choisissez le format de décodage dans la liste.") -f ($a.RefWhy + ' ; ' + $sel.Text)); return }
+    $a.RefWhy = $a.RefWhy + ' : ' + $sel.Text
+    Append-Log ((T "Comparaison : format de la référence {0} ({1}).") -f $sel.Format, $a.RefWhy)
+    Start-CompareWith $sel.Format
+}
+
+function Get-CompareReadArgs([string]$out, [switch]$Probe) {
+    # Lecture de la disquette (12.8, D8 : options de lecteur de l onglet Ecriture) : sonde des pistes 0.0 et 0.1 (2 tours,
+    # sans nouvel essai), ou lecture complete (essais de l onglet ; cylindres du format, FIX2)
+    $a = @('read') + (Get-CommonArgs) + @(Get-DriveReadArgs)
+    if ($Probe) { $a += @("--format=$($script:CmpFmt)", '--tracks=c=0:h=0-1', '--revs=2', '--retries=0') }
+    else { $a += @("--retries=$($script:CmpRetries)", "--format=$($script:CmpFmt)") }
+    return @($a + @("`"$out`""))
+}
+
+function Start-CompareWith([string]$fmt) {
+    # Comparaison dans le format $fmt (choisi, ou detecte pour la reference) : reference copiee ou convertie, puis
+    # disquette lue (detection automatique : sonde de deux pistes d abord, Step-CompareProbe), puis Compare-Images
+    $ref = $script:CmpRefPath
+    $ext = Get-DecodedExt $fmt
+    $st = $script:CmpStamp
+    $script:CmpRefDecoded = Join-Path $script:TempDir "cmp-$st-reference$ext"
+    $script:CmpDiskRead   = Join-Path $script:TempDir "cmp-$st-disquette$ext"
+    $script:CmpProbe      = Join-Path $script:TempDir "cmp-$st-sonde$ext"
+    $script:CmpFmt        = $fmt
+    $script:CmpRefCyls    = 0
+    $copy = ([System.IO.Path]::GetExtension($ref).ToLower() -eq $ext)
+    $g = Get-FormatGeometry $fmt
+    if ($copy) {
+        # Reference deja decodee de plus de cylindres que le format (decisions128) : FIX2, gw ne lit que les cylindres du
+        # format ; les suivants sont signales (Compare-Images), sans --tracks
+        $ri = $(if ($script:CmpAuto) { $script:CmpAuto.Ref } else { Get-RefImageFormat $ref })
+        if ($ri -and $ri.Format -eq $fmt -and $null -ne $ri.Cyls -and $g -and [int]$ri.Cyls -gt $g.Cyls) { $script:CmpRefCyls = [int]$ri.Cyls }
+    }
+    $shown = $(if ($script:CmpAuto) { (T "{0} (détecté : {1})") -f $fmt, $script:CmpAuto.RefWhy } else { $fmt })
+    $txtCmpResult.Text = ((T "Comparaison en cours...`r`nReference : {0}`r`nFormat    : {1}") -f "$ref", "$shown")
+    if (-not $script:CmpAuto) { Append-Log ((T "=== Comparaison : {0} ({1}) ===") -f "$($script:CmpRefName)", "$fmt") }
+    if ($script:CmpRefCyls -gt 0) { Append-Log ((T "Comparaison : référence de {0} cylindres ; gw ne lit que les {1} cylindres du format {2} : les cylindres {1} à {3} ne seront pas comparés.") -f "$($script:CmpRefCyls)", "$($g.Cyls)", $fmt, "$($script:CmpRefCyls - 1)") }
 
     # Etapes = scriptblocks simples (pas de GetNewClosure : un closure tourne dans un
     # module dynamique qui ne voit ni les fonctions du script ni la portee $script:)
     $script:Chain.Clear()
-    if ([System.IO.Path]::GetExtension($ref).ToLower() -eq $ext) {
+    if ($copy) {
         $script:Chain.Enqueue({
             Copy-Item -LiteralPath $script:CmpRefPath -Destination $script:CmpRefDecoded -Force
             Append-Log (T 'Référence déjà au format décodé : copiée sans conversion.')
@@ -5506,11 +5768,69 @@ function Start-Compare {
             Start-Gw @('convert', "--format=$($script:CmpFmt)", "`"$($script:CmpRefPath)`"", "`"$($script:CmpRefDecoded)`"")
         })
     }
-    $script:Chain.Enqueue({
-        Start-Gw (@('read') + (Get-CommonArgs) + @("--retries=$($script:CmpRetries)", "--format=$($script:CmpFmt)", "`"$($script:CmpDiskRead)`""))
-    })
-    $script:Chain.Enqueue({ Compare-Images })
+    if ($script:CmpAuto) {
+        $script:Chain.Enqueue({ $script:GwCapture = New-Object System.Collections.Generic.List[string]; Start-Gw (Get-CompareReadArgs $script:CmpProbe -Probe) })
+        $script:Chain.Enqueue({ Step-CompareProbe })
+    } else {
+        $script:Chain.Enqueue({ Start-Gw (Get-CompareReadArgs $script:CmpDiskRead) })
+        $script:Chain.Enqueue({ Compare-Images })
+    }
     Invoke-NextChainStep
+}
+
+function Step-CompareProbe {
+    # Detection automatique, apres la sonde : au moins un secteur au format de la reference -> lecture complete ; aucun ->
+    # format de la disquette detecte, puis « formats differents » sans lecture complete (Complete-CompareDetect)
+    $a = $script:CmpAuto
+    if (-not $a) { return }
+    $lines = @(if ($script:GwCapture) { @($script:GwCapture) } else { @() }); $script:GwCapture = $null
+    $t = Get-GwTrackSectors $lines; $f = 0; $n = 0
+    foreach ($k in @('0.0', '0.1')) { if ($t[$k]) { $f += [int]$t[$k].Found; $n += [int]$t[$k].Total } }
+    if ($n -eq 0) { $g = Get-FormatGeometry $script:CmpFmt; if ($g) { $n = 2 * $g.Spt } }
+    $a.Disk = (T "{0}/{1} secteurs sur les pistes 0.0 et 0.1") -f "$f", "$n"
+    if ($f -gt 0) {
+        Append-Log ((T "Comparaison : sonde de la disquette au format {0}, {1} : lecture complète.") -f $script:CmpFmt, $a.Disk)
+        $script:Chain.Enqueue({ Start-Gw (Get-CompareReadArgs $script:CmpDiskRead) })
+        $script:Chain.Enqueue({ Compare-Images })
+        Invoke-NextChainStep
+        return
+    }
+    Append-Log ((T "Comparaison : aucun secteur au format {0} sur les pistes 0.0 et 0.1 de la disquette : détection de son format, sans lecture complète.") -f $script:CmpFmt)
+    Invoke-DiskFormatDetect 'compare' ''
+}
+
+function Complete-CompareDetect($res) {
+    # Format de la disquette detecte apres une sonde sans secteur (Complete-DiskFormatDetect) : meme format que la
+    # reference -> lecture complete quand meme (FIX2 : quelle que soit l action de la restauration, pistes protegees
+    # comprises : Compare-Images les signale) ; sinon resultat « DIFFERENT : formats differents », sans lecture complete
+    $a = $script:CmpAuto
+    if (-not $a) { return }
+    if ($res.Format -and $res.Format -eq $script:CmpFmt) {
+        $a.Disk = $a.Disk + ' ; ' + ((T "format {0} détecté ensuite") -f $res.Format)
+        Append-Log ((T "Comparaison : format {0} détecté sur la disquette, celui de la référence : lecture complète.") -f $res.Format)
+        $script:Chain.Enqueue({ Start-Gw (Get-CompareReadArgs $script:CmpDiskRead) })
+        $script:Chain.Enqueue({ Compare-Images })
+        Invoke-NextChainStep
+        return
+    }
+    $disk = $(if ($res.Kind -eq 'blank' -or $res.Kind -eq 'nofile') { (T 'aucune donnée lisible') } elseif ($res.Format) { $res.Format } else { (T 'format non reconnu') })
+    # FIX2 : ligne « Disquette » propre a la comparaison (format reconnu ou non, scores des decodeurs), sans l action de la
+    # restauration (« copie exacte du flux… »)
+    $dn = $(if ($res.Kind -eq 'blank' -or $res.Kind -eq 'nofile') { (T 'aucune donnée lisible') } elseif ($res.Format -and $res.Name) { "$($res.Name) ($($res.Format))" } elseif ($res.Format) { $res.Format } else { (T 'format non reconnu') })
+    if ($res.Kind -eq 'protect' -and $res.Format) { $dn += ' ; ' + (T 'piste 0.0 ou 0.1 incomplète') }
+    $lines = New-Object System.Collections.Generic.List[string]
+    $lines.Add(((T "Référence : {0}") -f "$($script:CmpRefName)"))
+    $lines.Add(((T "Format    : {0} (détecté : {1} ; disquette {2})") -f $script:CmpFmt, $a.RefWhy, $a.Disk))
+    $lines.Add(((T "Disquette : {0} ; détection : {1}") -f $dn, "$($res.Score)"))
+    $lines.Add('')
+    $lines.Add(((T "RÉSULTAT : DIFFÉRENT - formats différents (référence {0}, disquette {1})") -f $script:CmpFmt, $disk))
+    $lines.Add(((T "           aucun secteur au format {0} sur les pistes 0.0 et 0.1 de la disquette : pas de lecture complète.") -f $script:CmpFmt))
+    $txtCmpResult.Text = ($lines -join "`r`n")
+    $t = (T "Référence {0}, disquette {1}") -f $script:CmpFmt, $disk
+    $lblCmpFmtFound.Text = $t; $tip.SetToolTip($lblCmpFmtFound, $t)
+    Append-Log ((T "Comparaison : DIFFÉRENT - formats différents (référence {0}, disquette {1})") -f $script:CmpFmt, $disk)
+    $script:CmpAuto = $null
+    Show-Tab $tabCmp
 }
 
 function Compare-Images {
@@ -5530,42 +5850,85 @@ function Compare-Images {
         $ha = [System.BitConverter]::ToString($sha.ComputeHash($a)).Replace('-','')
         $hb = [System.BitConverter]::ToString($sha.ComputeHash($b)).Replace('-','')
 
+        # 12.8 (decisions128) : reference de plus de cylindres que le format, disquette relue sur autant de cylindres
+        # (Start-CompareWith) : les cylindres que gw n a pas relus (disquette decodee plus courte d un nombre entier de
+        # cylindres, au moins ceux du format) ne sont pas comptes comme differents ; ils sont signales
+        $g = Get-FormatGeometry $fmt
+        $skip = ''; $aCmp = $a
+        if ($script:CmpRefCyls -gt 0 -and $g -and $b.Length -lt $a.Length) {
+            $cb = $g.Heads * $g.Spt * 512
+            if ($b.Length % $cb -eq 0 -and $b.Length / $cb -ge $g.Cyls) {
+                $nb = [int]($b.Length / $cb)
+                $skip = (T "cylindres {0} à {1} de la référence non relus : gw a lu la disquette sur {2} cylindres au format {3}") -f "$nb", "$($script:CmpRefCyls - 1)", "$nb", $fmt
+                $aCmp = New-Object byte[] $b.Length; [Array]::Copy($a, $aCmp, $b.Length)
+            }
+        }
+
         $sectorSize = 512
         if ($script:FastCompare) {
-            $diffSectors = [GwCompare]::DiffSectors($a, $b, $sectorSize)
-            $diffBytes   = [GwCompare]::DiffBytes($a, $b)
+            $diffSectors = [GwCompare]::DiffSectors($aCmp, $b, $sectorSize)
+            $diffBytes   = [GwCompare]::DiffBytes($aCmp, $b)
         } else {
-            $n = [Math]::Max($a.Length, $b.Length); $diffBytes = 0
+            $n = [Math]::Max($aCmp.Length, $b.Length); $diffBytes = 0
             $set = New-Object System.Collections.Generic.HashSet[int]
             for ($i = 0; $i -lt $n; $i++) {
-                if ($i -ge $a.Length -or $i -ge $b.Length -or $a[$i] -ne $b[$i]) { $diffBytes++; [void]$set.Add([int][Math]::Floor($i / $sectorSize)) }
+                if ($i -ge $aCmp.Length -or $i -ge $b.Length -or $aCmp[$i] -ne $b[$i]) { $diffBytes++; [void]$set.Add([int][Math]::Floor($i / $sectorSize)) }
             }
             $diffSectors = @($set | Sort-Object)
+        }
+        $same = ($ha -eq $hb) -or ($skip -and @($diffSectors).Count -eq 0)
+
+        # FIX2 : secteurs illisibles des deux cotes (motif « -=[BAD SECTOR]=- » de gw dans la reference convertie et dans
+        # la lecture de la disquette : piste protegee, copie de flux ratee) : egaux octet pour octet, mais non compares ;
+        # jamais « IDENTIQUE » sans reserve
+        $badA = Get-BadSectorIndexes $aCmp
+        $setB = New-Object 'System.Collections.Generic.HashSet[int]'
+        foreach ($x in (Get-BadSectorIndexes $b)) { [void]$setB.Add([int]$x) }
+        $both = @($badA | Where-Object { $setB.Contains([int]$_) })
+        $bothTxt = ''
+        if ($both.Count -gt 0) {
+            $spt0 = Get-SectorsPerTrack $fmt; $hd0 = 2
+            if ($g) { $spt0 = $g.Spt; $hd0 = $g.Heads }
+            $tk = @{}
+            if ($spt0 -gt 0) { foreach ($sIdx in $both) { $tr = [int][Math]::Floor([int]$sIdx / $spt0); $tk["$([int][Math]::Floor($tr / $hd0)).$($tr % $hd0)"] = $true } }
+            $bothTxt = (T "{0} secteur(s) illisible(s) des deux côtés, non comparé(s) (pistes {1})") -f "$($both.Count)", "$(Format-TrackList (Sort-TrackKeys @($tk.Keys)))"
         }
 
         $lines = New-Object System.Collections.Generic.List[string]
         $lines.Add(((T "Référence : {0}") -f "$($script:CmpRefName)"))
-        $lines.Add(((T "Format    : {0}") -f "$fmt"))
+        if ($script:CmpAuto) { $lines.Add(((T "Format    : {0} (détecté : {1} ; disquette {2})") -f $fmt, $script:CmpAuto.RefWhy, $script:CmpAuto.Disk)) }
+        else { $lines.Add(((T "Format    : {0}") -f "$fmt")) }
         $lines.Add(((T "Taille    : référence {0} o / disquette {1} o") -f "$($a.Length)", "$($b.Length)"))
         $lines.Add(((T "SHA1 ref  : {0}") -f "$ha"))
         $lines.Add(((T "SHA1 disq : {0}") -f "$hb"))
         $lines.Add('')
-        if ($ha -eq $hb) {
+        if ($same -and $bothTxt) {
+            $lines.Add(((T "RÉSULTAT : IDENTIQUE SUR LES SECTEURS LUS - {0}") -f $bothTxt))
+            $lines.Add((T '           Ces secteurs portent des deux côtés le motif « secteur illisible » de gw (piste protégée, ou copie'))
+            $lines.Add(((T "           ratée) : ils ne sont pas vérifiés. Les autres secteurs correspondent octet pour octet au format {0}.") -f "$fmt"))
+            if ($skip) { $lines.Add('           ' + ((T "Réserve : {0}.") -f $skip)) }
+            Append-Log (((T "Comparaison : IDENTIQUE sur les secteurs lus ({0} octets) ; {1}") -f "$($aCmp.Length)", $bothTxt) + $(if ($skip) { ' ; ' + $skip } else { '' }))
+        } elseif ($same) {
             $lines.Add((T 'RÉSULTAT : IDENTIQUE - la disquette correspond octet pour octet à la référence'))
             $lines.Add(((T "           sur l'ensemble des pistes décodables au format {0}.") -f "$fmt"))
-            Append-Log ((T "Comparaison : IDENTIQUE ({0} octets)") -f "$($a.Length)")
+            if ($skip) { $lines.Add('           ' + ((T "Réserve : {0}.") -f $skip)) }
+            Append-Log (((T "Comparaison : IDENTIQUE ({0} octets)") -f "$($aCmp.Length)") + $(if ($skip) { ' ; ' + $skip } else { '' }))
         } else {
-            $totalSectors = [Math]::Ceiling([Math]::Max($a.Length, $b.Length) / $sectorSize)
+            $totalSectors = [Math]::Ceiling([Math]::Max($aCmp.Length, $b.Length) / $sectorSize)
             $lines.Add(((T "RÉSULTAT : DIFFÉRENT - {0} octet(s) sur {1} secteur(s) / {2}") -f "$diffBytes", "$($diffSectors.Count)", "$totalSectors"))
-            if ($a.Length -ne $b.Length) { $lines.Add((T '           (tailles différentes : vérifier le format de décodage)')) }
+            if ($aCmp.Length -ne $b.Length) { $lines.Add((T '           (tailles différentes : vérifier le format de décodage)')) }
+            if ($skip) { $lines.Add('           ' + ((T "Réserve : {0}.") -f $skip)) }
+            if ($bothTxt) { $lines.Add('           ' + ((T "Réserve : {0}.") -f $bothTxt)) }
             $lines.Add('')
-            $spt = Get-SectorsPerTrack $fmt
+            # 12.8 : secteurs et faces de la geometrie du format (formats a une face, formats hors de la liste)
+            $spt = Get-SectorsPerTrack $fmt; $hds = 2
+            if ($g) { $spt = $g.Spt; $hds = $g.Heads }
             $shown = 0
             $byTrack = [ordered]@{}
             foreach ($sIdx in $diffSectors) {
                 if ($spt -gt 0) {
                     $trk = [int][Math]::Floor($sIdx / $spt); $sec = $sIdx % $spt
-                    $key = ((T "Cyl {0} Head {1} (piste {2})") -f "$([int][Math]::Floor($trk / 2))", "$($trk % 2)", "$trk")
+                    $key = ((T "Cyl {0} Head {1} (piste {2})") -f "$([int][Math]::Floor($trk / $hds))", "$($trk % $hds)", "$trk")
                     if (-not $byTrack.Contains($key)) { $byTrack[$key] = New-Object System.Collections.Generic.List[int] }
                     $byTrack[$key].Add($sec)
                 } else {
@@ -5594,12 +5957,506 @@ function Compare-Images {
         $lines.Add("  $refPath")
         $lines.Add("  $dskPath")
         $txtCmpResult.Text = ($lines -join "`r`n")
+        if ($script:CmpAuto) {
+            $t = (T "{0} : {1} ; disquette {2}") -f $fmt, $script:CmpAuto.RefWhy, $script:CmpAuto.Disk
+            $lblCmpFmtFound.Text = $t; $tip.SetToolTip($lblCmpFmtFound, $t)
+        }
         Show-Tab $tabCmp
     } catch {
         $txtCmpResult.Text = ((T "ERREUR pendant la comparaison : {0}") -f "$($_.Exception.Message)")
         Append-Log ((T "Comparaison : erreur {0}") -f "$($_.Exception.Message)")
     } finally {
         $form.Cursor = [System.Windows.Forms.Cursors]::Default
+        $script:CmpAuto = $null
+    }
+}
+# ============================== FONCTIONS : DETECTION DU FORMAT ================
+# 12.8 (lot 2, points 4 et 6 ; A1 § 3.3, 3.4 et 4.2 ; decisions128 : regle PC / Atari ST sur critere positif, ADF de 81 a
+# 83 cylindres ; D12) : format d une disquette (restauration en detection automatique ; comparaison quand la sonde de la
+# disquette ne trouve aucun secteur au format de la reference) et d une image de reference (comparaison).
+#  - Invoke-DiskFormatDetect enchaine les commandes gw dans $script:Chain : D0 lecture ibm.scan --raw de deux pistes, D1
+#    densite et pistes critiques du flux, D2 decodage Amiga hors ligne, D4 secteur de demarrage, D5 (FIX2) flux de trois
+#    cylindres de plus quand la piste 0 est vierge (restauration, double densite) ; Select-DiskFormat,
+#    fonction pure, decide d apres leurs lignes ; Complete-DiskFormatDetect rend le resultat a la restauration ou a la
+#    comparaison.
+#  - Get-RefImageFormat : format d une image de reference sans disque (ADF : taille ; ST, IMG, IMA : BPB puis taille), ou
+#    candidats a decoder par gw sur deux pistes (IPF, SCP, HFE), departages par Select-RefDecodeFormat (fonction pure).
+
+function Get-FormatGeometry([string]$fmt) {
+    # Cylindres, faces et secteurs de 512 octets par piste des formats secteur de la detection (diskdefs de gw 1.23 :
+    # diskdefs_amiga.cfg, diskdefs_ibm.cfg, diskdefs_atarist.cfg, relus le 20/10/2026) ; $null pour un autre format
+    switch ($fmt) {
+        'amiga.amigados'    { return @{ Cyls = 80; Heads = 2; Spt = 11 } }
+        'amiga.amigados_hd' { return @{ Cyls = 80; Heads = 2; Spt = 22 } }
+        'atarist.360'       { return @{ Cyls = 80; Heads = 1; Spt = 9 } }
+        'atarist.400'       { return @{ Cyls = 80; Heads = 1; Spt = 10 } }
+        'atarist.440'       { return @{ Cyls = 80; Heads = 1; Spt = 11 } }
+        'atarist.720'       { return @{ Cyls = 80; Heads = 2; Spt = 9 } }
+        'atarist.800'       { return @{ Cyls = 80; Heads = 2; Spt = 10 } }
+        'atarist.880'       { return @{ Cyls = 80; Heads = 2; Spt = 11 } }
+        'ibm.160'           { return @{ Cyls = 40; Heads = 1; Spt = 8 } }
+        'ibm.180'           { return @{ Cyls = 40; Heads = 1; Spt = 9 } }
+        'ibm.320'           { return @{ Cyls = 40; Heads = 2; Spt = 8 } }
+        'ibm.360'           { return @{ Cyls = 40; Heads = 2; Spt = 9 } }
+        'ibm.720'           { return @{ Cyls = 80; Heads = 2; Spt = 9 } }
+        'ibm.800'           { return @{ Cyls = 80; Heads = 2; Spt = 10 } }
+        'ibm.1200'          { return @{ Cyls = 80; Heads = 2; Spt = 15 } }
+        'ibm.1440'          { return @{ Cyls = 80; Heads = 2; Spt = 18 } }
+        'ibm.1680'          { return @{ Cyls = 80; Heads = 2; Spt = 21 } }
+        'ibm.2880'          { return @{ Cyls = 80; Heads = 2; Spt = 36 } }
+    }
+    return $null
+}
+
+function Get-GeometryFormat([int]$cyls, [int]$heads, [int]$spt, [string[]]$order) {
+    # Format d une geometrie (BPB) parmi $order : memes faces et secteurs par piste, cylindres du format a +3 pres
+    # (disquettes de 81 a 83 cylindres) ; cylindres exacts d abord ; '' si aucun
+    foreach ($exact in @($true, $false)) {
+        foreach ($f in $order) {
+            $g = Get-FormatGeometry $f
+            if (-not $g -or $g.Heads -ne $heads -or $g.Spt -ne $spt) { continue }
+            if ($exact -and $cyls -eq $g.Cyls) { return $f }
+            if (-not $exact -and $cyls -gt $g.Cyls -and $cyls -le $g.Cyls + 3) { return $f }
+        }
+    }
+    return ''
+}
+
+function Get-SizeFormat([long]$size, [string[]]$order) {
+    # Format d une image secteur d apres sa seule taille, parmi $order (cylindres du format, puis jusqu a 3 de plus) ;
+    # $null si aucun
+    foreach ($d in 0..3) {
+        foreach ($f in $order) {
+            $g = Get-FormatGeometry $f
+            if ($g -and $size -eq [long]($g.Cyls + $d) * $g.Heads * $g.Spt * 512) { return @{ Format = $f; Cyls = $g.Cyls + $d } }
+        }
+    }
+    return $null
+}
+
+function Get-BootSectorInfo($b) {
+    # Secteur de demarrage (512 octets) : octet 0, somme des 256 mots big-endian (0x1234 : amorcable Atari ST), signature
+    # 0x55AA, BPB (octets par secteur 0x0B, total des secteurs 0x13, secteurs par piste 0x18, faces 0x1A ; Bpb : valeurs
+    # plausibles) ; $null sans secteur ou pour un secteur non lu (motif « -=[BAD SECTOR]=- » de gw)
+    if ($null -eq $b -or $b.Length -lt 512) { return $null }
+    $pat = [System.Text.Encoding]::ASCII.GetBytes('-=[BAD SECTOR]=-'); $isBad = $true
+    for ($i = 0; $i -lt 512; $i++) { if ($b[$i] -ne $pat[$i % 16]) { $isBad = $false; break } }
+    if ($isBad) { return $null }
+    $sum = 0
+    for ($i = 0; $i -lt 512; $i += 2) { $sum = ($sum + 256 * [int]$b[$i] + [int]$b[$i + 1]) -band 0xFFFF }
+    $bps = [int]$b[11] + 256 * [int]$b[12]; $total = [int]$b[19] + 256 * [int]$b[20]
+    $spt = [int]$b[24] + 256 * [int]$b[25]; $heads = [int]$b[26] + 256 * [int]$b[27]
+    return @{ Byte0 = [int]$b[0]; StSum = $sum; StPositive = ([int]$b[0] -eq 0x60 -or $sum -eq 0x1234); Sig = ([int]$b[510] -eq 0x55 -and [int]$b[511] -eq 0xAA)
+              Bps = $bps; Total = $total; Spt = $spt; Heads = $heads
+              Bpb = ($bps -eq 512 -and $spt -ge 1 -and $spt -le 63 -and $heads -ge 1 -and $heads -le 2 -and $total -gt 0) }
+}
+
+function Read-FileHead([string]$path, [int]$n = 512) {
+    # Premiers octets d un fichier ; $null s il est illisible ou plus court
+    try {
+        $fs = [System.IO.File]::OpenRead($path)
+        try { $b = New-Object byte[] $n; $got = $fs.Read($b, 0, $n) } finally { $fs.Dispose() }
+        if ($got -lt $n) { return $null }
+        return ,$b
+    } catch { return $null }
+}
+
+function Get-IpfFormattedCyls([string]$path) {
+    # Cylindres formates d un IPF : derniere piste IMGE ayant des blocs, plus un (Get-ImageCylinders compte aussi les
+    # IMGE vides : 82 ou 84 pour un IPF de 80 cylindres formates, L2-DATA ecart 3) ; $null si illisible
+    try {
+        $d = [System.IO.File]::ReadAllBytes($path); $max = -1; $pos = 0
+        while ($pos + 12 -le $d.Length) {
+            $id = [System.Text.Encoding]::ASCII.GetString($d, $pos, 4); $ln = Get-BE32 $d ($pos + 4)
+            if ($ln -lt 12) { break }
+            if ($id -eq 'IMGE' -and $pos + 12 + 44 -le $d.Length) {
+                $t = Get-BE32 $d ($pos + 12)
+                if ((Get-BE32 $d ($pos + 12 + 40)) -gt 0 -and $t -gt $max -and $t -lt 200) { $max = $t }
+            } elseif ($id -eq 'DATA' -and $pos + 16 -le $d.Length) { $ln += Get-BE32 $d ($pos + 12) }
+            $pos += $ln
+        }
+        if ($max -ge 0) { return [int]($max + 1) }
+    } catch { }
+    return $null
+}
+
+function Get-RefImageFormat([string]$path) {
+    # Format d une image de reference de la comparaison, sans disque (A1 § 4.2, decisions128, a5 § 2.3 et 4). Renvoie
+    # Format ('' : inconnu), Cyls (cylindres de l image, $null si inconnus), Need ('decode' : IPF, SCP, HFE, a decoder
+    # par gw sur les pistes 0.0 et 0.1 avec les candidats Cands, dans l ordre), HD, Why (texte du resultat) :
+    #  - ADF : AmigaDOS toujours (un ADF ne represente que des pistes AmigaDOS ; signature DOS ou NDOS sans role), haute
+    #    densite selon Test-AdfHd, cylindres d apres la taille (81 a 83 : la comparaison relit ces cylindres) ;
+    #  - ST (atarist.*), IMG et IMA (ibm.*, puis atarist.* pour une face de 80 pistes, sans equivalent ibm.*) : BPB du
+    #    secteur 0 si son total de secteurs fait la taille du fichier, sinon la taille seule ; un .st de 901 120 octets est
+    #    un atarist.880 : l extension decide, a taille egale avec un ADF ;
+    #  - IPF, SCP, HFE : densite (cellule IPF ou HFE, Test-ScpHighDensity pour un SCP), puis decodage par gw : AmigaDOS,
+    #    puis les formats IBM du plus grand nombre de secteurs au plus petit (un decodeur fixe a 9 secteurs en trouve
+    #    aussi 9 sur une piste de 10).
+    $r = @{ Format = ''; Cyls = $null; Need = ''; HD = $false; Cands = @(); Why = '' }
+    $ext = [System.IO.Path]::GetExtension($path).ToLower()
+    try { $size = [long](Get-Item -LiteralPath $path -ErrorAction Stop).Length } catch { $r.Why = (T 'image de référence illisible'); return $r }
+    $sz = Format-UiNum ([double]$size) '#,0'
+    if ($ext -eq '.adf') {
+        $r.HD = [bool](Test-AdfHd $path)
+        $r.Format = $(if ($r.HD) { 'amiga.amigados_hd' } else { 'amiga.amigados' })
+        $unit = $(if ($r.HD) { 22528 } else { 11264 })
+        if ($size -gt 0 -and $size % $unit -eq 0) { $r.Cyls = [int]($size / $unit) }
+        $r.Why = (T "référence {0} de {1} octets") -f 'ADF', $sz
+        if ($null -ne $r.Cyls -and $r.Cyls -ne 80) { $r.Why += ((T ", {0} cylindres") -f "$($r.Cyls)") }
+        return $r
+    }
+    if (@('.st', '.img', '.ima') -contains $ext) {
+        $kind = $(if ($ext -eq '.st') { 'ST' } else { 'IMG' })
+        $order = if ($ext -eq '.st') { @('atarist.720', 'atarist.800', 'atarist.880', 'atarist.360', 'atarist.400', 'atarist.440') }
+                 else { @('ibm.720', 'ibm.1440', 'ibm.360', 'ibm.1200', 'ibm.800', 'ibm.1680', 'ibm.2880', 'ibm.180', 'ibm.160', 'ibm.320', 'atarist.360', 'atarist.400', 'atarist.440', 'atarist.880') }
+        $bi = Get-BootSectorInfo (Read-FileHead $path 512)
+        if ($bi -and $bi.Bpb -and [long]$bi.Total * 512 -eq $size -and $bi.Total % ($bi.Heads * $bi.Spt) -eq 0) {
+            $c = [int]($bi.Total / ($bi.Heads * $bi.Spt))
+            $f = Get-GeometryFormat $c $bi.Heads $bi.Spt $order
+            if ($f) {
+                $r.Format = $f; $r.Cyls = $c
+                $r.Why = (T "référence {0} de {1} octets, BPB {2} x {3} x {4}") -f $kind, $sz, "$c", "$($bi.Heads)", "$($bi.Spt)"
+                return $r
+            }
+        }
+        $m = Get-SizeFormat $size $order
+        if ($m) { $r.Format = $m.Format; $r.Cyls = $m.Cyls; $r.Why = (T "référence {0} de {1} octets") -f $kind, $sz; return $r }
+        $r.Why = (T "référence {0} de {1} octets : taille et BPB non reconnus") -f $kind, $sz
+        return $r
+    }
+    if (@('.ipf', '.scp', '.hfe') -contains $ext) {
+        $r.Need = 'decode'
+        try {
+            if ($ext -eq '.ipf') { $r.HD = ([double](Get-IpfCellInfo $path).CellNs -lt 1500); $r.Cyls = Get-IpfFormattedCyls $path }
+            elseif ($ext -eq '.hfe') { $r.HD = ([double](Get-HfeCellInfo $path).CellNs -lt 1500) }
+            else { $r.HD = [bool](Test-ScpHighDensity $path) }
+        } catch { }
+        $r.Cands = $(if ($r.HD) { @('amiga.amigados_hd', 'ibm.1440') } else { @('amiga.amigados', 'atarist.880', 'atarist.800', 'ibm.720') })
+        $r.Why = (T "référence {0} de {1} octets, décodée par gw sur les pistes 0.0 et 0.1") -f $ext.TrimStart('.').ToUpper(), $sz
+        return $r
+    }
+    $r.Why = (T "extension {0} non prise en charge par la détection automatique") -f $ext
+    return $r
+}
+
+function Get-GwTrackSectors($lines) {
+    # Bilan par piste des lignes de gw (read ou convert avec un format) : « T0.0: IBM MFM (9/9 sectors) from Raw Flux
+    # (...) », « T0.1: IBM Empty from ... », « T0.0: AmigaDOS (11/11 sectors) from ... » ; cle « cyl.tete » -> Mode, Found,
+    # Total (derniere ligne de la piste). Ignorees : « Unknown mark », grille et bilan de print_summary, « Giving up »,
+    # avertissements « Out of range », flux sans decodeur (faux gw : « T0.0: Raw Flux (...) »)
+    $t = @{}
+    foreach ($l in @($lines)) {
+        $s = [string]$l
+        if ($s -match '^T(\d+)\.(\d+)\b[^:]*:\s*(IBM MFM|IBM FM|IBM Empty|AmigaDOS)\b(?:\s*\((\d+)/(\d+) sectors\))?') {
+            $f = 0; $n = 0
+            if ($Matches[4]) { $f = [int]$Matches[4]; $n = [int]$Matches[5] }
+            $t["$([int]$Matches[1]).$([int]$Matches[2])"] = @{ Mode = $Matches[3]; Found = $f; Total = $n }
+        }
+    }
+    return $t
+}
+
+function New-DiskFormatResult([string]$kind, [string]$fmt, [string]$action, [string]$text, [string]$score, [string]$tail, [string]$name = '', [string]$why = '') {
+    # Resultat de Select-DiskFormat ; Log : ligne de journal (scores des decodeurs, decision). FIX2 : Name (nom court du
+    # format reconnu : ligne du cadre 1, ligne « Disquette » de la comparaison), Why (raison courte d une copie de flux ou
+    # d un arret : etape 2, ligne du cadre 1), Score (scores des decodeurs) ; NeedBoot et BootFmt (D4 a faire, format de
+    # decodage du secteur de demarrage), NeedProbe (D5 a faire : piste 0 vierge en restauration)
+    return @{ Format = $fmt; Action = $action; Kind = $kind; Text = $text; Log = ((T "Détection du format : {0} ; {1}.") -f $score, $tail); NeedBoot = $false
+              BootFmt = ''; NeedProbe = $false; Name = $name; Why = $why; Score = $score }
+}
+
+function Get-UnknownFormatResult([bool]$hd, [string]$why, [string]$score) {
+    # Format inconnu (A1 § 3.4) : copie exacte du flux en double densite ; arret en haute densite, une copie de flux haute
+    # densite ne pouvant pas etre controlee (regle de la 12.7, Complete-RestoreRead)
+    if ($hd) {
+        return New-DiskFormatResult 'unknown' '' 'stop' ((T "format haute densité non reconnu ({0}) : une copie de flux ne pourrait pas être contrôlée. Si vous connaissez le format, choisissez-le dans la liste.") -f $why) $score (T 'format haute densité non reconnu, arrêt avant toute écriture') '' (T 'format haute densité non reconnu')
+    }
+    return New-DiskFormatResult 'unknown' '' 'flux' ((T "Format non reconnu ({0}) : copie exacte du flux, sans comparaison par secteur.") -f $why) $score (T 'format non reconnu, copie exacte du flux') '' (T 'format non reconnu')
+}
+
+function Select-DiskFormat($m) {
+    # Fonction pure (A1 § 3.3 et 3.4, decisions128, D12). $m : D0 (lignes de gw de la lecture ibm.scan --raw des pistes
+    # 0.0 et 0.1), D2 (lignes du decodage Amiga hors ligne de ce flux), AmigaFmt (format de D2), HD (densite du flux,
+    # Test-ScpHighDensity), Tracks et Crit (pistes du flux et pistes critiques, Get-TrackMetrics), Boot (secteur 0 de la
+    # piste 0.0 decode en ibm.720 par D4, ou $null) et BootDone (D4 faite, meme sans secteur). Regles, dans l ordre :
+    #  1. aucun secteur, et toutes les pistes du flux critiques (ou aucune piste) : disquette vierge, absente ou tetes
+    #     sales -> arret ;
+    #  2. D3 : un decodeur est retenu s il donne une piste complete et au moins deux fois plus de secteurs valides que
+    #     l autre (AmigaDOS contre IBM) ; sinon format inconnu (ambiguite) ;
+    #  3. AmigaDOS : format de D2. Une piste incomplete, en double densite : protection contre la copie probable -> copie
+    #     exacte du flux d office (D12, mode automatique), sans lecture secteur qui echouerait sur les pistes protegees ;
+    #  4. IBM : codage MFM et meme nombre de secteurs sur les deux faces, sinon inconnu (FM, une seule face lisible).
+    #     9 secteurs en double densite : « Atari ST » sur critere positif seulement (octet 0 = 0x60, BRA.S du 68000, ou
+    #     somme des 256 mots big-endian du secteur de demarrage = 0x1234 : atarist.720) ; sinon « 9 secteurs de 512 octets,
+    #     format PC » (ibm.720 ; ibm.360 si le BPB annonce 720 secteurs sur 2 faces), sans affirmer la machine d origine :
+    #     0x55AA ne joue aucun role (images ST de mtools) et les donnees sont les memes. 10 et 11 secteurs en double
+    #     densite : atarist.800 et atarist.880 ; 18 en haute densite : ibm.1440 ; autre nombre : inconnu. Piste incomplete
+    #     en double densite : protection probable, copie exacte du flux ;
+    #  5. format inconnu : copie exacte du flux en double densite, arret en haute densite.
+    # FIX2 (relecture adverse du lot 2) :
+    #  - regle 1, restauration en double densite ($m.CanProbe) : avant de conclure a une disquette vierge, D5 lit trois
+    #    cylindres de plus (1, 40, 79 ; Lemmings disque 2 : piste 0 non formatee). Donnees sur l un d eux ($m.ProbeData) :
+    #    piste 0 non formatee, protection probable, copie exacte du flux ; sinon arret ;
+    #  - regle 4 : D4 pour tout format IBM retenu (9, 10, 11 secteurs en double densite, 18 en haute densite), avec ce
+    #    format ($res.BootFmt). Un BPB plausible qui annonce plus de secteurs que le format n en lit (disquette de 81 a 83
+    #    cylindres) : copie exacte du flux en double densite, arret en haute densite (gw ne lit que les cylindres du format :
+    #    une copie secteur les perdrait) ; ibm.360 seulement si le champ Pistes contient step=2 ($m.Step2), sinon ibm.720
+    #    (lecture des 80 cylindres, sans perte).
+    # Renvoie Format ('' : aucun ; format reconnu d une disquette protegee), Action (sector : lecture secteur ; flux :
+    # copie exacte du flux ; stop : arret avant toute ecriture), Kind (amiga, pc, st, protect, extended, unknown, blank),
+    # Text (rapport, infobulle du cadre 1, raison d un arret), Log (journal : scores de chaque decodeur et decision), Name,
+    # Why, Score, NeedBoot (D4 pas encore faite : nouvel appel avec Boot et BootDone), NeedProbe (D5 pas encore faite :
+    # nouvel appel avec ProbeDone, ProbeData, ProbeTracks).
+    $ibm = Get-GwTrackSectors $m.D0
+    $ami = Get-GwTrackSectors $m.D2
+    $af = $(if ($m.AmigaFmt) { [string]$m.AmigaFmt } else { 'amiga.amigados' })
+    $hd = [bool]$m.HD
+    $nAmi = 0; $nAmiT = 0; $nIbm = 0; $aFull = 0; $iFull = 0; $aInc = @(); $parts = @()
+    foreach ($k in @('0.0', '0.1')) {
+        $a = $ami[$k]
+        if ($a -and $a.Mode -eq 'AmigaDOS' -and $a.Total -gt 0) {
+            $nAmi += $a.Found; $nAmiT += $a.Total
+            if ($a.Found -eq $a.Total) { $aFull++ } else { $aInc += $k }
+        } else { $aInc += $k }
+        $b = $ibm[$k]
+        if ($b -and $b.Total -gt 0 -and ($b.Mode -eq 'IBM MFM' -or $b.Mode -eq 'IBM FM')) {
+            $nIbm += $b.Found
+            if ($b.Found -eq $b.Total) { $iFull++ }
+            $parts += "$($b.Mode) $($b.Found)/$($b.Total)"
+        } else { $parts += (T 'vide') }
+    }
+    if ($nAmiT -eq 0) { $nAmiT = 2 * [int](Get-FormatGeometry $af).Spt }
+    $score = (T "AmigaDOS {0}/{1}, IBM {2} (pistes 0.0 et 0.1 : {3})") -f "$nAmi", "$nAmiT", "$nIbm", ($parts -join ', ')
+    if ($nAmi -eq 0 -and $nIbm -eq 0) {
+        if ([int]$m.Tracks -le 0 -or [int]$m.Crit -ge [int]$m.Tracks) {
+            $tail = (T "aucun secteur, {0} piste(s) critique(s) sur {1} dans le flux") -f "$([int]$m.Crit)", "$([int]$m.Tracks)"
+            if ($m.CanProbe -and -not $hd -and [int]$m.Tracks -gt 0) {
+                # FIX2 : piste 0 vierge en double densite (restauration) : D5, trois cylindres de plus, avant de conclure
+                if (-not $m.ProbeDone) { $res = New-DiskFormatResult 'blank' '' '' '' $score ''; $res.NeedProbe = $true; return $res }
+                if ([int]$m.ProbeData -gt 0) {
+                    return New-DiskFormatResult 'protect' '' 'flux' ((T "Piste 0 sans donnée lisible, mais données sur {0} des {1} pistes sondées (cylindres 1, 40 et 79) : piste 0 non formatée, protection contre la copie probable. Copie exacte du flux, sans comparaison par secteur.") -f "$([int]$m.ProbeData)", "$([int]$m.ProbeTracks)") $score ((T "{0} ; données sur {1} des {2} pistes sondées : piste 0 non formatée, copie exacte du flux") -f $tail, "$([int]$m.ProbeData)", "$([int]$m.ProbeTracks)") '' (T 'piste 0 non formatée')
+                }
+                $tail += ' ; ' + ((T "aucune donnée sur les {0} pistes sondées (cylindres 1, 40 et 79)") -f "$([int]$m.ProbeTracks)")
+            }
+            return New-DiskFormatResult 'blank' '' 'stop' (T 'aucune donnée lisible : disquette vierge, absente ou têtes sales') $score $tail '' (T 'aucune donnée lisible')
+        }
+        return Get-UnknownFormatResult $hd (T 'aucun secteur reconnu') $score
+    }
+    if ($nAmi -gt 0 -and $aFull -ge 1 -and $nAmi -ge 2 * $nIbm) {
+        $name = $(if ($af -eq 'amiga.amigados_hd') { (T "Amiga haute densité ({0})") -f $af } else { (T "Amiga double densité ({0})") -f $af })
+        $short = $(if ($af -eq 'amiga.amigados_hd') { (T 'Amiga haute densité') } else { (T 'Amiga double densité') })
+        $lab = (T "{0}, {1}/{2} secteurs") -f $name, "$nAmi", "$nAmiT"
+        if ($aInc.Count -gt 0 -and -not $hd) {
+            $k = $aInc[0]; $x = $ami[$k]
+            $fx = $(if ($x) { [int]$x.Found } else { 0 }); $tx = $(if ($x -and $x.Total -gt 0) { [int]$x.Total } else { [int](Get-FormatGeometry $af).Spt })
+            $res = New-DiskFormatResult 'protect' $af 'flux' ((T "{0} : piste {1} incomplète ({2}/{3} secteurs), protection contre la copie probable. Copie exacte du flux, sans comparaison par secteur.") -f $name, $k, "$fx", "$tx") $score ((T "protection contre la copie probable (piste {0} incomplète), copie exacte du flux") -f $k) $short (T 'protection contre la copie probable')
+            return $res
+        }
+        return New-DiskFormatResult 'amiga' $af 'sector' $lab $score ((T "format retenu : {0}") -f $af) $short
+    }
+    if ($nIbm -gt 0 -and $iFull -ge 1 -and $nIbm -ge 2 * $nAmi) {
+        $t0 = $ibm['0.0']; $t1 = $ibm['0.1']
+        if (($t0 -and $t0.Mode -eq 'IBM FM') -or ($t1 -and $t1.Mode -eq 'IBM FM')) { return Get-UnknownFormatResult $hd (T 'codage FM') $score }
+        $n0 = $(if ($t0 -and $t0.Mode -eq 'IBM MFM') { [int]$t0.Total } else { 0 }); $n1 = $(if ($t1 -and $t1.Mode -eq 'IBM MFM') { [int]$t1.Total } else { 0 })
+        if ($n0 -ne $n1 -or $n0 -eq 0) { return Get-UnknownFormatResult $hd ((T "{0} et {1} secteurs sur les deux faces") -f "$n0", "$n1") $score }
+        $spt = $n0; $fmt = ''; $kind = 'pc'; $bootTxt = ''; $note = ''
+        # FIX2 : D4 pour tout format IBM retenu, decode avec ce format (9 secteurs : ibm.720, memes secteurs qu atarist.720)
+        $bootFmt = $(if (-not $hd -and $spt -eq 9) { 'ibm.720' } elseif (-not $hd -and $spt -eq 10) { 'atarist.800' } elseif (-not $hd -and $spt -eq 11) { 'atarist.880' } elseif ($hd -and $spt -eq 18) { 'ibm.1440' } else { '' })
+        if (-not $bootFmt) { return Get-UnknownFormatResult $hd ((T "{0} secteurs par piste") -f "$spt") $score }
+        if ($null -eq $m.Boot -and -not $m.BootDone) { $res = New-DiskFormatResult 'pc' '' '' '' $score ''; $res.NeedBoot = $true; $res.BootFmt = $bootFmt; return $res }
+        $bi = Get-BootSectorInfo $m.Boot
+        if ($bi) { $bootTxt = ' (' + ((T "secteur de démarrage : octet 0 = 0x{0:X2}, somme des mots 0x{1:X4}") -f $bi.Byte0, $bi.StSum) + ')' }
+        if ($spt -eq 9 -and -not $hd) {
+            if ($bi -and $bi.StPositive) { $fmt = 'atarist.720'; $kind = 'st' }
+            elseif ($bi -and $bi.Bpb -and $bi.Total -eq 720 -and $bi.Heads -eq 2 -and $bi.Spt -eq 9) {
+                if ($m.Step2) { $fmt = 'ibm.360' }
+                else {
+                    # FIX2 : sans step=2, ibm.360 ne lirait que les cylindres 0 a 39 ; ibm.720 lit les 80 (rien de perdu)
+                    $fmt = 'ibm.720'
+                    $note = ' ' + (T "Le secteur de démarrage annonce 40 cylindres : pour une disquette 5,25 pouces de 40 pistes dans un lecteur de 80 pistes, indiquez step=2 dans le champ Pistes de l'onglet Écriture.")
+                }
+            }
+            else { $fmt = 'ibm.720' }
+        }
+        elseif ($spt -eq 18) { $fmt = 'ibm.1440' }
+        else { $fmt = $bootFmt; $kind = 'st' }
+        $name = $(if ($kind -eq 'st') { (T "Atari ST, {0} secteurs de 512 octets ({1})") -f "$spt", $fmt } else { (T "{0} secteurs de 512 octets, format PC ({1})") -f "$spt", $fmt })
+        $short = $(if ($kind -eq 'st') { (T "Atari ST, {0} secteurs") -f "$spt" } else { (T "PC, {0} secteurs") -f "$spt" })
+        $inc = @(@('0.0', '0.1') | Where-Object { $ibm[$_].Found -lt $ibm[$_].Total })
+        if ($inc.Count -gt 0 -and -not $hd) {
+            $k = $inc[0]
+            return New-DiskFormatResult 'protect' $fmt 'flux' ((T "{0} : piste {1} incomplète ({2}/{3} secteurs), protection contre la copie probable. Copie exacte du flux, sans comparaison par secteur.") -f $name, $k, "$($ibm[$k].Found)", "$($ibm[$k].Total)") $score ((T "protection contre la copie probable (piste {0} incomplète), copie exacte du flux") -f $k) $short (T 'protection contre la copie probable')
+        }
+        # FIX2 : BPB plausible qui annonce plus de secteurs que le format n en lit : gw ne lirait que les cylindres du format
+        $g = Get-FormatGeometry $fmt
+        if ($bi -and $bi.Bpb -and $g -and [int]$bi.Total -gt $g.Cyls * $g.Heads * $g.Spt) {
+            $bc = [int][math]::Ceiling([int]$bi.Total / ([int]$bi.Heads * [int]$bi.Spt))
+            $why = (T "le secteur de démarrage annonce {0} secteurs ({1} cylindres de {2} face(s) et {3} secteurs), le format {4} n'en lit que {5} ({6} cylindres)") -f "$($bi.Total)", "$bc", "$($bi.Heads)", "$($bi.Spt)", $fmt, "$($g.Cyls * $g.Heads * $g.Spt)", "$($g.Cyls)"
+            if ($hd) {
+                return New-DiskFormatResult 'extended' $fmt 'stop' ((T "{0} : {1} ; une copie de flux haute densité ne pourrait pas être contrôlée : arrêt avant toute écriture.") -f $name, $why) $score (((T "format haute densité étendu ({0} cylindres annoncés), arrêt avant toute écriture") -f "$bc") + $bootTxt) $short (T 'format haute densité étendu')
+            }
+            return New-DiskFormatResult 'extended' $fmt 'flux' ((T "{0} : {1}. Copie exacte du flux, sans comparaison par secteur.") -f $name, $why) $score (((T "format étendu ({0} cylindres annoncés), copie exacte du flux") -f "$bc") + $bootTxt) $short (T 'format étendu au-delà de ses cylindres')
+        }
+        return New-DiskFormatResult $kind $fmt 'sector' (((T "{0}, {1}/{2} secteurs") -f $name, "$nIbm", "$(2 * $spt)") + $note) $score (((T "format retenu : {0}") -f $fmt) + $bootTxt) $short
+    }
+    return Get-UnknownFormatResult $hd ((T "ambiguïté : AmigaDOS {0}, IBM {1}") -f "$nAmi", "$nIbm") $score
+}
+
+function Select-RefDecodeFormat($results) {
+    # Fonction pure (A1 § 4.2, regle de D3) : format d une image IPF, SCP ou HFE d apres le decodage de ses pistes 0.0 et
+    # 0.1 par chaque candidat ($results : Fmt, Lines, dans l ordre d essai). Le premier candidat dont les deux pistes sont
+    # completes ; sinon celui qui a une piste complete et au moins deux fois plus de secteurs que le second (pistes
+    # incompletes : protection probable, signalee) ; sinon inconnu. Renvoie Format ('' : inconnu), Found, Total, Inc
+    # (pistes incompletes), Text
+    $rows = @()
+    foreach ($x in @($results)) {
+        if (-not $x) { continue }
+        $t = Get-GwTrackSectors $x.Lines; $f = 0; $n = 0; $full = 0; $inc = @()
+        foreach ($k in @('0.0', '0.1')) {
+            $e = $t[$k]
+            if ($e -and $e.Total -gt 0 -and $e.Mode -ne 'IBM Empty') { $f += $e.Found; $n += $e.Total; if ($e.Found -eq $e.Total) { $full++ } else { $inc += $k } }
+            else { $inc += $k }
+        }
+        $rows += ,@{ Fmt = [string]$x.Fmt; Found = $f; Total = $n; Full = $full; Inc = $inc }
+    }
+    $pick = $null
+    foreach ($w in $rows) { if ($w.Full -eq 2) { $pick = $w; break } }
+    if (-not $pick -and $rows.Count -gt 0) {
+        $s = @($rows | Sort-Object -Property @{ Expression = { [int]$_.Found }; Descending = $true })
+        $second = $(if ($s.Count -gt 1) { [int]$s[1].Found } else { 0 })
+        if ($s[0].Found -gt 0 -and $s[0].Full -ge 1 -and $s[0].Found -ge 2 * $second) { $pick = $s[0] }
+    }
+    if (-not $pick) {
+        $best = @($rows | ForEach-Object { "$($_.Fmt) $($_.Found)/$($_.Total)" }) -join ', '
+        return @{ Format = ''; Found = 0; Total = 0; Inc = @(); Text = ((T "aucun format reconnu sur les pistes 0.0 et 0.1 ({0})") -f $best) }
+    }
+    $txt = (T "{0}/{1} secteurs sur les pistes 0.0 et 0.1") -f "$($pick.Found)", "$($pick.Total)"
+    # FIX2 : les secteurs manquants de ces pistes portent le motif « secteur illisible » de gw dans la reference convertie ;
+    # Compare-Images les signale comme non compares (et non plus « la comparaison signalera ces pistes »)
+    if (@($pick.Inc).Count -gt 0) { $txt += ' ; ' + ((T "piste(s) {0} incomplète(s) : protection contre la copie probable, ces pistes ne peuvent pas être comparées au format {1}") -f ($pick.Inc -join ', '), $pick.Fmt) }
+    return @{ Format = $pick.Fmt; Found = $pick.Found; Total = $pick.Total; Inc = $pick.Inc; Text = $txt }
+}
+
+function Get-FmtDetectInput($d) {
+    # Entree de Select-DiskFormat d apres l etat de la detection en cours ($script:FmtDetect). FIX2 : sonde D5 en
+    # restauration seulement (CanProbe), step=2 dans la geometrie du champ Pistes (Step2)
+    return @{ D0 = $d.D0; D2 = $d.D2; AmigaFmt = $d.AmigaFmt; HD = $d.HD; Tracks = $d.Tracks; Crit = $d.Crit; Boot = $d.BootBytes; BootDone = $d.BootDone
+              CanProbe = ($d.Owner -eq 'restore'); ProbeDone = $d.ProbeDone; ProbeData = $d.ProbeData; ProbeTracks = $d.ProbeTracks
+              Step2 = [bool](":$($d.Extras)" -match ':\s*step\s*=\s*2\s*(:|$)') }
+}
+
+function Invoke-DiskFormatDetect([string]$owner, [string]$extras = '') {
+    # Detection du format de la disquette inseree (A1 § 3.3), pour la restauration ($owner 'restore') ou la comparaison
+    # ('compare'). D0 : une seule lecture physique, ibm.scan --raw sur les pistes 0.0 et 0.1, 2 tours (un secteur a
+    # cheval sur l index se decode sur deux tours), sans nouvel essai, avec les options de lecteur (Get-DriveReadArgs, D8)
+    # et la geometrie du champ Pistes ($extras : step, hswap). Etapes suivantes dans $script:Chain, lancees par le
+    # minuteur a la fin de gw (code 0) : Step-FmtDetectFlux, Step-FmtDetectAmiga, Step-FmtDetectBoot ou (FIX2)
+    # Start-FmtDetectProbe et Step-FmtDetectProbe ; fin par
+    # Complete-DiskFormatDetect. Erreur de gw : chemin commun de la chaine (restauration arretee, comparaison en echec)
+    if (-not (Test-Path -LiteralPath $script:TempDir)) { New-Item -ItemType Directory -Force -Path $script:TempDir | Out-Null }
+    $base = Join-Path $script:TempDir ('detect-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+    $script:FmtDetect = @{ Owner = $owner; Scp = "$base.scp"; Adf = "$base-amiga.adf"; BootImg = "$base-boot.img"; D0 = @(); D2 = @()
+                           AmigaFmt = 'amiga.amigados'; HD = $false; Tracks = 0; Crit = 0; BootBytes = $null; BootDone = $false
+                           Extras = $extras; ProbeScp = "$base-sonde.scp"; ProbeDone = $false; ProbeData = 0; ProbeTracks = 0 }
+    $script:FmtDetectArgs = @('read') + (Get-CommonArgs) + @(Get-DriveReadArgs) + @('--format=ibm.scan', '--raw', '--revs=2', '--retries=0', "--tracks=c=0:h=0-1$extras", "`"$($script:FmtDetect.Scp)`"")
+    $script:GwCapture = New-Object System.Collections.Generic.List[string]
+    $script:Chain.Clear()
+    $script:Chain.Enqueue({ Start-Gw $script:FmtDetectArgs })
+    $script:Chain.Enqueue({ Step-FmtDetectFlux })
+    Invoke-NextChainStep
+}
+
+function Step-FmtDetectFlux {
+    # Apres D0 : lignes de gw ; D1 : densite et pistes critiques du flux (jugees aux seuils Standard, comme un original
+    # en copie de flux) ; puis D2 : decodage AmigaDOS hors ligne du meme flux (double ou haute densite selon D1)
+    $d = $script:FmtDetect
+    if (-not $d) { return }
+    $d.D0 = @(if ($script:GwCapture) { @($script:GwCapture) } else { @() }); $script:GwCapture = $null
+    if (-not (Test-Path -LiteralPath $d.Scp) -or (Get-Item -LiteralPath $d.Scp).Length -eq 0) {
+        Complete-DiskFormatDetect (New-DiskFormatResult 'nofile' '' 'stop' (T 'la lecture n''a produit aucun fichier (disquette absente ou lecteur incorrect ?)') (T 'pistes 0.0 et 0.1') (T 'aucun flux lu'))
+        return
+    }
+    if ($script:ScpStatsOk) {
+        try { $d.HD = [bool](Test-ScpHighDensity $d.Scp) } catch { $d.HD = $false }
+        try {
+            $t = Read-ScpFile $d.Scp
+            foreach ($tn in @($t.Keys)) {
+                $mm = Get-TrackMetrics $t[$tn]; $d.Tracks++
+                $lv = if ($mm.Bad) { 2 } else { Get-HealthLevel $mm.Ooc $mm.Dr $mm.Stab $mm.J $script:JitterStdOk $script:JitterStdWatch }
+                if ($lv -ge 2) { $d.Crit++ }
+            }
+        } catch { }
+    }
+    $d.AmigaFmt = $(if ($d.HD) { 'amiga.amigados_hd' } else { 'amiga.amigados' })
+    $script:FmtDetectArgs = @('convert', "--format=$($d.AmigaFmt)", '--tracks=c=0:h=0-1', "`"$($d.Scp)`"", "`"$($d.Adf)`"")
+    $script:GwCapture = New-Object System.Collections.Generic.List[string]
+    $script:Chain.Enqueue({ Start-Gw $script:FmtDetectArgs })
+    $script:Chain.Enqueue({ Step-FmtDetectAmiga })
+    Invoke-NextChainStep
+}
+
+function Step-FmtDetectAmiga {
+    # Apres D2 : decision ; format IBM : D4, secteur 0 de la piste 0.0 decode hors ligne avec le format retenu (FIX2 :
+    # BootFmt ; 9, 10, 11 et 18 secteurs) ; piste 0 vierge en restauration double densite : D5 (FIX2)
+    $d = $script:FmtDetect
+    if (-not $d) { return }
+    $d.D2 = @(if ($script:GwCapture) { @($script:GwCapture) } else { @() }); $script:GwCapture = $null
+    $res = Select-DiskFormat (Get-FmtDetectInput $d)
+    if ($res.NeedProbe) { Start-FmtDetectProbe; return }
+    if (-not $res.NeedBoot) { Complete-DiskFormatDetect $res; return }
+    $script:FmtDetectArgs = @('convert', "--format=$($res.BootFmt)", '--tracks=c=0:h=0', "`"$($d.Scp)`"", "`"$($d.BootImg)`"")
+    $script:Chain.Enqueue({ Start-Gw $script:FmtDetectArgs })
+    $script:Chain.Enqueue({ Step-FmtDetectBoot })
+    Invoke-NextChainStep
+}
+
+function Start-FmtDetectProbe {
+    # FIX2 (D5) : piste 0 sans donnee lisible en double densite (restauration) : lecture du flux de trois cylindres de plus
+    # (1, 40 et 79, 2 tours, options et geometrie du lecteur comme D0) avant de conclure a une disquette vierge : une piste
+    # 0 non formatee est une protection (Lemmings disque 2 d apres l IPF SPS)
+    $d = $script:FmtDetect
+    if (-not $d) { return }
+    $script:FmtDetectArgs = @('read') + (Get-CommonArgs) + @(Get-DriveReadArgs) + @('--revs=2', "--tracks=c=1,40,79:h=0-1$($d.Extras)", "`"$($d.ProbeScp)`"")
+    $script:Chain.Enqueue({ Start-Gw $script:FmtDetectArgs })
+    $script:Chain.Enqueue({ Step-FmtDetectProbe })
+    Invoke-NextChainStep
+}
+
+function Step-FmtDetectProbe {
+    # Apres D5 : pistes avec des donnees (ni vierges ni critiques aux seuils Standard, comme D1), puis decision
+    $d = $script:FmtDetect
+    if (-not $d) { return }
+    $d.ProbeDone = $true
+    if ((Test-Path -LiteralPath $d.ProbeScp) -and $script:ScpStatsOk) {
+        try {
+            $t = Read-ScpFile $d.ProbeScp
+            foreach ($tn in @($t.Keys)) {
+                $mm = Get-TrackMetrics $t[$tn]; $d.ProbeTracks++
+                $lv = if ($mm.Bad) { 2 } else { Get-HealthLevel $mm.Ooc $mm.Dr $mm.Stab $mm.J $script:JitterStdOk $script:JitterStdWatch }
+                if ($lv -lt 2) { $d.ProbeData++ }
+            }
+        } catch { }
+    }
+    Complete-DiskFormatDetect (Select-DiskFormat (Get-FmtDetectInput $d))
+}
+
+function Step-FmtDetectBoot {
+    # Apres D4 : secteur de demarrage (absent ou non lu : aucun critere positif Atari ST, format PC), puis decision
+    $d = $script:FmtDetect
+    if (-not $d) { return }
+    $d.BootDone = $true
+    if (Test-Path -LiteralPath $d.BootImg) { $d.BootBytes = Read-FileHead $d.BootImg 512 }
+    Complete-DiskFormatDetect (Select-DiskFormat (Get-FmtDetectInput $d))
+}
+
+function Complete-DiskFormatDetect($res) {
+    # Fin de la detection : ligne de journal (scores, decision), puis suite de la restauration ou de la comparaison
+    $d = $script:FmtDetect; $script:FmtDetect = $null
+    if (-not $d) { return }
+    if ($res.Log) { Append-Log $res.Log }
+    switch ($d.Owner) {
+        'restore' { Complete-RestoreDetection $res }
+        'compare' { Complete-CompareDetect $res }
     }
 }
 # ============================== FONCTIONS : QUALITE ET ALIGNEMENT ==============
@@ -8030,6 +8887,8 @@ function Show-PrecompCurve([string]$family, [bool]$preferHeads, $Owner = $null) 
 function Update-CurveButton([string]$path) {
     # Bouton « Courbe » : actif si une courbe calibree (commune ou par tete) existe pour la famille de l image courante
     # Avant l affichage de la fenetre : aucun acces au fichier (racine reseau possible) ; le gestionnaire Shown recalcule.
+    # 12.8 (lot 2) : cadre « 2. Calibration du lecteur » de la restauration mis a jour en meme temps (memes courbes)
+    Update-RsCalib
     if (-not $script:UiReady) { $path = '' }
     $fam = 'std'
     $ext = if ($path) { [System.IO.Path]::GetExtension($path).ToLower() } else { '' }
@@ -13760,9 +14619,106 @@ function Get-RestoreDefaultDir {
 }
 
 function Get-RestoreFormat {
-    # '' = copie exacte du flux
-    if ($cmbRsFmt.SelectedIndex -le 0) { return '' }
-    return [string]$cmbRsFmt.SelectedItem
+    # 12.8 (D13) : choix de la liste du cadre 1 (reglage restoreFormat, cle restore.formatChoice) : 'auto' (detection du
+    # format a la lecture), '' (copie exacte du flux) ou le nom du format. Piege : l index 0 de cmbRsFmt designe la
+    # detection automatique, et non plus le flux ($script:RsFluxItem)
+    $c = [string](Get-Setting 'restoreFormat')
+    if ($c -eq 'flux') { return '' }
+    if (-not $c) { return 'auto' }
+    return $c
+}
+
+function Get-RestoreStem([string]$dir, [string]$name) {
+    # Debut commun des chemins de la restauration (« <dossier>\<nom> »), calcule une seule fois par restauration (Start-
+    # Restore) ; jamais d ecrasement : suffixe (2), (3)... si une restauration du meme nom existe deja, quel que soit son
+    # mode (12.8, FIX2 : rapport, original ou lecture secteur incomplete de toute extension ; avant : original de la meme
+    # extension seulement, d ou un rapport ecrase apres une relance D12 ou un autre mode)
+    $tails = @(' - ' + (T 'rapport') + '.txt')
+    foreach ($e in @('.adf', '.st', '.img', '.scp')) { $tails += @((' - ' + (T 'original') + $e), (' - ' + (T 'lecture secteur incomplète') + $e)) }
+    $stem = Join-Path $dir $name; $k = 1
+    while (@($tails | Where-Object { Test-Path -LiteralPath ($stem + $_) }).Count -gt 0) { $k++; $stem = (Join-Path $dir $name) + " ($k)" }
+    return $stem
+}
+
+function Set-RestoreFormat([string]$fmt) {
+    # Format de la restauration ($fmt : nom du format, '' : copie exacte du flux), choisi dans la liste ou retenu par la
+    # detection (Complete-RestoreDetect) : mode, extension et chemins (Orig, Back, Report, Probe). 12.8 : les chemins se
+    # calculent apres la detection, l extension dependant du format ; debut des chemins fixe pour toute la restauration
+    # ($r.Stem), la relance D12 ne changeant que l extension
+    $r = $script:Restore
+    $r.Fmt = $fmt
+    $r.Mode = $(if ($fmt) { 'sector' } else { 'flux' })
+    $r.Ext = $(if ($fmt) { Get-DecodedExt $fmt } else { '.scp' })
+    if (-not $r.Stem) { $r.Stem = Get-RestoreStem $r.Dir $r.Name }
+    $stem = $r.Stem
+    $r.Orig = ($stem + ' - ' + (T 'original') + $r.Ext); $r.Back = ($stem + ' - ' + (T 'copie relue') + $r.Ext)
+    $r.Report = ($stem + ' - ' + (T 'rapport') + '.txt')
+    $r.Probe = (Join-Path $script:TempDir ("restore-probe-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + $r.Ext))
+}
+
+function Update-RsDrive {
+    # 12.8 (D10) : lecteur de la restauration, celui du bandeau (Update-SettingDependents 'drive')
+    if (-not $lblRsDrive) { return }
+    $lblRsDrive.Text = (T "{0}  (choix « Lecteur » du bandeau)") -f "$(Get-Setting 'drive')"
+}
+
+function Update-RsFmtFound {
+    # 12.8 (D11) : ligne sous la liste du format (Update-SettingDependents 'restoreFormat'). Detection automatique :
+    # « Format detecte a la lecture », puis le resultat de la detection (Complete-RestoreDetect), garde jusqu au prochain
+    # choix ou a la prochaine restauration ; format choisi ou flux : vide
+    if (-not $lblRsFmtFound -or $script:Restore) { return }
+    $t = $(if ((Get-RestoreFormat) -eq 'auto') { (T 'Format détecté à la lecture') } else { '' })
+    $lblRsFmtFound.Text = $t; $tip.SetToolTip($lblRsFmtFound, $t)      # FIX2 : infobulle d une detection precedente retiree
+}
+
+function Get-RsFmtFoundLine($res) {
+    # 12.8 (FIX2, A1 § 2.6 et 3.5) : ligne courte du cadre 1 (360 px, une ligne) apres la detection ; le texte complet de la
+    # detection reste dans l infobulle, le rapport et le journal. $res : resultat de Select-DiskFormat (Name, Format,
+    # Action, Why)
+    if ($res.Action -eq 'stop') { return ((T "Arrêt : {0}") -f "$($res.Why)") }
+    if ($res.Action -eq 'flux') {
+        if ($res.Name) { return ((T "Format détecté : {0}, copie exacte du flux") -f "$($res.Name)") }
+        # Sans format reconnu : raison courte en tete (« Format non reconnu », « Piste 0 non formatee »)
+        $w = $(if ($res.Why) { [string]$res.Why } else { (T 'format non reconnu') })
+        return ((T "{0} : copie exacte du flux") -f ($w.Substring(0, 1).ToUpper() + $w.Substring(1)))
+    }
+    return ((T "Format détecté : {0} ({1})") -f "$($res.Name)", "$($res.Format)")
+}
+
+function Get-RsCalibText {
+    # 12.8 (D11) : cadre « 2. Calibration du lecteur » : courbes qu appliquerait la restauration (ecriture tete par tete :
+    # par tete si elles sont a jour, sinon la courbe commune, Get-FamilyCurves), double densite (famille std, celle des
+    # formats double densite de la liste) puis haute densite (famille hd) : type, date, lecteur, non-convergence
+    $parts = @()
+    foreach ($fd in @(@('std', (T 'Double densité')), @('hd', (T 'Haute densité')))) {
+        $cvs = Get-FamilyCurves $fd[0] $true
+        if ($cvs.Count -eq 0) { $parts += ((T "{0} : aucune courbe.") -f $fd[1]); continue }
+        $d = @($(if ($cvs.Count -gt 1) { (T 'par tête') } else { (T 'commune aux deux têtes') }))
+        $dt = Get-CurveDate $cvs[0]
+        if ($dt -gt [datetime]::MinValue) { $d += $dt.ToString('dd/MM/yyyy') }
+        if ($cvs[0].Drive) { $d += ((T 'lecteur {0}') -f "$($cvs[0].Drive)") }
+        if (@($cvs | Where-Object { $_.Converged -eq $false }).Count -gt 0) { $d += (T 'non convergée') }
+        $parts += ((T "{0} : {1}.") -f $fd[1], ($d -join ', '))
+    }
+    return ($parts -join ' ')
+}
+
+function Update-RsCalib {
+    # Cadre 2 : resume des courbes et bouton « Courbe » (actif avec au moins une courbe) ; a l entree dans l onglet, a la
+    # fin d une restauration et a chaque mise a jour du bouton « Courbe » de l onglet Ecriture (Update-CurveButton : fin
+    # de calibration, effacement des calibrations, configuration chargee)
+    if (-not $lblRsCal) { return }
+    $t = Get-RsCalibText
+    if ($lblRsCal.Text -ne $t) { $lblRsCal.Text = $t; $tip.SetToolTip($lblRsCal, $t + "`n`n" + (T "Une calibration existante n'est jamais refaite par la restauration. Sans courbe, le lecteur est calibré tête par tête en test fin, éventuellement sur une disquette sacrifiée, avant l'écriture de la copie.")) }
+    $btnRsCurve.Enabled = ((Get-FamilyCurves 'std' $true).Count + (Get-FamilyCurves 'hd' $true).Count) -gt 0
+}
+
+function Show-RsCurve {
+    # Bouton « Courbe » du cadre 2 : courbes appliquees par la restauration (par tete si elles sont a jour) ; famille du
+    # format choisi s il est haute densite (Get-HdCalibFamily), sinon double densite ; a defaut, l autre famille
+    $hf = Get-HdCalibFamily '' (Get-RestoreFormat)
+    $fams = if ($hf) { @('hd', 'std') } else { @('std', 'hd') }
+    foreach ($f in $fams) { if ((Get-FamilyCurves $f $true).Count -gt 0) { Show-PrecompCurve $f $true; return } }
 }
 
 function Get-SafeFileName([string]$s) {
@@ -13796,9 +14752,10 @@ function Reset-RsSteps {
 }
 
 function Set-RsLock([bool]$lock) {
-    # Pendant une restauration : seuls l onglet Restauration et le bouton Arreter restent utilisables
+    # Pendant une restauration : seuls l onglet Restauration et le bouton Arreter restent utilisables ; le lecteur du
+    # bandeau, celui de la restauration (12.8, D10), ne change pas
     foreach ($p in $script:AllTabs) { if ($p -ne $tabRs) { $p.Enabled = -not $lock } }
-    foreach ($c in @($grpRsSrc, $grpRsDst, $grpRsDir, $btnRsStart, $cmbDrive, $chkExpert)) { $c.Enabled = -not $lock }
+    foreach ($c in @($grpRsSrc, $grpRsCal, $grpRsDir, $btnRsStart, $cmbDrive, $chkExpert)) { $c.Enabled = -not $lock }
     $btnCfgReset.Enabled = -not $lock -and -not ($script:GwProc -and -not $script:GwProc.HasExited)
     $btnCfgSave.Enabled = $btnCfgReset.Enabled
 }
@@ -13826,23 +14783,20 @@ function Restore-WriteTabState($s) {
 
 function Start-Restore {
     if ($script:Restore) { return }
-    $busy = @()
-    if ($script:GwProc -and -not $script:GwProc.HasExited) { $busy += (T 'commande gw') }
-    if ($script:Cal) { $busy += (T 'calibration') }
-    if ($script:Rep) { $busy += (T 'contrôle après écriture') }
-    if ($script:Chain.Count -gt 0) { $busy += (T 'séquence d''étapes') }
-    if ($busy.Count -gt 0) {
-        Append-Log ((T "Restauration refusée : opération en cours ({0}).") -f ($busy -join ', '))
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Une opération est déjà en cours : attendez sa fin ou cliquez sur « Arrêter ».'),(T 'Restauration'),'OK','Information'); return
+    # 12.8 (D20) : test d occupation unique (Get-AppBusy) ; boites par Show-AppMessage (texte aussi ecrit au journal)
+    $busy = Get-AppBusy -Text
+    if ($busy) {
+        Append-Log ((T "Restauration refusée : opération en cours ({0}).") -f "$busy")
+        [void](Show-AppMessage (T 'Une opération est déjà en cours : attendez sa fin ou cliquez sur « Arrêter ».') (T 'Restauration') 'OK' 'Information'); return
     }
     if (-not (Test-Path -LiteralPath $script:GwExe)) {
-        [void][System.Windows.Forms.MessageBox]::Show(((T "gw.exe introuvable : {0}`n`nPlacez ce script dans le même répertoire que gw.exe.") -f "$($script:GwExe)"),(T 'Erreur'),'OK','Error'); return
+        [void](Show-AppMessage ((T "gw.exe introuvable : {0}`n`nPlacez ce script dans le même répertoire que gw.exe.") -f "$($script:GwExe)") (T 'Erreur') 'OK' 'Error'); return
     }
     if (-not $script:ScpStatsOk) {
-        [void][System.Windows.Forms.MessageBox]::Show((T "Restauration impossible : le module d'analyse de flux n'a pas pu être compilé, le contrôle strict des pistes n'est donc pas disponible."),(T 'Restauration'),'OK','Warning'); return
+        [void](Show-AppMessage (T "Restauration impossible : le module d'analyse de flux n'a pas pu être compilé, le contrôle strict des pistes n'est donc pas disponible.") (T 'Restauration') 'OK' 'Warning'); return
     }
     if ($chkWHard.Checked -or $chkWTG43.Checked) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Restauration non prise en charge avec « Secteurs durs » ou « TG43 » cochés dans les options avancées de l''onglet Écriture : le contrôle des pistes est calibré pour le MFM double densité.'),(T 'Restauration'),'OK','Warning'); return
+        [void](Show-AppMessage (T 'Restauration non prise en charge avec « Secteurs durs » ou « TG43 » cochés dans les options avancées de l''onglet Écriture : le contrôle des pistes est calibré pour le MFM double densité.') (T 'Restauration') 'OK' 'Warning'); return
     }
     $fmt = Get-RestoreFormat
     $dir = $txtRsDir.Text.Trim()
@@ -13850,31 +14804,35 @@ function Start-Restore {
     if (-not [System.IO.Path]::IsPathRooted($dir)) { $dir = Join-Path $script:AppDir $dir }
     try { $dir = [System.IO.Path]::GetFullPath($dir) } catch { }
     try { New-Item -ItemType Directory -Force -Path $dir -ErrorAction Stop | Out-Null }
-    catch { [void][System.Windows.Forms.MessageBox]::Show(((T "Dossier de sauvegarde inaccessible : {0}") -f "$($_.Exception.Message)"),(T 'Restauration'),'OK','Warning'); return }
+    catch { [void](Show-AppMessage ((T "Dossier de sauvegarde inaccessible : {0}") -f "$($_.Exception.Message)") (T 'Restauration') 'OK' 'Warning'); return }
     $name = Get-SafeFileName $txtRsName.Text
     if (-not $name) { $name = (T 'disquette') + ' ' + (Get-Date -Format "yyyy-MM-dd HH'h'mm") }
-    $ext = if ($fmt) { Get-DecodedExt $fmt } else { '.scp' }
-    # Jamais d ecrasement : suffixe (2), (3)... si une restauration du meme nom existe deja
-    $stem = Join-Path $dir $name; $k = 1
-    while (Test-Path -LiteralPath ($stem + ' - ' + (T 'original') + $ext)) { $k++; $stem = (Join-Path $dir $name) + " ($k)" }
-    $src = [string]$cmbRsSrc.SelectedItem; $dst = [string]$cmbRsDst.SelectedItem
-    $same = ($src -eq $dst)
-    $modeTxt = if ($fmt) { (T "secteur par secteur, format {0}") -f "$fmt" } else { (T 'copie exacte du flux, sans précompensation ni comparaison par secteur') }
-    $swap = if ($same) { (T "Le lecteur {0} lit l'original, puis vous changez de disquette quand l'application vous le demande.") -f "$src" }
-            else { (T "Le lecteur {0} lit l'original et le lecteur {1} écrit la copie.") -f "$src", "$dst" }
-    $msg = ((T "Restauration ({0}).`n`n{1}`n`n1. Insérez maintenant la disquette d'ORIGINE dans le lecteur {2}, de préférence protégée en écriture.`n2. Sa lecture est enregistrée dans :`n   {3}`n3. La disquette de destination sera entièrement effacée puis écrite.`n`nCommencer la lecture ?") -f "$modeTxt", "$swap", "$src", "$dir")
+    # 12.8 (D10) : un seul lecteur, celui du bandeau, fige pour toute la restauration (Set-RsLock verrouille le bandeau)
+    $drv = [string]$cmbDrive.Text
+    $modeTxt = if ($fmt -eq 'auto') { (T 'format détecté à la lecture') } elseif ($fmt) { (T "secteur par secteur, format {0}") -f "$fmt" } else { (T 'copie exacte du flux, sans précompensation ni comparaison par secteur') }
+    $swap = (T "Le lecteur {0} lit l'original, puis vous changez de disquette quand l'application vous le demande.") -f "$drv"
+    $msg = ((T "Restauration ({0}).`n`n{1}`n`n1. Insérez maintenant la disquette d'ORIGINE dans le lecteur {2}, de préférence protégée en écriture.`n2. Sa lecture est enregistrée dans :`n   {3}`n3. La disquette de destination sera entièrement effacée puis écrite.`n`nCommencer la lecture ?") -f "$modeTxt", "$swap", "$drv", "$dir")
     # 12.8 (D3) : confirmation par frmConfirm, case qui nomme le lecteur de l original
     $cq = @{ Title = (T 'Restauration'); Heading = (T 'Restaurer une disquette'); Text = $msg; Level = 'info'; Picto = 'data'
-             Check = ((T "La disquette d'ORIGINE est dans le lecteur {0}") -f "$src"); GoText = (T 'Commencer la lecture'); GoGlyph = 'Download' }
+             Check = ((T "La disquette d'ORIGINE est dans le lecteur {0}") -f "$drv"); GoText = (T 'Commencer la lecture'); GoGlyph = 'Download' }
     if (-not (Show-AppConfirm @cq)) { return }
     $txtRsDir.Text = $dir
+    # 12.8 (D4, L1 ecart 8) : reglages de l onglet Ecriture en surcharge d operation, ecrits a leur place dans la
+    # configuration pendant la restauration, retablis par Close-Restore ; surcharge precedente terminee d abord
+    if ($script:OpOverride) { Exit-OpOverride }
+    Enter-OpOverride 'restore'
+    # Mode, format, extension et chemins : Set-RestoreFormat, tout de suite pour un format choisi ou le flux, apres la
+    # detection en mode automatique (Complete-RestoreDetect)
     $script:Restore = @{
-        Mode = $(if ($fmt) { 'sector' } else { 'flux' }); Fmt = $fmt; Ext = $ext; Src = $src; Dst = $dst; Same = $same; Name = $name
-        Orig = ($stem + ' - ' + (T 'original') + $ext); Back = ($stem + ' - ' + (T 'copie relue') + $ext); Report = ($stem + ' - ' + (T 'rapport') + '.txt')
-        Probe = (Join-Path $script:TempDir ("restore-probe-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + $ext))
+        Mode = ''; Fmt = ''; Ext = ''; Choice = $fmt; Drive = $drv; Name = $name; Dir = $dir; Found = ''; FluxRetry = $false
+        Orig = ''; Back = ''; Report = ''; Probe = ''
+        # FIX2 : debut des chemins fixe des le lancement (Get-RestoreStem) ; FluxWhy : raison courte d une copie de flux
+        # decidee par la detection ou par la relance D12 (etape 2 en « ! ») ; FmtName : nom court du format detecte ;
+        # SectorRead : lecture secteur incomplete conservee avant une relance D12 (Path, Miss, Extra)
+        Stem = (Get-RestoreStem $dir $name); FluxWhy = ''; FmtName = ''; SectorRead = $null
         Stage = 'read'; Waiting = $false; Override = $false; InCall = $false; Idle = (Get-Date); Start = (Get-Date); Cur = 0
-        Steps = @{}; Saved = (Save-WriteTabState); Read = $null; Cmp = $null; Calib = ''; HD = ''
-        CalibUsed = $null; CalibDone = $false; CalSwap = $false; SwapBack = $false; SwapDeadline = $null
+        Steps = @{}; Saved = $script:OpOverride.Saved; Read = $null; Cmp = $null; Calib = ''; HD = ''
+        CalibUsed = $null; CalibDone = $false; CalSwap = $false; SwapBack = $false
         Finger = $null; OnOriginal = $false; Preserved = @()   # flux : empreinte de l original, ecriture sur l original, cylindres preserves
         Extras = (Get-TSpecExtras $txtWTracks.Text)       # step, hswap, h0.off, h1.off : geometrie du lecteur
     }
@@ -13883,9 +14841,49 @@ function Start-Restore {
     if (-not (Test-Path -LiteralPath $script:TempDir)) { New-Item -ItemType Directory -Force -Path $script:TempDir | Out-Null }
     Append-Log ''
     Append-Log ((T "=== RESTAURATION : {0} ({1}) ===") -f "$name", "$modeTxt")
-    Append-Log ((T "Original : lecteur {0} -> {1}") -f "$src", "$($script:Restore.Orig)")
-    Append-Log ((T "Copie    : lecteur {0}") -f "$dst")
-    $cmbDrive.SelectedItem = $src
+    if ($fmt -eq 'auto') { $lblRsFmtFound.Text = (T 'Format détecté à la lecture'); $tip.SetToolTip($lblRsFmtFound, $lblRsFmtFound.Text); Start-RestoreDetect; return }
+    Set-RestoreFormat $fmt
+    Append-Log ((T "Original : lecteur {0} -> {1}") -f "$drv", "$($script:Restore.Orig)")
+    Invoke-RestoreRead
+}
+
+function Start-RestoreDetect {
+    # 12.8 (point 4, D12) : detection automatique du format, phase de l etape 1 (« Lire la disquette d origine ») : les
+    # huit etapes et leurs index ne changent pas. Lecture de deux pistes et decodages hors ligne (Invoke-DiskFormatDetect,
+    # 185), decision (Select-DiskFormat), puis Complete-RestoreDetection : format retenu, copie exacte du flux (format
+    # inconnu en double densite, protection probable : D12) ou arret avant toute ecriture (disquette vierge, format haute
+    # densite inconnu). Geometrie du lecteur (step, hswap) comme la lecture complete et la sonde
+    $r = $script:Restore
+    $r.Stage = 'detect'
+    Set-RsStep 0 'run' (T 'identification du format (pistes 0.0 et 0.1)')
+    Invoke-DiskFormatDetect 'restore' $r.Extras
+}
+
+function Complete-RestoreDetection($res) {
+    # Fin de la detection (Complete-DiskFormatDetect) : arret (etape 1, rien n est ecrit, rapport sans chemin d original),
+    # copie exacte du flux, ou lecture secteur du format retenu
+    $r = $script:Restore
+    if (-not $r -or $r.Stage -ne 'detect') { return }
+    # FIX2 : ligne courte du cadre 1 (Get-RsFmtFoundLine), texte complet en infobulle ; raison d une copie de flux gardee
+    # pour l etape 2 (« ! »)
+    $short = Get-RsFmtFoundLine $res
+    $r.FmtName = [string]$res.Name
+    if ($res.Action -eq 'stop') { $lblRsFmtFound.Text = $short; $tip.SetToolTip($lblRsFmtFound, $res.Text); $r.Found = $res.Text; Fail-Restore 0 $res.Text; return }
+    if ($res.Action -eq 'flux') { $r.FluxWhy = [string]$res.Why; Complete-RestoreDetect '' $res.Text $short; return }
+    Complete-RestoreDetect $res.Format $res.Text $short
+}
+
+function Complete-RestoreDetect([string]$fmt, [string]$found, [string]$short = '') {
+    # Fin de la detection, ou relance d office en copie de flux apres une lecture secteur incomplete (D12) : format retenu
+    # ($fmt ; '' = copie exacte du flux), texte du rapport et de l infobulle du cadre 1 ($found), ligne courte du cadre 1
+    # ($short, a defaut $found), chemins calcules (Set-RestoreFormat), puis lecture complete, comme pour un choix manuel
+    $r = $script:Restore
+    if (-not $r) { return }
+    $r.Stage = 'read'; $r.Found = $found
+    Set-RestoreFormat $fmt
+    $lblRsFmtFound.Text = $(if ($short) { $short } else { $found })
+    $tip.SetToolTip($lblRsFmtFound, $found)
+    Append-Log ((T "Original : lecteur {0} -> {1}") -f "$($r.Drive)", "$($r.Orig)")
     Invoke-RestoreRead
 }
 
@@ -13922,27 +14920,28 @@ function Invoke-RestoreNext {
 
 function Get-GwSectorSummary($lines) {
     # Bilan d une lecture gw avec format : « T0.0: AmigaDOS (11/11 sectors) from ... » (derniere ligne de la piste),
-    # « T0.0: Giving up: 2 sectors missing », « Found 1758 sectors of 1760 (99%) »
-    $tracks = @{}; $gaveUp = @{}; $found = -1; $total = -1
+    # « T0.0: Giving up: 2 sectors missing », « Found 1758 sectors of 1760 (99%) ». 12.8 (FIX2) : « T1.0: Ignoring unexpected
+    # sector C:1 H:0 R:10 N:2 » (decodeur IBM a format fixe de gw : secteur valide hors du format, ni compte ni copie,
+    # imprime a chaque essai) : Extra, cle « cyl.tete » -> secteurs distincts (C:H:R:N)
+    $tracks = @{}; $gaveUp = @{}; $extra = @{}; $found = -1; $total = -1
     foreach ($l in @($lines)) {
-        if ($l -match '^T(\d+)\.(\d+)\b[^:]*: Giving up: (\d+) sectors? missing') { $gaveUp["$($Matches[1]).$($Matches[2])"] = [int]$Matches[3] }
+        if ($l -match '^T(\d+)\.(\d+)\b[^:]*: Ignoring unexpected sector (C:\d+ H:\d+ R:\d+ N:\d+)') {
+            $k = "$([int]$Matches[1]).$([int]$Matches[2])"
+            if (-not $extra.ContainsKey($k)) { $extra[$k] = @{} }
+            $extra[$k][$Matches[3]] = $true
+        }
+        elseif ($l -match '^T(\d+)\.(\d+)\b[^:]*: Giving up: (\d+) sectors? missing') { $gaveUp["$($Matches[1]).$($Matches[2])"] = [int]$Matches[3] }
         elseif ($l -match '^T(\d+)\.(\d+)\b[^:]*: .*\((\d+)/(\d+) sectors\)') { $tracks["$($Matches[1]).$($Matches[2])"] = @([int]$Matches[3], [int]$Matches[4]) }
         elseif ($l -match '^Found (\d+) sectors of (\d+)') { $found = [int]$Matches[1]; $total = [int]$Matches[2] }
     }
-    return @{ Tracks = $tracks; GaveUp = $gaveUp; Found = $found; Total = $total }
+    $nx = 0; foreach ($k in @($extra.Keys)) { $nx += $extra[$k].Count }
+    return @{ Tracks = $tracks; GaveUp = $gaveUp; Found = $found; Total = $total; Extra = $extra; ExtraCount = $nx }
 }
 
 function Get-BadSectorBlocks([string]$path) {
-    # Blocs de 512 octets remplis par gw du motif « -=[BAD SECTOR]=- » (secteur manquant a la lecture)
-    $b = [System.IO.File]::ReadAllBytes($path)
-    $pat = [System.Text.Encoding]::ASCII.GetBytes('-=[BAD SECTOR]=-')
-    $list = New-Object System.Collections.Generic.List[int]
-    for ($s = 0; $s + 512 -le $b.Length; $s += 512) {
-        $same = $true
-        for ($i = 0; $i -lt 512; $i++) { if ($b[$s + $i] -ne $pat[$i % 16]) { $same = $false; break } }
-        if ($same) { $list.Add([int]($s / 512)) }
-    }
-    return ,$list.ToArray()
+    # Blocs de 512 octets remplis par gw du motif « -=[BAD SECTOR]=- » (secteur manquant a la lecture) ; meme test que la
+    # comparaison (Get-BadSectorIndexes, 180)
+    return ,(Get-BadSectorIndexes ([System.IO.File]::ReadAllBytes($path)))
 }
 
 function Get-BlockTracks([int[]]$blocks, [string]$fmt) {
@@ -13968,9 +14967,46 @@ function Complete-RestoreRead {
         $bad = Get-BadSectorBlocks $r.Orig
         $miss = @($sum.GaveUp.Keys) + @(Get-BlockTracks $bad $r.Fmt)
         $miss = Sort-TrackKeys @($miss | Select-Object -Unique)
-        $r.Read = @{ Found = $sum.Found; Total = $sum.Total; Bad = $bad.Count; Tracks = $miss }
+        # FIX2 : secteurs valides hors du format, ignores par gw (« Ignoring unexpected sector ») : une copie secteur par
+        # secteur les perdrait, ils comptent comme des secteurs illisibles
+        $nX = [int]$sum.ExtraCount
+        $xTk = Sort-TrackKeys @($sum.Extra.Keys)
+        $r.Read = @{ Found = $sum.Found; Total = $sum.Total; Bad = $bad.Count; Tracks = $miss; Extra = $nX; ExtraTracks = $xTk }
         if ($sum.Total -le 0) { Fail-Restore 1 (T 'gw n''a imprimé aucun bilan de secteurs : format incorrect, ou disquette illisible ?'); return }
         $nMiss = [math]::Max($bad.Count, $sum.Total - $sum.Found)
+        if (($nMiss -gt 0 -or $nX -gt 0) -and $r.Choice -eq 'auto' -and -not $r.FluxRetry -and -not (Test-HdFormat $r.Fmt)) {
+            # 12.8 (D12) : detection automatique, double densite : protection contre la copie hors des pistes 0.0 et 0.1
+            # probable (ou tetes sales) : relance d office de la lecture en copie exacte du flux, une lecture ne detruisant
+            # rien ; le flux est ensuite juge piste par piste comme une copie de flux choisie (tetes sales : pistes
+            # critiques, arret avant l ecriture). Haute densite : arret de la 12.7 (copie de flux non controlable).
+            # FIX2 : la lecture secteur est gardee sous « <nom> - lecture secteur incomplete.<ext> » et citee au rapport ;
+            # secteurs hors du format : meme relance
+            $r.FluxRetry = $true
+            $all = Sort-TrackKeys @(@($miss) + @($xTk) | Select-Object -Unique)
+            if ($nX -gt 0) {
+                $t = (T "{0} secteur(s) hors du format {1} ignoré(s) par gw en lecture secteur (pistes {2}), {3} secteur(s) illisible(s) : protection contre la copie ou format étendu probable. Relance automatique de la lecture en copie exacte du flux, sans comparaison par secteur.") -f "$nX", "$($r.Fmt)", "$(Format-TrackList $all)", "$nMiss"
+                $r.FluxWhy = (T 'relance : secteurs hors du format')
+            } else {
+                $t = (T "{0} secteur(s) illisible(s) en lecture secteur (pistes {1}) : protection contre la copie probable, ou têtes sales. Relance automatique de la lecture en copie exacte du flux, sans comparaison par secteur.") -f "$nMiss", "$(Format-TrackList $miss)"
+                $r.FluxWhy = (T 'relance après une lecture secteur incomplète')
+            }
+            Append-Log ((T "Restauration : {0}") -f $t)
+            $keep = $r.Stem + ' - ' + (T 'lecture secteur incomplète') + $r.Ext
+            try { [System.IO.File]::Move($r.Orig, $keep) } catch { $keep = $r.Orig }
+            $r.SectorRead = @{ Path = $keep; Miss = $nMiss; Extra = $nX }
+            Append-Log ((T "Restauration : lecture secteur incomplète conservée : {0}") -f $keep)
+            Set-RsStep 1 'pending'
+            $f = $(if ($r.Found) { $r.Found + ' ' } else { '' }) + $t
+            Complete-RestoreDetect '' $f (Get-RsFmtFoundLine @{ Action = 'flux'; Name = $(if ($r.FmtName) { $r.FmtName } else { $r.Fmt }) })
+            return
+        }
+        if ($nMiss -eq 0 -and $nX -gt 0) {
+            # FIX2 : choix manuel ou haute densite : arret avant toute ecriture (12.7 : copie sans ces secteurs, reussie)
+            $tx = (T "{0} secteur(s) hors du format {1} ignoré(s) par gw (pistes {2}) : une copie secteur par secteur les perdrait (protection contre la copie, ou format étendu probable).") -f "$nX", "$($r.Fmt)", "$(Format-TrackList $xTk)"
+            if (-not (Test-HdFormat $r.Fmt)) { $tx += ' ' + (T 'Relancez avec « Copie exacte du flux », ou choisissez le format exact de la disquette.') }
+            Fail-Restore 1 $tx
+            return
+        }
         if ($nMiss -gt 0) {
             # Secteurs illisibles regroupes sur une ou deux pistes : protection contre la copie probable
             $nTk = @($miss).Count
@@ -14015,7 +15051,10 @@ function Complete-RestoreRead {
             $r.Finger = $fp
             $txt = if ($weakKeys.Count -gt 0) { (T "{0} pistes : {1} saines, {2} à surveiller, {3} critiques, {4} à zone instable") -f "$n", "$sane", "$watch", "$crit", "$($weakKeys.Count)" }
                    else { (T "{0} pistes : {1} saines, {2} à surveiller, {3} critiques") -f "$n", "$sane", "$watch", "$crit" }
-            Set-RsStep 1 $(if ($crit -gt 0 -or $weakKeys.Count -gt 0) { 'warn' } else { 'ok' }) $txt
+            # FIX2 (A1 § 3.5) : copie de flux decidee par la detection automatique ou par la relance D12 : etape en « ! », raison
+            $st2 = $(if ($crit -gt 0 -or $weakKeys.Count -gt 0) { 'warn' } else { 'ok' }); $d2 = $txt
+            if ($r.Choice -eq 'auto' -and $r.FluxWhy) { $st2 = 'warn'; $d2 = ((T "copie exacte du flux, {0}") -f "$($r.FluxWhy)") + ' ; ' + $txt }
+            Set-RsStep 1 $st2 $d2
             Append-Log ((T "Restauration : flux de l'original, {0}.") -f "$txt")
             if ($weakKeys.Count -gt 0) {
                 Append-Log ((T "Restauration : {0} piste(s) non reproductible(s) sur l'original, zone instable d'un tour à l'autre ({1}) : bits faibles d'une protection contre la copie probable, ou défaut localisé. La copie n'en recevra qu'un tour figé : la protection risque de ne pas fonctionner. Ces pistes ne sont jamais réécrites sur une disquette identique à l'original.") -f "$($weakKeys.Count)", "$(Format-TrackList (Sort-TrackKeys @($weakKeys.Keys)))")
@@ -14033,11 +15072,10 @@ function Complete-RestoreRead {
 function Enter-RestoreWait([string]$extra) {
     $r = $script:Restore
     $r.Stage = 'wait'; $r.Waiting = $true
-    $cmbDrive.SelectedItem = $r.Dst
     Set-RsStep 2 'run'
-    $msg = if ($r.SwapBack) { (T "Calibration terminée. Retirez la disquette sacrifiée du lecteur {0} et insérez la disquette de DESTINATION : tout son contenu sera remplacé. Elle sera de nouveau vérifiée avant l'écriture.") -f "$($r.Dst)" }
-           elseif ($r.Same) { (T "Retirez l'ORIGINAL du lecteur {0} et rangez-le. Insérez la disquette de DESTINATION : tout son contenu sera remplacé.") -f "$($r.Dst)" }
-           else { (T "Vérifiez que la disquette de DESTINATION est dans le lecteur {0} : tout son contenu sera remplacé.") -f "$($r.Dst)" }
+    # 12.8 (D10) : un seul lecteur, le changement de disquette est toujours demande
+    $msg = if ($r.SwapBack) { (T "Calibration terminée. Retirez la disquette sacrifiée du lecteur {0} et insérez la disquette de DESTINATION : tout son contenu sera remplacé. Elle sera de nouveau vérifiée avant l'écriture.") -f "$($r.Drive)" }
+           else { (T "Retirez l'ORIGINAL du lecteur {0} et rangez-le. Insérez la disquette de DESTINATION : tout son contenu sera remplacé.") -f "$($r.Drive)" }
     if ($extra) { $msg = $extra + "`n" + $msg }
     if ($r.Mode -eq 'flux' -and $r.Read -and $r.Read.WeakKeys -and $r.Read.WeakKeys.Count -gt 0) { $msg = ((T "PROTECTION PROBABLE : {0} piste(s) de l'original changent d'un tour à l'autre (bits faibles) : une copie ne peut pas les reproduire et risque de ne pas fonctionner.") -f "$($r.Read.WeakKeys.Count)") + "`n" + $msg }
     if ($r.Mode -eq 'flux' -and $r.Read -and $r.Read.Crit -gt 0) { $msg = ((T "{0} piste(s) critique(s) dans la lecture : normal pour une protection, sinon nettoyez le lecteur et relancez.") -f "$($r.Read.Crit)") + "`n" + $msg }
@@ -14055,7 +15093,7 @@ function Enter-RestoreWait([string]$extra) {
     Show-Tab $tabRs
     $tabRs.ScrollControlIntoView($pnlRsWait)                 # fenetre basse : l encadre et son bouton Continuer restent visibles
     $stOp.Text = (T 'Restauration : changez de disquette, puis cliquez sur « Continuer » dans l''onglet Restauration.')
-    Append-Log ((T "Restauration : en attente de la disquette de destination dans le lecteur {0}.") -f "$($r.Dst)")
+    Append-Log ((T "Restauration : en attente de la disquette de destination dans le lecteur {0}.") -f "$($r.Drive)")
     try { [System.Media.SystemSounds]::Exclamation.Play() } catch { }
 }
 
@@ -14070,11 +15108,13 @@ function Get-RestoreKeepCyls {
     return @($set.Keys | Sort-Object)
 }
 
-function Resume-Restore([bool]$force, [bool]$auto = $false) {
+function Resume-Restore([bool]$force) {
+    # 12.8 (D7) : reprise seulement par « Continuer » ou « Ecraser quand meme » ; plus de reprise automatique apres la
+    # remise de la destination qui suit une calibration sur disquette sacrifiee (la disquette inseree n est pas connue)
     $r = $script:Restore
     if (-not $r -or -not $r.Waiting) { return }
     if ($script:GwProc -and -not $script:GwProc.HasExited) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Une commande gw est encore en cours : attendez sa fin.'),(T 'Restauration'),'OK','Information'); return
+        [void](Show-AppMessage (T 'Une commande gw est encore en cours : attendez sa fin.') (T 'Restauration') 'OK' 'Information'); return
     }
     if ($force) {
         # « Ecraser quand meme » : la disquette inseree a le contenu de l original, c est peut-etre l original lui-meme.
@@ -14085,7 +15125,7 @@ function Resume-Restore([bool]$force, [bool]$auto = $false) {
             # Chaque cylindre a preserver : aucune ecriture possible sans detruire la protection -> refus
             $incF = @(); if ($r.Read) { $incF = @(0..([int]$r.Read.MaxCyl) | Where-Object { $keep -notcontains $_ }) }
             if ($keep.Count -gt 0 -and $incF.Count -eq 0) {
-                [void][System.Windows.Forms.MessageBox]::Show(((T "La disquette insérée a le même contenu que l'original. Chaque cylindre ({0}) porte une piste non reproductible ou critique : aucun cylindre ne peut être réécrit sans détruire la protection. Écriture refusée : insérez une autre disquette.") -f "$(Format-CylList $keep)"), (T 'Restauration'), 'OK', 'Warning')
+                [void](Show-AppMessage ((T "La disquette insérée a le même contenu que l'original. Chaque cylindre ({0}) porte une piste non reproductible ou critique : aucun cylindre ne peut être réécrit sans détruire la protection. Écriture refusée : insérez une autre disquette.") -f "$(Format-CylList $keep)") (T 'Restauration') 'OK' 'Warning')
                 return
             }
             $msg = if ($keep.Count -gt 0) { (T "La disquette insérée a le même contenu que l'original : c'est peut-être l'ORIGINAL lui-même.`n`nLes cylindres qui portent des pistes non reproductibles ou déjà critiques sur l'original ({0}) ne seront pas réécrits : leur protection éventuelle est préservée. Les autres pistes seront effacées puis réécrites à partir de la lecture.`n`nÉcraser quand même cette disquette ?") -f "$(Format-CylList $keep)" }
@@ -14093,19 +15133,18 @@ function Resume-Restore([bool]$force, [bool]$auto = $false) {
         }
         # 12.8 (D3) : confirmation par frmConfirm, case qui nomme le lecteur de destination
         $cq = @{ Title = (T 'Restauration'); Heading = (T "C'est peut-être l'ORIGINAL"); Text = $msg; Level = 'danger'; Picto = 'forbid'
-                 Check = ((T 'La disquette du lecteur {0} peut être écrasée') -f "$($r.Dst)"); GoText = (T 'Écraser quand même'); GoGlyph = 'Save' }
+                 Check = ((T 'La disquette du lecteur {0} peut être écrasée') -f "$($r.Drive)"); GoText = (T 'Écraser quand même'); GoGlyph = 'Save' }
         if (-not (Show-AppConfirm @cq)) { return }
-    } elseif ($r.Mode -eq 'flux' -and $r.Same -and -not $r.Finger) {
+    } elseif ($r.Mode -eq 'flux' -and -not $r.Finger) {
         # Copie de flux sans empreinte exploitable : aucune sonde possible, confirmation explicite que l original a ete retire
         # (12.8, D3 : frmConfirm, case qui nomme le lecteur de destination)
         $cq = @{ Title = (T 'Restauration'); Heading = (T 'Changement de disquette non vérifiable'); Level = 'warn'; Picto = 'data'
                  Text = (T "Copie de flux : l'application ne peut pas vérifier que la disquette insérée n'est pas l'original.`n`nAvez-vous bien retiré l'ORIGINAL et inséré la disquette de DESTINATION ?")
-                 Check = ((T "J'ai retiré l'ORIGINAL et inséré la disquette de DESTINATION dans le lecteur {0}") -f "$($r.Dst)"); GoText = (T 'Écrire la copie'); GoGlyph = 'Save' }
+                 Check = ((T "J'ai retiré l'ORIGINAL et inséré la disquette de DESTINATION dans le lecteur {0}") -f "$($r.Drive)"); GoText = (T 'Écrire la copie'); GoGlyph = 'Save' }
         if (-not (Show-AppConfirm @cq)) { return }
     }
-    $r.Waiting = $false; $r.SwapBack = $false; $r.SwapDeadline = $null; $pnlRsWait.Visible = $false; $r.Idle = Get-Date; $r.Override = $false
-    if ($auto) { Set-RsStep 2 'warn' ((T "reprise automatique après {0} s sans réponse : changement de disquette non confirmé") -f "$($script:CalibConfirmSeconds)") }
-    else { Set-RsStep 2 'ok' }
+    $r.Waiting = $false; $r.SwapBack = $false; $pnlRsWait.Visible = $false; $r.Idle = Get-Date; $r.Override = $false
+    Set-RsStep 2 'ok'
     if (-not $force -and ($r.Mode -eq 'sector' -or $r.Finger)) { Start-RestoreProbe; return }
     if ($force) { $r.OnOriginal = $true; Set-RsStep 3 'warn' (T 'contrôle ignoré à votre demande') }
     else { Set-RsStep 3 'skip' (T "non vérifiable : aucune empreinte exploitable sur l'original") }
@@ -14199,7 +15238,7 @@ function Get-RestoreCalibInfo([string]$fam, [int]$nCyl = 0) {
     foreach ($cv in $cvs) {
         $n = @()
         if ($cv.Method -ne 'motif') { $n += (T 'mesurée sur le contenu d''une image, avant le motif de test') }
-        if ($cv.Drive -and [string]$cv.Drive -ne $script:Restore.Dst) { $n += ((T "mesurée sur le lecteur {0}") -f "$($cv.Drive)") }
+        if ($cv.Drive -and [string]$cv.Drive -ne $script:Restore.Drive) { $n += ((T "mesurée sur le lecteur {0}") -f "$($cv.Drive)") }
         if ($cv.Converged -eq $false) { $n += (T 'non convergée') }
         if ((Get-CurveCalc $cv) -ne (Get-CurveCalcRef $cv)) { $n += ((T "calcul de calibration {0}") -f (Get-CurveCalcText $cv)) }
         if (Test-CurveAtMax $cv) { $n += ((T "courbe au plafond de {0} ns de son calcul") -f "$(Get-CurveMaxNs $cv)") }
@@ -14324,8 +15363,8 @@ function Enter-RestoreSwapBack {
     $r.CalSwap = $true
     Set-RsCalibDone
     $r.CalibDone = $true; $r.SwapBack = $true
-    # Sans reponse, reprise automatique au bout du delai de l avertissement (Update-RestoreProgress) : sonde, puis ecriture
-    $r.SwapDeadline = $(if ($script:CalibConfirmSeconds -gt 0) { (Get-Date).AddSeconds($script:CalibConfirmSeconds) } else { $null })
+    # 12.8 (D7) : attente de « Continuer », sans compte a rebours ni reprise automatique (12.7 : reprise au bout du delai
+    # de l avertissement de calibration)
     Set-RsStep 3 'pending'
     Append-Log (T 'Restauration : calibration terminée sur la disquette sacrifiée.')
     Enter-RestoreWait ''
@@ -14338,19 +15377,6 @@ function Update-RestoreProgress {
     $busy = (($script:GwProc -and -not $script:GwProc.HasExited) -or $script:Chain.Count -gt 0 -or $script:Rep -or $script:Cal -or $script:WriteWarm -or $r.Waiting -or $r.InCall)
     if ($busy) { $r.Idle = Get-Date }
     elseif (((Get-Date) - $r.Idle).TotalSeconds -gt 5) { Stop-Restore (T 'séquence arrêtée sans suite, voir le journal'); return }
-    if ($r.Waiting -and $r.SwapDeadline) {
-        # Remise de la destination apres une calibration sur disquette sacrifiee : reprise automatique au bout du delai
-        $left = [math]::Ceiling(($r.SwapDeadline - (Get-Date)).TotalSeconds)
-        if ($left -le 0) {
-            $r.SwapDeadline = $null
-            Append-Log ((T "Restauration : reprise automatique après {0} s sans réponse.") -f "$($script:CalibConfirmSeconds)")
-            Resume-Restore $false $true
-            return
-        }
-        $txt = (T "Sans réponse, reprise automatique dans {0} s.") -f "$left"
-        if ($lblRsNow.Text -ne $txt) { $lblRsNow.Text = $txt }
-        return
-    }
     if ($r.Stage -eq 'write') {
         if ($script:Cal) {
             if ($r.Cur -ne 4) { Set-RsStep 4 'run' }
@@ -14426,9 +15452,13 @@ function Write-RestoreReport([bool]$ok, [string]$verdict) {
     $L.Add(((T "Greaseweazle Studio v{0} - rapport de restauration") -f "$($script:Version)"))
     $L.Add(((T "Date        : {0}, durée {1} min") -f (Get-Date -Format 'dd/MM/yyyy HH:mm'), "$([math]::Round(((Get-Date) - $r.Start).TotalMinutes, 1))"))
     $L.Add(((T "Disquette   : {0}") -f "$($r.Name)"))
-    $L.Add(((T "Mode        : {0}") -f $(if ($r.Mode -eq 'sector') { (T "secteur par secteur, format {0}") -f "$($r.Fmt)" } else { (T 'copie exacte du flux') })))
-    $L.Add(((T "Lecteurs    : origine {0}, destination {1}") -f "$($r.Src)", "$($r.Dst)"))
-    $L.Add(((T "Original lu : {0}") -f "$($r.Orig)"))
+    $L.Add(((T "Mode        : {0}") -f $(if ($r.Mode -eq 'sector') { (T "secteur par secteur, format {0}") -f "$($r.Fmt)" } elseif ($r.Mode -eq 'flux') { (T 'copie exacte du flux') } else { (T 'format détecté à la lecture') })))
+    # 12.8 : format de la detection automatique ; un seul lecteur (D10)
+    if ($r.Choice -eq 'auto' -and $r.Found) { $L.Add(((T "Détection   : {0}") -f "$($r.Found)")) }
+    $L.Add(((T "Lecteur     : {0}") -f "$($r.Drive)"))
+    if ($r.Orig) { $L.Add(((T "Original lu : {0}") -f "$($r.Orig)")) }
+    # FIX2 : lecture secteur incomplete gardee avant la relance D12
+    if ($r.SectorRead) { $L.Add(((T "Incomplète  : {0} (lecture secteur, {1} secteur(s) illisible(s), {2} hors du format ; relancée en copie exacte du flux)") -f "$($r.SectorRead.Path)", "$($r.SectorRead.Miss)", "$($r.SectorRead.Extra)")) }
     if ($r.Mode -eq 'sector') { $L.Add(((T "Copie relue : {0}") -f "$($r.Back)")) }
     if ($r.Read -and $r.Read.WeakKeys -and $r.Read.WeakKeys.Count -gt 0) { $L.Add(((T "Instables   : {0} (zone instable d'un tour à l'autre : protection contre la copie probable, non reproductible)") -f "$(Format-TrackList (Sort-TrackKeys @($r.Read.WeakKeys.Keys)))")) }
     if ($r.Level) { $L.Add(((T "Niveau      : {0}") -f "$($r.Level.Report)")) }
@@ -14445,6 +15475,8 @@ function Write-RestoreReport([bool]$ok, [string]$verdict) {
     if ($script:LastCheck) { $L.Add(''); $L.Add($script:LastCheck.Text) }
     $L.Add('')
     $L.Add(((T "Verdict     : {0}") -f "$verdict"))
+    # Echec avant la fin de la detection (format pas encore connu) : rapport sous le nom de la restauration, sans ecrasement
+    if (-not $r.Report) { $r.Report = $(if ($r.Stem) { $r.Stem } else { Get-RestoreStem $r.Dir $r.Name }) + ' - ' + (T 'rapport') + '.txt' }
     try { [System.IO.File]::WriteAllLines($r.Report, $L, (New-Object System.Text.UTF8Encoding($true))); Append-Log ((T "Rapport     : {0}") -f "$($r.Report)") }
     catch { Append-Log ((T "Rapport non enregistré : {0}") -f "$($_.Exception.Message)") }
 }
@@ -14496,6 +15528,7 @@ function Fail-Restore([int]$step, [string]$why) {
     if (-not $r) { return }
     $r.Stage = 'failed'
     $script:Chain.Clear(); $script:WriteQueue.Clear(); $script:GwCapture = $null; $script:AfterCalib = ''
+    if ($script:FmtDetect -and $script:FmtDetect.Owner -eq 'restore') { $script:FmtDetect = $null }   # FIX2 : detection interrompue (erreur gw)
     Stop-WriteWarmup
     if ($step -ge 0) { Set-RsStep $step 'fail' $why }
     $verdict = (T 'RESTAURATION ÉCHOUÉE') + ' : ' + $why
@@ -14516,9 +15549,14 @@ function Stop-Restore([string]$why) {
 function Close-Restore {
     $r = $script:Restore
     $script:Restore = $null
-    if ($r) { Restore-WriteTabState $r.Saved; [void](Save-Config) }      # reglages de l onglet Ecriture retablis, puis enregistres
+    # Reglages de l onglet Ecriture retablis, puis enregistres : fin de la surcharge d operation (12.8, D4)
+    if ($r) {
+        if ($script:OpOverride) { Exit-OpOverride }
+        else { Restore-WriteTabState $r.Saved; [void](Save-Config) }
+    }
     Set-RsLock $false
     $pnlRsWait.Visible = $false
+    Update-RsCalib
 }
 # --- Fenetre -------------------------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
@@ -15123,10 +16161,28 @@ $btnCmpRef.Add_Click({
     if ($d.ShowDialog() -eq 'OK') { $txtCmpRef.Text = $d.FileName }
 })
 
+# 12.8 (lot 2) : ligne du format detecte (Update-CmpFmtFound, Compare-Images), creee avant la liste liee
+$lblCmpFmtFound = New-Object System.Windows.Forms.Label
+$lblCmpFmtFound.Location = '350,84'; $lblCmpFmtFound.Size = '425,34'; $lblCmpFmtFound.Anchor = 'Top,Left,Right'
+$lblCmpFmtFound.AutoEllipsis = $true; $lblCmpFmtFound.ForeColor = $script:Theme.Muted
 $cmbCmpFmt = New-Object System.Windows.Forms.ComboBox
 $cmbCmpFmt.Location = '90,43'; $cmbCmpFmt.Width = 200
-[void]$cmbCmpFmt.Items.AddRange(($Formats | Where-Object { $_ -ne '(auto)' }))
-$tip.SetToolTip($cmbCmpFmt, (T "Format de décodage commun : la référence est convertie dans ce format,`nla disquette est lue dans ce format, puis les deux sont comparées octet par octet."))
+# 12.8 (lot 2, D13) : « (detection automatique) » en tete, puis les formats, dans l ordre des codes du reglage
+# compareFormat (compare.formatChoice) ; liste modifiable : un autre format de gw peut etre saisi, comme en 12.7
+$script:CmpAutoItem = (T '(détection automatique)')
+foreach ($cmpCode in @($script:SettingDefs['compareFormat'].Codes | Select-Object -First (1 + @($Formats | Where-Object { $_ -ne '(auto)' }).Count))) {
+    [void]$cmbCmpFmt.Items.Add($(if ($cmpCode -eq 'auto') { $script:CmpAutoItem } else { $cmpCode }))
+}
+Register-SettingCtl 'compareFormat' $cmbCmpFmt
+# Format saisi : reglage mis a jour des que le texte est un format de gw (une saisie incomplete ou inconnue ne change pas
+# le reglage ; la comparaison prend le texte affiche, Get-CmpFormatChoice) ; element choisi : meme code que la liaison
+$cmbCmpFmt.Add_TextChanged({
+    if ($script:SettingSync) { return }
+    $v = Get-CmpFormatChoice
+    if ($v -and (ConvertTo-SettingValue 'compareFormat' $v) -ceq $v) { Set-Setting 'compareFormat' $v $this }
+    else { $lblCmpFmtFound.Text = ''; $tip.SetToolTip($lblCmpFmtFound, '') }
+})
+$tip.SetToolTip($cmbCmpFmt, (T "Format de décodage commun : la référence est convertie dans ce format,`nla disquette est lue dans ce format, puis les deux sont comparées octet par octet.`n(détection automatique) : format déduit de la référence (taille et BPB d'un ADF, d'un ST ou d'un IMG ; décodage de deux pistes d'un IPF, d'un SCP ou d'un HFE), puis vérifié sur deux pistes de la disquette avant la lecture complète."))
 
 $numCmpRetries = New-Object System.Windows.Forms.NumericUpDown
 $numCmpRetries.Location = '365,43'; $numCmpRetries.Width = 55
@@ -15137,7 +16193,8 @@ $btnCmpFromWrite.Text = (T 'Reprendre l''image de l''onglet Écriture'); $btnCmp
 $btnCmpFromWrite.Add_Click({
     if ($txtWFile.Text) {
         $txtCmpRef.Text = $txtWFile.Text
-        if ($cmbWFmt.Text -and $cmbWFmt.Text -ne '(auto)') { Set-Combo $cmbCmpFmt $cmbWFmt.Text }
+        # 12.8 (A1 § 4.2) : onglet Ecriture sur « (auto) » : detection automatique
+        if ($cmbWFmt.Text -and $cmbWFmt.Text -ne '(auto)') { Set-Combo $cmbCmpFmt $cmbWFmt.Text } else { $cmbCmpFmt.SelectedIndex = 0 }
     }
 })
 
@@ -15154,7 +16211,7 @@ $txtCmpResult.BackColor = [System.Drawing.SystemColors]::Control
 
 $tabCmp.Controls.AddRange(@((New-Label (T 'Référence :') '10,17'), $txtCmpRef, $btnCmpRef,
     (New-Label (T 'Format :') '10,47'), $cmbCmpFmt, (New-Label (T 'Essais :') '305,47'), $numCmpRetries, $btnCmpFromWrite,
-    $btnCompare, $txtCmpResult))
+    $btnCompare, $lblCmpFmtFound, $txtCmpResult))
 
 # ============================== QUALITE & ALIGNEMENT ===========================
 $tabAl = New-TabPage (T 'Qualité & alignement')
@@ -15572,33 +16629,40 @@ $tabH.Controls.AddRange(@($lblHTitle, $lblHSub, $pnlHomeProg, $cardRestore, $car
 $tabRs = New-TabPage (T 'Restauration')
 $tabRs.AutoScroll = $true
 $script:RsFluxItem = (T 'Copie exacte du flux (disquette protégée ou format inconnu)')
+$script:RsAutoItem = (T 'Détection automatique (conseillée)')
 
-$grpRsSrc = New-Group (T '1. Disquette d''origine') '10,4' '380,80'; $grpRsSrc.Anchor = 'Top,Left'
-$cmbRsSrc = New-Object System.Windows.Forms.ComboBox
-$cmbRsSrc.Location = '78,21'; $cmbRsSrc.Width = 50; $cmbRsSrc.DropDownStyle = 'DropDownList'
-[void]$cmbRsSrc.Items.AddRange(@('A','B','0','1','2','3'))
-$tip.SetToolTip($cmbRsSrc, (T "Lecteur qui lit la disquette d'origine (même convention que le choix Lecteur du bandeau).`nA/B = nappe PC avec twist, 0 à 3 = nappe droite (lecteur Amiga, par exemple)."))
+# 12.8 (D10, D11) : un seul lecteur, celui du bandeau ; maquette d A1 § 2.6 (cadre 1 : lecteur et format, cadre 2 :
+# calibration du lecteur, cadre 3 : sauvegarde)
+$grpRsSrc = New-Group (T '1. Disquette d''origine') '10,4' '380,118'; $grpRsSrc.Anchor = 'Top,Left'
+$lblRsDrive = New-Object System.Windows.Forms.Label
+$lblRsDrive.Location = '78,24'; $lblRsDrive.Size = '290,20'; $lblRsDrive.AutoEllipsis = $true
+$tip.SetToolTip($lblRsDrive, (T "Lecteur qui lit l'original puis écrit la copie : le choix « Lecteur » du bandeau. L'application vous demande de changer de disquette entre la lecture et l'écriture."))
 $cmbRsFmt = New-Object System.Windows.Forms.ComboBox
-$cmbRsFmt.Location = '196,21'; $cmbRsFmt.Width = 172; $cmbRsFmt.DropDownWidth = 360; $cmbRsFmt.DropDownStyle = 'DropDownList'
-[void]$cmbRsFmt.Items.AddRange(@($script:RsFluxItem, 'amiga.amigados', 'amiga.amigados_hd', 'atarist.720', 'atarist.800', 'atarist.880', 'ibm.360', 'ibm.720', 'ibm.1440'))
-$tip.SetToolTip($cmbRsFmt, (T "Format de la disquette d'origine.`nAvec un format (amiga.amigados pour une disquette Amiga, par exemple) : chaque secteur est lu et vérifié, la copie est écrite avec la précompensation calibrée puis comparée secteur par secteur à l'original.`nCopie exacte du flux : pour une disquette protégée contre la copie ou d'un format absent de la liste ; le signal est recopié tel quel, sans précompensation ni comparaison par secteur."))
+$cmbRsFmt.Location = '78,48'; $cmbRsFmt.Width = 290; $cmbRsFmt.DropDownWidth = 360; $cmbRsFmt.DropDownStyle = 'DropDownList'
+# Elements dans l ordre des codes du reglage restoreFormat (D13) : l index 0 est la detection automatique, pas le flux
+foreach ($rsCode in $script:SettingDefs['restoreFormat'].Codes) {
+    [void]$cmbRsFmt.Items.Add($(if ($rsCode -eq 'auto') { $script:RsAutoItem } elseif ($rsCode -eq 'flux') { $script:RsFluxItem } else { $rsCode }))
+}
+Register-SettingCtl 'restoreFormat' $cmbRsFmt
+$tip.SetToolTip($cmbRsFmt, (T "Format de la disquette d'origine.`nDétection automatique (conseillée) : le format est identifié à la lecture de l'original. Format non reconnu ou disquette protégée contre la copie : copie exacte du flux.`nAvec un format (amiga.amigados pour une disquette Amiga, par exemple) : chaque secteur est lu et vérifié, la copie est écrite avec la précompensation calibrée puis comparée secteur par secteur à l'original.`nCopie exacte du flux : pour une disquette protégée contre la copie ou d'un format absent de la liste ; le signal est recopié tel quel, sans précompensation ni comparaison par secteur."))
+$lblRsFmtFound = New-Object System.Windows.Forms.Label
+$lblRsFmtFound.Location = '12,76'; $lblRsFmtFound.Size = '360,20'; $lblRsFmtFound.AutoEllipsis = $true; $lblRsFmtFound.ForeColor = $script:Theme.Muted
 $lblRsSrcHint = New-Object System.Windows.Forms.Label
 $lblRsSrcHint.Text = (T 'Conseil : protégez-la en écriture avant de commencer.')
-$lblRsSrcHint.Location = '12,52'; $lblRsSrcHint.Size = '360,20'; $lblRsSrcHint.ForeColor = $script:Theme.Muted
+$lblRsSrcHint.Location = '12,96'; $lblRsSrcHint.Size = '360,20'; $lblRsSrcHint.ForeColor = $script:Theme.Muted
 $tip.SetToolTip($lblRsSrcHint, (T 'Disquette 3,5" : fenêtre de protection ouverte. 5,25" : encoche couverte. Ainsi, même une erreur de manipulation ne peut pas l''effacer.'))
-$grpRsSrc.Controls.AddRange(@((New-Label (T 'Lecteur :') '12,24'), $cmbRsSrc, (New-Label (T 'Format :') '138,24'), $cmbRsFmt, $lblRsSrcHint))
+$grpRsSrc.Controls.AddRange(@((New-Label (T 'Lecteur :') '12,24'), $lblRsDrive, (New-Label (T 'Format :') '12,51'), $cmbRsFmt, $lblRsFmtFound, $lblRsSrcHint))
 
-$grpRsDst = New-Group (T '2. Disquette de destination') '10,88' '380,78'; $grpRsDst.Anchor = 'Top,Left'
-$cmbRsDst = New-Object System.Windows.Forms.ComboBox
-$cmbRsDst.Location = '78,21'; $cmbRsDst.Width = 50; $cmbRsDst.DropDownStyle = 'DropDownList'
-[void]$cmbRsDst.Items.AddRange(@('A','B','0','1','2','3'))
-$tip.SetToolTip($cmbRsDst, (T "Lecteur qui écrit la copie. Même lecteur que l'origine : l'application vous demandera de changer de disquette entre la lecture et l'écriture."))
-$lblRsDstHint = New-Object System.Windows.Forms.Label
-$lblRsDstHint.Text = (T 'Vierge ou à sacrifier : tout son contenu sera remplacé.')
-$lblRsDstHint.Location = '12,52'; $lblRsDstHint.Size = '360,20'; $lblRsDstHint.ForeColor = $script:Theme.Muted
-$grpRsDst.Controls.AddRange(@((New-Label (T 'Lecteur :') '12,24'), $cmbRsDst, $lblRsDstHint))
+$grpRsCal = New-Group (T '2. Calibration du lecteur') '10,126' '380,80'; $grpRsCal.Anchor = 'Top,Left'
+$lblRsCal = New-Object System.Windows.Forms.Label
+$lblRsCal.Location = '12,20'; $lblRsCal.Size = '262,54'; $lblRsCal.AutoEllipsis = $true
+$btnRsCurve = New-Object System.Windows.Forms.Button
+$btnRsCurve.Text = (T 'Courbe'); $btnRsCurve.Location = '280,22'; $btnRsCurve.Size = '90,28'; $btnRsCurve.Anchor = 'Top,Right'; $btnRsCurve.Enabled = $false
+$tip.SetToolTip($btnRsCurve, (T "Affiche la courbe de précompensation appliquée par la restauration, une courbe par tête si elle existe : haute densité pour un format haute densité choisi, sinon double densité."))
+$btnRsCurve.Add_Click({ Show-RsCurve })
+$grpRsCal.Controls.AddRange(@($lblRsCal, $btnRsCurve))
 
-$grpRsDir = New-Group (T '3. Sauvegarde de l''original') '10,170' '380,82'; $grpRsDir.Anchor = 'Top,Left'
+$grpRsDir = New-Group (T '3. Sauvegarde (original lu, copie relue, rapport)') '10,210' '380,82'; $grpRsDir.Anchor = 'Top,Left'
 $txtRsDir = New-Object System.Windows.Forms.TextBox
 $txtRsDir.Location = '78,21'; $txtRsDir.Width = 256
 $btnRsDir = New-Object System.Windows.Forms.Button
@@ -15618,7 +16682,7 @@ Set-Cue $txtRsDir (T 'Documents\Greaseweazle Studio\Restaurations')
 Set-Cue $txtRsName (T 'vide = date et heure')
 
 $btnRsStart = New-Object System.Windows.Forms.Button
-$btnRsStart.Text = (T 'RESTAURER LA DISQUETTE'); $btnRsStart.Location = '10,260'; $btnRsStart.Size = '250,40'; $btnRsStart.Font = $bold
+$btnRsStart.Text = (T 'RESTAURER LA DISQUETTE'); $btnRsStart.Location = '10,300'; $btnRsStart.Size = '250,40'; $btnRsStart.Font = $bold
 $btnRsStart.Add_Click({ try { Start-Restore } catch { Append-Log ((T "ERREUR restauration : {0}") -f "$($_.Exception.Message)") } })
 $lblRsRules = New-Object System.Windows.Forms.Label
 $lblRsRules.Location = '404,232'; $lblRsRules.Size = '372,100'; $lblRsRules.ForeColor = $script:Theme.Muted
@@ -15662,9 +16726,10 @@ $lblRsResult.Location = '402,230'; $lblRsResult.AutoSize = $true; $lblRsResult.M
 $lblRsResult.Visible = $false; $lblRsResult.Padding = New-Object System.Windows.Forms.Padding(8)
 $lblRsResult.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 9.75)
 
-$tabRs.Controls.AddRange(@($grpRsSrc, $grpRsDst, $grpRsDir, $btnRsStart, $lblRsRules, $lblRsStepsTitle) + $script:RsStepLabels + @($lblRsNow, $pnlRsWait, $lblRsResult))
+$tabRs.Controls.AddRange(@($grpRsSrc, $grpRsCal, $grpRsDir, $btnRsStart, $lblRsRules, $lblRsStepsTitle) + $script:RsStepLabels + @($lblRsNow, $pnlRsWait, $lblRsResult))
 Set-Btn $btnRsStart 'History' 'primary'
 Set-Btn $btnRsDir 'FolderOpen' -IconOnly
+Set-Btn $btnRsCurve 'Diagnostic'
 Set-Btn $btnRsGo 'Play' 'primary'
 Set-Btn $btnRsForce 'Delete' 'danger'
 Set-Btn $btnHelpTop 'Help'
@@ -15707,6 +16772,8 @@ $tip.SetToolTip($btnRead, (T 'Lit la disquette insérée et enregistre le fichie
 $tip.SetToolTip($btnWrite, (T 'Écrit l''image sur la disquette insérée avec les options de cet onglet. Tout le contenu de la disquette est remplacé.'))
 $tabs.TabPages.AddRange([System.Windows.Forms.TabPage[]]$script:AllTabs)   # tous attaches : Fit-ControlText les ajuste ; Update-TabSet apres la configuration
 $split.Panel1.Controls.Add($tabs)
+# 12.8 (lot 2) : onglet Restauration : cadre « 2. Calibration du lecteur » a jour a l entree dans l onglet
+$tabs.Add_SelectedIndexChanged({ if ($tabs.SelectedTab -eq $tabRs) { Update-RsCalib } })
 # Onglet Ecriture defilant (fenetre basse) : il s ouvre en haut, sur l image. Selectionne par le code (bibliotheque),
 # WinForms y place le focus sur un controle du bas et fait defiler jusqu a lui. Reprise une fois ce focus pose.
 $tabs.Add_SelectedIndexChanged({
@@ -16166,6 +17233,12 @@ $script:Rep = $null
 # la chaine d etapes : ils rappellent la restauration par des points d accroche (Complete-WriteCheck, fin de
 # Start-ImageWrite). Tout abandon passe par Stop-Restore (idempotent) ; un chien de garde dans le timer arrete une
 # sequence restee sans suite (aucun gw, aucune etape, aucun controle ni calibration en cours).
+# 12.8 (lot 2) : un seul lecteur, celui du bandeau, fige au lancement (D10) ; format choisi dans la liste, ou detection
+# automatique pendant l etape 1 (Start-RestoreDetect, Invoke-DiskFormatDetect et Select-DiskFormat du module 185,
+# Complete-RestoreDetection ; D13) : format inconnu en double densite ou protection probable -> copie exacte du flux,
+# lecture secteur incomplete -> relance d office en copie de flux (D12), disquette vierge ou format haute densite inconnu
+# -> arret avant toute ecriture ; reglages de l onglet Ecriture en
+# surcharge d operation (Enter-OpOverride 'restore') ; aucune reprise automatique apres un changement de disquette (D7).
 $script:Restore = $null
 $script:GwCapture = $null
 $script:LastCheck = $null

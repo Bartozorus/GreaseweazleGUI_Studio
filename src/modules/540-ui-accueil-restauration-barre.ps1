@@ -63,33 +63,40 @@ $tabH.Controls.AddRange(@($lblHTitle, $lblHSub, $pnlHomeProg, $cardRestore, $car
 $tabRs = New-TabPage (T 'Restauration')
 $tabRs.AutoScroll = $true
 $script:RsFluxItem = (T 'Copie exacte du flux (disquette protégée ou format inconnu)')
+$script:RsAutoItem = (T 'Détection automatique (conseillée)')
 
-$grpRsSrc = New-Group (T '1. Disquette d''origine') '10,4' '380,80'; $grpRsSrc.Anchor = 'Top,Left'
-$cmbRsSrc = New-Object System.Windows.Forms.ComboBox
-$cmbRsSrc.Location = '78,21'; $cmbRsSrc.Width = 50; $cmbRsSrc.DropDownStyle = 'DropDownList'
-[void]$cmbRsSrc.Items.AddRange(@('A','B','0','1','2','3'))
-$tip.SetToolTip($cmbRsSrc, (T "Lecteur qui lit la disquette d'origine (même convention que le choix Lecteur du bandeau).`nA/B = nappe PC avec twist, 0 à 3 = nappe droite (lecteur Amiga, par exemple)."))
+# 12.8 (D10, D11) : un seul lecteur, celui du bandeau ; maquette d A1 § 2.6 (cadre 1 : lecteur et format, cadre 2 :
+# calibration du lecteur, cadre 3 : sauvegarde)
+$grpRsSrc = New-Group (T '1. Disquette d''origine') '10,4' '380,118'; $grpRsSrc.Anchor = 'Top,Left'
+$lblRsDrive = New-Object System.Windows.Forms.Label
+$lblRsDrive.Location = '78,24'; $lblRsDrive.Size = '290,20'; $lblRsDrive.AutoEllipsis = $true
+$tip.SetToolTip($lblRsDrive, (T "Lecteur qui lit l'original puis écrit la copie : le choix « Lecteur » du bandeau. L'application vous demande de changer de disquette entre la lecture et l'écriture."))
 $cmbRsFmt = New-Object System.Windows.Forms.ComboBox
-$cmbRsFmt.Location = '196,21'; $cmbRsFmt.Width = 172; $cmbRsFmt.DropDownWidth = 360; $cmbRsFmt.DropDownStyle = 'DropDownList'
-[void]$cmbRsFmt.Items.AddRange(@($script:RsFluxItem, 'amiga.amigados', 'amiga.amigados_hd', 'atarist.720', 'atarist.800', 'atarist.880', 'ibm.360', 'ibm.720', 'ibm.1440'))
-$tip.SetToolTip($cmbRsFmt, (T "Format de la disquette d'origine.`nAvec un format (amiga.amigados pour une disquette Amiga, par exemple) : chaque secteur est lu et vérifié, la copie est écrite avec la précompensation calibrée puis comparée secteur par secteur à l'original.`nCopie exacte du flux : pour une disquette protégée contre la copie ou d'un format absent de la liste ; le signal est recopié tel quel, sans précompensation ni comparaison par secteur."))
+$cmbRsFmt.Location = '78,48'; $cmbRsFmt.Width = 290; $cmbRsFmt.DropDownWidth = 360; $cmbRsFmt.DropDownStyle = 'DropDownList'
+# Elements dans l ordre des codes du reglage restoreFormat (D13) : l index 0 est la detection automatique, pas le flux
+foreach ($rsCode in $script:SettingDefs['restoreFormat'].Codes) {
+    [void]$cmbRsFmt.Items.Add($(if ($rsCode -eq 'auto') { $script:RsAutoItem } elseif ($rsCode -eq 'flux') { $script:RsFluxItem } else { $rsCode }))
+}
+Register-SettingCtl 'restoreFormat' $cmbRsFmt
+$tip.SetToolTip($cmbRsFmt, (T "Format de la disquette d'origine.`nDétection automatique (conseillée) : le format est identifié à la lecture de l'original. Format non reconnu ou disquette protégée contre la copie : copie exacte du flux.`nAvec un format (amiga.amigados pour une disquette Amiga, par exemple) : chaque secteur est lu et vérifié, la copie est écrite avec la précompensation calibrée puis comparée secteur par secteur à l'original.`nCopie exacte du flux : pour une disquette protégée contre la copie ou d'un format absent de la liste ; le signal est recopié tel quel, sans précompensation ni comparaison par secteur."))
+$lblRsFmtFound = New-Object System.Windows.Forms.Label
+$lblRsFmtFound.Location = '12,76'; $lblRsFmtFound.Size = '360,20'; $lblRsFmtFound.AutoEllipsis = $true; $lblRsFmtFound.ForeColor = $script:Theme.Muted
 $lblRsSrcHint = New-Object System.Windows.Forms.Label
 $lblRsSrcHint.Text = (T 'Conseil : protégez-la en écriture avant de commencer.')
-$lblRsSrcHint.Location = '12,52'; $lblRsSrcHint.Size = '360,20'; $lblRsSrcHint.ForeColor = $script:Theme.Muted
+$lblRsSrcHint.Location = '12,96'; $lblRsSrcHint.Size = '360,20'; $lblRsSrcHint.ForeColor = $script:Theme.Muted
 $tip.SetToolTip($lblRsSrcHint, (T 'Disquette 3,5" : fenêtre de protection ouverte. 5,25" : encoche couverte. Ainsi, même une erreur de manipulation ne peut pas l''effacer.'))
-$grpRsSrc.Controls.AddRange(@((New-Label (T 'Lecteur :') '12,24'), $cmbRsSrc, (New-Label (T 'Format :') '138,24'), $cmbRsFmt, $lblRsSrcHint))
+$grpRsSrc.Controls.AddRange(@((New-Label (T 'Lecteur :') '12,24'), $lblRsDrive, (New-Label (T 'Format :') '12,51'), $cmbRsFmt, $lblRsFmtFound, $lblRsSrcHint))
 
-$grpRsDst = New-Group (T '2. Disquette de destination') '10,88' '380,78'; $grpRsDst.Anchor = 'Top,Left'
-$cmbRsDst = New-Object System.Windows.Forms.ComboBox
-$cmbRsDst.Location = '78,21'; $cmbRsDst.Width = 50; $cmbRsDst.DropDownStyle = 'DropDownList'
-[void]$cmbRsDst.Items.AddRange(@('A','B','0','1','2','3'))
-$tip.SetToolTip($cmbRsDst, (T "Lecteur qui écrit la copie. Même lecteur que l'origine : l'application vous demandera de changer de disquette entre la lecture et l'écriture."))
-$lblRsDstHint = New-Object System.Windows.Forms.Label
-$lblRsDstHint.Text = (T 'Vierge ou à sacrifier : tout son contenu sera remplacé.')
-$lblRsDstHint.Location = '12,52'; $lblRsDstHint.Size = '360,20'; $lblRsDstHint.ForeColor = $script:Theme.Muted
-$grpRsDst.Controls.AddRange(@((New-Label (T 'Lecteur :') '12,24'), $cmbRsDst, $lblRsDstHint))
+$grpRsCal = New-Group (T '2. Calibration du lecteur') '10,126' '380,80'; $grpRsCal.Anchor = 'Top,Left'
+$lblRsCal = New-Object System.Windows.Forms.Label
+$lblRsCal.Location = '12,20'; $lblRsCal.Size = '262,54'; $lblRsCal.AutoEllipsis = $true
+$btnRsCurve = New-Object System.Windows.Forms.Button
+$btnRsCurve.Text = (T 'Courbe'); $btnRsCurve.Location = '280,22'; $btnRsCurve.Size = '90,28'; $btnRsCurve.Anchor = 'Top,Right'; $btnRsCurve.Enabled = $false
+$tip.SetToolTip($btnRsCurve, (T "Affiche la courbe de précompensation appliquée par la restauration, une courbe par tête si elle existe : haute densité pour un format haute densité choisi, sinon double densité."))
+$btnRsCurve.Add_Click({ Show-RsCurve })
+$grpRsCal.Controls.AddRange(@($lblRsCal, $btnRsCurve))
 
-$grpRsDir = New-Group (T '3. Sauvegarde de l''original') '10,170' '380,82'; $grpRsDir.Anchor = 'Top,Left'
+$grpRsDir = New-Group (T '3. Sauvegarde (original lu, copie relue, rapport)') '10,210' '380,82'; $grpRsDir.Anchor = 'Top,Left'
 $txtRsDir = New-Object System.Windows.Forms.TextBox
 $txtRsDir.Location = '78,21'; $txtRsDir.Width = 256
 $btnRsDir = New-Object System.Windows.Forms.Button
@@ -109,7 +116,7 @@ Set-Cue $txtRsDir (T 'Documents\Greaseweazle Studio\Restaurations')
 Set-Cue $txtRsName (T 'vide = date et heure')
 
 $btnRsStart = New-Object System.Windows.Forms.Button
-$btnRsStart.Text = (T 'RESTAURER LA DISQUETTE'); $btnRsStart.Location = '10,260'; $btnRsStart.Size = '250,40'; $btnRsStart.Font = $bold
+$btnRsStart.Text = (T 'RESTAURER LA DISQUETTE'); $btnRsStart.Location = '10,300'; $btnRsStart.Size = '250,40'; $btnRsStart.Font = $bold
 $btnRsStart.Add_Click({ try { Start-Restore } catch { Append-Log ((T "ERREUR restauration : {0}") -f "$($_.Exception.Message)") } })
 $lblRsRules = New-Object System.Windows.Forms.Label
 $lblRsRules.Location = '404,232'; $lblRsRules.Size = '372,100'; $lblRsRules.ForeColor = $script:Theme.Muted
@@ -153,9 +160,10 @@ $lblRsResult.Location = '402,230'; $lblRsResult.AutoSize = $true; $lblRsResult.M
 $lblRsResult.Visible = $false; $lblRsResult.Padding = New-Object System.Windows.Forms.Padding(8)
 $lblRsResult.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 9.75)
 
-$tabRs.Controls.AddRange(@($grpRsSrc, $grpRsDst, $grpRsDir, $btnRsStart, $lblRsRules, $lblRsStepsTitle) + $script:RsStepLabels + @($lblRsNow, $pnlRsWait, $lblRsResult))
+$tabRs.Controls.AddRange(@($grpRsSrc, $grpRsCal, $grpRsDir, $btnRsStart, $lblRsRules, $lblRsStepsTitle) + $script:RsStepLabels + @($lblRsNow, $pnlRsWait, $lblRsResult))
 Set-Btn $btnRsStart 'History' 'primary'
 Set-Btn $btnRsDir 'FolderOpen' -IconOnly
+Set-Btn $btnRsCurve 'Diagnostic'
 Set-Btn $btnRsGo 'Play' 'primary'
 Set-Btn $btnRsForce 'Delete' 'danger'
 Set-Btn $btnHelpTop 'Help'
@@ -198,6 +206,8 @@ $tip.SetToolTip($btnRead, (T 'Lit la disquette insérée et enregistre le fichie
 $tip.SetToolTip($btnWrite, (T 'Écrit l''image sur la disquette insérée avec les options de cet onglet. Tout le contenu de la disquette est remplacé.'))
 $tabs.TabPages.AddRange([System.Windows.Forms.TabPage[]]$script:AllTabs)   # tous attaches : Fit-ControlText les ajuste ; Update-TabSet apres la configuration
 $split.Panel1.Controls.Add($tabs)
+# 12.8 (lot 2) : onglet Restauration : cadre « 2. Calibration du lecteur » a jour a l entree dans l onglet
+$tabs.Add_SelectedIndexChanged({ if ($tabs.SelectedTab -eq $tabRs) { Update-RsCalib } })
 # Onglet Ecriture defilant (fenetre basse) : il s ouvre en haut, sur l image. Selectionne par le code (bibliotheque),
 # WinForms y place le focus sur un controle du bas et fait defiler jusqu a lui. Reprise une fois ce focus pose.
 $tabs.Add_SelectedIndexChanged({
