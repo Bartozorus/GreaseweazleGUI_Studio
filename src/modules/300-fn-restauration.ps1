@@ -433,7 +433,9 @@ function Complete-RestoreRead {
             }
             if ($n -eq 0) { Fail-Restore 1 (T 'aucune piste dans le flux lu.'); return }
             if ($sane -eq 0 -or $crit * 2 -gt $n) {
-                Fail-Restore 1 ((T "lecture sans données exploitables : {0} piste(s) critique(s) sur {1}. Disquette vierge, lecteurs inversés ou têtes sales ?") -f "$crit", "$n"); return
+                # 12.8 (L6-TEXTES) : un seul lecteur depuis le lot 2 : « lecteurs inverses » devient l original laisse dans un
+                # autre lecteur que celui du bandeau (le lecteur lu porte alors une autre disquette)
+                Fail-Restore 1 ((T "lecture sans données exploitables : {0} piste(s) critique(s) sur {1}. Disquette vierge, original dans un autre lecteur que le lecteur {2}, ou têtes sales ?") -f "$crit", "$n", "$($r.Drive)"); return
             }
             # Pistes deja critiques (cylindres non formates, protection) ou a zone instable (bits faibles) sur l original :
             # ni reecrites ni comptees au controle de la copie, jamais reecrites sur une disquette identique a l original

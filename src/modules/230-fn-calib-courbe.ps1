@@ -592,7 +592,8 @@ function Draw-PrecompCurve($g, $size) {
             $dm = @((New-Object System.Drawing.PointF([float]($x2 + 4), [float]($ly + 2))), (New-Object System.Drawing.PointF([float]($x2 + 9), [float]($ly + 7))), (New-Object System.Drawing.PointF([float]($x2 + 4), [float]($ly + 12))), (New-Object System.Drawing.PointF([float]($x2 - 1), [float]($ly + 7))))
             $g.DrawPolygon($grayPen, [System.Drawing.PointF[]]$dm)
             $s = (T 'mesure du niveau'); $g.DrawString($s, $font, $txt, $x2 + 13, $ly); $x2 += 13 + $g.MeasureString($s, $font).Width + 24
-            $vn = @{ ok = (T 'conforme'); approx = (T 'approximative'); mismatch = (T 'NON CONFORME'); sat = (T 'non vérifiée, plafond atteint'); low = (T 'non vérifiée, plancher atteint'); few = (T 'non vérifiée, trop peu de cylindres mesurés') }
+            # 12.8 (L6-TEXTES) : verdict 'adapte' (calibration rapide adaptative), meme libelle que Format-CurveTable
+            $vn = @{ ok = (T 'conforme'); approx = (T 'approximative'); mismatch = (T 'NON CONFORME'); sat = (T 'non vérifiée, plafond atteint'); low = (T 'non vérifiée, plancher atteint'); few = (T 'non vérifiée, trop peu de cylindres mesurés'); adapte = (T 'adaptée à cette disquette') }
             $ri = 0
             foreach ($rec in @(@($lvls.Values) | ForEach-Object { $_ })) {
                 if ($ri -gt 0) { $ly += 20; $x2 = $L }; $ri++

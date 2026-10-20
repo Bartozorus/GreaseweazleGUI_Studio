@@ -153,7 +153,13 @@ function Reset-CalibProfiles {
         [void](Show-AppMessage (T 'Aucune calibration enregistrée : les profils sont déjà ceux d''origine.') (T 'Effacer les calibrations') 'OK' 'Information'); return
     }
     $list = if ($curves.Count -gt 0) { (@($curves | ForEach-Object { Get-CurveKeyLabel $_ }) -join ', ') } else { (T 'aucune') }
-    $msg = (T "Effacer toutes les calibrations de précompensation ?`n`nCourbes : {0}.`nProfils de famille remis aux valeurs d'origine : standard {1}, long track {2}.`n`nOpération irréversible. Le mode Auto applique ensuite ces profils ; une écriture rapide ou lente recalibre automatiquement.") -f "$list", "$($script:PrecompStdDefault)", "$($script:PrecompLongDefault)"
+    # 12.8 (L6-TEXTES) : texte aligne sur le comportement reel. Copie de la configuration (Backup-ConfigBeforeRef, seulement
+    # s il y a une courbe) ; ensuite : Bibliotheque au test standard ou fin, calibration automatique (Start-PresetWrite) ;
+    # bouton ECRIRE, jamais de calibration (Start-WriteTabWrite) ; test rapide, ecriture refusee sans reference
+    # (Start-LevelBeforeWrite) ; restauration secteur en double densite, calibration par tete en test fin (Start-RestoreWrite)
+    $msg = (T "Effacer toutes les calibrations de précompensation ?`n`nCourbes : {0}.`nProfils de famille remis aux valeurs d'origine : standard {1}, long track {2}.`nLes niveaux de la calibration rapide et la mémoire par marque sont effacés aussi.") -f "$list", "$($script:PrecompStdDefault)", "$($script:PrecompLongDefault)"
+    if ($curves.Count -gt 0) { $msg += "`n`n" + ((T "L'application ne peut pas annuler cet effacement. Elle copie d'abord la configuration dans « {0}.ref-….bak », dans le même dossier : pour revenir en arrière, fermez l'application, puis remettez cette copie à la place de « {0} ».") -f [System.IO.Path]::GetFileName([string]$script:ConfigFile)) }
+    $msg += "`n`n" + (T "Ensuite, le mode Auto applique les profils d'origine :`n- « Test standard » ou « Test fin » : « Écriture rapide » et « Écriture lente » de la Bibliothèque calibrent d'abord le lecteur ; « ÉCRIRE LA DISQUETTE » écrit sans calibrer ;`n- « Test rapide » : l'écriture d'une image calibrable en double densité est refusée sans nouvelle calibration complète du lecteur, à faire sur une disquette sacrifiée depuis la carte « Calibrer le lecteur » de l'Accueil ;`n- restauration d'une copie secteur par secteur en double densité : chaque tête est d'abord calibrée en test fin.")
     # 12.7 : courbe haute densite effacee : profil d origine haute densite, jamais de calibration automatique
     if (@($curves | Where-Object { "$_" -like 'hd*' }).Count -gt 0) { $msg += "`n" + ((T "Haute densité : profil d'origine {0}, sans calibration automatique ; recalibrez depuis la carte « Calibrer le lecteur » de l'Accueil.") -f "$($script:PrecompHdDefault)") }
     # 12.7 : boite par Show-AppMessage (code modifie), comme les autres messages de la 12.7

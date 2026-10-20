@@ -36,6 +36,7 @@ La restauration se fait avec un seul lecteur et reconnaît elle-même le format 
 - **Icônes d'état.** Le verdict du contrôle après écriture dans l'onglet « Écriture », les étapes et le verdict de la restauration affichent une icône d'état. Les textes d'avertissement en orange sont plus contrastés.
 - **Onglet « Outils » en français.** Ses libellés deviennent « Cylindre (seek) : », « Positionner », « Pistes (erase) : », « Passes : », « Durée par position (ms) : » et « Broche (pin) : ». Les boutons des onglets ont une hauteur commune, et la case « Face B flippy (--reverse) » porte le même nom dans « Écriture » et « Lecture / Dump ».
 - **Refus plus cohérents.** Pendant un préchauffage ou une mesure continue de la qualité, ces actions sont désormais refusées : carte « Tester le Greaseweazle », réglage du jitter, « Effacer les calibrations », détection des lecteurs, carte « Calibrer le lecteur », restauration et comparaison.
+- **Confirmation d'« Effacer les calibrations ».** Elle n'annonce plus une opération irréversible suivie d'une recalibration automatique. Elle indique la copie de la configuration faite juste avant et comment la rétablir, puis ce que font ensuite la Bibliothèque, « ÉCRIRE LA DISQUETTE » et la restauration, selon le test choisi.
 - **Messages au journal.** Les messages affichés par l'application sont aussi notés au journal.
 - **Écriture depuis une archive ZIP.** Une image altérée dans une archive ZIP est refusée à l'écriture, avant tout passage sur la disquette.
 
