@@ -595,7 +595,9 @@ function Draw-PrecompCurve($g, $size) {
             # 12.8 (L6-TEXTES) : verdict 'adapte' (calibration rapide adaptative), meme libelle que Format-CurveTable
             $vn = @{ ok = (T 'conforme'); approx = (T 'approximative'); mismatch = (T 'NON CONFORME'); sat = (T 'non vérifiée, plafond atteint'); low = (T 'non vérifiée, plancher atteint'); few = (T 'non vérifiée, trop peu de cylindres mesurés'); adapte = (T 'adaptée à cette disquette') }
             $ri = 0
-            foreach ($rec in @(@($lvls.Values) | ForEach-Object { $_ })) {
+            # 12.8 (L6-POLISH) : lignes dans l ordre des courbes (tete 0, puis tete 1), comme les lignes des courbes ; les
+            # valeurs d une table de hachage ne suivent pas l ordre de ses cles (la tete 1 venait avant la tete 0)
+            foreach ($rec in @(@($lvls.Keys) | Sort-Object | ForEach-Object { $lvls[$_] })) {
                 if ($ri -gt 0) { $ly += 20; $x2 = $L }; $ri++
                 $vk = if ([string]$rec.Shape -eq 'mismatch') { 'mismatch' } else { [string]$rec.Verdict }
                 $vt = if ($vn.ContainsKey($vk)) { $vn[$vk] } else { $vk }
