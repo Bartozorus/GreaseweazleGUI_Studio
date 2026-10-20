@@ -32,13 +32,14 @@ $tip.SetToolTip($chkTime, (T 'Affiche le temps écoulé après chaque commande g
 
 # Mode expert : affiche aussi les onglets techniques (Conversion, Comparaison, Outils, Délais, Commande libre)
 $chkExpert = New-Object System.Windows.Forms.CheckBox
-$chkExpert.Text = (T 'Mode expert'); $chkExpert.Location = '404,9'; $chkExpert.AutoSize = $true; $chkExpert.Anchor = 'Top,Right'
+$chkExpert.Text = (T 'Mode expert'); $chkExpert.Location = '404,5'; $chkExpert.AutoSize = $true; $chkExpert.Anchor = 'Top,Right'
 $chkExpert.BackColor = [System.Drawing.Color]::Transparent; $chkExpert.ForeColor = [System.Drawing.Color]::White
 $tip.SetToolTip($chkExpert, (T "Décoché : seuls les onglets utiles au quotidien sont affichés (Accueil, Restauration, Bibliothèque, Écriture, Lecture, Qualité).`nCoché : tous les onglets, y compris Conversion, Comparaison, Outils, Délais et Commande libre."))
 
-# Aide en ligne (wiki) pour l onglet affiche ; touche F1
+# Aide en ligne (wiki) pour l onglet affiche ; touche F1. 12.8 (lot 5) : hauteur de 34 px (deux hauteurs de bouton, 34 et
+# 40 px), centree sur la rangee du lecteur ; case « Mode expert » remontee de 4 px au-dessus
 $btnHelpTop = New-Object System.Windows.Forms.Button
-$btnHelpTop.Text = (T 'Aide'); $btnHelpTop.Location = '404,33'; $btnHelpTop.Size = '84,26'; $btnHelpTop.Anchor = 'Top,Right'
+$btnHelpTop.Text = (T 'Aide'); $btnHelpTop.Location = '404,28'; $btnHelpTop.Size = '84,34'; $btnHelpTop.Anchor = 'Top,Right'
 $btnHelpTop.Add_Click({ Open-HelpForTab })
 $tip.SetToolTip($btnHelpTop, (T 'Ouvre le guide en ligne de l''onglet affiché (touche F1).'))
 

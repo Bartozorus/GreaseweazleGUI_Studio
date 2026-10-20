@@ -71,7 +71,7 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     $swapLabel = if ($toWrite) { (T "J'ai inséré une disquette sacrifiée : me redemander {0} après la calibration") -f "$target" } else { '' }
     if ($redo) {
         # Confirmation sans compte a rebours : la case est obligatoire (une disquette de valeur est peut-etre inseree)
-        $rc = Show-TimedConfirm 'frmCalibRedo' (T 'Calibration sur une autre disquette') ($Intro + $body + "`n`n" + $wear) (T 'Lancer la calibration B') 'Diagnostic' '' (T "J'ai retiré la disquette de la calibration A et inséré une autre disquette sacrifiée") '' (T "Pas de démarrage automatique : cochez la case, puis cliquez sur « Lancer la calibration B ».") -Seconds 0 -NeedCheck
+        $rc = Show-TimedConfirm 'frmCalibRedo' (T 'Calibration sur une autre disquette') ($Intro + $body + "`n`n" + $wear) (T 'Lancer la calibration B') 'Diagnostic' '' (T "J'ai retiré la disquette de la calibration A et inséré une autre disquette sacrifiée") '' (T "Pas de démarrage automatique : cochez la case, puis cliquez sur « Lancer la calibration B ».") -Seconds 0 -NeedCheck -Heading (T 'Calibration B : insérez une autre disquette sacrifiée') -Level 'warn' -Picto 'warn'
         $ans = @{ Ok = ($rc.Ok -and $rc.Checked); Swap = $false; Auto = $false }
     } elseif ($fb) {
         # Repli apres la calibration rapide : la disquette inseree est peut-etre celle a ecrire ; jamais de demarrage
@@ -90,7 +90,7 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
     try { $pat = New-CalibPattern $family $img $nCyl }
-    catch { [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)"),(T 'Calibration precomp'),'OK','Error'); return }
+    catch { [void](Show-AppMessage ((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)") (T 'Calibration precomp') 'OK' 'Error'); return }
     if ($redo -and [int]$pat.Bits -ne [int]$script:CalRedo.ACal.PatternBits) {
         [void](Show-AppMessage ((T "Calibration B impossible : réglage différent de la calibration A ({0}). La décision sur la courbe A est rouverte.") -f (T 'densité du motif')) (T 'Calibration precomp') 'OK' 'Warning'); return
     }
@@ -672,6 +672,7 @@ function Invoke-CalibAnalysis {
                 $redo = [bool]($script:CalRedo -and $script:CalRedo.Stage -eq 'running')
                 $opt = Get-CalibSurfaceOptions ([bool]$script:Restore) $redo ($script:AfterCalib -eq 'write') ([bool]$cal.Swap)
                 if ($spd) { $opt.Speed = $true; $opt.Change = $false; $opt.SwapBox = $false }
+                $opt.States = Get-CalibSurfaceStates $sf $mc    # 12.8 (lot 5, D15) : icones d etat de frmCalibSurface
                 $txt = Get-CalibSurfaceText $sf $opt $std ([bool]$cal.AutoStart) -Extra @($mc.Lines) -Notes @($notes) -Medium $mc -Hd $hdFam
                 $cal.Hold = $true; Update-CalibProgress; if ($cal.Home) { Update-HomeCalibCard }
                 if ($script:Restore) { $script:Restore.InCall = $true }
@@ -1398,9 +1399,9 @@ function Complete-PrecompCalib {
         # Ecriture rapide ou lente : l image est ecrite tout de suite avec le profil obtenu (courbe visible par le bouton Courbe)
         $script:AfterCalib = ''
         if ($cal.Swap) {
-            # Calibration faite sur une disquette sacrifiee : la disquette a ecrire est redemandee, avec le meme delai que
-            # l avertissement (sans reponse, l image est ecrite sur la disquette inseree) ; restauration : attente a delai,
-            # puis nouvelle sonde de la destination avant l ecriture
+            # Calibration faite sur une disquette sacrifiee : la disquette a ecrire est redemandee (frmReinsert). 12.8 (D7) :
+            # sans compte a rebours : une ecriture lancee seule ne peut pas savoir quelle disquette est dans le lecteur ;
+            # restauration : remise sans delai depuis le lot 2, puis nouvelle sonde de la destination avant l ecriture
             if ($script:Restore) { Enter-RestoreSwapBack; return }
             $lrA = if ($cal.LevelAfter) { Get-LevelRef $cal.Family $cal.Slow $cal.Drive $cal.Image $false -NCyl ([int]$cal.MaxCyl + 1) } else { $null }
             if ($lrA -and -not $lrA.Ok) { Append-Log ((T "Calibration rapide impossible : {0}. Écriture avec la nouvelle calibration complète.") -f "$($lrA.Why)") }
@@ -1408,9 +1409,8 @@ function Complete-PrecompCalib {
                 # Reference faite sur la disquette sacrifiee : le niveau de la disquette a ecrire est mesure apres sa remise
                 $lr = $lrA
                 $lc = if ($lr.Ok) { (@($lr.Units | ForEach-Object { Format-CylList ([int[]]@(@(@($_.LCyls) + @($_.Wit) + @($(if ($null -ne $_.Probe) { $_.Probe }))) | Sort-Object -Unique)) } | Sort-Object -Unique)) -join ' ; ' } else { '-' }
-                $q = Show-TimedConfirm 'frmReinsert' (T 'Calibration precomp') ((T "Calibration terminée : elle devient la référence de forme du lecteur {0}.`n`nRetirez la disquette sacrifiée et insérez la disquette à écrire, puis cliquez sur « Mesurer le niveau et écrire » : son niveau de précompensation est mesuré sur les cylindres {1} (2 faces, 1 à 3 écritures du motif par piste), puis l'image est écrite.`nAnnuler : l'image n'est pas écrite.") -f "$($cal.Drive)", "$lc") (T 'Mesurer le niveau et écrire') 'Diagnostic' (T "Sans réponse, la mesure du niveau puis l'écriture démarrent automatiquement dans {0} s.") '' '' ''
+                $q = Show-TimedConfirm 'frmReinsert' (T 'Calibration precomp') ((T "Calibration terminée : elle devient la référence de forme du lecteur {0}.`n`nRetirez la disquette sacrifiée et insérez la disquette à écrire, puis cliquez sur « Mesurer le niveau et écrire » : son niveau de précompensation est mesuré sur les cylindres {1} (2 faces, 1 à 3 écritures du motif par piste), puis l'image est écrite.`nAnnuler : l'image n'est pas écrite.") -f "$($cal.Drive)", "$lc") (T 'Mesurer le niveau et écrire') 'Diagnostic' '' '' '' '' -Seconds 0 -Heading (T 'Insérez la disquette à écrire') -Level 'info' -Picto 'data'
                 if (-not $q.Ok) { Append-Log (T 'Écriture annulée : la disquette à écrire n''a pas été remise après la calibration.'); return }
-                if ($q.Auto) { Append-Log ((T "Calibration : remise de la disquette validée automatiquement après {0} s sans réponse.") -f "$($script:CalibConfirmSeconds)") }
                 if ($lr.Ok) {
                     $script:AfterCalib = 'write'
                     Start-LevelCalib $lr -NoConfirm -NoFallback
@@ -1418,9 +1418,8 @@ function Complete-PrecompCalib {
                     return
                 }
             } else {
-            $q = Show-TimedConfirm 'frmReinsert' (T 'Calibration precomp') ((T "Calibration terminée.`n`nRetirez la disquette sacrifiée du lecteur {0} et insérez la disquette à écrire, puis cliquez sur « Écrire l'image ».`nAnnuler : l'image n'est pas écrite.") -f "$($cal.Drive)") (T "Écrire l'image") 'Save' (T "Sans réponse, l'écriture de l'image démarre automatiquement dans {0} s.") '' '' ''
+            $q = Show-TimedConfirm 'frmReinsert' (T 'Calibration precomp') ((T "Calibration terminée.`n`nRetirez la disquette sacrifiée du lecteur {0} et insérez la disquette à écrire, puis cliquez sur « Écrire l'image ».`nAnnuler : l'image n'est pas écrite.") -f "$($cal.Drive)") (T "Écrire l'image") 'Save' '' '' '' '' -Seconds 0 -Heading (T 'Insérez la disquette à écrire') -Level 'info' -Picto 'data'
             if (-not $q.Ok) { Append-Log (T 'Écriture annulée : la disquette à écrire n''a pas été remise après la calibration.'); return }
-            if ($q.Auto) { Append-Log ((T "Calibration : remise de la disquette validée automatiquement après {0} s sans réponse.") -f "$($script:CalibConfirmSeconds)") }
             }
         }
         Append-Log (T 'Calibration terminée : écriture de l''image avec le profil obtenu.')

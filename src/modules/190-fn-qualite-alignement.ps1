@@ -242,54 +242,77 @@ function Show-JitterSettings {
     if (Get-AppBusy) {
         [void](Show-AppMessage (T "Opération en cours : modifiez le réglage du jitter une fois l'opération terminée.") (T 'Réglage du jitter') 'OK' 'Information'); return
     }
-    $w = 540
+    # 12.8 (lot 5, A4 R1 a R8, D15, D17) : bandeau d information, legende des etats avec les icones du lot 3 (✓ SAIN,
+    # ! A SURVEILLER, ✗ CRITIQUE) dans l encre de leur niveau (Get-QualInk), options en rangees de 34 px, erreur de saisie
+    # dans le texte d etat lblJitState (R7) au lieu d une boite, aucun AcceptButton, images liberees (Clear-DlgGdi)
+    $W = 600
     $presets = Get-JitterPresets
+    $gdi = New-Object System.Collections.Generic.List[object]
     $dlg = New-Object System.Windows.Forms.Form
     $dlg.Name = 'frmJitter'; $dlg.Text = (T 'Réglage du jitter')
     $dlg.FormBorderStyle = 'FixedDialog'; $dlg.MaximizeBox = $false; $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false
     $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font; $dlg.BackColor = [System.Drawing.Color]::White
     $text = (T "Le jitter mesure la dispersion des intervalles entre les transitions magnétiques d'une piste, en nanosecondes : plus il est faible, plus la piste est nette.`n`nCes seuils fixent l'état de chaque piste dans l'onglet « Qualité & alignement », dans le contrôle après écriture et dans la restauration. Une piste n'est SAINE que si son jitter est sous le premier seuil, et si ses erreurs, ses trous et sa stabilité sont bons. Au-delà du second seuil, elle est CRITIQUE.`n`nAprès une écriture avec contrôle de toutes les pistes (écriture lente, restauration), une piste qui n'est pas SAINE est réécrite, dans la limite des passes de réécriture : un réglage plus strict fait réécrire davantage de pistes, donc davantage d'écritures sur la disquette. Le jugement de la disquette d'origine en restauration et le garde-fou (plus de la moitié des pistes faibles : aucune réécriture) gardent les seuils Standard.")
-    $lbl = New-Object System.Windows.Forms.Label
-    $lbl.AutoSize = $false; $lbl.UseMnemonic = $false; $lbl.Text = $text; $lbl.Location = New-Object System.Drawing.Point(16, 16)
+    $ban = New-DlgBanner $dlg 16 $W (T 'Seuils de jitter des pistes') $text 'info' (New-DlgPicto 'jitter') $gdi 'lblJitText'
     $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
-    $h = [System.Windows.Forms.TextRenderer]::MeasureText($text, $dlg.Font, (New-Object System.Drawing.Size($w, 10000)), $tf).Height
-    $lbl.Size = New-Object System.Drawing.Size($w, ($h + 4))
-    $y = $lbl.Bottom + 14
-    $l1 = New-Object System.Windows.Forms.Label; $l1.Text = (T 'Préréglage :'); $l1.AutoSize = $true; $l1.Location = New-Object System.Drawing.Point(16, ($y + 3))
+    $y = $ban.Bottom + 14
+    # Libelles en x = 16 (legende : icone en x = 16, texte en x = 38), controles alignes apres le plus long libelle
+    $l1 = New-Object System.Windows.Forms.Label; $l1.Text = (T 'Préréglage :'); $l1.AutoSize = $true; $l1.Font = $dlg.Font
+    $l2 = New-Object System.Windows.Forms.Label; $l2.Text = (T 'SAIN si le jitter est inférieur à :'); $l2.AutoSize = $true; $l2.Font = $dlg.Font; $l2.ForeColor = Get-QualInk 0
+    $l3 = New-Object System.Windows.Forms.Label; $l3.Text = (T "À SURVEILLER s'il est inférieur à :"); $l3.AutoSize = $true; $l3.Font = $dlg.Font; $l3.ForeColor = Get-QualInk 2
+    $cx = [math]::Max(16 + $l1.PreferredWidth, 38 + [math]::Max($l2.PreferredWidth, $l3.PreferredWidth)) + 12
+    $l1.Location = New-Object System.Drawing.Point(16, ($y + 3))
     $cmb = New-Object System.Windows.Forms.ComboBox
-    $cmb.Name = 'cmbJitPreset'; $cmb.DropDownStyle = 'DropDownList'; $cmb.Location = New-Object System.Drawing.Point(290, $y); $cmb.Width = 240
+    $cmb.Name = 'cmbJitPreset'; $cmb.DropDownStyle = 'DropDownList'; $cmb.Location = New-Object System.Drawing.Point($cx, $y); $cmb.Width = 240
     foreach ($pr in $presets) { [void]$cmb.Items.Add($pr.Name) }
     [void]$cmb.Items.Add((T 'Personnalisé'))
-    $y += 36
-    $l2 = New-Object System.Windows.Forms.Label; $l2.Text = (T 'SAIN si le jitter est inférieur à :'); $l2.AutoSize = $true; $l2.Location = New-Object System.Drawing.Point(16, ($y + 3))
+    $y += 34
+    $i2 = New-Object System.Windows.Forms.PictureBox; $i2.Image = Get-QualityIcon 'h0' 16; $i2.Location = New-Object System.Drawing.Point(16, ($y + 4)); $i2.Size = New-Object System.Drawing.Size(16, 16)
+    $l2.Location = New-Object System.Drawing.Point(38, ($y + 3))
     $numOk = New-Object System.Windows.Forms.NumericUpDown
-    $numOk.Name = 'numJitOk'; $numOk.Minimum = 30; $numOk.Maximum = 300; $numOk.Increment = 5; $numOk.Width = 80; $numOk.Location = New-Object System.Drawing.Point(290, $y)
-    $u1 = New-Object System.Windows.Forms.Label; $u1.Text = 'ns'; $u1.AutoSize = $true; $u1.Location = New-Object System.Drawing.Point(376, ($y + 3))
+    $numOk.Name = 'numJitOk'; $numOk.Minimum = 30; $numOk.Maximum = 300; $numOk.Increment = 5; $numOk.Width = 80; $numOk.Location = New-Object System.Drawing.Point($cx, $y)
+    $u1 = New-Object System.Windows.Forms.Label; $u1.Text = 'ns'; $u1.AutoSize = $true; $u1.Location = New-Object System.Drawing.Point(($cx + 86), ($y + 3))
     $y += 34
-    $l3 = New-Object System.Windows.Forms.Label; $l3.Text = (T "À SURVEILLER s'il est inférieur à :"); $l3.AutoSize = $true; $l3.Location = New-Object System.Drawing.Point(16, ($y + 3))
+    $i3 = New-Object System.Windows.Forms.PictureBox; $i3.Image = Get-QualityIcon 'h1' 16; $i3.Location = New-Object System.Drawing.Point(16, ($y + 4)); $i3.Size = New-Object System.Drawing.Size(16, 16)
+    $l3.Location = New-Object System.Drawing.Point(38, ($y + 3))
     $numWatch = New-Object System.Windows.Forms.NumericUpDown
-    $numWatch.Name = 'numJitWatch'; $numWatch.Minimum = 40; $numWatch.Maximum = 600; $numWatch.Increment = 10; $numWatch.Width = 80; $numWatch.Location = New-Object System.Drawing.Point(290, $y)
-    $u2 = New-Object System.Windows.Forms.Label; $u2.Text = 'ns'; $u2.AutoSize = $true; $u2.Location = New-Object System.Drawing.Point(376, ($y + 3))
+    $numWatch.Name = 'numJitWatch'; $numWatch.Minimum = 40; $numWatch.Maximum = 600; $numWatch.Increment = 10; $numWatch.Width = 80; $numWatch.Location = New-Object System.Drawing.Point($cx, $y)
+    $u2 = New-Object System.Windows.Forms.Label; $u2.Text = 'ns'; $u2.AutoSize = $true; $u2.Location = New-Object System.Drawing.Point(($cx + 86), ($y + 3))
     $y += 34
-    $l4 = New-Object System.Windows.Forms.Label; $l4.Text = (T 'Au-delà : CRITIQUE. Les nouvelles valeurs valent pour les prochaines mesures.'); $l4.AutoSize = $true; $l4.ForeColor = $script:Theme.Muted; $l4.Location = New-Object System.Drawing.Point(16, $y)
-    $y += 34
-    $btnDef = New-Object System.Windows.Forms.Button; $btnDef.Name = 'btnJitDefault'; $btnDef.Text = (T 'Valeurs par défaut'); $btnDef.Size = New-Object System.Drawing.Size(170, 34)
-    $btnOk = New-Object System.Windows.Forms.Button; $btnOk.Name = 'btnJitOk'; $btnOk.Text = (T 'Enregistrer'); $btnOk.Size = New-Object System.Drawing.Size(140, 34)
+    $i4 = New-Object System.Windows.Forms.PictureBox; $i4.Image = Get-QualityIcon 'h2' 16; $i4.Location = New-Object System.Drawing.Point(16, ($y + 1)); $i4.Size = New-Object System.Drawing.Size(16, 16)
+    $l4 = New-Object System.Windows.Forms.Label; $l4.Text = (T 'Au-delà : CRITIQUE.'); $l4.AutoSize = $true; $l4.ForeColor = Get-QualInk 3; $l4.Location = New-Object System.Drawing.Point(38, $y)
+    $y += 26
+    $l5 = New-Object System.Windows.Forms.Label; $l5.Text = (T 'Les nouvelles valeurs valent pour les prochaines mesures.'); $l5.AutoSize = $true; $l5.ForeColor = $script:Theme.Muted; $l5.Location = New-Object System.Drawing.Point(16, $y)
+    $y += 26
+    # Texte d etat (R7) : erreur de saisie, en Semibold et dans l encre du danger ; hauteur de son texte, mesuree
+    $fS = New-Object System.Drawing.Font('Segoe UI Semibold', 9.75); $gdi.Add($fS)
+    $errTxt = (T "Le seuil À SURVEILLER doit dépasser le seuil SAIN d'au moins 10 ns.")
+    $lblSt = New-Object System.Windows.Forms.Label
+    $lblSt.Name = 'lblJitState'; $lblSt.AutoSize = $false; $lblSt.UseMnemonic = $false; $lblSt.Font = $fS; $lblSt.ForeColor = Get-QualInk 3
+    $lblSt.Location = New-Object System.Drawing.Point(16, $y)
+    $lblSt.Size = New-Object System.Drawing.Size($W, ([System.Windows.Forms.TextRenderer]::MeasureText($errTxt, $fS, (New-Object System.Drawing.Size($W, 10000)), $tf).Height + 2))
+    $y = $lblSt.Bottom + 8
+    $btnDef = New-Object System.Windows.Forms.Button; $btnDef.Name = 'btnJitDefault'; $btnDef.Text = (T 'Valeurs par défaut'); $btnDef.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnDef.Text 'Refresh' 150), 34)
+    $btnOk = New-Object System.Windows.Forms.Button; $btnOk.Name = 'btnJitOk'; $btnOk.Text = (T 'Enregistrer'); $btnOk.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnOk.Text 'Save' 140), 34)
     $btnNo = New-Object System.Windows.Forms.Button; $btnNo.Name = 'btnJitCancel'; $btnNo.Text = (T 'Annuler'); $btnNo.Size = New-Object System.Drawing.Size(110, 34)
     $btnNo.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     Set-Btn $btnDef 'Refresh' 'normal'; Set-Btn $btnOk 'Save' 'primary'; Set-Btn $btnNo '' 'normal'
     $btnDef.Location = New-Object System.Drawing.Point(16, $y)
-    $btnNo.Location = New-Object System.Drawing.Point((16 + $w - $btnNo.Width), $y)
+    $btnNo.Location = New-Object System.Drawing.Point((16 + $W - $btnNo.Width), $y)
     $btnOk.Location = New-Object System.Drawing.Point(($btnNo.Left - 8 - $btnOk.Width), $y)
-    $dlg.ClientSize = New-Object System.Drawing.Size(($w + 32), ($y + $btnOk.Height + 16))
-    $dlg.AcceptButton = $btnOk; $dlg.CancelButton = $btnNo
-    $dlg.Controls.AddRange(@($lbl, $l1, $cmb, $l2, $numOk, $u1, $l3, $numWatch, $u2, $l4, $btnDef, $btnOk, $btnNo))
-    # Etat partage avec les gestionnaires (portee script) : prereglage <-> valeurs, sans boucle
-    $script:JitDlg = @{ Presets = $presets; Cmb = $cmb; Ok = $numOk; Watch = $numWatch; Busy = $false; Dlg = $dlg }
+    $dlg.ClientSize = New-Object System.Drawing.Size(($W + 32), ($y + $btnOk.Height + 16))
+    $dlg.CancelButton = $btnNo                        # pas d AcceptButton : Entree n enregistre pas
+    $dlg.Controls.AddRange(@($l1, $cmb, $i2, $l2, $numOk, $u1, $i3, $l3, $numWatch, $u2, $i4, $l4, $l5, $lblSt, $btnDef, $btnOk, $btnNo))
+    $dlg.ActiveControl = $cmb
+    [void](Set-DlgFit $dlg ([System.Windows.Forms.Screen]::FromControl($form).WorkingArea))
+    # Etat partage avec les gestionnaires (portee script) : prereglage <-> valeurs, sans boucle ; texte d etat efface a
+    # chaque changement de valeur
+    $script:JitDlg = @{ Presets = $presets; Cmb = $cmb; Ok = $numOk; Watch = $numWatch; Busy = $false; Dlg = $dlg; State = $lblSt; Err = $errTxt }
     $numOk.Value = $script:JitterOk; $numWatch.Value = $script:JitterWatch
     $sync = {
         $s = $script:JitDlg
         if (-not $s -or $s.Busy) { return }
+        $s.State.Text = ''
         $s.Busy = $true
         $i = -1
         for ($k = 0; $k -lt $s.Presets.Count; $k++) { if ($s.Presets[$k].Ok -eq [int]$s.Ok.Value -and $s.Presets[$k].Watch -eq [int]$s.Watch.Value) { $i = $k } }
@@ -301,7 +324,7 @@ function Show-JitterSettings {
     $cmb.Add_SelectedIndexChanged({
         $s = $script:JitDlg
         if (-not $s -or $s.Busy -or $s.Cmb.SelectedIndex -lt 0 -or $s.Cmb.SelectedIndex -ge $s.Presets.Count) { return }
-        $s.Busy = $true
+        $s.Busy = $true; $s.State.Text = ''
         $pr = $s.Presets[$s.Cmb.SelectedIndex]
         $s.Ok.Value = $pr.Ok; $s.Watch.Value = $pr.Watch
         $s.Busy = $false
@@ -309,19 +332,21 @@ function Show-JitterSettings {
     $btnDef.Add_Click({ $script:JitDlg.Cmb.SelectedIndex = 0 })
     $btnOk.Add_Click({
         $s = $script:JitDlg
-        if ([int]$s.Watch.Value -lt [int]$s.Ok.Value + 10) {
-            [void][System.Windows.Forms.MessageBox]::Show((T "Le seuil À SURVEILLER doit dépasser le seuil SAIN d'au moins 10 ns."), (T 'Réglage du jitter'), 'OK', 'Warning'); return
-        }
+        # Seuils incoherents : texte d etat (R7), la fenetre reste ouverte
+        if ([int]$s.Watch.Value -lt [int]$s.Ok.Value + 10) { $s.State.Text = $s.Err; return }
         $s.Dlg.DialogResult = [System.Windows.Forms.DialogResult]::OK
     })
-    $dr = $dlg.ShowDialog($form)
-    if ($dr -eq [System.Windows.Forms.DialogResult]::OK) {
-        Set-JitterThresholds ([int]$numOk.Value) ([int]$numWatch.Value)
-        [void](Save-Config)
-        Append-Log ((T "Réglage du jitter : SAIN sous {0} ns, À SURVEILLER sous {1} ns, CRITIQUE au-delà (prochaines mesures).") -f "$($script:JitterOk)", "$($script:JitterWatch)")
+    try {
+        $dr = $dlg.ShowDialog($form)
+        if ($dr -eq [System.Windows.Forms.DialogResult]::OK) {
+            Set-JitterThresholds ([int]$numOk.Value) ([int]$numWatch.Value)
+            [void](Save-Config)
+            Append-Log ((T "Réglage du jitter : SAIN sous {0} ns, À SURVEILLER sous {1} ns, CRITIQUE au-delà (prochaines mesures).") -f "$($script:JitterOk)", "$($script:JitterWatch)")
+        }
+    } finally {
+        $script:JitDlg = $null
+        Clear-DlgGdi $dlg $gdi
     }
-    $script:JitDlg = $null
-    $dlg.Dispose()
 }
 
 # Metriques d une piste (liste de ScpRev, un par tour) : base commune de l onglet Qualite et du

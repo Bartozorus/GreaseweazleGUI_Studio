@@ -13,7 +13,7 @@ function New-CalibUnit($head) {
 function Get-PatternBits([string]$family, [string]$img) {
     # Cellules par piste du motif de test (voir New-CalibPattern) : densite de l image ; la calibration rapide compare
     # celle de l image a celle de sa reference
-    $bits = 100000; $src = (T 'format à secteurs, 2 µs par cellule')
+    $bits = 100000; $src = (T 'format à secteurs, 2 us par cellule')
     $ext = [System.IO.Path]::GetExtension($img).ToLower()
     try {
         switch ($ext) {
@@ -26,8 +26,8 @@ function Get-PatternBits([string]$family, [string]$img) {
             '.hfe' { $info = Get-HfeCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'HFE, bits par piste de l''image') } }
         }
     } catch { }
-    if ($family -eq 'long' -and $bits -eq 100000) { $bits = 105820; $src = (T 'long track, 1,89 µs par cellule') }
-    elseif ($family -eq 'hd' -and $bits -eq 100000) { $bits = 200000; $src = (T 'format à secteurs haute densité, 1 µs par cellule') }   # 12.7
+    if ($family -eq 'long' -and $bits -eq 100000) { $bits = 105820; $src = (T 'long track, 1,89 us par cellule') }
+    elseif ($family -eq 'hd' -and $bits -eq 100000) { $bits = 200000; $src = (T 'format à secteurs haute densité, 1 us par cellule') }   # 12.7
     $bits -= $bits % 16
     return @{ Bits = $bits; Source = $src }
 }
@@ -84,27 +84,34 @@ function Resolve-OldCalibrations {
         $txt += "`n`n" + ($ct -f "$mx", ($kl -join ', '), "$($script:CalHardNs)")
     }
     if ($o.Bak -and (Test-Path -LiteralPath $o.Bak)) { $txt += "`n`n" + ((T "Copie de la configuration d'avant ce choix : {0}") -f "$([System.IO.Path]::GetFileName([string]$o.Bak))") }
+    # 12.8 (lot 5, A4 R1 a R8, modele frmClean) : bandeau (texte lblOldText, Label de premier niveau), boutons a la largeur
+    # de leur texte, « Fermer » (decision remise, comme la croix) en CancelButton et focus initial, aucun AcceptButton :
+    # Entree n abandonne plus les courbes ; images liberees (Clear-DlgGdi) ; ajustement aux petits ecrans (Set-DlgFit)
+    $W = 700
+    $gdi = New-Object System.Collections.Generic.List[object]
     $dlg = New-Object System.Windows.Forms.Form
     $dlg.Name = 'frmOldCalib'; $dlg.Text = (T 'Calibrations d''un autre calcul'); $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font
     $dlg.FormBorderStyle = 'FixedDialog'; $dlg.MaximizeBox = $false; $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false; $dlg.BackColor = [System.Drawing.Color]::White
-    $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
-    $h = [System.Windows.Forms.TextRenderer]::MeasureText($txt, $dlg.Font, (New-Object System.Drawing.Size(620, 10000)), $tf).Height
-    $dlg.ClientSize = New-Object System.Drawing.Size(660, ($h + 90))
-    $lbl = New-Object System.Windows.Forms.Label
-    $lbl.Name = 'lblOldText'; $lbl.AutoSize = $false; $lbl.UseMnemonic = $false; $lbl.Text = $txt
-    $lbl.Location = New-Object System.Drawing.Point(20, 16); $lbl.Size = New-Object System.Drawing.Size(620, ($h + 8))
+    $ban = New-DlgBanner $dlg 16 $W (T 'Recalibrer ou conserver ces courbes ?') $txt 'warn' (New-DlgPicto 'curve') $gdi 'lblOldText'
+    $y = $ban.Bottom + 14
+    $btnCl = New-Object System.Windows.Forms.Button
+    $btnCl.Name = 'btnOldClose'; $btnCl.Text = (T 'Fermer'); $btnCl.Size = New-Object System.Drawing.Size(110, 34); $btnCl.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     $btnRedo = New-Object System.Windows.Forms.Button
-    $btnRedo.Name = 'btnOldRedo'; $btnRedo.Text = (T 'Recalibrer (conseillé)'); $btnRedo.Size = New-Object System.Drawing.Size(200, 34)
-    $btnRedo.Location = New-Object System.Drawing.Point(($dlg.ClientSize.Width - 20 - 200), ($h + 40)); $btnRedo.DialogResult = [System.Windows.Forms.DialogResult]::Abort
+    $btnRedo.Name = 'btnOldRedo'; $btnRedo.Text = (T 'Recalibrer (conseillé)'); $btnRedo.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnRedo.Text 'Diagnostic' 170), 34)
+    $btnRedo.DialogResult = [System.Windows.Forms.DialogResult]::Abort
     $btnKeep = New-Object System.Windows.Forms.Button
-    $btnKeep.Name = 'btnOldKeep'; $btnKeep.Text = (T 'Conserver ces courbes'); $btnKeep.Size = New-Object System.Drawing.Size(200, 34)
-    $btnKeep.Location = New-Object System.Drawing.Point(($btnRedo.Left - 8 - 200), ($h + 40)); $btnKeep.DialogResult = [System.Windows.Forms.DialogResult]::OK
-    Set-Btn $btnRedo '' 'primary'; Set-Btn $btnKeep '' 'normal'
-    $dlg.Controls.AddRange(@($lbl, $btnRedo, $btnKeep)); $dlg.AcceptButton = $btnRedo; $dlg.ActiveControl = $btnRedo   # Entree : bouton conseille
-    $dlg.KeyPreview = $true
-    $dlg.Add_KeyDown({ if ($_.KeyCode -eq [System.Windows.Forms.Keys]::Escape) { $_.Handled = $true; $this.Close() } })   # Echap : decision remise
+    $btnKeep.Name = 'btnOldKeep'; $btnKeep.Text = (T 'Conserver ces courbes'); $btnKeep.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnKeep.Text '' 150), 34)
+    $btnKeep.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    Set-Btn $btnRedo 'Diagnostic' 'primary'; Set-Btn $btnKeep '' 'normal'; Set-Btn $btnCl '' 'normal'
+    $btnCl.Location = New-Object System.Drawing.Point((16 + $W - $btnCl.Width), $y)
+    $btnRedo.Location = New-Object System.Drawing.Point(($btnCl.Left - 8 - $btnRedo.Width), $y)
+    $btnKeep.Location = New-Object System.Drawing.Point(($btnRedo.Left - 8 - $btnKeep.Width), $y)
+    $dlg.ClientSize = New-Object System.Drawing.Size(($W + 32), ($y + 34 + 16))
+    $dlg.Controls.AddRange(@($btnKeep, $btnRedo, $btnCl))
+    $dlg.CancelButton = $btnCl; $dlg.ActiveControl = $btnCl   # Echap, croix et Fermer : decision remise ; Entree : Fermer
+    [void](Set-DlgFit $dlg ([System.Windows.Forms.Screen]::FromControl($form).WorkingArea))
     $dlg.Add_Shown({ $this.Activate(); try { [System.Media.SystemSounds]::Exclamation.Play() } catch { } })
-    try { $dr = $dlg.ShowDialog($form) } finally { $dlg.Dispose() }
+    try { $dr = $dlg.ShowDialog($form) } finally { Clear-DlgGdi $dlg $gdi }
     $list = (@($o.Curves.Keys | ForEach-Object { (T "{0}, calcul {1}") -f (Get-CurveKeyLabel $_), (Get-CurveCalcText $o.Curves[$_] -Plain) })) -join ' ; '
     if ($dr -eq [System.Windows.Forms.DialogResult]::OK) {
         # Conservees pour le calcul actuel : reprises sans question aux demarrages suivants, calcul rappele a l usage
@@ -143,7 +150,7 @@ function Reset-CalibProfiles {
     $curves = @(@($curves) + $pend | Sort-Object -Unique)
     $changed = ($script:PrecompStd -ne $script:PrecompStdDefault) -or ($script:PrecompLong -ne $script:PrecompLongDefault)
     if ($curves.Count -eq 0 -and -not $changed) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Aucune calibration enregistrée : les profils sont déjà ceux d''origine.'),(T 'Effacer les calibrations'),'OK','Information'); return
+        [void](Show-AppMessage (T 'Aucune calibration enregistrée : les profils sont déjà ceux d''origine.') (T 'Effacer les calibrations') 'OK' 'Information'); return
     }
     $list = if ($curves.Count -gt 0) { (@($curves | ForEach-Object { Get-CurveKeyLabel $_ }) -join ', ') } else { (T 'aucune') }
     $msg = (T "Effacer toutes les calibrations de précompensation ?`n`nCourbes : {0}.`nProfils de famille remis aux valeurs d'origine : standard {1}, long track {2}.`n`nOpération irréversible. Le mode Auto applique ensuite ces profils ; une écriture rapide ou lente recalibre automatiquement.") -f "$list", "$($script:PrecompStdDefault)", "$($script:PrecompLongDefault)"

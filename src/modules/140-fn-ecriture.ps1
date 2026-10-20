@@ -56,7 +56,7 @@ function Start-ImageWrite([switch]$NoWarmup) {
     # impose, meme case decochee (drapeau lu une fois)
     $postForce = [bool]$script:LevelPostForce; $script:LevelPostForce = $false
     if (-not (Test-Path -LiteralPath $txtWFile.Text)) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Fichier image introuvable.'),(T 'Erreur'),'OK','Warning'); return
+        [void](Show-AppMessage (T 'Fichier image introuvable.') (T 'Erreur') 'OK' 'Warning'); return
     }
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     # Image flux a plusieurs tours : pistes dont le contenu change d un tour a l autre (bits faibles d une protection),
@@ -109,7 +109,7 @@ function Start-ImageWrite([switch]$NoWarmup) {
     if ($slow) {
         $heads = Get-TSpecHeads $userTs
         if ($heads.Count -eq 0) {
-            [void][System.Windows.Forms.MessageBox]::Show((T 'Écriture lente : le champ Pistes ne sélectionne ni la tête 0 ni la tête 1.'),(T 'Erreur'),'OK','Warning'); return
+            [void](Show-AppMessage (T 'Écriture lente : le champ Pistes ne sélectionne ni la tête 0 ni la tête 1.') (T 'Erreur') 'OK' 'Warning'); return
         }
         if (-not [regex]::IsMatch(":$userTs", ':\s*h\s*=')) {
             # Sans h= explicite : faces de l image. gw part des pistes du format et h=1 ajouterait la tete 1 d un format
@@ -121,7 +121,7 @@ function Start-ImageWrite([switch]$NoWarmup) {
                 $heads = @(@(0, 1) | Where-Object { $present.ContainsKey($_) })
                 if ($heads.Count -eq 1) { Append-Log ((T "Écriture lente : image à une seule face, seule la tête {0} est écrite.") -f "$($heads[0])") }
             } elseif ($chkWEraseEmpty.Checked) {
-                [void][System.Windows.Forms.MessageBox]::Show(((T "Écriture lente : nombre de faces de l'image inconnu ({0}).`nIndiquer les têtes dans le champ Pistes (h=0-1 pour une image double face, h=0 pour une simple face)`nou décocher « Effacer les pistes vides » : la tête 1 d'un format simple face serait effacée.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))"),(T 'Erreur'),'OK','Warning'); return
+                [void](Show-AppMessage ((T "Écriture lente : nombre de faces de l'image inconnu ({0}).`nIndiquer les têtes dans le champ Pistes (h=0-1 pour une image double face, h=0 pour une simple face)`nou décocher « Effacer les pistes vides » : la tête 1 d'un format simple face serait effacée.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))") (T 'Erreur') 'OK' 'Warning'); return
             }
         }
     }
@@ -340,14 +340,14 @@ function Start-PresetWrite([string]$mode, [switch]$NoCalib, [switch]$LevelOnly) 
     # jamais refaite.
     $img = $txtWFile.Text
     if (-not $img -or -not (Test-Path -LiteralPath $img)) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Fichier image introuvable.'),(T 'Erreur'),'OK','Warning'); return
+        [void](Show-AppMessage (T 'Fichier image introuvable.') (T 'Erreur') 'OK' 'Warning'); return
     }
     $ext = [System.IO.Path]::GetExtension($img).ToLower()
     $fmt = $cmbWFmt.Text
     $explicit = ($fmt -and $fmt -ne '(auto)')
     if ((Test-NeedsFormat $img) -and -not $explicit) {
         # Avant toute calibration : gw refuserait l ecriture apres coup (« Sector image requires a disk format »)
-        [void][System.Windows.Forms.MessageBox]::Show(((T "Image secteur sans géométrie ({0}) : gw exige le format.`nChoisir le format dans l'onglet Écriture, puis relancer l'écriture.") -f "$ext"),(T 'Format requis'),'OK','Warning'); return
+        [void](Show-AppMessage ((T "Image secteur sans géométrie ({0}) : gw exige le format.`nChoisir le format dans l'onglet Écriture, puis relancer l'écriture.") -f "$ext") (T 'Format requis') 'OK' 'Warning'); return
     }
     if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) { Start-ImageWrite; return }
     $hd = Get-HighDensityReason $img $fmt

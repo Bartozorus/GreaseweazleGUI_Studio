@@ -125,6 +125,10 @@ $timer.Add_Tick({
         $script:AlignNextAt = $null
         Start-AlignCycle
     }
+    # 12.8 (lot 5, D20) : sans commande gw, barre de boutons dans l etat de Get-AppBusy : entree dans la pause d une mesure
+    # continue (analyse faite apres la fin de gw, mesure suivante attendue) et sortie sans commande gw (Arreter, erreur
+    # d analyse, autre operation)
+    if (-not $script:GwProc -and [bool]$script:QualPauseBar -ne ((Get-AppBusy) -eq 'quality')) { Set-Busy $false }
     # Recherche bibliotheque terminee ?
     if ($script:LibAsync -and $script:LibAsync.IsCompleted) { Complete-LibSearch }
     # Indexation en cours / terminee
@@ -153,7 +157,8 @@ $form.KeyPreview = $true
 $form.Add_KeyDown({ if ($_.KeyCode -eq [System.Windows.Forms.Keys]::F1) { Open-HelpForTab; $_.Handled = $true } })
 $form.Add_FormClosing({
     if ($script:Restore) {
-        $q = [System.Windows.Forms.MessageBox]::Show((T "Une restauration est en cours. Quitter quand même ? La disquette de destination restera incomplète."), (T 'Restauration'), 'YesNo', 'Warning')
+        # 12.8 (lot 5, D3) : question simple, par Show-AppMessage en Oui / Non (texte ecrit au journal)
+        $q = Show-AppMessage (T "Une restauration est en cours. Quitter quand même ? La disquette de destination restera incomplète.") (T 'Restauration') 'YesNo' 'Warning'
         if ($q -ne 'Yes') { $_.Cancel = $true; return }
         if ($script:GwProc -and -not $script:GwProc.HasExited) { try { $script:GwProc.Kill() } catch { } }
         Stop-Restore (T 'fenêtre fermée pendant la restauration')   # rapport ecrit, onglet Ecriture et lecteur remis avant Save-Config

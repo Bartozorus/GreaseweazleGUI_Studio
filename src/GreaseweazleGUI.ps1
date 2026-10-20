@@ -192,11 +192,12 @@ $script:I18n['Temps de contact par pas, en millisecondes.'] = 'Contact time per 
 $script:I18n['NETTOYER'] = 'CLEAN'
 $script:I18n['Nettoyage des têtes'] = 'Head cleaning'
 $script:I18n['Appliquer'] = 'Apply'
-$script:I18n['Seek cylindre :'] = 'Seek cylinder:'
-$script:I18n['Erase tracks :'] = 'Erase tracks:'
-$script:I18n['Clean passes :'] = 'Clean passes:'
-$script:I18n['linger :'] = 'linger:'
-$script:I18n['Pin :'] = 'Pin:'
+$script:I18n['Cylindre (seek) :'] = 'Cylinder (seek):'
+$script:I18n['Positionner'] = 'Seek'
+$script:I18n['Pistes (erase) :'] = 'Tracks (erase):'
+$script:I18n['Passes :'] = 'Passes:'
+$script:I18n['Durée par position (ms) :'] = 'Time per position (ms):'
+$script:I18n['Broche (pin) :'] = 'Pin:'
 $script:I18n['Délais'] = 'Delays'
 $script:I18n['Select Delay (us) :'] = 'Select Delay (us):'
 $script:I18n['Step Delay (us) :'] = 'Step Delay (us):'
@@ -553,7 +554,7 @@ $script:I18n[' ; écriture lente : même profil pour les deux têtes (aucune cal
 $script:I18n["Écriture lente : image à une seule face, seule la tête {0} est écrite."] = "Slow write: single-sided image, only head {0} is written."
 $script:I18n["Écriture lente : nombre de faces de l'image inconnu ({0}).`nIndiquer les têtes dans le champ Pistes (h=0-1 pour une image double face, h=0 pour une simple face)`nou décocher « Effacer les pistes vides » : la tête 1 d'un format simple face serait effacée."] = "Slow write: number of sides of the image unknown ({0}).`nSpecify the heads in the Tracks field (h=0-1 for a double-sided image, h=0 for a single-sided one)`nor uncheck ""Erase empty tracks"": head 1 of a single-sided format would be erased."
 $script:I18n["Calibration : motif de test impossible à créer : {0}"] = "Calibration: unable to create the test pattern: {0}"
-$script:I18n['format à secteurs, 2 µs par cellule'] = 'sector format, 2 µs per cell'
+$script:I18n['format à secteurs, 2 us par cellule'] = 'sector format, 2 us per cell'
 $script:I18n['Effacer les calibrations'] = 'Clear calibrations'
 $script:I18n["Efface toutes les calibrations de précompensation : courbes communes et par tête des familles standard et long track.`nLes profils de famille reprennent leurs valeurs d'origine. Une écriture rapide ou lente recalibre ensuite automatiquement."] = "Clears every precompensation calibration: common and per-head curves of the standard and long-track families.`nThe family profiles return to their original values. A fast or slow write then recalibrates automatically."
 $script:I18n["tête {0}"] = "head {0}"
@@ -581,7 +582,7 @@ $script:I18n["Champ Pistes : éléments de lecteur conservés ({0})."] = "Tracks
 $script:I18n['Secteurs durs ou lecteur 8 pouces (TG43) : pas de calibration automatique, écriture avec le profil courant.'] = 'Hard sectors or 8-inch drive (TG43): no automatic calibration, writing with the current profile.'
 $script:I18n['Calibration non prise en charge avec secteurs durs ou lecteur 8 pouces (TG43) : l''analyse de flux est calibrée pour le MFM double densité.'] = 'Calibration not supported with hard sectors or an 8-inch drive (TG43): the flux analysis is calibrated for double-density MFM.'
 $script:I18n['non relu'] = 'not read back'
-$script:I18n['long track, 1,89 µs par cellule'] = 'long track, 1.89 µs per cell'
+$script:I18n['long track, 1,89 us par cellule'] = 'long track, 1.89 us per cell'
 $script:I18n["Motif de test : HFE de données pseudo-aléatoires généré, {0} cylindres, {1} cellules par piste ({2}), soit {3} ns par cellule à 300 tr/min. L'image ne fixe que la densité et le nombre de cylindres, son contenu n'est pas écrit."] = "Test pattern: pseudo-random HFE generated, {0} cylinders, {1} cells per track ({2}), i.e. {3} ns per cell at 300 rpm. The image only sets the density and the number of cylinders, its content is not written."
 $script:I18n['Calibration : le décalage ne varie pas avec la précompensation écrite, cette face n''a pas été écrite (tête ou circuit d''écriture défaillant ?).'] = 'Calibration: the shift does not vary with the written precompensation, this side was not written (faulty head or write circuit?).'
 $script:I18n[' ; écriture lente : courbes par tête antérieures au profil commun, profil commun pour les deux têtes'] = '; slow write: per-head curves older than the common profile, common profile for both heads'
@@ -831,8 +832,6 @@ $script:I18n["Lecteur {0} détecté."] = 'Drive {0} detected.'
 $script:I18n['Vérifier que la carte répond (gw info), puis détecter les lecteurs branchés (A, B, 0 à 3).'] = 'Check that the board responds (gw info), then detect the connected drives (A, B, 0 to 3).'
 $script:I18n["Écrire l'image"] = 'Write the image'
 $script:I18n["Calibration terminée.`n`nRetirez la disquette sacrifiée du lecteur {0} et insérez la disquette à écrire, puis cliquez sur « Écrire l'image ».`nAnnuler : l'image n'est pas écrite."] = "Calibration complete.`n`nRemove the sacrificial disk from drive {0} and insert the disk to write, then click `"Write the image`".`nCancel: the image is not written."
-$script:I18n["Sans réponse, l'écriture de l'image démarre automatiquement dans {0} s."] = 'Without an answer, the image write starts automatically in {0} s.'
-$script:I18n["Calibration : remise de la disquette validée automatiquement après {0} s sans réponse."] = 'Calibration: disk swap confirmed automatically after {0} s without an answer.'
 $script:I18n['Régler le jitter'] = 'Adjust the jitter'
 $script:I18n["Choisir le jitter maximal d'une piste saine : plus il est strict, plus l'écriture lente réécrit de pistes."] = 'Maximum jitter of a healthy track: the stricter it is, the more tracks the slow write rewrites.'
 $script:I18n['Courbe de calibration'] = 'Calibration curve'
@@ -846,7 +845,6 @@ $script:I18n['Très strict (70 / 140 ns)'] = 'Very strict (70 / 140 ns)'
 $script:I18n['Personnalisé'] = 'Custom'
 $script:I18n['SAIN si le jitter est inférieur à :'] = 'HEALTHY if the jitter is below:'
 $script:I18n["À SURVEILLER s'il est inférieur à :"] = 'TO WATCH if it is below:'
-$script:I18n['Au-delà : CRITIQUE. Les nouvelles valeurs valent pour les prochaines mesures.'] = 'Above: CRITICAL. The new values apply to the next measurements.'
 $script:I18n['Valeurs par défaut'] = 'Default values'
 $script:I18n["Le seuil À SURVEILLER doit dépasser le seuil SAIN d'au moins 10 ns."] = 'The TO WATCH threshold must exceed the HEALTHY threshold by at least 10 ns.'
 $script:I18n["Opération en cours : modifiez le réglage du jitter une fois l'opération terminée."] = 'Operation in progress: change the jitter setting once the operation is finished.'
@@ -1082,7 +1080,6 @@ $script:I18n["Forme comparée à la calibration précédente du lecteur {0} ({1}
 $script:I18n["Nouvelle référence de forme ({0}) : les niveaux mesurés avec la précédente sont abandonnés."] = 'New shape reference ({0}): the levels measured with the previous one are dropped.'
 $script:I18n["Calibration terminée : elle devient la référence de forme du lecteur {0}.`n`nRetirez la disquette sacrifiée et insérez la disquette à écrire, puis cliquez sur « Mesurer le niveau et écrire » : son niveau de précompensation est mesuré sur les cylindres {1} (2 faces, 1 à 3 écritures du motif par piste), puis l'image est écrite.`nAnnuler : l'image n'est pas écrite."] = "Calibration finished: it becomes the shape reference of drive {0}.`n`nRemove the sacrificial disk and insert the disk to be written, then click `"Measure the level and write`": its precompensation level is measured on cylinders {1} (2 sides, 1 to 3 writes of the pattern per track), then the image is written.`nCancel: the image is not written."
 $script:I18n['Mesurer le niveau et écrire'] = 'Measure the level and write'
-$script:I18n["Sans réponse, la mesure du niveau puis l'écriture démarrent automatiquement dans {0} s."] = 'Without an answer, the level measurement then the write start automatically in {0} s.'
 $script:I18n["Calibration rapide impossible : {0}. Écriture avec la nouvelle calibration complète."] = 'Quick calibration impossible: {0}. Writing with the new full calibration.'
 $script:I18n['Restauration : niveau mesuré sur la disquette de destination (test rapide), la calibration du lecteur n''est pas refaite.'] = 'Restore: level measured on the destination disk (quick test), the drive calibration is not redone.'
 $script:I18n["niveau non mesuré : {0}"] = 'level not measured: {0}'
@@ -1165,7 +1162,7 @@ $script:I18n[" Les résidus des cylindres relus à la dernière vérification so
 $script:I18n["Dérive du lecteur non mesurée : {0} témoin(s) exploitable(s) sur {1}, {2} au moins nécessaires ; résidus jugés sans correction de dérive, témoins sur leur mesure précédente."] = 'Drive drift not measured: {0} usable witness(es) out of {1}, at least {2} needed; residuals judged without drift correction, witnesses on their previous measurement.'
 $script:I18n["Dérive du lecteur non mesurée : {0} cylindre(s) non modifié(s) disponible(s) comme témoins, {1} au moins nécessaires ; résidus jugés sans correction de dérive."] = 'Drive drift not measured: {0} unchanged cylinder(s) available as witnesses, at least {1} needed; residuals judged without drift correction.'
 $script:I18n["Référence calculée avec une borne de {0} ns, au-delà de la borne actuelle (precompMaxNs = {1} ns) aux cylindres {2} : valeurs ramenées à {1} ns."] = 'Reference computed with a {0} ns bound, beyond the current bound (precompMaxNs = {1} ns) at cylinders {2}: values brought back to {1} ns.'
-$script:I18n["Borne de précompensation (precompMaxNs) de {0} ns ramenée à {1} ns : elle va de {2} à {3} ns. Au-delà de 470 ns, la précompensation déplacerait une transition d'un quart de cellule en long track (1,89 µs)."] = 'Precompensation bound (precompMaxNs) of {0} ns brought back to {1} ns: it ranges from {2} to {3} ns. Beyond 470 ns, precompensation would move a transition by a quarter of a cell on long tracks (1.89 µs).'
+$script:I18n["Borne de précompensation (precompMaxNs) de {0} ns ramenée à {1} ns : elle va de {2} à {3} ns. Au-delà de 470 ns, la précompensation déplacerait une transition d'un quart de cellule en long track (1,89 us)."] = 'Precompensation bound (precompMaxNs) of {0} ns brought back to {1} ns: it ranges from {2} to {3} ns. Beyond 470 ns, precompensation would move a transition by a quarter of a cell on long tracks (1.89 us).'
 $script:I18n["Borne de précompensation (precompMaxNs) illisible ({0}) : {1} ns par défaut."] = 'Precompensation bound (precompMaxNs) unreadable ({0}): {1} ns by default.'
 $script:I18n["Préchauffage avant la calibration : {2} %, reste environ {3} (lecteur {0}, lecture {1}, sans écriture)"] = 'Warm-up before the calibration: {2} %, about {3} left (drive {0}, read {1}, no writing)'
 $script:I18n["Préchauffage du lecteur {0} sauté : lecteur déjà en activité pendant {1} (dernière commande terminée il y a {2})."] = 'Drive {0} warm-up skipped: drive already active for {1} (last command finished {2} ago).'
@@ -1204,7 +1201,7 @@ $script:I18n["Écriture lente : le lecteur est d'abord préchauffé par des lect
 $script:I18n["format absent de la table de l'application (gw plus récent ou fichier diskdefs) : calibrez depuis l'onglet Écriture, avec l'image et ce format"] = 'format missing from the application table (newer gw or diskdefs file): calibrate from the Write tab, with the image and this format'
 $script:I18n["format de balayage : gw n'écrit pas une image secteur avec ibm.scan, densité inconnue à l'avance"] = 'scan format: gw does not write a sector image with ibm.scan, density unknown in advance'
 $script:I18n['disquette à secteurs durs : calibration non prise en charge'] = 'hard-sectored disk: calibration not supported'
-$script:I18n["Débit de {0} kbit/s (cellule de {1} ns) : l'écriture de ce format applique la courbe {2}, mesurée à 2 µs par cellule (densité plus forte de {3} %)."] = '{0} kbit/s data rate ({1} ns cell): writing this format applies the {2} curve, measured at 2 µs per cell ({3} % higher density).'
+$script:I18n["Débit de {0} kbit/s (cellule de {1} ns) : l'écriture de ce format applique la courbe {2}, mesurée à 2 us par cellule (densité plus forte de {3} %)."] = '{0} kbit/s data rate ({1} ns cell): writing this format applies the {2} curve, measured at 2 us per cell ({3} % higher density).'
 $script:I18n['Piste 0 en FM : non mesurée, la courbe s''y applique telle quelle.'] = 'Track 0 in FM: not measured, the curve is applied to it as is.'
 $script:I18n['Format simple face : la calibration écrit aussi la face 1 (lecteur double face nécessaire).'] = 'Single-sided format: calibration also writes side 1 (double-sided drive required).'
 $script:I18n["{0} cylindres dans la définition de gw."] = '{0} cylinders in the gw definition.'
@@ -1263,7 +1260,6 @@ $script:I18n["Préchauffer le lecteur avant la calibration complète (désactiv�
 $script:I18n["Avant une calibration complète (bouton « Calibrer », carte « Calibrer le lecteur » de l'Accueil, calibration automatique avant une écriture) : lectures sans écriture des cylindres de test avant la première passe, pour stabiliser la température du lecteur ; réduites ou sautées si le lecteur vient de servir. Décochée : la calibration commence tout de suite.`nMême réglage dans l'onglet Écriture et dans la fenêtre de la carte « Calibrer le lecteur ». Durée : champ « Durée du préchauffage » de l'onglet Écriture.`nLa calibration rapide (test rapide) n'a pas de préchauffage propre : avant une écriture lente, elle suit la case « Préchauffer le lecteur avant l'écriture lente »."] = "Before a full calibration (`"Calibrate`" button, `"Calibrate the drive`" card on the Home tab, automatic calibration before a write): reads without writing of the test cylinders before the first pass, to stabilise the drive temperature; shortened or skipped if the drive was just used. Unticked: the calibration starts right away.`nSame setting in the Write tab and in the window of the `"Calibrate the drive`" card. Duration: `"Warm-up duration`" field of the Write tab.`nThe quick calibration (quick test) has no warm-up of its own: before a slow write, it follows the `"Warm up the drive before the slow write`" box."
 $script:I18n['Afficher la courbe'] = 'Show the curve'
 $script:I18n['Fermer'] = 'Close'
-$script:I18n["Calibration depuis l'Accueil non lancée : {0}."] = 'Calibration from the Home tab not started: {0}.'
 $script:I18n["Calibration non lancée : {0}."] = 'Calibration not started: {0}.'
 $script:I18n['Choisir un type de disquette, voir sa courbe et calibrer le lecteur : complète ou rapide.'] = 'Choose a disk type, view its curve and calibrate the drive: full or quick.'
 $script:I18n["Calibration de la précompensation sur le lecteur {0} ({1}).`n`nType de disquette : {2}, famille {3}, {4}.`nMotif de test : données pseudo-aléatoires générées à la densité de ce type.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes."] = "Precompensation calibration on drive {0} ({1}).`n`nDisk type: {2}, family {3}, {4}.`nTest pattern: pseudo-random data generated at the density of this type.`nTest cylinders: {5} (2 sides), OVERWRITTEN at each pass. Estimated duration: {6} min for {7} passes."
@@ -1495,10 +1491,10 @@ $script:I18n['disquette 5,25 pouces haute densité à 360 tr/min : calibration p
 $script:I18n["format haute densité à {0} tr/min : la calibration haute densité suppose un lecteur à 300 tr/min"] = '{0} rpm high-density format: high-density calibration assumes a 300 rpm drive'
 $script:I18n["format à {0} tr/min en double densité : aucune famille de calibration à cette vitesse"] = '{0} rpm double-density format: no calibration family at this speed'
 $script:I18n["cellule de {0} ns, hors des plages mesurables (900 à 1 100 ns en haute densité, 1 700 à 2 300 ns en double densité)"] = '{0} ns cell, outside the measurable ranges (900 to 1,100 ns in high density, 1,700 to 2,300 ns in double density)'
-$script:I18n['format à secteurs haute densité, 1 µs par cellule'] = 'high-density sector format, 1 µs per cell'
-$script:I18n['image de cellules (raw), 1 µs par cellule'] = 'bitcell image (raw), 1 µs per cell'
+$script:I18n['format à secteurs haute densité, 1 us par cellule'] = 'high-density sector format, 1 us per cell'
+$script:I18n['image de cellules (raw), 1 us par cellule'] = 'bitcell image (raw), 1 us per cell'
 $script:I18n['Disquette et lecteur HD nécessaires ; réglages provisoires.'] = 'HD disk and drive required; provisional settings.'
-$script:I18n["Calibration non prise en charge pour cette image haute densité ({0}) : seule la haute densité MFM à 1 µs par cellule et à 300 tr/min se calibre ; la très haute densité (ED), les codages propres et la haute densité à 360 tr/min ne se calibrent pas."] = 'Calibration not supported for this high-density image ({0}): only high-density MFM at 1 µs per cell and 300 rpm can be calibrated; extra-high density (ED), system-specific encodings and high density at 360 rpm cannot.'
+$script:I18n["Calibration non prise en charge pour cette image haute densité ({0}) : seule la haute densité MFM à 1 us par cellule et à 300 tr/min se calibre ; la très haute densité (ED), les codages propres et la haute densité à 360 tr/min ne se calibrent pas."] = 'Calibration not supported for this high-density image ({0}): only high-density MFM at 1 us per cell and 300 rpm can be calibrated; extra-high density (ED), system-specific encodings and high density at 360 rpm cannot.'
 $script:I18n["Calibration non prise en charge : cellule de l'image de {0} ns, hors des plages mesurables (900 à 1 100 ns en haute densité, 1 700 à 2 300 ns en double densité)."] = 'Calibration not supported: image bit cell of {0} ns, outside the measurable ranges (900 to 1,100 ns in high density, 1,700 to 2,300 ns in double density).'
 $script:I18n["Cellule de l'image hors des plages mesurables ({0} ns ; 900 à 1 100 ns en haute densité, 1 700 à 2 300 ns en double densité) : pas de calibration automatique, écriture avec le profil courant."] = 'Image bit cell outside the measurable ranges ({0} ns; 900 to 1,100 ns in high density, 1,700 to 2,300 ns in double density): no automatic calibration, writing with the current profile.'
 $script:I18n["Auto : image haute densité ({0}) -> profil calibré {1} ({2})"] = 'Auto: high-density image ({0}) -> calibrated {1} profile ({2})'
@@ -1891,6 +1887,32 @@ $script:I18n["{0}  (dans l'archive, {1}) : {2}"] = '{0}  (in the archive, {1}): 
 # 12.8 (FIX4B) : corrections apres les revues du lot 4
 $script:I18n["Image altérée dans l'archive : CRC-32 {0} au lieu de {1}. Écriture annulée."] = 'Image altered in the archive: CRC-32 {0} instead of {1}. Writing cancelled.'
 $script:I18n['liste mal formée (ligne trop longue à analyser)'] = 'malformed list (line too long to parse)'
+# 12.8 (lot 5, L5-FENETRES) : fenetres de decision au modele de frmClean (bandeaux, etats, fermeture)
+$script:I18n['Calibration : la disquette insérée reçoit le motif de test'] = 'Calibration: the inserted disk receives the test pattern'
+$script:I18n['Calibration B : insérez une autre disquette sacrifiée'] = 'Calibration B: insert another sacrificial disk'
+$script:I18n['Insérez la disquette à écrire'] = 'Insert the disk to write'
+$script:I18n['Disquette de calibration douteuse'] = 'Doubtful calibration disk'
+$script:I18n['Vitesse du lecteur hors tolérance'] = 'Drive speed out of tolerance'
+$script:I18n['Face {0} : défectueuse (hors classe sur toute la face)'] = 'Side {0}: defective (out-of-class over the whole side)'
+$script:I18n['Face {0} : défectueuse ({1} piste(s) sur {2})'] = 'Side {0}: defective ({1} track(s) out of {2})'
+$script:I18n['Face {0} : défaut ponctuel ({1} piste(s) sur {2})'] = 'Side {0}: isolated defect ({1} track(s) out of {2})'
+$script:I18n['Face {0} : saine'] = 'Side {0}: healthy'
+$script:I18n['Vitesse du lecteur : hors tolérance'] = 'Drive speed: out of tolerance'
+$script:I18n['Vitesse du lecteur : conforme'] = 'Drive speed: as expected'
+$script:I18n['Densité relue : différente du motif'] = 'Density read back: different from the pattern'
+$script:I18n['Densité relue : conforme'] = 'Density read back: as expected'
+$script:I18n['Comparaison des calibrations A et B'] = 'Comparison of calibrations A and B'
+$script:I18n['Calibration B interrompue : décision sur la courbe A'] = 'Calibration B interrupted: decision on curve A'
+$script:I18n['Courbe adaptée à cette disquette'] = 'Curve adapted to this disk'
+$script:I18n["Résultat douteux : décidez avant l'écriture"] = 'Doubtful result: decide before writing'
+$script:I18n['Résultat douteux : décidez de la suite'] = 'Doubtful result: decide what to do next'
+$script:I18n['Fermer la fenêtre ou Échap équivaut à « Arrêter ».'] = 'Closing the window or Esc is the same as "Stop".'
+$script:I18n['Fermer la fenêtre ou Échap conserve le niveau, comme « Conserver le niveau ».'] = 'Closing the window or Esc keeps the level, like "Keep the level".'
+$script:I18n['Fermer la fenêtre ou Échap conserve la courbe, comme « Conserver la courbe ».'] = 'Closing the window or Esc keeps the curve, like "Keep the curve".'
+$script:I18n['Recalibrer ou conserver ces courbes ?'] = 'Recalibrate or keep these curves?'
+$script:I18n['Seuils de jitter des pistes'] = 'Track jitter thresholds'
+$script:I18n['Au-delà : CRITIQUE.'] = 'Above: CRITICAL.'
+$script:I18n['Les nouvelles valeurs valent pour les prochaines mesures.'] = 'The new values apply to the next measurements.'
 function T([string]$s) {
     if ($script:Lang -eq 'fr') { return $s }
     $t = $script:I18n[$s]
@@ -2478,6 +2500,7 @@ $script:ConfirmDlg     = $null   # 12.8 (D3) : bouton principal de la fenetre fr
 $script:Chain = New-Object System.Collections.Generic.Queue[scriptblock]
 $script:AlignLoop   = $false
 $script:AlignNextAt = $null
+$script:QualPauseBar = $false    # 12.8 (lot 5, D20) : barre de boutons dans l etat « pause d une mesure continue » (Set-Busy)
 $script:AlignBest   = @{}
 $script:AlignPrev   = $null
 $script:AlignTmp    = $null
@@ -2753,7 +2776,9 @@ function Set-Btn($btn, [string]$glyph, [string]$style = 'normal', [switch]$IconO
         'danger' {
             $btn.BackColor = $script:Theme.Danger; $btn.ForeColor = [System.Drawing.Color]::White
             $btn.FlatAppearance.BorderSize = 0
-            $btn.FlatAppearance.MouseOverBackColor = [System.Drawing.Color]::FromArgb(216, 80, 72)
+            # 12.8 (FIX5) : survol 204,66,58 (texte blanc a 4,76:1), un peu plus clair que le repos comme le style principal
+            # (12.7 : 216,80,72, 4,07:1, sous 4,5:1)
+            $btn.FlatAppearance.MouseOverBackColor = [System.Drawing.Color]::FromArgb(204, 66, 58)
             $btn.FlatAppearance.MouseDownBackColor = [System.Drawing.Color]::FromArgb(170, 44, 38)
             $btn.Font = $script:BtnFontBold; $icColor = [System.Drawing.Color]::White
         }
@@ -2895,7 +2920,8 @@ function Show-Tab($page) {
 
 function New-BarButton($text, $width) {
     $b = New-Object System.Windows.Forms.Button
-    $b.Text = $text; $b.Size = New-Object System.Drawing.Size($width, 32); $b.Margin = New-Object System.Windows.Forms.Padding(0,0,8,0)
+    # 12.8 (lot 5) : 34 px (deux hauteurs de bouton, 34 et 40 px), dans la barre de 44 px (marges 4 et 2)
+    $b.Text = $text; $b.Size = New-Object System.Drawing.Size($width, 34); $b.Margin = New-Object System.Windows.Forms.Padding(0,0,8,0)
     return $b
 }
 
@@ -3071,6 +3097,165 @@ function Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [strin
         foreach ($o in $gdi) { try { $o.Dispose() } catch { } }
     }
 }
+
+# --- Fenetres de decision (12.8, lot 5) : composants communs au modele de frmClean (A4 § 2.4, R1 a R8) ---------------
+# frmCalibConfirm, frmReinsert et frmCalibRedo (Show-TimedConfirm), frmCalibSurface, frmCalibReview, frmOldCalib, frmJitter.
+# frmConfirm et frmClean gardent leurs propres fonctions (Set-ConfirmGo, Set-CleanGo, Set-CleanDlgFit), au comportement identique.
+function Get-DlgPalette([string]$Level) {
+    # Couleurs d un bandeau selon le niveau (A4 R2), celles de frmConfirm : fond, cadre, encre du titre, encre du texte
+    switch ($Level) {
+        'danger' { return @{ Back = [System.Drawing.Color]::FromArgb(253, 236, 234); Edge = $script:Theme.Danger; Ink = [System.Drawing.Color]::FromArgb(160, 32, 26); Body = [System.Drawing.Color]::FromArgb(110, 24, 20) } }
+        'info'   { return @{ Back = [System.Drawing.Color]::FromArgb(234, 241, 251); Edge = $script:Theme.Accent; Ink = $script:Theme.Accent2; Body = [System.Drawing.Color]::FromArgb(40, 46, 58) } }
+        default  { return @{ Back = [System.Drawing.Color]::FromArgb(253, 243, 228); Edge = $script:Theme.Warn; Ink = [System.Drawing.Color]::FromArgb(138, 74, 0); Body = [System.Drawing.Color]::FromArgb(88, 52, 8) } }
+    }
+}
+
+function Draw-DlgBadge($g, [string]$kind, [single]$x, [single]$y, [single]$s) {
+    # Icone d etat du lot 3 (D15 : h0 ✓, h1 !, h2 ✗ ; Draw-QualityState) de $s pixels en ($x, $y), avec son liseré blanc
+    $st = $g.Save()
+    $g.TranslateTransform($x, $y); $g.ScaleTransform([single]($s / 64.0), [single]($s / 64.0))
+    Draw-QualityState $g $kind ([single]6)
+    $g.Restore($st)
+}
+
+function New-DlgPicto([string]$kind, [string]$badge = '') {
+    # Pictogramme 120 x 84 d un bandeau de fenetre de decision (affiche en 100 x 70), en GDI+ comme ceux de frmConfirm et du
+    # nettoyage : disk (disquette de donnees du logo), drive (disquette inseree dans le lecteur), avec l icone d etat $badge
+    # (h0, h1, h2) ; curve (courbes de precompensation A et B) ; jitter (disquette et les trois etats SAIN, A SURVEILLER,
+    # CRITIQUE) ; tout autre nom : New-ConfirmPicto (warn, data, erase, vignettes du nettoyage). Libere par l appelant
+    if (@('disk', 'drive', 'curve', 'jitter') -notcontains $kind) { return (New-ConfirmPicto $kind) }
+    $bmp = New-Object System.Drawing.Bitmap(120, 84, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    try {
+        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+        switch ($kind) {
+            'disk' {
+                Draw-PictoFloppy $g 18 4 72 $false
+                if ($badge) { Draw-DlgBadge $g $badge 74 40 40 }
+            }
+            'drive' {
+                Draw-PictoFloppy $g 38 0 44 $false $true
+                Draw-PictoDrive $g $true
+                if ($badge) { Draw-DlgBadge $g $badge 82 2 34 }
+            }
+            'curve' {
+                $rr = New-RoundRect 6 4 108 76 6
+                $b = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White); $g.FillPath($b, $rr); $b.Dispose()
+                $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(205, 212, 224), [single]1.5); $g.DrawPath($pen, $rr); $pen.Dispose(); $rr.Dispose()
+                $pen = New-Object System.Drawing.Pen($script:Theme.Muted, [single]2)
+                $g.DrawLines($pen, [System.Drawing.PointF[]]@((New-Object System.Drawing.PointF(20, 14)), (New-Object System.Drawing.PointF(20, 68)), (New-Object System.Drawing.PointF(104, 68)))); $pen.Dispose()
+                $pa = @((New-Object System.Drawing.PointF(24, 62)), (New-Object System.Drawing.PointF(38, 55)), (New-Object System.Drawing.PointF(52, 50)), (New-Object System.Drawing.PointF(66, 41)), (New-Object System.Drawing.PointF(80, 36)), (New-Object System.Drawing.PointF(100, 24)))
+                $pb = @((New-Object System.Drawing.PointF(24, 58)), (New-Object System.Drawing.PointF(38, 53)), (New-Object System.Drawing.PointF(52, 42)), (New-Object System.Drawing.PointF(66, 38)), (New-Object System.Drawing.PointF(80, 29)), (New-Object System.Drawing.PointF(100, 18)))
+                $pen = New-Object System.Drawing.Pen($script:Theme.Accent, [single]3); $pen.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
+                $g.DrawLines($pen, [System.Drawing.PointF[]]$pa); $pen.Dispose()
+                $pen = New-Object System.Drawing.Pen($script:Theme.Flux, [single]3); $pen.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
+                $pen.DashStyle = [System.Drawing.Drawing2D.DashStyle]::Dash
+                $g.DrawLines($pen, [System.Drawing.PointF[]]$pb); $pen.Dispose()
+            }
+            'jitter' {
+                Draw-PictoFloppy $g 4 10 64 $false
+                Draw-DlgBadge $g 'h0' 82 3 24; Draw-DlgBadge $g 'h1' 82 30 24; Draw-DlgBadge $g 'h2' 82 57 24
+            }
+        }
+    } finally { $g.Dispose() }
+    return $bmp
+}
+
+function New-DlgBanner($dlg, [int]$Y, [int]$W, [string]$Heading, [string]$Text, [string]$Level, $Image, $Gdi, [string]$TextName = '') {
+    # Bandeau d une fenetre de decision (A4 R2), au modele de frmConfirm : rectangle en (16, $Y), de largeur $W, fond et
+    # cadre de la couleur du niveau (Get-DlgPalette : danger, warn, info), pictogramme GDI+ $Image (New-DlgPicto) en 100 x 70,
+    # titre $Heading en Semibold 11, texte $Text ; hauteurs mesurees dans la langue de l interface. Fond, cadre, pictogramme
+    # et titre sont dessines par la fenetre elle-meme (Draw-DlgBanner, donnees dans $dlg.Tag.Banner) ; le texte est le seul
+    # controle du bandeau : un Label de PREMIER NIVEAU de $dlg (Name $TextName), du fond du bandeau. Les fins de test lisent
+    # les Label de premier niveau des fenetres de calibration (.Controls, non recursif) et y comptent les PictureBox
+    # (« courbe affichee ») : ni titre ni pictogramme n y entrent, et aucun controle ne se superpose a un autre (DrawToBitmap,
+    # captures du wiki, dessine les controles superposes dans l ordre inverse). Image et police rangees dans $Gdi (liberees
+    # avec la fenetre, Clear-DlgGdi). Renvoie @{ Bottom ; Text }.
+    $pal = Get-DlgPalette $Level
+    $tw = $W - 128
+    $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
+    if ($Image) { $Gdi.Add($Image) }
+    $fH = New-Object System.Drawing.Font('Segoe UI Semibold', 11); $Gdi.Add($fH)
+    $hH = if ($Heading) { [System.Windows.Forms.TextRenderer]::MeasureText($Heading, $fH, (New-Object System.Drawing.Size($tw, 10000)), $tf).Height + 2 } else { 0 }
+    $lbl = New-Object System.Windows.Forms.Label
+    if ($TextName) { $lbl.Name = $TextName }
+    $lbl.AutoSize = $false; $lbl.UseMnemonic = $false; $lbl.Text = $Text; $lbl.ForeColor = $pal.Body; $lbl.BackColor = $pal.Back; $lbl.Font = $dlg.Font
+    # Hauteur : la plus grande de la mesure du texte et de celle du Label (son propre decoupage des lignes, qui peut en
+    # compter une de plus sur un texte long)
+    $hT = [math]::Max([System.Windows.Forms.TextRenderer]::MeasureText($Text, $dlg.Font, (New-Object System.Drawing.Size($tw, 10000)), $tf).Height, $lbl.GetPreferredSize((New-Object System.Drawing.Size($tw, 0))).Height)
+    $lbl.Location = New-Object System.Drawing.Point((16 + 118), ($Y + 10 + $hH + $(if ($hH) { 4 } else { 0 }))); $lbl.Size = New-Object System.Drawing.Size($tw, ($hT + 4))
+    $rect = New-Object System.Drawing.Rectangle(16, $Y, $W, [math]::Max(90, $lbl.Bottom - $Y + 10))
+    $dlg.Tag = @{ Banner = @{ Rect = $rect; Back = $pal.Back; Edge = $pal.Edge; Ink = $pal.Ink; Image = $Image; Heading = $Heading; Font = $fH; HeadH = $hH; TW = $tw } }
+    $dlg.Add_Paint({ Draw-DlgBanner $this $_.Graphics })
+    $dlg.Controls.Add($lbl)
+    return @{ Bottom = $rect.Bottom; Text = $lbl }
+}
+
+function Draw-DlgBanner($dlg, $g) {
+    # Dessin du bandeau de New-DlgBanner (Paint de la fenetre), decale du defilement (Set-DlgFit) : fond, cadre de 2 px,
+    # pictogramme et titre
+    $b = if ($dlg.Tag -is [hashtable]) { $dlg.Tag.Banner } else { $null }
+    if (-not $b) { return }
+    $o = $dlg.AutoScrollPosition
+    $r = $b.Rect; $x = $r.X + $o.X; $y = $r.Y + $o.Y
+    $br = New-Object System.Drawing.SolidBrush($b.Back); $g.FillRectangle($br, $x, $y, $r.Width, $r.Height); $br.Dispose()
+    $pen = New-Object System.Drawing.Pen($b.Edge, [single]2); $g.DrawRectangle($pen, ($x + 1), ($y + 1), ($r.Width - 2), ($r.Height - 2)); $pen.Dispose()
+    if ($b.Image) {
+        $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+        $g.DrawImage($b.Image, (New-Object System.Drawing.Rectangle(($x + 8), ($y + 10), 100, 70)))
+    }
+    if ($b.Heading) {
+        $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
+        [System.Windows.Forms.TextRenderer]::DrawText($g, [string]$b.Heading, $b.Font, (New-Object System.Drawing.Rectangle(($x + 118), ($y + 10), $b.TW, $b.HeadH)), $b.Ink, $tf)
+    }
+}
+
+function Get-DlgButtonWidth([string]$text, [string]$glyph = '', [int]$min = 110) {
+    # Largeur d un bouton de fenetre de decision (A4 R1, R6) : texte mesure en gras (style principal ou danger), glyphe compris
+    return [int][math]::Max($min, [System.Windows.Forms.TextRenderer]::MeasureText($text, $script:BtnFontBold).Width + $(if ($glyph) { 56 } else { 32 }))
+}
+
+function Set-BtnFitWidth($btn, [switch]$KeepRight) {
+    # 12.8 (FIX5) : bouton d onglet elargi a sa taille preferee (texte, icone et marges de Set-Btn, a appeler apres lui),
+    # jamais retreci : texte entier dans les deux langues. $KeepRight : bord droit garde (bouton ancre a droite)
+    $w = $btn.GetPreferredSize([System.Drawing.Size]::Empty).Width
+    if ($w -le $btn.Width) { return }
+    if ($KeepRight) { $btn.Left -= ($w - $btn.Width) }
+    $btn.Width = $w
+}
+
+function Set-PrimaryEnabled($btn, [bool]$on, [string]$glyph = '') {
+    # Bouton principal d une fenetre de decision (A4 R5, R6) : bleu et actif seulement quand son action est permise (case de
+    # confirmation cochee), sinon style normal grise (generalisation de Set-ConfirmGo et Set-CleanGo, sans couleur codee en
+    # dur). Style et icone refaits seulement quand ils changent (style courant dans Tag), ancienne icone liberee
+    if (-not $btn) { return }
+    $btn.Enabled = $on
+    $st = if ($on) { 'primary' } else { 'normal' }
+    if ([string]$btn.Tag -ne $st) { $btn.Tag = $st; $old = $btn.Image; Set-Btn $btn $glyph $st; if ($old) { $old.Dispose() } }
+}
+
+function Set-DlgFit($dlg, [System.Drawing.Rectangle]$wa) {
+    # Fenetre de decision plus haute que la zone de travail $wa (A4 R1, generalisation de Set-CleanDlgFit) : hauteur ramenee a
+    # celle de l ecran avec un defilement vertical, largeur augmentee de la barre de defilement. $true si ajustee
+    if ($dlg.Height -le $wa.Height) { return $false }
+    $dlg.AutoScroll = $true
+    $dlg.Size = New-Object System.Drawing.Size(($dlg.Width + [System.Windows.Forms.SystemInformation]::VerticalScrollBarWidth), $wa.Height)
+    return $true
+}
+
+function Clear-DlgGdi($dlg, $gdi) {
+    # Fermeture d une fenetre de decision (A4 R3) : icones des boutons (Set-Btn) retirees, fenetre liberee, puis images et
+    # polices de $gdi. Les icones d etat de qualite (Get-QualityIcon) restent a leur cache : jamais dans $gdi
+    $todo = New-Object System.Collections.Generic.Stack[object]
+    $todo.Push($dlg)
+    while ($todo.Count -gt 0) {
+        $c = $todo.Pop()
+        foreach ($k in @($c.Controls)) { $todo.Push($k) }
+        if ($c -is [System.Windows.Forms.Button] -and $c.Image) { $i = $c.Image; $c.Image = $null; $gdi.Add($i) }
+    }
+    $dlg.Dispose()
+    foreach ($o in $gdi) { try { $o.Dispose() } catch { } }
+}
 # ============================== FONCTIONS : COEUR, GW ET DETECTION DES LECTEURS ===
 
 # ============================== COMPARAISON : LOGIQUE ==========================
@@ -3102,10 +3287,16 @@ function Get-CommonArgs {
 }
 
 function Set-Busy([bool]$busy) {
+    # 12.8 (lot 5, D20) : barre alignee sur Get-AppBusy. Pause d une mesure continue de l onglet Qualite (Get-AppBusy
+    # 'quality', aucune commande gw) : « Arreter » actif (il arrete la mesure continue) et « Reinitialiser » inactif,
+    # comme pendant la mesure ; onglets actifs, comme en 12.7. Entree dans la pause et sortie sans commande gw : le
+    # minuteur principal rappelle Set-Busy quand Get-AppBusy ne correspond plus a $script:QualPauseBar
+    $loop = (-not $busy) -and (Get-AppBusy) -eq 'quality'
+    $script:QualPauseBar = $loop
     $tabs.Enabled = -not $busy
-    $btnStop.Enabled = $busy
+    $btnStop.Enabled = $busy -or $loop
     $btnCfgSave.Enabled = -not $busy -and -not $script:Restore
-    $btnCfgReset.Enabled = -not $busy -and -not $script:Restore
+    $btnCfgReset.Enabled = -not $busy -and -not $script:Restore -and -not $loop
 }
 
 function Get-AppBusy([switch]$Text) {
@@ -3347,7 +3538,7 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
     $exe = $script:GwExe
     if (-not (Test-Path -LiteralPath $exe)) {
         Reset-GwSequence
-        [void][System.Windows.Forms.MessageBox]::Show(((T "gw.exe introuvable : {0}`n`nPlacez ce script dans le même répertoire que gw.exe.") -f "$exe"),(T 'Erreur'),'OK','Error'); return
+        [void](Show-AppMessage ((T "gw.exe introuvable : {0}`n`nPlacez ce script dans le même répertoire que gw.exe.") -f "$exe") (T 'Erreur') 'OK' 'Error'); return
     }
     if ($script:GwProc -and -not $script:GwProc.HasExited) {
         Append-Log ((T "gw déjà en cours : commande ignorée ({0}).") -f "$($gwArgs -join ' ')")
@@ -4062,7 +4253,7 @@ function Load-Config {
         } else { Append-Log ((T "Borne de précompensation (precompMaxNs) illisible ({0}) : {1} ns par défaut.") -f "$hraw", "$($script:CalHardNsDefault)") }
     }
     $script:CalHardNs = [int][math]::Max($script:CalHardMinNs, [math]::Min($script:CalHardMaxNs, $hn))
-    if ($script:CalHardNs -ne $hn) { Append-Log ((T "Borne de précompensation (precompMaxNs) de {0} ns ramenée à {1} ns : elle va de {2} à {3} ns. Au-delà de 470 ns, la précompensation déplacerait une transition d'un quart de cellule en long track (1,89 µs).") -f "$hraw", "$($script:CalHardNs)", "$($script:CalHardMinNs)", "$($script:CalHardMaxNs)") }
+    if ($script:CalHardNs -ne $hn) { Append-Log ((T "Borne de précompensation (precompMaxNs) de {0} ns ramenée à {1} ns : elle va de {2} à {3} ns. Au-delà de 470 ns, la précompensation déplacerait une transition d'un quart de cellule en long track (1,89 us).") -f "$hraw", "$($script:CalHardNs)", "$($script:CalHardMinNs)", "$($script:CalHardMaxNs)") }
     elseif ($script:CalHardNs -ne $script:CalHardNsDefault) { Append-Log ((T "Borne de précompensation réglée dans la configuration (precompMaxNs) : {0} ns, au lieu de {1} ns par défaut.") -f "$($script:CalHardNs)", "$($script:CalHardNsDefault)") }
     $script:CalHardNsUser = $script:CalHardNs; Set-CalibScale ''   # 12.7 : borne configuree, bareme double densite
     # 12.8 (point 7) : reglages de la table, sauf ceux de l ecriture lente lus plus bas, a la place qu ils avaient en 12.7
@@ -6809,7 +7000,7 @@ function Start-ImageWrite([switch]$NoWarmup) {
     # impose, meme case decochee (drapeau lu une fois)
     $postForce = [bool]$script:LevelPostForce; $script:LevelPostForce = $false
     if (-not (Test-Path -LiteralPath $txtWFile.Text)) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Fichier image introuvable.'),(T 'Erreur'),'OK','Warning'); return
+        [void](Show-AppMessage (T 'Fichier image introuvable.') (T 'Erreur') 'OK' 'Warning'); return
     }
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     # Image flux a plusieurs tours : pistes dont le contenu change d un tour a l autre (bits faibles d une protection),
@@ -6862,7 +7053,7 @@ function Start-ImageWrite([switch]$NoWarmup) {
     if ($slow) {
         $heads = Get-TSpecHeads $userTs
         if ($heads.Count -eq 0) {
-            [void][System.Windows.Forms.MessageBox]::Show((T 'Écriture lente : le champ Pistes ne sélectionne ni la tête 0 ni la tête 1.'),(T 'Erreur'),'OK','Warning'); return
+            [void](Show-AppMessage (T 'Écriture lente : le champ Pistes ne sélectionne ni la tête 0 ni la tête 1.') (T 'Erreur') 'OK' 'Warning'); return
         }
         if (-not [regex]::IsMatch(":$userTs", ':\s*h\s*=')) {
             # Sans h= explicite : faces de l image. gw part des pistes du format et h=1 ajouterait la tete 1 d un format
@@ -6874,7 +7065,7 @@ function Start-ImageWrite([switch]$NoWarmup) {
                 $heads = @(@(0, 1) | Where-Object { $present.ContainsKey($_) })
                 if ($heads.Count -eq 1) { Append-Log ((T "Écriture lente : image à une seule face, seule la tête {0} est écrite.") -f "$($heads[0])") }
             } elseif ($chkWEraseEmpty.Checked) {
-                [void][System.Windows.Forms.MessageBox]::Show(((T "Écriture lente : nombre de faces de l'image inconnu ({0}).`nIndiquer les têtes dans le champ Pistes (h=0-1 pour une image double face, h=0 pour une simple face)`nou décocher « Effacer les pistes vides » : la tête 1 d'un format simple face serait effacée.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))"),(T 'Erreur'),'OK','Warning'); return
+                [void](Show-AppMessage ((T "Écriture lente : nombre de faces de l'image inconnu ({0}).`nIndiquer les têtes dans le champ Pistes (h=0-1 pour une image double face, h=0 pour une simple face)`nou décocher « Effacer les pistes vides » : la tête 1 d'un format simple face serait effacée.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))") (T 'Erreur') 'OK' 'Warning'); return
             }
         }
     }
@@ -7093,14 +7284,14 @@ function Start-PresetWrite([string]$mode, [switch]$NoCalib, [switch]$LevelOnly) 
     # jamais refaite.
     $img = $txtWFile.Text
     if (-not $img -or -not (Test-Path -LiteralPath $img)) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Fichier image introuvable.'),(T 'Erreur'),'OK','Warning'); return
+        [void](Show-AppMessage (T 'Fichier image introuvable.') (T 'Erreur') 'OK' 'Warning'); return
     }
     $ext = [System.IO.Path]::GetExtension($img).ToLower()
     $fmt = $cmbWFmt.Text
     $explicit = ($fmt -and $fmt -ne '(auto)')
     if ((Test-NeedsFormat $img) -and -not $explicit) {
         # Avant toute calibration : gw refuserait l ecriture apres coup (« Sector image requires a disk format »)
-        [void][System.Windows.Forms.MessageBox]::Show(((T "Image secteur sans géométrie ({0}) : gw exige le format.`nChoisir le format dans l'onglet Écriture, puis relancer l'écriture.") -f "$ext"),(T 'Format requis'),'OK','Warning'); return
+        [void](Show-AppMessage ((T "Image secteur sans géométrie ({0}) : gw exige le format.`nChoisir le format dans l'onglet Écriture, puis relancer l'écriture.") -f "$ext") (T 'Format requis') 'OK' 'Warning'); return
     }
     if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) { Start-ImageWrite; return }
     $hd = Get-HighDensityReason $img $fmt
@@ -9142,54 +9333,77 @@ function Show-JitterSettings {
     if (Get-AppBusy) {
         [void](Show-AppMessage (T "Opération en cours : modifiez le réglage du jitter une fois l'opération terminée.") (T 'Réglage du jitter') 'OK' 'Information'); return
     }
-    $w = 540
+    # 12.8 (lot 5, A4 R1 a R8, D15, D17) : bandeau d information, legende des etats avec les icones du lot 3 (✓ SAIN,
+    # ! A SURVEILLER, ✗ CRITIQUE) dans l encre de leur niveau (Get-QualInk), options en rangees de 34 px, erreur de saisie
+    # dans le texte d etat lblJitState (R7) au lieu d une boite, aucun AcceptButton, images liberees (Clear-DlgGdi)
+    $W = 600
     $presets = Get-JitterPresets
+    $gdi = New-Object System.Collections.Generic.List[object]
     $dlg = New-Object System.Windows.Forms.Form
     $dlg.Name = 'frmJitter'; $dlg.Text = (T 'Réglage du jitter')
     $dlg.FormBorderStyle = 'FixedDialog'; $dlg.MaximizeBox = $false; $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false
     $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font; $dlg.BackColor = [System.Drawing.Color]::White
     $text = (T "Le jitter mesure la dispersion des intervalles entre les transitions magnétiques d'une piste, en nanosecondes : plus il est faible, plus la piste est nette.`n`nCes seuils fixent l'état de chaque piste dans l'onglet « Qualité & alignement », dans le contrôle après écriture et dans la restauration. Une piste n'est SAINE que si son jitter est sous le premier seuil, et si ses erreurs, ses trous et sa stabilité sont bons. Au-delà du second seuil, elle est CRITIQUE.`n`nAprès une écriture avec contrôle de toutes les pistes (écriture lente, restauration), une piste qui n'est pas SAINE est réécrite, dans la limite des passes de réécriture : un réglage plus strict fait réécrire davantage de pistes, donc davantage d'écritures sur la disquette. Le jugement de la disquette d'origine en restauration et le garde-fou (plus de la moitié des pistes faibles : aucune réécriture) gardent les seuils Standard.")
-    $lbl = New-Object System.Windows.Forms.Label
-    $lbl.AutoSize = $false; $lbl.UseMnemonic = $false; $lbl.Text = $text; $lbl.Location = New-Object System.Drawing.Point(16, 16)
+    $ban = New-DlgBanner $dlg 16 $W (T 'Seuils de jitter des pistes') $text 'info' (New-DlgPicto 'jitter') $gdi 'lblJitText'
     $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
-    $h = [System.Windows.Forms.TextRenderer]::MeasureText($text, $dlg.Font, (New-Object System.Drawing.Size($w, 10000)), $tf).Height
-    $lbl.Size = New-Object System.Drawing.Size($w, ($h + 4))
-    $y = $lbl.Bottom + 14
-    $l1 = New-Object System.Windows.Forms.Label; $l1.Text = (T 'Préréglage :'); $l1.AutoSize = $true; $l1.Location = New-Object System.Drawing.Point(16, ($y + 3))
+    $y = $ban.Bottom + 14
+    # Libelles en x = 16 (legende : icone en x = 16, texte en x = 38), controles alignes apres le plus long libelle
+    $l1 = New-Object System.Windows.Forms.Label; $l1.Text = (T 'Préréglage :'); $l1.AutoSize = $true; $l1.Font = $dlg.Font
+    $l2 = New-Object System.Windows.Forms.Label; $l2.Text = (T 'SAIN si le jitter est inférieur à :'); $l2.AutoSize = $true; $l2.Font = $dlg.Font; $l2.ForeColor = Get-QualInk 0
+    $l3 = New-Object System.Windows.Forms.Label; $l3.Text = (T "À SURVEILLER s'il est inférieur à :"); $l3.AutoSize = $true; $l3.Font = $dlg.Font; $l3.ForeColor = Get-QualInk 2
+    $cx = [math]::Max(16 + $l1.PreferredWidth, 38 + [math]::Max($l2.PreferredWidth, $l3.PreferredWidth)) + 12
+    $l1.Location = New-Object System.Drawing.Point(16, ($y + 3))
     $cmb = New-Object System.Windows.Forms.ComboBox
-    $cmb.Name = 'cmbJitPreset'; $cmb.DropDownStyle = 'DropDownList'; $cmb.Location = New-Object System.Drawing.Point(290, $y); $cmb.Width = 240
+    $cmb.Name = 'cmbJitPreset'; $cmb.DropDownStyle = 'DropDownList'; $cmb.Location = New-Object System.Drawing.Point($cx, $y); $cmb.Width = 240
     foreach ($pr in $presets) { [void]$cmb.Items.Add($pr.Name) }
     [void]$cmb.Items.Add((T 'Personnalisé'))
-    $y += 36
-    $l2 = New-Object System.Windows.Forms.Label; $l2.Text = (T 'SAIN si le jitter est inférieur à :'); $l2.AutoSize = $true; $l2.Location = New-Object System.Drawing.Point(16, ($y + 3))
+    $y += 34
+    $i2 = New-Object System.Windows.Forms.PictureBox; $i2.Image = Get-QualityIcon 'h0' 16; $i2.Location = New-Object System.Drawing.Point(16, ($y + 4)); $i2.Size = New-Object System.Drawing.Size(16, 16)
+    $l2.Location = New-Object System.Drawing.Point(38, ($y + 3))
     $numOk = New-Object System.Windows.Forms.NumericUpDown
-    $numOk.Name = 'numJitOk'; $numOk.Minimum = 30; $numOk.Maximum = 300; $numOk.Increment = 5; $numOk.Width = 80; $numOk.Location = New-Object System.Drawing.Point(290, $y)
-    $u1 = New-Object System.Windows.Forms.Label; $u1.Text = 'ns'; $u1.AutoSize = $true; $u1.Location = New-Object System.Drawing.Point(376, ($y + 3))
+    $numOk.Name = 'numJitOk'; $numOk.Minimum = 30; $numOk.Maximum = 300; $numOk.Increment = 5; $numOk.Width = 80; $numOk.Location = New-Object System.Drawing.Point($cx, $y)
+    $u1 = New-Object System.Windows.Forms.Label; $u1.Text = 'ns'; $u1.AutoSize = $true; $u1.Location = New-Object System.Drawing.Point(($cx + 86), ($y + 3))
     $y += 34
-    $l3 = New-Object System.Windows.Forms.Label; $l3.Text = (T "À SURVEILLER s'il est inférieur à :"); $l3.AutoSize = $true; $l3.Location = New-Object System.Drawing.Point(16, ($y + 3))
+    $i3 = New-Object System.Windows.Forms.PictureBox; $i3.Image = Get-QualityIcon 'h1' 16; $i3.Location = New-Object System.Drawing.Point(16, ($y + 4)); $i3.Size = New-Object System.Drawing.Size(16, 16)
+    $l3.Location = New-Object System.Drawing.Point(38, ($y + 3))
     $numWatch = New-Object System.Windows.Forms.NumericUpDown
-    $numWatch.Name = 'numJitWatch'; $numWatch.Minimum = 40; $numWatch.Maximum = 600; $numWatch.Increment = 10; $numWatch.Width = 80; $numWatch.Location = New-Object System.Drawing.Point(290, $y)
-    $u2 = New-Object System.Windows.Forms.Label; $u2.Text = 'ns'; $u2.AutoSize = $true; $u2.Location = New-Object System.Drawing.Point(376, ($y + 3))
+    $numWatch.Name = 'numJitWatch'; $numWatch.Minimum = 40; $numWatch.Maximum = 600; $numWatch.Increment = 10; $numWatch.Width = 80; $numWatch.Location = New-Object System.Drawing.Point($cx, $y)
+    $u2 = New-Object System.Windows.Forms.Label; $u2.Text = 'ns'; $u2.AutoSize = $true; $u2.Location = New-Object System.Drawing.Point(($cx + 86), ($y + 3))
     $y += 34
-    $l4 = New-Object System.Windows.Forms.Label; $l4.Text = (T 'Au-delà : CRITIQUE. Les nouvelles valeurs valent pour les prochaines mesures.'); $l4.AutoSize = $true; $l4.ForeColor = $script:Theme.Muted; $l4.Location = New-Object System.Drawing.Point(16, $y)
-    $y += 34
-    $btnDef = New-Object System.Windows.Forms.Button; $btnDef.Name = 'btnJitDefault'; $btnDef.Text = (T 'Valeurs par défaut'); $btnDef.Size = New-Object System.Drawing.Size(170, 34)
-    $btnOk = New-Object System.Windows.Forms.Button; $btnOk.Name = 'btnJitOk'; $btnOk.Text = (T 'Enregistrer'); $btnOk.Size = New-Object System.Drawing.Size(140, 34)
+    $i4 = New-Object System.Windows.Forms.PictureBox; $i4.Image = Get-QualityIcon 'h2' 16; $i4.Location = New-Object System.Drawing.Point(16, ($y + 1)); $i4.Size = New-Object System.Drawing.Size(16, 16)
+    $l4 = New-Object System.Windows.Forms.Label; $l4.Text = (T 'Au-delà : CRITIQUE.'); $l4.AutoSize = $true; $l4.ForeColor = Get-QualInk 3; $l4.Location = New-Object System.Drawing.Point(38, $y)
+    $y += 26
+    $l5 = New-Object System.Windows.Forms.Label; $l5.Text = (T 'Les nouvelles valeurs valent pour les prochaines mesures.'); $l5.AutoSize = $true; $l5.ForeColor = $script:Theme.Muted; $l5.Location = New-Object System.Drawing.Point(16, $y)
+    $y += 26
+    # Texte d etat (R7) : erreur de saisie, en Semibold et dans l encre du danger ; hauteur de son texte, mesuree
+    $fS = New-Object System.Drawing.Font('Segoe UI Semibold', 9.75); $gdi.Add($fS)
+    $errTxt = (T "Le seuil À SURVEILLER doit dépasser le seuil SAIN d'au moins 10 ns.")
+    $lblSt = New-Object System.Windows.Forms.Label
+    $lblSt.Name = 'lblJitState'; $lblSt.AutoSize = $false; $lblSt.UseMnemonic = $false; $lblSt.Font = $fS; $lblSt.ForeColor = Get-QualInk 3
+    $lblSt.Location = New-Object System.Drawing.Point(16, $y)
+    $lblSt.Size = New-Object System.Drawing.Size($W, ([System.Windows.Forms.TextRenderer]::MeasureText($errTxt, $fS, (New-Object System.Drawing.Size($W, 10000)), $tf).Height + 2))
+    $y = $lblSt.Bottom + 8
+    $btnDef = New-Object System.Windows.Forms.Button; $btnDef.Name = 'btnJitDefault'; $btnDef.Text = (T 'Valeurs par défaut'); $btnDef.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnDef.Text 'Refresh' 150), 34)
+    $btnOk = New-Object System.Windows.Forms.Button; $btnOk.Name = 'btnJitOk'; $btnOk.Text = (T 'Enregistrer'); $btnOk.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnOk.Text 'Save' 140), 34)
     $btnNo = New-Object System.Windows.Forms.Button; $btnNo.Name = 'btnJitCancel'; $btnNo.Text = (T 'Annuler'); $btnNo.Size = New-Object System.Drawing.Size(110, 34)
     $btnNo.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     Set-Btn $btnDef 'Refresh' 'normal'; Set-Btn $btnOk 'Save' 'primary'; Set-Btn $btnNo '' 'normal'
     $btnDef.Location = New-Object System.Drawing.Point(16, $y)
-    $btnNo.Location = New-Object System.Drawing.Point((16 + $w - $btnNo.Width), $y)
+    $btnNo.Location = New-Object System.Drawing.Point((16 + $W - $btnNo.Width), $y)
     $btnOk.Location = New-Object System.Drawing.Point(($btnNo.Left - 8 - $btnOk.Width), $y)
-    $dlg.ClientSize = New-Object System.Drawing.Size(($w + 32), ($y + $btnOk.Height + 16))
-    $dlg.AcceptButton = $btnOk; $dlg.CancelButton = $btnNo
-    $dlg.Controls.AddRange(@($lbl, $l1, $cmb, $l2, $numOk, $u1, $l3, $numWatch, $u2, $l4, $btnDef, $btnOk, $btnNo))
-    # Etat partage avec les gestionnaires (portee script) : prereglage <-> valeurs, sans boucle
-    $script:JitDlg = @{ Presets = $presets; Cmb = $cmb; Ok = $numOk; Watch = $numWatch; Busy = $false; Dlg = $dlg }
+    $dlg.ClientSize = New-Object System.Drawing.Size(($W + 32), ($y + $btnOk.Height + 16))
+    $dlg.CancelButton = $btnNo                        # pas d AcceptButton : Entree n enregistre pas
+    $dlg.Controls.AddRange(@($l1, $cmb, $i2, $l2, $numOk, $u1, $i3, $l3, $numWatch, $u2, $i4, $l4, $l5, $lblSt, $btnDef, $btnOk, $btnNo))
+    $dlg.ActiveControl = $cmb
+    [void](Set-DlgFit $dlg ([System.Windows.Forms.Screen]::FromControl($form).WorkingArea))
+    # Etat partage avec les gestionnaires (portee script) : prereglage <-> valeurs, sans boucle ; texte d etat efface a
+    # chaque changement de valeur
+    $script:JitDlg = @{ Presets = $presets; Cmb = $cmb; Ok = $numOk; Watch = $numWatch; Busy = $false; Dlg = $dlg; State = $lblSt; Err = $errTxt }
     $numOk.Value = $script:JitterOk; $numWatch.Value = $script:JitterWatch
     $sync = {
         $s = $script:JitDlg
         if (-not $s -or $s.Busy) { return }
+        $s.State.Text = ''
         $s.Busy = $true
         $i = -1
         for ($k = 0; $k -lt $s.Presets.Count; $k++) { if ($s.Presets[$k].Ok -eq [int]$s.Ok.Value -and $s.Presets[$k].Watch -eq [int]$s.Watch.Value) { $i = $k } }
@@ -9201,7 +9415,7 @@ function Show-JitterSettings {
     $cmb.Add_SelectedIndexChanged({
         $s = $script:JitDlg
         if (-not $s -or $s.Busy -or $s.Cmb.SelectedIndex -lt 0 -or $s.Cmb.SelectedIndex -ge $s.Presets.Count) { return }
-        $s.Busy = $true
+        $s.Busy = $true; $s.State.Text = ''
         $pr = $s.Presets[$s.Cmb.SelectedIndex]
         $s.Ok.Value = $pr.Ok; $s.Watch.Value = $pr.Watch
         $s.Busy = $false
@@ -9209,19 +9423,21 @@ function Show-JitterSettings {
     $btnDef.Add_Click({ $script:JitDlg.Cmb.SelectedIndex = 0 })
     $btnOk.Add_Click({
         $s = $script:JitDlg
-        if ([int]$s.Watch.Value -lt [int]$s.Ok.Value + 10) {
-            [void][System.Windows.Forms.MessageBox]::Show((T "Le seuil À SURVEILLER doit dépasser le seuil SAIN d'au moins 10 ns."), (T 'Réglage du jitter'), 'OK', 'Warning'); return
-        }
+        # Seuils incoherents : texte d etat (R7), la fenetre reste ouverte
+        if ([int]$s.Watch.Value -lt [int]$s.Ok.Value + 10) { $s.State.Text = $s.Err; return }
         $s.Dlg.DialogResult = [System.Windows.Forms.DialogResult]::OK
     })
-    $dr = $dlg.ShowDialog($form)
-    if ($dr -eq [System.Windows.Forms.DialogResult]::OK) {
-        Set-JitterThresholds ([int]$numOk.Value) ([int]$numWatch.Value)
-        [void](Save-Config)
-        Append-Log ((T "Réglage du jitter : SAIN sous {0} ns, À SURVEILLER sous {1} ns, CRITIQUE au-delà (prochaines mesures).") -f "$($script:JitterOk)", "$($script:JitterWatch)")
+    try {
+        $dr = $dlg.ShowDialog($form)
+        if ($dr -eq [System.Windows.Forms.DialogResult]::OK) {
+            Set-JitterThresholds ([int]$numOk.Value) ([int]$numWatch.Value)
+            [void](Save-Config)
+            Append-Log ((T "Réglage du jitter : SAIN sous {0} ns, À SURVEILLER sous {1} ns, CRITIQUE au-delà (prochaines mesures).") -f "$($script:JitterOk)", "$($script:JitterWatch)")
+        }
+    } finally {
+        $script:JitDlg = $null
+        Clear-DlgGdi $dlg $gdi
     }
-    $script:JitDlg = $null
-    $dlg.Dispose()
 }
 
 # Metriques d une piste (liste de ScpRev, un par tour) : base commune de l onglet Qualite et du
@@ -10036,7 +10252,7 @@ function Show-HomeCurve {
         if ($null -eq $best -or $d -gt $bestDate) { $best = $f; $bestDate = $d }
     }
     if ($best) { Show-PrecompCurve $best $true; return }
-    [void][System.Windows.Forms.MessageBox]::Show((T "Aucune calibration enregistrée.`n`nLa courbe apparaît après une première calibration : bouton « Calibrer » de l'onglet Écriture, ou première écriture depuis la Bibliothèque."), (T 'Courbe de calibration'), 'OK', 'Information')
+    [void](Show-AppMessage (T "Aucune calibration enregistrée.`n`nLa courbe apparaît après une première calibration : bouton « Calibrer » de l'onglet Écriture, ou première écriture depuis la Bibliothèque.") (T 'Courbe de calibration') 'OK' 'Information')
 }
 
 # ============================== ACCUEIL : CALIBRATION ==========================
@@ -10080,8 +10296,8 @@ function Get-FormatCalibInfo([string]$name) {
     elseif ($hd) {
         $r.Cal = 'hd'
         if ($e.Enc -eq 'amiga') { $r.Bits = 202688; $r.BitsSrc = (T 'ADF haute densité, horloge AmigaDOS de gw') }
-        elseif ($e.Enc -eq 'bit') { $r.Bits = 200000; $r.BitsSrc = (T 'image de cellules (raw), 1 µs par cellule') }
-        else { $r.Bits = 200000; $r.BitsSrc = (T 'format à secteurs haute densité, 1 µs par cellule') }
+        elseif ($e.Enc -eq 'bit') { $r.Bits = 200000; $r.BitsSrc = (T 'image de cellules (raw), 1 us par cellule') }
+        else { $r.Bits = 200000; $r.BitsSrc = (T 'format à secteurs haute densité, 1 us par cellule') }
         # 12.7 : note condensee sur une ligne (zone d information de la fenetre de la carte : etat des trois courbes visible
         # jusqu a la tete 1 sans defilement)
         $r.Notes += (T 'Disquette et lecteur HD nécessaires ; réglages provisoires.')
@@ -10091,8 +10307,8 @@ function Get-FormatCalibInfo([string]$name) {
     else {
         $r.Cal = 'std'
         if ($e.Enc -eq 'amiga') { $r.Bits = 101344; $r.BitsSrc = (T 'ADF, horloge AmigaDOS de gw') }
-        else { $r.Bits = 100000; $r.BitsSrc = (T 'format à secteurs, 2 µs par cellule') }
-        if ($rate -gt 250) { $r.Notes += ((T "Débit de {0} kbit/s (cellule de {1} ns) : l'écriture de ce format applique la courbe {2}, mesurée à 2 µs par cellule (densité plus forte de {3} %).") -f "$rate", "$([math]::Round(500000 / $rate))", (Get-CalibFamilyName 'std'), (Format-UiNum ([math]::Round(100.0 * ($rate - 250) / 250, 1)))) }
+        else { $r.Bits = 100000; $r.BitsSrc = (T 'format à secteurs, 2 us par cellule') }
+        if ($rate -gt 250) { $r.Notes += ((T "Débit de {0} kbit/s (cellule de {1} ns) : l'écriture de ce format applique la courbe {2}, mesurée à 2 us par cellule (densité plus forte de {3} %).") -f "$rate", "$([math]::Round(500000 / $rate))", (Get-CalibFamilyName 'std'), (Format-UiNum ([math]::Round(100.0 * ($rate - 250) / 250, 1)))) }
     }
     if ($r.Cal) {
         if ($e.Enc -eq 'fm0') { $r.Notes += (T 'Piste 0 en FM : non mesurée, la courbe s''y applique telle quelle.') }
@@ -10111,7 +10327,7 @@ function Get-HomeCalibInfo([string]$name) {
         'app.long' {
             # 105 808 cellules : Get-PatternBits d une image long track illisible (105 820 ramene a un multiple de 16)
             $r.Label = (T 'Amiga longues pistes (IPF, HFE)'); $r.Cal = 'long'; $r.Bits = 105808; $r.NCyl = 80; $r.Heads = 2
-            $r.BitsSrc = (T 'long track, 1,89 µs par cellule')
+            $r.BitsSrc = (T 'long track, 1,89 us par cellule')
             $r.Notes = @((T "Pistes longues d'une protection contre la copie : la cellule réelle et le nombre de cylindres (jusqu'à 84) se lisent dans l'image ; « Calibrer » dans l'onglet Écriture, avec l'image, les reprend exactement."))
             return $r
         }
@@ -10442,7 +10658,7 @@ function Show-HomeCalib {
     # Start-HomeCalib affiche l avertissement habituel de la calibration (Show-CalibConfirm) : pas de fenetres modales
     # imbriquees. Le type choisi est enregistre (ui.homeCalFormat) a la fermeture, lance ou non.
     if (Get-AppBusy) {
-        [void][System.Windows.Forms.MessageBox]::Show((T "Opération en cours : ouvrez la calibration une fois l'opération terminée."), (T 'Calibration precomp'), 'OK', 'Information'); return
+        [void](Show-AppMessage (T "Opération en cours : ouvrez la calibration une fois l'opération terminée.") (T 'Calibration precomp') 'OK' 'Information'); return
     }
     if ($script:HomeCalDesc) { $cardCalib.Controls[3].Text = $script:HomeCalDesc; $cardCalib.Controls[3].ForeColor = $script:Theme.Muted }
     $dlg = New-Object System.Windows.Forms.Form
@@ -10504,7 +10720,7 @@ function Show-HomeCalib {
     $lblQuick.Name = 'lblHcQuick'; $lblQuick.AutoSize = $false; $lblQuick.UseMnemonic = $false; $lblQuick.Location = '590,468'; $lblQuick.Size = '354,52'; $lblQuick.ForeColor = $script:Theme.Muted
     # Hauteurs mesurees (Segoe UI 9,75) : texte du test rapide 51 px (3 lignes), deux avertissements 102 px en francais
     $lblWarn = New-Object System.Windows.Forms.Label
-    $lblWarn.Name = 'lblHcWarn'; $lblWarn.AutoSize = $false; $lblWarn.UseMnemonic = $false; $lblWarn.Location = '572,522'; $lblWarn.Size = '372,104'; $lblWarn.ForeColor = $script:Theme.Warn
+    $lblWarn.Name = 'lblHcWarn'; $lblWarn.AutoSize = $false; $lblWarn.UseMnemonic = $false; $lblWarn.Location = '572,522'; $lblWarn.Size = '372,104'; $lblWarn.ForeColor = $script:Theme.WarnInk   # 12.8 (FIX5, D17) : encre du texte d avertissement
     $btnCurve = New-Object System.Windows.Forms.Button; $btnCurve.Name = 'btnHcCurve'; $btnCurve.Text = (T 'Afficher la courbe'); $btnCurve.Size = New-Object System.Drawing.Size(190, 34); $btnCurve.Location = '16,628'
     $btnClose = New-Object System.Windows.Forms.Button; $btnClose.Name = 'btnHcClose'; $btnClose.Text = (T 'Fermer'); $btnClose.Size = New-Object System.Drawing.Size(110, 34); $btnClose.Location = '834,628'
     $btnGo = New-Object System.Windows.Forms.Button; $btnGo.Name = 'btnHcGo'; $btnGo.Text = (T 'Calibrer'); $btnGo.Size = New-Object System.Drawing.Size(160, 34); $btnGo.Location = '666,628'
@@ -10541,6 +10757,8 @@ function Show-HomeCalib {
     $dlg.Add_Shown({ $s = $script:HcDlg; if ($s) { if ($s.Lv.SelectedItems.Count -gt 0) { $s.Lv.SelectedItems[0].EnsureVisible() }; [void]$s.Lv.Focus() } })
     if ($sel) { $sel.Selected = $true; $sel.Focused = $true }
     Update-HomeCalibDialog
+    # 12.8 (lot 5, A4 R1) : ecran plus bas que la fenetre (676 px de zone client) : hauteur de la zone de travail, defilement
+    [void](Set-DlgFit $dlg ([System.Windows.Forms.Screen]::FromControl($form).WorkingArea))
     $dr = [System.Windows.Forms.DialogResult]::Cancel; $ch = $null; $last = ''
     try { $dr = $dlg.ShowDialog($form) }
     finally {
@@ -10566,8 +10784,8 @@ function Show-HomeCalib {
     } elseif ($last -and $last -ne $prevFmt) { Set-Setting 'homeCalCyls' 0 }
     [void](Save-Config)
     if (-not $r.Started -and $r.Why) {
-        Append-Log ((T "Calibration depuis l'Accueil non lancée : {0}.") -f "$($r.Why)")
-        [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration non lancée : {0}.") -f "$($r.Why)"), (T 'Calibration precomp'), 'OK', 'Information')
+        # 12.8 (lot 5) : Show-AppMessage ecrit le message au journal (plus de ligne de journal en double)
+        [void](Show-AppMessage ((T "Calibration non lancée : {0}.") -f "$($r.Why)") (T 'Calibration precomp') 'OK' 'Information')
     }
 }
 # ============================== FONCTIONS : NETTOYAGE DES TETES ================
@@ -10592,12 +10810,12 @@ function Draw-PictoFloppy($g, [single]$x, [single]$y, [single]$s, [bool]$cleanin
     $bMetal = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(205, 212, 222))
     $bLabel = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(248, 249, 252))
     $g.FillPath($bBody, $body)
-    $g.FillPath($bMetal, (New-RoundRect 17 4 30 20 2))
+    $pShutter = New-RoundRect 17 4 30 20 2; $g.FillPath($bMetal, $pShutter); $pShutter.Dispose()   # 12.8 (FIX5) : chemin libere
     if ($cleaning) {
         $hb = New-Object System.Drawing.Drawing2D.HatchBrush([System.Drawing.Drawing2D.HatchStyle]::Weave, [System.Drawing.Color]::FromArgb(170, 188, 214), [System.Drawing.Color]::White)
         $g.FillRectangle($hb, [single]34, [single]7, [single]11, [single]14); $hb.Dispose()
     } else { $g.FillRectangle($bBody, [single]36, [single]8, [single]7, [single]12) }
-    $g.FillPath($bLabel, (New-RoundRect 11 31 42 26 2.5))
+    $pLabel = New-RoundRect 11 31 42 26 2.5; $g.FillPath($bLabel, $pLabel); $pLabel.Dispose()
     if ($cleaning) {
         $f = New-Object System.Drawing.Font('Segoe UI', [single]11, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
         $sf = New-Object System.Drawing.StringFormat; $sf.Alignment = 'Center'; $sf.LineAlignment = 'Center'
@@ -10618,9 +10836,12 @@ function Draw-PictoFloppy($g, [single]$x, [single]$y, [single]$s, [bool]$cleanin
 
 function Draw-PictoDrive($g, [bool]$on) {
     # Facade de lecteur 3,5 pouces en bas de la vignette : fente, voyant (vert : moteur en marche), bouton d ejection
-    $b = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(64, 70, 84)); $g.FillPath($b, (New-RoundRect 6 56 108 26 4)); $b.Dispose()
+    # 12.8 (FIX5) : chemins de New-RoundRect liberes
+    $p = New-RoundRect 6 56 108 26 4
+    $b = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(64, 70, 84)); $g.FillPath($b, $p); $b.Dispose(); $p.Dispose()
     $b = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(18, 22, 30)); $g.FillRectangle($b, [single]20, [single]62, [single]80, [single]5); $b.Dispose()
-    $b = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(150, 156, 168)); $g.FillPath($b, (New-RoundRect 80 72 16 5 2)); $b.Dispose()
+    $p = New-RoundRect 80 72 16 5 2
+    $b = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(150, 156, 168)); $g.FillPath($b, $p); $b.Dispose(); $p.Dispose()
     $cl = if ($on) { [System.Drawing.Color]::FromArgb(90, 220, 110) } else { [System.Drawing.Color]::FromArgb(48, 78, 58) }
     $b = New-Object System.Drawing.SolidBrush($cl); $g.FillRectangle($b, [single]24, [single]73, [single]10, [single]3); $b.Dispose()
 }
@@ -11087,7 +11308,7 @@ function New-CleanDialog([int]$Passes = 0, [int]$Linger = 0) {
 function Show-CleanDialog([int]$Passes = 0, [int]$Linger = 0) {
     # Nettoyage des tetes : carte de l Accueil ; bouton NETTOYER de l onglet Outils ($Passes / $Linger de cet onglet)
     if (-not (Test-GwIdle)) {
-        [void][System.Windows.Forms.MessageBox]::Show((T "Opération en cours : lancez le nettoyage une fois l'opération terminée ou arrêtée."), (T 'Nettoyage des têtes'), 'OK', 'Information'); return
+        [void](Show-AppMessage (T "Opération en cours : lancez le nettoyage une fois l'opération terminée ou arrêtée.") (T 'Nettoyage des têtes') 'OK' 'Information'); return
     }
     $dlg = New-CleanDialog $Passes $Linger
     $s = $script:CleanDlg
@@ -11937,10 +12158,18 @@ function Show-PrecompCurve([string]$family, [bool]$preferHeads, $Owner = $null) 
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
     $script:CurveData = $cvs
     Set-CurveLevelData $cvs
+    # 12.8 (lot 5, A4 P6) : Name frmCurve (banc : minuteur de securite de make-test), police de la fenetre principale,
+    # bouton Fermer en bas a droite (Echap). Fenetre non modale et redimensionnable, comme en 12.7 ; hauteur augmentee de
+    # celle de la rangee du bouton (courbe de meme taille)
     $f = New-Object System.Windows.Forms.Form
+    $f.Name = 'frmCurve'
     $f.Text = if ($cvs.Count -gt 1) { ((T "Courbe de précompensation - {0}, une courbe par tête") -f "$($cvs[0].Family)") } else { ((T "Courbe de précompensation - {0}") -f "$($cvs[0].Family)") }
-    $f.Size = New-Object System.Drawing.Size(920, 560); $f.MinimumSize = New-Object System.Drawing.Size(520, 360)
-    $f.StartPosition = 'CenterParent'; $f.Icon = $form.Icon; $f.BackColor = [System.Drawing.Color]::White
+    $f.Size = New-Object System.Drawing.Size(920, 610); $f.MinimumSize = New-Object System.Drawing.Size(520, 410)
+    # 12.8 (FIX5) : hauteur ramenee a celle de la zone de travail (1366 x 768 a 125 % : environ 566 px) ; la courbe (Fill)
+    # se reduit, la rangee du bouton Fermer reste visible
+    $wa = [System.Windows.Forms.Screen]::FromControl($form).WorkingArea
+    if ($f.Height -gt $wa.Height) { $f.Height = $wa.Height }
+    $f.StartPosition = 'CenterParent'; $f.Icon = $form.Icon; $f.Font = $form.Font; $f.BackColor = [System.Drawing.Color]::White
     $tb = New-Object System.Windows.Forms.TextBox
     $tb.Multiline = $true; $tb.ReadOnly = $true; $tb.ScrollBars = 'Vertical'; $tb.Dock = 'Bottom'; $tb.Height = 170
     $tb.TabStop = $false; $tb.HideSelection = $true          # pas de texte tout selectionne a l ouverture
@@ -11950,7 +12179,17 @@ function Show-PrecompCurve([string]$family, [bool]$preferHeads, $Owner = $null) 
     $pb.Dock = 'Fill'; $pb.BackColor = [System.Drawing.Color]::White
     $pb.Add_Paint({ Draw-PrecompCurve $_.Graphics $this.ClientSize })
     $pb.Add_Resize({ $this.Invalidate() })
-    $f.Controls.Add($tb); $f.Controls.Add($pb); $pb.BringToFront()
+    $pnlBtn = New-Object System.Windows.Forms.Panel
+    $pnlBtn.Dock = 'Bottom'; $pnlBtn.Height = 50; $pnlBtn.BackColor = [System.Drawing.Color]::White
+    $btnClose = New-Object System.Windows.Forms.Button
+    $btnClose.Name = 'btnCurveClose'; $btnClose.Text = (T 'Fermer'); $btnClose.Size = New-Object System.Drawing.Size(110, 34)
+    $btnClose.Location = New-Object System.Drawing.Point(($pnlBtn.ClientSize.Width - 122), 8); $btnClose.Anchor = 'Top,Right'
+    Set-Btn $btnClose '' 'normal'
+    $btnClose.Add_Click({ $this.FindForm().Close() })     # fenetre non modale : DialogResult ne la fermerait pas
+    $pnlBtn.Controls.Add($btnClose)
+    $f.CancelButton = $btnClose
+    # Ancrage dans l ordre inverse de la pile : rangee du bouton tout en bas, puis tableau, puis courbe (Fill)
+    $f.Controls.Add($tb); $f.Controls.Add($pb); $f.Controls.Add($pnlBtn); $pb.BringToFront()
     $script:CurveForm = $f
     if ($null -eq $Owner) { $Owner = $form }
     $f.Show($Owner)
@@ -12141,7 +12380,7 @@ function New-CalibUnit($head) {
 function Get-PatternBits([string]$family, [string]$img) {
     # Cellules par piste du motif de test (voir New-CalibPattern) : densite de l image ; la calibration rapide compare
     # celle de l image a celle de sa reference
-    $bits = 100000; $src = (T 'format à secteurs, 2 µs par cellule')
+    $bits = 100000; $src = (T 'format à secteurs, 2 us par cellule')
     $ext = [System.IO.Path]::GetExtension($img).ToLower()
     try {
         switch ($ext) {
@@ -12154,8 +12393,8 @@ function Get-PatternBits([string]$family, [string]$img) {
             '.hfe' { $info = Get-HfeCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'HFE, bits par piste de l''image') } }
         }
     } catch { }
-    if ($family -eq 'long' -and $bits -eq 100000) { $bits = 105820; $src = (T 'long track, 1,89 µs par cellule') }
-    elseif ($family -eq 'hd' -and $bits -eq 100000) { $bits = 200000; $src = (T 'format à secteurs haute densité, 1 µs par cellule') }   # 12.7
+    if ($family -eq 'long' -and $bits -eq 100000) { $bits = 105820; $src = (T 'long track, 1,89 us par cellule') }
+    elseif ($family -eq 'hd' -and $bits -eq 100000) { $bits = 200000; $src = (T 'format à secteurs haute densité, 1 us par cellule') }   # 12.7
     $bits -= $bits % 16
     return @{ Bits = $bits; Source = $src }
 }
@@ -12212,27 +12451,34 @@ function Resolve-OldCalibrations {
         $txt += "`n`n" + ($ct -f "$mx", ($kl -join ', '), "$($script:CalHardNs)")
     }
     if ($o.Bak -and (Test-Path -LiteralPath $o.Bak)) { $txt += "`n`n" + ((T "Copie de la configuration d'avant ce choix : {0}") -f "$([System.IO.Path]::GetFileName([string]$o.Bak))") }
+    # 12.8 (lot 5, A4 R1 a R8, modele frmClean) : bandeau (texte lblOldText, Label de premier niveau), boutons a la largeur
+    # de leur texte, « Fermer » (decision remise, comme la croix) en CancelButton et focus initial, aucun AcceptButton :
+    # Entree n abandonne plus les courbes ; images liberees (Clear-DlgGdi) ; ajustement aux petits ecrans (Set-DlgFit)
+    $W = 700
+    $gdi = New-Object System.Collections.Generic.List[object]
     $dlg = New-Object System.Windows.Forms.Form
     $dlg.Name = 'frmOldCalib'; $dlg.Text = (T 'Calibrations d''un autre calcul'); $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font
     $dlg.FormBorderStyle = 'FixedDialog'; $dlg.MaximizeBox = $false; $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false; $dlg.BackColor = [System.Drawing.Color]::White
-    $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
-    $h = [System.Windows.Forms.TextRenderer]::MeasureText($txt, $dlg.Font, (New-Object System.Drawing.Size(620, 10000)), $tf).Height
-    $dlg.ClientSize = New-Object System.Drawing.Size(660, ($h + 90))
-    $lbl = New-Object System.Windows.Forms.Label
-    $lbl.Name = 'lblOldText'; $lbl.AutoSize = $false; $lbl.UseMnemonic = $false; $lbl.Text = $txt
-    $lbl.Location = New-Object System.Drawing.Point(20, 16); $lbl.Size = New-Object System.Drawing.Size(620, ($h + 8))
+    $ban = New-DlgBanner $dlg 16 $W (T 'Recalibrer ou conserver ces courbes ?') $txt 'warn' (New-DlgPicto 'curve') $gdi 'lblOldText'
+    $y = $ban.Bottom + 14
+    $btnCl = New-Object System.Windows.Forms.Button
+    $btnCl.Name = 'btnOldClose'; $btnCl.Text = (T 'Fermer'); $btnCl.Size = New-Object System.Drawing.Size(110, 34); $btnCl.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     $btnRedo = New-Object System.Windows.Forms.Button
-    $btnRedo.Name = 'btnOldRedo'; $btnRedo.Text = (T 'Recalibrer (conseillé)'); $btnRedo.Size = New-Object System.Drawing.Size(200, 34)
-    $btnRedo.Location = New-Object System.Drawing.Point(($dlg.ClientSize.Width - 20 - 200), ($h + 40)); $btnRedo.DialogResult = [System.Windows.Forms.DialogResult]::Abort
+    $btnRedo.Name = 'btnOldRedo'; $btnRedo.Text = (T 'Recalibrer (conseillé)'); $btnRedo.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnRedo.Text 'Diagnostic' 170), 34)
+    $btnRedo.DialogResult = [System.Windows.Forms.DialogResult]::Abort
     $btnKeep = New-Object System.Windows.Forms.Button
-    $btnKeep.Name = 'btnOldKeep'; $btnKeep.Text = (T 'Conserver ces courbes'); $btnKeep.Size = New-Object System.Drawing.Size(200, 34)
-    $btnKeep.Location = New-Object System.Drawing.Point(($btnRedo.Left - 8 - 200), ($h + 40)); $btnKeep.DialogResult = [System.Windows.Forms.DialogResult]::OK
-    Set-Btn $btnRedo '' 'primary'; Set-Btn $btnKeep '' 'normal'
-    $dlg.Controls.AddRange(@($lbl, $btnRedo, $btnKeep)); $dlg.AcceptButton = $btnRedo; $dlg.ActiveControl = $btnRedo   # Entree : bouton conseille
-    $dlg.KeyPreview = $true
-    $dlg.Add_KeyDown({ if ($_.KeyCode -eq [System.Windows.Forms.Keys]::Escape) { $_.Handled = $true; $this.Close() } })   # Echap : decision remise
+    $btnKeep.Name = 'btnOldKeep'; $btnKeep.Text = (T 'Conserver ces courbes'); $btnKeep.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnKeep.Text '' 150), 34)
+    $btnKeep.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    Set-Btn $btnRedo 'Diagnostic' 'primary'; Set-Btn $btnKeep '' 'normal'; Set-Btn $btnCl '' 'normal'
+    $btnCl.Location = New-Object System.Drawing.Point((16 + $W - $btnCl.Width), $y)
+    $btnRedo.Location = New-Object System.Drawing.Point(($btnCl.Left - 8 - $btnRedo.Width), $y)
+    $btnKeep.Location = New-Object System.Drawing.Point(($btnRedo.Left - 8 - $btnKeep.Width), $y)
+    $dlg.ClientSize = New-Object System.Drawing.Size(($W + 32), ($y + 34 + 16))
+    $dlg.Controls.AddRange(@($btnKeep, $btnRedo, $btnCl))
+    $dlg.CancelButton = $btnCl; $dlg.ActiveControl = $btnCl   # Echap, croix et Fermer : decision remise ; Entree : Fermer
+    [void](Set-DlgFit $dlg ([System.Windows.Forms.Screen]::FromControl($form).WorkingArea))
     $dlg.Add_Shown({ $this.Activate(); try { [System.Media.SystemSounds]::Exclamation.Play() } catch { } })
-    try { $dr = $dlg.ShowDialog($form) } finally { $dlg.Dispose() }
+    try { $dr = $dlg.ShowDialog($form) } finally { Clear-DlgGdi $dlg $gdi }
     $list = (@($o.Curves.Keys | ForEach-Object { (T "{0}, calcul {1}") -f (Get-CurveKeyLabel $_), (Get-CurveCalcText $o.Curves[$_] -Plain) })) -join ' ; '
     if ($dr -eq [System.Windows.Forms.DialogResult]::OK) {
         # Conservees pour le calcul actuel : reprises sans question aux demarrages suivants, calcul rappele a l usage
@@ -12271,7 +12517,7 @@ function Reset-CalibProfiles {
     $curves = @(@($curves) + $pend | Sort-Object -Unique)
     $changed = ($script:PrecompStd -ne $script:PrecompStdDefault) -or ($script:PrecompLong -ne $script:PrecompLongDefault)
     if ($curves.Count -eq 0 -and -not $changed) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Aucune calibration enregistrée : les profils sont déjà ceux d''origine.'),(T 'Effacer les calibrations'),'OK','Information'); return
+        [void](Show-AppMessage (T 'Aucune calibration enregistrée : les profils sont déjà ceux d''origine.') (T 'Effacer les calibrations') 'OK' 'Information'); return
     }
     $list = if ($curves.Count -gt 0) { (@($curves | ForEach-Object { Get-CurveKeyLabel $_ }) -join ', ') } else { (T 'aucune') }
     $msg = (T "Effacer toutes les calibrations de précompensation ?`n`nCourbes : {0}.`nProfils de famille remis aux valeurs d'origine : standard {1}, long track {2}.`n`nOpération irréversible. Le mode Auto applique ensuite ces profils ; une écriture rapide ou lente recalibre automatiquement.") -f "$list", "$($script:PrecompStdDefault)", "$($script:PrecompLongDefault)"
@@ -13221,15 +13467,16 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
         $script:CurveZones = @()
     }
     $ab = [bool]($compare -and $compare.Mode -eq 'ab'); $aonly = [bool]($compare -and $compare.Mode -eq 'aonly')
+    # 12.8 (lot 5, A4 R1 a R8) : fenetre de taille fixe (FixedDialog) au modele de frmClean : bandeau (pictogramme, titre et
+    # texte lblRevText, Label de premier niveau), courbe de 420 px, reduite jusqu a 260 px pour tenir dans la zone de travail
+    # (puis defilement, Set-DlgFit), boutons a la largeur de leur texte, sens de la fermeture ecrit sous les boutons
+    # (lblRevClose, dans tous les modes), Echap par CancelButton (bouton equivalent a la fermeture), images liberees
+    $CW = 964; $W = $CW - 32
+    $gdi = New-Object System.Collections.Generic.List[object]
     $dlg = New-Object System.Windows.Forms.Form
     $dlg.Name = 'frmCalibReview'; $dlg.Text = (T 'Calibration precomp')
+    $dlg.FormBorderStyle = 'FixedDialog'; $dlg.MaximizeBox = $false; $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false
     $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font; $dlg.BackColor = [System.Drawing.Color]::White
-    $dlg.ShowInTaskbar = $false; $dlg.MinimizeBox = $false
-    $dlg.Size = New-Object System.Drawing.Size(980, 760); $dlg.MinimumSize = New-Object System.Drawing.Size(700, 520)
-    # Comparaison : texte plus long (une ligne par face, reserves, verdict), fenetre plus haute si l ecran le permet
-    if ($compare) { $dlg.Size = New-Object System.Drawing.Size(980, [math]::Max(520, [math]::Min(860, [System.Windows.Forms.Screen]::FromControl($form).WorkingArea.Height - 40))) }
-    $dlg.KeyPreview = $true                        # Echap : comme la croix de la fenetre
-    $dlg.Add_KeyDown({ if ($_.KeyCode -eq [System.Windows.Forms.Keys]::Escape) { $_.Handled = $true; $this.Close() } })
     $lvl = ($cal.Mode -eq 'level')
     $infoWin = [bool]($lvl2 -and $lvl2.Info -and $lvl -and -not $compare)
     # 12.8 (FIX1C, constat 7) : « verifiee » seulement si le niveau de chaque tete adaptee a ete verifie (Verified) ; sinon
@@ -13248,42 +13495,28 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
     $intro = if ($infoWin) { (T 'La calibration rapide a adapté la courbe à cette disquette :') } else { (T "La calibration ne donne pas un bon résultat :") }
     $txt = $intro + "`n" + ((@($issues) | ForEach-Object { "  - $_" }) -join "`n") + "`n`n" + $head
     if ($compare) { $txt = [string]$compare.Text }
-    $lbl = New-Object System.Windows.Forms.Label
-    $lbl.Name = 'lblRevText'; $lbl.AutoSize = $false; $lbl.UseMnemonic = $false; $lbl.Text = $txt; $lbl.Dock = 'Top'
-    $lbl.Padding = New-Object System.Windows.Forms.Padding(12, 10, 12, 6); $lbl.ForeColor = $script:Theme.Warn
-    $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
-    $lbl.Height = [System.Windows.Forms.TextRenderer]::MeasureText($txt, $dlg.Font, (New-Object System.Drawing.Size(930, 10000)), $tf).Height + 20
-    # Comparaison (texte long) : hauteur du texte recalculee a la largeur de la fenetre (taille minimale : texte entier,
-    # dessin reduit)
-    if ($compare) {
-        $dlg.Add_Resize({
-            $l = $this.Controls['lblRevText']; if (-not $l) { return }
-            $f = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
-            $h = [System.Windows.Forms.TextRenderer]::MeasureText($l.Text, $l.Font, (New-Object System.Drawing.Size([math]::Max(100, $l.ClientSize.Width - 24), 10000)), $f).Height + 20
-            if ($l.Height -ne $h) { $l.Height = $h }
-        })
-    }
-    $pb = New-Object System.Windows.Forms.PictureBox
-    $pb.Dock = 'Fill'; $pb.BackColor = [System.Drawing.Color]::White
-    $pb.Add_Paint({ Draw-PrecompCurve $_.Graphics $this.ClientSize })
-    $pb.Add_Resize({ $this.Invalidate() })
-    $bar = New-Object System.Windows.Forms.Panel
-    $bar.Dock = 'Bottom'; $bar.Height = 56; $bar.BackColor = $script:Theme.Page
-    $bar.Width = $dlg.ClientSize.Width             # avant les boutons : leur ancrage a droite se mesure sur cette largeur
-    # 12.8 (lot 1c, point 2) : avertissement au-dessus des boutons, hauteur mesuree a la largeur minimale de la fenetre ;
-    # boutons places dessous ($by), barre de 78 px au moins
     $warn = ($warnKeep -and $toWrite -and $lvl -and -not $compare)
+    # Bandeau : information pour une comparaison ou une courbe adaptee, avertissement sinon (et sous lblRevWarn)
+    $level = if ($warn) { 'warn' } elseif ($compare -or $infoWin) { 'info' } else { 'warn' }
+    $heading = if ($ab) { (T 'Comparaison des calibrations A et B') } elseif ($aonly) { (T 'Calibration B interrompue : décision sur la courbe A') }
+               elseif ($infoWin) { (T 'Courbe adaptée à cette disquette') } elseif ($toWrite) { (T "Résultat douteux : décidez avant l'écriture") } else { (T 'Résultat douteux : décidez de la suite') }
+    $ban = New-DlgBanner $dlg 16 $W $heading $txt $level (New-DlgPicto $(if ($compare -or $infoWin) { 'curve' } else { 'warn' })) $gdi 'lblRevText'
+    $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
+    $pb = New-Object System.Windows.Forms.PictureBox
+    $pb.BackColor = [System.Drawing.Color]::White
+    $pb.Add_Paint({ Draw-PrecompCurve $_.Graphics $this.ClientSize })
+    $bar = New-Object System.Windows.Forms.Panel
+    $bar.Name = 'pnlRevButtons'; $bar.BackColor = $script:Theme.Page; $bar.Width = $CW
+    # 12.8 (lot 1c, point 2) : avertissement au-dessus des boutons, boutons places dessous ($by), barre de 78 px au moins
     $by = 11
     if ($warn) {
         $lblWarn = New-Object System.Windows.Forms.Label
         $lblWarn.Name = 'lblRevWarn'; $lblWarn.AutoSize = $false; $lblWarn.UseMnemonic = $false; $lblWarn.Font = $bold; $lblWarn.ForeColor = $script:Theme.WarnInk
         $lblWarn.Text = if ($lvl2 -and $lvl2.WarnText) { [string]$lvl2.WarnText } else { (T "Attention : niveau non vérifié et forme non conforme. La courbe que « Écrire l'image » utiliserait n'a pas été vérifiée sur cette disquette ; vers le centre, elle peut s'écarter de son besoin de plusieurs dizaines de ns.") }
-        $wMin = [math]::Max(200, $dlg.MinimumSize.Width - ($dlg.Width - $dlg.ClientSize.Width) - 32)
-        $hW = [System.Windows.Forms.TextRenderer]::MeasureText($lblWarn.Text, $bold, (New-Object System.Drawing.Size($wMin, 10000)), $tf).Height
-        $lblWarn.Location = New-Object System.Drawing.Point(16, 8); $lblWarn.Size = New-Object System.Drawing.Size(($dlg.ClientSize.Width - 32), ($hW + 2)); $lblWarn.Anchor = 'Top,Left,Right'
+        $hW = [System.Windows.Forms.TextRenderer]::MeasureText($lblWarn.Text, $bold, (New-Object System.Drawing.Size(($CW - 32), 10000)), $tf).Height
+        $lblWarn.Location = New-Object System.Drawing.Point(16, 8); $lblWarn.Size = New-Object System.Drawing.Size(($CW - 32), ($hW + 2))
         $bar.Controls.Add($lblWarn)
         $by = $lblWarn.Bottom + 8
-        $bar.Height = [math]::Max(78, $by + 34 + 11)
     }
     # 12.8 (lot 1c, § 10.1) : fenetre « information » d une courbe adaptee et verifiee sur toutes les tetes : marque a
     # memoriser (champ libre, preremplie par la marque choisie, vide si la disquette s en ecarte), au-dessus des boutons
@@ -13304,65 +13537,84 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
         $bar.Controls.Add($cmbBrand)
         if ($tip) { $tip.SetToolTip($cmbBrand, (T "Nom libre : marque, année ou lot. Une marque déjà mesurée sert de point de départ : sa forme et son niveau, mémorisés avec la référence actuelle du lecteur. La mesure reste faite sur la disquette insérée.")) }
         $by = 44
-        $bar.Height = [math]::Max(78, $by + 34 + 11)
     }
+    # Boutons (A4 R6) : a la largeur de leur texte, en bas a droite, espaces de 8 ; action principale avec glyphe ;
+    # « Arreter » (avant une ecriture) en style danger
+    $okGlyph = if ($toWrite -and -not $compare) { 'Save' } else { 'Check' }
+    $stopDanger = ($toWrite -and -not $compare)
     $btnOk = New-Object System.Windows.Forms.Button
-    $btnOk.Name = 'btnRevKeep'; $btnOk.Size = New-Object System.Drawing.Size(200, 34); $btnOk.Anchor = 'Top,Right'
+    $btnOk.Name = 'btnRevKeep'
     $btnOk.Text = if ($ab) { (T 'Conserver la courbe B') } elseif ($aonly) { (T 'Conserver la courbe A') } elseif ($toWrite) { (T "Écrire l'image") } elseif ($lvl) { (T 'Conserver le niveau') } else { (T 'Conserver la courbe') }
+    $btnOk.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnOk.Text $okGlyph 150), 34)
     $btnOk.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $btnNo = New-Object System.Windows.Forms.Button
-    $btnNo.Name = 'btnRevStop'; $btnNo.Size = New-Object System.Drawing.Size(180, 34); $btnNo.Anchor = 'Top,Right'
+    $btnNo.Name = 'btnRevStop'
     $btnNo.Text = if ($ab) { (T 'Abandonner les deux') } elseif ($aonly) { (T 'Abandonner la courbe') } elseif ($toWrite) { (T 'Arrêter') } elseif ($lvl) { (T 'Abandonner le niveau') } else { (T 'Abandonner la courbe') }
+    $btnNo.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnNo.Text $(if ($stopDanger) { 'Stop' } else { '' }) 110), 34)
     $btnNo.DialogResult = [System.Windows.Forms.DialogResult]::Abort
     # Comparaison : style principal pour la courbe conseillee seulement (aucune mise en avant sans courbe conseillee)
     # 12.8 (lot 1c, point 2) : avertissement : « Ecrire l image » sans le style principal
-    Set-Btn $btnOk $(if ($toWrite -and -not $compare) { 'Save' } else { '' }) $(if (($ab -and $compare.Pick -ne 'B') -or $warn) { 'normal' } else { 'primary' }); Set-Btn $btnNo '' 'normal'
-    $btnNo.Location = New-Object System.Drawing.Point(($dlg.ClientSize.Width - 16 - $btnNo.Width), $by)
+    Set-Btn $btnOk $okGlyph $(if (($ab -and $compare.Pick -ne 'B') -or $warn) { 'normal' } else { 'primary' })
+    if ($stopDanger) { Set-Btn $btnNo 'Stop' 'danger' } else { Set-Btn $btnNo '' 'normal' }
+    $btnNo.Location = New-Object System.Drawing.Point(($CW - 16 - $btnNo.Width), $by)
     $btnOk.Location = New-Object System.Drawing.Point(($btnNo.Left - 8 - $btnOk.Width), $by)
     $bar.Controls.AddRange(@($btnOk, $btnNo))
     if ($offerFull) {
         $btnFull = New-Object System.Windows.Forms.Button
-        $btnFull.Name = 'btnRevFull'; $btnFull.Size = New-Object System.Drawing.Size(200, 34); $btnFull.Anchor = 'Top,Right'
-        $btnFull.Text = (T 'Calibration complète'); $btnFull.DialogResult = [System.Windows.Forms.DialogResult]::Retry
+        $btnFull.Name = 'btnRevFull'; $btnFull.Text = (T 'Calibration complète'); $btnFull.DialogResult = [System.Windows.Forms.DialogResult]::Retry
+        $btnFull.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnFull.Text '' 150), 34)
         Set-Btn $btnFull '' 'normal'
         $btnFull.Location = New-Object System.Drawing.Point(($btnOk.Left - 8 - $btnFull.Width), $by)
         $bar.Controls.Add($btnFull)
     }
     # 12.7 point 2 : « Refaire sur une autre disquette » (reserve qui peut venir du support), a gauche de btnRevKeep ;
-    # comparaison A / B : « Conserver la courbe A » a gauche de « Conserver la courbe B ». Largeur a la taille minimale :
-    # 16 + 180 + 8 + 200 + 8 + 240 = 652 px sur environ 684 utiles
+    # comparaison A / B : « Conserver la courbe A » a gauche de « Conserver la courbe B »
     if ($offerRedo -and -not $compare) {
         $btnRedo = New-Object System.Windows.Forms.Button
-        $btnRedo.Name = 'btnRevRedo'; $btnRedo.Size = New-Object System.Drawing.Size(240, 34); $btnRedo.Anchor = 'Top,Right'
-        $btnRedo.Text = (T 'Refaire sur une autre disquette'); $btnRedo.DialogResult = [System.Windows.Forms.DialogResult]::Ignore
+        $btnRedo.Name = 'btnRevRedo'; $btnRedo.Text = (T 'Refaire sur une autre disquette'); $btnRedo.DialogResult = [System.Windows.Forms.DialogResult]::Ignore
+        $btnRedo.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnRedo.Text '' 150), 34)
         Set-Btn $btnRedo '' 'normal'
         $btnRedo.Location = New-Object System.Drawing.Point(($btnOk.Left - 8 - $btnRedo.Width), $by)
         $bar.Controls.Add($btnRedo)
     }
     if ($ab) {
         $btnKeepA = New-Object System.Windows.Forms.Button
-        $btnKeepA.Name = 'btnRevKeepA'; $btnKeepA.Size = New-Object System.Drawing.Size(200, 34); $btnKeepA.Anchor = 'Top,Right'
-        $btnKeepA.Text = (T 'Conserver la courbe A'); $btnKeepA.DialogResult = [System.Windows.Forms.DialogResult]::Yes
-        Set-Btn $btnKeepA '' $(if ($compare.Pick -eq 'A') { 'primary' } else { 'normal' })
+        $btnKeepA.Name = 'btnRevKeepA'; $btnKeepA.Text = (T 'Conserver la courbe A'); $btnKeepA.DialogResult = [System.Windows.Forms.DialogResult]::Yes
+        $btnKeepA.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnKeepA.Text 'Check' 150), 34)
+        Set-Btn $btnKeepA 'Check' $(if ($compare.Pick -eq 'A') { 'primary' } else { 'normal' })
         $btnKeepA.Location = New-Object System.Drawing.Point(($btnOk.Left - 8 - $btnKeepA.Width), $by)
         $bar.Controls.Add($btnKeepA)
     }
-    if ($compare) {
-        # Arbitrage 3 : la fermeture de la fenetre est dite sous les boutons (courbe B deja enregistree ; decision sur A seule :
-        # courbe A retablie)
-        $bar.Height = 78
-        $lblClose = New-Object System.Windows.Forms.Label
-        $lblClose.Name = 'lblRevClose'; $lblClose.AutoSize = $false; $lblClose.UseMnemonic = $false; $lblClose.ForeColor = $script:Theme.Muted
-        $lblClose.Text = if ($ab) { (T 'Fermer la fenêtre conserve la courbe B, déjà enregistrée.') } else { (T 'Fermer la fenêtre conserve la courbe A, qui est rétablie et enregistrée.') }
-        $lblClose.TextAlign = 'MiddleRight'; $lblClose.Anchor = 'Top,Left,Right'
-        $lblClose.Location = New-Object System.Drawing.Point(16, 50); $lblClose.Size = New-Object System.Drawing.Size(($dlg.ClientSize.Width - 32), 20)
-        $bar.Controls.Add($lblClose)
-    }
-    $dlg.Controls.Add($pb); $dlg.Controls.Add($lbl); $dlg.Controls.Add($bar); $pb.BringToFront()
+    # Sens de la fermeture sous les boutons (A4 R8 ; arbitrage 3 de la 12.7 pour la comparaison : courbe B deja enregistree ;
+    # decision sur A seule : courbe A retablie), dans tous les modes depuis la 12.8
+    $lblClose = New-Object System.Windows.Forms.Label
+    $lblClose.Name = 'lblRevClose'; $lblClose.AutoSize = $false; $lblClose.UseMnemonic = $false; $lblClose.ForeColor = $script:Theme.Muted
+    $lblClose.Text = if ($ab) { (T 'Fermer la fenêtre conserve la courbe B, déjà enregistrée.') } elseif ($aonly) { (T 'Fermer la fenêtre conserve la courbe A, qui est rétablie et enregistrée.') }
+                     elseif ($toWrite) { (T 'Fermer la fenêtre ou Échap équivaut à « Arrêter ».') } elseif ($lvl) { (T 'Fermer la fenêtre ou Échap conserve le niveau, comme « Conserver le niveau ».') }
+                     else { (T 'Fermer la fenêtre ou Échap conserve la courbe, comme « Conserver la courbe ».') }
+    $lblClose.TextAlign = 'MiddleRight'
+    $lblClose.Location = New-Object System.Drawing.Point(16, ($by + 34 + 6)); $lblClose.Size = New-Object System.Drawing.Size(($CW - 32), 20)
+    $bar.Controls.Add($lblClose)
+    $bar.Height = $lblClose.Bottom + 8
+    # Hauteurs : courbe de 420 px, reduite jusqu a 260 px si la fenetre depasse la zone de travail, puis defilement
+    $wa = [System.Windows.Forms.Screen]::FromControl($form).WorkingArea
+    $top = $ban.Bottom + 10; $hc = 420
+    $dlg.ClientSize = New-Object System.Drawing.Size($CW, ($top + $hc + 8 + $bar.Height))
+    if ($dlg.Height -gt $wa.Height) { $hc = [math]::Max(260, $hc - ($dlg.Height - $wa.Height)) }
+    $pb.Location = New-Object System.Drawing.Point(16, $top); $pb.Size = New-Object System.Drawing.Size($W, $hc)
+    $bar.Location = New-Object System.Drawing.Point(0, ($pb.Bottom + 8))
+    $dlg.ClientSize = New-Object System.Drawing.Size($CW, $bar.Bottom)
+    $dlg.Controls.Add($pb); $dlg.Controls.Add($bar)
+    [void](Set-DlgFit $dlg $wa)
+    # Echap : bouton equivalent a la fermeture (Arreter avant une ecriture, sinon Conserver) ; pas d AcceptButton. Focus sur
+    # le champ de marque, sinon sur ce bouton : Entree ne lance pas l ecriture
+    $cancelBtn = if ($stopDanger) { $btnNo } else { $btnOk }
+    $dlg.CancelButton = $cancelBtn
+    $dlg.ActiveControl = if ($cmbBrand) { $cmbBrand } else { $cancelBtn }
     $dlg.Add_Shown({ $this.Activate(); try { [System.Media.SystemSounds]::Exclamation.Play() } catch { } })
     # 12.7 : zone de progression de l Accueil gardee pendant la decision (Update-HomeProgress, mode 'hold')
     $script:HomeProgHold = $true
-    try { $dr = $dlg.ShowDialog($form); if ($cmbBrand) { $script:CalReviewBrand = [string]$cmbBrand.Text } } finally { $dlg.Dispose(); $script:HomeProgHold = $false; $script:CurveZones = @() }
+    try { $dr = $dlg.ShowDialog($form); if ($cmbBrand) { $script:CalReviewBrand = [string]$cmbBrand.Text } } finally { Clear-DlgGdi $dlg $gdi; $script:HomeProgHold = $false; $script:CurveZones = @() }
     if ($dr -eq [System.Windows.Forms.DialogResult]::OK) { return 'keep' }
     if ($dr -eq [System.Windows.Forms.DialogResult]::Retry) { return 'full' }
     if ($dr -eq [System.Windows.Forms.DialogResult]::Ignore) { return 'redo' }
@@ -13393,33 +13645,34 @@ function Restore-CalibState($prev) {
     if (-not $script:Restore) { [void](Save-Config) }
 }
 
-function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string]$okText, [string]$okGlyph, [string]$countFmt, [string]$checkLabel, [string]$stopOn, [string]$stopOff, [int]$Seconds = -1, [switch]$NeedCheck, $Combo = $null) {
+function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string]$okText, [string]$okGlyph, [string]$countFmt, [string]$checkLabel, [string]$stopOn, [string]$stopOff, [int]$Seconds = -1, [switch]$NeedCheck, $Combo = $null, [string]$Heading = '', [string]$Level = 'warn', [string]$Picto = 'warn') {
     # Fenetre d avertissement a compte a rebours : $okText / Annuler ; sans reponse, validation automatique au bout de
     # $script:CalibConfirmSeconds (0 = pas de delai), pour qu une sequence sans surveillance ne reste pas bloquee.
     # $countFmt : ligne du decompte ({0} = secondes). $checkLabel : case facultative ; la cocher ou la decocher arrete le
     # decompte (l utilisateur est present), la ligne affiche alors $stopOn ou $stopOff. Renvoie @{ Ok ; Checked ; Auto }.
     # 12.7 : Seconds : delai propre a cette fenetre (-1 : CalibConfirmSeconds ; 0 : aucun) ; NeedCheck : $okText inactif tant
     # que la case n est pas cochee (calibration B : la disquette inseree doit etre une autre disquette sacrifiee)
-    $w = 560
+    # 12.8 (lot 5, A4 R1 a R8, modele frmClean) : bandeau ($Heading, niveau $Level, pictogramme $Picto de New-DlgPicto) qui
+    # porte le texte (Label de premier niveau lblCalText), case en gras, aucun AcceptButton (focus sur la case, sinon sur
+    # Annuler : Entree ne lance rien), bouton principal grise par Set-PrimaryEnabled, ligne du decompte absente sans texte
+    # (frmReinsert, D7), images liberees (Clear-DlgGdi), ajustement aux petits ecrans (Set-DlgFit). Largeur de 680 px : texte
+    # de l avertissement de calibration le plus long sous 720 px de haut
+    $W = 680
+    $gdi = New-Object System.Collections.Generic.List[object]
     $dlg = New-Object System.Windows.Forms.Form
     $dlg.Name = $name; $dlg.Text = $title
     $dlg.FormBorderStyle = 'FixedDialog'; $dlg.MaximizeBox = $false; $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false
     $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font; $dlg.BackColor = [System.Drawing.Color]::White
-    $pic = New-Object System.Windows.Forms.PictureBox
-    $pic.Image = [System.Drawing.SystemIcons]::Warning.ToBitmap(); $pic.SizeMode = 'AutoSize'; $pic.Location = New-Object System.Drawing.Point(16, 16)
-    $lbl = New-Object System.Windows.Forms.Label
-    $lbl.AutoSize = $false; $lbl.UseMnemonic = $false; $lbl.Text = $text; $lbl.Location = New-Object System.Drawing.Point(64, 16)
+    $ban = New-DlgBanner $dlg 16 $W $Heading $text $Level (New-DlgPicto $Picto) $gdi 'lblCalText'
     $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
-    $h = [System.Windows.Forms.TextRenderer]::MeasureText($text, $dlg.Font, (New-Object System.Drawing.Size($w, 10000)), $tf).Height
-    $lbl.Size = New-Object System.Drawing.Size($w, ($h + 4))
-    $y = $lbl.Bottom + 12
+    $y = $ban.Bottom + 14
     $chk = $null
     if ($checkLabel) {
         $chk = New-Object System.Windows.Forms.CheckBox
-        $chk.Name = 'chkCalSwap'; $chk.Text = $checkLabel; $chk.AutoSize = $false; $chk.UseMnemonic = $false
+        $chk.Name = 'chkCalSwap'; $chk.Text = $checkLabel; $chk.AutoSize = $false; $chk.UseMnemonic = $false; $chk.Font = $bold
         $chk.CheckAlign = 'TopLeft'; $chk.TextAlign = 'TopLeft'
-        $hc = [System.Windows.Forms.TextRenderer]::MeasureText($checkLabel, $dlg.Font, (New-Object System.Drawing.Size(($w - 24), 10000)), $tf).Height
-        $chk.Size = New-Object System.Drawing.Size($w, [math]::Max(24, ($hc + 6))); $chk.Location = New-Object System.Drawing.Point(64, $y)
+        $hc = [System.Windows.Forms.TextRenderer]::MeasureText($checkLabel, $bold, (New-Object System.Drawing.Size(($W - 24), 10000)), $tf).Height
+        $chk.Size = New-Object System.Drawing.Size($W, [math]::Max(24, ($hc + 6))); $chk.Location = New-Object System.Drawing.Point(16, $y)
         $y = $chk.Bottom + 8
     }
     # 12.8 (lot 1c, § 10.1) : liste modifiable facultative ($Combo = @{ Label ; Items ; Text ; Tip }) : marque de la
@@ -13430,48 +13683,51 @@ function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string
         $lblCmb.Name = 'lblCalBrand'; $lblCmb.AutoSize = $true; $lblCmb.UseMnemonic = $false; $lblCmb.Text = [string]$Combo.Label
         # 12.8 (FIX1C, constat 8) : police de la fenetre posee avant la mesure de PreferredWidth (libelle ajoute plus tard)
         $lblCmb.Font = $dlg.Font
-        $lblCmb.Location = New-Object System.Drawing.Point(64, ($y + 4))
+        $lblCmb.Location = New-Object System.Drawing.Point(16, ($y + 4))
         $cmb = New-Object System.Windows.Forms.ComboBox
         $cmb.Name = 'cmbCalBrand'; $cmb.DropDownStyle = 'DropDown'
         foreach ($it in @($Combo.Items)) { if ($it) { [void]$cmb.Items.Add([string]$it) } }
         $cmb.Text = [string]$Combo.Text
-        $lx = 64 + $lblCmb.PreferredWidth + 8
-        $cmb.Location = New-Object System.Drawing.Point($lx, $y); $cmb.Width = [math]::Max(160, 64 + $w - $lx)
+        $lx = 16 + $lblCmb.PreferredWidth + 8
+        $cmb.Location = New-Object System.Drawing.Point($lx, $y); $cmb.Width = [math]::Max(160, 16 + $W - $lx)
         if ($Combo.Tip -and $tip) { $tip.SetToolTip($cmb, [string]$Combo.Tip) }
         $y = $cmb.Bottom + 10
     }
+    # Ligne du decompte : hauteur du plus long de ses textes ; aucune ligne quand la fenetre n en a pas (frmReinsert)
     $lblCount = New-Object System.Windows.Forms.Label
     $lblCount.Name = 'lblCalCount'; $lblCount.AutoSize = $false; $lblCount.Font = $bold
-    $lblCount.Location = New-Object System.Drawing.Point(64, $y); $lblCount.ForeColor = $script:Theme.Warn
-    $hCount = 22
+    $lblCount.Location = New-Object System.Drawing.Point(16, $y); $lblCount.ForeColor = $script:Theme.WarnInk
+    $hCount = 0
     foreach ($s in @(($countFmt -f '999'), $stopOn, $stopOff)) {
         if (-not $s) { continue }
         $lblCount.Text = $s
-        $hCount = [math]::Max($hCount, $lblCount.GetPreferredSize((New-Object System.Drawing.Size($w, 0))).Height)
+        $hCount = [math]::Max([math]::Max(22, $hCount), $lblCount.GetPreferredSize((New-Object System.Drawing.Size($W, 0))).Height)
     }
     $lblCount.Text = ''
-    $lblCount.Size = New-Object System.Drawing.Size($w, $hCount)
-    $y = $lblCount.Bottom + 10
+    $lblCount.Size = New-Object System.Drawing.Size($W, $hCount)
+    $y = if ($hCount -gt 0) { $lblCount.Bottom + 10 } else { $y + 4 }
     $btnOk = New-Object System.Windows.Forms.Button
-    $btnOk.Name = 'btnCalOk'; $btnOk.Text = $okText; $btnOk.Size = New-Object System.Drawing.Size(200, 34)
+    $btnOk.Name = 'btnCalOk'; $btnOk.Text = $okText; $btnOk.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $okText $okGlyph 170), 34)
     $btnOk.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $btnNo = New-Object System.Windows.Forms.Button
     $btnNo.Name = 'btnCalCancel'; $btnNo.Text = (T 'Annuler'); $btnNo.Size = New-Object System.Drawing.Size(110, 34)
     $btnNo.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
-    Set-Btn $btnOk $okGlyph 'primary'; Set-Btn $btnNo '' 'normal'
-    $btnNo.Location = New-Object System.Drawing.Point((64 + $w - $btnNo.Width), $y)
+    # Bouton principal : bleu et actif, sauf case obligatoire non cochee (style normal grise, Set-PrimaryEnabled)
+    Set-PrimaryEnabled $btnOk (-not ($NeedCheck -and $chk)) $okGlyph; Set-Btn $btnNo '' 'normal'
+    $btnNo.Location = New-Object System.Drawing.Point((16 + $W - $btnNo.Width), $y)
     $btnOk.Location = New-Object System.Drawing.Point(($btnNo.Left - 8 - $btnOk.Width), $y)
-    $dlg.ClientSize = New-Object System.Drawing.Size((64 + $w + 16), ($y + $btnOk.Height + 16))
-    $dlg.AcceptButton = $btnOk; $dlg.CancelButton = $btnNo
-    $dlg.Controls.AddRange(@($pic, $lbl, $lblCount, $btnOk, $btnNo))
+    $dlg.ClientSize = New-Object System.Drawing.Size(($W + 32), ($y + $btnOk.Height + 16))
+    $dlg.CancelButton = $btnNo                        # pas d AcceptButton : Entree ne lance ni la calibration ni l ecriture
+    $dlg.Controls.AddRange(@($lblCount, $btnOk, $btnNo))
     if ($chk) { $dlg.Controls.Add($chk) }
     if ($cmb) { $dlg.Controls.Add($lblCmb); $dlg.Controls.Add($cmb) }
+    $dlg.ActiveControl = if ($chk) { $chk } else { $btnNo }
+    [void](Set-DlgFit $dlg ([System.Windows.Forms.Screen]::FromControl($form).WorkingArea))
     $sec = if ($Seconds -ge 0) { $Seconds } else { [int]$script:CalibConfirmSeconds }
     $script:CalConfirm = @{ Left = $sec; Auto = $false; Dlg = $dlg; Count = $lblCount; Tmr = $null; Fmt = $countFmt; StopOn = $stopOn; StopOff = $stopOff }
-    # Bouton inactif : fond gris (le style principal, plat, ne grise que le texte)
     if ($NeedCheck -and $chk) {
-        $btnOk.Enabled = $false; $btnOk.BackColor = [System.Drawing.Color]::FromArgb(176, 186, 200); $script:CalConfirm.OkBtn = $btnOk
-        $chk.Add_CheckedChanged({ $c = $script:CalConfirm; if ($c -and $c.OkBtn) { $c.OkBtn.Enabled = $this.Checked; $c.OkBtn.BackColor = $(if ($this.Checked) { $script:Theme.Accent } else { [System.Drawing.Color]::FromArgb(176, 186, 200) }) } })
+        $script:CalConfirm.OkBtn = $btnOk; $script:CalConfirm.Glyph = $okGlyph
+        $chk.Add_CheckedChanged({ $c = $script:CalConfirm; if ($c -and $c.OkBtn) { Set-PrimaryEnabled $c.OkBtn $this.Checked $c.Glyph } })
     }
     if ($NeedCheck -and $sec -le 0 -and $stopOff) { $lblCount.Text = $stopOff }
     $tmr = $null
@@ -13513,7 +13769,7 @@ function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string
     finally { if ($tmr) { $tmr.Stop(); $tmr.Dispose() } }
     $res = @{ Ok = ($dr -eq [System.Windows.Forms.DialogResult]::OK); Checked = [bool]($chk -and $chk.Checked); Auto = [bool]$script:CalConfirm.Auto; ComboText = $(if ($cmb) { [string]$cmb.Text } else { $null }) }
     $script:CalConfirm = $null
-    $dlg.Dispose()
+    Clear-DlgGdi $dlg $gdi
     return $res
 }
 
@@ -13522,7 +13778,7 @@ function Show-CalibConfirm([string]$text, [string]$swapLabel, $brand = $null) {
     # support. $swapLabel : case « disquette sacrifiee » (la disquette a ecrire est redemandee apres la calibration),
     # absente pour une calibration seule. 12.8 (lot 1c) : $brand = @{ Label ; Items ; Text ; Tip } : champ de la marque
     # de la disquette (calibration rapide). Renvoie @{ Ok ; Swap ; Auto ; Brand }.
-    $r = Show-TimedConfirm 'frmCalibConfirm' (T 'Calibration precomp') $text (T 'Lancer la calibration') 'Diagnostic' (T "Sans réponse, la calibration démarre automatiquement dans {0} s.") $swapLabel (T "Compte à rebours arrêté : insérez la disquette sacrifiée, puis cliquez sur « Lancer la calibration ».") (T "Compte à rebours arrêté : cliquez sur « Lancer la calibration » pour calibrer avec la disquette insérée.") -Combo $brand
+    $r = Show-TimedConfirm 'frmCalibConfirm' (T 'Calibration precomp') $text (T 'Lancer la calibration') 'Diagnostic' (T "Sans réponse, la calibration démarre automatiquement dans {0} s.") $swapLabel (T "Compte à rebours arrêté : insérez la disquette sacrifiée, puis cliquez sur « Lancer la calibration ».") (T "Compte à rebours arrêté : cliquez sur « Lancer la calibration » pour calibrer avec la disquette insérée.") -Combo $brand -Heading (T 'Calibration : la disquette insérée reçoit le motif de test') -Level 'warn' -Picto 'warn'
     return @{ Ok = $r.Ok; Swap = $r.Checked; Auto = $r.Auto; Brand = $r.ComboText }
 }
 
@@ -13531,64 +13787,89 @@ function Show-CalibSurface($opt, [string]$text) {
     # rebours ni de decision automatique : la disquette inseree est peut-etre celle a ecrire. Fermeture (croix, Echap) :
     # Arreter. Renvoie @{ Choice = 'change' | 'continue' | 'stop' ; Swap }. 12.7 point 5 : $opt.Title, $opt.GoText (titre
     # et bouton « Continuer » de la variante 'level' : « Disquette a ecrire defectueuse », « Ecrire quand meme »)
-    $w = 600
+    # 12.8 (lot 5, A4 R1 a R8, D15) : bandeau dont le pictogramme porte l icone d etat du lot 3, texte lblSurfText (Label de
+    # premier niveau) ; etats du controle ($opt.States, Get-CalibSurfaceStates : faces, vitesse du lecteur, densite relue)
+    # en icones ✓ / ! / ✗ ; cases en gras ; « Changer de disquette » en action principale, bleue et active seulement case
+    # cochee (Set-PrimaryEnabled) ; sans elle, aucune action conseillee : « Continuer » ou « Ecrire quand meme » restent en
+    # style normal (comme « Ecrire l image » sous l avertissement de frmCalibReview) ; « Arreter » en style danger ; images
+    # liberees (Clear-DlgGdi) ; ajustement aux petits ecrans (Set-DlgFit). $opt.Speed : defaut de vitesse seul
+    $W = 680
+    $gdi = New-Object System.Collections.Generic.List[object]
     $dlg = New-Object System.Windows.Forms.Form
     $dlg.Name = 'frmCalibSurface'; $dlg.Text = $(if ($opt.Title) { [string]$opt.Title } else { (T 'Contrôle de surface') })
     $dlg.FormBorderStyle = 'FixedDialog'; $dlg.MaximizeBox = $false; $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false
     $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font; $dlg.BackColor = [System.Drawing.Color]::White
-    $pic = New-Object System.Windows.Forms.PictureBox
-    $pic.Image = [System.Drawing.SystemIcons]::Warning.ToBitmap(); $pic.SizeMode = 'AutoSize'; $pic.Location = New-Object System.Drawing.Point(16, 16)
+    $spd = [bool]$opt.Speed
+    $heading = if ($spd) { (T 'Vitesse du lecteur hors tolérance') } elseif ([string]$opt.Variant -eq 'level') { (T 'Disquette à écrire défectueuse') } else { (T 'Disquette de calibration douteuse') }
+    $ban = New-DlgBanner $dlg 16 $W $heading $text 'warn' (New-DlgPicto $(if ($spd) { 'drive' } else { 'disk' }) 'h2') $gdi 'lblSurfText'
     $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
-    $lbl = New-Object System.Windows.Forms.Label
-    $lbl.Name = 'lblSurfText'; $lbl.AutoSize = $false; $lbl.UseMnemonic = $false; $lbl.Text = $text; $lbl.Location = New-Object System.Drawing.Point(64, 16)
-    $lbl.Size = New-Object System.Drawing.Size($w, ([System.Windows.Forms.TextRenderer]::MeasureText($text, $dlg.Font, (New-Object System.Drawing.Size($w, 10000)), $tf).Height + 4))
-    $dlg.Controls.AddRange(@($pic, $lbl))
-    $y = $lbl.Bottom + 12
+    $y = $ban.Bottom + 12
+    # Etats du controle, deux par ligne : icone d etat de 16 px (cache Get-QualityIcon, jamais liberee ici) et texte dans
+    # l encre de son niveau (Get-QualInk) ; texte complet en infobulle s il est coupe (AutoEllipsis)
+    $states = @(@($opt.States) | Where-Object { $_ })
+    if ($states.Count -gt 0) {
+        $pnlSt = New-Object System.Windows.Forms.Panel
+        $pnlSt.Name = 'pnlSurfStates'; $pnlSt.Location = New-Object System.Drawing.Point(16, $y); $pnlSt.BackColor = [System.Drawing.Color]::White
+        $colW = [int]($W / 2)
+        for ($i = 0; $i -lt $states.Count; $i++) {
+            $st = $states[$i]; $x = ($i % 2) * $colW; $ry = [int][math]::Floor($i / 2) * 24
+            $ic = New-Object System.Windows.Forms.PictureBox
+            $ic.Image = Get-QualityIcon ([string]$st.Kind) 16; $ic.Location = New-Object System.Drawing.Point($x, ($ry + 3)); $ic.Size = New-Object System.Drawing.Size(16, 16)
+            $lt = New-Object System.Windows.Forms.Label
+            $lt.Name = "lblSurfState$i"; $lt.Text = [string]$st.Text; $lt.AutoSize = $false; $lt.UseMnemonic = $false; $lt.AutoEllipsis = $true
+            $lt.ForeColor = Get-QualInk $(switch ([string]$st.Kind) { 'h0' { 0 } 'h1' { 2 } default { 3 } })
+            $lt.Location = New-Object System.Drawing.Point(($x + 22), ($ry + 2)); $lt.Size = New-Object System.Drawing.Size(($colW - 30), 20)
+            $pnlSt.Controls.AddRange(@($ic, $lt))
+        }
+        $pnlSt.Size = New-Object System.Drawing.Size($W, ([int][math]::Ceiling($states.Count / 2) * 24))
+        $dlg.Controls.Add($pnlSt)
+        $y = $pnlSt.Bottom + 10
+    }
     $chkNew = $null; $chkSwap = $null
     if ($opt.Change) {
         $chkNew = New-Object System.Windows.Forms.CheckBox
-        $chkNew.Name = 'chkSurfNew'; $chkNew.Text = (T "J'ai inséré une autre disquette"); $chkNew.AutoSize = $true; $chkNew.UseMnemonic = $false
-        $chkNew.Location = New-Object System.Drawing.Point(64, $y); $dlg.Controls.Add($chkNew); $y += 28
+        $chkNew.Name = 'chkSurfNew'; $chkNew.Text = (T "J'ai inséré une autre disquette"); $chkNew.AutoSize = $true; $chkNew.UseMnemonic = $false; $chkNew.Font = $bold
+        $chkNew.Location = New-Object System.Drawing.Point(16, $y); $dlg.Controls.Add($chkNew); $y += 28
         if ($opt.SwapBox) {
             $sl = (T "J'ai inséré une disquette sacrifiée : me redemander {0} après la calibration") -f (T 'la disquette à écrire')
             $chkSwap = New-Object System.Windows.Forms.CheckBox
-            $chkSwap.Name = 'chkSurfSwap'; $chkSwap.Text = $sl; $chkSwap.AutoSize = $false; $chkSwap.UseMnemonic = $false; $chkSwap.Enabled = $false
+            $chkSwap.Name = 'chkSurfSwap'; $chkSwap.Text = $sl; $chkSwap.AutoSize = $false; $chkSwap.UseMnemonic = $false; $chkSwap.Enabled = $false; $chkSwap.Font = $bold
             $chkSwap.CheckAlign = 'TopLeft'; $chkSwap.TextAlign = 'TopLeft'
-            $hs = [System.Windows.Forms.TextRenderer]::MeasureText($sl, $dlg.Font, (New-Object System.Drawing.Size(($w - 44), 10000)), $tf).Height
-            $chkSwap.Size = New-Object System.Drawing.Size(($w - 20), [math]::Max(24, ($hs + 6))); $chkSwap.Location = New-Object System.Drawing.Point(84, $y)
+            $hs = [System.Windows.Forms.TextRenderer]::MeasureText($sl, $bold, (New-Object System.Drawing.Size(($W - 44), 10000)), $tf).Height
+            $chkSwap.Size = New-Object System.Drawing.Size(($W - 20), [math]::Max(24, ($hs + 6))); $chkSwap.Location = New-Object System.Drawing.Point(36, $y)
             $dlg.Controls.Add($chkSwap); $y = $chkSwap.Bottom + 4
         }
         $y += 6
     }
     $btnStop = New-Object System.Windows.Forms.Button
-    $btnStop.Name = 'btnSurfStop'; $btnStop.Text = (T 'Arrêter'); $btnStop.Size = New-Object System.Drawing.Size(110, 34); $btnStop.DialogResult = [System.Windows.Forms.DialogResult]::Abort
+    $btnStop.Name = 'btnSurfStop'; $btnStop.Text = (T 'Arrêter'); $btnStop.DialogResult = [System.Windows.Forms.DialogResult]::Abort
+    $btnStop.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnStop.Text 'Stop' 110), 34)
     $btnGo = New-Object System.Windows.Forms.Button
     $btnGo.Name = 'btnSurfContinue'; $btnGo.Text = $(if ($opt.GoText) { [string]$opt.GoText } else { (T 'Continuer') }); $btnGo.DialogResult = [System.Windows.Forms.DialogResult]::OK
-    $btnGo.Size = New-Object System.Drawing.Size([math]::Max(130, [System.Windows.Forms.TextRenderer]::MeasureText($btnGo.Text, $dlg.Font).Width + 36), 34)
-    Set-Btn $btnStop '' 'normal'; Set-Btn $btnGo '' 'normal'
-    $btnStop.Location = New-Object System.Drawing.Point((64 + $w - $btnStop.Width), $y)
+    $btnGo.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnGo.Text '' 130), 34)
+    Set-Btn $btnStop 'Stop' 'danger'; Set-Btn $btnGo '' 'normal'
+    $btnStop.Location = New-Object System.Drawing.Point((16 + $W - $btnStop.Width), $y)
     $btnGo.Location = New-Object System.Drawing.Point(($btnStop.Left - 8 - $btnGo.Width), $y)
     $dlg.Controls.AddRange(@($btnGo, $btnStop))
     if ($opt.Change) {
         $btnCh = New-Object System.Windows.Forms.Button
-        $btnCh.Name = 'btnSurfChange'; $btnCh.Text = (T 'Changer de disquette'); $btnCh.Size = New-Object System.Drawing.Size(200, 34)
-        $btnCh.DialogResult = [System.Windows.Forms.DialogResult]::Retry; $btnCh.Enabled = $false
-        Set-Btn $btnCh '' 'normal'
+        $btnCh.Name = 'btnSurfChange'; $btnCh.Text = (T 'Changer de disquette'); $btnCh.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth (T 'Changer de disquette') 'Refresh' 170), 34)
+        $btnCh.DialogResult = [System.Windows.Forms.DialogResult]::Retry
+        Set-PrimaryEnabled $btnCh $false 'Refresh'
         $btnCh.Location = New-Object System.Drawing.Point(($btnGo.Left - 8 - $btnCh.Width), $y)
         $dlg.Controls.Add($btnCh)
         $chkNew.Add_CheckedChanged({
             $f = $this.FindForm()
-            $b = $f.Controls.Find('btnSurfChange', $true); if ($b.Count) { $b[0].Enabled = $this.Checked }
+            $b = $f.Controls.Find('btnSurfChange', $true); if ($b.Count) { Set-PrimaryEnabled $b[0] $this.Checked 'Refresh' }
             $s = $f.Controls.Find('chkSurfSwap', $true); if ($s.Count) { $s[0].Enabled = $this.Checked; if (-not $this.Checked) { $s[0].Checked = $false } }
         })
     }
-    $dlg.ClientSize = New-Object System.Drawing.Size((64 + $w + 16), ($y + 34 + 16))
+    $dlg.ClientSize = New-Object System.Drawing.Size(($W + 32), ($y + 34 + 16))
     $dlg.CancelButton = $btnStop                   # Echap : Arreter ; croix : DialogResult Cancel, traite comme Arreter
+    [void](Set-DlgFit $dlg ([System.Windows.Forms.Screen]::FromControl($form).WorkingArea))
     $dlg.Add_Shown({ $this.Activate(); $b = $this.Controls.Find('btnSurfStop', $true); if ($b.Count) { $this.ActiveControl = $b[0] }; try { [System.Media.SystemSounds]::Exclamation.Play() } catch { } })
     $swap = $false
-    # Image de l icone (ToBitmap) liberee avec la fenetre : PictureBox.Dispose ne libere pas son Image
-    $img = $pic.Image
-    try { $dr = $dlg.ShowDialog($form); $swap = [bool]($chkSwap -and $chkSwap.Checked) } finally { $dlg.Dispose(); if ($img) { $img.Dispose() } }
+    try { $dr = $dlg.ShowDialog($form); $swap = [bool]($chkSwap -and $chkSwap.Checked) } finally { Clear-DlgGdi $dlg $gdi }
     if ($dr -eq [System.Windows.Forms.DialogResult]::Retry) { return @{ Choice = 'change'; Swap = $swap } }
     if ($dr -eq [System.Windows.Forms.DialogResult]::OK) { return @{ Choice = 'continue'; Swap = $false } }
     return @{ Choice = 'stop'; Swap = $false }
@@ -14082,7 +14363,7 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
     try { $pat = New-CalibPattern $fam $img $lr.NCyl }
-    catch { [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)"),(T 'Calibration precomp'),'OK','Error'); return }
+    catch { [void](Show-AppMessage ((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)") (T 'Calibration precomp') 'OK' 'Error'); return }
     Set-CalibScale $fam     # 12.7 : bareme double densite (pas de calibration rapide en haute densite, Get-LevelRef)
     $units = New-LevelCalUnits $lr $brand ([string]$cmbDrive.Text)
     $cylList = Format-CylList $cyls
@@ -14838,7 +15119,7 @@ function Start-LevelCalibButton {
     $lr = Get-LevelRef $chk.Family ([bool]$chkWSlow.Checked) $cmbDrive.Text $chk.Img $false -NCyl ([int]$chk.NCyl)
     if ($lr.Ok) { $script:AfterCalib = ''; Start-LevelCalib $lr; return }
     if ($lr.Class -eq 'domain' -and -not $lr.Short) {
-        [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration rapide non applicable à cette image : {0}.") -f "$($lr.Why)"),(T 'Calibration precomp'),'OK','Information'); return
+        [void](Show-AppMessage ((T "Calibration rapide non applicable à cette image : {0}.") -f "$($lr.Why)") (T 'Calibration precomp') 'OK' 'Information'); return
     }
     # 12.8 (D3) : confirmation par frmConfirm, sans case : l avertissement de la calibration suit, avec sa confirmation
     $cq = @{ Title = (T 'Calibration precomp'); Heading = (T 'Calibration rapide impossible'); Level = 'info'; Picto = 'data'
@@ -14887,37 +15168,37 @@ function Test-CalibImage($Geom = $null) {
     # propre, secteurs durs, ED, 360 tr/min, cellule hors plage : Get-FormatCalibInfo) : refus. 12.7 : image haute densite
     # admise si elle est calibrable (famille hd, Get-HdCalibFamily).
     if (-not $script:ScpStatsOk) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Calibration : module d''analyse SCP indisponible (Add-Type).'),(T 'Calibration precomp'),'OK','Warning'); return $null
+        [void](Show-AppMessage (T 'Calibration : module d''analyse SCP indisponible (Add-Type).') (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
     if (-not (Test-Path -LiteralPath $script:GwExe)) {
-        [void][System.Windows.Forms.MessageBox]::Show(((T "gw.exe introuvable : {0}`n`nPlacez ce script dans le même répertoire que gw.exe.") -f "$($script:GwExe)"),(T 'Erreur'),'OK','Error'); return $null
+        [void](Show-AppMessage ((T "gw.exe introuvable : {0}`n`nPlacez ce script dans le même répertoire que gw.exe.") -f "$($script:GwExe)") (T 'Erreur') 'OK' 'Error'); return $null
     }
     $img = if ($Geom) { [string]$Geom.Img } else { $txtWFile.Text }
     $fmt = if ($Geom) { '' } else { $cmbWFmt.Text }
     if (-not $img -or -not (Test-Path -LiteralPath $img)) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Choisissez d''abord l''image à écrire : elle fixe la famille (cellule) et le nombre de cylindres de la calibration.'),(T 'Calibration precomp'),'OK','Warning'); return $null
+        [void](Show-AppMessage (T 'Choisissez d''abord l''image à écrire : elle fixe la famille (cellule) et le nombre de cylindres de la calibration.') (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
     $ext = [System.IO.Path]::GetExtension($img).ToLower()
     if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) {
-        [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration impossible sur un flux ({0}) : la calibration ne détermine la densité que d'une image à bits ou secteurs (ADF, IPF, HFE, IMG...).") -f "$ext"),(T 'Calibration precomp'),'OK','Warning'); return $null
+        [void](Show-AppMessage ((T "Calibration impossible sur un flux ({0}) : la calibration ne détermine la densité que d'une image à bits ou secteurs (ADF, IPF, HFE, IMG...).") -f "$ext") (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
     $fci = if ($fmt -and $fmt -ne '(auto)' -and $script:GwFormats.Contains($fmt)) { Get-FormatCalibInfo $fmt } else { $null }
     $hd = Get-HighDensityReason $img $fmt
     # 12.7 : haute densite calibrable (famille hd) admise ; sinon refus, avec la raison du format s il est explicite
     if ($hd -and -not (Get-HdCalibFamily $img $fmt)) {
         $msg = if ($fci -and -not $fci.Cal) { (T "Calibration non prise en charge pour le format {0} : {1}.") -f "$fmt", "$($fci.Why)" }
-               else { (T "Calibration non prise en charge pour cette image haute densité ({0}) : seule la haute densité MFM à 1 µs par cellule et à 300 tr/min se calibre ; la très haute densité (ED), les codages propres et la haute densité à 360 tr/min ne se calibrent pas.") -f "$hd" }
+               else { (T "Calibration non prise en charge pour cette image haute densité ({0}) : seule la haute densité MFM à 1 us par cellule et à 300 tr/min se calibre ; la très haute densité (ED), les codages propres et la haute densité à 360 tr/min ne se calibrent pas.") -f "$hd" }
         [void](Show-AppMessage $msg (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
     if ($chkWHard.Checked -or $chkWTG43.Checked) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Calibration non prise en charge avec secteurs durs ou lecteur 8 pouces (TG43) : l''analyse de flux est calibrée pour le MFM double densité.'),(T 'Calibration precomp'),'OK','Warning'); return $null
+        [void](Show-AppMessage (T 'Calibration non prise en charge avec secteurs durs ou lecteur 8 pouces (TG43) : l''analyse de flux est calibrée pour le MFM double densité.') (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
     $oor = Get-CellOutOfRange $img
     if ($null -ne $oor) {
         [void](Show-AppMessage ((T "Calibration non prise en charge : cellule de l'image de {0} ns, hors des plages mesurables (900 à 1 100 ns en haute densité, 1 700 à 2 300 ns en double densité).") -f "$oor") (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
     if ($fci -and -not $fci.Cal) {
-        [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration non prise en charge pour le format {0} : {1}.") -f "$fmt", "$($fci.Why)"),(T 'Calibration precomp'),'OK','Warning'); return $null
+        [void](Show-AppMessage ((T "Calibration non prise en charge pour le format {0} : {1}.") -f "$fmt", "$($fci.Why)") (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
     $family = Get-ImageFamily $img $fmt
     $cc = Get-CalibCylinders $img $fmt
@@ -15854,7 +16135,7 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     $swapLabel = if ($toWrite) { (T "J'ai inséré une disquette sacrifiée : me redemander {0} après la calibration") -f "$target" } else { '' }
     if ($redo) {
         # Confirmation sans compte a rebours : la case est obligatoire (une disquette de valeur est peut-etre inseree)
-        $rc = Show-TimedConfirm 'frmCalibRedo' (T 'Calibration sur une autre disquette') ($Intro + $body + "`n`n" + $wear) (T 'Lancer la calibration B') 'Diagnostic' '' (T "J'ai retiré la disquette de la calibration A et inséré une autre disquette sacrifiée") '' (T "Pas de démarrage automatique : cochez la case, puis cliquez sur « Lancer la calibration B ».") -Seconds 0 -NeedCheck
+        $rc = Show-TimedConfirm 'frmCalibRedo' (T 'Calibration sur une autre disquette') ($Intro + $body + "`n`n" + $wear) (T 'Lancer la calibration B') 'Diagnostic' '' (T "J'ai retiré la disquette de la calibration A et inséré une autre disquette sacrifiée") '' (T "Pas de démarrage automatique : cochez la case, puis cliquez sur « Lancer la calibration B ».") -Seconds 0 -NeedCheck -Heading (T 'Calibration B : insérez une autre disquette sacrifiée') -Level 'warn' -Picto 'warn'
         $ans = @{ Ok = ($rc.Ok -and $rc.Checked); Swap = $false; Auto = $false }
     } elseif ($fb) {
         # Repli apres la calibration rapide : la disquette inseree est peut-etre celle a ecrire ; jamais de demarrage
@@ -15873,7 +16154,7 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
     try { $pat = New-CalibPattern $family $img $nCyl }
-    catch { [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)"),(T 'Calibration precomp'),'OK','Error'); return }
+    catch { [void](Show-AppMessage ((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)") (T 'Calibration precomp') 'OK' 'Error'); return }
     if ($redo -and [int]$pat.Bits -ne [int]$script:CalRedo.ACal.PatternBits) {
         [void](Show-AppMessage ((T "Calibration B impossible : réglage différent de la calibration A ({0}). La décision sur la courbe A est rouverte.") -f (T 'densité du motif')) (T 'Calibration precomp') 'OK' 'Warning'); return
     }
@@ -16455,6 +16736,7 @@ function Invoke-CalibAnalysis {
                 $redo = [bool]($script:CalRedo -and $script:CalRedo.Stage -eq 'running')
                 $opt = Get-CalibSurfaceOptions ([bool]$script:Restore) $redo ($script:AfterCalib -eq 'write') ([bool]$cal.Swap)
                 if ($spd) { $opt.Speed = $true; $opt.Change = $false; $opt.SwapBox = $false }
+                $opt.States = Get-CalibSurfaceStates $sf $mc    # 12.8 (lot 5, D15) : icones d etat de frmCalibSurface
                 $txt = Get-CalibSurfaceText $sf $opt $std ([bool]$cal.AutoStart) -Extra @($mc.Lines) -Notes @($notes) -Medium $mc -Hd $hdFam
                 $cal.Hold = $true; Update-CalibProgress; if ($cal.Home) { Update-HomeCalibCard }
                 if ($script:Restore) { $script:Restore.InCall = $true }
@@ -17181,9 +17463,9 @@ function Complete-PrecompCalib {
         # Ecriture rapide ou lente : l image est ecrite tout de suite avec le profil obtenu (courbe visible par le bouton Courbe)
         $script:AfterCalib = ''
         if ($cal.Swap) {
-            # Calibration faite sur une disquette sacrifiee : la disquette a ecrire est redemandee, avec le meme delai que
-            # l avertissement (sans reponse, l image est ecrite sur la disquette inseree) ; restauration : attente a delai,
-            # puis nouvelle sonde de la destination avant l ecriture
+            # Calibration faite sur une disquette sacrifiee : la disquette a ecrire est redemandee (frmReinsert). 12.8 (D7) :
+            # sans compte a rebours : une ecriture lancee seule ne peut pas savoir quelle disquette est dans le lecteur ;
+            # restauration : remise sans delai depuis le lot 2, puis nouvelle sonde de la destination avant l ecriture
             if ($script:Restore) { Enter-RestoreSwapBack; return }
             $lrA = if ($cal.LevelAfter) { Get-LevelRef $cal.Family $cal.Slow $cal.Drive $cal.Image $false -NCyl ([int]$cal.MaxCyl + 1) } else { $null }
             if ($lrA -and -not $lrA.Ok) { Append-Log ((T "Calibration rapide impossible : {0}. Écriture avec la nouvelle calibration complète.") -f "$($lrA.Why)") }
@@ -17191,9 +17473,8 @@ function Complete-PrecompCalib {
                 # Reference faite sur la disquette sacrifiee : le niveau de la disquette a ecrire est mesure apres sa remise
                 $lr = $lrA
                 $lc = if ($lr.Ok) { (@($lr.Units | ForEach-Object { Format-CylList ([int[]]@(@(@($_.LCyls) + @($_.Wit) + @($(if ($null -ne $_.Probe) { $_.Probe }))) | Sort-Object -Unique)) } | Sort-Object -Unique)) -join ' ; ' } else { '-' }
-                $q = Show-TimedConfirm 'frmReinsert' (T 'Calibration precomp') ((T "Calibration terminée : elle devient la référence de forme du lecteur {0}.`n`nRetirez la disquette sacrifiée et insérez la disquette à écrire, puis cliquez sur « Mesurer le niveau et écrire » : son niveau de précompensation est mesuré sur les cylindres {1} (2 faces, 1 à 3 écritures du motif par piste), puis l'image est écrite.`nAnnuler : l'image n'est pas écrite.") -f "$($cal.Drive)", "$lc") (T 'Mesurer le niveau et écrire') 'Diagnostic' (T "Sans réponse, la mesure du niveau puis l'écriture démarrent automatiquement dans {0} s.") '' '' ''
+                $q = Show-TimedConfirm 'frmReinsert' (T 'Calibration precomp') ((T "Calibration terminée : elle devient la référence de forme du lecteur {0}.`n`nRetirez la disquette sacrifiée et insérez la disquette à écrire, puis cliquez sur « Mesurer le niveau et écrire » : son niveau de précompensation est mesuré sur les cylindres {1} (2 faces, 1 à 3 écritures du motif par piste), puis l'image est écrite.`nAnnuler : l'image n'est pas écrite.") -f "$($cal.Drive)", "$lc") (T 'Mesurer le niveau et écrire') 'Diagnostic' '' '' '' '' -Seconds 0 -Heading (T 'Insérez la disquette à écrire') -Level 'info' -Picto 'data'
                 if (-not $q.Ok) { Append-Log (T 'Écriture annulée : la disquette à écrire n''a pas été remise après la calibration.'); return }
-                if ($q.Auto) { Append-Log ((T "Calibration : remise de la disquette validée automatiquement après {0} s sans réponse.") -f "$($script:CalibConfirmSeconds)") }
                 if ($lr.Ok) {
                     $script:AfterCalib = 'write'
                     Start-LevelCalib $lr -NoConfirm -NoFallback
@@ -17201,9 +17482,8 @@ function Complete-PrecompCalib {
                     return
                 }
             } else {
-            $q = Show-TimedConfirm 'frmReinsert' (T 'Calibration precomp') ((T "Calibration terminée.`n`nRetirez la disquette sacrifiée du lecteur {0} et insérez la disquette à écrire, puis cliquez sur « Écrire l'image ».`nAnnuler : l'image n'est pas écrite.") -f "$($cal.Drive)") (T "Écrire l'image") 'Save' (T "Sans réponse, l'écriture de l'image démarre automatiquement dans {0} s.") '' '' ''
+            $q = Show-TimedConfirm 'frmReinsert' (T 'Calibration precomp') ((T "Calibration terminée.`n`nRetirez la disquette sacrifiée du lecteur {0} et insérez la disquette à écrire, puis cliquez sur « Écrire l'image ».`nAnnuler : l'image n'est pas écrite.") -f "$($cal.Drive)") (T "Écrire l'image") 'Save' '' '' '' '' -Seconds 0 -Heading (T 'Insérez la disquette à écrire') -Level 'info' -Picto 'data'
             if (-not $q.Ok) { Append-Log (T 'Écriture annulée : la disquette à écrire n''a pas été remise après la calibration.'); return }
-            if ($q.Auto) { Append-Log ((T "Calibration : remise de la disquette validée automatiquement après {0} s sans réponse.") -f "$($script:CalibConfirmSeconds)") }
             }
         }
         Append-Log (T 'Calibration terminée : écriture de l''image avec le profil obtenu.')
@@ -17506,6 +17786,27 @@ function Format-CalibSurfaceReserve($sf) {
     return ((T "support : {0} piste(s) défectueuse(s) à la première passe ({1})") -f "$n", ($p -join ' ; '))
 }
 
+function Get-CalibSurfaceStates($sf, $mc) {
+    # 12.8 (lot 5, D15) : etats du controle pour frmCalibSurface (icones d etat du lot 3, h0 ✓, h1 !, h2 ✗) : une ligne par
+    # face mesuree (defectueuse ✗, pistes defectueuses sans defaut de la face !, saine ✓), puis vitesse du lecteur et densite
+    # relue quand au moins une face a ete mesuree (Get-CalibMediumCheck). Renvoie un tableau de @{ Kind ; Text }.
+    $r = @()
+    foreach ($h in 0, 1) {
+        $f = $sf.Faces[$h]
+        if (-not $f -or [int]$f.N -le 0) { continue }
+        $n = @($f.Bad).Count
+        if ($f.Defective -and $n -eq 0) { $r += ,@{ Kind = 'h2'; Text = ((T 'Face {0} : défectueuse (hors classe sur toute la face)') -f "$h") } }
+        elseif ($f.Defective) { $r += ,@{ Kind = 'h2'; Text = ((T 'Face {0} : défectueuse ({1} piste(s) sur {2})') -f "$h", "$n", "$($f.N)") } }
+        elseif ($n -gt 0) { $r += ,@{ Kind = 'h1'; Text = ((T 'Face {0} : défaut ponctuel ({1} piste(s) sur {2})') -f "$h", "$n", "$($f.N)") } }
+        else { $r += ,@{ Kind = 'h0'; Text = ((T 'Face {0} : saine') -f "$h") } }
+    }
+    if ($mc -and $mc.Faces -and @(@($mc.Faces.Values) | Where-Object { $_ -and [int]$_.N -gt 0 }).Count -gt 0) {
+        $r += ,$(if ($mc.Rot) { @{ Kind = 'h2'; Text = (T 'Vitesse du lecteur : hors tolérance') } } else { @{ Kind = 'h0'; Text = (T 'Vitesse du lecteur : conforme') } })
+        $r += ,$(if ($mc.Flux) { @{ Kind = 'h2'; Text = (T 'Densité relue : différente du motif') } } else { @{ Kind = 'h0'; Text = (T 'Densité relue : conforme') } })
+    }
+    return ,$r
+}
+
 function Get-LevelSurface($tracks, $cal, [int]$rpm) {
     # 12.7 point 5 : controle de surface (Get-CalibSurface) et de vitesse et de densite (Get-CalibMediumCheck) de la
     # premiere passe de la calibration rapide, chaque face sur ses cylindres ecrits a cette passe (cibles de ses unites :
@@ -17587,7 +17888,9 @@ function Invoke-LevelSurface($cal, $tracks) {
         else { Append-Log ((T 'Contrôle de surface : disquette à écrire défectueuse ({0}) : décision demandée.') -f "$verdict") }
         $notes = @()
         if ($mc.Rot) { $notes += (T "Vitesse du lecteur différente de celle du type de disquette : un format à 300 tr/min demande un lecteur à 300 tr/min (3,5 pouces, ou 5,25 pouces double densité), un format à 360 tr/min un lecteur à 360 tr/min (5,25 pouces haute densité, ou 3,5 pouces réglé à 360 tr/min). Changer de disquette n'y change rien.") }
-        $opt = @{ Change = $false; SwapBox = $false; Variant = 'level'; Title = $(if ($spd) { (T 'Contrôle de surface') } else { (T 'Disquette à écrire défectueuse') }); GoText = (T 'Écrire quand même') }
+        # 12.8 (lot 5, D15) : Speed et States : titre du bandeau et icones d etat de frmCalibSurface
+        $opt = @{ Change = $false; SwapBox = $false; Variant = 'level'; Title = $(if ($spd) { (T 'Contrôle de surface') } else { (T 'Disquette à écrire défectueuse') }); GoText = (T 'Écrire quand même')
+                  Speed = $spd; States = (Get-CalibSurfaceStates $sf $mc) }
         $txt = Get-LevelSurfaceText $sf $mc ([bool]$script:Restore) $spd $notes
         $cal.Hold = $true; Update-CalibProgress; if ($cal.Home) { Update-HomeCalibCard }
         if ($script:Restore) { $script:Restore.InCall = $true }
@@ -18749,13 +19052,14 @@ $tip.SetToolTip($chkTime, (T 'Affiche le temps écoulé après chaque commande g
 
 # Mode expert : affiche aussi les onglets techniques (Conversion, Comparaison, Outils, Délais, Commande libre)
 $chkExpert = New-Object System.Windows.Forms.CheckBox
-$chkExpert.Text = (T 'Mode expert'); $chkExpert.Location = '404,9'; $chkExpert.AutoSize = $true; $chkExpert.Anchor = 'Top,Right'
+$chkExpert.Text = (T 'Mode expert'); $chkExpert.Location = '404,5'; $chkExpert.AutoSize = $true; $chkExpert.Anchor = 'Top,Right'
 $chkExpert.BackColor = [System.Drawing.Color]::Transparent; $chkExpert.ForeColor = [System.Drawing.Color]::White
 $tip.SetToolTip($chkExpert, (T "Décoché : seuls les onglets utiles au quotidien sont affichés (Accueil, Restauration, Bibliothèque, Écriture, Lecture, Qualité).`nCoché : tous les onglets, y compris Conversion, Comparaison, Outils, Délais et Commande libre."))
 
-# Aide en ligne (wiki) pour l onglet affiche ; touche F1
+# Aide en ligne (wiki) pour l onglet affiche ; touche F1. 12.8 (lot 5) : hauteur de 34 px (deux hauteurs de bouton, 34 et
+# 40 px), centree sur la rangee du lecteur ; case « Mode expert » remontee de 4 px au-dessus
 $btnHelpTop = New-Object System.Windows.Forms.Button
-$btnHelpTop.Text = (T 'Aide'); $btnHelpTop.Location = '404,33'; $btnHelpTop.Size = '84,26'; $btnHelpTop.Anchor = 'Top,Right'
+$btnHelpTop.Text = (T 'Aide'); $btnHelpTop.Location = '404,28'; $btnHelpTop.Size = '84,34'; $btnHelpTop.Anchor = 'Top,Right'
 $btnHelpTop.Add_Click({ Open-HelpForTab })
 $tip.SetToolTip($btnHelpTop, (T 'Ouvre le guide en ligne de l''onglet affiché (touche F1).'))
 
@@ -19003,7 +19307,7 @@ $tip.SetToolTip($cmbWProfile, (T "Auto : la cellule de l'image est mesurée (IPF
 $cmbWProfile.Add_SelectedIndexChanged({ Update-PrecompForImage $txtWFile.Text })
 
 $btnWCurve = New-Object System.Windows.Forms.Button
-$btnWCurve.Text = (T 'Courbe'); $btnWCurve.Location = '620,50'; $btnWCurve.Size = '130,26'; $btnWCurve.Enabled = $false
+$btnWCurve.Text = (T 'Courbe'); $btnWCurve.Location = '620,46'; $btnWCurve.Size = '130,34'; $btnWCurve.Enabled = $false   # 12.8 (lot 5) : 34 px
 $tip.SetToolTip($btnWCurve, (T 'Affiche la courbe de précompensation calibrée pour la famille de l''image (standard ou long track) : mesures, courbe ajustée et valeur retenue pour chaque cylindre.') + "`n" + (T 'Écriture lente cochée : une courbe par tête, si la calibration a été faite en écriture lente.'))
 $btnWCurve.Add_Click({ Show-PrecompCurve $script:CurveFamily $chkWSlow.Checked })
 
@@ -19098,7 +19402,7 @@ $chkWPostCheck.Add_CheckedChanged({ $numWRepair.Enabled = $chkWPostCheck.Checked
 
 # --- Ligne 3 : calibration automatique de la precompensation pour le lecteur d ecriture
 $cmbWCalMode = New-Object System.Windows.Forms.ComboBox
-$cmbWCalMode.Location = '165,105'; $cmbWCalMode.Width = 250; $cmbWCalMode.DropDownStyle = 'DropDownList'
+$cmbWCalMode.Location = '165,111'; $cmbWCalMode.Width = 250; $cmbWCalMode.DropDownStyle = 'DropDownList'
 [void]$cmbWCalMode.Items.AddRange(@((T 'Test standard : 1 cylindre sur 10'), (T 'Test fin : tous les cylindres'), (T 'Test rapide : niveau et forme par disquette')))
 $cmbWCalMode.SelectedIndex = 0
 # 12.8 (D5) : case « Mesurer la disquette » cochee et verrouillee au « Test rapide » (Update-SlowUi), a chaque changement
@@ -19106,28 +19410,31 @@ $cmbWCalMode.SelectedIndex = 0
 $cmbWCalMode.Add_SelectedIndexChanged({ Update-SlowUi })
 $tip.SetToolTip($cmbWCalMode, (T "Test standard (un cylindre sur 10) ou test fin (tous les cylindres) : calibration complète, qui mesure la courbe de précompensation du lecteur ; elle est faite une fois, puis réutilisée.`nTest rapide : la forme de la courbe vient de la dernière calibration complète du lecteur (la référence). Avant chaque écriture (bouton ÉCRIRE, Bibliothèque, restauration), et avec « Calibrer », son niveau est mesuré sur la disquette insérée, et sa forme aussi si elle diffère de la référence : 4 à 9 cylindres par tête (2 de plus si la forme est adaptée), 1 à 3 écritures du motif par piste. Sans référence utilisable, l'écriture est refusée (bouton ÉCRIRE, Bibliothèque) : calibrez d'abord le lecteur sur une disquette sacrifiée, par la carte « Calibrer le lecteur » de l'Accueil ; « Calibrer » propose alors une calibration complète en test fin, qui devient la référence.`nMême réglage que le test choisi dans la fenêtre de la carte « Calibrer le lecteur » de l'Accueil, retenu quand la calibration y est lancée."))
 $btnWCalib = New-Object System.Windows.Forms.Button
-$btnWCalib.Text = (T 'Calibrer'); $btnWCalib.Location = '425,104'; $btnWCalib.Size = '120,26'
+# 12.8 (lot 5) : boutons de 34 px (deux hauteurs, 34 et 40 px), sous les champs de la ligne 2 (bas a 103 px), liste et
+# libelle de la ligne 3 descendus pour rester centres. FIX5 : rangee descendue de 3 px de plus (3 px d ecart avec les
+# champs du dessus, comme en 12.7), ligne 4 (progression, verdict) de 5 px : 2 px sous les boutons
+$btnWCalib.Text = (T 'Calibrer'); $btnWCalib.Location = '425,106'; $btnWCalib.Size = '120,34'
 $tip.SetToolTip($btnWCalib, (T "Calibre la précompensation pour ce lecteur d'écriture : chaque passe écrit sur les cylindres de test un motif de test pseudo-aléatoire, à la densité de l'image, avec une valeur de precomp puis, en vérification, le profil obtenu ; elle le relit en flux et mesure le décalage de pic. Une courbe donne ensuite une valeur par cylindre ; le profil est enregistré pour la famille de l'image (standard ou long track) et appliqué ensuite par le mode Auto. Le contenu de l'image n'est pas écrit. La disquette insérée est écrasée. Test standard : un cylindre sur 10, quelques minutes. Test fin : tous les cylindres, un quart d'heure environ."))
 $tip.SetToolTip($btnWCalib, $tip.GetToolTip($btnWCalib) + "`n" + (T 'Écriture lente cochée : une courbe par tête, vérifiée en écrivant la tête 0 puis la tête 1, chacune avec son profil.'))
 $btnWCalib.Add_Click({ $script:AfterCalib = ''; if ($cmbWCalMode.SelectedIndex -eq 2) { Start-LevelCalibButton } else { Start-PrecompCalib } })
 $tip.SetToolTip($btnWCalib, $tip.GetToolTip($btnWCalib) + "`n" + (T 'Test rapide : mesure le niveau de la disquette insérée, et sa forme si elle diffère de la dernière calibration complète du lecteur ; le profil obtenu est placé dans les champs --precomp, pour cette disquette.'))
 $btnWCalReset = New-Object System.Windows.Forms.Button
-$btnWCalReset.Text = (T 'Effacer les calibrations'); $btnWCalReset.Location = '555,104'; $btnWCalReset.Size = '195,26'
+$btnWCalReset.Text = (T 'Effacer les calibrations'); $btnWCalReset.Location = '555,106'; $btnWCalReset.Size = '195,34'
 $tip.SetToolTip($btnWCalReset, (T "Efface toutes les calibrations de précompensation : courbes communes et par tête des familles standard et long track.`nLes profils de famille reprennent leurs valeurs d'origine. Une écriture rapide ou lente recalibre ensuite automatiquement."))
 $btnWCalReset.Add_Click({ Reset-CalibProfiles })
 
 # --- Ligne 4 : progression globale de la calibration (toutes passes), visible pendant et apres
 $pbWCal = New-Object System.Windows.Forms.ProgressBar
-$pbWCal.Location = '12,136'; $pbWCal.Size = '300,16'; $pbWCal.Minimum = 0; $pbWCal.Maximum = 100; $pbWCal.Visible = $false
+$pbWCal.Location = '12,141'; $pbWCal.Size = '300,16'; $pbWCal.Minimum = 0; $pbWCal.Maximum = 100; $pbWCal.Visible = $false
 $lblWCal = New-Object System.Windows.Forms.Label
-$lblWCal.Location = '320,137'; $lblWCal.AutoSize = $true; $lblWCal.ForeColor = 'DimGray'; $lblWCal.Visible = $false
+$lblWCal.Location = '320,142'; $lblWCal.AutoSize = $true; $lblWCal.ForeColor = 'DimGray'; $lblWCal.Visible = $false
 # 12.8 (lot 3b) : verdict du controle apres ecriture avec son icone d etat de 16 px et son encre (Set-WCalVerdict) ; tout
 # autre texte (calibration, prechauffage...) les retire
 $lblWCal.Add_Paint({ param($s, $e) Draw-WCalIcon $s $e })
 $lblWCal.Add_TextChanged({ if ($script:WCalIcon -and $lblWCal.Text -ne $script:WCalIcon.Text) { Clear-WCalVerdict } })
 
 $grpWOpt.Controls.AddRange(@($chkWPreErase, $chkWEraseEmpty, $chkWNoVerify, (New-Label (T 'Essais :') '500,26'), $numWRetries, $chkWSlow, $chkWPrecomp, $txtWPrecomp, $chkWPostCheck,
-    $lblWPrecomp1, $txtWPrecomp1, (New-Label (T 'Calibration précomp :') '12,109'), $cmbWCalMode, $btnWCalib, $btnWCalReset, $pbWCal, $lblWCal, $lblWRepair, $numWRepair))
+    $lblWPrecomp1, $txtWPrecomp1, (New-Label (T 'Calibration précomp :') '12,115'), $cmbWCalMode, $btnWCalib, $btnWCalReset, $pbWCal, $lblWCal, $lblWRepair, $numWRepair))
 
 # --- Groupe 3 : options avancees (rarement utiles)
 $grpWAdv = New-Group (T 'Options avancées') '10,266' '762,74'
@@ -19152,11 +19459,12 @@ $btnWDiskdefs.Add_Click({
     if ($d.ShowDialog() -eq 'OK') { $txtWDiskdefs.Text = $d.FileName }
 })
 $chkWReverse = New-Object System.Windows.Forms.CheckBox
-$chkWReverse.Text = (T 'Flippy (--reverse)'); $chkWReverse.Location = '12,46'; $chkWReverse.Width = 150
+# 12.8 (lot 5, D9) : meme libelle que la case de l onglet Lecture ; cases suivantes decalees (texte plus long)
+$chkWReverse.Text = (T 'Face B flippy (--reverse)'); $chkWReverse.Location = '12,46'; $chkWReverse.Width = 170
 $chkWHard = New-Object System.Windows.Forms.CheckBox
-$chkWHard.Text = (T 'Secteurs durs (--hard-sectors)'); $chkWHard.Location = '170,46'; $chkWHard.Width = 210
+$chkWHard.Text = (T 'Secteurs durs (--hard-sectors)'); $chkWHard.Location = '190,46'; $chkWHard.Width = 205
 $chkWTG43 = New-Object System.Windows.Forms.CheckBox
-$chkWTG43.Text = (T 'TG43 lecteur 8 pouces (--gen-tg43)'); $chkWTG43.Location = '390,46'; $chkWTG43.Width = 250
+$chkWTG43.Text = (T 'TG43 lecteur 8 pouces (--gen-tg43)'); $chkWTG43.Location = '405,46'; $chkWTG43.Width = 250
 
 $grpWAdv.Controls.AddRange(@((New-Label (T 'Pistes :') '12,23'), $txtWTracks, (New-Label (T 'Densel :') '232,23'), $cmbWDensel,
     (New-Label (T 'Fake index :') '365,23'), $txtWFakeIdx, (New-Label (T 'Diskdefs :') '540,23'), $txtWDiskdefs, $btnWDiskdefs,
@@ -19247,7 +19555,7 @@ $btnRead = New-Object System.Windows.Forms.Button
 $btnRead.Text = (T 'LIRE LA DISQUETTE'); $btnRead.Location = '90,175'; $btnRead.Size = '250,40'; $btnRead.Font = $bold
 $btnRead.Add_Click({
     if (-not $txtRFile.Text.Trim()) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Indiquez un fichier de sortie.'),(T 'Erreur'),'OK','Warning'); return
+        [void](Show-AppMessage (T 'Indiquez un fichier de sortie.') (T 'Erreur') 'OK' 'Warning'); return
     }
     $a = @('read') + (Get-CommonArgs)
     $a += "--revs=$($numRevs.Value)"
@@ -19319,10 +19627,10 @@ $btnConvert = New-Object System.Windows.Forms.Button
 $btnConvert.Text = (T 'CONVERTIR'); $btnConvert.Location = '90,120'; $btnConvert.Size = '250,40'; $btnConvert.Font = $bold
 $btnConvert.Add_Click({
     if (-not (Test-Path -LiteralPath $txtCvIn.Text)) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Fichier source introuvable.'),(T 'Erreur'),'OK','Warning'); return
+        [void](Show-AppMessage (T 'Fichier source introuvable.') (T 'Erreur') 'OK' 'Warning'); return
     }
     if (-not $txtCvOut.Text.Trim()) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Indiquez un fichier de destination.'),(T 'Erreur'),'OK','Warning'); return
+        [void](Show-AppMessage (T 'Indiquez un fichier de destination.') (T 'Erreur') 'OK' 'Warning'); return
     }
     # convert ne pilote pas le lecteur : pas de --drive ni --device
     $a = @('convert')
@@ -19357,7 +19665,7 @@ $lblCmpFmtFound = New-Object System.Windows.Forms.Label
 $lblCmpFmtFound.Location = '350,84'; $lblCmpFmtFound.Size = '425,34'; $lblCmpFmtFound.Anchor = 'Top,Left,Right'
 $lblCmpFmtFound.AutoEllipsis = $true; $lblCmpFmtFound.ForeColor = $script:Theme.Muted
 $cmbCmpFmt = New-Object System.Windows.Forms.ComboBox
-$cmbCmpFmt.Location = '90,43'; $cmbCmpFmt.Width = 200
+$cmbCmpFmt.Location = '90,46'; $cmbCmpFmt.Width = 200
 # 12.8 (lot 2, D13) : « (detection automatique) » en tete, puis les formats, dans l ordre des codes du reglage
 # compareFormat (compare.formatChoice) ; liste modifiable : un autre format de gw peut etre saisi, comme en 12.7
 $script:CmpAutoItem = (T '(détection automatique)')
@@ -19376,11 +19684,11 @@ $cmbCmpFmt.Add_TextChanged({
 $tip.SetToolTip($cmbCmpFmt, (T "Format de décodage commun : la référence est convertie dans ce format,`nla disquette est lue dans ce format, puis les deux sont comparées octet par octet.`n(détection automatique) : format déduit de la référence (taille et BPB d'un ADF, d'un ST ou d'un IMG ; décodage de deux pistes d'un IPF, d'un SCP ou d'un HFE), puis vérifié sur deux pistes de la disquette avant la lecture complète."))
 
 $numCmpRetries = New-Object System.Windows.Forms.NumericUpDown
-$numCmpRetries.Location = '365,43'; $numCmpRetries.Width = 55
+$numCmpRetries.Location = '365,46'; $numCmpRetries.Width = 55
 $numCmpRetries.Minimum = 0; $numCmpRetries.Maximum = 50
 
 $btnCmpFromWrite = New-Object System.Windows.Forms.Button
-$btnCmpFromWrite.Text = (T 'Reprendre l''image de l''onglet Écriture'); $btnCmpFromWrite.Location = '440,41'; $btnCmpFromWrite.Size = '280,26'
+$btnCmpFromWrite.Text = (T 'Reprendre l''image de l''onglet Écriture'); $btnCmpFromWrite.Location = '440,41'; $btnCmpFromWrite.Size = '280,34'   # 12.8 (lot 5) : 34 px ; FIX5 : ligne 2 descendue de 3 px (3 px sous le champ Reference)
 $btnCmpFromWrite.Add_Click({
     if ($txtWFile.Text) {
         $txtCmpRef.Text = $txtWFile.Text
@@ -19401,7 +19709,7 @@ $txtCmpResult.ScrollBars = 'Vertical'; $txtCmpResult.WordWrap = $false
 $txtCmpResult.BackColor = [System.Drawing.SystemColors]::Control
 
 $tabCmp.Controls.AddRange(@((New-Label (T 'Référence :') '10,17'), $txtCmpRef, $btnCmpRef,
-    (New-Label (T 'Format :') '10,47'), $cmbCmpFmt, (New-Label (T 'Essais :') '305,47'), $numCmpRetries, $btnCmpFromWrite,
+    (New-Label (T 'Format :') '10,50'), $cmbCmpFmt, (New-Label (T 'Essais :') '305,50'), $numCmpRetries, $btnCmpFromWrite,
     $btnCompare, $lblCmpFmtFound, $txtCmpResult))
 
 # ============================== QUALITE & ALIGNEMENT ===========================
@@ -19461,7 +19769,7 @@ $btnAlStart.Text = (T 'MESURER LA DISQUETTE'); $btnAlStart.Location = '10,40'; $
 $tip.SetToolTip($btnAlStart, (T 'Lit les cylindres choisis avec le lecteur sélectionné en haut et évalue l''état du support et la qualité de lecture.'))
 $btnAlStart.Add_Click({
     if (-not $script:ScpStatsOk) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Le module d''analyse SCP n''a pas pu être compilé (Add-Type).'),(T 'Mesure'),'OK','Warning'); return
+        [void](Show-AppMessage (T 'Le module d''analyse SCP n''a pas pu être compilé (Add-Type).') (T 'Mesure') 'OK' 'Warning'); return
     }
     $script:AlignLoop = [bool]$chkAlLoop.Checked
     $script:AlLastMove = 0
@@ -19473,7 +19781,7 @@ $btnAlRef = New-Object System.Windows.Forms.Button
 $btnAlRef.Text = (T 'Fixer comme référence'); $btnAlRef.Location = '240,40'; $btnAlRef.Size = '175,40'
 $tip.SetToolTip($btnAlRef, (T "Mémorise la dernière mesure comme référence (ex. : lecteur Amiga sur la même disquette).`nLes mesures suivantes affichent l'écart en %."))
 $btnAlRef.Add_Click({
-    if (-not $script:AlignLast) { [void][System.Windows.Forms.MessageBox]::Show((T 'Faites d''abord une mesure.'),(T 'Référence'),'OK','Information'); return }
+    if (-not $script:AlignLast) { [void](Show-AppMessage (T 'Faites d''abord une mesure.') (T 'Référence') 'OK' 'Information'); return }
     $script:AlignRef = $script:AlignLast.Clone()
     $script:AlignRefLabel = ((T "lecteur {0}, tête {1}, {2}") -f "$($cmbDrive.Text)", "$($cmbAlHead.Text)", "$(Get-Date -Format 'dd/MM HH:mm')")
     $lblAlRef.Text = ((T "Référence : {0} ({1} piste(s))") -f "$($script:AlignRefLabel)", "$($script:AlignRef.Count)")
@@ -19506,7 +19814,9 @@ $chkAlGuide.Add_CheckedChanged({
 $lblAlRef = New-Object System.Windows.Forms.Label
 $lblAlRef.Location = '10,78'; $lblAlRef.AutoSize = $true; $lblAlRef.Text = (T 'Aucune référence'); $lblAlRef.ForeColor = 'Gray'
 
-# --- Guide (visible en mode reglage)
+# --- Guide (visible en mode reglage). 12.8 (lot 5) : exception ecrite a la regle des deux hauteurs (34 et 40 px) : 26 px,
+# seule hauteur qui tient entre la reference (y = 78) et la carte de qualite (y = 126, maquette D14 verifiee par la
+# suite quality, Q0)
 $btnAlPos0 = New-Object System.Windows.Forms.Button
 $btnAlPos0.Text = (T 'Repère (position 0)'); $btnAlPos0.Location = '10,96'; $btnAlPos0.Size = '155,26'; $btnAlPos0.Visible = $false
 $tip.SetToolTip($btnAlPos0, (T "Point de départ : stepper à sa position d'origine (trait de repère). Mesure la position 0 et démarre le guide."))
@@ -19589,21 +19899,30 @@ $btnUpdate = New-ToolButton (T 'Mise à jour firmware') '15,163' {
     if (Show-AppConfirm @cq) { Start-Gw @('update') }
 }
 
+# 12.8 (lot 5, D9) : libelles en francais, nom de la commande gw entre parentheses (comme les boutons de gauche) ;
+# boutons de 34 px sur les rangees des boutons de gauche (y = 15, 52, 89, 126), champs centres sur ces rangees ; colonne
+# des champs calee sur le plus long libelle, mesure dans la langue de l interface
+$lblTSeek   = New-Label (T 'Cylindre (seek) :') '250,23'
+$lblTErase  = New-Label (T 'Pistes (erase) :') '250,60'
+$lblTPasses = New-Label (T 'Passes :') '250,97'
+$lblTPin    = New-Label (T 'Broche (pin) :') '250,134'
+$xT = 260 + [int](@($lblTSeek, $lblTErase, $lblTPasses, $lblTPin) | ForEach-Object { [System.Windows.Forms.TextRenderer]::MeasureText($_.Text, $form.Font).Width } | Measure-Object -Maximum).Maximum
+
 $numSeek = New-Object System.Windows.Forms.NumericUpDown
-$numSeek.Location = '355,18'; $numSeek.Width = 60
+$numSeek.Location = New-Object System.Drawing.Point($xT, 20); $numSeek.Width = 60
 $numSeek.Minimum = -8; $numSeek.Maximum = 85
 $tip.SetToolTip($numSeek, (T 'Cylindre cible. Valeurs négatives possibles sur lecteur flippy.'))
 
 $btnSeek = New-Object System.Windows.Forms.Button
-$btnSeek.Text = 'Seek'; $btnSeek.Location = '425,17'; $btnSeek.Size = '80,26'
+$btnSeek.Text = (T 'Positionner'); $btnSeek.Location = New-Object System.Drawing.Point(($xT + 70), 15); $btnSeek.Size = '80,34'
 $btnSeek.Add_Click({ Start-Gw (@('seek') + (Get-CommonArgs) + @("$($numSeek.Value)")) })
 
 $txtEraseTracks = New-Object System.Windows.Forms.TextBox
-$txtEraseTracks.Location = '355,55'; $txtEraseTracks.Width = 150
+$txtEraseTracks.Location = New-Object System.Drawing.Point($xT, 57); $txtEraseTracks.Width = 150
 $tip.SetToolTip($txtEraseTracks, (T 'TSPEC optionnel. Vide = toute la disquette.'))
 
 $btnErase = New-Object System.Windows.Forms.Button
-$btnErase.Text = (T 'EFFACER'); $btnErase.Location = '515,54'; $btnErase.Size = '100,26'
+$btnErase.Text = (T 'EFFACER'); $btnErase.Location = New-Object System.Drawing.Point(($xT + 160), 52); $btnErase.Size = '100,34'
 $btnErase.Add_Click({
     # 12.8 (D3) : confirmation par frmConfirm (effacement irreversible), case qui nomme le lecteur
     $tr = $txtEraseTracks.Text.Trim(); $drv = "$($cmbDrive.Text)"
@@ -19619,11 +19938,13 @@ $btnErase.Add_Click({
 })
 
 $numPasses = New-Object System.Windows.Forms.NumericUpDown
-$numPasses.Location = '355,92'; $numPasses.Width = 50
+$numPasses.Location = New-Object System.Drawing.Point($xT, 94); $numPasses.Width = 50
 $numPasses.Minimum = 1; $numPasses.Maximum = 20
 
+# 12.8 (lot 5, D9) : « Duree par position (ms) », terme de la fenetre de nettoyage (12.7 : « linger »)
+$lblTLinger = New-Label (T 'Durée par position (ms) :') (New-Object System.Drawing.Point(($xT + 66), 97))
 $numLinger = New-Object System.Windows.Forms.NumericUpDown
-$numLinger.Location = '470,92'; $numLinger.Width = 60
+$numLinger.Location = New-Object System.Drawing.Point(($lblTLinger.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblTLinger.Text, $form.Font).Width + 8), 94); $numLinger.Width = 60
 $numLinger.Minimum = 0; $numLinger.Maximum = 5000
 $tip.SetToolTip($numLinger, (T 'Temps de contact par pas, en millisecondes.'))
 # 12.8 (point 7, D9) : passes et linger enregistres (tools.passes, tools.linger), defaut 3 x 500 ms, celui du prereglage
@@ -19632,28 +19953,28 @@ Register-SettingCtl 'cleanPasses' $numPasses
 Register-SettingCtl 'cleanLinger' $numLinger
 
 $btnClean = New-Object System.Windows.Forms.Button
-$btnClean.Text = (T 'NETTOYER'); $btnClean.Location = '540,91'; $btnClean.Size = '100,26'
+$btnClean.Text = (T 'NETTOYER'); $btnClean.Location = New-Object System.Drawing.Point(($numLinger.Right + 10), 89); $btnClean.Size = '100,34'
 # Fenetre de nettoyage de l Accueil (avertissement, procedure, case obligatoire, suivi), avec les passes et le linger
 # de cet onglet en 4e duree
 $btnClean.Add_Click({ Show-CleanDialog -Passes ([int]$numPasses.Value) -Linger ([int]$numLinger.Value) })
 
 $numPin = New-Object System.Windows.Forms.NumericUpDown
-$numPin.Location = '355,129'; $numPin.Width = 50
+$numPin.Location = New-Object System.Drawing.Point($xT, 131); $numPin.Width = 50
 $numPin.Minimum = 1; $numPin.Maximum = 34
 
 $cmbPinLvl = New-Object System.Windows.Forms.ComboBox
-$cmbPinLvl.Location = '420,129'; $cmbPinLvl.Width = 55; $cmbPinLvl.DropDownStyle = 'DropDownList'
+$cmbPinLvl.Location = New-Object System.Drawing.Point(($xT + 60), 132); $cmbPinLvl.Width = 55; $cmbPinLvl.DropDownStyle = 'DropDownList'
 [void]$cmbPinLvl.Items.AddRange(@('H','L'))
 
 $btnPin = New-Object System.Windows.Forms.Button
-$btnPin.Text = (T 'Appliquer'); $btnPin.Location = '485,128'; $btnPin.Size = '100,26'
+$btnPin.Text = (T 'Appliquer'); $btnPin.Location = New-Object System.Drawing.Point(($xT + 125), 126); $btnPin.Size = '100,34'
 $btnPin.Add_Click({ Start-Gw (@('pin') + (Get-CommonArgs) + @("$($numPin.Value)", $cmbPinLvl.Text)) })
 
 $tabT.Controls.AddRange(@($btnInfo,$btnRpm,$btnBw,$btnReset,$btnUpdate,
-    (New-Label (T 'Seek cylindre :') '250,21'), $numSeek, $btnSeek,
-    (New-Label (T 'Erase tracks :') '250,58'), $txtEraseTracks, $btnErase,
-    (New-Label (T 'Clean passes :') '250,95'), $numPasses, (New-Label (T 'linger :') '415,95'), $numLinger, $btnClean,
-    (New-Label (T 'Pin :') '250,132'), $numPin, $cmbPinLvl, $btnPin))
+    $lblTSeek, $numSeek, $btnSeek,
+    $lblTErase, $txtEraseTracks, $btnErase,
+    $lblTPasses, $numPasses, $lblTLinger, $numLinger, $btnClean,
+    $lblTPin, $numPin, $cmbPinLvl, $btnPin))
 
 # ============================== DELAIS =========================================
 $tabD = New-TabPage (T 'Délais')
@@ -19686,11 +20007,11 @@ foreach ($d in $delayDefs) {
 }
 
 $btnDelaysShow = New-Object System.Windows.Forms.Button
-$btnDelaysShow.Text = (T 'Afficher les délais actuels'); $btnDelaysShow.Location = '330,15'; $btnDelaysShow.Size = '230,32'
+$btnDelaysShow.Text = (T 'Afficher les délais actuels'); $btnDelaysShow.Location = '330,15'; $btnDelaysShow.Size = '230,34'
 $btnDelaysShow.Add_Click({ Start-Gw @('delays') })
 
 $btnDelaysSet = New-Object System.Windows.Forms.Button
-$btnDelaysSet.Text = (T 'Appliquer les valeurs cochées'); $btnDelaysSet.Location = '330,55'; $btnDelaysSet.Size = '230,32'
+$btnDelaysSet.Text = (T 'Appliquer les valeurs cochées'); $btnDelaysSet.Location = '330,55'; $btnDelaysSet.Size = '230,34'
 $btnDelaysSet.Add_Click({
     $a = @('delays')
     foreach ($k in $script:DelayCtrls.Keys) {
@@ -19698,7 +20019,7 @@ $btnDelaysSet.Add_Click({
         if ($c.Chk.Checked) { $a += "--$k=$($c.Num.Value)" }
     }
     if ($a.Count -eq 1) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Cochez au moins un paramètre à modifier.'),(T 'Rien à faire'),'OK','Information'); return
+        [void](Show-AppMessage (T 'Cochez au moins un paramètre à modifier.') (T 'Rien à faire') 'OK' 'Information'); return
     }
     Start-Gw $a
 })
@@ -19832,7 +20153,7 @@ $grpRsCal = New-Group (T '2. Calibration du lecteur') '10,126' '380,80'; $grpRsC
 $lblRsCal = New-Object System.Windows.Forms.Label
 $lblRsCal.Location = '12,20'; $lblRsCal.Size = '262,54'; $lblRsCal.AutoEllipsis = $true
 $btnRsCurve = New-Object System.Windows.Forms.Button
-$btnRsCurve.Text = (T 'Courbe'); $btnRsCurve.Location = '280,22'; $btnRsCurve.Size = '90,28'; $btnRsCurve.Anchor = 'Top,Right'; $btnRsCurve.Enabled = $false
+$btnRsCurve.Text = (T 'Courbe'); $btnRsCurve.Location = '280,20'; $btnRsCurve.Size = '90,34'; $btnRsCurve.Anchor = 'Top,Right'; $btnRsCurve.Enabled = $false
 $tip.SetToolTip($btnRsCurve, (T "Affiche la courbe de précompensation appliquée par la restauration, une courbe par tête si elle existe : haute densité pour un format haute densité choisi, sinon double densité."))
 $btnRsCurve.Add_Click({ Show-RsCurve })
 $grpRsCal.Controls.AddRange(@($lblRsCal, $btnRsCurve))
@@ -19887,13 +20208,15 @@ $pnlRsWait.Location = '402,230'; $pnlRsWait.Size = '374,104'; $pnlRsWait.BackCol
 $lblRsWait = New-Object System.Windows.Forms.Label
 $lblRsWait.Location = '8,6'; $lblRsWait.AutoSize = $true; $lblRsWait.MaximumSize = New-Object System.Drawing.Size(358, 0); $lblRsWait.ForeColor = [System.Drawing.Color]::FromArgb(90, 60, 0)
 $btnRsGo = New-Object System.Windows.Forms.Button
-$btnRsGo.Text = (T 'Continuer'); $btnRsGo.Location = '8,68'; $btnRsGo.Size = '120,30'
+# 12.8 (lot 5) : boutons de 34 px (deux hauteurs, 34 et 40 px) ; positions et hauteur de l encadre calculees par
+# Enter-RestoreWait
+$btnRsGo.Text = (T 'Continuer'); $btnRsGo.Location = '8,68'; $btnRsGo.Size = '120,34'
 $btnRsGo.Add_Click({ try { Resume-Restore $false } catch { Append-Log ((T "ERREUR restauration : {0}") -f "$($_.Exception.Message)") } })
 $btnRsForce = New-Object System.Windows.Forms.Button
-$btnRsForce.Text = (T 'Écraser quand même'); $btnRsForce.Location = '134,68'; $btnRsForce.Size = '140,30'; $btnRsForce.Visible = $false
+$btnRsForce.Text = (T 'Écraser quand même'); $btnRsForce.Location = '134,68'; $btnRsForce.Size = '140,34'; $btnRsForce.Visible = $false
 $btnRsForce.Add_Click({ try { Resume-Restore $true } catch { Append-Log ((T "ERREUR restauration : {0}") -f "$($_.Exception.Message)") } })
 $btnRsCancel = New-Object System.Windows.Forms.Button
-$btnRsCancel.Text = (T 'Annuler'); $btnRsCancel.Location = '280,68'; $btnRsCancel.Size = '86,30'
+$btnRsCancel.Text = (T 'Annuler'); $btnRsCancel.Location = '280,68'; $btnRsCancel.Size = '86,34'
 $btnRsCancel.Add_Click({ Stop-Restore (T 'annulée par l''utilisateur') })
 $pnlRsWait.Controls.AddRange(@($lblRsWait, $btnRsGo, $btnRsForce, $btnRsCancel))
 
@@ -19911,6 +20234,11 @@ Set-Btn $btnRsDir 'FolderOpen' -IconOnly
 Set-Btn $btnRsCurve 'Diagnostic'
 Set-Btn $btnRsGo 'Play' 'primary'
 Set-Btn $btnRsForce 'Delete' 'danger'
+Set-Btn $btnRsCancel 'Stop'                  # 12.8 (lot 5) : seul bouton qui n avait pas le style commun (A4 § 2.2)
+# 12.8 (FIX5) : boutons de l encadre d attente et « Courbe » a la largeur de leur texte (Annuler, Ecraser quand meme et
+# Courbe etaient coupes) ; Enter-RestoreWait place Annuler apres Continuer, « Ecraser quand meme » seul sur sa ligne
+foreach ($fitBtn in @($btnRsGo, $btnRsForce, $btnRsCancel)) { Set-BtnFitWidth $fitBtn }
+Set-BtnFitWidth $btnRsCurve -KeepRight
 Set-Btn $btnHelpTop 'Help'
 
 # Aide en ligne : page du wiki de chaque onglet (F1, bouton Aide)
@@ -20011,9 +20339,9 @@ $btnCfgSave.Add_Click({ if (Save-Config) { Append-Log ((T "Paramètres enregistr
 
 $btnCfgReset = New-BarButton (T 'Réinitialiser') 120
 $btnCfgReset.Add_Click({
-    $r = [System.Windows.Forms.MessageBox]::Show(
-        (T "Remettre tous les paramètres de l'interface à leurs valeurs par défaut et supprimer le fichier de configuration ?`n`n(Aucun effet sur le Greaseweazle, ni sur vos fichiers image, ni sur l'index de la bibliothèque.)"),
-        (T 'Réinitialiser les paramètres'), 'YesNo', 'Question')
+    # 12.8 (lot 5, D3) : question simple, par Show-AppMessage en Oui / Non (texte ecrit au journal), pas par frmConfirm
+    $r = Show-AppMessage (T "Remettre tous les paramètres de l'interface à leurs valeurs par défaut et supprimer le fichier de configuration ?`n`n(Aucun effet sur le Greaseweazle, ni sur vos fichiers image, ni sur l'index de la bibliothèque.)") `
+        (T 'Réinitialiser les paramètres') 'YesNo' 'Question'
     if ($r -eq 'Yes') {
         Set-Defaults
         Update-Library
@@ -20140,6 +20468,9 @@ Set-Btn $btnSeek       'Play'
 Set-Btn $btnErase      'Delete' 'danger'
 Set-Btn $btnClean      'Repair'
 Set-Btn $btnPin        'Pin'
+# 12.8 (FIX5) : boutons des Outils a la largeur de leur texte (« Positionner », EFFACER, NETTOYER et « Appliquer » etaient
+# coupes en francais) ; ils finissent chaque rangee : rien a decaler
+foreach ($fitBtn in @($btnSeek, $btnErase, $btnClean, $btnPin)) { Set-BtnFitWidth $fitBtn }
 Set-Btn $btnDelaysShow 'Stopwatch'
 Set-Btn $btnDelaysSet  'Check'
 Set-Btn $btnC          'Play' 'primary'
@@ -20566,6 +20897,10 @@ $timer.Add_Tick({
         $script:AlignNextAt = $null
         Start-AlignCycle
     }
+    # 12.8 (lot 5, D20) : sans commande gw, barre de boutons dans l etat de Get-AppBusy : entree dans la pause d une mesure
+    # continue (analyse faite apres la fin de gw, mesure suivante attendue) et sortie sans commande gw (Arreter, erreur
+    # d analyse, autre operation)
+    if (-not $script:GwProc -and [bool]$script:QualPauseBar -ne ((Get-AppBusy) -eq 'quality')) { Set-Busy $false }
     # Recherche bibliotheque terminee ?
     if ($script:LibAsync -and $script:LibAsync.IsCompleted) { Complete-LibSearch }
     # Indexation en cours / terminee
@@ -20594,7 +20929,8 @@ $form.KeyPreview = $true
 $form.Add_KeyDown({ if ($_.KeyCode -eq [System.Windows.Forms.Keys]::F1) { Open-HelpForTab; $_.Handled = $true } })
 $form.Add_FormClosing({
     if ($script:Restore) {
-        $q = [System.Windows.Forms.MessageBox]::Show((T "Une restauration est en cours. Quitter quand même ? La disquette de destination restera incomplète."), (T 'Restauration'), 'YesNo', 'Warning')
+        # 12.8 (lot 5, D3) : question simple, par Show-AppMessage en Oui / Non (texte ecrit au journal)
+        $q = Show-AppMessage (T "Une restauration est en cours. Quitter quand même ? La disquette de destination restera incomplète.") (T 'Restauration') 'YesNo' 'Warning'
         if ($q -ne 'Yes') { $_.Cancel = $true; return }
         if ($script:GwProc -and -not $script:GwProc.HasExited) { try { $script:GwProc.Kill() } catch { } }
         Stop-Restore (T 'fenêtre fermée pendant la restauration')   # rapport ecrit, onglet Ecriture et lecteur remis avant Save-Config

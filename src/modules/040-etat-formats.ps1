@@ -40,6 +40,7 @@ $script:ConfirmDlg     = $null   # 12.8 (D3) : bouton principal de la fenetre fr
 $script:Chain = New-Object System.Collections.Generic.Queue[scriptblock]
 $script:AlignLoop   = $false
 $script:AlignNextAt = $null
+$script:QualPauseBar = $false    # 12.8 (lot 5, D20) : barre de boutons dans l etat « pause d une mesure continue » (Set-Busy)
 $script:AlignBest   = @{}
 $script:AlignPrev   = $null
 $script:AlignTmp    = $null

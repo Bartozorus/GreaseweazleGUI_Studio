@@ -487,7 +487,7 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
     try { $pat = New-CalibPattern $fam $img $lr.NCyl }
-    catch { [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)"),(T 'Calibration precomp'),'OK','Error'); return }
+    catch { [void](Show-AppMessage ((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)") (T 'Calibration precomp') 'OK' 'Error'); return }
     Set-CalibScale $fam     # 12.7 : bareme double densite (pas de calibration rapide en haute densite, Get-LevelRef)
     $units = New-LevelCalUnits $lr $brand ([string]$cmbDrive.Text)
     $cylList = Format-CylList $cyls
@@ -1243,7 +1243,7 @@ function Start-LevelCalibButton {
     $lr = Get-LevelRef $chk.Family ([bool]$chkWSlow.Checked) $cmbDrive.Text $chk.Img $false -NCyl ([int]$chk.NCyl)
     if ($lr.Ok) { $script:AfterCalib = ''; Start-LevelCalib $lr; return }
     if ($lr.Class -eq 'domain' -and -not $lr.Short) {
-        [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration rapide non applicable à cette image : {0}.") -f "$($lr.Why)"),(T 'Calibration precomp'),'OK','Information'); return
+        [void](Show-AppMessage ((T "Calibration rapide non applicable à cette image : {0}.") -f "$($lr.Why)") (T 'Calibration precomp') 'OK' 'Information'); return
     }
     # 12.8 (D3) : confirmation par frmConfirm, sans case : l avertissement de la calibration suit, avec sa confirmation
     $cq = @{ Title = (T 'Calibration precomp'); Heading = (T 'Calibration rapide impossible'); Level = 'info'; Picto = 'data'
@@ -1292,37 +1292,37 @@ function Test-CalibImage($Geom = $null) {
     # propre, secteurs durs, ED, 360 tr/min, cellule hors plage : Get-FormatCalibInfo) : refus. 12.7 : image haute densite
     # admise si elle est calibrable (famille hd, Get-HdCalibFamily).
     if (-not $script:ScpStatsOk) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Calibration : module d''analyse SCP indisponible (Add-Type).'),(T 'Calibration precomp'),'OK','Warning'); return $null
+        [void](Show-AppMessage (T 'Calibration : module d''analyse SCP indisponible (Add-Type).') (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
     if (-not (Test-Path -LiteralPath $script:GwExe)) {
-        [void][System.Windows.Forms.MessageBox]::Show(((T "gw.exe introuvable : {0}`n`nPlacez ce script dans le même répertoire que gw.exe.") -f "$($script:GwExe)"),(T 'Erreur'),'OK','Error'); return $null
+        [void](Show-AppMessage ((T "gw.exe introuvable : {0}`n`nPlacez ce script dans le même répertoire que gw.exe.") -f "$($script:GwExe)") (T 'Erreur') 'OK' 'Error'); return $null
     }
     $img = if ($Geom) { [string]$Geom.Img } else { $txtWFile.Text }
     $fmt = if ($Geom) { '' } else { $cmbWFmt.Text }
     if (-not $img -or -not (Test-Path -LiteralPath $img)) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Choisissez d''abord l''image à écrire : elle fixe la famille (cellule) et le nombre de cylindres de la calibration.'),(T 'Calibration precomp'),'OK','Warning'); return $null
+        [void](Show-AppMessage (T 'Choisissez d''abord l''image à écrire : elle fixe la famille (cellule) et le nombre de cylindres de la calibration.') (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
     $ext = [System.IO.Path]::GetExtension($img).ToLower()
     if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) {
-        [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration impossible sur un flux ({0}) : la calibration ne détermine la densité que d'une image à bits ou secteurs (ADF, IPF, HFE, IMG...).") -f "$ext"),(T 'Calibration precomp'),'OK','Warning'); return $null
+        [void](Show-AppMessage ((T "Calibration impossible sur un flux ({0}) : la calibration ne détermine la densité que d'une image à bits ou secteurs (ADF, IPF, HFE, IMG...).") -f "$ext") (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
     $fci = if ($fmt -and $fmt -ne '(auto)' -and $script:GwFormats.Contains($fmt)) { Get-FormatCalibInfo $fmt } else { $null }
     $hd = Get-HighDensityReason $img $fmt
     # 12.7 : haute densite calibrable (famille hd) admise ; sinon refus, avec la raison du format s il est explicite
     if ($hd -and -not (Get-HdCalibFamily $img $fmt)) {
         $msg = if ($fci -and -not $fci.Cal) { (T "Calibration non prise en charge pour le format {0} : {1}.") -f "$fmt", "$($fci.Why)" }
-               else { (T "Calibration non prise en charge pour cette image haute densité ({0}) : seule la haute densité MFM à 1 µs par cellule et à 300 tr/min se calibre ; la très haute densité (ED), les codages propres et la haute densité à 360 tr/min ne se calibrent pas.") -f "$hd" }
+               else { (T "Calibration non prise en charge pour cette image haute densité ({0}) : seule la haute densité MFM à 1 us par cellule et à 300 tr/min se calibre ; la très haute densité (ED), les codages propres et la haute densité à 360 tr/min ne se calibrent pas.") -f "$hd" }
         [void](Show-AppMessage $msg (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
     if ($chkWHard.Checked -or $chkWTG43.Checked) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Calibration non prise en charge avec secteurs durs ou lecteur 8 pouces (TG43) : l''analyse de flux est calibrée pour le MFM double densité.'),(T 'Calibration precomp'),'OK','Warning'); return $null
+        [void](Show-AppMessage (T 'Calibration non prise en charge avec secteurs durs ou lecteur 8 pouces (TG43) : l''analyse de flux est calibrée pour le MFM double densité.') (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
     $oor = Get-CellOutOfRange $img
     if ($null -ne $oor) {
         [void](Show-AppMessage ((T "Calibration non prise en charge : cellule de l'image de {0} ns, hors des plages mesurables (900 à 1 100 ns en haute densité, 1 700 à 2 300 ns en double densité).") -f "$oor") (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
     if ($fci -and -not $fci.Cal) {
-        [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration non prise en charge pour le format {0} : {1}.") -f "$fmt", "$($fci.Why)"),(T 'Calibration precomp'),'OK','Warning'); return $null
+        [void](Show-AppMessage ((T "Calibration non prise en charge pour le format {0} : {1}.") -f "$fmt", "$($fci.Why)") (T 'Calibration precomp') 'OK' 'Warning'); return $null
     }
     $family = Get-ImageFamily $img $fmt
     $cc = Get-CalibCylinders $img $fmt

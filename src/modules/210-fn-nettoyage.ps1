@@ -20,12 +20,12 @@ function Draw-PictoFloppy($g, [single]$x, [single]$y, [single]$s, [bool]$cleanin
     $bMetal = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(205, 212, 222))
     $bLabel = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(248, 249, 252))
     $g.FillPath($bBody, $body)
-    $g.FillPath($bMetal, (New-RoundRect 17 4 30 20 2))
+    $pShutter = New-RoundRect 17 4 30 20 2; $g.FillPath($bMetal, $pShutter); $pShutter.Dispose()   # 12.8 (FIX5) : chemin libere
     if ($cleaning) {
         $hb = New-Object System.Drawing.Drawing2D.HatchBrush([System.Drawing.Drawing2D.HatchStyle]::Weave, [System.Drawing.Color]::FromArgb(170, 188, 214), [System.Drawing.Color]::White)
         $g.FillRectangle($hb, [single]34, [single]7, [single]11, [single]14); $hb.Dispose()
     } else { $g.FillRectangle($bBody, [single]36, [single]8, [single]7, [single]12) }
-    $g.FillPath($bLabel, (New-RoundRect 11 31 42 26 2.5))
+    $pLabel = New-RoundRect 11 31 42 26 2.5; $g.FillPath($bLabel, $pLabel); $pLabel.Dispose()
     if ($cleaning) {
         $f = New-Object System.Drawing.Font('Segoe UI', [single]11, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
         $sf = New-Object System.Drawing.StringFormat; $sf.Alignment = 'Center'; $sf.LineAlignment = 'Center'
@@ -46,9 +46,12 @@ function Draw-PictoFloppy($g, [single]$x, [single]$y, [single]$s, [bool]$cleanin
 
 function Draw-PictoDrive($g, [bool]$on) {
     # Facade de lecteur 3,5 pouces en bas de la vignette : fente, voyant (vert : moteur en marche), bouton d ejection
-    $b = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(64, 70, 84)); $g.FillPath($b, (New-RoundRect 6 56 108 26 4)); $b.Dispose()
+    # 12.8 (FIX5) : chemins de New-RoundRect liberes
+    $p = New-RoundRect 6 56 108 26 4
+    $b = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(64, 70, 84)); $g.FillPath($b, $p); $b.Dispose(); $p.Dispose()
     $b = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(18, 22, 30)); $g.FillRectangle($b, [single]20, [single]62, [single]80, [single]5); $b.Dispose()
-    $b = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(150, 156, 168)); $g.FillPath($b, (New-RoundRect 80 72 16 5 2)); $b.Dispose()
+    $p = New-RoundRect 80 72 16 5 2
+    $b = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(150, 156, 168)); $g.FillPath($b, $p); $b.Dispose(); $p.Dispose()
     $cl = if ($on) { [System.Drawing.Color]::FromArgb(90, 220, 110) } else { [System.Drawing.Color]::FromArgb(48, 78, 58) }
     $b = New-Object System.Drawing.SolidBrush($cl); $g.FillRectangle($b, [single]24, [single]73, [single]10, [single]3); $b.Dispose()
 }
@@ -515,7 +518,7 @@ function New-CleanDialog([int]$Passes = 0, [int]$Linger = 0) {
 function Show-CleanDialog([int]$Passes = 0, [int]$Linger = 0) {
     # Nettoyage des tetes : carte de l Accueil ; bouton NETTOYER de l onglet Outils ($Passes / $Linger de cet onglet)
     if (-not (Test-GwIdle)) {
-        [void][System.Windows.Forms.MessageBox]::Show((T "Opération en cours : lancez le nettoyage une fois l'opération terminée ou arrêtée."), (T 'Nettoyage des têtes'), 'OK', 'Information'); return
+        [void](Show-AppMessage (T "Opération en cours : lancez le nettoyage une fois l'opération terminée ou arrêtée.") (T 'Nettoyage des têtes') 'OK' 'Information'); return
     }
     $dlg = New-CleanDialog $Passes $Linger
     $s = $script:CleanDlg

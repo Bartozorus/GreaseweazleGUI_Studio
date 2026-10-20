@@ -91,7 +91,7 @@ $grpRsCal = New-Group (T '2. Calibration du lecteur') '10,126' '380,80'; $grpRsC
 $lblRsCal = New-Object System.Windows.Forms.Label
 $lblRsCal.Location = '12,20'; $lblRsCal.Size = '262,54'; $lblRsCal.AutoEllipsis = $true
 $btnRsCurve = New-Object System.Windows.Forms.Button
-$btnRsCurve.Text = (T 'Courbe'); $btnRsCurve.Location = '280,22'; $btnRsCurve.Size = '90,28'; $btnRsCurve.Anchor = 'Top,Right'; $btnRsCurve.Enabled = $false
+$btnRsCurve.Text = (T 'Courbe'); $btnRsCurve.Location = '280,20'; $btnRsCurve.Size = '90,34'; $btnRsCurve.Anchor = 'Top,Right'; $btnRsCurve.Enabled = $false
 $tip.SetToolTip($btnRsCurve, (T "Affiche la courbe de précompensation appliquée par la restauration, une courbe par tête si elle existe : haute densité pour un format haute densité choisi, sinon double densité."))
 $btnRsCurve.Add_Click({ Show-RsCurve })
 $grpRsCal.Controls.AddRange(@($lblRsCal, $btnRsCurve))
@@ -146,13 +146,15 @@ $pnlRsWait.Location = '402,230'; $pnlRsWait.Size = '374,104'; $pnlRsWait.BackCol
 $lblRsWait = New-Object System.Windows.Forms.Label
 $lblRsWait.Location = '8,6'; $lblRsWait.AutoSize = $true; $lblRsWait.MaximumSize = New-Object System.Drawing.Size(358, 0); $lblRsWait.ForeColor = [System.Drawing.Color]::FromArgb(90, 60, 0)
 $btnRsGo = New-Object System.Windows.Forms.Button
-$btnRsGo.Text = (T 'Continuer'); $btnRsGo.Location = '8,68'; $btnRsGo.Size = '120,30'
+# 12.8 (lot 5) : boutons de 34 px (deux hauteurs, 34 et 40 px) ; positions et hauteur de l encadre calculees par
+# Enter-RestoreWait
+$btnRsGo.Text = (T 'Continuer'); $btnRsGo.Location = '8,68'; $btnRsGo.Size = '120,34'
 $btnRsGo.Add_Click({ try { Resume-Restore $false } catch { Append-Log ((T "ERREUR restauration : {0}") -f "$($_.Exception.Message)") } })
 $btnRsForce = New-Object System.Windows.Forms.Button
-$btnRsForce.Text = (T 'Écraser quand même'); $btnRsForce.Location = '134,68'; $btnRsForce.Size = '140,30'; $btnRsForce.Visible = $false
+$btnRsForce.Text = (T 'Écraser quand même'); $btnRsForce.Location = '134,68'; $btnRsForce.Size = '140,34'; $btnRsForce.Visible = $false
 $btnRsForce.Add_Click({ try { Resume-Restore $true } catch { Append-Log ((T "ERREUR restauration : {0}") -f "$($_.Exception.Message)") } })
 $btnRsCancel = New-Object System.Windows.Forms.Button
-$btnRsCancel.Text = (T 'Annuler'); $btnRsCancel.Location = '280,68'; $btnRsCancel.Size = '86,30'
+$btnRsCancel.Text = (T 'Annuler'); $btnRsCancel.Location = '280,68'; $btnRsCancel.Size = '86,34'
 $btnRsCancel.Add_Click({ Stop-Restore (T 'annulée par l''utilisateur') })
 $pnlRsWait.Controls.AddRange(@($lblRsWait, $btnRsGo, $btnRsForce, $btnRsCancel))
 
@@ -170,6 +172,11 @@ Set-Btn $btnRsDir 'FolderOpen' -IconOnly
 Set-Btn $btnRsCurve 'Diagnostic'
 Set-Btn $btnRsGo 'Play' 'primary'
 Set-Btn $btnRsForce 'Delete' 'danger'
+Set-Btn $btnRsCancel 'Stop'                  # 12.8 (lot 5) : seul bouton qui n avait pas le style commun (A4 § 2.2)
+# 12.8 (FIX5) : boutons de l encadre d attente et « Courbe » a la largeur de leur texte (Annuler, Ecraser quand meme et
+# Courbe etaient coupes) ; Enter-RestoreWait place Annuler apres Continuer, « Ecraser quand meme » seul sur sa ligne
+foreach ($fitBtn in @($btnRsGo, $btnRsForce, $btnRsCancel)) { Set-BtnFitWidth $fitBtn }
+Set-BtnFitWidth $btnRsCurve -KeepRight
 Set-Btn $btnHelpTop 'Help'
 
 # Aide en ligne : page du wiki de chaque onglet (F1, bouton Aide)
@@ -270,9 +277,9 @@ $btnCfgSave.Add_Click({ if (Save-Config) { Append-Log ((T "Paramètres enregistr
 
 $btnCfgReset = New-BarButton (T 'Réinitialiser') 120
 $btnCfgReset.Add_Click({
-    $r = [System.Windows.Forms.MessageBox]::Show(
-        (T "Remettre tous les paramètres de l'interface à leurs valeurs par défaut et supprimer le fichier de configuration ?`n`n(Aucun effet sur le Greaseweazle, ni sur vos fichiers image, ni sur l'index de la bibliothèque.)"),
-        (T 'Réinitialiser les paramètres'), 'YesNo', 'Question')
+    # 12.8 (lot 5, D3) : question simple, par Show-AppMessage en Oui / Non (texte ecrit au journal), pas par frmConfirm
+    $r = Show-AppMessage (T "Remettre tous les paramètres de l'interface à leurs valeurs par défaut et supprimer le fichier de configuration ?`n`n(Aucun effet sur le Greaseweazle, ni sur vos fichiers image, ni sur l'index de la bibliothèque.)") `
+        (T 'Réinitialiser les paramètres') 'YesNo' 'Question'
     if ($r -eq 'Yes') {
         Set-Defaults
         Update-Library
@@ -399,6 +406,9 @@ Set-Btn $btnSeek       'Play'
 Set-Btn $btnErase      'Delete' 'danger'
 Set-Btn $btnClean      'Repair'
 Set-Btn $btnPin        'Pin'
+# 12.8 (FIX5) : boutons des Outils a la largeur de leur texte (« Positionner », EFFACER, NETTOYER et « Appliquer » etaient
+# coupes en francais) ; ils finissent chaque rangee : rien a decaler
+foreach ($fitBtn in @($btnSeek, $btnErase, $btnClean, $btnPin)) { Set-BtnFitWidth $fitBtn }
 Set-Btn $btnDelaysShow 'Stopwatch'
 Set-Btn $btnDelaysSet  'Check'
 Set-Btn $btnC          'Play' 'primary'

@@ -56,7 +56,7 @@ $btnRead = New-Object System.Windows.Forms.Button
 $btnRead.Text = (T 'LIRE LA DISQUETTE'); $btnRead.Location = '90,175'; $btnRead.Size = '250,40'; $btnRead.Font = $bold
 $btnRead.Add_Click({
     if (-not $txtRFile.Text.Trim()) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Indiquez un fichier de sortie.'),(T 'Erreur'),'OK','Warning'); return
+        [void](Show-AppMessage (T 'Indiquez un fichier de sortie.') (T 'Erreur') 'OK' 'Warning'); return
     }
     $a = @('read') + (Get-CommonArgs)
     $a += "--revs=$($numRevs.Value)"
@@ -128,10 +128,10 @@ $btnConvert = New-Object System.Windows.Forms.Button
 $btnConvert.Text = (T 'CONVERTIR'); $btnConvert.Location = '90,120'; $btnConvert.Size = '250,40'; $btnConvert.Font = $bold
 $btnConvert.Add_Click({
     if (-not (Test-Path -LiteralPath $txtCvIn.Text)) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Fichier source introuvable.'),(T 'Erreur'),'OK','Warning'); return
+        [void](Show-AppMessage (T 'Fichier source introuvable.') (T 'Erreur') 'OK' 'Warning'); return
     }
     if (-not $txtCvOut.Text.Trim()) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Indiquez un fichier de destination.'),(T 'Erreur'),'OK','Warning'); return
+        [void](Show-AppMessage (T 'Indiquez un fichier de destination.') (T 'Erreur') 'OK' 'Warning'); return
     }
     # convert ne pilote pas le lecteur : pas de --drive ni --device
     $a = @('convert')
@@ -166,7 +166,7 @@ $lblCmpFmtFound = New-Object System.Windows.Forms.Label
 $lblCmpFmtFound.Location = '350,84'; $lblCmpFmtFound.Size = '425,34'; $lblCmpFmtFound.Anchor = 'Top,Left,Right'
 $lblCmpFmtFound.AutoEllipsis = $true; $lblCmpFmtFound.ForeColor = $script:Theme.Muted
 $cmbCmpFmt = New-Object System.Windows.Forms.ComboBox
-$cmbCmpFmt.Location = '90,43'; $cmbCmpFmt.Width = 200
+$cmbCmpFmt.Location = '90,46'; $cmbCmpFmt.Width = 200
 # 12.8 (lot 2, D13) : « (detection automatique) » en tete, puis les formats, dans l ordre des codes du reglage
 # compareFormat (compare.formatChoice) ; liste modifiable : un autre format de gw peut etre saisi, comme en 12.7
 $script:CmpAutoItem = (T '(détection automatique)')
@@ -185,11 +185,11 @@ $cmbCmpFmt.Add_TextChanged({
 $tip.SetToolTip($cmbCmpFmt, (T "Format de décodage commun : la référence est convertie dans ce format,`nla disquette est lue dans ce format, puis les deux sont comparées octet par octet.`n(détection automatique) : format déduit de la référence (taille et BPB d'un ADF, d'un ST ou d'un IMG ; décodage de deux pistes d'un IPF, d'un SCP ou d'un HFE), puis vérifié sur deux pistes de la disquette avant la lecture complète."))
 
 $numCmpRetries = New-Object System.Windows.Forms.NumericUpDown
-$numCmpRetries.Location = '365,43'; $numCmpRetries.Width = 55
+$numCmpRetries.Location = '365,46'; $numCmpRetries.Width = 55
 $numCmpRetries.Minimum = 0; $numCmpRetries.Maximum = 50
 
 $btnCmpFromWrite = New-Object System.Windows.Forms.Button
-$btnCmpFromWrite.Text = (T 'Reprendre l''image de l''onglet Écriture'); $btnCmpFromWrite.Location = '440,41'; $btnCmpFromWrite.Size = '280,26'
+$btnCmpFromWrite.Text = (T 'Reprendre l''image de l''onglet Écriture'); $btnCmpFromWrite.Location = '440,41'; $btnCmpFromWrite.Size = '280,34'   # 12.8 (lot 5) : 34 px ; FIX5 : ligne 2 descendue de 3 px (3 px sous le champ Reference)
 $btnCmpFromWrite.Add_Click({
     if ($txtWFile.Text) {
         $txtCmpRef.Text = $txtWFile.Text
@@ -210,7 +210,7 @@ $txtCmpResult.ScrollBars = 'Vertical'; $txtCmpResult.WordWrap = $false
 $txtCmpResult.BackColor = [System.Drawing.SystemColors]::Control
 
 $tabCmp.Controls.AddRange(@((New-Label (T 'Référence :') '10,17'), $txtCmpRef, $btnCmpRef,
-    (New-Label (T 'Format :') '10,47'), $cmbCmpFmt, (New-Label (T 'Essais :') '305,47'), $numCmpRetries, $btnCmpFromWrite,
+    (New-Label (T 'Format :') '10,50'), $cmbCmpFmt, (New-Label (T 'Essais :') '305,50'), $numCmpRetries, $btnCmpFromWrite,
     $btnCompare, $lblCmpFmtFound, $txtCmpResult))
 
 # ============================== QUALITE & ALIGNEMENT ===========================
@@ -270,7 +270,7 @@ $btnAlStart.Text = (T 'MESURER LA DISQUETTE'); $btnAlStart.Location = '10,40'; $
 $tip.SetToolTip($btnAlStart, (T 'Lit les cylindres choisis avec le lecteur sélectionné en haut et évalue l''état du support et la qualité de lecture.'))
 $btnAlStart.Add_Click({
     if (-not $script:ScpStatsOk) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Le module d''analyse SCP n''a pas pu être compilé (Add-Type).'),(T 'Mesure'),'OK','Warning'); return
+        [void](Show-AppMessage (T 'Le module d''analyse SCP n''a pas pu être compilé (Add-Type).') (T 'Mesure') 'OK' 'Warning'); return
     }
     $script:AlignLoop = [bool]$chkAlLoop.Checked
     $script:AlLastMove = 0
@@ -282,7 +282,7 @@ $btnAlRef = New-Object System.Windows.Forms.Button
 $btnAlRef.Text = (T 'Fixer comme référence'); $btnAlRef.Location = '240,40'; $btnAlRef.Size = '175,40'
 $tip.SetToolTip($btnAlRef, (T "Mémorise la dernière mesure comme référence (ex. : lecteur Amiga sur la même disquette).`nLes mesures suivantes affichent l'écart en %."))
 $btnAlRef.Add_Click({
-    if (-not $script:AlignLast) { [void][System.Windows.Forms.MessageBox]::Show((T 'Faites d''abord une mesure.'),(T 'Référence'),'OK','Information'); return }
+    if (-not $script:AlignLast) { [void](Show-AppMessage (T 'Faites d''abord une mesure.') (T 'Référence') 'OK' 'Information'); return }
     $script:AlignRef = $script:AlignLast.Clone()
     $script:AlignRefLabel = ((T "lecteur {0}, tête {1}, {2}") -f "$($cmbDrive.Text)", "$($cmbAlHead.Text)", "$(Get-Date -Format 'dd/MM HH:mm')")
     $lblAlRef.Text = ((T "Référence : {0} ({1} piste(s))") -f "$($script:AlignRefLabel)", "$($script:AlignRef.Count)")
@@ -315,7 +315,9 @@ $chkAlGuide.Add_CheckedChanged({
 $lblAlRef = New-Object System.Windows.Forms.Label
 $lblAlRef.Location = '10,78'; $lblAlRef.AutoSize = $true; $lblAlRef.Text = (T 'Aucune référence'); $lblAlRef.ForeColor = 'Gray'
 
-# --- Guide (visible en mode reglage)
+# --- Guide (visible en mode reglage). 12.8 (lot 5) : exception ecrite a la regle des deux hauteurs (34 et 40 px) : 26 px,
+# seule hauteur qui tient entre la reference (y = 78) et la carte de qualite (y = 126, maquette D14 verifiee par la
+# suite quality, Q0)
 $btnAlPos0 = New-Object System.Windows.Forms.Button
 $btnAlPos0.Text = (T 'Repère (position 0)'); $btnAlPos0.Location = '10,96'; $btnAlPos0.Size = '155,26'; $btnAlPos0.Visible = $false
 $tip.SetToolTip($btnAlPos0, (T "Point de départ : stepper à sa position d'origine (trait de repère). Mesure la position 0 et démarre le guide."))
@@ -398,21 +400,30 @@ $btnUpdate = New-ToolButton (T 'Mise à jour firmware') '15,163' {
     if (Show-AppConfirm @cq) { Start-Gw @('update') }
 }
 
+# 12.8 (lot 5, D9) : libelles en francais, nom de la commande gw entre parentheses (comme les boutons de gauche) ;
+# boutons de 34 px sur les rangees des boutons de gauche (y = 15, 52, 89, 126), champs centres sur ces rangees ; colonne
+# des champs calee sur le plus long libelle, mesure dans la langue de l interface
+$lblTSeek   = New-Label (T 'Cylindre (seek) :') '250,23'
+$lblTErase  = New-Label (T 'Pistes (erase) :') '250,60'
+$lblTPasses = New-Label (T 'Passes :') '250,97'
+$lblTPin    = New-Label (T 'Broche (pin) :') '250,134'
+$xT = 260 + [int](@($lblTSeek, $lblTErase, $lblTPasses, $lblTPin) | ForEach-Object { [System.Windows.Forms.TextRenderer]::MeasureText($_.Text, $form.Font).Width } | Measure-Object -Maximum).Maximum
+
 $numSeek = New-Object System.Windows.Forms.NumericUpDown
-$numSeek.Location = '355,18'; $numSeek.Width = 60
+$numSeek.Location = New-Object System.Drawing.Point($xT, 20); $numSeek.Width = 60
 $numSeek.Minimum = -8; $numSeek.Maximum = 85
 $tip.SetToolTip($numSeek, (T 'Cylindre cible. Valeurs négatives possibles sur lecteur flippy.'))
 
 $btnSeek = New-Object System.Windows.Forms.Button
-$btnSeek.Text = 'Seek'; $btnSeek.Location = '425,17'; $btnSeek.Size = '80,26'
+$btnSeek.Text = (T 'Positionner'); $btnSeek.Location = New-Object System.Drawing.Point(($xT + 70), 15); $btnSeek.Size = '80,34'
 $btnSeek.Add_Click({ Start-Gw (@('seek') + (Get-CommonArgs) + @("$($numSeek.Value)")) })
 
 $txtEraseTracks = New-Object System.Windows.Forms.TextBox
-$txtEraseTracks.Location = '355,55'; $txtEraseTracks.Width = 150
+$txtEraseTracks.Location = New-Object System.Drawing.Point($xT, 57); $txtEraseTracks.Width = 150
 $tip.SetToolTip($txtEraseTracks, (T 'TSPEC optionnel. Vide = toute la disquette.'))
 
 $btnErase = New-Object System.Windows.Forms.Button
-$btnErase.Text = (T 'EFFACER'); $btnErase.Location = '515,54'; $btnErase.Size = '100,26'
+$btnErase.Text = (T 'EFFACER'); $btnErase.Location = New-Object System.Drawing.Point(($xT + 160), 52); $btnErase.Size = '100,34'
 $btnErase.Add_Click({
     # 12.8 (D3) : confirmation par frmConfirm (effacement irreversible), case qui nomme le lecteur
     $tr = $txtEraseTracks.Text.Trim(); $drv = "$($cmbDrive.Text)"
@@ -428,11 +439,13 @@ $btnErase.Add_Click({
 })
 
 $numPasses = New-Object System.Windows.Forms.NumericUpDown
-$numPasses.Location = '355,92'; $numPasses.Width = 50
+$numPasses.Location = New-Object System.Drawing.Point($xT, 94); $numPasses.Width = 50
 $numPasses.Minimum = 1; $numPasses.Maximum = 20
 
+# 12.8 (lot 5, D9) : « Duree par position (ms) », terme de la fenetre de nettoyage (12.7 : « linger »)
+$lblTLinger = New-Label (T 'Durée par position (ms) :') (New-Object System.Drawing.Point(($xT + 66), 97))
 $numLinger = New-Object System.Windows.Forms.NumericUpDown
-$numLinger.Location = '470,92'; $numLinger.Width = 60
+$numLinger.Location = New-Object System.Drawing.Point(($lblTLinger.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblTLinger.Text, $form.Font).Width + 8), 94); $numLinger.Width = 60
 $numLinger.Minimum = 0; $numLinger.Maximum = 5000
 $tip.SetToolTip($numLinger, (T 'Temps de contact par pas, en millisecondes.'))
 # 12.8 (point 7, D9) : passes et linger enregistres (tools.passes, tools.linger), defaut 3 x 500 ms, celui du prereglage
@@ -441,28 +454,28 @@ Register-SettingCtl 'cleanPasses' $numPasses
 Register-SettingCtl 'cleanLinger' $numLinger
 
 $btnClean = New-Object System.Windows.Forms.Button
-$btnClean.Text = (T 'NETTOYER'); $btnClean.Location = '540,91'; $btnClean.Size = '100,26'
+$btnClean.Text = (T 'NETTOYER'); $btnClean.Location = New-Object System.Drawing.Point(($numLinger.Right + 10), 89); $btnClean.Size = '100,34'
 # Fenetre de nettoyage de l Accueil (avertissement, procedure, case obligatoire, suivi), avec les passes et le linger
 # de cet onglet en 4e duree
 $btnClean.Add_Click({ Show-CleanDialog -Passes ([int]$numPasses.Value) -Linger ([int]$numLinger.Value) })
 
 $numPin = New-Object System.Windows.Forms.NumericUpDown
-$numPin.Location = '355,129'; $numPin.Width = 50
+$numPin.Location = New-Object System.Drawing.Point($xT, 131); $numPin.Width = 50
 $numPin.Minimum = 1; $numPin.Maximum = 34
 
 $cmbPinLvl = New-Object System.Windows.Forms.ComboBox
-$cmbPinLvl.Location = '420,129'; $cmbPinLvl.Width = 55; $cmbPinLvl.DropDownStyle = 'DropDownList'
+$cmbPinLvl.Location = New-Object System.Drawing.Point(($xT + 60), 132); $cmbPinLvl.Width = 55; $cmbPinLvl.DropDownStyle = 'DropDownList'
 [void]$cmbPinLvl.Items.AddRange(@('H','L'))
 
 $btnPin = New-Object System.Windows.Forms.Button
-$btnPin.Text = (T 'Appliquer'); $btnPin.Location = '485,128'; $btnPin.Size = '100,26'
+$btnPin.Text = (T 'Appliquer'); $btnPin.Location = New-Object System.Drawing.Point(($xT + 125), 126); $btnPin.Size = '100,34'
 $btnPin.Add_Click({ Start-Gw (@('pin') + (Get-CommonArgs) + @("$($numPin.Value)", $cmbPinLvl.Text)) })
 
 $tabT.Controls.AddRange(@($btnInfo,$btnRpm,$btnBw,$btnReset,$btnUpdate,
-    (New-Label (T 'Seek cylindre :') '250,21'), $numSeek, $btnSeek,
-    (New-Label (T 'Erase tracks :') '250,58'), $txtEraseTracks, $btnErase,
-    (New-Label (T 'Clean passes :') '250,95'), $numPasses, (New-Label (T 'linger :') '415,95'), $numLinger, $btnClean,
-    (New-Label (T 'Pin :') '250,132'), $numPin, $cmbPinLvl, $btnPin))
+    $lblTSeek, $numSeek, $btnSeek,
+    $lblTErase, $txtEraseTracks, $btnErase,
+    $lblTPasses, $numPasses, $lblTLinger, $numLinger, $btnClean,
+    $lblTPin, $numPin, $cmbPinLvl, $btnPin))
 
 # ============================== DELAIS =========================================
 $tabD = New-TabPage (T 'Délais')
@@ -495,11 +508,11 @@ foreach ($d in $delayDefs) {
 }
 
 $btnDelaysShow = New-Object System.Windows.Forms.Button
-$btnDelaysShow.Text = (T 'Afficher les délais actuels'); $btnDelaysShow.Location = '330,15'; $btnDelaysShow.Size = '230,32'
+$btnDelaysShow.Text = (T 'Afficher les délais actuels'); $btnDelaysShow.Location = '330,15'; $btnDelaysShow.Size = '230,34'
 $btnDelaysShow.Add_Click({ Start-Gw @('delays') })
 
 $btnDelaysSet = New-Object System.Windows.Forms.Button
-$btnDelaysSet.Text = (T 'Appliquer les valeurs cochées'); $btnDelaysSet.Location = '330,55'; $btnDelaysSet.Size = '230,32'
+$btnDelaysSet.Text = (T 'Appliquer les valeurs cochées'); $btnDelaysSet.Location = '330,55'; $btnDelaysSet.Size = '230,34'
 $btnDelaysSet.Add_Click({
     $a = @('delays')
     foreach ($k in $script:DelayCtrls.Keys) {
@@ -507,7 +520,7 @@ $btnDelaysSet.Add_Click({
         if ($c.Chk.Checked) { $a += "--$k=$($c.Num.Value)" }
     }
     if ($a.Count -eq 1) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Cochez au moins un paramètre à modifier.'),(T 'Rien à faire'),'OK','Information'); return
+        [void](Show-AppMessage (T 'Cochez au moins un paramètre à modifier.') (T 'Rien à faire') 'OK' 'Information'); return
     }
     Start-Gw $a
 })

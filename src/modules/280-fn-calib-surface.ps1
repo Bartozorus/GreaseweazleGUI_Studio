@@ -289,6 +289,27 @@ function Format-CalibSurfaceReserve($sf) {
     return ((T "support : {0} piste(s) défectueuse(s) à la première passe ({1})") -f "$n", ($p -join ' ; '))
 }
 
+function Get-CalibSurfaceStates($sf, $mc) {
+    # 12.8 (lot 5, D15) : etats du controle pour frmCalibSurface (icones d etat du lot 3, h0 ✓, h1 !, h2 ✗) : une ligne par
+    # face mesuree (defectueuse ✗, pistes defectueuses sans defaut de la face !, saine ✓), puis vitesse du lecteur et densite
+    # relue quand au moins une face a ete mesuree (Get-CalibMediumCheck). Renvoie un tableau de @{ Kind ; Text }.
+    $r = @()
+    foreach ($h in 0, 1) {
+        $f = $sf.Faces[$h]
+        if (-not $f -or [int]$f.N -le 0) { continue }
+        $n = @($f.Bad).Count
+        if ($f.Defective -and $n -eq 0) { $r += ,@{ Kind = 'h2'; Text = ((T 'Face {0} : défectueuse (hors classe sur toute la face)') -f "$h") } }
+        elseif ($f.Defective) { $r += ,@{ Kind = 'h2'; Text = ((T 'Face {0} : défectueuse ({1} piste(s) sur {2})') -f "$h", "$n", "$($f.N)") } }
+        elseif ($n -gt 0) { $r += ,@{ Kind = 'h1'; Text = ((T 'Face {0} : défaut ponctuel ({1} piste(s) sur {2})') -f "$h", "$n", "$($f.N)") } }
+        else { $r += ,@{ Kind = 'h0'; Text = ((T 'Face {0} : saine') -f "$h") } }
+    }
+    if ($mc -and $mc.Faces -and @(@($mc.Faces.Values) | Where-Object { $_ -and [int]$_.N -gt 0 }).Count -gt 0) {
+        $r += ,$(if ($mc.Rot) { @{ Kind = 'h2'; Text = (T 'Vitesse du lecteur : hors tolérance') } } else { @{ Kind = 'h0'; Text = (T 'Vitesse du lecteur : conforme') } })
+        $r += ,$(if ($mc.Flux) { @{ Kind = 'h2'; Text = (T 'Densité relue : différente du motif') } } else { @{ Kind = 'h0'; Text = (T 'Densité relue : conforme') } })
+    }
+    return ,$r
+}
+
 function Get-LevelSurface($tracks, $cal, [int]$rpm) {
     # 12.7 point 5 : controle de surface (Get-CalibSurface) et de vitesse et de densite (Get-CalibMediumCheck) de la
     # premiere passe de la calibration rapide, chaque face sur ses cylindres ecrits a cette passe (cibles de ses unites :
@@ -370,7 +391,9 @@ function Invoke-LevelSurface($cal, $tracks) {
         else { Append-Log ((T 'Contrôle de surface : disquette à écrire défectueuse ({0}) : décision demandée.') -f "$verdict") }
         $notes = @()
         if ($mc.Rot) { $notes += (T "Vitesse du lecteur différente de celle du type de disquette : un format à 300 tr/min demande un lecteur à 300 tr/min (3,5 pouces, ou 5,25 pouces double densité), un format à 360 tr/min un lecteur à 360 tr/min (5,25 pouces haute densité, ou 3,5 pouces réglé à 360 tr/min). Changer de disquette n'y change rien.") }
-        $opt = @{ Change = $false; SwapBox = $false; Variant = 'level'; Title = $(if ($spd) { (T 'Contrôle de surface') } else { (T 'Disquette à écrire défectueuse') }); GoText = (T 'Écrire quand même') }
+        # 12.8 (lot 5, D15) : Speed et States : titre du bandeau et icones d etat de frmCalibSurface
+        $opt = @{ Change = $false; SwapBox = $false; Variant = 'level'; Title = $(if ($spd) { (T 'Contrôle de surface') } else { (T 'Disquette à écrire défectueuse') }); GoText = (T 'Écrire quand même')
+                  Speed = $spd; States = (Get-CalibSurfaceStates $sf $mc) }
         $txt = Get-LevelSurfaceText $sf $mc ([bool]$script:Restore) $spd $notes
         $cal.Hold = $true; Update-CalibProgress; if ($cal.Home) { Update-HomeCalibCard }
         if ($script:Restore) { $script:Restore.InCall = $true }

@@ -25,7 +25,7 @@ $tip.SetToolTip($cmbWProfile, (T "Auto : la cellule de l'image est mesurée (IPF
 $cmbWProfile.Add_SelectedIndexChanged({ Update-PrecompForImage $txtWFile.Text })
 
 $btnWCurve = New-Object System.Windows.Forms.Button
-$btnWCurve.Text = (T 'Courbe'); $btnWCurve.Location = '620,50'; $btnWCurve.Size = '130,26'; $btnWCurve.Enabled = $false
+$btnWCurve.Text = (T 'Courbe'); $btnWCurve.Location = '620,46'; $btnWCurve.Size = '130,34'; $btnWCurve.Enabled = $false   # 12.8 (lot 5) : 34 px
 $tip.SetToolTip($btnWCurve, (T 'Affiche la courbe de précompensation calibrée pour la famille de l''image (standard ou long track) : mesures, courbe ajustée et valeur retenue pour chaque cylindre.') + "`n" + (T 'Écriture lente cochée : une courbe par tête, si la calibration a été faite en écriture lente.'))
 $btnWCurve.Add_Click({ Show-PrecompCurve $script:CurveFamily $chkWSlow.Checked })
 
@@ -120,7 +120,7 @@ $chkWPostCheck.Add_CheckedChanged({ $numWRepair.Enabled = $chkWPostCheck.Checked
 
 # --- Ligne 3 : calibration automatique de la precompensation pour le lecteur d ecriture
 $cmbWCalMode = New-Object System.Windows.Forms.ComboBox
-$cmbWCalMode.Location = '165,105'; $cmbWCalMode.Width = 250; $cmbWCalMode.DropDownStyle = 'DropDownList'
+$cmbWCalMode.Location = '165,111'; $cmbWCalMode.Width = 250; $cmbWCalMode.DropDownStyle = 'DropDownList'
 [void]$cmbWCalMode.Items.AddRange(@((T 'Test standard : 1 cylindre sur 10'), (T 'Test fin : tous les cylindres'), (T 'Test rapide : niveau et forme par disquette')))
 $cmbWCalMode.SelectedIndex = 0
 # 12.8 (D5) : case « Mesurer la disquette » cochee et verrouillee au « Test rapide » (Update-SlowUi), a chaque changement
@@ -128,28 +128,31 @@ $cmbWCalMode.SelectedIndex = 0
 $cmbWCalMode.Add_SelectedIndexChanged({ Update-SlowUi })
 $tip.SetToolTip($cmbWCalMode, (T "Test standard (un cylindre sur 10) ou test fin (tous les cylindres) : calibration complète, qui mesure la courbe de précompensation du lecteur ; elle est faite une fois, puis réutilisée.`nTest rapide : la forme de la courbe vient de la dernière calibration complète du lecteur (la référence). Avant chaque écriture (bouton ÉCRIRE, Bibliothèque, restauration), et avec « Calibrer », son niveau est mesuré sur la disquette insérée, et sa forme aussi si elle diffère de la référence : 4 à 9 cylindres par tête (2 de plus si la forme est adaptée), 1 à 3 écritures du motif par piste. Sans référence utilisable, l'écriture est refusée (bouton ÉCRIRE, Bibliothèque) : calibrez d'abord le lecteur sur une disquette sacrifiée, par la carte « Calibrer le lecteur » de l'Accueil ; « Calibrer » propose alors une calibration complète en test fin, qui devient la référence.`nMême réglage que le test choisi dans la fenêtre de la carte « Calibrer le lecteur » de l'Accueil, retenu quand la calibration y est lancée."))
 $btnWCalib = New-Object System.Windows.Forms.Button
-$btnWCalib.Text = (T 'Calibrer'); $btnWCalib.Location = '425,104'; $btnWCalib.Size = '120,26'
+# 12.8 (lot 5) : boutons de 34 px (deux hauteurs, 34 et 40 px), sous les champs de la ligne 2 (bas a 103 px), liste et
+# libelle de la ligne 3 descendus pour rester centres. FIX5 : rangee descendue de 3 px de plus (3 px d ecart avec les
+# champs du dessus, comme en 12.7), ligne 4 (progression, verdict) de 5 px : 2 px sous les boutons
+$btnWCalib.Text = (T 'Calibrer'); $btnWCalib.Location = '425,106'; $btnWCalib.Size = '120,34'
 $tip.SetToolTip($btnWCalib, (T "Calibre la précompensation pour ce lecteur d'écriture : chaque passe écrit sur les cylindres de test un motif de test pseudo-aléatoire, à la densité de l'image, avec une valeur de precomp puis, en vérification, le profil obtenu ; elle le relit en flux et mesure le décalage de pic. Une courbe donne ensuite une valeur par cylindre ; le profil est enregistré pour la famille de l'image (standard ou long track) et appliqué ensuite par le mode Auto. Le contenu de l'image n'est pas écrit. La disquette insérée est écrasée. Test standard : un cylindre sur 10, quelques minutes. Test fin : tous les cylindres, un quart d'heure environ."))
 $tip.SetToolTip($btnWCalib, $tip.GetToolTip($btnWCalib) + "`n" + (T 'Écriture lente cochée : une courbe par tête, vérifiée en écrivant la tête 0 puis la tête 1, chacune avec son profil.'))
 $btnWCalib.Add_Click({ $script:AfterCalib = ''; if ($cmbWCalMode.SelectedIndex -eq 2) { Start-LevelCalibButton } else { Start-PrecompCalib } })
 $tip.SetToolTip($btnWCalib, $tip.GetToolTip($btnWCalib) + "`n" + (T 'Test rapide : mesure le niveau de la disquette insérée, et sa forme si elle diffère de la dernière calibration complète du lecteur ; le profil obtenu est placé dans les champs --precomp, pour cette disquette.'))
 $btnWCalReset = New-Object System.Windows.Forms.Button
-$btnWCalReset.Text = (T 'Effacer les calibrations'); $btnWCalReset.Location = '555,104'; $btnWCalReset.Size = '195,26'
+$btnWCalReset.Text = (T 'Effacer les calibrations'); $btnWCalReset.Location = '555,106'; $btnWCalReset.Size = '195,34'
 $tip.SetToolTip($btnWCalReset, (T "Efface toutes les calibrations de précompensation : courbes communes et par tête des familles standard et long track.`nLes profils de famille reprennent leurs valeurs d'origine. Une écriture rapide ou lente recalibre ensuite automatiquement."))
 $btnWCalReset.Add_Click({ Reset-CalibProfiles })
 
 # --- Ligne 4 : progression globale de la calibration (toutes passes), visible pendant et apres
 $pbWCal = New-Object System.Windows.Forms.ProgressBar
-$pbWCal.Location = '12,136'; $pbWCal.Size = '300,16'; $pbWCal.Minimum = 0; $pbWCal.Maximum = 100; $pbWCal.Visible = $false
+$pbWCal.Location = '12,141'; $pbWCal.Size = '300,16'; $pbWCal.Minimum = 0; $pbWCal.Maximum = 100; $pbWCal.Visible = $false
 $lblWCal = New-Object System.Windows.Forms.Label
-$lblWCal.Location = '320,137'; $lblWCal.AutoSize = $true; $lblWCal.ForeColor = 'DimGray'; $lblWCal.Visible = $false
+$lblWCal.Location = '320,142'; $lblWCal.AutoSize = $true; $lblWCal.ForeColor = 'DimGray'; $lblWCal.Visible = $false
 # 12.8 (lot 3b) : verdict du controle apres ecriture avec son icone d etat de 16 px et son encre (Set-WCalVerdict) ; tout
 # autre texte (calibration, prechauffage...) les retire
 $lblWCal.Add_Paint({ param($s, $e) Draw-WCalIcon $s $e })
 $lblWCal.Add_TextChanged({ if ($script:WCalIcon -and $lblWCal.Text -ne $script:WCalIcon.Text) { Clear-WCalVerdict } })
 
 $grpWOpt.Controls.AddRange(@($chkWPreErase, $chkWEraseEmpty, $chkWNoVerify, (New-Label (T 'Essais :') '500,26'), $numWRetries, $chkWSlow, $chkWPrecomp, $txtWPrecomp, $chkWPostCheck,
-    $lblWPrecomp1, $txtWPrecomp1, (New-Label (T 'Calibration précomp :') '12,109'), $cmbWCalMode, $btnWCalib, $btnWCalReset, $pbWCal, $lblWCal, $lblWRepair, $numWRepair))
+    $lblWPrecomp1, $txtWPrecomp1, (New-Label (T 'Calibration précomp :') '12,115'), $cmbWCalMode, $btnWCalib, $btnWCalReset, $pbWCal, $lblWCal, $lblWRepair, $numWRepair))
 
 # --- Groupe 3 : options avancees (rarement utiles)
 $grpWAdv = New-Group (T 'Options avancées') '10,266' '762,74'
@@ -174,11 +177,12 @@ $btnWDiskdefs.Add_Click({
     if ($d.ShowDialog() -eq 'OK') { $txtWDiskdefs.Text = $d.FileName }
 })
 $chkWReverse = New-Object System.Windows.Forms.CheckBox
-$chkWReverse.Text = (T 'Flippy (--reverse)'); $chkWReverse.Location = '12,46'; $chkWReverse.Width = 150
+# 12.8 (lot 5, D9) : meme libelle que la case de l onglet Lecture ; cases suivantes decalees (texte plus long)
+$chkWReverse.Text = (T 'Face B flippy (--reverse)'); $chkWReverse.Location = '12,46'; $chkWReverse.Width = 170
 $chkWHard = New-Object System.Windows.Forms.CheckBox
-$chkWHard.Text = (T 'Secteurs durs (--hard-sectors)'); $chkWHard.Location = '170,46'; $chkWHard.Width = 210
+$chkWHard.Text = (T 'Secteurs durs (--hard-sectors)'); $chkWHard.Location = '190,46'; $chkWHard.Width = 205
 $chkWTG43 = New-Object System.Windows.Forms.CheckBox
-$chkWTG43.Text = (T 'TG43 lecteur 8 pouces (--gen-tg43)'); $chkWTG43.Location = '390,46'; $chkWTG43.Width = 250
+$chkWTG43.Text = (T 'TG43 lecteur 8 pouces (--gen-tg43)'); $chkWTG43.Location = '405,46'; $chkWTG43.Width = 250
 
 $grpWAdv.Controls.AddRange(@((New-Label (T 'Pistes :') '12,23'), $txtWTracks, (New-Label (T 'Densel :') '232,23'), $cmbWDensel,
     (New-Label (T 'Fake index :') '365,23'), $txtWFakeIdx, (New-Label (T 'Diskdefs :') '540,23'), $txtWDiskdefs, $btnWDiskdefs,

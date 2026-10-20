@@ -11,7 +11,7 @@ function Show-HomeCurve {
         if ($null -eq $best -or $d -gt $bestDate) { $best = $f; $bestDate = $d }
     }
     if ($best) { Show-PrecompCurve $best $true; return }
-    [void][System.Windows.Forms.MessageBox]::Show((T "Aucune calibration enregistrée.`n`nLa courbe apparaît après une première calibration : bouton « Calibrer » de l'onglet Écriture, ou première écriture depuis la Bibliothèque."), (T 'Courbe de calibration'), 'OK', 'Information')
+    [void](Show-AppMessage (T "Aucune calibration enregistrée.`n`nLa courbe apparaît après une première calibration : bouton « Calibrer » de l'onglet Écriture, ou première écriture depuis la Bibliothèque.") (T 'Courbe de calibration') 'OK' 'Information')
 }
 
 # ============================== ACCUEIL : CALIBRATION ==========================
@@ -55,8 +55,8 @@ function Get-FormatCalibInfo([string]$name) {
     elseif ($hd) {
         $r.Cal = 'hd'
         if ($e.Enc -eq 'amiga') { $r.Bits = 202688; $r.BitsSrc = (T 'ADF haute densité, horloge AmigaDOS de gw') }
-        elseif ($e.Enc -eq 'bit') { $r.Bits = 200000; $r.BitsSrc = (T 'image de cellules (raw), 1 µs par cellule') }
-        else { $r.Bits = 200000; $r.BitsSrc = (T 'format à secteurs haute densité, 1 µs par cellule') }
+        elseif ($e.Enc -eq 'bit') { $r.Bits = 200000; $r.BitsSrc = (T 'image de cellules (raw), 1 us par cellule') }
+        else { $r.Bits = 200000; $r.BitsSrc = (T 'format à secteurs haute densité, 1 us par cellule') }
         # 12.7 : note condensee sur une ligne (zone d information de la fenetre de la carte : etat des trois courbes visible
         # jusqu a la tete 1 sans defilement)
         $r.Notes += (T 'Disquette et lecteur HD nécessaires ; réglages provisoires.')
@@ -66,8 +66,8 @@ function Get-FormatCalibInfo([string]$name) {
     else {
         $r.Cal = 'std'
         if ($e.Enc -eq 'amiga') { $r.Bits = 101344; $r.BitsSrc = (T 'ADF, horloge AmigaDOS de gw') }
-        else { $r.Bits = 100000; $r.BitsSrc = (T 'format à secteurs, 2 µs par cellule') }
-        if ($rate -gt 250) { $r.Notes += ((T "Débit de {0} kbit/s (cellule de {1} ns) : l'écriture de ce format applique la courbe {2}, mesurée à 2 µs par cellule (densité plus forte de {3} %).") -f "$rate", "$([math]::Round(500000 / $rate))", (Get-CalibFamilyName 'std'), (Format-UiNum ([math]::Round(100.0 * ($rate - 250) / 250, 1)))) }
+        else { $r.Bits = 100000; $r.BitsSrc = (T 'format à secteurs, 2 us par cellule') }
+        if ($rate -gt 250) { $r.Notes += ((T "Débit de {0} kbit/s (cellule de {1} ns) : l'écriture de ce format applique la courbe {2}, mesurée à 2 us par cellule (densité plus forte de {3} %).") -f "$rate", "$([math]::Round(500000 / $rate))", (Get-CalibFamilyName 'std'), (Format-UiNum ([math]::Round(100.0 * ($rate - 250) / 250, 1)))) }
     }
     if ($r.Cal) {
         if ($e.Enc -eq 'fm0') { $r.Notes += (T 'Piste 0 en FM : non mesurée, la courbe s''y applique telle quelle.') }
@@ -86,7 +86,7 @@ function Get-HomeCalibInfo([string]$name) {
         'app.long' {
             # 105 808 cellules : Get-PatternBits d une image long track illisible (105 820 ramene a un multiple de 16)
             $r.Label = (T 'Amiga longues pistes (IPF, HFE)'); $r.Cal = 'long'; $r.Bits = 105808; $r.NCyl = 80; $r.Heads = 2
-            $r.BitsSrc = (T 'long track, 1,89 µs par cellule')
+            $r.BitsSrc = (T 'long track, 1,89 us par cellule')
             $r.Notes = @((T "Pistes longues d'une protection contre la copie : la cellule réelle et le nombre de cylindres (jusqu'à 84) se lisent dans l'image ; « Calibrer » dans l'onglet Écriture, avec l'image, les reprend exactement."))
             return $r
         }
@@ -417,7 +417,7 @@ function Show-HomeCalib {
     # Start-HomeCalib affiche l avertissement habituel de la calibration (Show-CalibConfirm) : pas de fenetres modales
     # imbriquees. Le type choisi est enregistre (ui.homeCalFormat) a la fermeture, lance ou non.
     if (Get-AppBusy) {
-        [void][System.Windows.Forms.MessageBox]::Show((T "Opération en cours : ouvrez la calibration une fois l'opération terminée."), (T 'Calibration precomp'), 'OK', 'Information'); return
+        [void](Show-AppMessage (T "Opération en cours : ouvrez la calibration une fois l'opération terminée.") (T 'Calibration precomp') 'OK' 'Information'); return
     }
     if ($script:HomeCalDesc) { $cardCalib.Controls[3].Text = $script:HomeCalDesc; $cardCalib.Controls[3].ForeColor = $script:Theme.Muted }
     $dlg = New-Object System.Windows.Forms.Form
@@ -479,7 +479,7 @@ function Show-HomeCalib {
     $lblQuick.Name = 'lblHcQuick'; $lblQuick.AutoSize = $false; $lblQuick.UseMnemonic = $false; $lblQuick.Location = '590,468'; $lblQuick.Size = '354,52'; $lblQuick.ForeColor = $script:Theme.Muted
     # Hauteurs mesurees (Segoe UI 9,75) : texte du test rapide 51 px (3 lignes), deux avertissements 102 px en francais
     $lblWarn = New-Object System.Windows.Forms.Label
-    $lblWarn.Name = 'lblHcWarn'; $lblWarn.AutoSize = $false; $lblWarn.UseMnemonic = $false; $lblWarn.Location = '572,522'; $lblWarn.Size = '372,104'; $lblWarn.ForeColor = $script:Theme.Warn
+    $lblWarn.Name = 'lblHcWarn'; $lblWarn.AutoSize = $false; $lblWarn.UseMnemonic = $false; $lblWarn.Location = '572,522'; $lblWarn.Size = '372,104'; $lblWarn.ForeColor = $script:Theme.WarnInk   # 12.8 (FIX5, D17) : encre du texte d avertissement
     $btnCurve = New-Object System.Windows.Forms.Button; $btnCurve.Name = 'btnHcCurve'; $btnCurve.Text = (T 'Afficher la courbe'); $btnCurve.Size = New-Object System.Drawing.Size(190, 34); $btnCurve.Location = '16,628'
     $btnClose = New-Object System.Windows.Forms.Button; $btnClose.Name = 'btnHcClose'; $btnClose.Text = (T 'Fermer'); $btnClose.Size = New-Object System.Drawing.Size(110, 34); $btnClose.Location = '834,628'
     $btnGo = New-Object System.Windows.Forms.Button; $btnGo.Name = 'btnHcGo'; $btnGo.Text = (T 'Calibrer'); $btnGo.Size = New-Object System.Drawing.Size(160, 34); $btnGo.Location = '666,628'
@@ -516,6 +516,8 @@ function Show-HomeCalib {
     $dlg.Add_Shown({ $s = $script:HcDlg; if ($s) { if ($s.Lv.SelectedItems.Count -gt 0) { $s.Lv.SelectedItems[0].EnsureVisible() }; [void]$s.Lv.Focus() } })
     if ($sel) { $sel.Selected = $true; $sel.Focused = $true }
     Update-HomeCalibDialog
+    # 12.8 (lot 5, A4 R1) : ecran plus bas que la fenetre (676 px de zone client) : hauteur de la zone de travail, defilement
+    [void](Set-DlgFit $dlg ([System.Windows.Forms.Screen]::FromControl($form).WorkingArea))
     $dr = [System.Windows.Forms.DialogResult]::Cancel; $ch = $null; $last = ''
     try { $dr = $dlg.ShowDialog($form) }
     finally {
@@ -541,7 +543,7 @@ function Show-HomeCalib {
     } elseif ($last -and $last -ne $prevFmt) { Set-Setting 'homeCalCyls' 0 }
     [void](Save-Config)
     if (-not $r.Started -and $r.Why) {
-        Append-Log ((T "Calibration depuis l'Accueil non lancée : {0}.") -f "$($r.Why)")
-        [void][System.Windows.Forms.MessageBox]::Show(((T "Calibration non lancée : {0}.") -f "$($r.Why)"), (T 'Calibration precomp'), 'OK', 'Information')
+        # 12.8 (lot 5) : Show-AppMessage ecrit le message au journal (plus de ligne de journal en double)
+        [void](Show-AppMessage ((T "Calibration non lancée : {0}.") -f "$($r.Why)") (T 'Calibration precomp') 'OK' 'Information')
     }
 }

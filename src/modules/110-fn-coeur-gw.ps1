@@ -29,10 +29,16 @@ function Get-CommonArgs {
 }
 
 function Set-Busy([bool]$busy) {
+    # 12.8 (lot 5, D20) : barre alignee sur Get-AppBusy. Pause d une mesure continue de l onglet Qualite (Get-AppBusy
+    # 'quality', aucune commande gw) : « Arreter » actif (il arrete la mesure continue) et « Reinitialiser » inactif,
+    # comme pendant la mesure ; onglets actifs, comme en 12.7. Entree dans la pause et sortie sans commande gw : le
+    # minuteur principal rappelle Set-Busy quand Get-AppBusy ne correspond plus a $script:QualPauseBar
+    $loop = (-not $busy) -and (Get-AppBusy) -eq 'quality'
+    $script:QualPauseBar = $loop
     $tabs.Enabled = -not $busy
-    $btnStop.Enabled = $busy
+    $btnStop.Enabled = $busy -or $loop
     $btnCfgSave.Enabled = -not $busy -and -not $script:Restore
-    $btnCfgReset.Enabled = -not $busy -and -not $script:Restore
+    $btnCfgReset.Enabled = -not $busy -and -not $script:Restore -and -not $loop
 }
 
 function Get-AppBusy([switch]$Text) {
@@ -274,7 +280,7 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
     $exe = $script:GwExe
     if (-not (Test-Path -LiteralPath $exe)) {
         Reset-GwSequence
-        [void][System.Windows.Forms.MessageBox]::Show(((T "gw.exe introuvable : {0}`n`nPlacez ce script dans le même répertoire que gw.exe.") -f "$exe"),(T 'Erreur'),'OK','Error'); return
+        [void](Show-AppMessage ((T "gw.exe introuvable : {0}`n`nPlacez ce script dans le même répertoire que gw.exe.") -f "$exe") (T 'Erreur') 'OK' 'Error'); return
     }
     if ($script:GwProc -and -not $script:GwProc.HasExited) {
         Append-Log ((T "gw déjà en cours : commande ignorée ({0}).") -f "$($gwArgs -join ' ')")

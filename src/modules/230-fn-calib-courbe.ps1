@@ -615,10 +615,18 @@ function Show-PrecompCurve([string]$family, [bool]$preferHeads, $Owner = $null) 
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
     $script:CurveData = $cvs
     Set-CurveLevelData $cvs
+    # 12.8 (lot 5, A4 P6) : Name frmCurve (banc : minuteur de securite de make-test), police de la fenetre principale,
+    # bouton Fermer en bas a droite (Echap). Fenetre non modale et redimensionnable, comme en 12.7 ; hauteur augmentee de
+    # celle de la rangee du bouton (courbe de meme taille)
     $f = New-Object System.Windows.Forms.Form
+    $f.Name = 'frmCurve'
     $f.Text = if ($cvs.Count -gt 1) { ((T "Courbe de précompensation - {0}, une courbe par tête") -f "$($cvs[0].Family)") } else { ((T "Courbe de précompensation - {0}") -f "$($cvs[0].Family)") }
-    $f.Size = New-Object System.Drawing.Size(920, 560); $f.MinimumSize = New-Object System.Drawing.Size(520, 360)
-    $f.StartPosition = 'CenterParent'; $f.Icon = $form.Icon; $f.BackColor = [System.Drawing.Color]::White
+    $f.Size = New-Object System.Drawing.Size(920, 610); $f.MinimumSize = New-Object System.Drawing.Size(520, 410)
+    # 12.8 (FIX5) : hauteur ramenee a celle de la zone de travail (1366 x 768 a 125 % : environ 566 px) ; la courbe (Fill)
+    # se reduit, la rangee du bouton Fermer reste visible
+    $wa = [System.Windows.Forms.Screen]::FromControl($form).WorkingArea
+    if ($f.Height -gt $wa.Height) { $f.Height = $wa.Height }
+    $f.StartPosition = 'CenterParent'; $f.Icon = $form.Icon; $f.Font = $form.Font; $f.BackColor = [System.Drawing.Color]::White
     $tb = New-Object System.Windows.Forms.TextBox
     $tb.Multiline = $true; $tb.ReadOnly = $true; $tb.ScrollBars = 'Vertical'; $tb.Dock = 'Bottom'; $tb.Height = 170
     $tb.TabStop = $false; $tb.HideSelection = $true          # pas de texte tout selectionne a l ouverture
@@ -628,7 +636,17 @@ function Show-PrecompCurve([string]$family, [bool]$preferHeads, $Owner = $null) 
     $pb.Dock = 'Fill'; $pb.BackColor = [System.Drawing.Color]::White
     $pb.Add_Paint({ Draw-PrecompCurve $_.Graphics $this.ClientSize })
     $pb.Add_Resize({ $this.Invalidate() })
-    $f.Controls.Add($tb); $f.Controls.Add($pb); $pb.BringToFront()
+    $pnlBtn = New-Object System.Windows.Forms.Panel
+    $pnlBtn.Dock = 'Bottom'; $pnlBtn.Height = 50; $pnlBtn.BackColor = [System.Drawing.Color]::White
+    $btnClose = New-Object System.Windows.Forms.Button
+    $btnClose.Name = 'btnCurveClose'; $btnClose.Text = (T 'Fermer'); $btnClose.Size = New-Object System.Drawing.Size(110, 34)
+    $btnClose.Location = New-Object System.Drawing.Point(($pnlBtn.ClientSize.Width - 122), 8); $btnClose.Anchor = 'Top,Right'
+    Set-Btn $btnClose '' 'normal'
+    $btnClose.Add_Click({ $this.FindForm().Close() })     # fenetre non modale : DialogResult ne la fermerait pas
+    $pnlBtn.Controls.Add($btnClose)
+    $f.CancelButton = $btnClose
+    # Ancrage dans l ordre inverse de la pile : rangee du bouton tout en bas, puis tableau, puis courbe (Fill)
+    $f.Controls.Add($tb); $f.Controls.Add($pb); $f.Controls.Add($pnlBtn); $pb.BringToFront()
     $script:CurveForm = $f
     if ($null -eq $Owner) { $Owner = $form }
     $f.Show($Owner)

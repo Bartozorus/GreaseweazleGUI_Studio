@@ -589,7 +589,7 @@ function Load-Config {
         } else { Append-Log ((T "Borne de précompensation (precompMaxNs) illisible ({0}) : {1} ns par défaut.") -f "$hraw", "$($script:CalHardNsDefault)") }
     }
     $script:CalHardNs = [int][math]::Max($script:CalHardMinNs, [math]::Min($script:CalHardMaxNs, $hn))
-    if ($script:CalHardNs -ne $hn) { Append-Log ((T "Borne de précompensation (precompMaxNs) de {0} ns ramenée à {1} ns : elle va de {2} à {3} ns. Au-delà de 470 ns, la précompensation déplacerait une transition d'un quart de cellule en long track (1,89 µs).") -f "$hraw", "$($script:CalHardNs)", "$($script:CalHardMinNs)", "$($script:CalHardMaxNs)") }
+    if ($script:CalHardNs -ne $hn) { Append-Log ((T "Borne de précompensation (precompMaxNs) de {0} ns ramenée à {1} ns : elle va de {2} à {3} ns. Au-delà de 470 ns, la précompensation déplacerait une transition d'un quart de cellule en long track (1,89 us).") -f "$hraw", "$($script:CalHardNs)", "$($script:CalHardMinNs)", "$($script:CalHardMaxNs)") }
     elseif ($script:CalHardNs -ne $script:CalHardNsDefault) { Append-Log ((T "Borne de précompensation réglée dans la configuration (precompMaxNs) : {0} ns, au lieu de {1} ns par défaut.") -f "$($script:CalHardNs)", "$($script:CalHardNsDefault)") }
     $script:CalHardNsUser = $script:CalHardNs; Set-CalibScale ''   # 12.7 : borne configuree, bareme double densite
     # 12.8 (point 7) : reglages de la table, sauf ceux de l ecriture lente lus plus bas, a la place qu ils avaient en 12.7
