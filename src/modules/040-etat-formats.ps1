@@ -2,6 +2,35 @@
 $script:LibIndexing    = $false
 $script:LibSearchAt    = $null
 $script:LibPendingSearch = $false
+# 12.8 (lot 4a) : liste groupee des resultats, panneau de details, travail differe (bloc INFO des IPF, jeux incomplets)
+$script:LibListMode    = $false            # recherche saisie : liste des resultats ; sinon arborescence
+$script:LibAll         = $null             # chemins relatifs retenus par la regle des mots, avant filtres et plafond
+$script:LibCand        = $null             # candidats de l index ou de la recherche de repli (Rel, Size, Kind)
+$script:LibRoot        = ''; $script:LibRootLeaf = ''
+$script:LibCounts      = $null             # Total, Capped, Shown, Hidden de la derniere liste
+$script:LibRecCache    = @{}               # fiches analysees, par chemin relatif
+$script:LibIpfCache    = @{}               # bloc INFO lu, par chemin et taille
+$script:LibSetCache    = @{}               # disquettes manquantes, par jeu (SetId)
+$script:LibGroups      = @{}               # groupes de la liste, par cle de titre
+$script:LibSort        = @{ Col = -1; Desc = $false }
+$script:LibColTitles   = @()
+$script:LibColW        = @(); $script:LibColAuto = @{}   # FIX4B : largeurs de depart des colonnes, largeurs elargies par le tri
+$script:LibWork        = New-Object System.Collections.Queue
+$script:LibWorkDone    = 0; $script:LibWorkTotal = 0
+$script:LibCur         = $null; $script:LibSub = $null; $script:LibSubRecs = @(); $script:LibInfoBase = ''
+$script:LibRendering   = $false; $script:LibOrigPending = $false; $script:LibThumbPath = ''
+$script:LibSearchFilter = ''; $script:LibSearchInDirs = $false
+$script:LibIndexHits   = 0; $script:LibFilterMs = 0; $script:LibParseMs = 0; $script:LibRenderMs = 0; $script:LibTimes = $null
+$script:LibRx          = $null; $script:LibCountryLang = @{}
+# 12.8 (lot 4b, D19) : liste de reference (DAT) choisie par l utilisateur, identification des fichiers
+$script:LibDat         = $null             # liste lue (Read-LibDat) : chemin, en-tete, index par taille et par nom ; Ok ou Error
+$script:LibDatState    = @{}               # etat d identification (ok, mod, unk), par chemin et taille (Get-LibIpfKey), avec la date lue
+$script:LibDatZip      = @{}               # archives ZIP identifiees (repertoire central), par chemin, taille et date
+$script:LibDatLine     = ''                # lignes « Liste de reference » du panneau de details (remplacees a la fin du calcul)
+$script:LibHashCache   = $null; $script:LibHashFileCur = ''   # empreintes calculees (hash-<md5>.tsv de la racine)
+$script:LibZipEnc      = $null
+$script:LibDatRecheck  = $false            # FIX4B : etats identifies par lecture a revalider apres une nouvelle recherche
+$script:LibDatRx       = $null             # FIX4B : expressions du format clrmamepro (Get-LibDatRx)
 $script:ProgTotal      = 0
 $script:ProgSeen       = $null
 $script:ProgOp         = ''
@@ -146,6 +175,8 @@ foreach ($fe in ($script:GwFormatTable -split '[;\r\n]+')) {
 # les affiche). Cle neuve : compare.format (12.7) n est pas relu, son defaut amiga.amigados n etant pas un choix
 $script:SettingDefs['compareFormat'] = @{ Sec = 'compare'; Key = 'formatChoice'; Type = 'enum'; Def = 'auto'
     Codes = @(@('auto') + @($Formats | Where-Object { $_ -ne '(auto)' }) + @($script:GwFormats.Keys | Where-Object { $Formats -notcontains $_ })) }
+# 12.8 (lot 4b, D19) : liste de reference (DAT) de la Bibliotheque, fichier choisi par l utilisateur ; vide : aucune
+$script:SettingDefs['libDat'] = @{ Sec = 'library'; Key = 'dat'; Type = 'string'; Def = '' }
 $script:FmtDetect     = $null    # 12.8 (lot 2) : detection du format en cours (Invoke-DiskFormatDetect) : proprietaire, flux, lignes de gw
 $script:FmtDetectArgs = @()      # arguments de la commande gw de l etape de detection en cours
 $script:CmpAuto       = $null    # 12.8 (lot 2) : comparaison en detection automatique : reference, candidats, sonde de la disquette

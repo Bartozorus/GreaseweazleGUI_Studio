@@ -59,7 +59,6 @@ $script:I18n['Bibliothèque'] = 'Library'
 $script:I18n['Choisir le dossier racine'] = 'Choose the root folder'
 $script:I18n['Répertoire racine de la bibliothèque d''images'] = 'Root folder of the image library'
 $script:I18n['Actualiser l''arborescence'] = 'Refresh the tree'
-$script:I18n["Recherche dans l'index : plusieurs mots = tous requis (ex. : monkey 2 fr).`nRésultats au fil de la frappe une fois l'index construit. Vide = arborescence."] = "Search the index: several words = all required (e.g. monkey 2 fr).`nResults as you type once the index is built. Empty = tree view."
 $script:I18n['Chercher'] = 'Search'
 $script:I18n['Images seulement'] = 'Images only'
 $script:I18n['Réindexer'] = 'Reindex'
@@ -79,9 +78,7 @@ $script:I18n['Écriture annulée : calibration interrompue.'] = 'Write cancelled
 $script:I18n['Écriture annulée : calibration sans mesure exploitable.'] = 'Write cancelled: calibration without usable measurement.'
 $script:I18n['Calibration terminée : écriture de l''image avec le profil obtenu.'] = 'Calibration complete: writing the image with the resulting profile.'
 $script:I18n['Ce fichier n''est pas un format image reconnu par gw.'] = 'This file is not an image format recognised by gw.'
-$script:I18n['Type non pris en charge'] = 'Unsupported type'
 $script:I18n["Image sélectionnée : {0}"] = "Selected image: {0}"
-$script:I18n['Ouvrir (application par défaut)'] = 'Open (default application)'
 $script:I18n["Ouverture impossible : {0}"] = "Cannot open: {0}"
 $script:I18n['Ouvrir le dossier'] = 'Open folder'
 $script:I18n['Racine :'] = 'Root:'
@@ -259,14 +256,7 @@ $script:I18n['racine introuvable'] = 'root not found'
 $script:I18n["Pour commencer :`r`n1. Choisissez le dossier racine de vos images (bouton ...).`r`n2. Dépliez l'arborescence ou utilisez la recherche.`r`n3. Sélectionnez une image puis « Écriture rapide » ou « Écriture lente »."] = "To get started:`r`n1. Choose the root folder of your images (... button).`r`n2. Expand the tree or use the search.`r`n3. Select an image, then ""Fast write"" or ""Slow write""."
 $script:I18n['indexation en cours...'] = 'indexing...'
 $script:I18n["{0} élément(s)"] = "{0} item(s)"
-$script:I18n['Archive ZIP'] = 'ZIP archive'
-$script:I18n['Déplier le nœud pour lister le contenu.'] = 'Expand the node to list its contents.'
 $script:I18n["Dans l'archive : {0}"] = "In archive: {0}"
-$script:I18n["Entrée  : {0}"] = "Entry  : {0}"
-$script:I18n["Taille  : {0}"] = "Size   : {0}"
-$script:I18n['Extrait dans un dossier temporaire avant usage.'] = 'Extracted to a temporary folder before use.'
-$script:I18n["Image disquette ({0})"] = "Disk image ({0})"
-$script:I18n["Taille : {0}"] = "Size: {0}"
 $script:I18n['Fichier non pris en charge'] = 'Unsupported file'
 $script:I18n["Entrée introuvable dans l'archive : {0}"] = "Entry not found in archive: {0}"
 $script:I18n["Extrait : {0} -> {1}"] = "Extracted: {0} -> {1}"
@@ -1790,6 +1780,117 @@ $script:I18n['{0} piste(s) en erreur : {1}'] = '{0} track(s) in error: {1}'
 $script:I18n['lecteur {0}, têtes {1}, {2} tours · {3}'] = 'drive {0}, heads {1}, {2} revs · {3}'
 $script:I18n['COPIE SAINE'] = 'HEALTHY COPY'
 $script:I18n['{0} PISTE(S) FAIBLE(S)'] = '{0} WEAK TRACK(S)'
+# 12.8 (lot 4a) : Bibliotheque, liste groupee des resultats, filtres, panneau de details (A3 § 4.2, D18)
+$script:I18n['Bibliothèque : {0}'] = 'Library: {0}'
+$script:I18n["Recherche sur le nom des fichiers : plusieurs mots = tous requis (ex. : monkey 2 fr). La casse est ignorée ; la ponctuation compte : king quest trouve KingsQuest et King's Quest, kings ne trouve pas King's.`nCase « Aussi dans les dossiers » : les mots peuvent aussi être dans le nom des dossiers.`nRésultats au fil de la frappe une fois l'index construit, groupés par jeu. Vide = arborescence."] = "Search on file names: several words = all required (e.g. monkey 2 fr). Case is ignored; punctuation counts: king quest finds KingsQuest and King's Quest, kings does not find King's.`n""Also in folders"" box: the words may also be in folder names.`nResults as you type once the index is built, grouped by game. Empty = tree view."
+$script:I18n['Aussi dans les dossiers'] = 'Also in folders'
+$script:I18n['Cherche aussi les mots dans le nom des dossiers (chemin complet depuis la racine), comme avant la version 12.8.'] = 'Also looks for the words in folder names (full path from the root), as before version 12.8.'
+$script:I18n['Tous'] = 'All'
+$script:I18n['Formats présents dans les résultats de la recherche.'] = 'Formats found in the search results.'
+$script:I18n['Langue :'] = 'Language:'
+$script:I18n['Toutes'] = 'All'
+$script:I18n["Langues indiquées dans le nom (TOSEC : (fr), (en-de) ; No-Intro : (En,Fr)), ou langue du pays (TOSEC : (DE) ; en gris dans la liste). « M3 » : trois langues, non détaillées."] = "Languages given in the name (TOSEC: (fr), (en-de); No-Intro: (En,Fr)), or language of the country (TOSEC: (DE); grey in the list). ""M3"": three languages, not detailed."
+$script:I18n['Masquer les copies modifiées'] = 'Hide modified copies'
+$script:I18n['Masque les copies dont le nom porte une mention TOSEC de modification : [cr] déplombée, [f] corrigée, [h] et [m] modifiée, [p] pirate, [t] entraîneur, [tr] traduite.'] = 'Hides the copies whose name carries a TOSEC modification flag: [cr] cracked, [f] fixed, [h] and [m] modified, [p] pirated, [t] trainer, [tr] translated.'
+$script:I18n['Originaux seulement'] = 'Originals only'
+$script:I18n["Sans liste de référence : ne garde que les IPF de structure SPS (bloc INFO lu dans le fichier : publication, révision, disquette). C'est un indice d'origine, pas une preuve.`nAvec une liste de référence (bouton « Liste de référence… ») : ne garde que les fichiers officiels, identiques à une entrée de la liste."] = "Without a reference list: keeps only the IPF files with an SPS structure (INFO block read in the file: release, revision, disk). It is a clue to the origin, not a proof.`nWith a reference list (""Reference list…"" button): keeps only the official files, identical to an entry of the list."
+$script:I18n['Variante'] = 'Variant'
+$script:I18n['Disq.'] = 'Disk'
+$script:I18n['Version'] = 'Version'
+$script:I18n['Langue'] = 'Language'
+$script:I18n['Format'] = 'Format'
+$script:I18n['Taille'] = 'Size'
+$script:I18n["Documents associés au jeu (même titre, dossier du jeu, ou media\<titre>\) et entrées d'une archive ZIP.`nDouble-clic : ouvre le document. Entrée image d'une archive : choisie pour l'écriture."] = "Documents associated with the game (same title, game folder, or media\<title>\) and entries of a ZIP archive.`nDouble-click: opens the document. Image entry of an archive: chosen for the write."
+$script:I18n['Ouvrir'] = 'Open'
+$script:I18n["Ouvre le document sélectionné (liste ou documents associés) avec l'application par défaut."] = 'Opens the selected document (list or associated documents) with the default application.'
+$script:I18n['utilisateur'] = 'user'
+$script:I18n['CRC faux'] = 'bad CRC'
+$script:I18n['manque {0} (jeu de {1})'] = 'missing {0} (set of {1})'
+$script:I18n['manque {0}'] = 'missing {0}'
+$script:I18n['{0}  ·  {1} fichier(s)'] = '{0}  ·  {1} file(s)'
+$script:I18n['{0} affiché(s), {1} masqué(s)'] = '{0} shown, {1} hidden'
+$script:I18n['analyse {0}/{1}'] = 'analysis {0}/{1}'
+$script:I18n['{0} fichier(s) dont le nom correspond ; {1} analysé(s) (2 000 au plus) ; {2} masqué(s) par les filtres ; {3} affiché(s).'] = '{0} file(s) with a matching name; {1} analysed (2,000 at most); {2} hidden by the filters; {3} shown.'
+$script:I18n['Atari 8 bits'] = 'Atari 8-bit'
+$script:I18n['IPF de structure SPS : publication n° {0}, révision {1}'] = 'IPF with SPS structure: release no. {0}, revision {1}'
+$script:I18n[', disquette {0}'] = ', disk {0}'
+$script:I18n['IPF utilisateur (disk-analyse) : copie personnelle, pas une publication SPS'] = 'User IPF (disk-analyse): personal copy, not an SPS release'
+$script:I18n['IPF : bloc INFO au CRC faux (fichier altéré ou incomplet)'] = 'IPF: INFO block with a bad CRC (file altered or incomplete)'
+$script:I18n['IPF : encodeur inconnu ({0})'] = 'IPF: unknown encoder ({0})'
+$script:I18n['IPF : bloc INFO absent ou illisible'] = 'IPF: INFO block missing or unreadable'
+$script:I18n['Plate-forme : {0}'] = 'Platform: {0}'
+$script:I18n['créé le {0}'] = 'created on {0}'
+$script:I18n['ADF : AmigaDOS {0} (DOS{1})'] = 'ADF: AmigaDOS {0} (DOS{1})'
+$script:I18n[', volume « {0} »'] = ', volume "{0}"'
+$script:I18n[', sans bloc racine lisible (chargeur propre)'] = ', no readable root block (custom loader)'
+$script:I18n[', amorçable'] = ', bootable'
+$script:I18n['ADF : bloc de démarrage non-DOS (chargeur propre, souvent protégé)'] = 'ADF: non-DOS boot block (custom loader, often protected)'
+$script:I18n['ADF : lecture impossible'] = 'ADF: cannot be read'
+$script:I18n['ADF haute densité (bloc racine 1760)'] = 'High-density ADF (root block 1760)'
+$script:I18n['déplombée'] = 'cracked'
+$script:I18n['corrigée'] = 'fixed'
+$script:I18n['modifiée (hack)'] = 'hacked'
+$script:I18n['modifiée'] = 'modified'
+$script:I18n['pirate'] = 'pirated'
+$script:I18n['entraîneur (trainer)'] = 'trainer'
+$script:I18n['traduite'] = 'translated'
+$script:I18n['image trop longue (overdump)'] = 'overdump'
+$script:I18n['image incomplète (underdump)'] = 'underdump'
+$script:I18n['virus'] = 'virus'
+$script:I18n['image défectueuse (bad dump)'] = 'bad dump'
+$script:I18n['variante (alternate)'] = 'alternate'
+$script:I18n['image vérifiée'] = 'verified dump'
+$script:I18n['Mentions : {0} ({1})'] = 'Flags: {0} ({1})'
+$script:I18n['Variante : {0}'] = 'Variant: {0}'
+$script:I18n['Disquette {0} sur {1}'] = 'Disk {0} of {1}'
+$script:I18n['Disquette {0}'] = 'Disk {0}'
+$script:I18n['Version {0}'] = 'Version {0}'
+$script:I18n['Langue : {0}'] = 'Language: {0}'
+$script:I18n['Lecture impossible : {0}'] = 'Cannot read: {0}'
+$script:I18n['Archive ZIP, {0} : {1} entrée(s), dont {2} image(s)'] = 'ZIP archive, {0}: {1} entry(ies), {2} image(s)'
+$script:I18n['Jeu incomplet : {0}'] = 'Incomplete set: {0}'
+$script:I18n["{0}  (dans l'archive, {1})"] = '{0}  (in the archive, {1})'
+$script:I18n["Document ({0}), {1}"] = "Document ({0}), {1}"
+$script:I18n['Entrée choisie : {0}'] = 'Chosen entry: {0}'
+# 12.8 (lot 4b) : Bibliotheque, liste de reference (DAT) locale, identification des images (D19, A3 § 3.4 B)
+$script:I18n['Liste de référence…'] = 'Reference list…'
+$script:I18n["Choisit une liste de référence (fichier DAT) sur votre ordinateur : format Logiqx XML (TOSEC, No-Intro) ou clrmamepro.`nLes images et les archives ZIP sont identifiées par leur taille puis leur empreinte (CRC-32, MD5 ou SHA-1) :`nofficiel (identique à une entrée de la liste), modifié (même nom qu'une entrée, contenu différent) ou inconnu.`nAucune liste n'est fournie ni téléchargée par l'application."] = "Chooses a reference list (DAT file) on your computer: Logiqx XML (TOSEC, No-Intro) or clrmamepro format.`nImages and ZIP archives are identified by their size, then by their hash (CRC-32, MD5 or SHA-1):`nofficial (identical to an entry of the list), modified (same name as an entry, different content) or unknown.`nThe application neither provides nor downloads any list."
+$script:I18n['Retirer la liste de référence (le fichier n''est pas supprimé).'] = 'Remove the reference list (the file is not deleted).'
+$script:I18n['fichier introuvable'] = 'file not found'
+$script:I18n['fichier trop gros ({0})'] = 'file too large ({0})'
+$script:I18n['format non reconnu (ni Logiqx XML ni clrmamepro)'] = 'unknown format (neither Logiqx XML nor clrmamepro)'
+$script:I18n['aucune entrée avec une taille et une empreinte'] = 'no entry with a size and a hash'
+$script:I18n['officiel'] = 'official'
+$script:I18n['modifié'] = 'modified'
+$script:I18n['inconnu'] = 'unknown'
+$script:I18n['« {0} » du jeu « {1} »'] = '"{0}" from set "{1}"'
+$script:I18n['« {0} »'] = '"{0}"'
+$script:I18n['Liste de référence : {0} ({1}), {2} entrée(s), {3} fichier(s), lue en {4} s.'] = 'Reference list: {0} ({1}), {2} entry(ies), {3} file(s), read in {4} s.'
+$script:I18n['Liste de référence illisible ({0}) : {1}'] = 'Unreadable reference list ({0}): {1}'
+$script:I18n['{0}, version {1}'] = '{0}, version {1}'
+$script:I18n['Aucune liste de référence : les fichiers ne sont pas identifiés.'] = 'No reference list: the files are not identified.'
+$script:I18n["{0}`nLue à l'ouverture de l'onglet Bibliothèque."] = "{0}`nRead when the Library tab is opened."
+$script:I18n['liste illisible'] = 'unreadable list'
+$script:I18n['{0}, {1} entrée(s)'] = '{0}, {1} entry(ies)'
+$script:I18n['Liste de référence : {0}'] = 'Reference list: {0}'
+$script:I18n['{0} entrée(s), {1} fichier(s) identifiable(s) ({2})'] = '{0} entry(ies), {1} identifiable file(s) ({2})'
+$script:I18n['Liste de référence (DAT)'] = 'Reference list (DAT)'
+$script:I18n['Listes de référence (*.dat;*.xml)|*.dat;*.xml|Tous les fichiers (*.*)|*.*'] = 'Reference lists (*.dat;*.xml)|*.dat;*.xml|All files (*.*)|*.*'
+$script:I18n['Liste de référence retirée.'] = 'Reference list removed.'
+$script:I18n['archive illisible'] = 'unreadable archive'
+$script:I18n['fichier trop gros pour le calcul du CRC-32'] = 'file too large for the CRC-32 calculation'
+$script:I18n['calcul du CRC-32 impossible'] = 'CRC-32 calculation failed'
+$script:I18n['Liste de référence ({0}) : non identifié ({1})'] = 'Reference list ({0}): not identified ({1})'
+$script:I18n['Liste de référence ({0}) : {1}, {2} image(s) officielle(s) sur {3}'] = 'Reference list ({0}): {1}, {2} official image(s) out of {3}'
+$script:I18n['Liste de référence ({0}) : officiel, {1}'] = 'Reference list ({0}): official, {1}'
+$script:I18n['Liste de référence ({0}) : modifié, même nom que {1}, contenu différent'] = 'Reference list ({0}): modified, same name as {1}, different content'
+$script:I18n['Liste de référence ({0}) : inconnu, absent de la liste'] = 'Reference list ({0}): unknown, not in the list'
+$script:I18n['Liste de référence ({0}) : identification en cours…'] = 'Reference list ({0}): identification in progress…'
+$script:I18n['Empreinte {0} : {1}'] = '{0} hash: {1}'
+$script:I18n["{0}  (dans l'archive, {1}) : {2}"] = '{0}  (in the archive, {1}): {2}'
+# 12.8 (FIX4B) : corrections apres les revues du lot 4
+$script:I18n["Image altérée dans l'archive : CRC-32 {0} au lieu de {1}. Écriture annulée."] = 'Image altered in the archive: CRC-32 {0} instead of {1}. Writing cancelled.'
+$script:I18n['liste mal formée (ligne trop longue à analyser)'] = 'malformed list (line too long to parse)'
 function T([string]$s) {
     if ($script:Lang -eq 'fr') { return $s }
     $t = $script:I18n[$s]
@@ -2339,6 +2440,35 @@ $script:IndexDir       = Join-Path $env:LOCALAPPDATA 'GreaseweazleGUI'
 $script:LibIndexing    = $false
 $script:LibSearchAt    = $null
 $script:LibPendingSearch = $false
+# 12.8 (lot 4a) : liste groupee des resultats, panneau de details, travail differe (bloc INFO des IPF, jeux incomplets)
+$script:LibListMode    = $false            # recherche saisie : liste des resultats ; sinon arborescence
+$script:LibAll         = $null             # chemins relatifs retenus par la regle des mots, avant filtres et plafond
+$script:LibCand        = $null             # candidats de l index ou de la recherche de repli (Rel, Size, Kind)
+$script:LibRoot        = ''; $script:LibRootLeaf = ''
+$script:LibCounts      = $null             # Total, Capped, Shown, Hidden de la derniere liste
+$script:LibRecCache    = @{}               # fiches analysees, par chemin relatif
+$script:LibIpfCache    = @{}               # bloc INFO lu, par chemin et taille
+$script:LibSetCache    = @{}               # disquettes manquantes, par jeu (SetId)
+$script:LibGroups      = @{}               # groupes de la liste, par cle de titre
+$script:LibSort        = @{ Col = -1; Desc = $false }
+$script:LibColTitles   = @()
+$script:LibColW        = @(); $script:LibColAuto = @{}   # FIX4B : largeurs de depart des colonnes, largeurs elargies par le tri
+$script:LibWork        = New-Object System.Collections.Queue
+$script:LibWorkDone    = 0; $script:LibWorkTotal = 0
+$script:LibCur         = $null; $script:LibSub = $null; $script:LibSubRecs = @(); $script:LibInfoBase = ''
+$script:LibRendering   = $false; $script:LibOrigPending = $false; $script:LibThumbPath = ''
+$script:LibSearchFilter = ''; $script:LibSearchInDirs = $false
+$script:LibIndexHits   = 0; $script:LibFilterMs = 0; $script:LibParseMs = 0; $script:LibRenderMs = 0; $script:LibTimes = $null
+$script:LibRx          = $null; $script:LibCountryLang = @{}
+# 12.8 (lot 4b, D19) : liste de reference (DAT) choisie par l utilisateur, identification des fichiers
+$script:LibDat         = $null             # liste lue (Read-LibDat) : chemin, en-tete, index par taille et par nom ; Ok ou Error
+$script:LibDatState    = @{}               # etat d identification (ok, mod, unk), par chemin et taille (Get-LibIpfKey), avec la date lue
+$script:LibDatZip      = @{}               # archives ZIP identifiees (repertoire central), par chemin, taille et date
+$script:LibDatLine     = ''                # lignes « Liste de reference » du panneau de details (remplacees a la fin du calcul)
+$script:LibHashCache   = $null; $script:LibHashFileCur = ''   # empreintes calculees (hash-<md5>.tsv de la racine)
+$script:LibZipEnc      = $null
+$script:LibDatRecheck  = $false            # FIX4B : etats identifies par lecture a revalider apres une nouvelle recherche
+$script:LibDatRx       = $null             # FIX4B : expressions du format clrmamepro (Get-LibDatRx)
 $script:ProgTotal      = 0
 $script:ProgSeen       = $null
 $script:ProgOp         = ''
@@ -2483,6 +2613,8 @@ foreach ($fe in ($script:GwFormatTable -split '[;\r\n]+')) {
 # les affiche). Cle neuve : compare.format (12.7) n est pas relu, son defaut amiga.amigados n etant pas un choix
 $script:SettingDefs['compareFormat'] = @{ Sec = 'compare'; Key = 'formatChoice'; Type = 'enum'; Def = 'auto'
     Codes = @(@('auto') + @($Formats | Where-Object { $_ -ne '(auto)' }) + @($script:GwFormats.Keys | Where-Object { $Formats -notcontains $_ })) }
+# 12.8 (lot 4b, D19) : liste de reference (DAT) de la Bibliotheque, fichier choisi par l utilisateur ; vide : aucune
+$script:SettingDefs['libDat'] = @{ Sec = 'library'; Key = 'dat'; Type = 'string'; Def = '' }
 $script:FmtDetect     = $null    # 12.8 (lot 2) : detection du format en cours (Invoke-DiskFormatDetect) : proprietaire, flux, lignes de gw
 $script:FmtDetectArgs = @()      # arguments de la commande gw de l etape de detection en cours
 $script:CmpAuto       = $null    # 12.8 (lot 2) : comparaison en detection automatique : reference, candidats, sonde de la disquette
@@ -3376,6 +3508,11 @@ function ConvertTo-SettingValue([string]$k, $v) {
             if (-not [double]::TryParse(([string]$v).Trim(), [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$x) -or [double]::IsNaN($x) -or [double]::IsInfinity($x)) { return $d.Def }
             return [double][math]::Max([double]$d.Min, [math]::Min([double]$d.Max, $x))
         }
+        'string' {
+            # 12.8 (lot 4b) : texte libre (chemin de la liste de reference) ; booleen : defaut
+            if ($v -is [bool]) { return $d.Def }
+            return ([string]$v).Trim()
+        }
         'enum' {
             $s = [string]$v
             foreach ($c in $d.Codes) { if ($c -ceq $s) { return $c } }
@@ -3464,13 +3601,14 @@ function Update-SettingDependents([string]$k) {
     # les reglages sans controle propre ou affiches ailleurs : duree du prechauffage (textes et cases de l onglet
     # Ecriture), mesure de la disquette (case cochee et verrouillee en test rapide, D5) ; lot 2 : lecteur de la
     # restauration (cadre 1, D10) et ligne du format detecte (D11) ; format de la comparaison (format saisi, ligne du format
-    # detecte, D13)
+    # detecte, D13) ; lot 4b : liste de reference de la Bibliotheque (dechargee, relue a la prochaine demande)
     switch ($k) {
         'warmMinutes'      { Update-SlowUi }
         'levelBeforeWrite' { Update-SlowUi }
         'drive'            { Update-RsDrive }
         'restoreFormat'    { Update-RsFmtFound }
         'compareFormat'    { Update-CmpFmtFound }
+        'libDat'           { Reset-LibDat }
     }
 }
 
@@ -3551,6 +3689,12 @@ function Set-Defaults {
     $txtLibRoot.Text = ''
     $txtLibFilter.Text = ''
     $chkLibImgOnly.Checked = $false
+    # 12.8 (lot 4a) : options de la recherche et filtres de la liste des resultats (non enregistres)
+    $chkLibInDirs.Checked = $false
+    $chkLibHideMod.Checked = $false
+    $chkLibOrig.Checked = $false
+    if ($cmbLibFmt.Items.Count -gt 0) { $cmbLibFmt.SelectedIndex = 0 }
+    if ($cmbLibLang.Items.Count -gt 0) { $cmbLibLang.SelectedIndex = 0 }
 
     $txtWFile.Text = ''
     $cmbWFmt.SelectedIndex = 0
@@ -3760,7 +3904,7 @@ function Save-Config {
     # 12.8 (point 7) : reglages de la table (global.drive ; write.calMode, slowWrite, slowWarmup, calibWarmup,
     # calWarmupMinutes, levelBeforeWrite, precompProfileCode et precompProfile, precompThresholdNs ; ui.homeCalHeads et
     # homeCalCyls ; align.presetCode et preset ; quality ; tools.passes et linger ; restore.formatChoice ;
-    # compare.formatChoice), puis, pendant
+    # compare.formatChoice ; library.dat, lot 4b), puis, pendant
     # une operation surchargee (D4 : ecriture depuis la Bibliotheque ; lot 2 : restauration), reglages de l onglet
     # Ecriture d avant l operation
     Export-Settings $cfg
@@ -4027,7 +4171,8 @@ function Start-LibWrite([string]$mode) {
     $sel = Resolve-LibSelection
     if (-not $sel) { return }
     if (-not $sel.IsImage) {
-        [void][System.Windows.Forms.MessageBox]::Show((T 'Ce fichier n''est pas un format image reconnu par gw.'),(T 'Type non pris en charge'),'OK','Information'); return
+        # 12.8 (lot 4a) : message dans le journal et le panneau de details, plus de boite de message
+        Show-LibNotice (T 'Ce fichier n''est pas un format image reconnu par gw.'); return
     }
     Append-Log ((T "Image sélectionnée : {0}") -f "$($sel.Path)")
     # 12.8 (D4) : prereglage en surcharge temporaire de l onglet Ecriture, retabli a la fin de l operation
@@ -4045,6 +4190,12 @@ function Start-LibWrite([string]$mode) {
 }
 
 function Set-LibWriteEnabled([bool]$on) { $btnLibFast.Enabled = $on; $btnLibSlow.Enabled = $on }
+
+function Show-LibNotice([string]$text) {
+    # 12.8 (lot 4a) : message de la Bibliotheque dans le journal et en tete du panneau de details (aucune boite de message)
+    Append-Log ((T 'Bibliothèque : {0}') -f $text)
+    $txtLibInfo.Text = $text + "`r`n`r`n" + $script:LibInfoBase
+}
 
 # ============================== BIBLIOTHEQUE : LOGIQUE =========================
 function Format-Size([long]$bytes) {
@@ -4064,13 +4215,16 @@ function Get-FileKind([string]$name) {
 function Get-KindPrefix([string]$kind) { return '' }   # remplace par les icones de l'arborescence
 
 function Get-ZipEntries([string]$zipPath) {
+    # Entrees d une archive (dossiers exclus) ; Index : rang dans l archive, celui du repertoire central (12.8, lot 4b)
     $out = @()
     try {
         $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
         try {
+            $ix = 0
             foreach ($e in $zip.Entries) {
+                $ei = $ix; $ix++
                 if ($e.FullName.EndsWith('/')) { continue }
-                $out += [pscustomobject]@{ FullName = $e.FullName; Length = $e.Length; Kind = (Get-FileKind $e.Name) }
+                $out += [pscustomobject]@{ FullName = $e.FullName; Length = $e.Length; Kind = (Get-FileKind $e.Name); Index = $ei }
             }
         } finally { $zip.Dispose() }
     } catch {
@@ -4107,7 +4261,7 @@ function Expand-LibNode($node) {
             foreach ($e in (Get-ZipEntries $node.Tag.Path)) {
                 if ($chkLibImgOnly.Checked -and $e.Kind -ne 'image') { continue }
                 $list.Add((New-LibNode "$(Get-KindPrefix $e.Kind)$($e.FullName)  ($(Format-Size $e.Length))" `
-                    @{ Kind='zipentry'; ZipPath=$node.Tag.Path; Entry=$e.FullName; Size=$e.Length; FileKind=$e.Kind }))
+                    @{ Kind='zipentry'; ZipPath=$node.Tag.Path; Entry=$e.FullName; Size=$e.Length; FileKind=$e.Kind; Idx=$e.Index }))
             }
             if ($list.Count -eq 0) { $list.Add((New-LibNode (T '(aucune image)') @{ Kind='none' })) }
             $node.Nodes.AddRange($list.ToArray())
@@ -4151,20 +4305,25 @@ function Stop-LibSearch {
 }
 
 function Start-LibSearch([string]$root, [string]$filter, [bool]$imgOnly) {
+    # Recherche de repli (index rapide indisponible) : sur-ensemble, chaque mot dans le chemin relatif ; la regle des mots
+    # (nom du fichier, ou chemin avec « Aussi dans les dossiers ») s applique a la fin (Complete-LibSearch), comme pour l index
     Stop-LibSearch
     if (-not $script:LibRunspace -or $script:LibRunspace.RunspaceStateInfo.State -ne 'Opened') {
         $script:LibRunspace = [runspacefactory]::CreateRunspace()
         $script:LibRunspace.Open()
     }
+    $script:LibSearchFilter = $filter; $script:LibSearchInDirs = [bool]$chkLibInDirs.Checked
     $ps = [powershell]::Create()
     $ps.Runspace = $script:LibRunspace
     [void]$ps.AddScript({
         param($root, $filter, $imgExt, $docExt, $imgOnly)
-        $pat = '*' + [System.Management.Automation.WildcardPattern]::Escape($filter) + '*'
+        $words = @($filter.Split([char[]]@(' '), [System.StringSplitOptions]::RemoveEmptyEntries))
+        $rl = $root.TrimEnd('\').Length + 1
         $out = New-Object System.Collections.Generic.List[object]
         Get-ChildItem -LiteralPath $root -File -Recurse -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -like $pat } |
             ForEach-Object {
+                $rel = if ($_.FullName.Length -gt $rl) { $_.FullName.Substring($rl) } else { $_.Name }
+                foreach ($w in $words) { if ($rel.IndexOf($w, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) { return } }
                 $e = [System.IO.Path]::GetExtension($_.Name).ToLower()
                 $kind = if ($e -eq '.zip') { 'zip' } elseif ($imgExt -contains $e) { 'image' } elseif ($docExt -contains $e) { 'doc' } else { 'other' }
                 if ($imgOnly -and $kind -ne 'image' -and $kind -ne 'zip') { return }
@@ -4189,22 +4348,18 @@ function Complete-LibSearch {
     $btnLibFilter.Enabled = $true
     $btnLibRefresh.Enabled = $true
     $form.Cursor = [System.Windows.Forms.Cursors]::Default
-
-    $treeLib.BeginUpdate()
-    try {
-        $treeLib.Nodes.Clear()
-        $list = New-Object System.Collections.Generic.List[System.Windows.Forms.TreeNode]
-        foreach ($f in ($results | Sort-Object FullName)) {
-            if (-not $f) { continue }
-            $rel = $f.FullName
-            if ($rel.Length -gt $root.Length) { $rel = $rel.Substring($root.Length).TrimStart('\') }
-            $n = New-LibNode "$(Get-KindPrefix $f.Kind)$rel  ($(Format-Size $f.Length))" @{ Kind=$f.Kind; Path=$f.FullName; Size=$f.Length }
-            if ($f.Kind -eq 'zip') { [void]$n.Nodes.Add((New-Placeholder)) }
-            $list.Add($n)
-        }
-        if ($list.Count -gt 0) { $treeLib.Nodes.AddRange($list.ToArray()) }
-        $lblLibCount.Text = ((T "{0} résultat(s)") -f "$($list.Count)")
-    } finally { $treeLib.EndUpdate() }
+    $rootT = $root.TrimEnd('\')
+    $ents = [System.Collections.Generic.List[object]]::new()
+    foreach ($f in $results) {
+        if (-not $f) { continue }
+        $rel = $f.FullName
+        if ($rel.Length -gt $rootT.Length) { $rel = $rel.Substring($rootT.Length).TrimStart('\') }
+        $ents.Add([pscustomobject]@{ Rel = $rel; Size = [long]$f.Length; Kind = $f.Kind })
+    }
+    $sorted = @($ents | Sort-Object Rel)
+    # Tableau garde tel quel (un seul element : pas de deroulement en chaine)
+    [string[]]$rels = @(); if ($sorted.Count -gt 0) { $rels = [string[]]@($sorted.Rel) }
+    Set-LibResults $root $sorted (Select-LibMatches $rels $script:LibSearchFilter $script:LibSearchInDirs)
 }
 
 function Get-LibIndexFile([string]$root) {
@@ -4228,6 +4383,8 @@ function Start-LibIndex([bool]$force) {
     if (-not $force -and (Test-Path -LiteralPath $file)) {
         try { if ([FastIndex]::Load($file, $root)) { Show-LibIndexStatus; return } } catch { Append-Log ((T "Index illisible, reconstruction : {0}") -f "$($_.Exception.Message)") }
     }
+    # 12.8 (lot 4a) : reindexation demandee : blocs INFO et jeux relus (fichiers ajoutes, remplaces ou deplaces)
+    if ($force) { $script:LibIpfCache = @{}; $script:LibSetCache = @{}; $script:LibRecCache = @{}; $script:LibDatState = @{}; $script:LibDatZip = @{} }
     [FastIndex]::StartBuild($root, $file)
     $script:LibIndexing = $true
     $btnLibReindex.Enabled = $false
@@ -4241,44 +4398,40 @@ function Show-LibIndexStatus {
 }
 
 function Show-LibIndexResults([string]$root, [string]$filter) {
-    $max = 2000
-    $res = [FastIndex]::Search($filter, [bool]$chkLibImgOnly.Checked, $max)
-    $rootT = $root.TrimEnd('\')
-    $treeLib.BeginUpdate()
-    try {
-        $treeLib.Nodes.Clear()
-        $list = New-Object System.Collections.Generic.List[System.Windows.Forms.TreeNode]
-        foreach ($e in $res) {
-            $full = Join-Path $rootT $e.Rel
-            $n = New-LibNode "$(Get-KindPrefix $e.Kind)$($e.Rel)  ($(Format-Size $e.Size))" @{ Kind=$e.Kind; Path=$full; Size=$e.Size }
-            if ($e.Kind -eq 'zip') { [void]$n.Nodes.Add((New-Placeholder)) }
-            $list.Add($n)
-        }
-        if ($list.Count -gt 0) { $treeLib.Nodes.AddRange($list.ToArray()) }
-    } finally { $treeLib.EndUpdate() }
-    $tot = [FastIndex]::LastTotal
-    $lblLibCount.Text = if ($tot -gt $max) { ((T "{0} premiers sur {1}") -f "$max", "$('{0:N0}' -f $tot)") } else { ((T "{0} résultat(s)") -f "$('{0:N0}' -f $tot)") }
+    # 12.8 (lot 4a, A3 § 4.2 n° 8) : l index cherche chaque mot dans le chemin relatif complet, sans limite (FastIndex
+    # inchange : sur-ensemble) ; la regle des mots s applique ensuite au nom du fichier, ou au chemin avec « Aussi dans les
+    # dossiers » (Select-LibMatches) ; la liste n analyse et n affiche que les 2 000 premiers (Show-LibResults)
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    $res = [FastIndex]::Search($filter, [bool]$chkLibImgOnly.Checked, [int]::MaxValue)
+    [string[]]$rels = @(); if ($res.Count -gt 0) { $rels = [string[]]@($res.Rel) }
+    $all = Select-LibMatches $rels $filter ([bool]$chkLibInDirs.Checked)
+    $script:LibIndexHits = $res.Count; $script:LibFilterMs = $sw.ElapsedMilliseconds
+    Set-LibResults $root $res $all
 }
 
 function Update-Library {
     Stop-LibSearch
+    Stop-LibWork
     $btnLibFilter.Enabled = $true
     $btnLibRefresh.Enabled = $true
     $form.Cursor = [System.Windows.Forms.Cursors]::Default
     $treeLib.Nodes.Clear()
-    $txtLibInfo.Clear()
-    Set-LibWriteEnabled $false
-    $btnLibOpen.Enabled = $false
+    $script:LibRendering = $true
+    try { $lvLib.Items.Clear(); $lvLib.Groups.Clear() } finally { $script:LibRendering = $false }
+    $script:LibAll = $null; $script:LibCand = $null; $script:LibCounts = $null; $script:LibGroups = @{}; $script:LibSetCache = @{}
+    Clear-LibDetails
     $lblLibCount.Text = ''
 
     $root = $txtLibRoot.Text
+    $filter = $txtLibFilter.Text.Trim()
+    # 12.8 (lot 4a) : recherche saisie -> liste groupee des resultats ; recherche vide -> arborescence (A3 § 4.1)
+    Set-LibViewMode ([bool]$filter)
     if (-not $root -or -not (Test-Path -LiteralPath $root)) {
         if ($root) { $lblLibCount.Text = (T 'racine introuvable') }
         $txtLibInfo.Text = (T "Pour commencer :`r`n1. Choisissez le dossier racine de vos images (bouton ...).`r`n2. Dépliez l'arborescence ou utilisez la recherche.`r`n3. Sélectionnez une image puis « Écriture rapide » ou « Écriture lente ».")
         return
     }
 
-    $filter = $txtLibFilter.Text.Trim()
     if ($filter) {
         if ($script:FastIndexOk) {
             if (Test-LibIndexReady $root) { Show-LibIndexResults $root $filter; return }
@@ -4306,50 +4459,9 @@ function Update-Library {
 }
 
 function Show-LibSelection($node) {
-    Set-LibWriteEnabled $false
-    $btnLibOpen.Enabled = $false
-    if (-not $node -or -not $node.Tag) { $txtLibInfo.Clear(); return }
-    $t = $node.Tag
-    $lines = @()
-    switch ($t.Kind) {
-        'dir' {
-            $lines += (T 'Dossier')
-            $lines += $t.Path
-        }
-        'zip' {
-            $lines += (T 'Archive ZIP')
-            $lines += "$(Format-Size $t.Size)"
-            $lines += $t.Path
-            $lines += ''
-            $lines += (T 'Déplier le nœud pour lister le contenu.')
-        }
-        'zipentry' {
-            $lines += ((T "Dans l'archive : {0}") -f "$([System.IO.Path]::GetFileName($t.ZipPath))")
-            $lines += ((T "Entrée  : {0}") -f "$($t.Entry)")
-            $lines += ((T "Taille  : {0}") -f "$(Format-Size $t.Size)")
-            $lines += ''
-            $lines += (T 'Extrait dans un dossier temporaire avant usage.')
-            Set-LibWriteEnabled ($t.FileKind -eq 'image')
-            $btnLibOpen.Enabled    = ($t.FileKind -eq 'doc')
-        }
-        'image' {
-            $lines += ((T "Image disquette ({0})") -f "$([System.IO.Path]::GetExtension($t.Path))")
-            $lines += ((T "Taille : {0}") -f "$(Format-Size $t.Size)")
-            $lines += $t.Path
-            Set-LibWriteEnabled $true
-        }
-        'doc' {
-            $lines += ((T "Document ({0})") -f "$([System.IO.Path]::GetExtension($t.Path))")
-            $lines += ((T "Taille : {0}") -f "$(Format-Size $t.Size)")
-            $lines += $t.Path
-            $btnLibOpen.Enabled = $true
-        }
-        default {
-            $lines += (T 'Fichier non pris en charge')
-            if ($t.Path) { $lines += $t.Path }
-        }
-    }
-    $txtLibInfo.Text = $lines -join [Environment]::NewLine
+    # Arborescence : panneau de details de l element choisi (12.8 : meme panneau que la liste des resultats)
+    if (-not $node -or -not $node.Tag -or @('placeholder', 'none') -contains $node.Tag.Kind) { Clear-LibDetails; return }
+    Show-LibDetails (Get-LibNodeRecord $node.Tag)
 }
 
 function Expand-ZipEntry([string]$zipPath, [string]$entry) {
@@ -4364,17 +4476,41 @@ function Expand-ZipEntry([string]$zipPath, [string]$entry) {
     return $dest
 }
 
+function Get-LibWriteTarget {
+    # 12.8 (lot 4a) : element vise par l ecriture : ligne de la liste (recherche saisie) ou noeud de l arborescence ;
+    # archive ZIP : entree image choisie dans la liste des documents et entrees du panneau
+    $t = $null
+    if ($script:LibListMode) { if ($lvLib.SelectedItems.Count -gt 0) { $t = $lvLib.SelectedItems[0].Tag } }
+    else { $n = $treeLib.SelectedNode; if ($n -and $n.Tag) { $t = $n.Tag } }
+    if ($t -and $t.Kind -eq 'zip') {
+        $s = $script:LibSub
+        if ($s -and $s.Kind -eq 'zipentry' -and $s.FileKind -eq 'image' -and $s.ZipPath -eq $t.Path) { return $s }
+        return $null
+    }
+    return $t
+}
+
 function Resolve-LibSelection {
     # Image ou document selectionne : chemin (entree d archive extraite dans TempDir) et source unique (fichier, ou
     # archive + entree : deux archives peuvent extraire le meme nom de fichier)
-    $n = $treeLib.SelectedNode
-    if (-not $n -or -not $n.Tag) { return $null }
-    $t = $n.Tag
+    $t = Get-LibWriteTarget
+    if (-not $t) { return $null }
     if ($t.Kind -eq 'zipentry') {
         $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
         try {
             $p = Expand-ZipEntry $t.ZipPath $t.Entry
             Append-Log ((T "Extrait : {0} -> {1}") -f "$($t.Entry)", "$p")
+            # FIX4B (revue du lot 4, C3) : image extraite controlee contre la taille et le CRC-32 annonces par l archive
+            # (ZipArchive ne verifie pas les donnees) : une image alteree n est jamais ecrite, meme si la liste de reference
+            # dit l archive « officiel »
+            if ($t.FileKind -eq 'image') {
+                $chk = Test-LibZipEntryData $t.ZipPath $t.Idx $t.Entry $p
+                if ($chk -and -not $chk.Ok) {
+                    try { [System.IO.File]::Delete($p) } catch { }
+                    Show-LibNotice ((T "Image altérée dans l'archive : CRC-32 {0} au lieu de {1}. Écriture annulée.") -f $chk.Got, $chk.Want)
+                    return $null
+                }
+            }
             return @{ Path = $p; IsImage = ($t.FileKind -eq 'image'); Source = "$($t.ZipPath)|$($t.Entry)" }
         } catch {
             Append-Log ((T "Extraction impossible : {0}") -f "$($_.Exception.Message)")
@@ -4385,6 +4521,2235 @@ function Resolve-LibSelection {
         return @{ Path = $t.Path; IsImage = ($t.Kind -eq 'image'); Source = $t.Path }
     }
     return $null
+}
+
+# ============================== BIBLIOTHEQUE : LISTE DES RESULTATS (12.8, LOT 4A) =
+# Recherche saisie : ListView Details groupee par titre court (groupes non repliables : ListViewGroup.CollapsedState
+# n existe pas en .NET Framework), colonnes Variante, Disq., Version, Langue, Etat, Format, Taille, Dossier ; tri par
+# colonne ; badges (pastille du format et pictogramme d etat du lot 3) ; filtres Format, Langue, copies modifiees,
+# originaux. Travail differe (bloc INFO des IPF, disquettes manquantes) par tranches au minuteur principal : ni runspace
+# ni bloc C# nouveau, l interface reste disponible pendant la lecture d un partage.
+
+function Set-LibViewMode([bool]$list) {
+    $script:LibListMode = $list
+    $lvLib.Visible = $list; $treeLib.Visible = -not $list
+    foreach ($c in @($cmbLibFmt, $cmbLibLang, $chkLibHideMod, $chkLibOrig)) { $c.Enabled = $list }
+}
+
+function Get-LibFormatCode([string]$ext, [string]$kind) {
+    # Format affiche : extension en majuscules (4 lettres au plus), ZIP pour une archive
+    if ($kind -eq 'zip') { return 'ZIP' }
+    if (-not $ext) { return '' }
+    $c = $ext.TrimStart('.').ToUpperInvariant()
+    if ($c.Length -gt 4) { $c = $c.Substring(0, 4) }
+    return $c
+}
+
+function Get-LibFormatColor([string]$fmt) {
+    # Couleur de la pastille du format : IPF Accent, ADF Floppy, ZIP Zip, flux (SCP, HFE...) WarnInk, documents Muted,
+    # autres images secteur Ok ; texte blanc (contraste >= 3:1, element graphique)
+    if ($fmt -eq 'IPF') { return $script:Theme.Accent }
+    if ($fmt -eq 'ADF') { return $script:Theme.Floppy }
+    if ($fmt -eq 'ZIP') { return $script:Theme.Zip }
+    if (@('SCP', 'HFE', 'A2R', 'RAW', 'CTR', 'DMK') -contains $fmt) { return $script:Theme.WarnInk }
+    if (@('PDF', 'TXT', 'JPG', 'JPEG', 'PNG', 'GIF', 'NFO', 'MD') -contains $fmt) { return $script:Theme.Muted }
+    return $script:Theme.Ok
+}
+
+function Get-LibRecord([string]$rel, [long]$size, [string]$kind) {
+    # Fiche d un fichier de la liste ; nom analyse une fois (cache par chemin relatif et taille)
+    $r = $script:LibRecCache[$rel]
+    if ($r -and $r.Size -eq $size -and $r.Kind -eq $kind) { return $r }
+    $i = $rel.LastIndexOf('\')
+    $name = $rel.Substring($i + 1)
+    $relDir = if ($i -gt 0) { $rel.Substring(0, $i) } else { '' }
+    $dirName = if ($relDir) { $relDir.Substring($relDir.LastIndexOf('\') + 1) } else { $script:LibRootLeaf }
+    $info = Get-LibNameInfo $name $dirName
+    $path = $script:LibRoot + '\' + $rel
+    $dirFull = if ($relDir) { $script:LibRoot + '\' + $relDir } else { $script:LibRoot }
+    $r = @{ Rel = $rel; Path = $path; Name = $name; RelDir = $relDir; Size = $size; Kind = $kind; Ext = $info.Ext
+            Fmt = (Get-LibFormatCode $info.Ext $kind); Info = $info; SetId = "$dirFull|$($info.SetKey)"; Item = $null; StateText = '' }
+    $script:LibRecCache[$rel] = $r
+    return $r
+}
+
+function Get-LibNodeRecord($tag) {
+    # Fiche d un element de l arborescence (dossier, fichier, archive, entree d archive)
+    if (-not $tag) { return $null }
+    if ($tag.Kind -eq 'dir') { return @{ Kind = 'dir'; Path = $tag.Path } }
+    if ($tag.Kind -eq 'zipentry') { return (Get-LibEntryRecord $tag) }
+    if (-not $tag.Path) { return $null }
+    $name = [System.IO.Path]::GetFileName($tag.Path); $dir = [System.IO.Path]::GetDirectoryName($tag.Path)
+    $info = Get-LibNameInfo $name ([System.IO.Path]::GetFileName($dir))
+    return @{ Kind = $tag.Kind; Path = $tag.Path; Name = $name; Size = [long]$tag.Size; Ext = $info.Ext; Fmt = (Get-LibFormatCode $info.Ext $tag.Kind)
+              Info = $info; SetId = "$dir|$($info.SetKey)"; RelDir = $dir; Rel = $tag.Path; Item = $null; StateText = '' }
+}
+
+function Get-LibEntryRecord($e) {
+    # Fiche d une entree d archive ZIP (arborescence, ou entree choisie dans le panneau)
+    $name = $e.Entry.Substring($e.Entry.LastIndexOf('/') + 1)
+    $info = Get-LibNameInfo $name ''
+    return @{ Kind = 'zipentry'; ZipPath = $e.ZipPath; Entry = $e.Entry; Size = [long]$e.Size; FileKind = $e.FileKind; Name = $name; Idx = $e.Idx
+              Ext = $info.Ext; Fmt = (Get-LibFormatCode $info.Ext $e.FileKind); Info = $info; Path = $e.ZipPath; SetId = ''; Item = $null; StateText = '' }
+}
+
+function Get-LibIpfKey($r) {
+    if ($r.Kind -eq 'zipentry') { return "$($r.ZipPath)|$($r.Entry)|$($r.Size)" }
+    return "$($r.Path)|$($r.Size)"
+}
+
+function Read-LibBytes($r, [long[]]$at, [int[]]$len) {
+    # Octets aux positions croissantes $at d un fichier, ou d une entree de ZIP (flux decompresse en memoire, sans
+    # extraction). Fichier partage en lecture (FileShare.ReadWrite) ; element $null si la lecture est incomplete
+    $res = New-Object 'object[]' $at.Count
+    $zip = $null; $s = $null
+    try {
+        if ($r.Kind -eq 'zipentry') {
+            $zip = [System.IO.Compression.ZipFile]::OpenRead($r.ZipPath)
+            $e = $zip.GetEntry($r.Entry)
+            if (-not $e) { return ,$res }
+            $s = $e.Open()
+        } else {
+            $s = [System.IO.File]::Open($r.Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+        }
+        $pos = [long]0
+        for ($i = 0; $i -lt $at.Count; $i++) {
+            if ($s.CanSeek) { [void]$s.Seek($at[$i], [System.IO.SeekOrigin]::Begin); $pos = $at[$i] }
+            else {
+                $skip = New-Object byte[] 65536
+                while ($pos -lt $at[$i]) { $k = $s.Read($skip, 0, [int][math]::Min(65536, $at[$i] - $pos)); if ($k -le 0) { break }; $pos += $k }
+                if ($pos -lt $at[$i]) { break }
+            }
+            $buf = New-Object byte[] $len[$i]; $got = 0
+            while ($got -lt $len[$i]) { $k = $s.Read($buf, $got, $len[$i] - $got); if ($k -le 0) { break }; $got += $k }
+            $pos += $got
+            if ($got -eq $len[$i]) { $res[$i] = $buf }
+        }
+    } catch { } finally {
+        if ($s) { $s.Dispose() }
+        if ($zip) { $zip.Dispose() }
+    }
+    return ,$res
+}
+
+function Get-LibIpf($r) {
+    # Bloc INFO d un IPF (108 premiers octets), en cache par chemin et taille
+    $k = Get-LibIpfKey $r
+    $o = $script:LibIpfCache[$k]
+    if ($o) { return $o }
+    $b = Read-LibBytes $r @(0) @(108)
+    $o = Get-IpfInfoBlock $b[0]
+    $script:LibIpfCache[$k] = $o
+    return $o
+}
+
+function Get-LibAdf($r) {
+    # Bloc de demarrage (1 024 octets) et bloc racine (880, ou 1760 en haute densite) d un ADF
+    $size = [long]$r.Size
+    $hd = ($size -gt 0 -and $size % 22528 -eq 0 -and $size / 11264 -gt 84)
+    $rootAt = if ($hd) { [long]1760 * 512 } else { [long]880 * 512 }
+    $b = Read-LibBytes $r @(0, $rootAt) @(1024, 512)
+    return (Get-AdfInfo $b[0] $b[1] $size)
+}
+
+function Get-LibRowState($r) {
+    # Colonne « Etat » et badge : identification par la liste de reference (12.8, lot 4b : officiel, modifie, inconnu ;
+    # « … » en attente), puis, pour un IPF, bloc INFO (lu en differe), puis mentions TOSEC du nom. Pictogramme (lot 3) :
+    # h2 image defectueuse ([b] [o] [u] [v]) ou CRC faux ; h1 copie modifiee (mention du nom, ou modifie d apres la liste) ;
+    # h0 officiel d apres la liste ; sps structure SPS (disquette du logo) ; h0 image verifiee [!] ; user IPF utilisateur
+    # (disquette grise) ; hq bloc INFO illisible ; aucun sinon
+    $i = $r.Info; $parts = @(); $icon = ''
+    $ds = Get-LibDatQuick $r
+    $dk = if ($ds) { [string]$ds.State } else { '' }
+    if ($dk -and $dk -ne 'wait') { $parts += (Get-LibDatWord $dk) }
+    $ipfKind = ''
+    if ($r.Ext -eq '.ipf' -and $r.Kind -ne 'zip') {
+        $ipf = $script:LibIpfCache[(Get-LibIpfKey $r)]
+        $ipfKind = if ($ipf) { $ipf.Kind } else { 'wait' }
+    }
+    switch ($ipfKind) {
+        'sps'   { $parts += 'SPS' }
+        'user'  { $parts += (T 'utilisateur') }
+        'crc'   { $parts += (T 'CRC faux') }
+        'none'  { $parts += '?' }
+        'other' { $parts += '?' }
+        'wait'  { $parts += '…' }
+    }
+    if ($dk -eq 'wait' -and $ipfKind -ne 'wait') { $parts = @('…') + $parts }
+    if ($i.FlagText) { $parts += $i.FlagText }
+    if ($i.State -eq 'bad' -or $ipfKind -eq 'crc') { $icon = 'h2' }
+    elseif ($i.State -eq 'mod' -or $dk -eq 'mod') { $icon = 'h1' }
+    elseif ($dk -eq 'ok') { $icon = 'h0' }
+    elseif ($ipfKind -eq 'sps') { $icon = 'sps' }
+    elseif ($i.State -eq 'ok') { $icon = 'h0' }
+    elseif ($ipfKind -eq 'user') { $icon = 'user' }
+    elseif ($ipfKind -eq 'none' -or $ipfKind -eq 'other') { $icon = 'hq' }
+    $col = $script:Theme.Muted
+    switch ($icon) { 'h2' { $col = Get-QualInk 3 } 'h1' { $col = $script:Theme.WarnInk } 'sps' { $col = $script:Theme.Accent } 'h0' { $col = Get-QualInk 0 } }
+    if (-not $icon -and $i.FlagText) { $col = [System.Drawing.SystemColors]::WindowText }
+    return @{ Text = ($parts -join ' '); Icon = $icon; Color = $col; Ipf = $ipfKind; Dat = $dk }
+}
+
+function Get-LibStateIcon([string]$icon) {
+    # Pictogramme d etat de 16 px : ceux du lot 3 (h0, h1, h2, hq), disquette du logo pour la structure SPS, grisee pour un
+    # IPF utilisateur ; en cache avec les ressources de la qualite (liberees a la fermeture)
+    if ($icon -ne 'sps' -and $icon -ne 'user') { return (Get-QualityIcon $icon 16) }
+    $k = "ilib$icon"
+    $o = $script:QualGdi[$k]
+    if ($o) { return $o }
+    if ($icon -eq 'user') { $o = New-QualityGreyBitmap (Get-LibStateIcon 'sps') }
+    else {
+        $o = New-Object System.Drawing.Bitmap(16, 16, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+        $g = [System.Drawing.Graphics]::FromImage($o)
+        try { $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias; Draw-PictoFloppy $g 0 0 16 $false } finally { $g.Dispose() }
+    }
+    $script:QualGdi[$k] = $o
+    return $o
+}
+
+function New-LibBadge([string]$fmt, [string]$icon) {
+    # Badge de 42 x 16 px de la colonne « Variante » : pastille du format, puis pictogramme d etat
+    $bmp = New-Object System.Drawing.Bitmap(42, 16, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    try {
+        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+        $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+        if ($fmt) {
+            $rr = New-RoundRect 0.5 2 24 12 3
+            $g.FillPath((Get-QualBrush (Get-LibFormatColor $fmt)), $rr); $rr.Dispose()
+            $f = Get-QualFont 'Segoe UI' $(if ($fmt.Length -gt 3) { 5 } else { 6 }) 'Bold'
+            $g.DrawString($fmt, $f, (Get-QualBrush ([System.Drawing.Color]::White)), (New-Object System.Drawing.RectangleF(0, 2, 25, 12)), (Get-QualSf 'center'))
+        }
+        if ($icon) { $g.DrawImage((Get-LibStateIcon $icon), 26, 0, 16, 16) }
+    } finally { $g.Dispose() }
+    return $bmp
+}
+
+function Get-LibBadgeKey($r, $st) {
+    $k = "$($r.Fmt)|$($st.Icon)"
+    if (-not $imgLibBadge.Images.ContainsKey($k)) { $imgLibBadge.Images.Add($k, (New-LibBadge $r.Fmt $st.Icon)) }
+    return $k
+}
+
+function Set-LibResults([string]$root, $cand, [string[]]$all) {
+    # Nouvelle recherche : $cand, candidats de l index ou de la recherche de repli (Rel, Size, Kind ; ordre des chemins) ;
+    # $all, chemins relatifs retenus par la regle des mots ; puis liste
+    Stop-LibWork
+    $rootT = $root.TrimEnd('\')
+    if ($script:LibRoot -ne $rootT) { $script:LibRecCache = @{}; $script:LibSetCache = @{} }
+    $script:LibRoot = $rootT
+    $script:LibRootLeaf = [System.IO.Path]::GetFileName($rootT)
+    $script:LibCand = $cand
+    $script:LibAll = [string[]]@(); if ($null -ne $all) { $script:LibAll = [string[]]$all }
+    # FIX4B (revue du lot 4, C4) : nouvelle recherche ou « Actualiser » : etats d identification lus dans les fichiers
+    # revalides en differe (un fichier modifie a taille egale, un ADF ou un emulateur enregistre une partie, n est plus
+    # dit « officiel ») ; pas a chaque tri ou filtre
+    $script:LibDatRecheck = $true
+    Update-LibFormatChoices
+    Show-LibResults
+}
+
+function Update-LibFormatChoices {
+    # Formats presents dans les correspondances (extensions, operateurs vectorises) ; choix courant garde, meme absent
+    $cur = if ($cmbLibFmt.SelectedIndex -gt 0) { [string]$cmbLibFmt.SelectedItem } else { '' }
+    $set = @{}
+    if ($script:LibAll.Count -gt 0) {
+        $ext = [string[]](($script:LibAll -replace '^.*\\', '') -replace '^[^.]*$', '' -replace '^.*\.', '')
+        foreach ($x in [System.Collections.Generic.HashSet[string]]::new($ext, [System.StringComparer]::OrdinalIgnoreCase)) {
+            if (-not $x) { continue }
+            $c = $x.ToUpperInvariant(); if ($c.Length -gt 4) { $c = $c.Substring(0, 4) }
+            $set[$c] = $true
+        }
+    }
+    if ($cur) { $set[$cur] = $true }
+    $script:LibRendering = $true
+    try {
+        $cmbLibFmt.BeginUpdate()
+        $cmbLibFmt.Items.Clear(); [void]$cmbLibFmt.Items.Add((T 'Tous'))
+        foreach ($f in @($set.Keys | Sort-Object)) { [void]$cmbLibFmt.Items.Add($f) }
+        $cmbLibFmt.SelectedIndex = $(if ($cur) { $cmbLibFmt.Items.IndexOf($cur) } else { 0 })
+        $cmbLibFmt.EndUpdate()
+    } finally { $script:LibRendering = $false }
+}
+
+function Update-LibLangChoices($recs) {
+    # Langues presentes dans les fiches analysees (indiquees, ou langue du pays) ; choix courant garde, meme absent
+    $cur = if ($cmbLibLang.SelectedIndex -gt 0) { [string]$cmbLibLang.SelectedItem } else { '' }
+    $set = @{}
+    foreach ($r in $recs) { foreach ($l in $r.Info.LangList) { $set[$l] = $true } }
+    if ($cur) { $set[$cur] = $true }
+    $script:LibRendering = $true
+    try {
+        $cmbLibLang.BeginUpdate()
+        $cmbLibLang.Items.Clear(); [void]$cmbLibLang.Items.Add((T 'Toutes'))
+        foreach ($l in @($set.Keys | Sort-Object)) { [void]$cmbLibLang.Items.Add($l) }
+        $cmbLibLang.SelectedIndex = $(if ($cur) { $cmbLibLang.Items.IndexOf($cur) } else { 0 })
+        $cmbLibLang.EndUpdate()
+    } finally { $script:LibRendering = $false }
+}
+
+function Update-LibFilters {
+    # Filtre ou tri change : liste refaite depuis les fiches en cache (aucune nouvelle recherche)
+    if ($script:LibRendering -or -not $script:LibListMode -or $null -eq $script:LibAll) { return }
+    Show-LibResults -Keep
+}
+
+function Get-LibSortValue($r, [int]$col) {
+    # Partie de cle de tri croissant d une colonne (comparaison ordinale) : nombres sur des chiffres fixes, textes en
+    # minuscules. Ordre decroissant : Get-LibDescKeys
+    $num = $null
+    switch ($col) {
+        0 { $s = $(if ($r.Info.Variant) { $r.Info.Variant } else { $r.Info.Base }) }
+        1 { $num = [long]$r.Info.DiskNo }
+        2 { $s = [string]$r.Info.Version }
+        3 { $s = [string]$r.Info.Langs }
+        4 { $s = [string](Get-LibRowState $r).Text }
+        5 { $s = [string]$r.Fmt }
+        6 { $num = [long]$r.Size }
+        default { $s = [string]$r.RelDir }
+    }
+    if ($null -ne $num) { return $num.ToString('D15') }
+    return $s.ToLowerInvariant() + [char]0
+}
+
+function Get-LibDescKeys([string[]]$vals) {
+    # Cles de tri decroissant : rang de chaque valeur dans l ordre ordinal croissant, inverse et ecrit sur 7 chiffres
+    # (valeurs egales : meme rang, departagees ensuite par le nom du fichier). Aucune transformation caractere par caractere
+    $s = [string[]]$vals.Clone()
+    [Array]::Sort([Array]$s, [System.Collections.IComparer][System.StringComparer]::Ordinal)
+    $rank = [System.Collections.Generic.Dictionary[string, int]]::new([System.StringComparer]::Ordinal)
+    foreach ($v in $s) { if (-not $rank.ContainsKey($v)) { $rank[$v] = $rank.Count } }
+    $top = $rank.Count
+    $out = New-Object 'string[]' $vals.Length
+    for ($i = 0; $i -lt $vals.Length; $i++) { $out[$i] = ($top - $rank[$vals[$i]]).ToString('D7') }
+    return ,$out
+}
+
+function Get-LibSetSortValue($r, [string]$sep) {
+    # FIX4B (revue du lot 4, constat 1) : ordre dans un groupe : images et archives avant les documents, puis jeu de
+    # disquettes (variante du jeu, version, langue, mentions, extension), puis disquette. Les disquettes d un meme jeu restent
+    # contigues : la copie [cr] allemande en deux disquettes ne s intercale plus entre celles de l original en trois
+    $i = $r.Info
+    $rank = if ($r.Kind -eq 'doc' -or $r.Kind -eq 'other') { '1' } else { '0' }
+    return ($rank + $sep + ([string]$i.SetVariant).ToLowerInvariant() + $sep + ([string]$i.Version).ToLowerInvariant() + $sep + [string]$i.Langs + $sep +
+            ([string]$i.FlagText).ToLowerInvariant() + $sep + [string]$r.Ext + $sep + ([long]$i.DiskNo).ToString('D4'))
+}
+
+function Sort-LibRecords($recs) {
+    # Groupes dans l ordre des titres ; dans un groupe : colonne choisie (croissant ou decroissant), puis jeu de disquettes
+    # et disquette (Get-LibSetSortValue) ; nom du fichier en dernier. Cle composee triee par [Array]::Sort (ordinal,
+    # natif) : Sort-Object avec des blocs de script prenait plusieurs secondes pour 2 000 lignes sous Windows PowerShell 5.1
+    $col = [int]$script:LibSort.Col; $desc = [bool]$script:LibSort.Desc
+    $n = $recs.Count
+    $keys = New-Object 'string[]' $n; $arr = New-Object 'object[]' $n
+    $sep = [string][char]1
+    $vals = $null
+    if ($col -ge 0) {
+        $vals = New-Object 'string[]' $n
+        for ($i = 0; $i -lt $n; $i++) { $vals[$i] = Get-LibSortValue $recs[$i] $col }
+        if ($desc) { $vals = Get-LibDescKeys $vals }
+    }
+    for ($i = 0; $i -lt $n; $i++) {
+        $r = $recs[$i]; $arr[$i] = $r
+        $v = Get-LibSetSortValue $r $sep
+        if ($null -ne $vals) { $v = $vals[$i] + $sep + $v }
+        $keys[$i] = $r.Info.SortKey + $sep + $r.Info.Key + $sep + $v + $sep + $r.Name.ToLowerInvariant()
+    }
+    # Surcharge non generique imposee : sinon PowerShell lie Sort<TKey,TValue> sur une copie des lignes (cles seules triees)
+    [Array]::Sort([Array]$keys, [Array]$arr, [System.Collections.IComparer][System.StringComparer]::Ordinal)
+    return ,$arr
+}
+
+function Set-LibSort([int]$col) {
+    # Clic sur un en-tete : tri par cette colonne, puis ordre inverse au clic suivant (fleche dans l en-tete)
+    if ($script:LibSort.Col -eq $col) { $script:LibSort.Desc = -not $script:LibSort.Desc } else { $script:LibSort.Col = $col; $script:LibSort.Desc = $false }
+    for ($j = 0; $j -lt $lvLib.Columns.Count; $j++) {
+        $t = $script:LibColTitles[$j]
+        $c = $lvLib.Columns[$j]
+        if ($j -eq $col) {
+            $t += $(if ($script:LibSort.Desc) { ' ▼' } else { ' ▲' })
+            # FIX4B (revue du lot 4) : colonne elargie si son titre et la fleche n y tiennent pas (« Langue ▲ »)
+            $need = Get-LibColumnWidth $t
+            if ($c.Width -lt $need) { $c.Width = $need; $script:LibColAuto[$j] = $need }
+        } elseif ($script:LibColAuto[$j] -and $c.Width -eq $script:LibColAuto[$j] -and $j -lt $script:LibColW.Count) {
+            # Colonne qui n est plus triee : largeur de depart rendue (sauf si l utilisateur l a changee entre-temps)
+            $c.Width = $script:LibColW[$j]; $script:LibColAuto[$j] = 0
+        }
+        $c.Text = $t
+    }
+    Update-LibFilters
+}
+
+function Get-LibColumnWidth([string]$title, [int]$min = 0) {
+    # Largeur d une colonne de la liste : titre mesure dans la police de la liste (celle de la fenetre tant que la liste
+    # n est pas placee dans l onglet), plus les marges de l en-tete
+    $f = if ($lvLib -and $lvLib.Parent) { $lvLib.Font } else { $form.Font }
+    $w = [System.Windows.Forms.TextRenderer]::MeasureText($title, $f).Width + 14
+    return [int][math]::Max($min, $w)
+}
+
+function New-LibListItem($r) {
+    $i = $r.Info
+    $st = Get-LibRowState $r
+    $it = [System.Windows.Forms.ListViewItem]::new($(if ($i.Variant) { $i.Variant } else { $i.Base }))
+    $it.UseItemStyleForSubItems = $false
+    [void]$it.SubItems.Add((Get-LibDiskText $i))
+    [void]$it.SubItems.Add([string]$i.Version)
+    $sl = $it.SubItems.Add([string]$i.Langs); if ($i.LangDerived) { $sl.ForeColor = $script:Theme.Muted }
+    $ss = $it.SubItems.Add($st.Text); $ss.ForeColor = $st.Color
+    [void]$it.SubItems.Add([string]$r.Fmt)
+    [void]$it.SubItems.Add((Format-Size $r.Size))
+    [void]$it.SubItems.Add($(if ($r.RelDir) { $r.RelDir } else { '.' }))
+    $it.ImageKey = Get-LibBadgeKey $r $st
+    $it.ToolTipText = $r.Rel
+    $it.Tag = $r
+    $r.Item = $it; $r.StateText = $st.Text
+    return $it
+}
+
+function Update-LibRowState($r, [switch]$Detached) {
+    # Bloc INFO lu (en differe ou a la selection) : colonne « Etat » et badge de la ligne mis a jour sur place ; -Detached :
+    # ligne gardee d un affichage precedent, remise a jour avant d etre reutilisee
+    $it = $r.Item
+    if (-not $it) { return }
+    if (-not $Detached -and -not $it.ListView) { return }
+    $st = Get-LibRowState $r
+    if ($it.SubItems[4].Text -eq $st.Text) { return }
+    $it.SubItems[4].Text = $st.Text; $it.SubItems[4].ForeColor = $st.Color
+    $it.ImageKey = Get-LibBadgeKey $r $st
+    $r.StateText = $st.Text
+}
+
+function Get-LibMissingText($m, [switch]$Short) {
+    # Disquettes manquantes : « manque 3 (jeu de 3) » ; -Short, colonne « Etat » de la liste (100 px) : « manque 3 », le
+    # nombre de disquettes du jeu reste dans l infobulle de la ligne et dans le panneau
+    if ($m.Known -and -not $Short) { return ((T 'manque {0} (jeu de {1})') -f (Format-LibDiskList $m), $m.Total) }
+    return ((T 'manque {0}') -f (Format-LibDiskList $m))
+}
+
+function New-LibMissingItem($r, $m) {
+    # Ligne « disquettes manquantes » d un jeu, a la fin de son groupe (A3 § 4.2 n° 5) : variante du jeu, texte dans la
+    # colonne « Etat » en WarnInk, pictogramme « ! » du lot 3. L en-tete d un groupe n est jamais modifie apres son ajout :
+    # sous .NET Framework, ListViewGroup.Header recree la poignee de la liste (toutes les lignes reinserees).
+    # FIX4B (revue du lot 4) : texte court dans la colonne (forme longue dans l infobulle et le panneau) ; variante du jeu,
+    # sans les crochets propres a une disquette
+    $t = Get-LibMissingText $m -Short
+    $it = [System.Windows.Forms.ListViewItem]::new($(if ($r.Info.SetVariant) { $r.Info.SetVariant } else { $r.Info.Title }))
+    $it.UseItemStyleForSubItems = $false
+    [void]$it.SubItems.Add('')
+    [void]$it.SubItems.Add([string]$r.Info.Version)
+    [void]$it.SubItems.Add([string]$r.Info.Langs)
+    $ss = $it.SubItems.Add($t); $ss.ForeColor = $script:Theme.WarnInk
+    [void]$it.SubItems.Add([string]$r.Fmt)
+    [void]$it.SubItems.Add('')
+    [void]$it.SubItems.Add($(if ($r.RelDir) { $r.RelDir } else { '.' }))
+    $it.ImageKey = Get-LibBadgeKey @{ Fmt = '' } @{ Icon = 'h1' }
+    $it.ToolTipText = (T 'Jeu incomplet : {0}') -f (Get-LibMissingText $m)
+    $it.Tag = @{ Kind = 'missing'; Rel = "missing|$($r.SetId)"; Name = ''; Info = $r.Info; Missing = $m; SetId = $r.SetId; Fmt = $r.Fmt; RelDir = $r.RelDir; Path = $r.Path }
+    return $it
+}
+
+function Add-LibMissingRow($r) {
+    # Travail differe : jeu incomplet trouve apres l affichage -> ligne ajoutee a la fin de son groupe (sans recreer la liste)
+    $m = $script:LibSetCache[$r.SetId]
+    if (-not $m -or -not $m.Missing -or $m.Missing.Count -eq 0) { return }
+    $g = $script:LibGroups[$r.Info.Key]
+    if (-not $g -or -not $r.Item -or -not $r.Item.ListView) { return }
+    $it = New-LibMissingItem $r $m
+    $it.Group = $g.Group
+    [void]$lvLib.Items.Add($it)
+}
+
+function Show-LibResults([switch]$Keep) {
+    # Liste des resultats : filtre Format sur toutes les correspondances, 2 000 premieres analysees, puis filtres Langue,
+    # copies modifiees et originaux ; groupes dans l ordre des titres, lignes triees ; travail differe relance
+    Stop-LibWork
+    [void](Get-LibDat)      # 12.8 (lot 4b) : liste de reference enregistree, lue a la premiere demande
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    $max = 2000
+    $fmtSel = if ($cmbLibFmt.SelectedIndex -gt 0) { [string]$cmbLibFmt.SelectedItem } else { '' }
+    $langSel = if ($cmbLibLang.SelectedIndex -gt 0) { [string]$cmbLibLang.SelectedItem } else { '' }
+    $hideMod = [bool]$chkLibHideMod.Checked; $orig = [bool]$chkLibOrig.Checked
+    $keepRel = $null
+    if ($Keep -and $lvLib.SelectedItems.Count -gt 0) { $keepRel = $lvLib.SelectedItems[0].Tag.Rel }
+    # Filtre Format sur toutes les correspondances (chemins), puis fiches des 2 000 premieres dans l ordre des candidats.
+    # FIX4B (revue du lot 4) : le total reste celui des correspondances ; les fichiers d un autre format comptent parmi les
+    # masques (compteur et infobulle), comme ceux des autres filtres
+    $fm = $script:LibAll
+    if ($fmtSel -and $fm.Count -gt 0) { $fm = [string[]]@($fm -match ('(?i)\.' + [regex]::Escape($fmtSel) + '[^.\\]*$')) }
+    $total = $fm.Count
+    $fmtHidden = $script:LibAll.Count - $fm.Count
+    $recs = [System.Collections.Generic.List[object]]::new()
+    if ($total -gt 0) {
+        $set = [System.Collections.Generic.HashSet[string]]::new([string[]]$fm, [System.StringComparer]::Ordinal)
+        foreach ($e in $script:LibCand) {
+            if ($recs.Count -ge $max) { break }
+            if ($set.Contains([string]$e.Rel)) { $recs.Add((Get-LibRecord ([string]$e.Rel) ([long]$e.Size) ([string]$e.Kind))) }
+        }
+    }
+    $script:LibParseMs = $sw.ElapsedMilliseconds
+    $tm = [ordered]@{ fiches = $sw.ElapsedMilliseconds }
+    Update-LibLangChoices $recs
+    $shown = [System.Collections.Generic.List[object]]::new(); $hidden = 0; $script:LibOrigPending = $false
+    foreach ($r in $recs) {
+        $i = $r.Info
+        if ($langSel -and $i.LangList -notcontains $langSel) { $hidden++; continue }
+        if ($hideMod -and $i.Modified) { $hidden++; continue }
+        if ($orig -and (Test-LibDatOn)) {
+            # 12.8 (lot 4b) : liste de reference chargee : fichiers officiels seulement (images et archives)
+            $dq = Get-LibDatQuick $r
+            if (-not $dq) { $hidden++; continue }
+            if ($dq.State -eq 'wait') { $script:LibOrigPending = $true; $hidden++; continue }
+            if ($dq.State -ne 'ok') { $hidden++; continue }
+        } elseif ($orig) {
+            if ($r.Ext -ne '.ipf' -or $r.Kind -eq 'zip') { $hidden++; continue }
+            $ipf = $script:LibIpfCache[(Get-LibIpfKey $r)]
+            if (-not $ipf) { $script:LibOrigPending = $true; $hidden++; continue }
+            if ($ipf.Kind -ne 'sps') { $hidden++; continue }
+        }
+        $shown.Add($r)
+    }
+    $tm.filtres = $sw.ElapsedMilliseconds
+    $sorted = Sort-LibRecords $shown
+    $tm.tri = $sw.ElapsedMilliseconds
+    $script:LibRendering = $true
+    $lvLib.BeginUpdate()
+    try {
+        $lvLib.Items.Clear(); $lvLib.Groups.Clear()
+        $tm.vidage = $sw.ElapsedMilliseconds
+        # Groupes formes d abord (ordre des titres), en-tete complet des la creation : ListViewGroup.Header ne se change
+        # plus une fois le groupe dans la liste (sous .NET Framework, chaque changement recree la poignee de la liste)
+        $script:LibGroups = @{}; $order = [System.Collections.Generic.List[string]]::new()
+        foreach ($r in $sorted) {
+            $k = $r.Info.Key
+            $g = $script:LibGroups[$k]
+            if (-not $g) { $g = @{ Title = $r.Info.Title; Recs = [System.Collections.Generic.List[object]]::new() }; $script:LibGroups[$k] = $g; $order.Add($k) }
+            $g.Recs.Add($r)
+        }
+        $groups = [System.Collections.Generic.List[System.Windows.Forms.ListViewGroup]]::new()
+        $items = [System.Collections.Generic.List[System.Windows.Forms.ListViewItem]]::new()
+        foreach ($k in $order) {
+            $g = $script:LibGroups[$k]
+            $g.Group = [System.Windows.Forms.ListViewGroup]::new($k, ((T '{0}  ·  {1} fichier(s)') -f $g.Title, $g.Recs.Count))
+            $groups.Add($g.Group)
+            $seen = @{}
+            # Ligne d un affichage precedent (tri, filtre) reutilisee : seule sa colonne « Etat » est remise a jour
+            foreach ($r in $g.Recs) {
+                $it = $r.Item
+                if ($it -and -not $it.ListView) { $it.Selected = $false; Update-LibRowState $r -Detached } else { $it = New-LibListItem $r }
+                $it.Group = $g.Group; $items.Add($it)
+            }
+            # Jeux incomplets deja connus (cache) : ligne a la fin du groupe
+            foreach ($r in $g.Recs) {
+                if ($seen.ContainsKey($r.SetId)) { continue }
+                $seen[$r.SetId] = $true
+                $m = $script:LibSetCache[$r.SetId]
+                if ($m -and $m.Missing -and $m.Missing.Count -gt 0) { $it = New-LibMissingItem $r $m; $it.Group = $g.Group; $items.Add($it) }
+            }
+        }
+        $tm.lignes = $sw.ElapsedMilliseconds
+        $lvLib.Groups.AddRange($groups.ToArray())
+        $tm.groupes = $sw.ElapsedMilliseconds
+        $lvLib.Items.AddRange($items.ToArray())
+        $tm.ajout = $sw.ElapsedMilliseconds
+    } finally { $lvLib.EndUpdate(); $script:LibRendering = $false }
+    $script:LibCounts = @{ Total = $script:LibAll.Count; Capped = $recs.Count; Shown = $shown.Count; Hidden = $hidden + $fmtHidden; Max = $max }
+    $script:LibRenderMs = $sw.ElapsedMilliseconds
+    $tm.total = $sw.ElapsedMilliseconds; $script:LibTimes = $tm
+    $kept = $false
+    if ($keepRel) {
+        foreach ($it in $lvLib.Items) { if ($it.Tag.Rel -eq $keepRel) { $it.Selected = $true; $it.EnsureVisible(); $kept = $true; break } }
+    }
+    if (-not $kept) { Clear-LibDetails }
+    Start-LibWork $recs $shown
+    Update-LibCountText
+}
+
+function Update-LibCountText {
+    # Compteur : resultats, plafond de 2 000, lignes masquees par les filtres, avancement du travail differe
+    $c = $script:LibCounts
+    if (-not $c) { return }
+    $t = if ($c.Hidden -gt 0) { (T '{0} affiché(s), {1} masqué(s)') -f "$('{0:N0}' -f $c.Shown)", "$('{0:N0}' -f $c.Hidden)" }
+         elseif ($c.Total -gt $c.Capped) { (T "{0} premiers sur {1}") -f "$('{0:N0}' -f $c.Capped)", "$('{0:N0}' -f $c.Total)" }
+         else { (T "{0} résultat(s)") -f "$('{0:N0}' -f $c.Total)" }
+    if ($script:LibWork.Count -gt 0) { $t += '  ·  ' + ((T 'analyse {0}/{1}') -f $script:LibWorkDone, $script:LibWorkTotal) }
+    $lblLibCount.Text = $t
+    $tip.SetToolTip($lblLibCount, ((T "{0} fichier(s) dont le nom correspond ; {1} analysé(s) (2 000 au plus) ; {2} masqué(s) par les filtres ; {3} affiché(s).") -f "$('{0:N0}' -f $c.Total)", "$('{0:N0}' -f $c.Capped)", "$('{0:N0}' -f $c.Hidden)", "$('{0:N0}' -f $c.Shown)"))
+}
+
+function Start-LibWork($recs, $shown) {
+    # Travail differe : bloc INFO des IPF analyses (etat SPS, filtre « Originaux seulement »), puis jeux a plusieurs
+    # disquettes affiches (disquettes manquantes d apres les fichiers du dossier, pas d apres les seuls resultats)
+    $script:LibWork.Clear(); $script:LibWorkDone = 0
+    foreach ($r in $recs) {
+        if ($r.Ext -eq '.ipf' -and $r.Kind -ne 'zip' -and -not $script:LibIpfCache.ContainsKey((Get-LibIpfKey $r))) { $script:LibWork.Enqueue(@{ T = 'ipf'; Rec = $r }) }
+    }
+    $seen = @{}
+    foreach ($r in $shown) {
+        if ($r.Info.DiskNo -gt 0 -and -not $seen.ContainsKey($r.SetId) -and -not $script:LibSetCache.ContainsKey($r.SetId)) { $seen[$r.SetId] = $true; $script:LibWork.Enqueue(@{ T = 'set'; Rec = $r }) }
+    }
+    # 12.8 (lot 4b) : identification par la liste de reference des images et archives dont la taille figure dans la liste
+    # (lignes affichees d abord, puis lignes masquees par les filtres, pour « Originaux seulement ») ; FIX4B (C4) : apres
+    # une nouvelle recherche, etats deja identifies par lecture revalides aussi (taille et date du fichier, Test-LibDatFresh)
+    $recheck = [bool]$script:LibDatRecheck; $script:LibDatRecheck = $false
+    if (Test-LibDatOn) {
+        $seen = @{}
+        foreach ($grp in @($shown, $recs)) {
+            foreach ($r in $grp) {
+                $q = Get-LibDatQuick $r
+                if (-not $q -or ($q.State -ne 'wait' -and -not ($recheck -and $null -ne $q.Ticks))) { continue }
+                $k = Get-LibIpfKey $r
+                if ($seen.ContainsKey($k)) { continue }
+                $seen[$k] = $true; $script:LibWork.Enqueue(@{ T = 'dat'; Rec = $r })
+            }
+        }
+    }
+    $script:LibWorkTotal = $script:LibWork.Count
+}
+
+function Stop-LibWork { $script:LibWork.Clear(); $script:LibWorkDone = 0; $script:LibWorkTotal = 0 }
+
+function Step-LibWork([int]$budgetMs = 60) {
+    # Une tranche du travail differe (minuteur principal, 200 ms) : $budgetMs au plus, puis la main revient a l interface
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($script:LibWork.Count -gt 0 -and $sw.ElapsedMilliseconds -lt $budgetMs) {
+        $w = $script:LibWork.Peek()
+        if ($w.T -eq 'dat') {
+            # 12.8 (lot 4b) : identification ; CRC-32 d un fichier d un seul tenant (bibliotheque ZIP de .NET)
+            [void](Step-LibDatWork $w)
+            [void]$script:LibWork.Dequeue(); $script:LibWorkDone++
+            continue
+        }
+        [void]$script:LibWork.Dequeue(); $script:LibWorkDone++
+        if ($w.T -eq 'ipf') { [void](Get-LibIpf $w.Rec); Update-LibRowState $w.Rec }
+        else {
+            $cached = $script:LibSetCache.ContainsKey($w.Rec.SetId)
+            [void](Get-LibSetMissing $w.Rec)
+            if (-not $cached) { Add-LibMissingRow $w.Rec }
+        }
+    }
+    if ($script:LibWork.Count -eq 0) {
+        $script:LibWorkTotal = 0
+        if ($script:LibOrigPending -and $chkLibOrig.Checked) { $script:LibOrigPending = $false; Show-LibResults -Keep; return }
+    }
+    Update-LibCountText
+}
+
+function Get-LibSetMissing($r) {
+    # Disquettes manquantes du jeu de $r, d apres les fichiers de son dossier (meme nom sans la disquette, meme extension) ;
+    # cache par jeu. Dossier de publication SPS : tous ses fichiers ; sinon motif « debut du nom* » (filtre par le systeme
+    # de fichiers, 500 fichiers au plus)
+    if (-not $r -or -not $r.Info -or $r.Info.DiskNo -le 0 -or -not $r.SetId -or $r.Kind -eq 'zipentry') { return $null }
+    $id = $r.SetId
+    if ($script:LibSetCache.ContainsKey($id)) { return $script:LibSetCache[$id] }
+    $res = $null
+    try {
+        $dir = [System.IO.Path]::GetDirectoryName($r.Path)
+        $pat = if ($r.Info.Source -eq 'dir') { '*' } elseif ($r.Info.Prefix) { $r.Info.Prefix + '*' } else { '' }
+        if ($pat) {
+            $dirName = [System.IO.Path]::GetFileName($dir)
+            $list = [System.Collections.Generic.List[object]]::new(); $n = 0; $unknown = 0
+            foreach ($f in [System.IO.Directory]::EnumerateFiles($dir, $pat)) {
+                $n++; if ($n -gt 500) { break }
+                $i2 = Get-LibNameInfo ([System.IO.Path]::GetFileName($f)) $dirName
+                if ($i2.SetKey -ne $r.Info.SetKey) { continue }
+                if ($i2.DiskNo -gt 0) { $list.Add(@{ DiskNo = $i2.DiskNo; DiskTot = $i2.DiskTot; Letter = $i2.DiskLetter }); continue }
+                # FIX4B (revue du lot 4, C2) : fichier du meme jeu sans numero de disquette dans le nom (publication SPS :
+                # « SuperCars.ipf », « BodyBlows_BootDisk.ipf ») : numero lu dans le bloc INFO d un IPF ; sinon, ou bloc
+                # illisible, aucun manque signale (la disquette « manquante » est peut-etre celle-la)
+                $dn = 0
+                if ($i2.Ext -eq '.ipf') {
+                    try {
+                        $ipf = Get-LibIpf @{ Kind = 'image'; Path = $f; Size = (New-Object System.IO.FileInfo($f)).Length }
+                        if (($ipf.Kind -eq 'sps' -or $ipf.Kind -eq 'user') -and $ipf.DiskNumber -gt 0 -and $ipf.DiskNumber -le 99) { $dn = [int]$ipf.DiskNumber }
+                    } catch { }
+                }
+                if ($dn -gt 0) { $list.Add(@{ DiskNo = $dn; DiskTot = 0; Letter = $false }) } else { $unknown++ }
+            }
+            $m = Get-LibMissingDisks @{ s = $list }
+            $res = if ($m.ContainsKey('s') -and $unknown -eq 0) { $m['s'] } else { @{ Missing = @(); Total = 0; Known = $false; Letter = $false } }
+        }
+    } catch { $res = $null }
+    $script:LibSetCache[$id] = $res
+    return $res
+}
+
+# --- Panneau de details ---------------------------------------------------------------------------------------------
+function Format-LibIpfDate([long]$d) {
+    # Date du bloc INFO (entier AAAAMMJJ) au format JJ/MM/AAAA
+    if ($d -lt 19000101 -or $d -gt 29991231) { return '' }
+    $s = "$d"
+    return "$($s.Substring(6, 2))/$($s.Substring(4, 2))/$($s.Substring(0, 4))"
+}
+
+function Get-LibPlatformName([long]$p) {
+    switch ($p) {
+        1 { return 'Amiga' } 2 { return 'Atari ST' } 3 { return 'PC' } 4 { return 'Amstrad CPC' } 5 { return 'Spectrum' }
+        6 { return 'Sam Coupé' } 7 { return 'Archimedes' } 8 { return 'C64' } 9 { return (T 'Atari 8 bits') }
+    }
+    return "$p"
+}
+
+function Get-LibIpfLines($ipf) {
+    # Bloc INFO (D18) : « IPF de structure SPS » sans liste, jamais « officiel » (reserve a une correspondance avec une DAT)
+    $L = @()
+    switch ($ipf.Kind) {
+        'sps' {
+            $t = (T 'IPF de structure SPS : publication n° {0}, révision {1}') -f $ipf.FileKey, $ipf.FileRev
+            if ($ipf.DiskNumber -gt 0) { $t += ((T ', disquette {0}') -f $ipf.DiskNumber) }
+            $L += $t
+        }
+        'user'  { $L += (T 'IPF utilisateur (disk-analyse) : copie personnelle, pas une publication SPS') }
+        'crc'   { $L += (T 'IPF : bloc INFO au CRC faux (fichier altéré ou incomplet)') }
+        'other' { $L += ((T 'IPF : encodeur inconnu ({0})') -f $ipf.Encoder) }
+        default { $L += (T 'IPF : bloc INFO absent ou illisible') }
+    }
+    if ($ipf.Kind -eq 'sps' -or $ipf.Kind -eq 'user') {
+        $p = @()
+        $pl = @($ipf.Platforms | ForEach-Object { Get-LibPlatformName $_ }) -join ', '
+        if ($pl) { $p += ((T 'Plate-forme : {0}') -f $pl) }
+        $d = Format-LibIpfDate $ipf.Date
+        if ($d) { $p += ((T 'créé le {0}') -f $d) }
+        if ($p.Count -gt 0) { $L += ($p -join ' · ') }
+    }
+    return $L
+}
+
+function Get-LibAdfLines($a) {
+    $L = @()
+    if ($a.Dos) {
+        $fs = $a.Fs; if ($a.Intl) { $fs += ' INTL' }; if ($a.DirCache) { $fs += ' DIRCACHE' }
+        $t = (T 'ADF : AmigaDOS {0} (DOS{1})') -f $fs, $a.Flags
+        if ($a.RootOk -and $a.Volume) { $t += ((T ', volume « {0} »') -f $a.Volume) }
+        elseif (-not $a.RootOk) { $t += (T ', sans bloc racine lisible (chargeur propre)') }
+        if ($a.Bootable) { $t += (T ', amorçable') }
+        $L += $t
+    } elseif ($a.BootRead) {
+        $t = T 'ADF : bloc de démarrage non-DOS (chargeur propre, souvent protégé)'
+        if ($a.RootOk -and $a.Volume) { $t += ((T ', volume « {0} »') -f $a.Volume) }
+        $L += $t
+    } else { $L += (T 'ADF : lecture impossible') }
+    if ($a.Hd) { $L += (T 'ADF haute densité (bloc racine 1760)') }
+    return $L
+}
+
+function Get-LibFlagLine($i) {
+    # Mentions TOSEC du nom, expliquees
+    if (-not $i.FlagText) { return '' }
+    $d = @()
+    foreach ($f in @($i.Flags | Select-Object -Unique)) {
+        $x = switch ($f) {
+            'cr' { T 'déplombée' } 'f' { T 'corrigée' } 'h' { T 'modifiée (hack)' } 'm' { T 'modifiée' } 'p' { T 'pirate' }
+            't' { T 'entraîneur (trainer)' } 'tr' { T 'traduite' } 'o' { T 'image trop longue (overdump)' }
+            'u' { T 'image incomplète (underdump)' } 'v' { T 'virus' } 'b' { T 'image défectueuse (bad dump)' }
+            'a' { T 'variante (alternate)' } '!' { T 'image vérifiée' } default { $f }
+        }
+        $d += $x
+    }
+    return ((T 'Mentions : {0} ({1})') -f $i.FlagText, ($d -join ', '))
+}
+
+function Get-LibNameLines($r) {
+    # Ce que dit le nom : variante, disquette, version, langue, mentions
+    $i = $r.Info; $L = @()
+    if (-not $i) { return $L }
+    if ($i.Variant) { $L += ((T 'Variante : {0}') -f $i.Variant) }
+    $p = @()
+    if ($i.Disk) {
+        $d = if ($i.DiskTot -gt 0) { (T 'Disquette {0} sur {1}') -f $i.Disk, $i.DiskTot } else { (T 'Disquette {0}') -f $i.Disk }
+        if ($i.Label) { $d += " ($($i.Label))" }
+        $p += $d
+    }
+    if ($i.Version) { $p += ((T 'Version {0}') -f $i.Version) }
+    if ($i.Langs) { $p += ((T 'Langue : {0}') -f $i.Langs) }
+    if ($p.Count -gt 0) { $L += ($p -join ' · ') }
+    $f = Get-LibFlagLine $i
+    if ($f) { $L += $f }
+    return $L
+}
+
+function Get-LibContentLines($r) {
+    # Ce que dit le fichier : IPF (bloc INFO) ou ADF (type DOS, volume) ; la ligne de la liste suit
+    $L = @()
+    try {
+        if ($r.Ext -eq '.ipf') { $L += Get-LibIpfLines (Get-LibIpf $r); Update-LibRowState $r }
+        elseif ($r.Ext -eq '.adf') { $L += Get-LibAdfLines (Get-LibAdf $r) }
+    } catch { $L += ((T 'Lecture impossible : {0}') -f "$($_.Exception.Message)") }
+    # 12.8 (lot 4b) : identification par la liste de reference ; CRC-32 d un fichier : calcul en tete du travail differe,
+    # ligne remplacee a la fin (Update-LibDatDetails)
+    if ((Test-LibDatOn) -and (Test-LibDatEligible $r)) {
+        try {
+            $s = Resolve-LibDatState $r
+            if ($s -and $s.State -eq 'wait') { Request-LibDatWork $r }
+            Update-LibRowState $r
+        } catch { }
+        $d = @(Get-LibDatLines $r)
+        if ($d.Count -gt 0) { $L += $d; if ($r.Kind -eq 'image') { $script:LibDatLine = $d -join "`r`n" } }
+    }
+    return $L
+}
+
+function Test-LibPicture([string]$path) { return (@('.jpg', '.jpeg', '.png', '.gif') -contains [System.IO.Path]::GetExtension($path).ToLowerInvariant()) }
+
+function Get-LibRelatedDocs($r) {
+    # Documents associes (A3 § 4.2 n° 6) : documents (DocExt) du dossier au titre court du jeu, ou tous ceux du dossier
+    # quand c est celui du jeu (dossier de publication SPS, ou dossier au titre du jeu) ; medias selon la convention Pegasus
+    # (media\<titre ou nom>\*.png|jpg, a cote de l image ou a la racine). 60 au plus
+    $out = [System.Collections.Generic.List[object]]::new()
+    if (-not $r -or -not $r.Info) { return ,$out }
+    $path = if ($r.Kind -eq 'zipentry') { $r.ZipPath } else { $r.Path }
+    if (-not $path) { return ,$out }
+    $key = $r.Info.Key
+    $seen = @{}
+    try {
+        $dir = [System.IO.Path]::GetDirectoryName($path)
+        $dirName = [System.IO.Path]::GetFileName($dir)
+        $gameDir = ($r.Info.Source -eq 'dir') -or ((Get-LibNameInfo $dirName '').Key -eq $key)
+        $pat = if ($gameDir) { '*' } elseif ($r.Info.Prefix) { $r.Info.Prefix + '*' } else { '' }
+        if ($pat) {
+            foreach ($f in [System.IO.Directory]::EnumerateFiles($dir, $pat)) {
+                if ($out.Count -ge 60) { break }
+                if ($script:DocExt -notcontains [System.IO.Path]::GetExtension($f).ToLowerInvariant()) { continue }
+                $nm = [System.IO.Path]::GetFileName($f)
+                if (-not $gameDir -and (Get-LibNameInfo $nm $dirName).Key -ne $key) { continue }
+                $seen[$f.ToLowerInvariant()] = $true
+                $out.Add(@{ Kind = 'doc'; Path = $f; Name = $nm })
+            }
+        }
+        $roots = @($dir)
+        if ($script:LibRoot -and $script:LibRoot -ne $dir) { $roots += $script:LibRoot }
+        foreach ($mr in $roots) {
+            foreach ($nm in @($r.Info.Title, $r.Info.Base | Select-Object -Unique)) {
+                if (-not $nm) { continue }
+                $md = [System.IO.Path]::Combine($mr, 'media', $nm)
+                if (-not [System.IO.Directory]::Exists($md)) { continue }
+                foreach ($f in [System.IO.Directory]::EnumerateFiles($md)) {
+                    if ($out.Count -ge 60) { break }
+                    if (-not (Test-LibPicture $f) -or $seen.ContainsKey($f.ToLowerInvariant())) { continue }
+                    $seen[$f.ToLowerInvariant()] = $true
+                    $out.Add(@{ Kind = 'doc'; Path = $f; Name = ('media\' + $nm + '\' + [System.IO.Path]::GetFileName($f)); Media = $true })
+                }
+            }
+        }
+    } catch { }
+    return ,$out
+}
+
+function Select-LibThumb($docs) {
+    # Vignette : boxFront des medias, sinon une image dont le nom evoque la boite, sinon la premiere image
+    $pics = @($docs | Where-Object { Test-LibPicture $_.Path })
+    foreach ($d in $pics) { if ([System.IO.Path]::GetFileNameWithoutExtension($d.Path) -ieq 'boxFront') { return $d.Path } }
+    foreach ($d in $pics) { if ([System.IO.Path]::GetFileName($d.Path) -match '(?i)box|cover|front|jaquette') { return $d.Path } }
+    if ($pics.Count -gt 0) { return $pics[0].Path }
+    return ''
+}
+
+function Set-LibThumb([string]$path) {
+    # Vignette chargee par un flux en memoire (le fichier n est jamais verrouille), reduite au cadre ; ancienne liberee
+    $old = $picLibThumb.Image; $picLibThumb.Image = $null
+    if ($old) { $old.Dispose() }
+    $ok = $false
+    if ($path) {
+        try {
+            $fi = New-Object System.IO.FileInfo($path)
+            if ($fi.Exists -and $fi.Length -le 16MB) {
+                $bytes = [System.IO.File]::ReadAllBytes($path)
+                $ms = New-Object System.IO.MemoryStream(,$bytes)
+                try {
+                    $img = [System.Drawing.Image]::FromStream($ms)
+                    try {
+                        # Image de 72 x 72 px, affichee reduite si la page est basse (SizeMode Zoom, Update-LibPanelLayout)
+                        $w = 72; $h = 72
+                        $sc = [math]::Min([math]::Min($w / $img.Width, $h / $img.Height), 1.0)
+                        $tw = [math]::Max(1, [int]($img.Width * $sc)); $th = [math]::Max(1, [int]($img.Height * $sc))
+                        $bmp = New-Object System.Drawing.Bitmap($w, $h)
+                        $g = [System.Drawing.Graphics]::FromImage($bmp)
+                        try {
+                            $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+                            $g.DrawImage($img, [int](($w - $tw) / 2), [int](($h - $th) / 2), $tw, $th)
+                        } finally { $g.Dispose() }
+                        $picLibThumb.Image = $bmp; $ok = $true
+                    } finally { $img.Dispose() }
+                } finally { $ms.Dispose() }
+            }
+        } catch { }
+    }
+    $script:LibThumbPath = if ($ok) { $path } else { '' }
+    # Texte d information a cote de la vignette, ou sur toute la largeur sans vignette
+    Update-LibPanelLayout
+}
+
+function Update-LibPanelLayout {
+    # FIX4B (revue du lot 4, constat 2) : colonne de droite ajustee a la hauteur de la page (environ 300 px a la taille par
+    # defaut avec le journal, et non 340). Entre le titre et les boutons : liste du bas (documents, entrees d archive) en
+    # bas, 2 lignes (3 si la place le permet), masquee quand elle est vide ; texte au-dessus ; vignette a gauche du texte,
+    # carree, de la hauteur du texte (72 px au plus), masquee sous 40 px : jamais sur la liste du bas. Appelee a chaque
+    # affichage du panneau (Set-LibThumb) et au redimensionnement de la page (apres l ancrage des boutons)
+    $x = $lblLibTitle.Left; $w = $lblLibTitle.Width
+    $top = $lblLibTitle.Bottom + 1
+    $bot = $btnLibFast.Top - 3
+    $docs = ($lstLibDocs.Items.Count -gt 0)
+    if ($docs) {
+        $dh = $(if ($bot - $top -ge 170) { 3 } else { 2 }) * $lstLibDocs.ItemHeight + 4
+        $lstLibDocs.SetBounds($x, $bot - $dh, $w, $dh)
+        $bot -= $dh + 2
+    }
+    # Visible affecte sans le relire : la lecture rend faux tant que l onglet est cache (etat propre du controle ignore)
+    $lstLibDocs.Visible = $docs
+    $ih = [int][math]::Max(20, $bot - $top)
+    $th = 0
+    if ($picLibThumb.Image) { $th = [int][math]::Min(72, $ih); if ($th -lt 40) { $th = 0 } }
+    $tx = $x
+    if ($th -gt 0) { $picLibThumb.SetBounds($x, $top, $th, $th); $tx = $x + $th + 6 }
+    $picLibThumb.Visible = ($th -gt 0)
+    $txtLibInfo.SetBounds($tx, $top, $x + $w - $tx, $ih)
+}
+
+function Clear-LibDetails {
+    $script:LibCur = $null; $script:LibSub = $null; $script:LibSubRecs = @(); $script:LibInfoBase = ''; $script:LibDatLine = ''
+    $was = $script:LibRendering; $script:LibRendering = $true
+    try { $lstLibDocs.Items.Clear() } finally { $script:LibRendering = $was }
+    $lblLibTitle.Text = ''; $txtLibInfo.Clear()
+    Set-LibThumb ''
+    Set-LibWriteEnabled $false
+    $btnLibOpen.Enabled = $false
+}
+
+function Show-LibDetails($r) {
+    # Panneau de details (A3 § 4.1, § 4.2 n° 4 a 6) : titre ; ce que disent le nom et le fichier (IPF : bloc INFO ; ADF :
+    # type DOS et volume) ; disquettes manquantes du jeu ; taille et chemin ; documents associes et vignette. Archive ZIP :
+    # ses entrees dans la liste du bas, la premiere image choisie pour l ecriture
+    Clear-LibDetails
+    if (-not $r) { return }
+    if (Test-LibDatEligible $r) { [void](Get-LibDat) }      # 12.8 (lot 4b) : liste lue a la premiere demande
+    $script:LibCur = $r
+    $L = [System.Collections.Generic.List[string]]::new()
+    $title = ''; $docs = $null; $thumb = ''; $subs = @(); $selSub = -1
+    switch ($r.Kind) {
+        'dir' { $title = [System.IO.Path]::GetFileName($r.Path.TrimEnd('\')); $L.Add((T 'Dossier')); $L.Add($r.Path) }
+        'zip' {
+            $title = $r.Info.Title
+            foreach ($x in (Get-LibNameLines $r)) { $L.Add($x) }
+            $ents = @(Get-ZipEntries $r.Path)
+            $nImg = @($ents | Where-Object { $_.Kind -eq 'image' }).Count
+            $L.Add(((T 'Archive ZIP, {0} : {1} entrée(s), dont {2} image(s)') -f (Format-Size $r.Size), $ents.Count, $nImg))
+            # 12.8 (lot 4b) : identification par la liste de reference (repertoire central de l archive)
+            $zs = $null
+            if (Test-LibDatOn) {
+                try { $zs = Resolve-LibDatState $r; Update-LibRowState $r } catch { }
+                foreach ($x in (Get-LibDatLines $r)) { $L.Add($x) }
+            }
+            $m = Get-LibSetMissing $r
+            if ($m -and $m.Missing.Count -gt 0) { $L.Add(((T 'Jeu incomplet : {0}') -f (Get-LibMissingText $m))) }
+            foreach ($e in $ents) {
+                $ew = ''
+                if ($zs -and $zs.Zip -and $null -ne $e.Index -and $e.Index -lt $zs.Zip.Entries.Count -and $zs.Zip.Entries[$e.Index] -and $zs.Zip.Dir[$e.Index].Size -eq [long]$e.Length) {
+                    $ew = Get-LibDatWord $zs.Zip.Entries[$e.Index].State
+                }
+                $et = if ($ew) { (T '{0}  (dans l''archive, {1}) : {2}') -f $e.FullName, (Format-Size $e.Length), $ew } else { (T '{0}  (dans l''archive, {1})') -f $e.FullName, (Format-Size $e.Length) }
+                $subs += ,@{ Kind = 'zipentry'; ZipPath = $r.Path; Entry = $e.FullName; Size = [long]$e.Length; FileKind = $e.Kind; Idx = $e.Index; Text = $et }
+                if ($selSub -lt 0 -and $e.Kind -eq 'image') { $selSub = $subs.Count - 1 }
+            }
+            $L.Add($r.Path)
+            $docs = Get-LibRelatedDocs $r
+        }
+        'zipentry' {
+            $title = $r.Info.Title
+            foreach ($x in (Get-LibNameLines $r)) { $L.Add($x) }
+            foreach ($x in (Get-LibContentLines $r)) { $L.Add($x) }
+            $L.Add(((T "Dans l'archive : {0}") -f [System.IO.Path]::GetFileName($r.ZipPath)))
+            $L.Add("$($r.Fmt), $(Format-Size $r.Size)")
+            $docs = Get-LibRelatedDocs $r
+        }
+        'image' {
+            $title = $r.Info.Title
+            foreach ($x in (Get-LibNameLines $r)) { $L.Add($x) }
+            foreach ($x in (Get-LibContentLines $r)) { $L.Add($x) }
+            $m = Get-LibSetMissing $r
+            if ($m -and $m.Missing.Count -gt 0) { $L.Add(((T 'Jeu incomplet : {0}') -f (Get-LibMissingText $m))) }
+            $L.Add("$($r.Fmt), $(Format-Size $r.Size)")
+            $L.Add($r.Path)
+            $docs = Get-LibRelatedDocs $r
+        }
+        'doc' {
+            $title = $r.Info.Title
+            $L.Add(((T "Document ({0}), {1}") -f [System.IO.Path]::GetExtension($r.Path), (Format-Size $r.Size)))
+            $L.Add($r.Path)
+            if (Test-LibPicture $r.Path) { $thumb = $r.Path }
+        }
+        'missing' {
+            $title = $r.Info.Title
+            if ($r.Info.SetVariant) { $L.Add(((T 'Variante : {0}') -f $r.Info.SetVariant)) }
+            $L.Add(((T 'Jeu incomplet : {0}') -f (Get-LibMissingText $r.Missing)))
+            $L.Add([System.IO.Path]::GetDirectoryName($r.Path))
+        }
+        default {
+            $title = $r.Name
+            $L.Add((T 'Fichier non pris en charge'))
+            if ($r.Path) { $L.Add($r.Path) }
+        }
+    }
+    if ($docs) {
+        foreach ($d in $docs) { $subs += ,@{ Kind = 'doc'; Path = $d.Path; Name = $d.Name; Text = $d.Name } }
+        if (-not $thumb) { $thumb = Select-LibThumb $docs }
+    }
+    $script:LibSubRecs = $subs
+    $script:LibRendering = $true
+    try { foreach ($s in $subs) { [void]$lstLibDocs.Items.Add($s.Text) } } finally { $script:LibRendering = $false }
+    $lblLibTitle.Text = $title
+    $script:LibInfoBase = $L -join "`r`n"
+    $txtLibInfo.Text = $script:LibInfoBase
+    Set-LibThumb $thumb
+    Set-LibWriteEnabled ($r.Kind -eq 'image' -or ($r.Kind -eq 'zipentry' -and $r.FileKind -eq 'image'))
+    $btnLibOpen.Enabled = ($r.Kind -eq 'doc' -or ($r.Kind -eq 'zipentry' -and $r.FileKind -eq 'doc'))
+    if ($selSub -ge 0) { $lstLibDocs.SelectedIndex = $selSub }
+}
+
+function Show-LibSubSelection {
+    # Element choisi dans la liste du bas : entree d archive (son analyse s ajoute au panneau ; image : cible de l ecriture)
+    # ou document (Ouvrir ; image affichee dans la vignette)
+    if ($script:LibRendering) { return }
+    $i = $lstLibDocs.SelectedIndex
+    $s = if ($i -ge 0 -and $i -lt $script:LibSubRecs.Count) { $script:LibSubRecs[$i] } else { $null }
+    $script:LibSub = $s
+    $cur = $script:LibCur
+    $txt = $script:LibInfoBase
+    if ($s -and $s.Kind -eq 'zipentry' -and $s.FileKind -eq 'image') {
+        $er = Get-LibEntryRecord $s
+        $lines = @(Get-LibNameLines $er) + @(Get-LibContentLines $er)
+        $txt += "`r`n`r`n" + ((T 'Entrée choisie : {0}') -f $s.Entry)
+        if ($lines.Count -gt 0) { $txt += "`r`n" + ($lines -join "`r`n") }
+    }
+    $txtLibInfo.Text = $txt
+    if ($cur -and $cur.Kind -eq 'zip') { Set-LibWriteEnabled ([bool]($s -and $s.Kind -eq 'zipentry' -and $s.FileKind -eq 'image')) }
+    $btnLibOpen.Enabled = [bool](Get-LibOpenTarget)
+    if ($s -and $s.Kind -eq 'doc' -and (Test-LibPicture $s.Path)) { Set-LibThumb $s.Path }
+}
+
+function Get-LibOpenTarget {
+    # Document a ouvrir : celui choisi dans la liste du bas, sinon l element selectionne s il est un document
+    $s = $script:LibSub
+    if ($s -and ($s.Kind -eq 'doc' -or ($s.Kind -eq 'zipentry' -and $s.FileKind -eq 'doc'))) { return $s }
+    $c = $script:LibCur
+    if ($c -and ($c.Kind -eq 'doc' -or ($c.Kind -eq 'zipentry' -and $c.FileKind -eq 'doc'))) { return $c }
+    return $null
+}
+
+function Open-LibDoc {
+    # Ouvre le document avec l application par defaut (entree d archive extraite dans TempDir)
+    $t = Get-LibOpenTarget
+    if (-not $t) { return }
+    $p = $t.Path
+    if ($t.Kind -eq 'zipentry') {
+        try { $p = Expand-ZipEntry $t.ZipPath $t.Entry; Append-Log ((T "Extrait : {0} -> {1}") -f "$($t.Entry)", "$p") }
+        catch { Append-Log ((T "Extraction impossible : {0}") -f "$($_.Exception.Message)"); return }
+    }
+    try { Start-Process -FilePath $p } catch { Append-Log ((T "Ouverture impossible : {0}") -f "$($_.Exception.Message)") }
+}
+
+function Clear-LibGdi {
+    # Fermeture de la fenetre : vignette et badges de la liste
+    if ($picLibThumb -and $picLibThumb.Image) { $b = $picLibThumb.Image; $picLibThumb.Image = $null; $b.Dispose() }
+    if ($imgLibBadge) { try { $imgLibBadge.Dispose() } catch { } }
+}
+
+# ============================== BIBLIOTHEQUE : LISTE DE REFERENCE (12.8, LOT 4B) ==
+# D19 (A3 § 3.4 B) : liste (DAT) choisie par l utilisateur (bouton « Liste de reference... »), chemin enregistre (reglage
+# libDat), lue a la premiere ouverture de l onglet ou a la premiere recherche ; jamais fournie ni telechargee. Images et
+# archives ZIP identifiees : liste des resultats par le travail differe du minuteur (CRC-32 d un fichier par la
+# bibliotheque ZIP de .NET ; CRC d une entree d archive lu dans son repertoire central), panneau de details a la selection (element mis en tete du travail differe). « Officiel » n apparait qu avec une liste.
+
+function Test-LibDatOn { return [bool]($script:LibDat -and $script:LibDat.Ok) }
+
+function Test-LibDatEligible($r) {
+    # Elements identifies : images, archives ZIP et entrees image d une archive (ni documents ni dossiers)
+    return [bool]($r -and ($r.Kind -eq 'image' -or $r.Kind -eq 'zip' -or ($r.Kind -eq 'zipentry' -and $r.FileKind -eq 'image')))
+}
+
+function Get-LibDatWord([string]$state) {
+    switch ($state) { 'ok' { return (T 'officiel') } 'mod' { return (T 'modifié') } 'unk' { return (T 'inconnu') } }
+    return '…'
+}
+
+function Format-LibDatEntry($e) {
+    if (-not $e) { return '' }
+    if ($e.Game) { return ((T '« {0} » du jeu « {1} »') -f $e.Name, $e.Game) }
+    return ((T '« {0} »') -f $e.Name)
+}
+
+function Get-LibDat {
+    # Liste chargee (Ok), lue a la premiere demande si un chemin est enregistre ; une seule lecture par chemin (une liste
+    # illisible n est relue qu apres un nouveau choix) ; $null sans liste utilisable
+    $p = [string](Get-Setting 'libDat')
+    if (-not $p) { return $null }
+    if (-not $script:LibDat -or $script:LibDat.Path -ne $p) { Import-LibDatNow }
+    if (Test-LibDatOn) { return $script:LibDat }
+    return $null
+}
+
+function Import-LibDatNow {
+    # Lecture de la liste enregistree (curseur d attente), ligne de journal, etat a cote du bouton ; etats remis a zero
+    $p = [string](Get-Setting 'libDat')
+    $script:LibDatState = @{}; $script:LibDatZip = @{}
+    if (-not $p) { $script:LibDat = $null; Update-LibDatLabel; return }
+    $was = $form.Cursor; $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
+    try { $d = Read-LibDat $p } finally { $form.Cursor = $was }
+    $script:LibDat = $d
+    if ($d.Ok) {
+        Append-Log ((T 'Liste de référence : {0} ({1}), {2} entrée(s), {3} fichier(s), lue en {4} s.') -f $d.Name, (Get-LibDatFormatText $d), "$('{0:N0}' -f $d.Games)", "$('{0:N0}' -f $d.Roms)", (Format-UiNum ($d.Ms / 1000.0) '0.0'))
+    } else {
+        Append-Log ((T 'Liste de référence illisible ({0}) : {1}') -f [System.IO.Path]::GetFileName($p), $d.Error)
+    }
+    Update-LibDatLabel
+}
+
+function Get-LibDatFormatText($d) {
+    if ($d.Version) { return ((T '{0}, version {1}') -f $d.Format, $d.Version) }
+    return [string]$d.Format
+}
+
+function Update-LibDatLabel {
+    # Etat de la liste a cote du bouton : aucune ; nom du fichier (lue a l ouverture de l onglet) ; « nom, N entree(s) » ;
+    # illisible (message dans l infobulle). Bouton de retrait visible avec une liste
+    $p = [string](Get-Setting 'libDat')
+    $d = $script:LibDat
+    $btnLibDatClear.Visible = [bool]$p
+    if (-not $p) {
+        $lblLibDat.Text = (T 'aucune'); $lblLibDat.ForeColor = $script:Theme.Muted
+        $tip.SetToolTip($lblLibDat, (T 'Aucune liste de référence : les fichiers ne sont pas identifiés.'))
+        return
+    }
+    if (-not $d -or $d.Path -ne $p) {
+        $lblLibDat.Text = [System.IO.Path]::GetFileName($p); $lblLibDat.ForeColor = $script:Theme.Muted
+        $tip.SetToolTip($lblLibDat, ((T "{0}`nLue à l'ouverture de l'onglet Bibliothèque.") -f $p))
+        return
+    }
+    if (-not $d.Ok) {
+        $lblLibDat.Text = (T 'liste illisible'); $lblLibDat.ForeColor = (Get-QualInk 3)
+        $tip.SetToolTip($lblLibDat, "$p`n$($d.Error)")
+        return
+    }
+    $lblLibDat.Text = (T '{0}, {1} entrée(s)') -f $d.Name, "$('{0:N0}' -f $d.Games)"
+    $lblLibDat.ForeColor = [System.Drawing.SystemColors]::ControlText
+    $t = (T 'Liste de référence : {0}') -f $d.Name
+    if ($d.Description -and $d.Description -ne $d.Name) { $t += "`n" + $d.Description }
+    $t += "`n" + ((T '{0} entrée(s), {1} fichier(s) identifiable(s) ({2})') -f "$('{0:N0}' -f $d.Games)", "$('{0:N0}' -f $d.Roms)", (Get-LibDatFormatText $d))
+    $t += "`n" + $p
+    $tip.SetToolTip($lblLibDat, $t)
+}
+
+function Reset-LibDat {
+    # Reglage libDat change (choix, retrait, configuration lue, valeurs par defaut) : liste dechargee, relue a la prochaine
+    # demande ; etats d identification et travail differe d identification abandonnes
+    $script:LibDat = $null; $script:LibDatState = @{}; $script:LibDatZip = @{}
+    Update-LibDatLabel
+}
+
+function Select-LibDatFile {
+    # Bouton « Liste de reference... » : fichier .dat ou .xml choisi par l utilisateur sur son ordinateur
+    $d = New-Object System.Windows.Forms.OpenFileDialog
+    try {
+        $d.Title = (T 'Liste de référence (DAT)')
+        $d.Filter = (T 'Listes de référence (*.dat;*.xml)|*.dat;*.xml|Tous les fichiers (*.*)|*.*')
+        $cur = [string](Get-Setting 'libDat')
+        if ($cur) { try { $d.InitialDirectory = [System.IO.Path]::GetDirectoryName($cur); $d.FileName = [System.IO.Path]::GetFileName($cur) } catch { } }
+        if ($d.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { return }
+        Set-LibDatPath $d.FileName
+    } finally { $d.Dispose() }
+}
+
+function Set-LibDatPath([string]$path) {
+    # Liste choisie (lue tout de suite) ou retiree (chemin vide) ; liste des resultats et panneau refaits
+    Stop-LibWork
+    Set-Setting 'libDat' $path
+    if ($path) { Import-LibDatNow } else { Append-Log (T 'Liste de référence retirée.') }
+    if ($script:LibListMode -and $null -ne $script:LibAll) { Show-LibResults -Keep }
+    elseif ($script:LibCur) { Show-LibDetails $script:LibCur }
+}
+
+function Get-LibDatQuick($r) {
+    # Etat d identification sans lecture de fichier : en cache, ou decide par la taille et le nom (aucune entree de cette
+    # taille) ; @{ State = 'wait' } s il faut lire le fichier ; $null sans liste ou pour un element non identifie
+    if (-not (Test-LibDatOn) -or -not (Test-LibDatEligible $r)) { return $null }
+    $k = Get-LibIpfKey $r
+    $s = $script:LibDatState[$k]
+    if ($s) { return $s }
+    if ($r.Kind -ne 'zip' -and -not $script:LibDat.BySize.ContainsKey([long]$r.Size)) {
+        $s = Get-LibDatMatch $script:LibDat ([long]$r.Size) $r.Name @{}
+        $script:LibDatState[$k] = $s
+        return $s
+    }
+    return @{ State = 'wait' }
+}
+
+function Get-LibHashStore {
+    # Empreintes gardees pour la racine de la Bibliotheque (hash-<md5>.tsv), lues une fois par racine
+    $f = Get-LibHashFile ([string]$txtLibRoot.Text)
+    if ($script:LibHashFileCur -ne $f -or $null -eq $script:LibHashCache) { $script:LibHashCache = Import-LibHashCache $f; $script:LibHashFileCur = $f }
+    return $script:LibHashCache
+}
+
+function Get-LibHashCached([string]$path, [long]$size, [long]$ticks) {
+    $o = $null
+    if ((Get-LibHashStore).TryGetValue((Get-LibHashKey $path $size $ticks), [ref]$o)) { return @{ Crc = $o.Crc; Md5 = $o.Md5; Sha1 = $o.Sha1 } }
+    return @{ Crc = ''; Md5 = ''; Sha1 = '' }
+}
+
+function Save-LibHash([string]$path, [long]$size, [long]$ticks, $h) {
+    $c = Get-LibHashStore
+    $c[(Get-LibHashKey $path $size $ticks)] = @{ Crc = $h.Crc; Md5 = $h.Md5; Sha1 = $h.Sha1 }
+    Add-LibHashLine $script:LibHashFileCur $path $size $ticks $h
+}
+
+function Get-LibZipDat([string]$zipPath) {
+    # Archive ZIP identifiee, en cache par chemin, taille et date : repertoire central, etat de chaque entree image et de
+    # l archive. Entree dont la liste n a pas de CRC-32 : SHA-1 ou MD5 calcules sur le flux decompresse. $null si illisible
+    $fi = New-Object System.IO.FileInfo($zipPath)
+    if (-not $fi.Exists) { return $null }
+    $ck = "$zipPath|$($fi.Length)|$($fi.LastWriteTimeUtc.Ticks)"
+    if ($script:LibDatZip.ContainsKey($ck)) { return $script:LibDatZip[$ck] }
+    $z = $null
+    $ents = Read-LibZipDir $zipPath
+    # FIX4B (C1) : liste, meme d une seule entree ; archive sans entree : inconnu, et non illisible
+    if ($null -ne $ents) {
+        $z = Get-LibZipDatState $script:LibDat $ents
+        if ($z.State -eq 'wait') {
+            $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+            try {
+                for ($i = 0; $i -lt $ents.Count; $i++) {
+                    $s = $z.Entries[$i]
+                    if (-not $s -or $s.State -ne 'wait') { continue }
+                    $h = @{ Crc = $ents[$i].Crc; Md5 = ''; Sha1 = '' }; $n = 0
+                    while ($s.State -eq 'wait' -and $s.Need -ne 'Crc' -and $n -lt 3 -and $i -lt $zip.Entries.Count) {
+                        $st = $zip.Entries[$i].Open()
+                        try { $h[$s.Need] = Get-LibHashText $s.Need $st } finally { $st.Dispose() }
+                        $s = Get-LibDatMatch $script:LibDat ([long]$ents[$i].Size) $ents[$i].Name $h -Common; $n++
+                    }
+                    if ($s.State -eq 'wait') { $s = @{ State = 'unk' } }
+                    $z.Entries[$i] = $s
+                }
+            } finally { $zip.Dispose() }
+            $z = Measure-LibZipDatState $z.Entries
+        }
+        $z.Dir = $ents
+        $z.Ticks = $fi.LastWriteTimeUtc.Ticks; $z.Len = $fi.Length     # FIX4B (C4) : etat revalide si l archive change
+    }
+    $script:LibDatZip[$ck] = $z
+    return $z
+}
+
+function Get-LibZipEntryState($z, $r) {
+    # Etat d une entree d archive : rang dans l archive (controle par la taille), sinon nom et taille
+    if (-not $z) { return @{ State = 'unk'; Err = (T 'archive illisible') } }
+    $i = -1
+    if ($null -ne $r.Idx -and $r.Idx -ge 0 -and $r.Idx -lt $z.Dir.Count -and $z.Dir[$r.Idx].Size -eq [long]$r.Size) { $i = [int]$r.Idx }
+    else { for ($j = 0; $j -lt $z.Dir.Count; $j++) { if ($z.Dir[$j].Name -ceq [string]$r.Entry -and $z.Dir[$j].Size -eq [long]$r.Size) { $i = $j; break } } }
+    if ($i -lt 0 -or -not $z.Entries[$i]) {
+        $s = Get-LibDatMatch $script:LibDat ([long]$r.Size) $r.Name @{}
+        if ($s.State -eq 'wait') { $s = @{ State = 'unk' } }
+        $s.Ticks = $z.Ticks; $s.Len = $z.Len
+        return $s
+    }
+    $e = $z.Entries[$i]
+    return @{ State = $e.State; Entry = $e.Entry; Hash = @{ Crc = $z.Dir[$i].Crc; Md5 = ''; Sha1 = '' }; Ticks = $z.Ticks; Len = $z.Len }
+}
+
+function Test-LibDatFresh($r, $s) {
+    # FIX4B (revue du lot 4, C4) : etat identifie par lecture du fichier (ou de son archive) encore valable si la taille et
+    # la date de modification n ont pas change. Etat sans date (decide par la taille seule, ou en erreur) : valable
+    if (-not $s -or $null -eq $s.Ticks) { return $true }
+    try {
+        $p = if ($r.Kind -eq 'zipentry') { [string]$r.ZipPath } else { [string]$r.Path }
+        $fi = New-Object System.IO.FileInfo($p)
+        return [bool]($fi.Exists -and $fi.Length -eq [long]$s.Len -and $fi.LastWriteTimeUtc.Ticks -eq [long]$s.Ticks)
+    } catch { return $false }
+}
+
+function Resolve-LibDatState($r) {
+    # Identification avec lecture : archive ZIP (repertoire central), entree d archive, fichier (empreinte gardee, sinon
+    # SHA-1 ou MD5 calcules ici). Etat garde par chemin et taille, avec la date lue (Ticks, Test-LibDatFresh) ;
+    # @{ State = 'wait'; Need = 'Crc' }, non garde : CRC-32 du fichier a calculer dans le travail differe (Step-LibDatWork)
+    $q = Get-LibDatQuick $r
+    $k = Get-LibIpfKey $r
+    # FIX4B (C4) : etat garde d un fichier modifie depuis (meme taille, autre date) : identification refaite ; « Originaux
+    # seulement » : liste refaite a la fin du travail differe (Step-LibWork)
+    if ($q -and $q.State -ne 'wait' -and -not (Test-LibDatFresh $r $q)) {
+        [void]$script:LibDatState.Remove($k); $q = Get-LibDatQuick $r; $script:LibOrigPending = $true
+    }
+    if (-not $q -or $q.State -ne 'wait') { return $q }
+    $dat = $script:LibDat
+    $s = $null
+    try {
+        if ($r.Kind -eq 'zip') {
+            $z = Get-LibZipDat $r.Path
+            $s = if ($z) { @{ State = $z.State; Zip = $z; Ticks = $z.Ticks; Len = $z.Len } } else { @{ State = 'unk'; Err = (T 'archive illisible') } }
+        } elseif ($r.Kind -eq 'zipentry') {
+            $s = Get-LibZipEntryState (Get-LibZipDat $r.ZipPath) $r
+        } else {
+            $fi = New-Object System.IO.FileInfo($r.Path)
+            if (-not $fi.Exists) { $s = @{ State = 'unk'; Err = (T 'fichier introuvable') } }
+            else {
+                $tk = $fi.LastWriteTimeUtc.Ticks
+                $h = Get-LibHashCached $r.Path $fi.Length $tk
+                $s = Get-LibDatMatch $dat $fi.Length $r.Name $h; $n = 0
+                while ($s.State -eq 'wait' -and $s.Need -ne 'Crc' -and $n -lt 3) {
+                    $fs = [System.IO.File]::Open($r.Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+                    try { $h[$s.Need] = Get-LibHashText $s.Need $fs } finally { $fs.Dispose() }
+                    Save-LibHash $r.Path $fi.Length $tk $h
+                    $s = Get-LibDatMatch $dat $fi.Length $r.Name $h; $n++
+                }
+                if ($s.State -eq 'wait') { return $s }
+                $s.Hash = $h; $s.Ticks = $tk; $s.Len = $fi.Length
+            }
+        }
+    } catch { $s = @{ State = 'unk'; Err = "$($_.Exception.Message)" } }
+    $script:LibDatState[$k] = $s
+    return $s
+}
+
+function Request-LibDatWork($r) {
+    # Element du panneau dont le CRC-32 reste a calculer : en tete du travail differe
+    $k = Get-LibIpfKey $r
+    $items = $script:LibWork.ToArray()
+    $script:LibWork.Clear()
+    $script:LibWork.Enqueue(@{ T = 'dat'; Rec = $r })
+    foreach ($w in $items) {
+        if ($w.T -eq 'dat' -and (Get-LibIpfKey $w.Rec) -eq $k) { continue }
+        $script:LibWork.Enqueue($w)
+    }
+    $script:LibWorkTotal = $script:LibWorkDone + $script:LibWork.Count
+}
+
+function Step-LibDatWork($w) {
+    # Identification de $w.Rec : etat deja connu, archive, empreinte gardee, ou SHA-1/MD5 ; sinon CRC-32 du fichier
+    # (32 Mo au plus), d un seul tenant, par la bibliotheque ZIP native de .NET (Get-LibFileCrc32, aucun calcul en
+    # PowerShell). L etat est toujours connu au retour : l appelant retire l element de la file
+    $r = $w.Rec
+    if (-not (Test-LibDatOn)) { return }
+    $k = Get-LibIpfKey $r
+    $s = Resolve-LibDatState $r
+    if (-not $s -or $s.State -ne 'wait') { Complete-LibDatItem $r; return }
+    try {
+        $fi = New-Object System.IO.FileInfo($r.Path)
+        if ($fi.Length -gt 32MB) { throw (T 'fichier trop gros pour le calcul du CRC-32') }
+        $tk = $fi.LastWriteTimeUtc.Ticks
+        $h = Get-LibHashCached $r.Path $fi.Length $tk
+        $h.Crc = Get-LibFileCrc32 $r.Path
+        Save-LibHash $r.Path $fi.Length $tk $h
+        $s = Get-LibDatMatch $script:LibDat $fi.Length $r.Name $h
+        # FIX4B (C7) : CRC-32 egal a celui d une entree qui fournit aussi un SHA-1 ou un MD5 : cette empreinte est calculee
+        # tout de suite (Resolve-LibDatState repart du CRC-32 garde) ; le CRC-32 seul ne suffit pas
+        if ($s.State -eq 'wait' -and $s.Need -ne 'Crc') {
+            $s2 = Resolve-LibDatState $r
+            if ($s2 -and $s2.State -ne 'wait') { Complete-LibDatItem $r; return }
+        }
+        if ($s.State -eq 'wait') { $s = @{ State = 'unk' } }
+        $s.Hash = $h; $s.Ticks = $tk; $s.Len = $fi.Length
+    } catch { $s = @{ State = 'unk'; Err = "$($_.Exception.Message)" } }
+    $script:LibDatState[$k] = $s
+    Complete-LibDatItem $r
+}
+
+function Complete-LibDatItem($r) {
+    # Etat connu : ligne de la liste et panneau de details mis a jour sur place
+    Update-LibRowState $r
+    Update-LibDatDetails $r
+}
+
+function Update-LibDatDetails($r) {
+    # Fichier affiche dans le panneau identifie apres l affichage : ses lignes « Liste de reference » remplacees sur place
+    $c = $script:LibCur
+    if (-not $c -or $c.Kind -ne 'image' -or -not $script:LibDatLine -or (Get-LibIpfKey $c) -ne (Get-LibIpfKey $r)) { return }
+    $new = @(Get-LibDatLines $c) -join "`r`n"
+    $old = $script:LibDatLine
+    if (-not $new -or $new -eq $old) { return }
+    $script:LibInfoBase = $script:LibInfoBase.Replace($old, $new)
+    $txtLibInfo.Text = $txtLibInfo.Text.Replace($old, $new)
+    $script:LibDatLine = $new
+}
+
+function Get-LibDatLines($r) {
+    # Lignes « Liste de reference » du panneau : etat et entree correspondante de la liste ; archive ZIP : nombre d images
+    # officielles ; empreinte calculee ou lue dans l archive
+    if (-not (Test-LibDatOn) -or -not (Test-LibDatEligible $r)) { return @() }
+    $n = $script:LibDat.Name
+    $s = Get-LibDatQuick $r
+    $L = @()
+    if ($s.Err) { $L += ((T 'Liste de référence ({0}) : non identifié ({1})') -f $n, $s.Err) }
+    elseif ($s.Zip) { $L += ((T 'Liste de référence ({0}) : {1}, {2} image(s) officielle(s) sur {3}') -f $n, (Get-LibDatWord $s.State), $s.Zip.OkCount, $s.Zip.Total) }
+    else {
+        switch ($s.State) {
+            'ok'    { $L += ((T 'Liste de référence ({0}) : officiel, {1}') -f $n, (Format-LibDatEntry $s.Entry)) }
+            'mod'   { $L += ((T 'Liste de référence ({0}) : modifié, même nom que {1}, contenu différent') -f $n, (Format-LibDatEntry $s.Entry)) }
+            'unk'   { $L += ((T 'Liste de référence ({0}) : inconnu, absent de la liste') -f $n) }
+            default { $L += ((T 'Liste de référence ({0}) : identification en cours…') -f $n) }
+        }
+    }
+    if ($s.Hash) {
+        if ($s.Hash.Sha1) { $L += ((T 'Empreinte {0} : {1}') -f 'SHA-1', $s.Hash.Sha1) }
+        elseif ($s.Hash.Md5) { $L += ((T 'Empreinte {0} : {1}') -f 'MD5', $s.Hash.Md5) }
+        elseif ($s.Hash.Crc) { $L += ((T 'Empreinte {0} : {1}') -f 'CRC-32', $s.Hash.Crc) }
+    }
+    return $L
+}
+# ============================== FONCTIONS : BIBLIOTHEQUE, ANALYSE (12.8, LOT 4A) ==
+# Analyse sans interface des fichiers de la Bibliotheque (A3 § 3 et § 4.2, D18) : noms TOSEC et No-Intro avec replis,
+# bloc INFO des IPF (108 premiers octets, CRC-32 IEEE par la bibliotheque ZIP de .NET, A5 § 3.3), blocs de demarrage
+# et racine des ADF, disquettes manquantes d un jeu, regle des mots de la recherche. Aucune liste embarquee, aucun
+# telechargement : « IPF de structure SPS » se lit dans le fichier, « officiel » est reserve a une correspondance avec une
+# DAT locale (lot 4b).
+
+function Initialize-LibRx {
+    # Expressions du decoupage des noms, creees une fois (sensibles a la casse sauf (?i))
+    $script:LibRx = @{
+        Tok       = [regex]'\(([^()]*)\)|\[([^\[\]]*)\]'
+        NonAlnum  = [regex]'[^\p{L}\p{N}]+'
+        Ver       = [regex]'(?i)\s+(v\d[\w.\-]*(?:\s+rev\s+[\w.\-]+)?|rev\s+[\w.\-]+|r\d+[a-z]?)$'
+        Disk      = [regex]'(?i)^(?:dis[kc]|disque|disquette|side|face)\s*([0-9]{1,3}|[a-z])(?:\s*(?:of|sur|/)\s*(?:([0-9]{1,3})|[a-z?]))?(?:\s+side\s+([ab]))?$'
+        DiskFb    = [regex]'(?i)(?:^|[\s_\-.,]+)(?:amiga)?(?:diskette|dis[kc]o?|disque|disquette)\s*[-_#]?\s*([0-9]{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|viii|vii|vi|iv|ix|iii|ii|i|v|x|[a-h])(?:\s*(?:of|sur|de|von)\s*([0-9]{1,2}))?(?=$|[\s_\-.,])'
+        DiskCamel = [regex]'(?<=[a-z0-9])(?:Amiga)?(?:Diskette|Dis[kc]o?)([0-9]{1,2}|One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|VIII|VII|VI|IV|IX|III|II|I|V|X|[A-H])(?:(?:of|von)([0-9]{1,2}))?$'
+        DiskU     = [regex]'[_\-\s]+([0-9]{1,2})$'
+        DiskWord  = @{ one = '1'; two = '2'; three = '3'; four = '4'; five = '5'; six = '6'; seven = '7'; eight = '8'; nine = '9'; ten = '10'
+                      i = '1'; ii = '2'; iii = '3'; iv = '4'; v = '5'; vi = '6'; vii = '7'; viii = '8'; ix = '9'; x = '10' }
+        DiskD     = [regex]'(?i)(?:^|[\s_\-.]+)d([0-9]{1,2})$'
+        Date      = [regex]'^(1[89]|20)[0-9x]{2}(-[0-9x]{2}){0,2}$'
+        LangT     = [regex]'^[a-z]{2}(-[a-z]{2})*$'
+        LangM     = [regex]'^M\d{1,2}$'
+        LangN     = [regex]'^[A-Z][a-z](,\s?[A-Z][a-z])*$'
+        Country   = [regex]'^[A-Z]{2}(-[A-Z]{2})*$'
+        Region    = [regex]'^(World|Europe|USA|Japan|Germany|France|Italy|Spain|UK|Australia|Asia|Korea|Brazil|Canada|Netherlands|Sweden|Scandinavia|Russia|China)(,\s*(World|Europe|USA|Japan|Germany|France|Italy|Spain|UK|Australia|Asia|Korea|Brazil|Canada|Netherlands|Sweden|Scandinavia|Russia|China))*$'
+        VerTok    = [regex]'(?i)^(v\d[\w.\-]*|rev\s*[\w.\-]+)$'
+        Copy      = [regex]'^(CW|CW-R|FW|GW|GW-R|LW|PD|SW|SW-R)$'
+        Flag      = [regex]'^(cr|tr|f|h|m|p|t|o|u|v|b|a)(\d*)(?:\s+(.*))?$'
+        SpsNo     = [regex]'^\d{4}$'
+        Article   = [regex]'(?i)^(.*?),\s*(the|a|an|le|la|les|l''|der|die|das|el|il)$'
+        Trim      = [regex]'[\s\-_,.]+$'
+        # FIX4B (revue du lot 4, C2) : crochets d information gardes dans la cle de jeu (machine, densite, video : communs a
+        # tout le jeu) ; les autres ([bootable], [WB], [docs], [KS2.0]...) sont propres a une disquette
+        SetTag    = [regex]'(?i)^(AGA|ECS|OCS|HD|CD32|CDTV|NTSC|PAL)$'
+    }
+    # Langue par defaut d un pays (TOSEC : la langue n est indiquee que si elle differe de celle du pays) ou d une region
+    $script:LibCountryLang = @{
+        AU = 'en'; BR = 'pt'; CA = 'en'; CN = 'zh'; DE = 'de'; DK = 'da'; ES = 'es'; FI = 'fi'; FR = 'fr'; GB = 'en'; GR = 'el'
+        IT = 'it'; JP = 'ja'; KR = 'ko'; NL = 'nl'; NO = 'no'; PL = 'pl'; PT = 'pt'; RU = 'ru'; SE = 'sv'; US = 'en'
+        USA = 'en'; UK = 'en'; Australia = 'en'; Germany = 'de'; France = 'fr'; Italy = 'it'; Spain = 'es'; Japan = 'ja'
+        Netherlands = 'nl'; Sweden = 'sv'; Brazil = 'pt'; Korea = 'ko'; China = 'zh'; Russia = 'ru'; Canada = 'en'
+    }
+    return $script:LibRx
+}
+
+function Get-LibCompact([string]$s) {
+    # Forme compacte d un texte, pour comparer titres et mots : minuscules, sans accents, sans ponctuation ni espaces
+    if (-not $s) { return '' }
+    $rx = $script:LibRx; if (-not $rx) { $rx = Initialize-LibRx }
+    return $rx.NonAlnum.Replace($s.Normalize([System.Text.NormalizationForm]::FormD), '').ToLowerInvariant()
+}
+
+function Read-LibNameParts([string]$s, $rx) {
+    # Decoupe TOSEC / No-Intro : titre (texte avant la premiere parenthese ou le premier crochet ; crochets de tete, comme
+    # [BIOS] ou un numero de publication, ecartes), jetons dans l ordre (p : parentheses, b : crochets), texte restant
+    $lead = $null; $rest = ''; $pos = 0
+    $toks = [System.Collections.Generic.List[object]]::new()
+    foreach ($m in $rx.Tok.Matches($s)) {
+        $between = $s.Substring($pos, $m.Index - $pos)
+        if ($null -eq $lead) {
+            if ($between.Trim().Length -eq 0 -and $m.Groups[2].Success) {
+                $toks.Add(@('b', $m.Groups[2].Value.Trim())); $pos = $m.Index + $m.Length; continue
+            }
+            $lead = $between
+        } elseif ($between.Trim()) { $rest = ($rest + ' ' + $between.Trim()).Trim() }
+        if ($m.Groups[1].Success) { $toks.Add(@('p', $m.Groups[1].Value.Trim())) } else { $toks.Add(@('b', $m.Groups[2].Value.Trim())) }
+        $pos = $m.Index + $m.Length
+    }
+    $tail = $s.Substring($pos)
+    if ($null -eq $lead) { $lead = $tail; $tail = '' }
+    elseif ($tail.Trim()) { $rest = ($rest + ' ' + $tail.Trim()).Trim() }
+    return @{ Lead = $lead.Trim(); Toks = $toks; Rest = $rest }
+}
+
+function Find-LibDiskInLead([string]$lead, $rx) {
+    # Repli hors convention : numero de disquette en fin de nom (« Jeu - Disk1 », « jeu_d2 », « WizNLiz_Disk1 »,
+    # « Jinks_Disk1of2 », « ChampionshipManager93_AmigaDisk1 »). Renvoie le titre sans la disquette, le numero et le total
+    foreach ($r in @($rx.DiskFb, $rx.DiskCamel, $rx.DiskD)) {
+        $m = $r.Match($lead)
+        if (-not $m.Success) { continue }
+        $tot = 0; if ($m.Groups.Count -gt 2 -and $m.Groups[2].Success) { $tot = [int]$m.Groups[2].Value }
+        $dk = $m.Groups[1].Value; $w = $rx.DiskWord[$dk.ToLowerInvariant()]
+        if ($w) { $dk = $w }
+        return @{ Title = $lead.Substring(0, $m.Index); Disk = $dk; Tot = $tot }
+    }
+    return $null
+}
+
+function Get-LibNameInfo([string]$name, [string]$dirName = '') {
+    # Analyse d un nom de fichier de la Bibliotheque (TOSEC v4, No-Intro, replis hors convention) :
+    #  Title (titre court), Key (cle du groupe : titre compact, article final remis en tete), Version, Date, Publisher,
+    #  DiskNo / DiskTot / Disk (disquette n sur N, lettre A = 1), DiskLetter, Label (label de media TOSEC), Langs (« en-fr »,
+    #  « M3 » ; langue du pays a defaut), LangList, Country, Flags (codes TOSEC : cr, t, !...), FlagText, State (bad : [b] [o]
+    #  [u] [v] ; mod : [cr] [f] [h] [m] [p] [t] [tr] ; ok : [!]), Variant (date, editeur, pays, statut, autres mentions),
+    #  Sps (numero de publication entre crochets d un dossier SPS), Source (file, ou dir : IPF SPS au nom sans parentheses,
+    #  dont le dossier de publication porte le nom TOSEC), Prefix (debut du nom, pour retrouver les autres disquettes),
+    #  SetKey (jeu de disquettes : meme nom sans la disquette, ni les mentions [cr] [a]..., ni les crochets d information
+    #  propres a une disquette comme [bootable] ou [WB] ; SetVariant : la variante ainsi reduite), Base (nom sans extension),
+    #  Modified (mention de copie modifiee), SortKey (titre compact, ordre des groupes)
+    $rx = $script:LibRx; if (-not $rx) { $rx = Initialize-LibRx }
+    $base = $name; $ext = ''
+    $i = $name.LastIndexOf('.')
+    if ($i -gt 0 -and $name.Length - $i -le 6) {
+        $e = $name.Substring($i)
+        if ($e -match '^\.[A-Za-z0-9]{1,5}$' -and $e -notmatch '^\.\d+$') { $ext = $e.ToLowerInvariant(); $base = $name.Substring(0, $i) }
+    }
+    $fp = Read-LibNameParts $base $rx
+    $parts = $fp; $src = 'file'; $fbDisk = $null
+    if ($fp.Toks.Count -eq 0) { $fbDisk = Find-LibDiskInLead $fp.Lead $rx }
+    # IPF des publications SPS : « WizNLiz_Disk1.ipf » dans « Wiz 'n' Liz (1993)(Psygnosis)[0749] » ; le dossier n est pris
+    # que si son titre est celui du fichier (formes compactes egales, ou l une debut de l autre sur 4 caracteres au moins,
+    # ou titre du fichier de 8 caracteres au moins contenu dans celui du dossier ; & lu « and ») ; numero final « _1 » admis
+    if ($dirName -and $fp.Toks.Count -eq 0 -and $dirName.IndexOf('(') -ge 0) {
+        $dp = Read-LibNameParts $dirName $rx
+        if ($dp.Toks.Count -gt 0 -and $dp.Lead) {
+            $ft = if ($fbDisk) { $fbDisk.Title } else { $fp.Lead }
+            $dt = $dp.Lead; $mv = $rx.Ver.Match($dt); if ($mv.Success) { $dt = $dt.Substring(0, $mv.Index) }
+            $b = Get-LibCompact ($dt -replace '&', 'and')
+            $cand = @(@{ T = $ft; D = $fbDisk })
+            if (-not $fbDisk) { $mu = $rx.DiskU.Match($fp.Lead); if ($mu.Success) { $cand += @{ T = $fp.Lead.Substring(0, $mu.Index); D = @{ Title = $fp.Lead.Substring(0, $mu.Index); Disk = $mu.Groups[1].Value; Tot = 0 } } } }
+            foreach ($c in $cand) {
+                $a = Get-LibCompact ($c.T -replace '&', 'and')
+                if ($a.Length -lt 2 -or $b.Length -lt 2) { continue }
+                $short = [math]::Min($a.Length, $b.Length)
+                if ($a -eq $b -or ($short -ge 4 -and ($a.StartsWith($b) -or $b.StartsWith($a))) -or ($a.Length -ge 8 -and $b.Contains($a))) {
+                    $parts = $dp; $src = 'dir'; $fbDisk = $c.D; break
+                }
+            }
+        }
+    }
+    $lead = $parts.Lead
+    $ver = ''
+    $mv = $rx.Ver.Match($lead); if ($mv.Success) { $ver = $mv.Groups[1].Value; $lead = $lead.Substring(0, $mv.Index) }
+    $diskNo = 0; $diskTot = 0; $disk = ''; $letter = $false; $label = ''
+    $date = ''; $pub = ''; $multi = ''; $country = ''; $sps = ''
+    $langs = [System.Collections.Generic.List[string]]::new()
+    $flags = [System.Collections.Generic.List[string]]::new()
+    $flagText = [System.Collections.Generic.List[string]]::new()
+    $var = [System.Collections.Generic.List[string]]::new()
+    $afterDate = $false; $afterDisk = $false
+    foreach ($t in $parts.Toks) {
+        $k = $t[0]; $x = $t[1]
+        if ($k -eq 'b') {
+            $afterDate = $false; $afterDisk = $false
+            if ($x -eq '!') { $flags.Add('!'); $flagText.Add('[!]'); continue }
+            $mf = $rx.Flag.Match($x)
+            if ($mf.Success) { $flags.Add($mf.Groups[1].Value); $flagText.Add("[$x]"); continue }
+            if ($rx.SpsNo.IsMatch($x)) { $sps = $x; continue }
+            $var.Add("[$x]"); continue
+        }
+        if ($afterDate) { $pub = $x; $afterDate = $false; $var.Add("($x)"); continue }
+        if (-not $disk) {
+            $md = $rx.Disk.Match($x)
+            if ($md.Success) {
+                $disk = $md.Groups[1].Value.ToUpperInvariant()
+                if ($md.Groups[2].Success) { $diskTot = [int]$md.Groups[2].Value }
+                if ($md.Groups[3].Success) { $disk = $disk + $md.Groups[3].Value.ToUpperInvariant() }
+                $afterDisk = $true; continue
+            }
+        }
+        $wasDisk = $afterDisk; $afterDisk = $false
+        if (-not $date -and $rx.Date.IsMatch($x)) { $date = $x; $afterDate = $true; $var.Add("($x)"); continue }
+        if ($rx.LangT.IsMatch($x)) { foreach ($l in $x.Split('-')) { $langs.Add($l) }; continue }
+        if ($rx.LangM.IsMatch($x)) { $multi = $x; continue }
+        if ($rx.LangN.IsMatch($x)) { foreach ($l in ($x -split ',\s?')) { $langs.Add($l.ToLowerInvariant()) }; continue }
+        if ($rx.Copy.IsMatch($x)) { $var.Add("($x)"); continue }
+        if ($rx.Country.IsMatch($x) -or $rx.Region.IsMatch($x)) { $country = $x; $var.Add("($x)"); continue }
+        if ($rx.VerTok.IsMatch($x)) { if (-not $ver) { $ver = $x }; continue }
+        # Label de media TOSEC : la parenthese qui suit la disquette (« (Disk 1 of 4)(Workbench) »), propre a chaque disquette
+        if ($wasDisk) { $label = $x; continue }
+        $var.Add("($x)")
+    }
+    # Disquette hors convention : dans le nom du fichier (meme quand le reste vient du dossier de publication)
+    if (-not $disk -and $fbDisk) {
+        $disk = $fbDisk.Disk.ToUpperInvariant(); $diskTot = $fbDisk.Tot
+        if ($src -eq 'file') { $lead = $fbDisk.Title }
+    }
+    if ($disk) {
+        if ($disk -match '^(\d+)') { $diskNo = [int]$Matches[1] }
+        elseif ($disk -match '^[A-Z]') { $diskNo = [int][char]$disk[0] - 64; $letter = $true }
+    }
+    $title = $rx.Trim.Replace($lead, '').Trim()
+    if (-not $title) { $title = $base }
+    $kt = $title; $ma = $rx.Article.Match($kt)
+    if ($ma.Success) { $kt = $ma.Groups[2].Value + ' ' + $ma.Groups[1].Value }
+    $key = Get-LibCompact $kt
+    if (-not $key) { $key = $base.ToLowerInvariant() }
+    # Langues : indiquees, sinon celle du pays ou de la region (« (DE) » : de) ; « M3 » : trois langues, non detaillees
+    $derived = $false
+    if ($langs.Count -eq 0 -and -not $multi -and $country) {
+        foreach ($c in ($country -split '[-,]\s*')) { $l = $script:LibCountryLang[$c]; if ($l -and -not $langs.Contains($l)) { $langs.Add($l); $derived = $true } }
+    }
+    $langText = if ($langs.Count -gt 0) { $langs -join '-' } else { $multi }
+    $state = ''; $modified = $false
+    foreach ($f in $flags) {
+        if ($f -eq 'b' -or $f -eq 'o' -or $f -eq 'u' -or $f -eq 'v') { $state = 'bad' }
+        elseif ($f -eq 'cr' -or $f -eq 'f' -or $f -eq 'h' -or $f -eq 'm' -or $f -eq 'p' -or $f -eq 't' -or $f -eq 'tr') { $modified = $true }
+    }
+    if (-not $state -and $modified) { $state = 'mod' }
+    if (-not $state -and $flags.Contains('!')) { $state = 'ok' }
+    $varText = $var -join ''
+    # FIX4B (C2) : variante du jeu, sans les crochets d information propres a une disquette ([bootable], [WB]...) : cle de
+    # jeu et ordre des lignes (sinon « (Disk 1 of 2)[WB] » et « (Disk 2 of 2) » formaient deux jeux incomplets)
+    $setVar = $varText
+    if ($varText.IndexOf('[') -ge 0) {
+        $sv = [System.Collections.Generic.List[string]]::new()
+        foreach ($v in $var) { if (-not $v.StartsWith('[') -or $rx.SetTag.IsMatch($v.Substring(1, $v.Length - 2))) { $sv.Add($v) } }
+        $setVar = $sv -join ''
+    }
+    # Debut du nom de fichier, pour retrouver les autres disquettes du jeu dans le dossier (motif « prefixe* »)
+    $prefix = if ($src -eq 'dir') { '' } elseif ($fp.Toks.Count -eq 0 -and $fbDisk) { $rx.Trim.Replace($fbDisk.Title, '') } else { $rx.Trim.Replace($fp.Lead, '') }
+    $setKey = "$key|$($ver.ToLowerInvariant())|$($setVar.ToLowerInvariant())|$langText|$ext"
+    return @{
+        Title = $title; Key = $key; Version = $ver; Date = $date; Publisher = $pub; Disk = $disk; DiskNo = $diskNo; DiskTot = $diskTot
+        DiskLetter = $letter; Label = $label; Langs = $langText; LangList = @($langs); LangDerived = $derived; Multi = $multi; Country = $country
+        Flags = @($flags); FlagText = ($flagText -join ' '); State = $state; Modified = $modified; Variant = $varText; SetVariant = $setVar; Sps = $sps; Source = $src
+        Prefix = $prefix; SetKey = $setKey; Base = $base; Ext = $ext; Rest = $parts.Rest; SortKey = (Get-LibCompact $title)
+    }
+}
+
+function Get-LibDiskText($info) {
+    # Disquette pour la colonne « Disq. » : « 2/4 », « 2 », « B »
+    if (-not $info.Disk) { return '' }
+    if ($info.DiskTot -gt 0) { return "$($info.Disk)/$($info.DiskTot)" }
+    return $info.Disk
+}
+
+function Get-LibMissingDisks($sets) {
+    # Disquettes absentes de jeux a plusieurs disquettes. $sets : SetKey -> liste de @{ DiskNo ; DiskTot ; Letter }.
+    # Total annonce (« Disk x of y ») : numeros absents de 1 a y ; sans total : trous entre 1 et le plus grand numero present.
+    # Renvoie SetKey -> @{ Missing (numeros) ; Total ; Known (total annonce) ; Letter }
+    $out = @{}
+    foreach ($k in @($sets.Keys)) {
+        $have = @{}; $tot = 0; $max = 0; $letter = $false
+        foreach ($d in $sets[$k]) {
+            $n = [int]$d.DiskNo; if ($n -le 0) { continue }
+            $have[$n] = $true; if ($n -gt $max) { $max = $n }
+            if ([int]$d.DiskTot -gt $tot) { $tot = [int]$d.DiskTot }
+            if ($d.Letter) { $letter = $true }
+        }
+        if ($max -eq 0) { continue }
+        $known = ($tot -gt 0); $n2 = if ($known) { $tot } else { $max }
+        if ($n2 -lt 2 -or $n2 -gt 99) { continue }
+        $miss = @(for ($j = 1; $j -le $n2; $j++) { if (-not $have.ContainsKey($j)) { $j } })
+        if ($miss.Count -gt 0) { $out[$k] = @{ Missing = $miss; Total = $n2; Known = $known; Letter = $letter } }
+    }
+    return $out
+}
+
+function Format-LibDiskList($m) {
+    # « 3, 7 » ; disquettes en lettres : « C, G »
+    return (@($m.Missing | ForEach-Object { if ($m.Letter) { [string][char](64 + $_) } else { "$_" } }) -join ', ')
+}
+
+function Get-LibWordRx([string]$word, [bool]$inDirs) {
+    # Expression d un mot de la recherche : ses lettres et chiffres dans l ordre, sans casse, separes au plus par des
+    # caracteres qui ne sont ni lettres ni chiffres ; sans $inDirs, dans le nom du fichier seulement (aucune barre oblique
+    # inverse apres le mot). Mot sans lettre ni chiffre : $null.
+    # FIX4C (relecture finale du lot 4) : elle filtre le sur-ensemble de l index (FastIndex.Search, et Start-LibSearch en
+    # repli : mot tel qu il est saisi, sous-chaine du chemin, casse ignoree). La ponctuation omise n est donc pas toleree
+    # dans les faits : « kings » ne trouve pas « King's », « king's » ne trouve pas « KingsQuest » ; « king quest » trouve
+    # les deux. Recherche sans ponctuation : FastIndex a modifier (12.9, avec une validation de securite, D19)
+    # FIX4B (revue du lot 4, C5) : la forme compacte n a plus d accents ; le mot tel qu il est saisi est donc aussi accepte
+    # (« Opération » trouve « Opération Stealth », comme en 12.7 : l index cherche le mot brut)
+    $c = Get-LibCompact $word
+    if (-not $c) { return $null }
+    $sep = if ($inDirs) { '[^\p{L}\p{N}]*' } else { '[^\p{L}\p{N}\\]*' }
+    $p = (@($c.ToCharArray() | ForEach-Object { [regex]::Escape([string]$_) }) -join $sep)
+    $raw = $word.Trim()
+    if ($raw -and $raw.ToLowerInvariant() -cne $c) { $p = '(?:' + $p + '|' + [regex]::Escape($raw) + ')' }
+    if (-not $inDirs) { $p += '[^\\]*$' }
+    return ('(?i)' + $p)
+}
+
+function Select-LibMatches([string[]]$rels, [string]$filter, [bool]$inDirs) {
+    # 12.8 (A3 § 4.2 n° 8) : chemins relatifs dont le NOM de fichier contient chaque mot (le chemin complet avec $inDirs,
+    # comme la 12.7), en ignorant la casse (ponctuation : voir Get-LibWordRx, FIX4C). Filtrage vectorise (operateur
+    # -match sur le tableau : 50 000 chemins en moins de 0,1 s sous pwsh 7), ordre garde. $rels : sur-ensemble de l index
+    # Affectation directe : un tableau d un seul element ne doit pas devenir une chaine (-match rendrait un booleen)
+    [string[]]$cur = @(); if ($null -ne $rels) { $cur = [string[]]$rels }
+    foreach ($w in @($filter.Split([char[]]@(' '), [System.StringSplitOptions]::RemoveEmptyEntries))) {
+        $rx = Get-LibWordRx $w $inDirs
+        if ($rx -and $cur.Count -gt 0) { $cur = [string[]]@($cur -match $rx) }
+    }
+    return ,$cur
+}
+
+function Get-Crc32([byte[]]$Data, [int]$Offset = 0, [int]$Count = -1, [System.IO.Stream]$Stream = $null) {
+    # CRC-32 IEEE (celui de zlib, des archives ZIP et des enregistrements IPF, A5 § 3.3) calcule par la bibliotheque ZIP
+    # native de .NET, sans aucun calcul en PowerShell (alertes EDR du 20/10/2026, decisions128) : les $Count octets de
+    # $Data a partir de $Offset (ou le flux $Stream, lu jusqu a sa fin) vont dans l entree unique d une archive ZIP en
+    # memoire, sans compression ; l archive fermee, le CRC est lu dans l en-tete du repertoire central (fin d archive
+    # 0x06054B50 dans les 22 derniers octets, l archive n a pas de commentaire ; en-tete central 0x02014B50, CRC au
+    # decalage 16, petit-boutiste). Tableau vide : 0. Nom de type qualifie par l assembly : System.IO.Compression n est
+    # pas charge par l amorce (seulement System.IO.Compression.FileSystem) ; ce nom le charge depuis le GAC, sans Add-Type
+    if ($Count -lt 0) { $Count = $(if ($null -ne $Data) { $Data.Length - $Offset } else { 0 }) }
+    $cap = $(if ($Stream -and $Stream.CanSeek) { [int][math]::Min([long]$Stream.Length + 4096, [int]::MaxValue) } else { $Count + 4096 })
+    $ms = New-Object System.IO.MemoryStream($cap)
+    try {
+        $za = [System.IO.Compression.ZipArchive, System.IO.Compression, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]::new($ms, 'Create', $true)
+        try {
+            $es = $za.CreateEntry('crc32', 'NoCompression').Open()
+            try {
+                if ($Stream) { $Stream.CopyTo($es, 65536) } elseif ($Count -gt 0) { $es.Write($Data, $Offset, $Count) }
+            } finally { $es.Dispose() }
+        } finally { $za.Dispose() }
+        $b = $ms.GetBuffer(); $e = [int]$ms.Length - 22
+        if ($e -lt 0 -or [BitConverter]::ToUInt32($b, $e) -ne 0x06054B50) { throw (T 'calcul du CRC-32 impossible') }
+        $cd = [long][BitConverter]::ToUInt32($b, $e + 16)
+        if ($cd + 46 -gt $e -or [BitConverter]::ToUInt32($b, [int]$cd) -ne 0x02014B50) { throw (T 'calcul du CRC-32 impossible') }
+        return [long][BitConverter]::ToUInt32($b, [int]$cd + 16)
+    } finally { $ms.Dispose() }
+}
+
+function Get-IpfInfoBlock([byte[]]$h) {
+    # Enregistrements CAPS (12 octets) et INFO (96 octets) en tete d un IPF (A3 § 3.1, A5 § 3.2), valeurs big-endian.
+    # Kind : sps (structure de publication SPS : CAPS puis INFO, CRC valides, encodeur 1 CAPS ou 2 SPS, fileKey different de
+    # la marque de disk-analyse ; creatorId non teste, il vaut 0 dans les publications SPS, decisions128) ; user (IPF
+    # utilisateur de disk-analyse, fileKey 0x843265BB) ; crc (CRC de CAPS ou d INFO faux) ; other (encodeur inconnu) ;
+    # none (bloc INFO absent ou illisible). Le bloc INFO n est qu un indice d origine : « officiel » demande une DAT (D18)
+    $r = @{ Kind = 'none'; CrcOk = $false; MediaType = 0; Encoder = 0; EncRev = 0; FileKey = 0; FileRev = 0; Origin = 0; MinTrack = 0; MaxTrack = 0
+            MinSide = 0; MaxSide = 0; Date = 0; Time = 0; Platforms = @(); DiskNumber = 0; CreatorId = 0 }
+    if (-not $h -or $h.Length -lt 108) { return $r }
+    $asc = [System.Text.Encoding]::ASCII
+    if ($asc.GetString($h, 0, 4) -ne 'CAPS' -or (Get-BE32 $h 4) -ne 12 -or $asc.GetString($h, 12, 4) -ne 'INFO' -or (Get-BE32 $h 16) -ne 96) { return $r }
+    $r.MediaType = Get-BE32 $h 24; $r.Encoder = Get-BE32 $h 28; $r.EncRev = Get-BE32 $h 32; $r.FileKey = Get-BE32 $h 36
+    $r.FileRev = Get-BE32 $h 40; $r.Origin = Get-BE32 $h 44; $r.MinTrack = Get-BE32 $h 48; $r.MaxTrack = Get-BE32 $h 52
+    $r.MinSide = Get-BE32 $h 56; $r.MaxSide = Get-BE32 $h 60; $r.Date = Get-BE32 $h 64; $r.Time = Get-BE32 $h 68
+    $r.Platforms = @(foreach ($o in 72, 76, 80, 84) { $p = Get-BE32 $h $o; if ($p -ne 0) { $p } })
+    $r.DiskNumber = Get-BE32 $h 88; $r.CreatorId = Get-BE32 $h 92
+    # CRC de chaque enregistrement complet, champ CRC (octets 8 a 11 de l enregistrement) mis a zero
+    $ok = $true
+    foreach ($rec in @(@(0, 12), @(12, 96))) {
+        $b = [byte[]]::new($rec[1])
+        [Array]::Copy($h, $rec[0], $b, 0, $rec[1])
+        $stored = Get-BE32 $b 8
+        $b[8] = 0; $b[9] = 0; $b[10] = 0; $b[11] = 0
+        if ((Get-Crc32 $b 0 $rec[1]) -ne $stored) { $ok = $false }
+    }
+    $r.CrcOk = $ok
+    if (-not $ok) { $r.Kind = 'crc' }
+    elseif ($r.FileKey -eq 0x843265BBL) { $r.Kind = 'user' }
+    elseif ($r.Encoder -eq 1 -or $r.Encoder -eq 2) { $r.Kind = 'sps' }
+    else { $r.Kind = 'other' }
+    return $r
+}
+
+function Get-AdfInfo([byte[]]$boot, [byte[]]$root, [long]$size) {
+    # ADF (A3 § 4.2 n° 4, A5 § 2) : bloc de demarrage (« DOS » et octet de type : bit 0 FFS, bit 1 INTL, bit 2 DIRCACHE ;
+    # somme avec report sur 256 mots longs = 0xFFFFFFFF : amorcable) ; bloc racine 880 (DD, 81 a 83 cylindres compris) ou
+    # 1760 (HD) : type 2 en 0, sous-type 1 en 508, somme nulle sur 128 mots longs ; nom du volume : longueur en 432, 30
+    # caracteres au plus a partir de 433 (ISO-8859-1)
+    $r = @{ Dos = $false; Fs = ''; Flags = -1; Intl = $false; DirCache = $false; Bootable = $false; BootRead = $false; RootOk = $false; Volume = ''; Hd = $false; RootBlock = 880 }
+    $r.Hd = ($size -gt 0 -and $size % 22528 -eq 0 -and $size / 11264 -gt 84)
+    if ($r.Hd) { $r.RootBlock = 1760 }
+    if ($boot -and $boot.Length -ge 1024) {
+        $r.BootRead = $true
+        if ($boot[0] -eq 0x44 -and $boot[1] -eq 0x4F -and $boot[2] -eq 0x53 -and $boot[3] -le 7) {
+            $r.Dos = $true; $f = [int]$boot[3]; $r.Flags = $f
+            $r.Fs = if ($f -band 1) { 'FFS' } else { 'OFS' }
+            $r.Intl = [bool]($f -band 2); $r.DirCache = [bool]($f -band 4)
+            [long]$s = 0
+            for ($o = 0; $o -lt 1024; $o += 4) {
+                $s += Get-BE32 $boot $o
+                if ($s -gt 0xFFFFFFFFL) { $s = ($s -band 0xFFFFFFFFL) + 1 }
+            }
+            $r.Bootable = ($s -eq 0xFFFFFFFFL)
+        }
+    }
+    if ($root -and $root.Length -ge 512) {
+        [long]$s = 0
+        for ($o = 0; $o -lt 512; $o += 4) { $s = ($s + (Get-BE32 $root $o)) -band 0xFFFFFFFFL }
+        if ((Get-BE32 $root 0) -eq 2 -and (Get-BE32 $root 508) -eq 1 -and $s -eq 0) {
+            $r.RootOk = $true
+            $n = [int]$root[432]; if ($n -gt 30) { $n = 30 }
+            if ($n -gt 0) { $r.Volume = [System.Text.Encoding]::GetEncoding(28591).GetString($root, 433, $n) }
+        }
+    }
+    return $r
+}
+# ============================== FONCTIONS : BIBLIOTHEQUE, LISTE DE REFERENCE ====
+# 12.8 (lot 4b, D19 ; A3 § 3.4 B) : liste de reference (DAT) choisie par l utilisateur sur son ordinateur. Aucune liste
+# n est fournie, embarquee ni telechargee par l application. Formats : Logiqx XML (TOSEC, No-Intro), lu par XmlReader
+# sans DTD ni resolution externe, et clrmamepro (texte). Identification d un fichier : index par taille et empreinte
+# (SHA-1 ou MD5 par la cryptographie .NET, sinon CRC-32 par la bibliotheque ZIP de .NET, Get-Crc32) ; etats sur le
+# modele de RomVault : officiel (identique a une entree de la liste), modifie (meme nom qu une entree, contenu different),
+# inconnu. Archive ZIP : CRC-32 et taille de chaque entree lus dans le repertoire central, sans decompression ni calcul ;
+# image extraite pour l ecriture controlee contre ce CRC-32 (Test-LibZipEntryData, FIX4B).
+# Empreintes calculees gardees dans hash-<md5 de la racine>.tsv, a cote de l index. Fonctions sans interface, testables
+# au niveau 2. Aucun calcul de CRC en PowerShell (alertes EDR du 20/10/2026).
+
+function New-LibDatIndex([string]$format) {
+    # Liste vide : en-tete, compteurs, index par taille et par nom de fichier (sans le dossier, casse ignoree).
+    # FIX4C (relecture finale du lot 4) : index ByHash par « taille|type|empreinte » (type C, M ou S : CRC-32, MD5, SHA-1),
+    # et « taille|type| » pour les entrees de cette taille qui n ont pas cette empreinte (Get-LibDatMatch)
+    return @{ Ok = $false; Error = ''; Format = $format; Name = ''; Description = ''; Version = ''; Path = ''
+              Games = 0; Roms = 0; Skipped = 0; Ms = 0
+              BySize = [System.Collections.Generic.Dictionary[long, System.Collections.Generic.List[object]]]::new()
+              ByName = [System.Collections.Generic.Dictionary[string, System.Collections.Generic.List[object]]]::new([System.StringComparer]::OrdinalIgnoreCase)
+              ByHash = [System.Collections.Generic.Dictionary[string, System.Collections.Generic.List[object]]]::new([System.StringComparer]::OrdinalIgnoreCase) }
+}
+
+function Add-LibDatRom($dat, [string]$game, [string]$name, [string]$size, [string]$crc, [string]$md5, [string]$sha1) {
+    # Entree d une liste : taille obligatoire et au moins une empreinte valide (CRC-32 sur 8 chiffres hexadecimaux, MD5,
+    # SHA-1) ; sinon ignoree (comptee dans Skipped). Nom garde sans son dossier
+    [long]$sz = -1
+    if (-not [long]::TryParse(([string]$size).Trim(), [System.Globalization.NumberStyles]::Integer, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$sz) -or $sz -lt 0) { $dat.Skipped++; return }
+    $c = ([string]$crc).Trim().ToUpperInvariant()
+    if ($c -match '^[0-9A-F]{1,8}$') { $c = $c.PadLeft(8, '0') } else { $c = '' }
+    $m = ([string]$md5).Trim().ToLowerInvariant(); if ($m -notmatch '^[0-9a-f]{32}$') { $m = '' }
+    $s = ([string]$sha1).Trim().ToLowerInvariant(); if ($s -notmatch '^[0-9a-f]{40}$') { $s = '' }
+    if (-not $c -and -not $m -and -not $s) { $dat.Skipped++; return }
+    $leaf = ([string]$name) -replace '^.*[\\/]', ''
+    $e = @{ Game = [string]$game; Name = $leaf; Size = $sz; Crc = $c; Md5 = $m; Sha1 = $s; Ord = 0 }
+    $l = $null
+    if (-not $dat.BySize.TryGetValue($sz, [ref]$l)) { $l = [System.Collections.Generic.List[object]]::new(); $dat.BySize[$sz] = $l }
+    $e.Ord = $l.Count
+    $l.Add($e)
+    # FIX4C : rang Ord dans la liste de sa taille ; index par taille et empreinte, empreinte vide = entree sans cette empreinte
+    foreach ($k in "$sz|C|$c", "$sz|M|$m", "$sz|S|$s") {
+        $l = $null
+        if (-not $dat.ByHash.TryGetValue($k, [ref]$l)) { $l = [System.Collections.Generic.List[object]]::new(); $dat.ByHash[$k] = $l }
+        $l.Add($e)
+    }
+    if ($leaf) {
+        $l = $null
+        if (-not $dat.ByName.TryGetValue($leaf, [ref]$l)) { $l = [System.Collections.Generic.List[object]]::new(); $dat.ByName[$leaf] = $l }
+        $l.Add($e)
+    }
+    $dat.Roms++
+}
+
+function Get-LibDatRx {
+    # Expressions du format clrmamepro, creees une fois. FIX4B (revue du lot 4, C6) : aucune n a deux quantificateurs
+    # voisins qui se disputent les memes caracteres (« rom ( » suivi de milliers d espaces bloquait l interface 50 s) :
+    # duree proportionnelle a la longueur de la ligne ; delai maximal de 1 s par recherche en plus (liste refusee)
+    if ($script:LibDatRx) { return $script:LibDatRx }
+    $o = [System.Text.RegularExpressions.RegexOptions]::None; $to = [TimeSpan]::FromSeconds(1)
+    $script:LibDatRx = @{
+        Open    = [regex]::new('^(\w+)\s*\($', $o, $to)
+        Kv      = [regex]::new('^(\w+)\s+(?:"([^"]*)"|(.*))$', $o, $to)
+        # Forme ecrite par clrmamepro (espaces simples) : nom entre guillemets ou sans espace, size, crc, puis md5 et sha1
+        RomFast = [regex]::new('^rom \( name (?:"([^"]*)"|([^\s"]+)) size (\d+) crc "?([0-9A-Fa-f]{1,8})"?(?: md5 "?([0-9A-Fa-f]{32})"?)?(?: sha1 "?([0-9A-Fa-f]{40})"?)? \)$', $o, $to)
+        # Jetons : texte entre guillemets (jusqu a la fin si le guillemet n est pas ferme), ou suite de caracteres sans espace
+        Tok     = [regex]::new('"[^"]*(?:"|$)|[^\s"]+', $o, $to)
+        Hex     = [regex]::new('^"?([0-9A-Fa-f]+)"?$', $o, $to)
+        Keys    = [System.Collections.Generic.HashSet[string]]::new([string[]]@('size', 'crc', 'md5', 'sha1', 'sha256', 'merge', 'status', 'flags', 'date', 'region', 'serial', 'offs', 'bios'), [System.StringComparer]::Ordinal)
+    }
+    return $script:LibDatRx
+}
+
+function ConvertFrom-LibDatRomLine([string]$ln) {
+    # Ligne « rom ( ... ) » de clrmamepro (rognee) : champs name, size, crc, md5, sha1 ; $null si ce n est pas un fichier
+    # decrit sur une ligne (« rom ( » seul ouvre un bloc). FIX4B (C6) : forme courante lue par une expression sans retour
+    # arriere, sinon contenu entre la premiere « ( » et la derniere « ) », decoupe en jetons
+    $rx = Get-LibDatRx
+    $m = $rx.RomFast.Match($ln)
+    if ($m.Success) {
+        return @{ name = $(if ($m.Groups[1].Success) { $m.Groups[1].Value } else { $m.Groups[2].Value }); size = $m.Groups[3].Value; crc = $m.Groups[4].Value; md5 = $m.Groups[5].Value; sha1 = $m.Groups[6].Value }
+    }
+    $i = $ln.IndexOf('(')
+    if ($i -lt 3 -or -not $ln.StartsWith('rom') -or $ln.Substring(3, $i - 3).Trim().Length -gt 0 -or -not $ln.EndsWith(')') -or $ln.Length - $i -lt 2) { return $null }
+    return (ConvertFrom-LibDatRomText $ln.Substring($i + 1, $ln.Length - $i - 2).Trim())
+}
+
+function ConvertFrom-LibDatRomText([string]$s) {
+    # Champs d une ligne « rom ( ... ) » de clrmamepro : name entre guillemets, ou jusqu au mot-cle suivant (noms avec
+    # espaces ou parentheses, ecrits sans guillemets par certains outils, comme la DAT SPS) ; puis size, crc, md5, sha1.
+    # FIX4B (C6) : jetons d une expression lineaire, lus dans l ordre ; nom sans guillemets repris tel quel de la ligne
+    $rx = Get-LibDatRx
+    $f = @{}
+    $toks = $rx.Tok.Matches($s)
+    $n = $toks.Count; $i = 0
+    if ($n -ge 2 -and $toks[0].Value -ceq 'name') {
+        $a = $toks[1]
+        if ($a.Value.StartsWith('"')) {
+            $v = $a.Value.Substring(1); if ($v.EndsWith('"')) { $v = $v.Substring(0, $v.Length - 1) }
+            $f['name'] = $v; $i = 2
+        } else {
+            # Nom jusqu au mot-cle suivant, s il est suivi d un autre jeton (comme « size 1234 »)
+            $j = 2
+            while ($j -lt $n -and -not ($rx.Keys.Contains($toks[$j].Value) -and $j + 1 -lt $n)) { $j++ }
+            $z = $toks[$j - 1]
+            $f['name'] = $s.Substring($a.Index, $z.Index + $z.Length - $a.Index); $i = $j
+        }
+    }
+    foreach ($k in 'size', 'crc', 'md5', 'sha1') {
+        for ($t = $i; $t + 1 -lt $n; $t++) {
+            if ($toks[$t].Value -cne $k) { continue }
+            $h = $rx.Hex.Match($toks[$t + 1].Value)
+            if ($h.Success) { $f[$k] = $h.Groups[1].Value; break }
+        }
+    }
+    return $f
+}
+
+function Read-LibDatClrMamePro([string]$text) {
+    # Format texte clrmamepro, ligne par ligne (forme ecrite par clrmamepro et par les outils qui le suivent) : bloc ouvert
+    # par « mot ( » en fin de ligne et ferme par « ) » seul ; lignes « cle valeur » (valeur entre guillemets ou non) ;
+    # fichier sur une ligne, « rom ( name ... size ... crc ... md5 ... sha1 ... ) ». En-tete : clrmamepro ou emulator ;
+    # jeux : game, machine, resource, set ; autres blocs et lignes (disk, sample...) ignores ; « ) » en trop ignoree
+    $dat = New-LibDatIndex 'clrmamepro'
+    # FIX4B (C6) : expressions sans retour arriere catastrophique (Get-LibDatRx), ligne « rom ( ... ) » lue par
+    # ConvertFrom-LibDatRomLine (forme courante d un coup, sinon jetons)
+    $rx = Get-LibDatRx
+    $rxOpen = $rx.Open; $rxKv = $rx.Kv
+    $stack = [System.Collections.Generic.List[object]]::new()
+    $cur = $null
+    foreach ($raw in $text.Split([char]10)) {
+        $ln = $raw.Trim()
+        if ($ln.Length -eq 0) { continue }
+        if ($cur -and $ln.StartsWith('rom')) {
+            $rf = ConvertFrom-LibDatRomLine $ln
+            if ($null -ne $rf) { $cur.Roms.Add($rf); continue }
+        }
+        if ($ln -eq ')') {
+            if ($stack.Count -eq 0) { continue }
+            $blk = $cur
+            $stack.RemoveAt($stack.Count - 1)
+            $cur = if ($stack.Count -gt 0) { $stack[$stack.Count - 1] } else { $null }
+            $t = $blk.T
+            if ($t -eq 'rom') { if ($cur) { $cur.Roms.Add($blk.F) } }
+            elseif ($t -eq 'game' -or $t -eq 'machine' -or $t -eq 'resource' -or $t -eq 'set') {
+                $dat.Games++
+                foreach ($f in $blk.Roms) { Add-LibDatRom $dat ([string]$blk.F['name']) ([string]$f['name']) ([string]$f['size']) ([string]$f['crc']) ([string]$f['md5']) ([string]$f['sha1']) }
+            } elseif ($t -eq 'clrmamepro' -or $t -eq 'emulator') {
+                $dat.Name = [string]$blk.F['name']; $dat.Description = [string]$blk.F['description']; $dat.Version = [string]$blk.F['version']
+            }
+            continue
+        }
+        if ($ln.EndsWith('(')) {
+            $m = $rxOpen.Match($ln)
+            if ($m.Success) {
+                $blk = @{ T = $m.Groups[1].Value.ToLowerInvariant(); F = @{}; Roms = [System.Collections.Generic.List[object]]::new() }
+                $stack.Add($blk); $cur = $blk
+                continue
+            }
+        }
+        if (-not $cur) { continue }
+        $m = $rxKv.Match($ln)
+        if ($m.Success) { $cur.F[$m.Groups[1].Value.ToLowerInvariant()] = $(if ($m.Groups[2].Success) { $m.Groups[2].Value } else { $m.Groups[3].Value }) }
+    }
+    return $dat
+}
+
+function Read-LibDatLogiqx([System.IO.Stream]$stream) {
+    # Format Logiqx XML : <header> (name, description, version), <game> ou <machine> ou <software>, <rom name size crc
+    # md5 sha1/>. DtdProcessing.Ignore : le DOCTYPE est saute sans lire la DTD (ni fichier ni reseau) ; XmlResolver nul :
+    # aucune resolution externe. Une entite declaree dans la DTD (interne ou externe) reste donc inconnue : sa reference
+    # leve une XmlException, la liste est refusee
+    $dat = New-LibDatIndex 'Logiqx XML'
+    $set = New-Object System.Xml.XmlReaderSettings
+    $set.DtdProcessing = [System.Xml.DtdProcessing]::Ignore
+    $set.XmlResolver = $null
+    $set.IgnoreComments = $true; $set.IgnoreWhitespace = $true; $set.IgnoreProcessingInstructions = $true
+    $set.CloseInput = $false
+    $xr = [System.Xml.XmlReader]::Create($stream, $set)
+    try {
+        $game = ''; $inHeader = $false
+        $go = $xr.Read()
+        while ($go) {
+            $adv = $false
+            $nt = $xr.NodeType
+            if ($nt -eq [System.Xml.XmlNodeType]::Element) {
+                $ln = $xr.LocalName
+                if ($ln -eq 'rom') {
+                    Add-LibDatRom $dat $game $xr.GetAttribute('name') $xr.GetAttribute('size') $xr.GetAttribute('crc') $xr.GetAttribute('md5') $xr.GetAttribute('sha1')
+                } elseif ($ln -eq 'game' -or $ln -eq 'machine' -or $ln -eq 'software') {
+                    $game = [string]$xr.GetAttribute('name'); $dat.Games++
+                } elseif ($ln -eq 'header') {
+                    if (-not $xr.IsEmptyElement) { $inHeader = $true }
+                } elseif ($inHeader -and ($ln -eq 'name' -or $ln -eq 'description' -or $ln -eq 'version')) {
+                    $v = $xr.ReadElementContentAsString(); $adv = $true
+                    if ($ln -eq 'name') { $dat.Name = $v } elseif ($ln -eq 'description') { $dat.Description = $v } else { $dat.Version = $v }
+                }
+            } elseif ($nt -eq [System.Xml.XmlNodeType]::EndElement -and $xr.LocalName -eq 'header') { $inHeader = $false }
+            if ($adv) { $go = -not $xr.EOF } else { $go = $xr.Read() }
+        }
+    } finally { $xr.Close() }
+    return $dat
+}
+
+function Read-LibDat([string]$path) {
+    # Liste de reference d un fichier : format d apres le premier caractere significatif (« < » : Logiqx XML ; lettre :
+    # clrmamepro), 256 Mo au plus. Renvoie l index (Ok, ou Error avec le message)
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    $dat = New-LibDatIndex ''
+    try {
+        $fi = New-Object System.IO.FileInfo($path)
+        if (-not $fi.Exists) { $dat.Error = (T 'fichier introuvable') }
+        elseif ($fi.Length -gt 256MB) { $dat.Error = ((T 'fichier trop gros ({0})') -f (Format-Size $fi.Length)) }
+        else {
+            $fs = [System.IO.File]::Open($path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+            try {
+                $head = New-Object byte[] 4096
+                $n = $fs.Read($head, 0, 4096)
+                $enc = [System.Text.Encoding]::UTF8; $off = 0
+                if ($n -ge 2 -and $head[0] -eq 0xFF -and $head[1] -eq 0xFE) { $enc = [System.Text.Encoding]::Unicode; $off = 2 }
+                elseif ($n -ge 2 -and $head[0] -eq 0xFE -and $head[1] -eq 0xFF) { $enc = [System.Text.Encoding]::BigEndianUnicode; $off = 2 }
+                elseif ($n -ge 3 -and $head[0] -eq 0xEF -and $head[1] -eq 0xBB -and $head[2] -eq 0xBF) { $off = 3 }
+                $first = $enc.GetString($head, $off, [math]::Max(0, $n - $off)).TrimStart()
+                [void]$fs.Seek(0, [System.IO.SeekOrigin]::Begin)
+                $d = $null
+                if ($first.StartsWith('<')) { $d = Read-LibDatLogiqx $fs }
+                elseif ($first -match '^[A-Za-z]') {
+                    $sr = New-Object System.IO.StreamReader($fs, [System.Text.Encoding]::UTF8, $true)
+                    $d = Read-LibDatClrMamePro $sr.ReadToEnd()
+                } else { $dat.Error = (T 'format non reconnu (ni Logiqx XML ni clrmamepro)') }
+                if ($d) {
+                    $dat = $d
+                    if ($dat.Roms -eq 0) { $dat.Error = (T 'aucune entrée avec une taille et une empreinte') }
+                }
+            } finally { $fs.Dispose() }
+        }
+    } catch {
+        $e = $_.Exception
+        while ($e.InnerException -and $e -is [System.Management.Automation.MethodInvocationException]) { $e = $e.InnerException }
+        $dat.Error = if ($e -is [System.Text.RegularExpressions.RegexMatchTimeoutException]) { T 'liste mal formée (ligne trop longue à analyser)' } else { $e.Message }
+    }
+    $dat.Path = $path
+    $dat.Ok = (-not $dat.Error)
+    $dat.Ms = $sw.ElapsedMilliseconds
+    if (-not $dat.Name) { $dat.Name = [System.IO.Path]::GetFileNameWithoutExtension($path) }
+    return $dat
+}
+
+function Get-LibDatCompare($e, $h, [bool]$common = $false) {
+    # Entree $e de la liste et empreintes connues $h du fichier : $false des qu une empreinte connue des deux cotes
+    # differe ; sinon egalite exigee sur l empreinte la plus forte que porte l entree (SHA-1, puis MD5, puis CRC-32) ;
+    # $null si le fichier ne l a pas encore (a calculer). FIX4B (revue du lot 4, C7) : un CRC-32 garde en cache ne decide
+    # plus seul quand la liste fournit un SHA-1 ou un MD5 (le verdict ne depend plus du cache des empreintes).
+    # $common (entree d archive ZIP : seul le CRC-32 du repertoire central est connu sans decompression) : la plus forte
+    # des empreintes communes suffit, comme au lot 4b ; les donnees sont controlees avant l ecriture (Test-LibZipEntryData)
+    if (($e.Sha1 -and $h.Sha1 -and $e.Sha1 -ne $h.Sha1) -or ($e.Md5 -and $h.Md5 -and $e.Md5 -ne $h.Md5) -or ($e.Crc -and $h.Crc -and $e.Crc -ne $h.Crc)) { return $false }
+    if ($common) {
+        if (($e.Sha1 -and $h.Sha1) -or ($e.Md5 -and $h.Md5) -or ($e.Crc -and $h.Crc)) { return $true }
+        return $null
+    }
+    $k = if ($e.Sha1) { 'Sha1' } elseif ($e.Md5) { 'Md5' } else { 'Crc' }
+    if ($e[$k] -and $h[$k]) { return $true }
+    return $null
+}
+
+function Get-LibDatMatch($dat, [long]$size, [string]$name, $h, [switch]$Common) {
+    # Etat d un fichier de taille $size et de nom $name, d empreintes connues $h (Crc, Md5, Sha1 ; vides si inconnues) :
+    #  ok   officiel : meme taille et meme empreinte qu une entree (Entry : celle du meme nom s il y en a une) ;
+    #  mod  modifie : aucune entree identique, mais une entree porte le meme nom de fichier (Entry) ;
+    #  unk  inconnu : ni empreinte ni nom dans la liste ;
+    #  wait empreinte a calculer (Need : Sha1, Md5 ou Crc, la plus forte que porte l entree de meme taille).
+    # -Common : comparaison sur la plus forte des empreintes communes (entrees d archive ZIP, Get-LibDatCompare)
+    # FIX4C (relecture finale du lot 4 : 2 738 entrees SPS de 1 049 612 octets, 27 ms par appel) : sans empreinte connue,
+    # toutes les entrees de cette taille sont a calculer, la premiere donne Need. Sinon, seules sont comparees les entrees
+    # qui ont la meme valeur pour une empreinte connue du fichier (index ByHash), ou aucune de ses empreintes connues : les
+    # autres different sur une empreinte connue des deux cotes (Get-LibDatCompare : $false). Rang Ord de la liste garde :
+    # meme resultat (Entry, Need) que la comparaison de toutes les entrees de cette taille
+    $leaf = ([string]$name) -replace '^.*[\\/]', ''
+    if ($null -eq $h) { $h = @{} }
+    $cands = $null
+    if ($dat.BySize.TryGetValue($size, [ref]$cands) -and $cands.Count -gt 0) {
+        $hc = [string]$h.Crc; $hm = [string]$h.Md5; $hs = [string]$h.Sha1
+        if (-not $hc -and -not $hm -and -not $hs) {
+            $e = $cands[0]
+            return @{ State = 'wait'; Need = $(if ($e.Sha1) { 'Sha1' } elseif ($e.Md5) { 'Md5' } else { 'Crc' }) }
+        }
+        if ($null -ne $dat.ByHash) {
+            $parts = [System.Collections.Generic.List[object]]::new()
+            $miss = $null; $noMiss = $false; $l = $null
+            foreach ($p in @(@('C', $hc), @('M', $hm), @('S', $hs))) {
+                if (-not $p[1]) { continue }
+                if ($dat.ByHash.TryGetValue("$size|$($p[0])|$($p[1])", [ref]$l)) { $parts.Add($l) }
+                # Entrees sans aucune des empreintes connues : la plus courte des listes « sans cette empreinte », filtree
+                if ($dat.ByHash.TryGetValue("$size|$($p[0])|", [ref]$l)) { if (-not $noMiss -and ($null -eq $miss -or $l.Count -lt $miss.Count)) { $miss = $l } }
+                else { $noMiss = $true; $miss = $null }
+            }
+            if ($null -ne $miss) {
+                $none = [System.Collections.Generic.List[object]]::new()
+                foreach ($e in $miss) { if ((-not $hc -or -not $e.Crc) -and (-not $hm -or -not $e.Md5) -and (-not $hs -or -not $e.Sha1)) { $none.Add($e) } }
+                if ($none.Count -gt 0) { $parts.Add($none) }
+            }
+            if ($parts.Count -eq 1) { $cands = $parts[0] }
+            else {
+                $sd = [System.Collections.Generic.SortedDictionary[int, object]]::new()
+                foreach ($pl in $parts) { foreach ($e in $pl) { $sd[[int]$e.Ord] = $e } }
+                $cands = $sd.Values
+            }
+        }
+        $hit = $null; $need = ''
+        foreach ($e in $cands) {
+            $m = Get-LibDatCompare $e $h ([bool]$Common)
+            if ($null -eq $m) {
+                if (-not $need) { $need = if ($e.Sha1) { 'Sha1' } elseif ($e.Md5) { 'Md5' } else { 'Crc' } }
+                continue
+            }
+            if ($m -and (-not $hit -or ($e.Name -ieq $leaf -and $hit.Name -ine $leaf))) { $hit = $e }
+        }
+        if ($hit) { return @{ State = 'ok'; Entry = $hit } }
+        if ($need) { return @{ State = 'wait'; Need = $need } }
+    }
+    $named = $null
+    if ($leaf -and $dat.ByName.TryGetValue($leaf, [ref]$named)) { return @{ State = 'mod'; Entry = $named[0] } }
+    return @{ State = 'unk' }
+}
+
+function Get-LibFileCrc32([string]$path) {
+    # CRC-32 d un fichier entier, lu en flux et calcule par la bibliotheque ZIP native de .NET (Get-Crc32), sans calcul
+    # en PowerShell : 8 chiffres hexadecimaux en majuscules
+    $fs = [System.IO.File]::Open($path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+    try { return ('{0:X8}' -f (Get-Crc32 -Stream $fs)) } finally { $fs.Dispose() }
+}
+
+function Get-LibHashText([string]$algo, [System.IO.Stream]$stream) {
+    # SHA-1 ou MD5 d un flux, par la cryptographie .NET (deja utilisee par l index), en hexadecimal minuscule
+    $ha = if ($algo -eq 'Sha1') { [System.Security.Cryptography.SHA1]::Create() } else { [System.Security.Cryptography.MD5]::Create() }
+    try { return ([BitConverter]::ToString($ha.ComputeHash($stream)).Replace('-', '').ToLowerInvariant()) } finally { $ha.Dispose() }
+}
+
+function ConvertFrom-LibZipDir([byte[]]$cd, [int]$count) {
+    # Entrees du repertoire central d une archive ZIP (signature 0x02014B50), dans l ordre de ZipArchive.Entries : nom
+    # (UTF-8 si le bit 11 est mis, sinon page de codes 437), CRC-32, tailles, dossier ; $null si le repertoire est tronque
+    if (-not $script:LibZipEnc) {
+        try { $script:LibZipEnc = [System.Text.Encoding]::GetEncoding(437) } catch { $script:LibZipEnc = [System.Text.Encoding]::GetEncoding(28591) }
+    }
+    $out = [System.Collections.Generic.List[object]]::new()
+    $p = 0
+    for ($k = 0; $k -lt $count; $k++) {
+        if ($p + 46 -gt $cd.Length -or [BitConverter]::ToUInt32($cd, $p) -ne 0x02014B50) { return $null }
+        $flags = [BitConverter]::ToUInt16($cd, $p + 8)
+        $nl = [BitConverter]::ToUInt16($cd, $p + 28); $xl = [BitConverter]::ToUInt16($cd, $p + 30); $cl = [BitConverter]::ToUInt16($cd, $p + 32)
+        if ($p + 46 + $nl -gt $cd.Length) { return $null }
+        $enc = if ($flags -band 0x800) { [System.Text.Encoding]::UTF8 } else { $script:LibZipEnc }
+        $nm = $enc.GetString($cd, $p + 46, $nl)
+        $out.Add(@{ Name = $nm; Crc = ('{0:X8}' -f [BitConverter]::ToUInt32($cd, $p + 16)); CSize = [long][BitConverter]::ToUInt32($cd, $p + 20)
+                    Size = [long][BitConverter]::ToUInt32($cd, $p + 24); Dir = $nm.EndsWith('/'); Index = $k })
+        $p += 46 + $nl + $xl + $cl
+    }
+    return ,$out
+}
+
+function Read-LibZipDir([string]$path) {
+    # Repertoire central d une archive ZIP, sans decompression : fin d archive (0x06054B50, commentaire compris) cherchee
+    # dans les 65 557 derniers octets, puis repertoire lu d un bloc. $null si illisible ou ZIP64 (non pris en charge)
+    $fs = [System.IO.File]::Open($path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+    try {
+        $len = $fs.Length
+        if ($len -lt 22) { return $null }
+        $tl = [int][math]::Min($len, 65557)
+        $tail = New-Object byte[] $tl
+        [void]$fs.Seek($len - $tl, [System.IO.SeekOrigin]::Begin)
+        $got = 0
+        while ($got -lt $tl) { $k = $fs.Read($tail, $got, $tl - $got); if ($k -le 0) { break }; $got += $k }
+        if ($got -lt $tl) { return $null }
+        $at = -1
+        for ($i = $tl - 22; $i -ge 0; $i--) {
+            if ($tail[$i] -eq 0x50 -and $tail[$i + 1] -eq 0x4B -and $tail[$i + 2] -eq 5 -and $tail[$i + 3] -eq 6 -and [BitConverter]::ToUInt16($tail, $i + 20) -eq $tl - $i - 22) { $at = $i; break }
+        }
+        if ($at -lt 0) { return $null }
+        $n = [int][BitConverter]::ToUInt16($tail, $at + 10)
+        $cdSize = [long][BitConverter]::ToUInt32($tail, $at + 12); $cdOff = [long][BitConverter]::ToUInt32($tail, $at + 16)
+        if ($n -eq 0xFFFF -or $cdOff -eq 0xFFFFFFFFL -or $cdSize -gt 64MB -or $cdOff + $cdSize -gt $len) { return $null }
+        $cd = New-Object byte[] $cdSize
+        [void]$fs.Seek($cdOff, [System.IO.SeekOrigin]::Begin)
+        $got = 0
+        while ($got -lt $cdSize) { $k = $fs.Read($cd, $got, [int]($cdSize - $got)); if ($k -le 0) { break }; $got += $k }
+        if ($got -lt $cdSize) { return $null }
+        # FIX4B (revue du lot 4, C1) : liste rendue telle quelle (virgule). « return (liste) » la deroulait : avec une seule
+        # entree, l appelant recevait la table de l entree au lieu d une liste (entree d un ZIP TOSEC dite « inconnu »)
+        $ents = ConvertFrom-LibZipDir $cd $n
+        if ($null -eq $ents) { return $null }
+        return ,$ents
+    } finally { $fs.Dispose() }
+}
+
+function Test-LibZipEntryData([string]$zipPath, $idx, [string]$entry, [string]$file) {
+    # FIX4B (revue du lot 4, C3) : entree $entry (rang $idx) extraite dans $file, comparee au repertoire central de
+    # l archive (taille et CRC-32) : ZipArchive ne controle pas les donnees decompressees. CRC-32 du fichier extrait par la
+    # bibliotheque ZIP native de .NET (Get-LibFileCrc32). @{ Ok ; Want ; Got } ; $null si le controle est impossible
+    # (archive illisible ou ZIP64, entree introuvable, fichier absent ou de plus de 256 Mo)
+    $dir = Read-LibZipDir $zipPath
+    if ($null -eq $dir) { return $null }
+    $e = $null
+    # Rang dans ZipArchive.Entries = rang dans le repertoire central (lot 4b) ; sinon le nom
+    if ($null -ne $idx -and [int]$idx -ge 0 -and [int]$idx -lt $dir.Count -and -not $dir[[int]$idx].Dir) { $e = $dir[[int]$idx] }
+    else { foreach ($d in $dir) { if (-not $d.Dir -and $d.Name -ceq $entry) { $e = $d; break } } }
+    if (-not $e) { return $null }
+    $fi = New-Object System.IO.FileInfo($file)
+    if (-not $fi.Exists -or $fi.Length -gt 256MB) { return $null }
+    $got = Get-LibFileCrc32 $file
+    return @{ Ok = ($fi.Length -eq [long]$e.Size -and $got -eq $e.Crc); Want = $e.Crc; Got = $got; Size = $fi.Length; WantSize = [long]$e.Size }
+}
+
+function Get-LibZipDatState($dat, $entries) {
+    # Archive ZIP : etat de chaque entree image (taille et CRC-32 du repertoire central), puis de l archive : officiel si
+    # toutes ses images le sont ; modifie si une partie seulement l est, ou si une image est modifiee ; inconnu sinon.
+    # Entree dont l empreinte manque (liste sans CRC-32) : State wait (a calculer sur le flux decompresse)
+    $res = [System.Collections.Generic.List[object]]::new()
+    foreach ($e in $entries) {
+        if ($e.Dir -or (Get-FileKind ($e.Name -replace '^.*/', '')) -ne 'image') { $res.Add($null); continue }
+        $res.Add((Get-LibDatMatch $dat ([long]$e.Size) $e.Name @{ Crc = $e.Crc } -Common))
+    }
+    return (Measure-LibZipDatState $res)
+}
+
+function Measure-LibZipDatState($res) {
+    # Etat d une archive d apres l etat de ses entrees image ($null : entree hors images)
+    $ok = 0; $mod = 0; $tot = 0; $wait = 0
+    foreach ($s in $res) {
+        if (-not $s) { continue }
+        $tot++
+        switch ($s.State) { 'ok' { $ok++ } 'mod' { $mod++ } 'wait' { $wait++ } }
+    }
+    $st = if ($wait -gt 0) { 'wait' } elseif ($tot -gt 0 -and $ok -eq $tot) { 'ok' } elseif ($ok -gt 0 -or $mod -gt 0) { 'mod' } else { 'unk' }
+    return @{ State = $st; OkCount = $ok; Total = $tot; Entries = $res }
+}
+
+function Get-LibHashFile([string]$root) {
+    # Cache des empreintes d une racine : hash-<16 premiers chiffres du MD5 du chemin>.tsv, a cote de l index
+    $md5 = [System.Security.Cryptography.MD5]::Create()
+    try { $h = [BitConverter]::ToString($md5.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($root.TrimEnd('\').ToLowerInvariant()))).Replace('-', '').Substring(0, 16) }
+    finally { $md5.Dispose() }
+    return (Join-Path $script:IndexDir "hash-$h.tsv")
+}
+
+function Get-LibHashKey([string]$path, [long]$size, [long]$ticks) { return ($path.ToLowerInvariant() + '|' + $size + '|' + $ticks) }
+
+function Import-LibHashCache([string]$file) {
+    # Empreintes gardees : lignes « chemin, taille, date de modification (ticks UTC), CRC-32, MD5, SHA-1 » separees par
+    # des tabulations ; une ligne plus recente complete la precedente. Fichier absent ou illisible : cache vide
+    $c = [System.Collections.Generic.Dictionary[string, object]]::new()
+    try {
+        if (-not [System.IO.File]::Exists($file)) { return ,$c }
+        foreach ($ln in [System.IO.File]::ReadAllLines($file, [System.Text.Encoding]::UTF8)) {
+            if (-not $ln -or $ln.StartsWith('#')) { continue }
+            $f = $ln.Split("`t")
+            if ($f.Count -lt 6) { continue }
+            [long]$sz = 0; [long]$tk = 0
+            if (-not [long]::TryParse($f[1], [ref]$sz) -or -not [long]::TryParse($f[2], [ref]$tk)) { continue }
+            $k = Get-LibHashKey $f[0] $sz $tk
+            $o = $null
+            if (-not $c.TryGetValue($k, [ref]$o)) { $o = @{ Crc = ''; Md5 = ''; Sha1 = '' }; $c[$k] = $o }
+            if ($f[3] -match '^[0-9A-F]{8}$') { $o.Crc = $f[3] }
+            if ($f[4] -match '^[0-9a-f]{32}$') { $o.Md5 = $f[4] }
+            if ($f[5] -match '^[0-9a-f]{40}$') { $o.Sha1 = $f[5] }
+        }
+    } catch { }
+    return ,$c
+}
+
+function Add-LibHashLine([string]$file, [string]$path, [long]$size, [long]$ticks, $h) {
+    # Ajout d une ligne au cache des empreintes (cree avec son en-tete) ; erreur d ecriture ignoree (cache facultatif)
+    try {
+        $dir = [System.IO.Path]::GetDirectoryName($file)
+        if (-not [System.IO.Directory]::Exists($dir)) { [void][System.IO.Directory]::CreateDirectory($dir) }
+        $new = -not [System.IO.File]::Exists($file)
+        $line = "$path`t$size`t$ticks`t$($h.Crc)`t$($h.Md5)`t$($h.Sha1)"
+        if ($new) { $line = "#GWHASH1`tchemin`ttaille`tticks`tcrc32`tmd5`tsha1`r`n" + $line }
+        [System.IO.File]::AppendAllText($file, $line + "`r`n", (New-Object System.Text.UTF8Encoding($false)))
+    } catch { }
 }
 # ============================== FONCTIONS : ECRITURE ===========================
 
@@ -16415,10 +18780,10 @@ $tabs.Padding = New-Object System.Drawing.Point(12, 5)
 $tabL = New-TabPage (T 'Bibliothèque')
 
 $txtLibRoot = New-Object System.Windows.Forms.TextBox
-$txtLibRoot.Location = '85,11'; $txtLibRoot.Width = 610; $txtLibRoot.Anchor = 'Top,Left,Right'
+$txtLibRoot.Location = '85,11'; $txtLibRoot.Width = 240; $txtLibRoot.Anchor = 'Top,Left,Right'
 
 $btnLibRoot = New-Object System.Windows.Forms.Button
-$btnLibRoot.Text = (T 'Choisir le dossier racine'); $btnLibRoot.Location = '700,10'; $btnLibRoot.Width = 36; $btnLibRoot.Anchor = 'Top,Right'
+$btnLibRoot.Text = (T 'Choisir le dossier racine'); $btnLibRoot.Location = '330,10'; $btnLibRoot.Width = 36; $btnLibRoot.Anchor = 'Top,Right'
 $btnLibRoot.Add_Click({
     $d = New-Object System.Windows.Forms.FolderBrowserDialog
     $d.Description = (T 'Répertoire racine de la bibliothèque d''images')
@@ -16427,53 +18792,156 @@ $btnLibRoot.Add_Click({
 })
 
 $btnLibRefresh = New-Object System.Windows.Forms.Button
-$btnLibRefresh.Text = (T 'Actualiser l''arborescence'); $btnLibRefresh.Location = '742,10'; $btnLibRefresh.Width = 36; $btnLibRefresh.Anchor = 'Top,Right'
+$btnLibRefresh.Text = (T 'Actualiser l''arborescence'); $btnLibRefresh.Location = '372,10'; $btnLibRefresh.Width = 36; $btnLibRefresh.Anchor = 'Top,Right'
 $btnLibRefresh.Add_Click({ Update-Library })
 
+# 12.8 (lot 4b, D19, A3 § 3.4 B) : liste de reference (DAT) choisie par l utilisateur sur son ordinateur ; etat a cote du
+# bouton (aucune, nom et nombre d entrees, illisible) ; retrait par la croix (le fichier n est pas supprime)
+$btnLibDat = New-Object System.Windows.Forms.Button
+$btnLibDat.Text = (T 'Liste de référence…'); $btnLibDat.Location = '414,10'; $btnLibDat.Width = 168; $btnLibDat.Anchor = 'Top,Right'
+$tip.SetToolTip($btnLibDat, (T "Choisit une liste de référence (fichier DAT) sur votre ordinateur : format Logiqx XML (TOSEC, No-Intro) ou clrmamepro.`nLes images et les archives ZIP sont identifiées par leur taille puis leur empreinte (CRC-32, MD5 ou SHA-1) :`nofficiel (identique à une entrée de la liste), modifié (même nom qu'une entrée, contenu différent) ou inconnu.`nAucune liste n'est fournie ni téléchargée par l'application."))
+$btnLibDat.Add_Click({ Select-LibDatFile })
+
+$lblLibDat = New-Object System.Windows.Forms.Label
+$lblLibDat.Location = '586,14'; $lblLibDat.Size = '164,18'; $lblLibDat.Anchor = 'Top,Right'; $lblLibDat.AutoEllipsis = $true
+$lblLibDat.Font = New-Object System.Drawing.Font('Segoe UI', 9); $lblLibDat.ForeColor = $script:Theme.Muted; $lblLibDat.Text = (T 'aucune')
+
+$btnLibDatClear = New-Object System.Windows.Forms.Button
+$btnLibDatClear.Text = (T 'Retirer la liste de référence (le fichier n''est pas supprimé).'); $btnLibDatClear.Location = '752,10'; $btnLibDatClear.Width = 26
+$btnLibDatClear.Anchor = 'Top,Right'; $btnLibDatClear.Visible = $false
+$btnLibDatClear.Add_Click({ Set-LibDatPath '' })
+
 $txtLibFilter = New-Object System.Windows.Forms.TextBox
-$txtLibFilter.Location = '85,41'; $txtLibFilter.Width = 230
-$tip.SetToolTip($txtLibFilter, (T "Recherche dans l'index : plusieurs mots = tous requis (ex. : monkey 2 fr).`nRésultats au fil de la frappe une fois l'index construit. Vide = arborescence."))
+$txtLibFilter.Location = '85,41'; $txtLibFilter.Width = 210
+$tip.SetToolTip($txtLibFilter, (T "Recherche sur le nom des fichiers : plusieurs mots = tous requis (ex. : monkey 2 fr). La casse est ignorée ; la ponctuation compte : king quest trouve KingsQuest et King's Quest, kings ne trouve pas King's.`nCase « Aussi dans les dossiers » : les mots peuvent aussi être dans le nom des dossiers.`nRésultats au fil de la frappe une fois l'index construit, groupés par jeu. Vide = arborescence."))
 $txtLibFilter.Add_KeyDown({ if ($_.KeyCode -eq 'Enter') { $script:LibSearchAt = $null; Update-Library } })
 $txtLibFilter.Add_TextChanged({ $script:LibSearchAt = (Get-Date).AddMilliseconds(350) })
 
 $btnLibFilter = New-Object System.Windows.Forms.Button
-$btnLibFilter.Text = (T 'Chercher'); $btnLibFilter.Location = '320,40'; $btnLibFilter.Width = 36
+$btnLibFilter.Text = (T 'Chercher'); $btnLibFilter.Location = '300,40'; $btnLibFilter.Width = 36
 $btnLibFilter.Add_Click({ $script:LibSearchAt = $null; Update-Library })
 
-$chkLibImgOnly = New-Object System.Windows.Forms.CheckBox
-$chkLibImgOnly.Text = (T 'Images seulement'); $chkLibImgOnly.Location = '398,42'; $chkLibImgOnly.Width = 130
-$chkLibImgOnly.Add_CheckedChanged({ Update-Library })
+# 12.8 (lot 4a, A3 § 4.2 n° 8) : recherche sur le nom du fichier par defaut ; ancienne regle (chemin complet) sur demande
+$chkLibInDirs = New-Object System.Windows.Forms.CheckBox
+$chkLibInDirs.Text = (T 'Aussi dans les dossiers'); $chkLibInDirs.Location = '344,42'; $chkLibInDirs.Width = 170
+$tip.SetToolTip($chkLibInDirs, (T 'Cherche aussi les mots dans le nom des dossiers (chemin complet depuis la racine), comme avant la version 12.8.'))
+$chkLibInDirs.Add_CheckedChanged({ if ($txtLibFilter.Text.Trim()) { Update-Library } })
 
-$lblLibCount = New-Object System.Windows.Forms.Label
-$lblLibCount.Location = '530,44'; $lblLibCount.Size = '148,18'; $lblLibCount.Anchor = 'Top,Left,Right'; $lblLibCount.Text = ''; $lblLibCount.ForeColor = 'DimGray'
+$chkLibImgOnly = New-Object System.Windows.Forms.CheckBox
+$chkLibImgOnly.Text = (T 'Images seulement'); $chkLibImgOnly.Location = '520,42'; $chkLibImgOnly.Width = 140
+$chkLibImgOnly.Add_CheckedChanged({ Update-Library })
 
 $btnLibReindex = New-Object System.Windows.Forms.Button
 $btnLibReindex.Text = (T 'Réindexer'); $btnLibReindex.Location = '683,40'; $btnLibReindex.Width = 95; $btnLibReindex.Anchor = 'Top,Right'
 $tip.SetToolTip($btnLibReindex, (T "Reconstruit l'index de la racine (en arrière-plan). À faire après l'ajout ou le déplacement de fichiers."))
 $btnLibReindex.Add_Click({ Start-LibIndex $true })
 
+# 12.8 (lot 4a, A3 § 4.2 n° 7) : filtres de la liste des resultats (inactifs dans l arborescence), en ligne
+# (FlowLayoutPanel : largeurs ajustees aux textes francais et anglais) ; compteur sous la liste (FIX4B)
+$flpLib = New-Object System.Windows.Forms.FlowLayoutPanel
+$flpLib.Location = '6,68'; $flpLib.Size = '776,28'; $flpLib.Anchor = 'Top,Left,Right'; $flpLib.WrapContents = $false
+
+$lblLibFmt = New-Object System.Windows.Forms.Label
+$lblLibFmt.Text = (T 'Format :'); $lblLibFmt.AutoSize = $true; $lblLibFmt.Margin = New-Object System.Windows.Forms.Padding(4, 6, 0, 0)
+$cmbLibFmt = New-Object System.Windows.Forms.ComboBox
+$cmbLibFmt.DropDownStyle = 'DropDownList'; $cmbLibFmt.Width = 76; $cmbLibFmt.Margin = New-Object System.Windows.Forms.Padding(3, 2, 10, 0)
+[void]$cmbLibFmt.Items.Add((T 'Tous')); $cmbLibFmt.SelectedIndex = 0
+$tip.SetToolTip($cmbLibFmt, (T 'Formats présents dans les résultats de la recherche.'))
+$cmbLibFmt.Add_SelectedIndexChanged({ Update-LibFilters })
+
+$lblLibLang = New-Object System.Windows.Forms.Label
+$lblLibLang.Text = (T 'Langue :'); $lblLibLang.AutoSize = $true; $lblLibLang.Margin = New-Object System.Windows.Forms.Padding(0, 6, 0, 0)
+$cmbLibLang = New-Object System.Windows.Forms.ComboBox
+$cmbLibLang.DropDownStyle = 'DropDownList'; $cmbLibLang.Width = 66; $cmbLibLang.Margin = New-Object System.Windows.Forms.Padding(3, 2, 10, 0)
+[void]$cmbLibLang.Items.Add((T 'Toutes')); $cmbLibLang.SelectedIndex = 0
+$tip.SetToolTip($cmbLibLang, (T "Langues indiquées dans le nom (TOSEC : (fr), (en-de) ; No-Intro : (En,Fr)), ou langue du pays (TOSEC : (DE) ; en gris dans la liste). « M3 » : trois langues, non détaillées."))
+$cmbLibLang.Add_SelectedIndexChanged({ Update-LibFilters })
+
+$chkLibHideMod = New-Object System.Windows.Forms.CheckBox
+$chkLibHideMod.Text = (T 'Masquer les copies modifiées'); $chkLibHideMod.AutoSize = $true; $chkLibHideMod.Margin = New-Object System.Windows.Forms.Padding(0, 4, 8, 0)
+$tip.SetToolTip($chkLibHideMod, (T 'Masque les copies dont le nom porte une mention TOSEC de modification : [cr] déplombée, [f] corrigée, [h] et [m] modifiée, [p] pirate, [t] entraîneur, [tr] traduite.'))
+$chkLibHideMod.Add_CheckedChanged({ Update-LibFilters })
+
+$chkLibOrig = New-Object System.Windows.Forms.CheckBox
+$chkLibOrig.Text = (T 'Originaux seulement'); $chkLibOrig.AutoSize = $true; $chkLibOrig.Margin = New-Object System.Windows.Forms.Padding(0, 4, 8, 0)
+$tip.SetToolTip($chkLibOrig, (T "Sans liste de référence : ne garde que les IPF de structure SPS (bloc INFO lu dans le fichier : publication, révision, disquette). C'est un indice d'origine, pas une preuve.`nAvec une liste de référence (bouton « Liste de référence… ») : ne garde que les fichiers officiels, identiques à une entrée de la liste."))
+$chkLibOrig.Add_CheckedChanged({ Update-LibFilters })
+
+$flpLib.Controls.AddRange(@($lblLibFmt, $cmbLibFmt, $lblLibLang, $cmbLibLang, $chkLibHideMod, $chkLibOrig))
+
+# FIX4B (revue du lot 4) : compteur sous la liste, sur toute sa largeur (dans la ligne des filtres, il ne restait que
+# 142 px a 800 px de large : « 2 affiché(s), 3 masqué(s) » et l avancement de l analyse etaient coupes)
+$lblLibCount = New-Object System.Windows.Forms.Label
+$lblLibCount.Location = '10,316'; $lblLibCount.Size = '448,18'; $lblLibCount.Anchor = 'Bottom,Left,Right'; $lblLibCount.AutoEllipsis = $true
+$lblLibCount.Text = ''; $lblLibCount.ForeColor = 'DimGray'
+
 $treeLib = New-Object System.Windows.Forms.TreeView
-$treeLib.Location = '10,70'; $treeLib.Size = '445,250'
+$treeLib.Location = '10,98'; $treeLib.Size = '448,214'
 $treeLib.Anchor = 'Top,Bottom,Left,Right'
 $treeLib.HideSelection = $false
 $treeLib.Add_BeforeExpand({ Expand-LibNode $_.Node })
 $treeLib.Add_AfterSelect({ Show-LibSelection $_.Node })
 
+# 12.8 (lot 4a, A3 § 4.2 n° 2 et 3, D18) : resultats de la recherche en liste groupee par titre court (groupes non
+# repliables), colonnes et tri par colonne ; badge de format et d etat (pictogrammes du lot 3) dans la premiere colonne
+$imgLibBadge = New-Object System.Windows.Forms.ImageList
+$imgLibBadge.ColorDepth = [System.Windows.Forms.ColorDepth]::Depth32Bit
+$imgLibBadge.ImageSize = New-Object System.Drawing.Size(42, 16)
+
+$lvLib = New-Object System.Windows.Forms.ListView
+$lvLib.Location = '10,98'; $lvLib.Size = '448,214'
+$lvLib.Anchor = 'Top,Bottom,Left,Right'
+$lvLib.View = [System.Windows.Forms.View]::Details
+$lvLib.FullRowSelect = $true; $lvLib.HideSelection = $false; $lvLib.MultiSelect = $false
+$lvLib.ShowGroups = $true; $lvLib.ShowItemToolTips = $true; $lvLib.Visible = $false
+$lvLib.SmallImageList = $imgLibBadge
+$script:LibColTitles = @((T 'Variante'), (T 'Disq.'), (T 'Version'), (T 'Langue'), (T 'État'), (T 'Format'), (T 'Taille'), (T 'Dossier'))
+# FIX4B (revue du lot 4) : largeur au moins celle du titre (« Language » en anglais ; colonne triee : Set-LibSort) ;
+# « Etat » de 100 px (« officiel SPS », « manque 3 ») ; les cinq premieres colonnes tiennent a 800 px de large
+$libColW = @(150, 44, 56, 50, 100, 50, 62, 140)
+for ($libColI = 0; $libColI -lt $script:LibColTitles.Count; $libColI++) { [void]$lvLib.Columns.Add($script:LibColTitles[$libColI], (Get-LibColumnWidth $script:LibColTitles[$libColI] $libColW[$libColI])) }
+$script:LibColW = @($lvLib.Columns | ForEach-Object { $_.Width })      # largeurs de depart, rendues par Set-LibSort
+$lvLib.Columns[6].TextAlign = [System.Windows.Forms.HorizontalAlignment]::Right
+$lvLib.Add_SelectedIndexChanged({
+    if ($lvLib.SelectedItems.Count -gt 0) { Show-LibDetails $lvLib.SelectedItems[0].Tag }
+    elseif (-not $script:LibRendering) { Clear-LibDetails }
+})
+$lvLib.Add_ColumnClick({ Set-LibSort $_.Column })
+
+# 12.8 (lot 4a, A3 § 4.1) : panneau de details : titre, vignette, informations, documents associes et entrees d archive
+$lblLibTitle = New-Object System.Windows.Forms.Label
+$lblLibTitle.Location = '466,98'; $lblLibTitle.Size = '312,18'; $lblLibTitle.Anchor = 'Top,Right'
+$lblLibTitle.Font = $bold; $lblLibTitle.AutoEllipsis = $true; $lblLibTitle.ForeColor = $script:Theme.Accent2
+
+# FIX4B (revue du lot 4) : position et taille de la vignette, du texte et de la liste du bas calculees d apres la hauteur
+# de la page (Update-LibPanelLayout) ; vignette de 72 px reduite au besoin
+$picLibThumb = New-Object System.Windows.Forms.PictureBox
+$picLibThumb.Location = '466,121'; $picLibThumb.Size = '72,72'; $picLibThumb.Anchor = 'Top,Right'; $picLibThumb.Visible = $false
+$picLibThumb.SizeMode = [System.Windows.Forms.PictureBoxSizeMode]::Zoom
+
 $txtLibInfo = New-Object System.Windows.Forms.TextBox
-$txtLibInfo.Location = '465,70'; $txtLibInfo.Size = '313,135'
+$txtLibInfo.Location = '466,121'; $txtLibInfo.Size = '312,97'
 $txtLibInfo.Anchor = 'Top,Bottom,Right'
-$txtLibInfo.Multiline = $true; $txtLibInfo.ReadOnly = $true; $txtLibInfo.Font = $mono; $txtLibInfo.ForeColor = [System.Drawing.Color]::FromArgb(40,44,52)
+$txtLibInfo.Multiline = $true; $txtLibInfo.ReadOnly = $true; $txtLibInfo.Font = New-Object System.Drawing.Font('Segoe UI', 9); $txtLibInfo.ForeColor = [System.Drawing.Color]::FromArgb(40,44,52)
 $txtLibInfo.ScrollBars = 'Vertical'
 $txtLibInfo.BackColor = [System.Drawing.SystemColors]::Control
 
+$lstLibDocs = New-Object System.Windows.Forms.ListBox
+$lstLibDocs.Location = '466,222'; $lstLibDocs.Size = '312,36'; $lstLibDocs.Anchor = 'Bottom,Right'
+$lstLibDocs.IntegralHeight = $false; $lstLibDocs.HorizontalScrollbar = $true
+$lstLibDocs.Font = New-Object System.Drawing.Font('Segoe UI', 9)      # FIX4B : comme le texte ; deux lignes entieres en 36 px
+$tip.SetToolTip($lstLibDocs, (T "Documents associés au jeu (même titre, dossier du jeu, ou media\<titre>\) et entrées d'une archive ZIP.`nDouble-clic : ouvre le document. Entrée image d'une archive : choisie pour l'écriture."))
+$lstLibDocs.Add_SelectedIndexChanged({ Show-LibSubSelection })
+$lstLibDocs.Add_DoubleClick({ if (Get-LibOpenTarget) { Open-LibDoc } })
+
 $btnLibFast = New-Object System.Windows.Forms.Button
-$btnLibFast.Text = (T 'Écriture rapide'); $btnLibFast.Location = '465,213'; $btnLibFast.Size = '154,38'; $btnLibFast.Font = $bold
+$btnLibFast.Text = (T 'Écriture rapide'); $btnLibFast.Location = '466,262'; $btnLibFast.Size = '154,34'; $btnLibFast.Font = $bold
 $btnLibFast.Anchor = 'Bottom,Right'; $btnLibFast.Enabled = $false
 $tip.SetToolTip($btnLibFast, (T "Écrit l'image sélectionnée en une passe, les deux têtes ensemble : image entière, profil de précompensation Auto,`npré-effacement, effacement des pistes vides, vérification gw, 10 essais, sans contrôle complet des pistes.`nSans calibration commune pour la famille de l'image, le lecteur est d'abord calibré : la disquette reçoit le motif de test, puis l'image."))
 $tip.SetToolTip($btnLibFast, $tip.GetToolTip($btnLibFast) + "`n" + (T 'Test rapide choisi dans l''onglet Écriture : avant l''écriture, le niveau de la courbe est mesuré sur la disquette à écrire (4 à 9 cylindres par tête, 1 à 3 écritures du motif par piste).'))
 $btnLibFast.Add_Click({ Start-LibWrite 'fast' })
 $btnLibSlow = New-Object System.Windows.Forms.Button
-$btnLibSlow.Text = (T 'Écriture lente'); $btnLibSlow.Location = '624,213'; $btnLibSlow.Size = '154,38'; $btnLibSlow.Font = $bold
+$btnLibSlow.Text = (T 'Écriture lente'); $btnLibSlow.Location = '624,262'; $btnLibSlow.Size = '154,34'; $btnLibSlow.Font = $bold
 $btnLibSlow.Anchor = 'Bottom,Right'; $btnLibSlow.Enabled = $false
 $tip.SetToolTip($btnLibSlow, (T "Écrit la tête 0 puis la tête 1, chacune avec sa précompensation, puis contrôle toutes les pistes`net réécrit les pistes faibles, 3 passes au plus. Mêmes paramètres que l'écriture rapide.`nSans calibration par tête pour la famille de l'image, chaque tête est d'abord calibrée : la disquette reçoit le motif de test, puis l'image."))
 $tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T 'Test rapide choisi dans l''onglet Écriture : avant l''écriture, le niveau de la courbe est mesuré sur la disquette à écrire (4 à 9 cylindres par tête, 1 à 3 écritures du motif par piste).'))
@@ -16481,31 +18949,32 @@ $tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T "Écriture
 $btnLibSlow.Add_Click({ Start-LibWrite 'slow' })
 
 $btnLibOpen = New-Object System.Windows.Forms.Button
-$btnLibOpen.Text = (T 'Ouvrir (application par défaut)'); $btnLibOpen.Location = '465,250'; $btnLibOpen.Size = '313,32'
+$btnLibOpen.Text = (T 'Ouvrir'); $btnLibOpen.Location = '466,300'; $btnLibOpen.Size = '154,34'
 $btnLibOpen.Anchor = 'Bottom,Right'; $btnLibOpen.Enabled = $false
-$btnLibOpen.Add_Click({
-    $sel = Resolve-LibSelection
-    if (-not $sel) { return }
-    try { Start-Process -FilePath $sel.Path } catch { Append-Log ((T "Ouverture impossible : {0}") -f "$($_.Exception.Message)") }
-})
+$tip.SetToolTip($btnLibOpen, (T 'Ouvre le document sélectionné (liste ou documents associés) avec l''application par défaut.'))
+$btnLibOpen.Add_Click({ Open-LibDoc })
 
 $btnLibExplore = New-Object System.Windows.Forms.Button
-$btnLibExplore.Text = (T 'Ouvrir le dossier'); $btnLibExplore.Location = '465,287'; $btnLibExplore.Size = '313,32'
+$btnLibExplore.Text = (T 'Ouvrir le dossier'); $btnLibExplore.Location = '624,300'; $btnLibExplore.Size = '154,34'
 $btnLibExplore.Anchor = 'Bottom,Right'
 $btnLibExplore.Add_Click({
-    $n = $treeLib.SelectedNode
-    if (-not $n -or -not $n.Tag) { return }
-    $p = $n.Tag.Path
-    if ($n.Tag.Kind -eq 'zipentry') { $p = $n.Tag.ZipPath }
+    # 12.8 (lot 4a) : element du panneau de details (liste des resultats ou arborescence) ; entree d archive : l archive
+    $c = $script:LibCur
+    if (-not $c) { return }
+    $p = if ($c.Kind -eq 'zipentry') { $c.ZipPath } else { $c.Path }
     if ($p -and (Test-Path -LiteralPath $p)) {
         if ((Get-Item -LiteralPath $p).PSIsContainer) { Start-Process explorer.exe "`"$p`"" }
         else { Start-Process explorer.exe "/select,`"$p`"" }
     }
 })
 
-$tabL.Controls.AddRange(@((New-Label (T 'Racine :') '10,14'), $txtLibRoot, $btnLibRoot, $btnLibRefresh,
-    (New-Label (T 'Recherche :') '10,44'), $txtLibFilter, $btnLibFilter, $chkLibImgOnly, $lblLibCount, $btnLibReindex,
-    $treeLib, $txtLibInfo, $btnLibFast, $btnLibSlow, $btnLibOpen, $btnLibExplore))
+$tabL.Controls.AddRange(@((New-Label (T 'Racine :') '10,14'), $txtLibRoot, $btnLibRoot, $btnLibRefresh, $btnLibDat, $lblLibDat, $btnLibDatClear,
+    (New-Label (T 'Recherche :') '10,44'), $txtLibFilter, $btnLibFilter, $chkLibInDirs, $chkLibImgOnly, $btnLibReindex, $flpLib,
+    $treeLib, $lvLib, $lblLibCount, $lblLibTitle, $picLibThumb, $txtLibInfo, $lstLibDocs, $btnLibFast, $btnLibSlow, $btnLibOpen, $btnLibExplore))
+# FIX4B : colonne de droite recalculee a chaque changement de taille de la page (apres l ancrage des boutons)
+$tabL.Add_Resize({ Update-LibPanelLayout })
+# 12.8 (lot 4b) : liste de reference enregistree, lue a la premiere ouverture de l onglet (etat affiche a cote du bouton)
+$tabs.Add_SelectedIndexChanged({ if ($tabs.SelectedTab -eq $tabL) { [void](Get-LibDat) } })
 
 # ============================== ECRITURE =======================================
 $tabW = New-TabPage (T 'Écriture')
@@ -17633,6 +20102,8 @@ $treeLib.ItemHeight = 20
 # Boutons : actions principales en bleu, action destructive en rouge, parcours en icone seule
 Set-Btn $btnLibRoot    'FolderOpen' -IconOnly
 Set-Btn $btnLibRefresh 'Refresh'    -IconOnly
+Set-Btn $btnLibDat     'Check'
+Set-Btn $btnLibDatClear 'Delete'    -IconOnly
 Set-Btn $btnLibFilter  'Search'     -IconOnly
 Set-Btn $btnLibReindex 'Sync'
 Set-Btn $btnLibFast    'Save' 'primary'
@@ -18114,6 +20585,8 @@ $timer.Add_Tick({
         $script:LibSearchAt = $null
         if (Test-LibIndexReady $txtLibRoot.Text) { Update-Library }
     }
+    # 12.8 (lot 4a) : liste des resultats : travail differe (bloc INFO des IPF, disquettes manquantes) par tranches de 60 ms
+    if ($script:LibWork.Count -gt 0) { Step-LibWork }
 })
 $timer.Start()
 
@@ -18134,8 +20607,9 @@ $form.Add_FormClosing({
     if ($script:LibRunspace) { try { $script:LibRunspace.Close(); $script:LibRunspace.Dispose() } catch { } }
     $timer.Stop()
 })
-# 12.8 (lot 3) : pinceaux, stylos, polices, formats et pictogrammes de l affichage de la qualite liberes avec la fenetre
-$form.Add_FormClosed({ Clear-QualityGdi })
+# 12.8 (lot 3) : pinceaux, stylos, polices, formats et pictogrammes de l affichage de la qualite liberes avec la fenetre ;
+# (lot 4a) vignette et badges de la Bibliotheque
+$form.Add_FormClosed({ Clear-QualityGdi; Clear-LibGdi })
 
 # Position du separateur : appliquee une fois la fenetre affichee (taille connue)
 $script:PendingSplit = 0

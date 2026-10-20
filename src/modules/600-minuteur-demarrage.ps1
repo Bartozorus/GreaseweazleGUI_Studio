@@ -144,6 +144,8 @@ $timer.Add_Tick({
         $script:LibSearchAt = $null
         if (Test-LibIndexReady $txtLibRoot.Text) { Update-Library }
     }
+    # 12.8 (lot 4a) : liste des resultats : travail differe (bloc INFO des IPF, disquettes manquantes) par tranches de 60 ms
+    if ($script:LibWork.Count -gt 0) { Step-LibWork }
 })
 $timer.Start()
 
@@ -164,8 +166,9 @@ $form.Add_FormClosing({
     if ($script:LibRunspace) { try { $script:LibRunspace.Close(); $script:LibRunspace.Dispose() } catch { } }
     $timer.Stop()
 })
-# 12.8 (lot 3) : pinceaux, stylos, polices, formats et pictogrammes de l affichage de la qualite liberes avec la fenetre
-$form.Add_FormClosed({ Clear-QualityGdi })
+# 12.8 (lot 3) : pinceaux, stylos, polices, formats et pictogrammes de l affichage de la qualite liberes avec la fenetre ;
+# (lot 4a) vignette et badges de la Bibliotheque
+$form.Add_FormClosed({ Clear-QualityGdi; Clear-LibGdi })
 
 # Position du separateur : appliquee une fois la fenetre affichee (taille connue)
 $script:PendingSplit = 0

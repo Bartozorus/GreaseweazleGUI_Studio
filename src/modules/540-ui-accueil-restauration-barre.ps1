@@ -361,6 +361,8 @@ $treeLib.ItemHeight = 20
 # Boutons : actions principales en bleu, action destructive en rouge, parcours en icone seule
 Set-Btn $btnLibRoot    'FolderOpen' -IconOnly
 Set-Btn $btnLibRefresh 'Refresh'    -IconOnly
+Set-Btn $btnLibDat     'Check'
+Set-Btn $btnLibDatClear 'Delete'    -IconOnly
 Set-Btn $btnLibFilter  'Search'     -IconOnly
 Set-Btn $btnLibReindex 'Sync'
 Set-Btn $btnLibFast    'Save' 'primary'

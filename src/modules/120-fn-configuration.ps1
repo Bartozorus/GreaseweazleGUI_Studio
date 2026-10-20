@@ -35,6 +35,11 @@ function ConvertTo-SettingValue([string]$k, $v) {
             if (-not [double]::TryParse(([string]$v).Trim(), [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$x) -or [double]::IsNaN($x) -or [double]::IsInfinity($x)) { return $d.Def }
             return [double][math]::Max([double]$d.Min, [math]::Min([double]$d.Max, $x))
         }
+        'string' {
+            # 12.8 (lot 4b) : texte libre (chemin de la liste de reference) ; booleen : defaut
+            if ($v -is [bool]) { return $d.Def }
+            return ([string]$v).Trim()
+        }
         'enum' {
             $s = [string]$v
             foreach ($c in $d.Codes) { if ($c -ceq $s) { return $c } }
@@ -123,13 +128,14 @@ function Update-SettingDependents([string]$k) {
     # les reglages sans controle propre ou affiches ailleurs : duree du prechauffage (textes et cases de l onglet
     # Ecriture), mesure de la disquette (case cochee et verrouillee en test rapide, D5) ; lot 2 : lecteur de la
     # restauration (cadre 1, D10) et ligne du format detecte (D11) ; format de la comparaison (format saisi, ligne du format
-    # detecte, D13)
+    # detecte, D13) ; lot 4b : liste de reference de la Bibliotheque (dechargee, relue a la prochaine demande)
     switch ($k) {
         'warmMinutes'      { Update-SlowUi }
         'levelBeforeWrite' { Update-SlowUi }
         'drive'            { Update-RsDrive }
         'restoreFormat'    { Update-RsFmtFound }
         'compareFormat'    { Update-CmpFmtFound }
+        'libDat'           { Reset-LibDat }
     }
 }
 
@@ -210,6 +216,12 @@ function Set-Defaults {
     $txtLibRoot.Text = ''
     $txtLibFilter.Text = ''
     $chkLibImgOnly.Checked = $false
+    # 12.8 (lot 4a) : options de la recherche et filtres de la liste des resultats (non enregistres)
+    $chkLibInDirs.Checked = $false
+    $chkLibHideMod.Checked = $false
+    $chkLibOrig.Checked = $false
+    if ($cmbLibFmt.Items.Count -gt 0) { $cmbLibFmt.SelectedIndex = 0 }
+    if ($cmbLibLang.Items.Count -gt 0) { $cmbLibLang.SelectedIndex = 0 }
 
     $txtWFile.Text = ''
     $cmbWFmt.SelectedIndex = 0
@@ -419,7 +431,7 @@ function Save-Config {
     # 12.8 (point 7) : reglages de la table (global.drive ; write.calMode, slowWrite, slowWarmup, calibWarmup,
     # calWarmupMinutes, levelBeforeWrite, precompProfileCode et precompProfile, precompThresholdNs ; ui.homeCalHeads et
     # homeCalCyls ; align.presetCode et preset ; quality ; tools.passes et linger ; restore.formatChoice ;
-    # compare.formatChoice), puis, pendant
+    # compare.formatChoice ; library.dat, lot 4b), puis, pendant
     # une operation surchargee (D4 : ecriture depuis la Bibliotheque ; lot 2 : restauration), reglages de l onglet
     # Ecriture d avant l operation
     Export-Settings $cfg
