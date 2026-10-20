@@ -75,7 +75,7 @@ function Resolve-OldCalibrations {
     if (-not $o) { return }
     $items = @(@($o.Curves.Keys) | ForEach-Object { $cv = $o.Curves[$_]; (T "{0} : calcul {1}, lecteur {2}, {3}") -f (Get-CurveKeyLabel $_), (Get-CurveCalcText $cv -Plain), "$($cv.Drive)", "$($cv.Date)" })
     $txt = ((T "Ces calibrations ont été faites avec un autre calcul de calibration que le calcul actuel (v{0}) :") -f "$($script:CalibCalc)") + "`n" + ((@($items) | ForEach-Object { "  - $_" }) -join "`n") + "`n`n" +
-           (T "Recalibrer (conseillé) : ces calibrations sont abandonnées ; la prochaine écriture qui en a besoin recalibre le lecteur.`nConserver ces courbes : elles restent utilisées telles quelles ; la fenêtre Courbe et le journal rappellent leur calcul. Le calcul ayant changé, une nouvelle calibration peut donner une courbe plus juste. Une courbe antérieure à la 12.3 ne peut pas servir de référence au test rapide (pente et densité non enregistrées).`nFermer la fenêtre (ou Échap) : décision au prochain démarrage ; d'ici là, ces calibrations ne sont pas utilisées.")
+           (T "Recalibrer (conseillé) : ces calibrations sont abandonnées et le lecteur reprend ses profils d'origine. Recalibrez-le depuis la carte « Calibrer le lecteur » de l'Accueil, sur une disquette sacrifiée ; d'ici là, en « Test rapide », l'écriture d'une image calibrable est refusée.`nConserver ces courbes : elles restent utilisées telles quelles ; la fenêtre Courbe et le journal rappellent leur calcul. Le calcul ayant changé, une nouvelle calibration peut donner une courbe plus juste. Une courbe antérieure à la 12.3 ne peut pas servir de référence au test rapide (pente et densité non enregistrées).`nFermer la fenêtre (ou Échap) : décision au prochain démarrage ; d'ici là, ces calibrations ne sont pas utilisées.")
     # Courbe a la borne de son calcul : conservee, elle y reste (le calcul actuel admet des valeurs plus hautes)
     $atMax = @(@($o.Curves.Keys) | Where-Object { Test-CurveAtMax $o.Curves[$_] })
     foreach ($mx in @($atMax | ForEach-Object { Get-CurveMaxNs $o.Curves[$_] } | Where-Object { $_ -lt $script:CalHardNs } | Sort-Object -Unique)) {
@@ -128,7 +128,7 @@ function Resolve-OldCalibrations {
         Append-Log ((T "Calibrations d'un autre calcul conservées à votre demande : {0}. Elles sont utilisées telles quelles (calcul actuel v{1}).") -f "$list", "$($script:CalibCalc)")
     } elseif ($dr -eq [System.Windows.Forms.DialogResult]::Abort) {
         $script:OldCalib = $null
-        Append-Log ((T "Calibrations d'un autre calcul abandonnées : {0}. Courbes et profils calibrés remis aux valeurs d'origine ; le lecteur sera recalibré à la prochaine écriture qui en a besoin.") -f "$list")
+        Append-Log ((T "Calibrations d'un autre calcul abandonnées : {0}. Courbes et profils calibrés remis aux valeurs d'origine ; recalibrez le lecteur depuis la carte « Calibrer le lecteur » de l'Accueil (en « Test rapide », l'écriture d'une image calibrable est refusée d'ici là).") -f "$list")
     } else {
         Append-Log (T 'Calibrations d''un autre calcul : décision remise au prochain démarrage ; elles ne sont pas utilisées d''ici là.')
         return
