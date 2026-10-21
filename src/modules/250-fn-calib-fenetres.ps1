@@ -185,7 +185,7 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
 function Get-CalibSnapshot([string[]]$keys) {
     # Etat des courbes et profils (retabli par Restore-CalibState) : courbes des cles donnees, niveaux, profil, champs --precomp
     $s = @{ Std = $script:PrecompStd; Long = $script:PrecompLong; Curves = @{}; Levels = $script:LevelShifts.Clone()
-            Prof = $cmbWProfile.SelectedIndex; On = $chkWPrecomp.Checked; P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Lbl = $lblWProfileInfo.Text }
+            Prof = $cmbWProfile.SelectedIndex; On = $chkWPrecomp.Checked; P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Lbl = (Get-WProfileText) }
     foreach ($k in @($keys)) { $s.Curves[$k] = $script:PrecompCurves[$k] }
     return $s
 }
@@ -199,7 +199,9 @@ function Restore-CalibState($prev) {
     # Choix du profil et champs --precomp d avant la calibration (profil Manuel compris)
     if ($null -ne $prev.Prof -and $cmbWProfile.SelectedIndex -ne $prev.Prof) { $cmbWProfile.SelectedIndex = $prev.Prof }
     Update-PrecompForImage $txtWFile.Text
-    if ($null -ne $prev.P0) { $chkWPrecomp.Checked = $prev.On; $txtWPrecomp.Text = $prev.P0; $txtWPrecomp1.Text = $prev.P1; $lblWProfileInfo.Text = $prev.Lbl }
+    # 12.8 (FIX-PISTES-2) : Lbl $null quand le libelle portait l avis de la Bibliotheque (Get-WProfileText) : texte du
+    # profil pose par Update-PrecompForImage
+    if ($null -ne $prev.P0) { $chkWPrecomp.Checked = $prev.On; $txtWPrecomp.Text = $prev.P0; $txtWPrecomp1.Text = $prev.P1; if ($null -ne $prev.Lbl) { $lblWProfileInfo.Text = $prev.Lbl } }
     if (-not $script:Restore) { [void](Save-Config) }
 }
 

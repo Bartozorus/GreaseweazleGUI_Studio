@@ -235,7 +235,7 @@ function Get-QualityIcon([string]$kind, [int]$size, [string]$badge = '', [switch
 # --- Etat de l affichage ($script:QualView) ---------------------------------------------------------------------------
 # State : empty | run | result | stale ; Kind : measure (mesure, continue ou non) ou check (controle apres ecriture) ;
 # Has : un resultat existe (Res) ; Reason : code de la raison (stop, error, gwerror, noscp, thresholds, written,
-# checkabort) ; Pass : passe de la mesure continue ; Drive, Heads, Revs, NCyl : mesure en cours ; RunText : etape du
+# checkabort, checknone) ; Pass : passe de la mesure continue ; Drive, Heads, Revs, NCyl : mesure en cours ; RunText : etape du
 # controle en cours ; Res : dernier resultat (Kind, At, Score, Lvl, Count, Bad, Health, HealthText, ScoreText...).
 
 function Set-QualityPending([string]$kind, $ctx = $null) {
@@ -300,6 +300,7 @@ function Get-QualStaleText([string]$reason, [string]$at) {
         'thresholds' { return (T 'Seuils de jitter modifiés : relancez la mesure') }
         'written'    { return (T 'Disquette écrite depuis la mesure') }
         'checkabort' { return (T 'Contrôle après écriture interrompu.') }
+        'checknone'  { return (T 'Contrôle après écriture : aucune piste à relire.') }   # 12.8 (FIX-PISTES) : champ Pistes
         default      { if ($at) { return ((T 'Mesure interrompue : résultat de {0}') -f $at) } else { return '' } }
     }
 }

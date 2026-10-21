@@ -247,6 +247,8 @@ $btnStop.Add_Click({
             try { $script:GwProc.Kill($true) } catch { try { $script:GwProc.Kill() } catch { } }
         }
         $script:Chain.Clear(); $script:WriteQueue.Clear()
+        # 12.8 (FIX-PISTES) : operation de la Bibliotheque arretee : l avis de fin dit comment la reprendre (Show-LibEndNotice)
+        if ($script:OpOverride) { $script:OpOverride.Stopped = $true }
         Stop-WriteWarmup       # prechauffage d une ecriture lente : chaine d ecriture mise de cote abandonnee, rien n est ecrit
         if ($script:Restore) { Stop-Restore (T 'interrompue par l''utilisateur') }
         if ($script:Rep) { Stop-WriteCheck }

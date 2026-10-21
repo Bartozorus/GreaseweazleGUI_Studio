@@ -1585,7 +1585,33 @@ $script:I18n['min au plus (0 : aucun préchauffage)'] = 'min at most (0: no warm
 $script:I18n["Durée maximale du préchauffage du lecteur avant une écriture lente ou une calibration complète, en minutes : 5 par défaut, de 0 à 30, 0 : aucun préchauffage. Le préchauffage est réduit, ou sauté, si le lecteur vient de servir.`nEnregistrée dans la configuration (calWarmupMinutes)."] = "Maximum duration of the drive warm-up before a slow write or a full calibration, in minutes: 5 by default, from 0 to 30, 0: no warm-up. The warm-up is shortened, or skipped, if the drive was just used.`nSaved in the configuration (calWarmupMinutes)."
 $script:I18n["Liste « Calibration précomp » au « Test rapide » : la disquette est mesurée avant l'écriture, rapide ou lente, quel que soit le point de départ (bouton ÉCRIRE, Bibliothèque, restauration) ; la case est alors cochée et verrouillée.`nMêmes exceptions partout, avec leur raison dans le journal : pas de mesure quand l'image ne recouvrirait pas tout le motif de test (image à une seule face, champ Pistes avec c=, h= ou step=), ni avec un profil autre qu'Auto ou la case --precomp décochée."] = "`"Precomp calibration`" list set to `"Quick test`": the disk is measured before the write, fast or slow, whatever the starting point (WRITE button, Library, restore); the box is then ticked and locked.`nSame exceptions everywhere, with their reason in the log: no measurement when the image would not cover the whole test pattern (single-sided image, Tracks field with c=, h= or step=), nor with a profile other than Auto or the --precomp box unticked."
 $script:I18n["Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)"] = 'Measure the disk before the write: always with "Quick test" (precompensation level and surface state)'
-$script:I18n["Bibliothèque : opération terminée, réglages de l'onglet Écriture rétablis (le préréglage de la Bibliothèque n'est pas enregistré)."] = 'Library: operation finished, Write tab settings restored (the Library preset is not saved).'
+# 12.8 (FIX-PISTES, essai du 21/10/2026) : fin d une operation de la Bibliotheque, ecriture partielle, controle limite au champ Pistes
+$script:I18n["Bibliothèque : opération terminée, réglages de l'onglet Écriture rétablis (le préréglage de la Bibliothèque n'est pas enregistré) : {0}{1}."] = 'Library: operation finished, Write tab settings restored (the Library preset is not saved): {0}{1}.'
+$script:I18n["Bibliothèque : opération arrêtée, réglages de l'onglet Écriture rétablis (le préréglage de la Bibliothèque n'est pas enregistré) : {0}{1}. Pour reprendre l'écriture de {2}, relancez-la depuis la Bibliothèque : le bouton ÉCRIRE LA DISQUETTE écrit l'image de l'onglet Écriture."] = 'Library: operation stopped, Write tab settings restored (the Library preset is not saved): {0}{1}. To resume writing {2}, start it again from the Library: the WRITE THE DISK button writes the image of the Write tab.'
+$script:I18n["Bibliothèque terminée. Onglet Écriture rétabli : {0}{1}."] = 'Library finished. Write tab restored: {0}{1}.'
+$script:I18n["Bibliothèque arrêtée : pour reprendre, relancez l'écriture depuis la Bibliothèque. Onglet Écriture rétabli : {0}{1}."] = 'Library stopped: to resume, start the write again from the Library. Write tab restored: {0}{1}.'
+$script:I18n[', champ Pistes « {0} »'] = ', Tracks field "{0}"'
+$script:I18n['Écriture partielle'] = 'Partial write'
+$script:I18n[" ({0} piste(s) sur les {1} de l'image)"] = " ({0} track(s) out of the image's {1})"
+$script:I18n["Écriture partielle : seules les pistes {0} de {1} seront écrites{2} (champ Pistes de l'onglet Écriture)."] = 'Partial write: only tracks {0} of {1} will be written{2} (Tracks field of the Write tab).'
+$script:I18n['Seules les pistes {0} de {1} seront écrites{2}.'] = 'Only tracks {0} of {1} will be written{2}.'
+$script:I18n["Le champ Pistes des options avancées de l'onglet Écriture limite l'écriture à ces pistes ; il est gardé d'une session à l'autre. Pour écrire toute l'image, fermez cette fenêtre et videz ce champ."] = 'The Tracks field in the advanced options of the Write tab limits the write to these tracks; it is kept from one session to the next. To write the whole image, close this window and clear this field.'
+$script:I18n['Écrire ces pistes'] = 'Write these tracks'
+$script:I18n["Écriture annulée : écriture partielle non confirmée, rien n'a été écrit."] = 'Write cancelled: partial write not confirmed, nothing was written.'
+$script:I18n["Contrôle après écriture : aucune piste de l'image dans le champ Pistes (« {0} ») : rien à relire (piste vide de l'image, effacée ou sautée par gw)."] = 'Post-write check: no image track in the Tracks field ("{0}"): nothing to read back (empty image track, erased or skipped by gw).'
+$script:I18n['Contrôle après écriture : aucune piste à relire.'] = 'Post-write check: no track to read back.'
+# 12.8 (FIX-PISTES-2) : confirmation du bouton ECRIRE : aucune piste de l image dans le champ, pas du lecteur (step=)
+$script:I18n["« Effacer les pistes vides » est cochée : ces pistes de la disquette seront effacées."] = '"Erase empty tracks" is ticked: these tracks of the disk will be erased.'
+$script:I18n["Écriture partielle : aucune piste de {1} dans le champ Pistes ({0}), aucune donnée de l'image ne sera écrite."] = 'Partial write: no track of {1} in the Tracks field ({0}), no image data will be written.'
+$script:I18n["Aucune piste de {1} n'est dans le champ Pistes ({0}) : aucune donnée de l'image ne sera écrite."] = 'No track of {1} is in the Tracks field ({0}): no image data will be written.'
+$script:I18n["Pas du lecteur : {1} sera écrite avec step={0} ({0} pas du lecteur par cylindre au lieu d'un, champ Pistes de l'onglet Écriture)."] = 'Drive step: {1} will be written with step={0} ({0} drive steps per cylinder instead of one, Tracks field of the Write tab).'
+$script:I18n["Le champ Pistes contient aussi step={0} : {0} pas du lecteur par cylindre au lieu d'un."] = 'The Tracks field also contains step={0}: {0} drive steps per cylinder instead of one.'
+$script:I18n["Le champ Pistes contient step={0} : {1} sera écrite avec {0} pas du lecteur par cylindre au lieu d'un (step=2 sert à écrire une disquette 40 pistes dans un lecteur 80 pistes)."] = 'The Tracks field contains step={0}: {1} will be written with {0} drive steps per cylinder instead of one (step=2 is for writing a 40-track disk in an 80-track drive).'
+$script:I18n['Pas du lecteur modifié'] = 'Drive step changed'
+$script:I18n['Écrire avec ce pas'] = 'Write with this step'
+$script:I18n["Écriture annulée : pas du lecteur non confirmé, rien n'a été écrit."] = 'Write cancelled: drive step not confirmed, nothing was written.'
+$script:I18n["Le champ Pistes des options avancées de l'onglet Écriture est gardé d'une session à l'autre. Pour écrire au pas normal du lecteur, fermez cette fenêtre et retirez step= de ce champ."] = 'The Tracks field in the advanced options of the Write tab is kept from one session to the next. To write at the normal drive step, close this window and remove step= from this field.'
+$script:I18n["Contrôle après écriture : relecture en flux de {0} piste(s) de l'image, celles du champ Pistes (« {1} ») (3 tours)."] = 'Post-write check: reading back {0} image track(s) as flux, those of the Tracks field ("{1}") (3 revolutions).'
 $script:I18n["Nettoyage de l'onglet Outils : ancien réglage par défaut (3 passes, {0} ms par position) remplacé par le nouveau, 3 passes de {1} ms par position, comme le préréglage « Standard » de la fenêtre « Nettoyage des têtes »."] = 'Tools tab cleaning: former default setting (3 passes, {0} ms per position) replaced by the new one, 3 passes of {1} ms per position, like the "Standard" preset of the "Head cleaning" window.'
 # 12.8, lot 1b : nouvel essai automatique des cylindres non converges
 $script:I18n["Si des cylindres restent non convergés, un nouvel essai automatique ajoute au plus {0} min (une passe de vérification ciblée)."] = 'If cylinders remain not converged, an automatic retest adds {0} min at most (one targeted verification pass).'
@@ -2528,6 +2554,7 @@ $script:QualView = @{ State = 'empty'; Kind = ''; Reason = ''; At = $null; Has =
 $script:QualCard = $null
 $script:QualGdi = @{}
 $script:WCalIcon = $null
+$script:WTabNotice = $null      # 12.8 (FIX-PISTES) : avis de fin d une operation de la Bibliotheque (Set-WTabNotice)
 $script:RsResultIcon = $null
 
 # Profils de precompensation (mesures le 06/10/2026, lecteur A600 en ecriture, relecture A600)
@@ -7229,8 +7256,8 @@ function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
 
 function Enter-OpOverride([string]$kind) {
     # Surcharge deja active (operation precedente non terminee) : l etat d origine est garde
-    if ($script:OpOverride) { return }
-    $script:OpOverride = @{ Kind = $kind; Saved = (Save-WriteTabState); Started = $false }
+    if ($script:OpOverride) { $script:OpOverride.Stopped = $false; return }
+    $script:OpOverride = @{ Kind = $kind; Saved = (Save-WriteTabState); Started = $false; Stopped = $false }
 }
 
 function Exit-OpOverride([switch]$Keep) {
@@ -7240,10 +7267,54 @@ function Exit-OpOverride([switch]$Keep) {
     if (-not $o) { return }
     $script:OpOverride = $null
     if ($Keep) { return }
+    $opImg = $txtWFile.Text                                   # image de l operation, avant le retour de celle de l onglet
     Restore-WriteTabState $o.Saved
     # Restauration (12.8, lot 2) : reglages retablis sans ligne de journal, comme en 12.7
-    if ($o.Kind -eq 'library') { Append-Log (T "Bibliothèque : opération terminée, réglages de l'onglet Écriture rétablis (le préréglage de la Bibliothèque n'est pas enregistré).") }
+    if ($o.Kind -eq 'library') { Show-LibEndNotice $o $opImg }
     [void](Save-Config)
+}
+
+function Show-LibEndNotice($o, [string]$opImg) {
+    # 12.8 (FIX-PISTES, essai du 21/10/2026) : fin d une operation de la Bibliotheque, terminee ou arretee (Stopped : bouton
+    # Arreter) : l onglet Ecriture a repris SON image et SON champ Pistes (D4). Ligne de journal et avis a cote du bouton
+    # ECRIRE (Set-WTabNotice), qui nomment l image retablie ; apres un arret, comment reprendre : depuis la Bibliotheque,
+    # le bouton ECRIRE ecrivant l image de l onglet
+    $s = $o.Saved
+    $tab = if ("$($s.File)".Trim()) { [System.IO.Path]::GetFileName("$($s.File)") } else { (T '(aucune image)') }
+    $trk = if ("$($s.Tracks)".Trim()) { (T ", champ Pistes « {0} »") -f "$("$($s.Tracks)".Trim())" } else { '' }
+    $op = if ("$opImg".Trim()) { [System.IO.Path]::GetFileName("$opImg") } else { (T '(aucune image)') }
+    if ($o.Stopped) {
+        Append-Log ((T "Bibliothèque : opération arrêtée, réglages de l'onglet Écriture rétablis (le préréglage de la Bibliothèque n'est pas enregistré) : {0}{1}. Pour reprendre l'écriture de {2}, relancez-la depuis la Bibliothèque : le bouton ÉCRIRE LA DISQUETTE écrit l'image de l'onglet Écriture.") -f "$tab", "$trk", "$op")
+        Set-WTabNotice ((T "Bibliothèque arrêtée : pour reprendre, relancez l'écriture depuis la Bibliothèque. Onglet Écriture rétabli : {0}{1}.") -f "$tab", "$trk")
+    } else {
+        Append-Log ((T "Bibliothèque : opération terminée, réglages de l'onglet Écriture rétablis (le préréglage de la Bibliothèque n'est pas enregistré) : {0}{1}.") -f "$tab", "$trk")
+        Set-WTabNotice ((T "Bibliothèque terminée. Onglet Écriture rétabli : {0}{1}.") -f "$tab", "$trk")
+    }
+}
+
+function Set-WTabNotice([string]$text) {
+    # 12.8 (FIX-PISTES) : avis dans le libelle a cote du bouton ECRIRE (lblWProfileInfo), a l encre du niveau warn de
+    # frmConfirm, coupe par des points de suspension (texte complet en infobulle) ; libelle rendu a son style des qu il
+    # prend un autre texte (TextChanged : profil d une autre image, calibration...)
+    $script:WTabNotice = $text
+    $lblWProfileInfo.AutoEllipsis = $true
+    $lblWProfileInfo.ForeColor = [System.Drawing.Color]::FromArgb(138, 74, 0)
+    $lblWProfileInfo.Text = $text
+}
+
+function Clear-WTabNotice {
+    if (-not $script:WTabNotice -or $lblWProfileInfo.Text -eq $script:WTabNotice) { return }
+    $script:WTabNotice = $null
+    $lblWProfileInfo.AutoEllipsis = $false
+    $lblWProfileInfo.ForeColor = [System.Drawing.Color]::DimGray
+}
+
+function Get-WProfileText {
+    # 12.8 (FIX-PISTES-2) : texte du profil de lblWProfileInfo pour les copies d etat des calibrations (Get-CalibSnapshot,
+    # champs d avant une calibration rapide) ; $null quand le libelle porte l avis de fin de la Bibliotheque
+    # (Set-WTabNotice) : apres un refus, Update-PrecompForImage pose le texte du profil, l avis n est pas repris
+    if ($script:WTabNotice -and $lblWProfileInfo.Text -eq $script:WTabNotice) { return $null }
+    return $lblWProfileInfo.Text
 }
 
 function Test-OpIdle {
@@ -7456,8 +7527,14 @@ function Start-WriteTabWrite {
     # la disquette a ecrire (Start-LevelBeforeWrite ; sans reference utilisable : ecriture refusee, jamais de calibration
     # complete depuis ce bouton, validation du 19/10), memes conditions (densite, profil Auto, --precomp, image qui
     # recouvre le motif)
+    # 12.8 (FIX-PISTES, essai du 21/10/2026) : champ Pistes qui retire des pistes de l image (c=, h=) : confirmation qui
+    # nomme l image et les pistes (Confirm-PartialWrite), avant toute mesure ou ecriture ; le champ reste enregistre dans
+    # la configuration, comme en 12.7. FIX-PISTES-2 : aussi pour step= autre que 1 (pas du lecteur par cylindre)
     $img = $txtWFile.Text
     $mode = if ($chkWSlow.Checked) { 'slow' } else { 'fast' }
+    if ($img -and (Test-Path -LiteralPath $img) -and -not ($script:GwProc -and -not $script:GwProc.HasExited)) {
+        if (-not (Confirm-PartialWrite $img $cmbWFmt.Text $txtWTracks.Text)) { return }
+    }
     $quick = ((Get-Setting 'calMode') -eq 'level')
     if (-not ($quick -or (Test-WriteLevelWanted $mode)) -or -not $img -or -not (Test-Path -LiteralPath $img)) { Start-ImageWrite; return }
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
@@ -7479,6 +7556,48 @@ function Start-WriteTabWrite {
     if ($sk) { if ($sk.Why) { Append-Log $sk.Why }; Start-ImageWrite; return }
     if ($quick) { Start-LevelBeforeWrite $mode; return }
     Start-LevelBeforeWrite 'slow' -Measure
+}
+
+function Confirm-PartialWrite([string]$img, [string]$fmt, [string]$tspec) {
+    # 12.8 (FIX-PISTES, essai du 21/10/2026) : bouton ECRIRE avec un champ Pistes qui retire des pistes de l image
+    # (Get-WritePartial) : ligne de journal, puis frmConfirm sans case, « Ecrire ces pistes » ou « Fermer » (reponse notee
+    # au journal par Show-AppConfirm). La Bibliotheque et la restauration n y passent pas : Set-WritePreset retire c= et h=
+    # du champ (h= d une image a une face seulement, qui couvre l image), et la restauration ne pose c= que pour ses
+    # cylindres preserves. Renvoie $true quand l ecriture continue.
+    # 12.8 (FIX-PISTES-2) : aucune piste de l image dans le champ (Kept 0 : piste vide de l image, cylindres hors de
+    # l image) : texte propre, gw n ecrit aucune donnee mais efface ces pistes avec --erase-empty (essai du 21/10/2026 :
+    # « T0.0: Erasing Track ») ; step= autre que 1 : texte propre (aucune piste retiree, pas du lecteur par cylindre),
+    # seul (titre « Pas du lecteur modifie ») ou apres celui de c= et h=
+    $pw = Get-WritePartial $img $fmt $tspec
+    if (-not $pw) { return $true }
+    $name = [System.IO.Path]::GetFileName($img)
+    $logs = @(); $parts = @()
+    if ($pw.Partial -and [int]$pw.Kept -eq 0) {
+        $er = if ($chkWEraseEmpty.Checked) { ' ' + (T "« Effacer les pistes vides » est cochée : ces pistes de la disquette seront effacées.") } else { '' }
+        $logs += ((T "Écriture partielle : aucune piste de {1} dans le champ Pistes ({0}), aucune donnée de l'image ne sera écrite.") -f "$($pw.Spec)", "$name") + $er
+        $parts += ((T "Aucune piste de {1} n'est dans le champ Pistes ({0}) : aucune donnée de l'image ne sera écrite.") -f "$($pw.Spec)", "$name") + $er
+    } elseif ($pw.Partial) {
+        $cnt = if ([int]$pw.Total -ge 0) { (T " ({0} piste(s) sur les {1} de l'image)") -f "$($pw.Kept)", "$($pw.Total)" } else { '' }
+        $logs += (T "Écriture partielle : seules les pistes {0} de {1} seront écrites{2} (champ Pistes de l'onglet Écriture).") -f "$($pw.Spec)", "$name", "$cnt"
+        $parts += (T "Seules les pistes {0} de {1} seront écrites{2}.") -f "$($pw.Spec)", "$name", "$cnt"
+    }
+    if ($pw.Step) {
+        $logs += (T "Pas du lecteur : {1} sera écrite avec step={0} ({0} pas du lecteur par cylindre au lieu d'un, champ Pistes de l'onglet Écriture).") -f "$($pw.Step)", "$name"
+        if ($pw.Partial) { $parts += (T "Le champ Pistes contient aussi step={0} : {0} pas du lecteur par cylindre au lieu d'un.") -f "$($pw.Step)" }
+        else { $parts += (T "Le champ Pistes contient step={0} : {1} sera écrite avec {0} pas du lecteur par cylindre au lieu d'un (step=2 sert à écrire une disquette 40 pistes dans un lecteur 80 pistes).") -f "$($pw.Step)", "$name" }
+    }
+    foreach ($l in $logs) { Append-Log $l }
+    if ($pw.Partial) {
+        $ttl = (T 'Écriture partielle'); $go = (T 'Écrire ces pistes'); $no = (T "Écriture annulée : écriture partielle non confirmée, rien n'a été écrit.")
+        $tail = (T "Le champ Pistes des options avancées de l'onglet Écriture limite l'écriture à ces pistes ; il est gardé d'une session à l'autre. Pour écrire toute l'image, fermez cette fenêtre et videz ce champ.")
+    } else {
+        $ttl = (T 'Pas du lecteur modifié'); $go = (T 'Écrire avec ce pas'); $no = (T "Écriture annulée : pas du lecteur non confirmé, rien n'a été écrit.")
+        $tail = (T "Le champ Pistes des options avancées de l'onglet Écriture est gardé d'une session à l'autre. Pour écrire au pas normal du lecteur, fermez cette fenêtre et retirez step= de ce champ.")
+    }
+    $cq = @{ Title = $ttl; Heading = $ttl; Level = 'warn'; Picto = 'warn'; Text = ($parts -join ' ') + "`n`n" + $tail; GoText = $go; GoGlyph = 'Save' }
+    if (Show-AppConfirm @cq) { return $true }
+    Append-Log $no
+    return $false
 }
 # ============================== FONCTIONS : PISTES, OPTIONS DE LECTURE, HAUTE DENSITE ===
 
@@ -7562,6 +7681,82 @@ function Set-TSpecHead([string]$tspec, [int]$h) {
     # les cylindres par defaut du format (ou c=0-81), comme l ecriture normale.
     $parts = @($tspec -split ':' | Where-Object { $_.Trim() -and $_ -notmatch '^\s*h\s*=' })
     return ((@($parts) + "h=$h") -join ':')
+}
+
+function Get-TSpecSelection([string]$tspec) {
+    # 12.8 (FIX-PISTES) : pistes retenues par c= et h= du champ Pistes, syntaxe de gw (c=0-79, c=0,10,20, c=0-79/2 ; h=0,
+    # h=0-1, h=0,1). Renvoie @{ Cyls : cylindres retenus (table), $null sans c= ou si c= est illisible ; Heads : tetes 0
+    # et 1 retenues (Get-TSpecHeads) ; Restricts : c= ou h= present ; Ok : $false si c= est illisible (cylindres inconnus) }
+    $r = @{ Cyls = $null; Heads = @(0, 1); Restricts = $false; Ok = $true }
+    $ts = "$tspec".Trim()
+    if (-not $ts) { return $r }
+    $mc = [regex]::Match(":$ts", ':\s*c\s*=\s*([^:]*)')
+    if ($mc.Success) {
+        $r.Restricts = $true
+        $cy = @{}
+        foreach ($p in ($mc.Groups[1].Value -split ',')) {
+            $m = [regex]::Match($p, '^\s*(\d{1,3})\s*(?:-\s*(\d{1,3})\s*(?:/\s*(\d{1,2})\s*)?)?$')
+            if (-not $m.Success) { $r.Ok = $false; break }
+            $s = [int]$m.Groups[1].Value
+            $e = if ($m.Groups[2].Success) { [int]$m.Groups[2].Value } else { $s }
+            $st = if ($m.Groups[3].Success) { [math]::Max(1, [int]$m.Groups[3].Value) } else { 1 }
+            for ($c = $s; $c -le $e; $c += $st) { $cy[$c] = $true }
+        }
+        if ($r.Ok) { $r.Cyls = $cy }
+    }
+    # Get-TSpecHeads rend son tableau sans le derouler (virgule) : pas de @() autour, qui l emboiterait
+    if ([regex]::IsMatch(":$ts", ':\s*h\s*=')) { $r.Restricts = $true; $r.Heads = Get-TSpecHeads $ts }
+    return $r
+}
+
+function Test-TSpecKey($sel, [string]$k) {
+    # Piste 'cyl.tete' retenue par une selection de Get-TSpecSelection
+    $p = $k -split '\.'
+    if (@($sel.Heads) -notcontains [int]$p[1]) { return $false }
+    return ($null -eq $sel.Cyls -or $sel.Cyls.ContainsKey([int]$p[0]))
+}
+
+function Get-WritePartial([string]$img, [string]$fmt, [string]$tspec) {
+    # 12.8 (FIX-PISTES, essai du 21/10/2026) : ecriture partielle demandee par c= ou h= du champ Pistes, c est-a-dire des
+    # pistes de l image qui ne seraient pas ecrites. $null quand le champ n en retire aucune : champ vide, elements de
+    # lecteur seuls (step, hswap, h0.off, h1.off : toutes les pistes ecrites), c= et h= qui couvrent toute l image, ou
+    # aucune tete retenue (h=2 : refus de Start-ImageWrite ou erreur de gw, inchanges). Sinon @{ Spec : c= et h= du champ ;
+    # Kept : pistes de l image ecrites ; Total : pistes de l image, -1 si inconnues }. Pistes de l image : Get-ImageTrackSet,
+    # sinon cylindres (Get-ImageCylinders) et faces du format gw ; inconnues : partielle des que c= est present ou qu une
+    # seule tete est retenue.
+    # 12.8 (FIX-PISTES-2) : step= autre que 1 (pas du lecteur par cylindre, decision A « c=, h=, step= ») est aussi
+    # signale, seul ou avec c= et h= ; seul le bouton ECRIRE consulte cette fonction (Confirm-PartialWrite), jamais la
+    # Bibliotheque ni la restauration. Renvoie alors @{ Partial : c= ou h= retirent des pistes (Spec, Kept, Total comme
+    # ci-dessus ; sinon Spec vide, Kept et Total a -1) ; Step : valeur de step=, 0 si absent ou egal a 1 }.
+    $sel = Get-TSpecSelection $tspec
+    if (@($sel.Heads).Count -eq 0) { return $null }
+    $ms = [regex]::Match(":$tspec", ':\s*step\s*=\s*(\d{1,2})\s*(?=:|$)')
+    $step = if ($ms.Success -and [int]$ms.Groups[1].Value -ne 1) { [int]$ms.Groups[1].Value } else { 0 }
+    $p = $null
+    if ($sel.Restricts) {
+        $spec = (@("$tspec" -split ':' | Where-Object { $_ -match '^\s*[ch]\s*=' } | ForEach-Object { $_.Trim() }) -join ':')
+        $set = Get-ImageTrackSet $img
+        if ($null -eq $set) {
+            $n = Get-ImageCylinders $img
+            if ($null -ne $n -and [int]$n -gt 0) {
+                $fe = if ($fmt -and $fmt -ne '(auto)' -and $script:GwFormats.Contains($fmt)) { $script:GwFormats[$fmt] } else { $null }
+                $hs = @(if ($fe -and [int]$fe.Heads -eq 1) { 0 } else { 0, 1 })
+                $set = @{}
+                for ($c = 0; $c -lt [int]$n; $c++) { foreach ($h in $hs) { $set["$c.$h"] = $true } }
+            }
+        }
+        if ($null -eq $set -or -not $sel.Ok) {
+            # Pistes de l image inconnues : h=0-1 seul ne retire rien
+            if (-not ($sel.Ok -and $null -eq $sel.Cyls -and @($sel.Heads).Count -eq 2)) { $p = @{ Spec = $spec; Kept = -1; Total = -1 } }
+        } else {
+            $kept = @(@($set.Keys) | Where-Object { Test-TSpecKey $sel $_ }).Count
+            if ($kept -lt $set.Count) { $p = @{ Spec = $spec; Kept = $kept; Total = $set.Count } }
+        }
+    }
+    if (-not $p -and -not $step) { return $null }
+    if ($p) { $p.Partial = $true } else { $p = @{ Partial = $false; Spec = ''; Kept = -1; Total = -1 } }
+    $p.Step = $step
+    return $p
 }
 
 function Get-TrackGroups($keys) {
@@ -7980,20 +8175,40 @@ function Start-WriteCheck {
     }
     # Perimetre = pistes que gw a reellement ecrites (lignes « Writing Track » ; une piste vide effacee n en a pas),
     # limitees a l image quand ses pistes sont connues. A defaut : pistes de l image, puis 80 x 2.
+    # 12.8 (FIX-PISTES, essai du 21/10/2026) : toujours limite aux pistes retenues par c= et h= du champ Pistes (ecriture de
+    # c=0:h=0 dont la piste est vide dans l image : 158 pistes de l image relues auparavant) ; c= illisible : non limite
     $img = Get-ImageTrackSet $rep.Image
-    $set = @{}
-    foreach ($k in @($rep.Written.Keys)) { if ($null -eq $img -or $img.ContainsKey($k)) { $set[$k] = $true } }
+    $sel = Get-TSpecSelection $rep.UserTSpec
+    if (@($sel.Heads).Count -eq 0) { $sel.Heads = @(0, 1) }
+    $set = @{}; $cut = 0
+    foreach ($k in @($rep.Written.Keys)) {
+        if ($null -ne $img -and -not $img.ContainsKey($k)) { continue }
+        if (Test-TSpecKey $sel $k) { $set[$k] = $true } else { $cut++ }
+    }
     if ($set.Count -eq 0) {
-        if ($null -ne $img) { $set = $img }
-        else {
+        $all = $img
+        if ($null -eq $all) {
+            $all = @{}
             $n = Get-ImageCylinders $rep.Image; if ($null -eq $n) { $n = 80 }
-            for ($c = 0; $c -lt [int]$n; $c++) { $set["$c.0"] = $true; $set["$c.1"] = $true }
+            for ($c = 0; $c -lt [int]$n; $c++) { $all["$c.0"] = $true; $all["$c.1"] = $true }
+        }
+        $cut = 0
+        foreach ($k in @($all.Keys)) { if (Test-TSpecKey $sel $k) { $set[$k] = $true } else { $cut++ } }
+        if ($set.Count -eq 0 -and $cut -gt 0 -and -not $script:Restore) {
+            # Aucune piste de l image dans le champ Pistes (piste vide de l image, effacee ou sautee par gw) : rien a relire,
+            # aucun verdict ; resultat de l onglet Qualite marque perime avec la raison
+            Append-Log ((T "Contrôle après écriture : aucune piste de l'image dans le champ Pistes (« {0} ») : rien à relire (piste vide de l'image, effacée ou sautée par gw).") -f "$($rep.UserTSpec.Trim())")
+            $script:Rep = $null
+            $pbWCal.Visible = $false; $lblWCal.Text = (T 'Contrôle après écriture : aucune piste à relire.'); $lblWCal.Visible = $true
+            Set-QualityStale 'checknone'
+            return
         }
     }
     $rep.Scope = $set
     $rep.Round = 0
     $groups = Get-TrackGroups @($set.Keys)                # pistes exactes ecrites, memes elements step/offsets que l ecriture
-    Append-Log ((T "Contrôle après écriture : relecture en flux de {0} piste(s) de l'image (3 tours).") -f "$($set.Count)")
+    if ($cut -gt 0) { Append-Log ((T "Contrôle après écriture : relecture en flux de {0} piste(s) de l'image, celles du champ Pistes (« {1} ») (3 tours).") -f "$($set.Count)", "$($rep.UserTSpec.Trim())") }
+    else { Append-Log ((T "Contrôle après écriture : relecture en flux de {0} piste(s) de l'image (3 tours).") -f "$($set.Count)") }
     $rep.Pending.Clear()
     Add-RepReads $groups (Get-TSpecExtras $rep.UserTSpec)
     Start-RepPending
@@ -9865,7 +10080,7 @@ function Get-QualityIcon([string]$kind, [int]$size, [string]$badge = '', [switch
 # --- Etat de l affichage ($script:QualView) ---------------------------------------------------------------------------
 # State : empty | run | result | stale ; Kind : measure (mesure, continue ou non) ou check (controle apres ecriture) ;
 # Has : un resultat existe (Res) ; Reason : code de la raison (stop, error, gwerror, noscp, thresholds, written,
-# checkabort) ; Pass : passe de la mesure continue ; Drive, Heads, Revs, NCyl : mesure en cours ; RunText : etape du
+# checkabort, checknone) ; Pass : passe de la mesure continue ; Drive, Heads, Revs, NCyl : mesure en cours ; RunText : etape du
 # controle en cours ; Res : dernier resultat (Kind, At, Score, Lvl, Count, Bad, Health, HealthText, ScoreText...).
 
 function Set-QualityPending([string]$kind, $ctx = $null) {
@@ -9930,6 +10145,7 @@ function Get-QualStaleText([string]$reason, [string]$at) {
         'thresholds' { return (T 'Seuils de jitter modifiés : relancez la mesure') }
         'written'    { return (T 'Disquette écrite depuis la mesure') }
         'checkabort' { return (T 'Contrôle après écriture interrompu.') }
+        'checknone'  { return (T 'Contrôle après écriture : aucune piste à relire.') }   # 12.8 (FIX-PISTES) : champ Pistes
         default      { if ($at) { return ((T 'Mesure interrompue : résultat de {0}') -f $at) } else { return '' } }
     }
 }
@@ -13638,7 +13854,7 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
 function Get-CalibSnapshot([string[]]$keys) {
     # Etat des courbes et profils (retabli par Restore-CalibState) : courbes des cles donnees, niveaux, profil, champs --precomp
     $s = @{ Std = $script:PrecompStd; Long = $script:PrecompLong; Curves = @{}; Levels = $script:LevelShifts.Clone()
-            Prof = $cmbWProfile.SelectedIndex; On = $chkWPrecomp.Checked; P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Lbl = $lblWProfileInfo.Text }
+            Prof = $cmbWProfile.SelectedIndex; On = $chkWPrecomp.Checked; P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Lbl = (Get-WProfileText) }
     foreach ($k in @($keys)) { $s.Curves[$k] = $script:PrecompCurves[$k] }
     return $s
 }
@@ -13652,7 +13868,9 @@ function Restore-CalibState($prev) {
     # Choix du profil et champs --precomp d avant la calibration (profil Manuel compris)
     if ($null -ne $prev.Prof -and $cmbWProfile.SelectedIndex -ne $prev.Prof) { $cmbWProfile.SelectedIndex = $prev.Prof }
     Update-PrecompForImage $txtWFile.Text
-    if ($null -ne $prev.P0) { $chkWPrecomp.Checked = $prev.On; $txtWPrecomp.Text = $prev.P0; $txtWPrecomp1.Text = $prev.P1; $lblWProfileInfo.Text = $prev.Lbl }
+    # 12.8 (FIX-PISTES-2) : Lbl $null quand le libelle portait l avis de la Bibliotheque (Get-WProfileText) : texte du
+    # profil pose par Update-PrecompForImage
+    if ($null -ne $prev.P0) { $chkWPrecomp.Checked = $prev.On; $txtWPrecomp.Text = $prev.P0; $txtWPrecomp1.Text = $prev.P1; if ($null -ne $prev.Lbl) { $lblWProfileInfo.Text = $prev.Lbl } }
     if (-not $script:Restore) { [void](Save-Config) }
 }
 
@@ -14942,7 +15160,8 @@ function Complete-LevelCalib {
     $res = Get-LevelUnitResults $cal $date
     $issues = $res.Issues; $recs = $res.Recs; $prevRecs = $res.PrevRecs; $verdicts = $res.Verdicts
     if (-not $script:Restore) { [void](Save-Config) }
-    $fieldsPrev = @{ Prof = $cmbWProfile.SelectedIndex; On = $chkWPrecomp.Checked; P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Lbl = $lblWProfileInfo.Text }
+    # 12.8 (FIX-PISTES-2) : Lbl $null quand le libelle porte l avis de la Bibliotheque (Get-WProfileText)
+    $fieldsPrev = @{ Prof = $cmbWProfile.SelectedIndex; On = $chkWPrecomp.Checked; P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Lbl = (Get-WProfileText) }
     # Carte Calibration de l Accueil : profil place dans les champs --precomp seulement si l image de l onglet Ecriture est
     # de la famille calibree (sinon il reste affiche dans la fenetre Courbe, derniere calibration rapide)
     $toFields = (-not $cal.Home) -or ((Get-WriteTabFamily) -eq $cal.Family)
@@ -15000,7 +15219,8 @@ function Complete-LevelCalib {
             if (-not $script:Restore) { [void](Save-Config) }
             if ($cmbWProfile.SelectedIndex -ne $fieldsPrev.Prof) { $cmbWProfile.SelectedIndex = $fieldsPrev.Prof }
             Update-PrecompForImage $txtWFile.Text
-            $chkWPrecomp.Checked = $fieldsPrev.On; $txtWPrecomp.Text = $fieldsPrev.P0; $txtWPrecomp1.Text = $fieldsPrev.P1; $lblWProfileInfo.Text = $fieldsPrev.Lbl
+            $chkWPrecomp.Checked = $fieldsPrev.On; $txtWPrecomp.Text = $fieldsPrev.P0; $txtWPrecomp1.Text = $fieldsPrev.P1
+            if ($null -ne $fieldsPrev.Lbl) { $lblWProfileInfo.Text = $fieldsPrev.Lbl }
             if ($script:Restore) { $script:Restore.Level = $null }     # niveau refuse : absent de l etape 4 et du rapport
             $pbWCal.Visible = $false
             if ($noFields) { $lblWCal.Text = (T 'Calibration rapide abandonnée.'); Append-Log (T 'Calibration rapide abandonnée à votre demande : niveau non conservé.') }
@@ -19492,6 +19712,8 @@ $btnWrite.Add_Click({ Start-WriteTabWrite })
 $lblWProfileInfo = New-Object System.Windows.Forms.Label
 $lblWProfileInfo.Location = '270,348'; $lblWProfileInfo.Size = '502,40'; $lblWProfileInfo.Anchor = 'Top,Left,Right'
 $lblWProfileInfo.ForeColor = 'DimGray'; $lblWProfileInfo.Text = (T 'Choisissez une image : le format et la précompensation seront déduits automatiquement.')
+# 12.8 (FIX-PISTES) : avis de fin d une operation de la Bibliotheque (Set-WTabNotice) retire au texte suivant
+$lblWProfileInfo.Add_TextChanged({ Clear-WTabNotice })
 
 $tabW.Controls.AddRange(@($grpWImage, $grpWOpt, $grpWAdv, $btnWrite, $lblWProfileInfo, $chkWWarm, $chkWCalWarm, $lblWWarmMin, $numWWarmMin, $lblWWarmMinU, $chkWLevel))
 $tabW.AutoScroll = $true                                  # fenetre basse ou journal agrandi : defilement plutot que bouton masque
@@ -20322,6 +20544,8 @@ $btnStop.Add_Click({
             try { $script:GwProc.Kill($true) } catch { try { $script:GwProc.Kill() } catch { } }
         }
         $script:Chain.Clear(); $script:WriteQueue.Clear()
+        # 12.8 (FIX-PISTES) : operation de la Bibliotheque arretee : l avis de fin dit comment la reprendre (Show-LibEndNotice)
+        if ($script:OpOverride) { $script:OpOverride.Stopped = $true }
         Stop-WriteWarmup       # prechauffage d une ecriture lente : chaine d ecriture mise de cote abandonnee, rien n est ecrit
         if ($script:Restore) { Stop-Restore (T 'interrompue par l''utilisateur') }
         if ($script:Rep) { Stop-WriteCheck }

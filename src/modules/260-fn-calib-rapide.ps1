@@ -1055,7 +1055,8 @@ function Complete-LevelCalib {
     $res = Get-LevelUnitResults $cal $date
     $issues = $res.Issues; $recs = $res.Recs; $prevRecs = $res.PrevRecs; $verdicts = $res.Verdicts
     if (-not $script:Restore) { [void](Save-Config) }
-    $fieldsPrev = @{ Prof = $cmbWProfile.SelectedIndex; On = $chkWPrecomp.Checked; P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Lbl = $lblWProfileInfo.Text }
+    # 12.8 (FIX-PISTES-2) : Lbl $null quand le libelle porte l avis de la Bibliotheque (Get-WProfileText)
+    $fieldsPrev = @{ Prof = $cmbWProfile.SelectedIndex; On = $chkWPrecomp.Checked; P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Lbl = (Get-WProfileText) }
     # Carte Calibration de l Accueil : profil place dans les champs --precomp seulement si l image de l onglet Ecriture est
     # de la famille calibree (sinon il reste affiche dans la fenetre Courbe, derniere calibration rapide)
     $toFields = (-not $cal.Home) -or ((Get-WriteTabFamily) -eq $cal.Family)
@@ -1113,7 +1114,8 @@ function Complete-LevelCalib {
             if (-not $script:Restore) { [void](Save-Config) }
             if ($cmbWProfile.SelectedIndex -ne $fieldsPrev.Prof) { $cmbWProfile.SelectedIndex = $fieldsPrev.Prof }
             Update-PrecompForImage $txtWFile.Text
-            $chkWPrecomp.Checked = $fieldsPrev.On; $txtWPrecomp.Text = $fieldsPrev.P0; $txtWPrecomp1.Text = $fieldsPrev.P1; $lblWProfileInfo.Text = $fieldsPrev.Lbl
+            $chkWPrecomp.Checked = $fieldsPrev.On; $txtWPrecomp.Text = $fieldsPrev.P0; $txtWPrecomp1.Text = $fieldsPrev.P1
+            if ($null -ne $fieldsPrev.Lbl) { $lblWProfileInfo.Text = $fieldsPrev.Lbl }
             if ($script:Restore) { $script:Restore.Level = $null }     # niveau refuse : absent de l etape 4 et du rapport
             $pbWCal.Visible = $false
             if ($noFields) { $lblWCal.Text = (T 'Calibration rapide abandonnée.'); Append-Log (T 'Calibration rapide abandonnée à votre demande : niveau non conservé.') }

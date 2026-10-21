@@ -66,6 +66,7 @@ $script:QualView = @{ State = 'empty'; Kind = ''; Reason = ''; At = $null; Has =
 $script:QualCard = $null
 $script:QualGdi = @{}
 $script:WCalIcon = $null
+$script:WTabNotice = $null      # 12.8 (FIX-PISTES) : avis de fin d une operation de la Bibliotheque (Set-WTabNotice)
 $script:RsResultIcon = $null
 
 # Profils de precompensation (mesures le 06/10/2026, lecteur A600 en ecriture, relecture A600)

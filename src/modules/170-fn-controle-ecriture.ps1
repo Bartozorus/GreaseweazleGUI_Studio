@@ -126,20 +126,40 @@ function Start-WriteCheck {
     }
     # Perimetre = pistes que gw a reellement ecrites (lignes « Writing Track » ; une piste vide effacee n en a pas),
     # limitees a l image quand ses pistes sont connues. A defaut : pistes de l image, puis 80 x 2.
+    # 12.8 (FIX-PISTES, essai du 21/10/2026) : toujours limite aux pistes retenues par c= et h= du champ Pistes (ecriture de
+    # c=0:h=0 dont la piste est vide dans l image : 158 pistes de l image relues auparavant) ; c= illisible : non limite
     $img = Get-ImageTrackSet $rep.Image
-    $set = @{}
-    foreach ($k in @($rep.Written.Keys)) { if ($null -eq $img -or $img.ContainsKey($k)) { $set[$k] = $true } }
+    $sel = Get-TSpecSelection $rep.UserTSpec
+    if (@($sel.Heads).Count -eq 0) { $sel.Heads = @(0, 1) }
+    $set = @{}; $cut = 0
+    foreach ($k in @($rep.Written.Keys)) {
+        if ($null -ne $img -and -not $img.ContainsKey($k)) { continue }
+        if (Test-TSpecKey $sel $k) { $set[$k] = $true } else { $cut++ }
+    }
     if ($set.Count -eq 0) {
-        if ($null -ne $img) { $set = $img }
-        else {
+        $all = $img
+        if ($null -eq $all) {
+            $all = @{}
             $n = Get-ImageCylinders $rep.Image; if ($null -eq $n) { $n = 80 }
-            for ($c = 0; $c -lt [int]$n; $c++) { $set["$c.0"] = $true; $set["$c.1"] = $true }
+            for ($c = 0; $c -lt [int]$n; $c++) { $all["$c.0"] = $true; $all["$c.1"] = $true }
+        }
+        $cut = 0
+        foreach ($k in @($all.Keys)) { if (Test-TSpecKey $sel $k) { $set[$k] = $true } else { $cut++ } }
+        if ($set.Count -eq 0 -and $cut -gt 0 -and -not $script:Restore) {
+            # Aucune piste de l image dans le champ Pistes (piste vide de l image, effacee ou sautee par gw) : rien a relire,
+            # aucun verdict ; resultat de l onglet Qualite marque perime avec la raison
+            Append-Log ((T "Contrôle après écriture : aucune piste de l'image dans le champ Pistes (« {0} ») : rien à relire (piste vide de l'image, effacée ou sautée par gw).") -f "$($rep.UserTSpec.Trim())")
+            $script:Rep = $null
+            $pbWCal.Visible = $false; $lblWCal.Text = (T 'Contrôle après écriture : aucune piste à relire.'); $lblWCal.Visible = $true
+            Set-QualityStale 'checknone'
+            return
         }
     }
     $rep.Scope = $set
     $rep.Round = 0
     $groups = Get-TrackGroups @($set.Keys)                # pistes exactes ecrites, memes elements step/offsets que l ecriture
-    Append-Log ((T "Contrôle après écriture : relecture en flux de {0} piste(s) de l'image (3 tours).") -f "$($set.Count)")
+    if ($cut -gt 0) { Append-Log ((T "Contrôle après écriture : relecture en flux de {0} piste(s) de l'image, celles du champ Pistes (« {1} ») (3 tours).") -f "$($set.Count)", "$($rep.UserTSpec.Trim())") }
+    else { Append-Log ((T "Contrôle après écriture : relecture en flux de {0} piste(s) de l'image (3 tours).") -f "$($set.Count)") }
     $rep.Pending.Clear()
     Add-RepReads $groups (Get-TSpecExtras $rep.UserTSpec)
     Start-RepPending

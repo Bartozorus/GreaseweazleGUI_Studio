@@ -197,6 +197,8 @@ $btnWrite.Add_Click({ Start-WriteTabWrite })
 $lblWProfileInfo = New-Object System.Windows.Forms.Label
 $lblWProfileInfo.Location = '270,348'; $lblWProfileInfo.Size = '502,40'; $lblWProfileInfo.Anchor = 'Top,Left,Right'
 $lblWProfileInfo.ForeColor = 'DimGray'; $lblWProfileInfo.Text = (T 'Choisissez une image : le format et la précompensation seront déduits automatiquement.')
+# 12.8 (FIX-PISTES) : avis de fin d une operation de la Bibliotheque (Set-WTabNotice) retire au texte suivant
+$lblWProfileInfo.Add_TextChanged({ Clear-WTabNotice })
 
 $tabW.Controls.AddRange(@($grpWImage, $grpWOpt, $grpWAdv, $btnWrite, $lblWProfileInfo, $chkWWarm, $chkWCalWarm, $lblWWarmMin, $numWWarmMin, $lblWWarmMinU, $chkWLevel))
 $tabW.AutoScroll = $true                                  # fenetre basse ou journal agrandi : defilement plutot que bouton masque

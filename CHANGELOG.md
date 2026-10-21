@@ -51,6 +51,7 @@ La restauration se fait avec un seul lecteur et reconnaît elle-même le format 
 - **Restauration avec un format choisi.** Si gw ignore des secteurs hors du format choisi, la restauration s'arrête avant toute écriture, au lieu de réussir avec une copie qui les perdrait.
 - **Pause d'une mesure continue.** « Arrêter » est actif et « Réinitialiser » inactif pendant la pause entre deux passes.
 - **« Réinitialiser ».** Le seuil de famille du profil de précompensation revient aussi à 1 950 ns.
+- **Champ « Pistes » oublié.** Ce champ des options avancées de l'onglet « Écriture » est gardé d'une session à l'autre. Quand il limite l'écriture à certaines pistes (c=, h=) ou change le pas du lecteur (step=), « ÉCRIRE LA DISQUETTE » demande d'abord confirmation, en nommant l'image et les pistes, avant toute mesure ou écriture. Le contrôle après écriture ne relit plus que les pistes écrites, au lieu de toute l'image. À la fin d'une opération de la Bibliothèque, terminée ou arrêtée, l'onglet « Écriture » et le journal nomment l'image et le champ « Pistes » rétablis dans l'onglet ; après un arrêt, ils indiquent de relancer l'écriture depuis la Bibliothèque.
 
 ### À savoir pour la mise à jour
 

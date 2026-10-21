@@ -82,6 +82,82 @@ function Set-TSpecHead([string]$tspec, [int]$h) {
     return ((@($parts) + "h=$h") -join ':')
 }
 
+function Get-TSpecSelection([string]$tspec) {
+    # 12.8 (FIX-PISTES) : pistes retenues par c= et h= du champ Pistes, syntaxe de gw (c=0-79, c=0,10,20, c=0-79/2 ; h=0,
+    # h=0-1, h=0,1). Renvoie @{ Cyls : cylindres retenus (table), $null sans c= ou si c= est illisible ; Heads : tetes 0
+    # et 1 retenues (Get-TSpecHeads) ; Restricts : c= ou h= present ; Ok : $false si c= est illisible (cylindres inconnus) }
+    $r = @{ Cyls = $null; Heads = @(0, 1); Restricts = $false; Ok = $true }
+    $ts = "$tspec".Trim()
+    if (-not $ts) { return $r }
+    $mc = [regex]::Match(":$ts", ':\s*c\s*=\s*([^:]*)')
+    if ($mc.Success) {
+        $r.Restricts = $true
+        $cy = @{}
+        foreach ($p in ($mc.Groups[1].Value -split ',')) {
+            $m = [regex]::Match($p, '^\s*(\d{1,3})\s*(?:-\s*(\d{1,3})\s*(?:/\s*(\d{1,2})\s*)?)?$')
+            if (-not $m.Success) { $r.Ok = $false; break }
+            $s = [int]$m.Groups[1].Value
+            $e = if ($m.Groups[2].Success) { [int]$m.Groups[2].Value } else { $s }
+            $st = if ($m.Groups[3].Success) { [math]::Max(1, [int]$m.Groups[3].Value) } else { 1 }
+            for ($c = $s; $c -le $e; $c += $st) { $cy[$c] = $true }
+        }
+        if ($r.Ok) { $r.Cyls = $cy }
+    }
+    # Get-TSpecHeads rend son tableau sans le derouler (virgule) : pas de @() autour, qui l emboiterait
+    if ([regex]::IsMatch(":$ts", ':\s*h\s*=')) { $r.Restricts = $true; $r.Heads = Get-TSpecHeads $ts }
+    return $r
+}
+
+function Test-TSpecKey($sel, [string]$k) {
+    # Piste 'cyl.tete' retenue par une selection de Get-TSpecSelection
+    $p = $k -split '\.'
+    if (@($sel.Heads) -notcontains [int]$p[1]) { return $false }
+    return ($null -eq $sel.Cyls -or $sel.Cyls.ContainsKey([int]$p[0]))
+}
+
+function Get-WritePartial([string]$img, [string]$fmt, [string]$tspec) {
+    # 12.8 (FIX-PISTES, essai du 21/10/2026) : ecriture partielle demandee par c= ou h= du champ Pistes, c est-a-dire des
+    # pistes de l image qui ne seraient pas ecrites. $null quand le champ n en retire aucune : champ vide, elements de
+    # lecteur seuls (step, hswap, h0.off, h1.off : toutes les pistes ecrites), c= et h= qui couvrent toute l image, ou
+    # aucune tete retenue (h=2 : refus de Start-ImageWrite ou erreur de gw, inchanges). Sinon @{ Spec : c= et h= du champ ;
+    # Kept : pistes de l image ecrites ; Total : pistes de l image, -1 si inconnues }. Pistes de l image : Get-ImageTrackSet,
+    # sinon cylindres (Get-ImageCylinders) et faces du format gw ; inconnues : partielle des que c= est present ou qu une
+    # seule tete est retenue.
+    # 12.8 (FIX-PISTES-2) : step= autre que 1 (pas du lecteur par cylindre, decision A « c=, h=, step= ») est aussi
+    # signale, seul ou avec c= et h= ; seul le bouton ECRIRE consulte cette fonction (Confirm-PartialWrite), jamais la
+    # Bibliotheque ni la restauration. Renvoie alors @{ Partial : c= ou h= retirent des pistes (Spec, Kept, Total comme
+    # ci-dessus ; sinon Spec vide, Kept et Total a -1) ; Step : valeur de step=, 0 si absent ou egal a 1 }.
+    $sel = Get-TSpecSelection $tspec
+    if (@($sel.Heads).Count -eq 0) { return $null }
+    $ms = [regex]::Match(":$tspec", ':\s*step\s*=\s*(\d{1,2})\s*(?=:|$)')
+    $step = if ($ms.Success -and [int]$ms.Groups[1].Value -ne 1) { [int]$ms.Groups[1].Value } else { 0 }
+    $p = $null
+    if ($sel.Restricts) {
+        $spec = (@("$tspec" -split ':' | Where-Object { $_ -match '^\s*[ch]\s*=' } | ForEach-Object { $_.Trim() }) -join ':')
+        $set = Get-ImageTrackSet $img
+        if ($null -eq $set) {
+            $n = Get-ImageCylinders $img
+            if ($null -ne $n -and [int]$n -gt 0) {
+                $fe = if ($fmt -and $fmt -ne '(auto)' -and $script:GwFormats.Contains($fmt)) { $script:GwFormats[$fmt] } else { $null }
+                $hs = @(if ($fe -and [int]$fe.Heads -eq 1) { 0 } else { 0, 1 })
+                $set = @{}
+                for ($c = 0; $c -lt [int]$n; $c++) { foreach ($h in $hs) { $set["$c.$h"] = $true } }
+            }
+        }
+        if ($null -eq $set -or -not $sel.Ok) {
+            # Pistes de l image inconnues : h=0-1 seul ne retire rien
+            if (-not ($sel.Ok -and $null -eq $sel.Cyls -and @($sel.Heads).Count -eq 2)) { $p = @{ Spec = $spec; Kept = -1; Total = -1 } }
+        } else {
+            $kept = @(@($set.Keys) | Where-Object { Test-TSpecKey $sel $_ }).Count
+            if ($kept -lt $set.Count) { $p = @{ Spec = $spec; Kept = $kept; Total = $set.Count } }
+        }
+    }
+    if (-not $p -and -not $step) { return $null }
+    if ($p) { $p.Partial = $true } else { $p = @{ Partial = $false; Spec = ''; Kept = -1; Total = -1 } }
+    $p.Step = $step
+    return $p
+}
+
 function Get-TrackGroups($keys) {
     # Pistes -> TSPEC exacts (aucune piste en trop) : cylindres a deux faces en h=0-1, puis face 0 seule, puis face 1 seule
     $heads = @{}
