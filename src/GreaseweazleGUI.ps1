@@ -957,7 +957,7 @@ $script:I18n["Mode        : {0}"] = 'Mode        : {0}'
 $script:I18n['copie exacte du flux'] = 'exact flux copy'
 $script:I18n["Original lu : {0}"] = 'Original    : {0}'
 $script:I18n["Copie relue : {0}"] = 'Read-back   : {0}'
-$script:I18n["Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), pré-effacement, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai."] = 'Rules       : read {0} revolutions, {1} retries x {2} series; head-by-head write, existing calibration kept (per-head calibration with the fine test if none exists), pre-erase, gw verification, {3} retries per track; check of all tracks, up to {4} rewrite passes; final read-back without retry.'
+$script:I18n["Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (calibration rapide) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), pré-effacement, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai."] = 'Rules       : read {0} revolutions, {1} retries x {2} series; destination measured before writing when possible (quick calibration); head-by-head write, existing calibration kept (per-head calibration with the fine test if none exists), pre-erase, gw verification, {3} retries per track; check of all tracks, up to {4} rewrite passes; final read-back without retry.'
 $script:I18n['Étapes :'] = 'Steps:'
 $script:I18n["Verdict     : {0}"] = 'Verdict     : {0}'
 $script:I18n["Rapport     : {0}"] = 'Report      : {0}'
@@ -976,7 +976,7 @@ $script:I18n["gw a retourné le code {0}, voir le journal"] = 'gw returned code 
 $script:I18n["Une restauration est en cours. Quitter quand même ? La disquette de destination restera incomplète."] = 'A restore is running. Quit anyway? The destination disk will remain incomplete.'
 $script:I18n['Conseil : protégez-la en écriture avant de commencer.'] = 'Tip: write-protect it before you start.'
 $script:I18n['Disquette 3,5" : fenêtre de protection ouverte. 5,25" : encoche couverte. Ainsi, même une erreur de manipulation ne peut pas l''effacer.'] = '3.5" disk: protection window open. 5.25" disk: notch covered. This way, even a handling mistake cannot erase it.'
-$script:I18n["Règles appliquées à la copie : écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), pré-effacement, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original."] = 'Rules applied to the copy: head-by-head write with the existing drive calibration (per-head calibration if none exists), pre-erase, gw verification, {0} retries per track, check of all tracks (up to {1} rewrite passes), then read-back and comparison with the original.'
+$script:I18n["Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (calibration rapide), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), pré-effacement, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original."] = 'Rules applied to the copy: destination disk measured before writing when possible (quick calibration), head-by-head write with the existing drive calibration (per-head calibration if none exists), pre-erase, gw verification, {0} retries per track, check of all tracks (up to {1} rewrite passes), then read-back and comparison with the original.'
 $script:I18n['commande gw'] = 'gw command'
 $script:I18n['calibration'] = 'calibration'
 $script:I18n['contrôle après écriture'] = 'post-write check'
@@ -1765,6 +1765,58 @@ $script:I18n['(contrôle)'] = '(check)'
 $script:I18n['tête {0} mesure adaptative'] = 'head {0} adaptive measurement'
 $script:I18n['tête {0} courbe adaptée'] = 'head {0} adapted curve'
 $script:I18n['tête {0} confirmation de la pente'] = 'head {0} slope confirmation'
+# 12.8 (F3R-PORT, decisions du 21/10/2026) : calibration rapide adaptative corrigee (terme de centre, reprise, controle
+# par la corde, courbe gardee avec reserve), plafond par disquette, libelle neutre, mesure de la destination en restauration
+$script:I18n[', centre'] = ', centre'
+$script:I18n['centre {0} ns à c{1}'] = 'centre {0} ns at c{1}'
+$script:I18n['terme de centre non significatif ({0} ± {1} ns)'] = 'centre term not significant ({0} ± {1} ns)'
+$script:I18n['forme avec terme de centre peu lisse (c{0} à {1} ns)'] = 'shape with the centre term not smooth (c{0} at {1} ns)'
+$script:I18n['écart de forme résiduel {0} ns avec le terme de centre'] = 'residual shape deviation {0} ns with the centre term'
+$script:I18n['forme avec terme de centre hors des bornes (échelle {0} %, pente {1} ns)'] = 'shape with the centre term out of bounds (scale {0} %, slope {1} ns)'
+$script:I18n['forme avec terme de centre hors des bornes'] = 'shape with the centre term out of bounds'
+$script:I18n['régularité non vérifiable à c{0}'] = 'regularity not verifiable at c{0}'
+$script:I18n['écart à c{0} non prédit par les autres cylindres du centre ({1} ns, tolérance {2})'] = 'deviation at c{0} not predicted by the other centre cylinders ({1} ns, tolerance {2})'
+$script:I18n["écart du contrôle c{0} ({1} ns) sans appui d'un autre cylindre du centre"] = 'deviation of check c{0} ({1} ns) not supported by another centre cylinder'
+$script:I18n['écarts de sens contraires au centre (c{0} {1} ns, c{2} {3} ns)'] = 'deviations in opposite directions towards the centre (c{0} {1} ns, c{2} {3} ns)'
+$script:I18n['terme de centre impossible à ajuster'] = 'centre term cannot be fitted'
+$script:I18n['trop peu de cylindres non signalés ({0})'] = 'too few unflagged cylinders ({0})'
+$script:I18n['contrôles dans la tolérance de la forme sans centre'] = 'checks within the tolerance of the shape without centre term'
+$script:I18n['écart du centre irrégulier (c{0} {1} ns)'] = 'irregular centre deviation (c{0} {1} ns)'
+$script:I18n['Correction du centre non retenue : {0}.'] = 'Centre correction not kept: {0}.'
+$script:I18n[' ; c{0} réintégré (écart de même sens, pas un défaut ponctuel)'] = '; c{0} re-included (deviation in the same direction, not a local defect)'
+$script:I18n['Besoin plus fort vers le centre : contrôles {0}, appui {1}{2} ; terme de centre {3} ns à c{4} (± {5}), ajusté sur {6}.'] = 'Stronger need towards the centre: checks {0}, supported by {1}{2}; centre term {3} ns at c{4} (± {5}), fitted on {6}.'
+$script:I18n['Besoin plus faible vers le centre : contrôles {0}, appui {1}{2} ; terme de centre {3} ns à c{4} (± {5}), ajusté sur {6}.'] = 'Weaker need towards the centre: checks {0}, supported by {1}{2}; centre term {3} ns at c{4} (± {5}), fitted on {6}.'
+$script:I18n['centre corrigé par les contrôles ({0}), non vérifié par une écriture du motif'] = 'centre corrected from the checks ({0}), not verified by a pattern write'
+$script:I18n["Forme adaptée avec réserve : {0} : vers le centre, la courbe peut s'écarter du besoin de cette disquette ; contrôle après écriture imposé."] = "Shape adapted with a reservation: {0}: towards the centre, the curve may deviate from this disk's need; post-write check enforced."
+$script:I18n["forme adaptée avec réserve ({0}) : vers le centre, la courbe peut s'écarter du besoin ; contrôle après écriture imposé"] = 'shape adapted with a reservation ({0}): towards the centre, the curve may deviate from the need; post-write check enforced'
+$script:I18n['Niveau de la courbe adaptée corrigé de {0} ns (dérive entre deux passes ; décalage résiduel moyen {1} ns, dans la tolérance par cylindre {2}).'] = 'Level of the adapted curve corrected by {0} ns (drift between two passes; mean residual shift {1} ns, within the per-cylinder tolerance {2}).'
+$script:I18n["Courbe adaptée au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns) : le besoin de cette disquette dépasse la borne precompMaxNs ; plafond porté à {3} ns pour cette disquette seulement ; contrôle après écriture imposé."] = "Adapted curve above {0} ns at cylinders {1} (up to {2} ns): this disk's need exceeds the precompMaxNs bound; ceiling raised to {3} ns for this disk only; post-write check enforced."
+$script:I18n["courbe adaptée au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns, plafond porté à {3} ns pour cette disquette seulement) : contrôle après écriture imposé"] = 'adapted curve above {0} ns at cylinders {1} (up to {2} ns, ceiling raised to {3} ns for this disk only): post-write check enforced'
+$script:I18n['Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés.'] = '{0} ns ceiling reached at cylinders {1} with the adapted curve: these cylinders will stay under-compensated.'
+$script:I18n['plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés'] = '{0} ns ceiling reached at cylinders {1} with the adapted curve: these cylinders will stay under-compensated'
+$script:I18n["Plafond de {0} ns atteint aux cylindres {1} avec le niveau de cette disquette ({2} ns par rapport à la référence), de forme différente : autre type de disquette ou usure, non distingués ; ces cylindres resteront sous-compensés."] = '{0} ns ceiling reached at cylinders {1} with the level of this disk ({2} ns from the reference), with a different shape: another type of disk or wear, not distinguished; these cylinders will remain under-compensated.'
+$script:I18n['plafond de {0} ns atteint aux cylindres {1} (autre type de disquette ou usure ?)'] = '{0} ns ceiling reached at cylinders {1} (another type of disk or wear?)'
+$script:I18n['Adaptation reprise avec un terme de centre ({0}).'] = 'Adaptation resumed with a centre term ({0}).'
+$script:I18n["Contrôles {0} intégrés à l'ajustement ; contrôle neuf hors ajustement : c{1}."] = 'Checks {0} included in the fit; new check outside the fit: c{1}.'
+$script:I18n['Reprise avec un terme de centre non retenue : {0}.'] = 'Resumption with a centre term not kept: {0}.'
+$script:I18n['Contrôle hors tolérance : {0} ; courbe adaptée gardée avec réserve (contrôle après écriture imposé).'] = 'Check out of tolerance: {0}; adapted curve kept with a reservation (post-write check enforced).'
+$script:I18n["Écart isolé à c{0} ({1} ns) et contrôle c{2} ({3} ns) de même sens : besoin plus fort vers le centre que la forme ajustée, plutôt qu'un défaut ponctuel."] = 'Isolated deviation at c{0} ({1} ns) and check c{2} ({3} ns) in the same direction: stronger need towards the centre than the fitted shape, rather than a local defect.'
+$script:I18n["Écart isolé à c{0} ({1} ns) et contrôle c{2} ({3} ns) de même sens : besoin plus faible vers le centre que la forme ajustée, plutôt qu'un défaut ponctuel."] = 'Isolated deviation at c{0} ({1} ns) and check c{2} ({3} ns) in the same direction: weaker need towards the centre than the fitted shape, rather than a local defect.'
+$script:I18n['Cette disquette demande {0} ns de plus que la médiane des {1} dernières disquettes mesurées avec cette référence, avec une forme différente : autre type de disquette ou usure, non distingués.'] = 'This disk needs {0} ns more than the median of the last {1} disks measured with this reference, with a different shape: another type of disk or wear, not distinguished.'
+$script:I18n["Attention : forme adaptée avec réserve (contrôle c{0} hors tolérance). Vers le centre, la courbe peut s'écarter du besoin de cette disquette ; le contrôle après écriture sera fait."] = "Warning: shape adapted with a reservation (check c{0} out of tolerance). Towards the centre, the curve may deviate from this disk's need; the post-write check will be run."
+$script:I18n['Attention : forme adaptée avec réserve (centre corrigé par les contrôles {0}). Vers le centre, la courbe est extrapolée des contrôles, sans vérification par une écriture du motif ; le contrôle après écriture sera fait.'] = 'Warning: shape adapted with a reservation (centre corrected from checks {0}). Towards the centre, the curve is extrapolated from the checks, without verification by a pattern write; the post-write check will be run.'
+$script:I18n["flux haute densité : la haute densité n'a pas de calibration rapide"] = 'high-density flux: high density has no quick calibration'
+$script:I18n['densité du flux de l''original illisible'] = 'flux density of the original unreadable'
+$script:I18n['cellule du flux de {0} ns, hors de la plage mesurable (1 700 à 2 300 ns)'] = 'flux cell of {0} ns, outside the measurable range (1,700 to 2,300 ns)'
+$script:I18n["faces de l'image inconnues"] = 'image sides unknown'
+$script:I18n["l'image ne recouvrirait pas tout le motif de test (une seule face, ou champ Pistes limité)"] = 'the image would not cover the whole test pattern (single side, or limited Tracks field)'
+$script:I18n['copie de flux de {0}'] = 'flux copy of {0}'
+$script:I18n["{0} cylindres d'après la lecture de l'original"] = '{0} cylinders from the read of the original'
+$script:I18n["Restauration : disquette de destination non mesurée avant l'écriture : {0}."] = 'Restore: destination disk not measured before writing: {0}.'
+$script:I18n["elle a le contenu de l'original, écrasée à votre demande : la mesure ne se fait que sur une autre disquette"] = 'it holds the content of the original, overwritten at your request: the measurement is only made on another disk'
+$script:I18n['haute densité ({0}), sans calibration rapide'] = 'high density ({0}), without quick calibration'
+$script:I18n['Restauration : la disquette de destination sera mesurée après la calibration si celle-ci est faite sur une disquette sacrifiée ; faite sur la destination elle-même, la calibration complète en tient lieu.'] = 'Restore: the destination disk will be measured after the calibration if it is made on a sacrificial disk; made on the destination itself, the full calibration takes its place.'
+$script:I18n['Restauration : niveau et forme mesurés sur la disquette de destination (calibration rapide), la calibration du lecteur n''est pas refaite.'] = 'Restore: level and shape measured on the destination disk (quick calibration), the drive calibration is not redone.'
 # 12.8 (lot 3) : carte de resultat de l onglet Qualite (variante A, A2 § 3.5), etats de l affichage
 $script:I18n['score · plus bas = mieux'] = 'score · lower = better'
 $script:I18n['Aucune mesure'] = 'No measurement'
@@ -7648,6 +7700,25 @@ function Get-ImageTrackSet([string]$path) {
             '.adf' {
                 $n = Get-ImageCylinders $path
                 if ($null -ne $n) { for ($c = 0; $c -lt $n; $c++) { $set["$c.0"] = $true; $set["$c.1"] = $true } }
+            }
+            '.scp' {
+                # 12.8 (decision 3 du 21/10/2026) : copie de flux : pistes presentes dans la table des pistes de l en-tete
+                # (168 entrees, decalage non nul) ; octet 10 : 0 les deux faces (piste = cylindre x 2 + face), 1 ou 2 une
+                # seule face (0 ou 1), numerotee cylindre x 2 + face ou, a l ancienne, par cylindre
+                $fs = [System.IO.File]::OpenRead($path)
+                $hb = New-Object byte[] (16 + 4 * 168)
+                try { $nr = $fs.Read($hb, 0, $hb.Length) } finally { $fs.Dispose() }
+                if ($nr -eq $hb.Length -and [System.Text.Encoding]::ASCII.GetString($hb, 0, 3) -eq 'SCP') {
+                    $ss = [int]$hb[10]
+                    $idx = @(0..167 | Where-Object { [BitConverter]::ToUInt32($hb, 16 + 4 * $_) -ne 0 })
+                    if ($ss -eq 1 -or $ss -eq 2) {
+                        $hd = $ss - 1
+                        $paired = (@($idx | Where-Object { $_ % 2 -ne $hd }).Count -eq 0)
+                        foreach ($t in $idx) { $c = if ($paired) { [int][math]::Floor($t / 2) } else { $t }; $set["$c.$hd"] = $true }
+                    } else {
+                        foreach ($t in $idx) { $set["$([int][math]::Floor($t / 2)).$($t % 2)"] = $true }
+                    }
+                }
             }
         }
     } catch { $set = @{} }
@@ -14434,7 +14505,7 @@ function Test-LevelShape($e, $u, [double]$f = 1.0) {
     return @{ Verdict = $verdict; Reasons = $reasons; Tilt = $tilt; Step = $step }
 }
 
-function Build-LevelValues($u, [int]$d, $e) {
+function Build-LevelValues($u, [int]$d, $e, [int]$Hard = 0) {
     # Courbe appliquee : reference + niveau, bornee a 0..CalHardNs. Valeur de reference a la borne de SON calcul
     # (Get-CurveMaxNs : 300 ns avant le calcul 12.4) : borne basse du besoin, relevee d un niveau positif, jamais abaissee.
     # Zone plafonnee terminale de la reference (CapLo au temoin du plafond) :
@@ -14444,27 +14515,39 @@ function Build-LevelValues($u, [int]$d, $e) {
     #  - temoin non resolu, ou zero au plancher (invraisemblable a la borne) : regle generale ci-dessus.
     # Noms distincts de la reference ($ref) et de sa valeur ($rv) : PowerShell ignore la casse ($V et $v seraient une
     # seule variable)
-    $max = [int]$script:CalHardNs; $rmax = Get-CurveMaxNs $u.Cv; $ref = @($u.V); $n = $ref.Count
+    # 12.8 (F3R, decision 2) : Hard (> 0) : plafond des valeurs et de Sat (courbe de la forme d une marque dont le besoin
+    # depasse CalHardNs : jusqu a CalHardMaxNs) ; Clip reste decide contre CalHardNs (un reglage, pas un besoin), et la zone
+    # du temoin du plafond reste a CalHardNs (G6). RawMax : besoin le plus fort hors Clip (reference ou V' + niveau)
+    $base = [int]$script:CalHardNs; $max = if ($Hard -gt 0) { $Hard } else { $base }
+    $rmax = Get-CurveMaxNs $u.Cv; $ref = @($u.V); $n = $ref.Count
     # 12.8 (FIX1C, constat 4) : Clip decide sur la reference du lecteur (V0) ; avec le point de depart d une marque (V'),
     # une valeur de V' au-dela de la borne est un besoin de cette disquette : Sat (reserve « plafond »), jamais Clip
     $ref0 = if ($null -ne $u.V0 -and @($u.V0).Count -eq $n) { @($u.V0) } else { $ref }
-    $out = New-Object int[] $n; $sat = @(); $floor = @(); $clip = @()
+    $out = New-Object int[] $n; $sat = @(); $floor = @(); $clip = @(); $rawMax = $null
     for ($c = 0; $c -lt $n; $c++) {
         $rv = [int]$ref[$c]
         # Reference au-dela de la borne actuelle (courbe calculee avec une borne plus haute) : ecretee a la borne, niveau
         # applique, sans Sat (la borne est un reglage, pas un besoin de cette disquette)
-        if ([int]$ref0[$c] -gt $max) {
+        if ([int]$ref0[$c] -gt $base) {
             $raw = if ($rv -ge $rmax) { $rv + [math]::Max(0, $d) } else { $rv + $d }
-            if ($raw -gt $max) { $clip += $c }
-            $out[$c] = [int][math]::Max(0, [math]::Min($max, $raw)); continue
+            # 12.8 (F3R-FIX, constat 1) : plafond porte au-dela de CalHardNs par le besoin d un autre cylindre (Hard) : ce
+            # cylindre suit le plafond (Sat au-dela), sans entrer dans RawMax (il ne declenche rien)
+            if ($max -gt $base) {
+                if ($raw -gt $max) { $sat += $c }
+                $out[$c] = [int][math]::Max(0, [math]::Min($max, $raw)); continue
+            }
+            if ($raw -gt $base) { $clip += $c }
+            $out[$c] = [int][math]::Max(0, [math]::Min($base, $raw)); continue
         }
         if ($rv -ge $rmax) {
             $raw = $rv + [math]::Max(0, $d)
+            if ($null -eq $rawMax -or $raw -gt $rawMax) { $rawMax = $raw }
             if ($raw -gt $max) { $sat += $c }
             $out[$c] = [int][math]::Min($max, $raw); continue
         }
         if ($rv -le 0) { $out[$c] = 0; continue }
         $raw = $rv + $d
+        if ($null -eq $rawMax -or $raw -gt $rawMax) { $rawMax = $raw }
         if ($raw -gt $max) { $sat += $c } elseif ($raw -lt 0) { $floor += $c }
         $out[$c] = [int][math]::Max(0, [math]::Min($max, $raw))
     }
@@ -14473,7 +14556,7 @@ function Build-LevelValues($u, [int]$d, $e) {
         $p = [int]$u.Probe; $lo = [int]$u.CapLo; $y1 = $null
         if ($null -eq $e.ProbeZ -or ($e.ProbeKind -ne 'cap' -and -not $u.ProbeDone)) { $note = 'unresolved' }
         elseif ($e.ProbeKind -eq 'cap' -and [double]$e.ProbeZ -le 0) { $note = 'unresolved' }
-        elseif ($e.ProbeKind -eq 'cap') { $note = 'cap'; $y1 = [double]$max }
+        elseif ($e.ProbeKind -eq 'cap') { $note = 'cap'; $y1 = [double]$base }
         else { $note = 'interp'; $y1 = [double]$e.ProbeZ }
         if ($null -ne $y1) {
             # Zone recalculee : interpolation depuis le dernier cylindre hors zone ; au-dela du temoin (reference plus longue
@@ -14485,14 +14568,14 @@ function Build-LevelValues($u, [int]$d, $e) {
                 $raw = [math]::Round($y0 + $tt * ($y1 - $y0))
                 if ($note -eq 'cap') {
                     $lb = [double]$ref[$c] + [math]::Max(0, $d)
-                    if ([double]$ref0[$c] -gt $max) { $clip += $c } elseif ($c -eq $p -or $lb -gt $max) { $sat += $c }
-                    $raw = [math]::Max($raw, [math]::Min([double]$max, $lb))
+                    if ([double]$ref0[$c] -gt $base) { $clip += $c } elseif ($c -eq $p -or $lb -gt $base) { $sat += $c }
+                    $raw = [math]::Max($raw, [math]::Min([double]$base, $lb))
                 }
-                $out[$c] = [int][math]::Max(0, [math]::Min($max, $raw))
+                $out[$c] = [int][math]::Max(0, [math]::Min($base, $raw))
             }
         }
     }
-    return @{ Values = $out; Sat = $sat; Floor = $floor; ProbeNote = $note; Clip = $clip }
+    return @{ Values = $out; Sat = $sat; Floor = $floor; ProbeNote = $note; Clip = $clip; RawMax = $rawMax; Hard = $max }
 }
 
 function New-LevelCalUnits($lr, [string]$brand, [string]$drive) {
@@ -14509,6 +14592,8 @@ function New-LevelCalUnits($lr, [string]$brand, [string]$drive) {
         $u.Level = $null; $u.Passes = 0; $u.ProbeDone = $false; $u.ProbeZ = $null; $u.Est = $null; $u.Shape = $null
         $u.Mode = 'lvl1'; $u.Raw = @{}; $u.V0 = [int[]]@($lu.V); $u.Memo = $null; $u.BrandEntry = $null; $u.AN = $null; $u.AV = $null; $u.VR = $null
         $u.Named = @{}; $u.Refus = ''; $u.Trig = $null; $u.Note = ''; $u.AdaptNote = ''; $u.AdaptLog = $null; $u.Ctl = [int[]]@()
+        # 12.8 (F3R) : controles integres a l ajustement par une reprise e3 (CtlFit), reserve de controle e2 (motif, controles)
+        $u.CtlFit = [int[]]@(); $u.CtlReserve = ''; $u.CtlBad = @()
         Set-LevelBrandStart @{ Drive = $drive; Family = [string]$lr.Family } $u $brand
         $u.ShapeV = New-LevelShape $u.V0
         foreach ($c in @(@($u.LCyls) + @($u.Wit) + @($(if ($null -ne $u.Probe) { $u.Probe })))) { $u.Results[[int]$c] = @{} }
@@ -14604,7 +14689,9 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
         Scp = (Join-Path $script:TempDir 'precomp-calib.scp'); Writes = (New-Object System.Collections.Queue); ReadArgs = @()
         StartTime = (Get-Date); PassStart = (Get-Date); PhaseStart = (Get-Date); Phase = 'write'
         PassesDone = 0; TotalPasses = 2; WriteDurs = @(); ReadDurs = @(); EstTrack = 0.7; TrackWrites = 0
-        Home = [bool]$Geom; Geom = $Geom                      # carte Calibration de l Accueil (progression sur la carte)
+        # Carte Calibration de l Accueil (progression sur la carte) ; 12.8 (decision 3) : Geom.NoHome, geometrie d une copie de
+        # flux en restauration (Get-RestoreFluxLevel) : profil place dans les champs --precomp, pas de carte
+        Home = [bool]($Geom -and -not $Geom.NoHome); Geom = $Geom
         # 12.7 point 5 : controle de surface de la premiere passe (Invoke-LevelSurface)
         AutoStart = [bool]($ans -and $ans.Auto); SurfDone = $false; Surf = $null; Medium = $null; SurfGross = $false; SurfKept = $false; Hold = $false
         # 12.8 (lot 1c) : marque de la disquette inseree (§ 10)
@@ -14816,6 +14903,30 @@ function Invoke-LevelStep($cal, $tracks = $null) {
             Write-LevelAdaptFitLog $u $an
             foreach ($k in @($an.Named.Keys)) { $u.Named[[int]$k] = $an.Named[$k] }
             if ($an.Why -eq 'nowrite') { $u.Fail = 'nowrite'; $u.Done = $true; continue }
+            if (-not $an.Ok -and [int]$u.Trig.Pass -eq 1) {
+                # 12.8 (F3R, e3) : refus de la passe de mesure (ecarts disperses, ecart isole, ecart de forme, bornes) repris
+                # avec un terme de centre quand les controles s ecartent dans le meme sens que le centre : controles integres a
+                # l ajustement, controle neuf hors ajustement, verification a la passe 3
+                $ce = Get-LevelCenterRescue $u $an $cal
+                if ($ce -and $ce.Ok) {
+                    Append-Log ($pfx + ((T 'Adaptation reprise avec un terme de centre ({0}).') -f "$($an.Why)"))
+                    Write-LevelCenterLog $u $ce
+                    foreach ($c in @($ce.AN.Center.Reinc)) { [void]$u.Named.Remove([int]$c) }
+                    $u.AN = $ce.AN; $an = $ce.AN
+                    $u.CtlFit = [int[]]@($u.Ctl)
+                    $fr = if ($script:LevelCenterFresh) { Get-LevelFreshCtl $u (Get-LevelFitCyls $u) $(if ($null -ne $cal.MaxCyl) { [int]$cal.MaxCyl } else { -1 }) } else { $null }
+                    # 12.8 (F3R-FIX) : affectation par branche ; « $x = if (...) { [int[]]@() } » donnerait $null, puis
+                    # [int[]]@($null) le cylindre 0 (Add-LevelCalCyls, enregistrement Ctl)
+                    if ($null -ne $fr) { $u.Ctl = [int[]]@($fr) } else { $u.Ctl = [int[]]@() }
+                    if ($null -ne $fr) {
+                        if (-not $u.Results.ContainsKey([int]$fr)) { $u.Results[[int]$fr] = @{} }
+                        Append-Log ($pfx + ((T "Contrôles {0} intégrés à l'ajustement ; contrôle neuf hors ajustement : c{1}.") -f ((@($u.CtlFit) | ForEach-Object { "c$_" }) -join ', '), "$fr"))
+                    }
+                    Set-LevelVerifTargets $cal $u $an
+                    continue
+                }
+                if ($ce) { Append-Log ($pfx + ((T 'Reprise avec un terme de centre non retenue : {0}.') -f "$($ce.Why)")) }
+            }
             if (-not $an.Ok) {
                 $u.Refus = [string]$an.Why
                 Append-Log ($pfx + ((T 'Adaptation refusée : {0}. Courbe de la référence décalée conservée.') -f "$($an.Why)"))
@@ -14845,6 +14956,48 @@ function Invoke-LevelStep($cal, $tracks = $null) {
             $vr = Test-LevelAdaptVerify $u $p
             $u.VR = $vr
             $an = $u.AN
+            if ($vr.Why -and $vr.NewBad.Count -eq 0 -and -not $vr.NoMeas) {
+                # 12.8 (F3R) : controle hors tolerance, sans nouveau cylindre hors de la forme : correction du centre par les
+                # controles si l ecart est appuye et regulier ; courbe corrigee non verifiee par une ecriture du motif (reserve)
+                $ce = Get-LevelCenterEval $u $an 3 $vr
+                Write-LevelCenterLog $u $ce
+                if ($ce -and $ce.Ok) {
+                    foreach ($c in @($ce.AN.Center.Reinc)) { [void]$u.Named.Remove([int]$c) }
+                    $u.AN = $ce.AN; $an = $ce.AN
+                    $vr.Why = ''; $vr.BadCtl = @(); $vr.Delta = [double]$ce.Drift
+                    $u.AV = Build-LevelAdaptValues $u $an.Fit ([string]$an.Model)
+                    $an.Center.Verified = $false
+                    $u.Conv = [bool]$vr.Conv
+                    $u.Level = [int][math]::Round([double]$an.Fit.Coef['a'] + [double]$vr.Delta)
+                    $u.Done = $true; $u.Mode = 'adapte'
+                    continue
+                }
+            }
+            if ($vr.Why -and $vr.NewBad.Count -eq 0 -and -not $vr.NoMeas -and [string]$an.Model -ne 'M0') {
+                # 12.8 (F3R, e2) : refus par un controle seulement : courbe adaptee gardee avec reserve (au lieu du niveau seul),
+                # controle apres ecriture impose (G1, modele autre que M0) ; jamais memorisee pour la marque (G5)
+                $u.Refus = ''; $u.CtlReserve = [string]$vr.Why; $u.CtlBad = @($vr.BadCtl)
+                Append-Log ($pfx + ((T 'Contrôle hors tolérance : {0} ; courbe adaptée gardée avec réserve (contrôle après écriture imposé).') -f "$($vr.Why)"))
+                foreach ($x in @($vr.BadCtl)) { $u.Named[[int]$x] = (T 'contrôle hors tolérance') }
+                # J4 : ecart isole du centre de meme sens que le controle le plus ecarte : besoin du centre plutot qu un defaut
+                $xw = $null
+                foreach ($x in @($vr.BadCtl | ForEach-Object { [int]$_ })) {
+                    $ax = [math]::Abs([double]$vr.Ctl[$x].Dev)
+                    if ($null -eq $xw -or $ax -gt [math]::Abs([double]$vr.Ctl[$xw].Dev) -or ($ax -eq [math]::Abs([double]$vr.Ctl[$xw].Dev) -and $x -gt $xw)) { $xw = $x }
+                }
+                if ($null -ne $xw -and $an.Iso) {
+                    $sx = [math]::Sign([double]$vr.Ctl[$xw].Dev)
+                    foreach ($c in @($an.Iso.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
+                        if ($c -lt $script:LevelAdaptCtlLo -or [math]::Sign([double]$an.Iso[$c]) -ne $sx) { continue }
+                        $jf = if ($sx -gt 0) { (T "Écart isolé à c{0} ({1} ns) et contrôle c{2} ({3} ns) de même sens : besoin plus fort vers le centre que la forme ajustée, plutôt qu'un défaut ponctuel.") } else { (T "Écart isolé à c{0} ({1} ns) et contrôle c{2} ({3} ns) de même sens : besoin plus faible vers le centre que la forme ajustée, plutôt qu'un défaut ponctuel.") }
+                        Append-Log ($pfx + ($jf -f "$c", (Format-LevelSigned $an.Iso[$c]), "$xw", (Format-LevelSigned $vr.Ctl[$xw].Dev)))
+                    }
+                }
+                $u.Conv = [bool]$vr.Conv
+                $u.Level = [int][math]::Round([double]$an.Fit.Coef['a'] + [double]$vr.Delta)
+                $u.Done = $true; $u.Mode = 'adapte'
+                continue
+            }
             if ($vr.Why) {
                 $u.Refus = [string]$vr.Why
                 Append-Log ($pfx + ((T 'Adaptation refusée : {0}. Courbe de la référence décalée conservée.') -f "$($vr.Why)"))
@@ -14855,6 +15008,8 @@ function Invoke-LevelStep($cal, $tracks = $null) {
                 continue
             }
             foreach ($c in @($vr.NonRep)) { $u.Named[[int]$c] = (T 'écart non reproduit à la vérification (non reproductible)') }
+            # 12.8 (F3R, e3) : forme reprise avec un terme de centre a la passe de mesure, verifiee a cette passe
+            if ($an.Center -and $null -eq $an.Center.Verified) { $an.Center.Verified = $true }
             $u.Conv = [bool]$vr.Conv
             $u.Level = [int][math]::Round([double]$an.Fit.Coef['a'] + [double]$vr.Delta)
             $u.Done = $true; $u.Mode = 'adapte'
@@ -14962,6 +15117,7 @@ function Get-LevelUnitResults($cal, [string]$date) {
         $e = $u.Est; $pfx = $u.Prefix
         $ad = (@('adapte', 'refus') -contains [string]$u.Mode)
         $model = 'M0'; $cs = 0.0; $cb = 0.0; $kk = if ($e) { [double]$e.K } else { $null }
+        $hard = [int]$script:CalHardNs; $over = @(); $hcv = $null
         if ($ad) {
             $ao = Get-LevelAdaptOutcome $cal $u
             $shape = $ao.Shape; $u.Shape = $shape
@@ -14969,9 +15125,20 @@ function Get-LevelUnitResults($cal, [string]$date) {
             $verdict = [string]$ao.Verdict
             foreach ($x in $ao.Issues) { $issues.Add([string]$x.Text); $info.Add([bool]$x.Info) }
             $model = [string]$ao.Model; $cs = [double]$ao.S; $cb = [double]$ao.B; if ($null -ne $ao.K) { $kk = [double]$ao.K }
+            $hard = [int]$ao.Hard; $over = @($ao.Over); $hcv = $ao.Hc
         } else {
             $shape = Test-LevelShape $e $u 1.0; $u.Shape = $shape
             $bv = Build-LevelValues $u ([int]$u.Level) $e
+            # 12.8 (F3R, decision 2) : courbe de la forme d une marque (V' + niveau, courbe adaptee, G1) dont le besoin depasse
+            # CalHardNs : plafond porte a CalHardMaxNs pour cette disquette ; la reference seule reste a CalHardNs. 12.8
+            # (F3R-FIX, constat 4) : seuil max(CalHardNsDefault, CalHardNs), comme Get-LevelAdaptHard
+            $memoExt = $false
+            $memoThr = [math]::Max([int]$script:CalHardNsDefault, [int]$script:CalHardNs)
+            if ($u.Memo -and [int]$script:CalHardMaxNs -gt [int]$script:CalHardNs -and $null -ne $bv.RawMax -and [double]$bv.RawMax -gt $memoThr) {
+                $bv = Build-LevelValues $u ([int]$u.Level) $e -Hard ([int]$script:CalHardMaxNs)
+                $memoExt = $true; $hard = [int]$script:CalHardMaxNs
+                $over = @(0..(@($bv.Values).Count - 1) | Where-Object { [int]$bv.Values[$_] -gt [int]$script:CalHardNs })
+            }
             foreach ($c in @($e.Outliers)) { Append-Log ($pfx + ((T "Écart isolé à c{0} ({1} ns par rapport à la forme) : défaut ponctuel probable de cette disquette, écarté du niveau.") -f "$c", ('{0:+0;-0;0}' -f [math]::Round($e.Ds[[int]$c] - $e.Delta, 0)))) }
             $verdict = if ($u.Sat) { 'sat' } elseif ($u.Low) { 'low' } elseif ($u.Few) { 'few' } else { $shape.Verdict }
             switch ($shape.Verdict) {
@@ -14989,11 +15156,20 @@ function Get-LevelUnitResults($cal, [string]$date) {
                 $bt = (T "besoin hors de 0 à {1} ns aux cylindres de niveau {0}, loin du niveau de cette disquette : écartés du niveau") -f (Format-CylList ([int[]]@($bnd | Sort-Object))), "$($script:CalHardNs)"
                 Append-Log ($pfx + $bt + '.'); $issues.Add($pfx + $bt); $info.Add($false)
             }
-            if ($bv.Sat.Count -gt 0 -and $u.Memo) {
+            # 12.8 (F3R) : plafond par disquette (memoExt) : lignes et reserves plus bas, apres celles de la zone plafonnee
+            if ($bv.Sat.Count -gt 0 -and $u.Memo -and -not $memoExt -and [int]$script:CalHardNs -ge [int]$script:CalHardMaxNs) {
+                # 12.8 (F3R-FIX, constat 9) : borne precompMaxNs deja a CalHardMaxNs : plus de conseil de la relever
+                Append-Log ($pfx + ((T 'Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés.') -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat))))
+                $issues.Add($pfx + ((T 'plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés') -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)))); $info.Add($true)
+            } elseif ($bv.Sat.Count -gt 0 -and $u.Memo -and -not $memoExt) {
                 # 12.8 (FIX1C, constat 5) : courbe de la marque (V', forme adaptee) : libelle neutre du plafond (§ 11.2)
                 Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs).") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat))))
                 $issues.Add($pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs)") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)))); $info.Add($true)
-            } elseif ($bv.Sat.Count -gt 0) {
+            } elseif ($bv.Sat.Count -gt 0 -and -not $u.Memo -and [string]$shape.Verdict -eq 'mismatch') {
+                # 12.8 (F3R, decision du 21/10/2026) : forme non conforme : libelle neutre, autre type de disquette ou usure
+                Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec le niveau de cette disquette ({2} ns par rapport à la référence), de forme différente : autre type de disquette ou usure, non distingués ; ces cylindres resteront sous-compensés.") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)), ('{0:+0;-0;0}' -f [int]$u.Level)))
+                $issues.Add($pfx + ((T "plafond de {0} ns atteint aux cylindres {1} (autre type de disquette ou usure ?)") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)))); $info.Add($true)
+            } elseif ($bv.Sat.Count -gt 0 -and -not $u.Memo) {
                 Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec le niveau de cette disquette ({2} ns par rapport à la référence) : support probablement fatigué, ces cylindres resteront sous-compensés.") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)), ('{0:+0;-0;0}' -f [int]$u.Level)))
                 $issues.Add($pfx + ((T "plafond de {0} ns atteint aux cylindres {1} (support fatigué ?)") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)))); $info.Add($true)
             }
@@ -15010,6 +15186,18 @@ function Get-LevelUnitResults($cal, [string]$date) {
                 Append-Log ($pfx + $ut + '.'); $issues.Add($pfx + $ut); $info.Add($false)
             }
             elseif ($bv.ProbeNote -eq 'cap') { Append-Log ($pfx + ((T "Zone plafonnée de la référence (c{0} à c{1}) : le besoin dépasse encore {2} ns au témoin c{1} ; zone portée jusqu'à {2} ns.") -f "$($u.CapLo)", "$($u.Probe)", "$($script:CalHardNs)")) }
+            if ($memoExt) {
+                # Plafond par disquette (forme d une marque) : plafond de CalHardMaxNs atteint, courbe au-dela de CalHardNs
+                if ($bv.Sat.Count -gt 0) {
+                    Append-Log ($pfx + ((T 'Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés.') -f "$hard", (Format-CylList ([int[]]$bv.Sat))))
+                    $issues.Add($pfx + ((T 'plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés') -f "$hard", (Format-CylList ([int[]]$bv.Sat)))); $info.Add($true)
+                }
+                if ($over.Count -gt 0) {
+                    $top = (@($bv.Values) | Measure-Object -Maximum).Maximum
+                    Append-Log ($pfx + ((T "Courbe adaptée au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns) : le besoin de cette disquette dépasse la borne precompMaxNs ; plafond porté à {3} ns pour cette disquette seulement ; contrôle après écriture imposé.") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$over)), "$top", "$hard"))
+                    $issues.Add($pfx + ((T "courbe adaptée au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns, plafond porté à {3} ns pour cette disquette seulement) : contrôle après écriture imposé") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$over)), "$top", "$hard")); $info.Add($true)
+                }
+            }
             # 12.8 (lot 1c) : adaptation refusee apres un declenchement a la passe 2 (decision 12.7 appliquee), pente nulle non
             # confirmee (dérive du lecteur), adaptation non tentee (courbe commune, temoin du plafond : G6)
             if ($u.Refus) { $issues.Add($pfx + ((T 'adaptation refusée : {0}') -f "$($u.Refus)")); $info.Add($false) }
@@ -15027,6 +15215,8 @@ function Get-LevelUnitResults($cal, [string]$date) {
             $hv = @($fh | Select-Object -Last 5 | ForEach-Object { [double]$_.Delta }); $med = [double](Get-Median $hv)
             if ([int]$u.Level - $med -gt $script:LevelFatigueNs) {
                 if ($u.Memo) { Append-Log ((T "{0}Cette disquette demande {1} ns de plus que la marque « {2} » (médiane de {3} mesures) : disquette probablement fatiguée, l'écriture y sera moins sûre.") -f "$pfx", ('{0:0.#}' -f [math]::Round([int]$u.Level - $med, 0)), "$($u.Memo.Brand)", "$($hv.Count)") }
+                # 12.8 (F3R, decision du 21/10/2026) : forme non conforme, sans marque : autre type de disquette ou usure
+                elseif ([string]$shape.Verdict -eq 'mismatch') { Append-Log ($pfx + ((T "Cette disquette demande {0} ns de plus que la médiane des {1} dernières disquettes mesurées avec cette référence, avec une forme différente : autre type de disquette ou usure, non distingués.") -f ('{0:0.#}' -f [math]::Round([int]$u.Level - $med, 0)), "$($hv.Count)")) }
                 else { Append-Log ($pfx + ((T "Cette disquette demande {0} ns de plus que la médiane des {1} dernières disquettes mesurées avec cette référence : support probablement fatigué, l'écriture y sera moins sûre.") -f ('{0:0.#}' -f [math]::Round([int]$u.Level - $med, 0)), "$($hv.Count)")) }
             }
         }
@@ -15069,6 +15259,8 @@ function Get-LevelUnitResults($cal, [string]$date) {
                   Hist = @($hist); Version = $script:Version; Algo = $script:CalibAlgo
                   # 12.8 (lot 1c, G2) : 'lvl2' seulement pour une forme adaptee (une 12.7 relit les autres et ignore celles-ci)
                   LevelAlgo = $(if ($model -ne 'M0') { 'lvl2' } else { 'lvl1' }); Model = $model; S = [math]::Round($cs, 4); B = [math]::Round($cb, 2)
+                  # 12.8 (F3R) : terme de centre (informatif), plafond de la courbe et cylindres au-dela de CalHardNs
+                  Hc = $(if ($null -ne $hcv) { [math]::Round([double]$hcv, 2) } else { $null }); Hard = [int]$hard; Over = [int[]]@($over)
                   Mode = $(if ($u.Mode) { [string]$u.Mode } else { 'lvl1' }); Brand = [string]$cal.Brand; Ctl = [int[]]@($u.Ctl); K = $(if ($null -ne $kk) { [math]::Round($kk, 3) } else { $null }) }
         $script:LevelShifts[$hk] = $rec
         $recs += ,$rec; $verdicts += $verdict
@@ -15105,8 +15297,14 @@ function Get-LevelReviewPlan($cal, $res, [bool]$toWrite) {
     $mm = @($units | Where-Object { $_.Shape -and [string]$_.Shape.Verdict -eq 'mismatch' })
     $warnMm = (@($mm | Where-Object { -not $_.Conv }).Count -gt 0)
     $resv = @($adapted | Where-Object { $_.Conv -and @($_.AN.Reserve).Count -gt 0 })
+    # 12.8 (F3R) : forme adaptee gardee avec reserve apres un controle hors tolerance (e2, W1), centre corrige par les
+    # controles sans verification par une ecriture du motif (W2)
+    $ctlR = @($adapted | Where-Object { $_.CtlReserve })
+    $cenR = @($adapted | Where-Object { $_.AN.Center -and $_.AN.Center.Verified -eq $false })
     $warnText = if ($warnMm) { (T "Attention : niveau non vérifié et forme non conforme. La courbe que « Écrire l'image » utiliserait n'a pas été vérifiée sur cette disquette ; vers le centre, elle peut s'écarter de son besoin de plusieurs dizaines de ns.") }
                 elseif ($resv.Count -gt 0) { (T "Attention : forme adaptée avec réserve (c{0} suspect). La courbe a été vérifiée, mais un défaut local de cette disquette est possible ; le contrôle après écriture sera fait.") -f "$($resv[0].AN.Suspect)" }
+                elseif ($ctlR.Count -gt 0) { (T "Attention : forme adaptée avec réserve (contrôle c{0} hors tolérance). Vers le centre, la courbe peut s'écarter du besoin de cette disquette ; le contrôle après écriture sera fait.") -f "$(@(@($ctlR[0].CtlBad) | ForEach-Object { [int]$_ } | Sort-Object)[0])" }
+                elseif ($cenR.Count -gt 0) { (T "Attention : forme adaptée avec réserve (centre corrigé par les contrôles {0}). Vers le centre, la courbe est extrapolée des contrôles, sans vérification par une écriture du motif ; le contrôle après écriture sera fait.") -f ((@($cenR[0].AN.Center.R.Keys | ForEach-Object { [int]$_ } | Sort-Object -Unique) | ForEach-Object { "c$_" }) -join ', ') }
                 else { '' }
     $offerFull = [bool](($cal.CanFallback -or -not $toWrite) -and $mm.Count -gt 0)
     $infoOnly = ($res.Issues.Count -gt 0 -and -not ($res.Info -contains $false))
@@ -15147,7 +15345,7 @@ function Complete-LevelCalib {
                 $r.Level = @{ State = 'warn'; Text = "$bt$nt"; Report = $nt }
                 $r.InCall = $true
             }
-            try { Start-ImageWrite -NoWarmup:([bool]$cal.WarmSkip) } finally { if ($script:Restore) { $script:Restore.InCall = $false; $script:Restore.Idle = Get-Date } }
+            try { Start-ImageWrite -NoWarmup:([bool]$cal.WarmSkip); if ($script:Restore) { Set-RestoreRepRules } } finally { if ($script:Restore) { $script:Restore.InCall = $false; $script:Restore.Idle = Get-Date } }
             if ($script:Restore -and -not ($script:GwProc -and -not $script:GwProc.HasExited) -and $script:Chain.Count -eq 0) { Stop-Restore (T 'l''écriture n''a pas démarré après la calibration, voir le journal') }
             return
         }
@@ -15257,7 +15455,7 @@ function Complete-LevelCalib {
         if ($adCurve) { $script:LevelPostForce = $true; Append-Log (T 'Contrôle après écriture imposé : courbe adaptée à cette disquette.') }
         if ($script:Restore) { $script:Restore.InCall = $true }
         # Prechauffage passe pendant la calibration (bouton « Passer le prechauffage ») : pas de second prechauffage
-        try { Start-ImageWrite -NoWarmup:([bool]$cal.WarmSkip) } finally { if ($script:Restore) { $script:Restore.InCall = $false; $script:Restore.Idle = Get-Date } }
+        try { Start-ImageWrite -NoWarmup:([bool]$cal.WarmSkip); if ($script:Restore) { Set-RestoreRepRules } } finally { if ($script:Restore) { $script:Restore.InCall = $false; $script:Restore.Idle = Get-Date } }
         if ($script:Restore -and -not ($script:GwProc -and -not $script:GwProc.HasExited) -and $script:Chain.Count -eq 0) { Stop-Restore (T 'l''écriture n''a pas démarré après la calibration, voir le journal') }
         # Le profil decale ne vaut que pour cette disquette : remplace par celui de la reference quand l ecriture (controle
         # apres ecriture compris) est terminee (minuterie principale) ; positionne apres Start-ImageWrite, qui peut ouvrir
@@ -15452,6 +15650,16 @@ function Test-CalibImage($Geom = $null) {
 # cylindres de controle hors ajustement. Au plus 3 ecritures par piste. Get-CalibZero, Limit-CalibZero, Get-ResidualTol,
 # LevelTauOk et LevelTauMax sont lus, jamais modifies. Reference executable : v128\c1\v3-prudent.py (meme calcul,
 # memes decisions ; oracle sans interface : suite calib-lvl2). Aucun Add-Type : systemes 3 x 3 resolus en PowerShell.
+# 12.8 corrigee (F3R, decisions du 21/10/2026, reference v128\c3\final\v3f.py, oracle impl128\f3rport\oracle\calib-f3r.ps1) :
+# terme de centre hc ((c - 60)+ / 19)^2 ajuste sur les controles a la passe de verification (Get-LevelCenterEval) ou
+# repris d un refus de la passe de mesure (e3, Get-LevelCenterRescue) ; controle juge par la corde de ses deux ecritures
+# (e1) ; courbe adaptee gardee avec reserve apres un refus par un controle (e2) ; derive corrigee avant le plafond (e4),
+# gardee et niveau dit verifie dans la tolerance par cylindre (Bk) ; plafond par disquette jusqu a CalHardMaxNs
+# (Get-LevelAdaptHard) ; libelle neutre de la fatigue pour une forme non conforme ; reserve de controle ou de centre
+# jamais memorisee pour la marque. Au plus 3 passes et 3 ecritures par piste ; disquettes habituelles inchangees.
+# F3R-FIX (21/10/2026, reference alignee v128\c3\final2\v3f.py, oracle impl128\f3rfix\oracle\calib-f3r.ps1) : cylindres
+# Clip hors du declenchement du plafond par disquette et qui le suivent quand il est porte au-dela de CalHardNs ; seuil
+# max(400, CalHardNs) ; controle neuf au plus au dernier cylindre de l image.
 
 function New-LevelShape($ref) {
     # Colonnes du modele de forme d une tete, relatives a sa reference : a (niveau), s (echelle centree sur la moyenne
@@ -15462,10 +15670,13 @@ function New-LevelShape($ref) {
 }
 
 function Get-LevelShapeRow($sh, [string[]]$names, [int]$c) {
+    # 12.8 (F3R) : colonne hc, terme de centre ((c - LevelCenterC0)+ / (n - 1 - LevelCenterC0))^2, 0 jusqu a c60 et 1 au
+    # dernier cylindre ; b (pente) explicite
     $row = New-Object double[] $names.Count
     for ($i = 0; $i -lt $names.Count; $i++) {
         if ($names[$i] -eq 'a') { $row[$i] = 1.0 }
         elseif ($names[$i] -eq 's') { $row[$i] = [double]$sh.V[$c] - [double]$sh.RBar }
+        elseif ($names[$i] -eq 'hc') { $t = [math]::Max(0.0, $c - [double]$script:LevelCenterC0) / [double]($sh.N - 1 - $script:LevelCenterC0); $row[$i] = [math]::Pow($t, 2) }
         else { $row[$i] = ($c - ($sh.N - 1) / 2.0) / [double]($sh.N - 1) }
     }
     return ,$row
@@ -15625,8 +15836,9 @@ function Get-LevelAdaptZero($pts, [double]$k) {
 }
 
 function Get-LevelFitCyls($u) {
-    # Cylindres d ajustement : cylindres de niveau et temoins de marche (les cylindres de controle en sont exclus)
-    return ,[int[]]@(@(@($u.LCyls) + @($u.Wit)) | ForEach-Object { [int]$_ } | Sort-Object -Unique)
+    # Cylindres d ajustement : cylindres de niveau et temoins de marche (les cylindres de controle en sont exclus). 12.8
+    # (F3R, e3) : plus les controles integres a l ajustement par une reprise avec un terme de centre (CtlFit)
+    return ,[int[]]@(@(@($u.LCyls) + @($u.Wit) + @($u.CtlFit)) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Sort-Object -Unique)
 }
 
 function Get-LevelCtlCyls($units, [int]$maxCyl) {
@@ -15771,7 +15983,7 @@ function Get-LevelAdaptFit($u) {
     }
     $kv = @($kOrder | ForEach-Object { $ks[$_] } | Where-Object { $klo -le $_ -and $_ -le $khi })
     $kpool = if ($kv.Count -gt 0) { [math]::Max($klo, [math]::Min($khi, [double](Get-Median $kv))) } else { $kref }
-    $out = @{ Ok = $false; Why = ''; KPool = $kpool; Ks = $ks; KOrder = $kOrder; Named = @{}; Model = $null; Excl = @(); Reserve = @(); Iso = @{}; Zs = @{}; D = @{}; Sig = @{}; Cap = @(); BadK = @() }
+    $out = @{ Ok = $false; Why = ''; WhyCode = 'other'; KPool = $kpool; Ks = $ks; KOrder = $kOrder; Named = @{}; Model = $null; Excl = @(); Reserve = @(); Iso = @{}; Zs = @{}; D = @{}; Sig = @{}; Cap = @(); BadK = @() }
     # Pente nulle : meme critere que Invoke-LevelStep, sur la base large de la passe de mesure
     $sl = @($kOrder | ForEach-Object { -$ks[$_] })
     if ($sl.Count -ge 3 -and [double](Get-Median $sl) -ge [math]::Max(-0.2, -0.5 * $kref) -and $kref * $script:LevelAdaptDeltaMin -ge 4.0) { $out.Why = 'nowrite'; return $out }
@@ -15795,6 +16007,7 @@ function Get-LevelAdaptFit($u) {
     $pre = @($fc | Where-Object { $u.Named -and $u.Named.ContainsKey($_) })
     $cs = @($dOrder | Where-Object { $badK -notcontains $_ -and $pre -notcontains $_ })
     if ($pre.Count + $badK.Count -ge 2) {
+        $out.WhyCode = 'scatter'
         $out.Why = (T 'écarts dispersés ({0} cylindres signalés : {1})') -f "$($pre.Count + $badK.Count)", (Format-CylList ([int[]]@(@($pre) + @($badK))))
         return $out
     }
@@ -15817,6 +16030,7 @@ function Get-LevelAdaptFit($u) {
     }
     $o = & $outl $best
     if ($o.Count -gt 0 -and $nexc -ge 1) {
+        $out.WhyCode = 'scatter'
         $out.Why = (T 'écarts dispersés ({0} signalé, c{1} hors de la forme ajustée)') -f (Format-CylList ([int[]]@(@($pre) + @($badK)))), "$($o[0].C)"
         $out.Named[$o[0].C] = (T 'écart dispersé')
         return $out
@@ -15825,6 +16039,7 @@ function Get-LevelAdaptFit($u) {
         $c0 = $o[0].C
         $cs2 = @($cs | Where-Object { $_ -ne $c0 })
         if ($cs2.Count -lt $script:LevelAdaptMinFit) {
+            $out.WhyCode = 'iso'
             $out.Why = (T 'écart isolé à c{0} et trop peu de cylindres restants') -f "$c0"
             $out.Named[$c0] = (T 'écart isolé'); $out.Iso[$c0] = $o[0].R
             return $out
@@ -15833,6 +16048,7 @@ function Get-LevelAdaptFit($u) {
         if ($sel2) { $o2 = & $outl $sel2.Best } else { $o2 = @(@{ C = -1 }) }
         if ($o2.Count -gt 0) {
             $oc = @($o2 | Where-Object { $_.C -ge 0 } | ForEach-Object { $_.C })
+            $out.WhyCode = 'scatter'
             $out.Why = (T 'écarts dispersés ({0} cylindres hors de la forme ajustée : {1})') -f "$(1 + $o2.Count)", (Format-CylList ([int[]]@(@($c0) + @($oc))))
             $out.Named[$c0] = (T 'écart isolé')
             foreach ($x in $oc) { $out.Named[$x] = (T 'écart dispersé') }
@@ -15845,12 +16061,14 @@ function Get-LevelAdaptFit($u) {
     $f = $best.Fit
     $out.Cand = @($sel.Cand | ForEach-Object { "$($_.Name):$($_.Press):$($_.Signif)" })
     if ($f.Tau -gt [double]$script:LevelTauMax) {
+        $out.WhyCode = 'tau'
         $out.Why = (T 'écart de forme résiduel {0} ns (au plus {1})') -f (Format-UiNum ([math]::Round($f.Tau, 1)) '0.#'), (Format-UiNum ([math]::Round([double]$script:LevelTauMax, 1)) '0.#')
         return $out
     }
     $s = if ($f.Coef.ContainsKey('s')) { [double]$f.Coef['s'] } else { 0.0 }
     $b = if ($f.Coef.ContainsKey('b')) { [double]$f.Coef['b'] } else { 0.0 }
     if ([math]::Abs($s) -gt $script:LevelAdaptSMax -or [math]::Abs($b) -gt $script:LevelAdaptBMax) {
+        $out.WhyCode = 'bounds'
         $out.Why = (T 'forme hors des bornes (échelle {0} %, pente {1} ns)') -f (Format-UiNum ([math]::Round(100 * $s, 1)) '+0.0;-0.0;0.0'), (Format-LevelSigned $b)
         return $out
     }
@@ -15878,15 +16096,18 @@ function Get-LevelAdaptFit($u) {
 }
 
 function Get-LevelModelText([string]$model) {
+    # 12.8 (F3R) : suffixe '+c' (terme de centre) : texte du modele de base, puis « , centre »
+    if ($model -like '*+c') { return (Get-LevelModelText ($model -replace '\+c$', '')) + (T ', centre') }
     switch ($model) { 'Ms' { return (T 'niveau et échelle') } 'Mb' { return (T 'niveau et pente') } 'Msb' { return (T 'niveau, échelle et pente') } default { return (T 'niveau seul') } }
 }
 
 function Get-LevelShapeTerms($fit, [int]$last) {
-    # « niveau +45 ns, échelle +19,0 %, pente +22 ns de c0 à c79 »
+    # « niveau +45 ns, échelle +19,0 %, pente +22 ns de c0 à c79 » ; 12.8 (F3R) : « , centre +24 ns à c79 »
     $co = $fit.Coef
     $terms = @((T 'niveau {0} ns') -f (Format-LevelSigned $co['a']))
     if ($co.ContainsKey('s')) { $terms += ((T 'échelle {0} %') -f (Format-UiNum ([math]::Round(100 * [double]$co['s'], 1)) '+0.0;-0.0;0.0')) }
     if ($co.ContainsKey('b')) { $terms += ((T 'pente {0} ns de c0 à c{1}') -f (Format-LevelSigned $co['b']), "$last") }
+    if ($co.ContainsKey('hc')) { $terms += ((T 'centre {0} ns à c{1}') -f (Format-LevelSigned $co['hc']), "$last") }
     return ($terms -join ', ')
 }
 
@@ -15912,11 +16133,36 @@ function Write-LevelAdaptFitLog($u, $an) {
     }
 }
 
-function Build-LevelAdaptValues($u, $fit) {
-    # Courbe adaptee : reference du lecteur + modele, bornee a 0..CalHardNs ; valeur de reference a la borne de son calcul
-    # (Get-CurveMaxNs) jamais abaissee, comme Build-LevelValues. Sat : besoin du modele au-dela de la borne ; Clip :
-    # reference elle-meme au-dela de la borne actuelle (borne reglable, pas un besoin de cette disquette)
-    $sh = $u.ShapeV; $mx = [int]$script:CalHardNs; $rmax = Get-CurveMaxNs $u.Cv
+function Get-LevelAdaptHard($u, [string]$model, $raw, [double]$delta = 0.0, $clip = @()) {
+    # 12.8 (F3R, decision 2 du 21/10/2026) : plafond de la courbe adaptee d une tete. CalHardNs (write.precompMaxNs) par
+    # defaut ; porte a CalHardMaxNs (470 ns, borne haute de precompMaxNs) quand le besoin modelise de cette disquette (Raw
+    # + delta, arrondi) depasse CalHardNs sur un cylindre de reference non nulle hors Clip, pour une forme adaptee (modele
+    # autre que M0, M0+c compris) seulement. Une borne precompMaxNs deja egale a CalHardMaxNs reste telle quelle ; la
+    # reference, le niveau seul (M0), la courbe de refus et toute calibration complete restent bornes a CalHardNs.
+    # 12.8 (F3R-FIX, constat 4) : seuil de declenchement max(CalHardNsDefault, CalHardNs) : besoin au-dela de 400 ns, ou de
+    # la borne reglee si elle est plus haute ; une borne abaissee sous 400 ns reste le plafond des disquettes dont le besoin
+    # ne depasse pas 400 ns
+    $base = [int]$script:CalHardNs; $ext = [int]$script:CalHardMaxNs
+    if ($ext -le $base -or -not $model -or $model -eq 'M0') { return $base }
+    $thr = [math]::Max([int]$script:CalHardNsDefault, $base)
+    $V = $u.ShapeV.V; $need = $null
+    for ($c = 0; $c -lt @($raw).Count; $c++) {
+        if ([double]$V[$c] -le 0 -or @($clip) -contains $c) { continue }
+        $x = [math]::Round([double]$raw[$c] + $delta)
+        if ($null -eq $need -or $x -gt $need) { $need = $x }
+    }
+    if ($null -ne $need -and $need -gt $thr) { return $ext }
+    return $base
+}
+
+function Build-LevelAdaptValues($u, $fit, [string]$model = '') {
+    # Courbe adaptee : reference du lecteur + modele, bornee a 0..plafond ; valeur de reference a la borne de son calcul
+    # (Get-CurveMaxNs) jamais abaissee, comme Build-LevelValues. Sat : besoin du modele au-dela du plafond ; Clip :
+    # reference elle-meme au-dela de la borne actuelle (borne reglable, pas un besoin de cette disquette), ramenee a
+    # CalHardNs. 12.8 (F3R, decision 2) : plafond de la tete (Get-LevelAdaptHard, Hard), CalHardNs sans modele ou pour M0.
+    # 12.8 (F3R-FIX, constat 1) : Clip ne declenche jamais le plafond par disquette ; plafond porte au-dela de CalHardNs par
+    # un autre cylindre : les cylindres Clip suivent ce plafond (Sat au-dela), au lieu de retomber a CalHardNs
+    $sh = $u.ShapeV; $base = [int]$script:CalHardNs; $rmax = Get-CurveMaxNs $u.Cv
     $n = $sh.N
     $vals = New-Object int[] $n; $raw = New-Object double[] $n
     $sat = @(); $floor = @(); $clip = @()
@@ -15925,21 +16171,27 @@ function Build-LevelAdaptValues($u, $fit) {
         $v = $rv + (Get-LevelPredict $sh $fit $c)[0]
         if ($rv -ge $rmax) { $v = [math]::Max($v, $rv) }
         $raw[$c] = $v
-        if ($rv -gt $mx) { $clip += $c }
-        elseif ($v -gt $mx) { $sat += $c }
+        if ($rv -gt $base) { $clip += $c }
+    }
+    $mx = Get-LevelAdaptHard $u $model $raw 0.0 $clip
+    for ($c = 0; $c -lt $n; $c++) {
+        $rv = [double]$sh.V[$c]; $v = $raw[$c]
+        if ($mx -le $base -and $clip -contains $c) { $vals[$c] = [int][math]::Max(0, [math]::Min($base, [math]::Round($v))); continue }
+        if ($v -gt $mx) { $sat += $c }
         elseif ($v -lt 0 -and $rv -gt 0) { $floor += $c }
         $vals[$c] = if ($rv -gt 0) { [int][math]::Max(0, [math]::Min($mx, [math]::Round($v))) } else { 0 }
     }
-    return @{ Values = $vals; Raw = $raw; Sat = $sat; Floor = $floor; Clip = $clip }
+    return @{ Values = $vals; Raw = $raw; Sat = $sat; Floor = $floor; Clip = $clip; Hard = $mx }
 }
 
 function Set-LevelVerifTargets($cal, $u, $an) {
-    # Passe de verification : courbe adaptee ecrite sur les cylindres d ajustement et les cylindres de controle
-    $bv = Build-LevelAdaptValues $u $an.Fit
+    # Passe de verification : courbe adaptee ecrite sur les cylindres d ajustement (controles integres d une reprise e3
+    # compris) et les cylindres de controle
+    $bv = Build-LevelAdaptValues $u $an.Fit ([string]$an.Model)
     $u.AV = $bv
     $t = @{}
     $fc = Get-LevelFitCyls $u
-    foreach ($c in @(@($fc) + @($u.Ctl) | ForEach-Object { [int]$_ } | Sort-Object -Unique)) { $t[$c] = [int]$bv.Values[$c] }
+    foreach ($c in @(@($fc) + @($u.Ctl) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Sort-Object -Unique)) { $t[$c] = [int]$bv.Values[$c] }
     $u.LTarget = $t
     $u.Mode = 'verif'
     Add-LevelCalCyls $cal ([int[]]@($u.Ctl))
@@ -15954,14 +16206,26 @@ function Get-LevelSE($m) {
 function Test-LevelAdaptVerify($u, [int]$p) {
     # Passe de verification : niveau (decalage residuel moyen des cylindres ajustes, tolerance de Get-LevelEstimate),
     # acceptation cylindre par cylindre (Get-ResidualTol, sinon ecart a la forme), controles d extrapolation. Ligne de
-    # journal ; Why non vide : refus
+    # journal ; Why non vide : refus (ou, depuis F3R, correction du centre, courbe gardee avec reserve : Invoke-LevelStep).
+    # 12.8 (F3R, v3f.py analyse_verif) :
+    #  - Bk : decalage moyen dans la moyenne des Get-ResidualTol des cylindres ajustes : correction delta gardee, niveau dit
+    #    verifie (Corr) ; premier palier juge contre le decalage moyen quand delta n est pas nul ;
+    #  - e1 : controle ecrit deux fois (passe de mesure et verification) : pente de la corde, la verification ramenee a
+    #    l epoque de la mesure par la derive de la tete (Drift = decalage moyen / pente commune) ;
+    #  - plafond de la courbe ecrite (Hv, AV.Hard) : controle et controle integre ecrits a ce plafond, besoin au-dela :
+    #    non verifiables (au plafond) ;
+    #  - aucune mesure (NoMeas) : refus, ni centre ni reserve
     $pfx = $u.Prefix; $an = $u.AN; $sh = $u.ShapeV; $kp = [double]$an.KPool; $kref = [double]$u.KRef
+    $hv = if ($u.AV -and $null -ne $u.AV.Hard) { [int]$u.AV.Hard } else { [int]$script:CalHardNs }
+    $klo = [double]$script:LevelAdaptKRatioLo * $kref; $khi = [double]$script:LevelAdaptKRatioHi * $kref
+    $cfit = @(@($u.CtlFit) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ })
     $raw = @{}
     foreach ($c in @($u.LTarget.Keys | ForEach-Object { [int]$_ })) { $lst = $u.Raw[$c]; if ($lst -and @($lst).Count -gt 0 -and [int]$lst[-1][0] -eq $p) { $raw[$c] = $lst[-1] } }
-    $fitc = @($an.Cs | Where-Object { $raw.ContainsKey([int]$_) })
+    $fitc = @($an.Cs | Where-Object { $raw.ContainsKey([int]$_) -and -not ($cfit -contains [int]$_ -and [int]$raw[[int]$_][1] -ge $hv -and [double]$raw[[int]$_][2].Shift -gt 0) })
     $rs = @($fitc | ForEach-Object { [double]$raw[[int]$_][2].Shift })
-    $vr = @{ Tier = @{}; Dev = @{}; Ctl = @{}; Conv = $false; RBar = [double]::NaN; RTol = [double]::NaN; Delta = 0.0; NewBad = @(); Confirmed = @(); NonRep = @(); BadCtl = @(); Why = '' }
-    if ($rs.Count -eq 0) { $vr.Why = (T 'aucune mesure à la vérification'); return $vr }
+    $vr = @{ Tier = @{}; Dev = @{}; Ctl = @{}; Conv = $false; RBar = [double]::NaN; RTol = [double]::NaN; Delta = 0.0; NewBad = @(); Confirmed = @(); NonRep = @(); BadCtl = @(); Why = ''
+             NoMeas = $false; Corr = $false; GMean = [double]::NaN; Drift = 0.0; T1 = @(); T2 = @(); Hv = $hv; Pass = $p }
+    if ($rs.Count -eq 0) { $vr.Why = (T 'aucune mesure à la vérification'); $vr.NoMeas = $true; return $vr }
     $sum = 0.0; foreach ($x in $rs) { $sum += $x }
     $rbar = $sum / $rs.Count
     $rtol = [double]$script:CalResidual * [math]::Min(1.0, $kp / 2.0)
@@ -15972,32 +16236,51 @@ function Test-LevelAdaptVerify($u, [int]$p) {
     }
     $conv = ([math]::Abs($rbar) -le $rtol)
     $delta = if ($conv) { 0.0 } else { $rbar / $kp }
-    $vr.RBar = $rbar; $vr.RTol = $rtol; $vr.Conv = $conv; $vr.Delta = $delta
+    # Bk : tolerance par cylindre de la verification (Get-ResidualTol), moyenne sur les cylindres ajustes
+    $gs = 0.0; foreach ($c in $fitc) { $gs += [double](Get-ResidualTol $raw[[int]$c][2]) }
+    $gmean = $gs / $fitc.Count
+    $corr = $false
+    if (-not $conv -and [math]::Abs($rbar) -le $gmean) { $conv = $true; $corr = $true }
+    $vr.RBar = $rbar; $vr.RTol = $rtol; $vr.Conv = $conv; $vr.Delta = $delta; $vr.Corr = $corr; $vr.GMean = $gmean; $vr.Drift = $rbar / $kp
     foreach ($c in @($raw.Keys | Sort-Object)) {
         if (@($u.Ctl) -contains $c) { continue }
-        $m = $raw[$c][2]
+        $w = [int]$raw[$c][1]; $m = $raw[$c][2]
         $k = if ($an.Ks.ContainsKey($c)) { [double]$an.Ks[$c] } else { $kp }
-        if (-not ([double]$script:LevelAdaptKRatioLo * $kref -le $k -and $k -le [double]$script:LevelAdaptKRatioHi * $kref)) { $k = $kp }
+        if (-not ($klo -le $k -and $k -le $khi)) { $k = $kp }
         $dev = [double]$m.Shift / $k - $delta
         $sgc = [math]::Max(1.0, (Get-LevelSE $m) / $k)
         $tol1 = Get-ResidualTol $m
-        $tier = if ([math]::Abs([double]$m.Shift - $(if ($conv) { 0.0 } else { $rbar })) -le $tol1) { 1 } elseif ([math]::Abs($dev) -gt [math]::Max([double]$script:CalDevNs, 4.0 * $sgc)) { 3 } else { 2 }
+        $tier = if ([math]::Abs([double]$m.Shift - $(if ($delta -ne 0) { $rbar } else { 0.0 })) -le $tol1) { 1 } elseif ([math]::Abs($dev) -gt [math]::Max([double]$script:CalDevNs, 4.0 * $sgc)) { 3 } else { 2 }
+        # Controle integre (e3) ecrit au plafond, besoin au-dela : non verifiable (plafond)
+        if ($tier -eq 3 -and $cfit -contains $c -and $w -ge $hv -and [double]$m.Shift -gt 0) { $tier = 2 }
         $vr.Tier[$c] = $tier; $vr.Dev[$c] = $dev
         if ($an.Named.ContainsKey($c)) { if ($tier -eq 3) { $vr.Confirmed += $c } else { $vr.NonRep += $c } }
         elseif ($tier -eq 3) { $vr.NewBad += $c }
     }
-    foreach ($x in @($u.Ctl | ForEach-Object { [int]$_ })) {
+    foreach ($x in @($u.Ctl | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ })) {
         if (-not $raw.ContainsKey($x)) { continue }
         $m = $raw[$x][2]
-        $dev = [double]$m.Shift / $kp - $delta
+        # e1 : pente de la corde de ses deux ecritures (passe de mesure, verification ramenee a l epoque de la mesure)
+        $kx = $kp
+        $prev = @(@($u.Raw[$x]) | Where-Object { [int]$_[0] -lt $p })
+        if ($prev.Count -gt 0) {
+            $w0 = [double]$prev[-1][1]; $s0 = [double]$prev[-1][2].Shift
+            $w1 = [double]$raw[$x][1] - [double]$vr.Drift
+            if ([math]::Abs([int]$raw[$x][1] - [int]$prev[-1][1]) -ge $script:LevelAdaptDeltaMin -and [math]::Abs($w1 - $w0) -gt 1e-6) {
+                $kc = ($s0 - [double]$m.Shift) / ($w1 - $w0)
+                if ($klo -le $kc -and $kc -le $khi) { $kx = $kc }
+            }
+        }
+        $dev = [double]$m.Shift / $kx - $delta
         $sp = (Get-LevelPredict $sh $an.Fit $x)[1]
-        $tol = [math]::Min([double]$script:LevelAdaptCtlCap, [math]::Max([double]$script:LevelAdaptCtlFloor, [double]$script:LevelAdaptCtlK * [math]::Sqrt([math]::Pow($sp, 2) + [math]::Pow([double]$script:LevelShapeFloor, 2) + [math]::Pow((Get-LevelSE $m) / $kp, 2))))
-        $capped = ([int]$u.LTarget[$x] -ge [int]$script:CalHardNs -and [double]$m.Shift -gt 0)
-        $vr.Ctl[$x] = @{ Dev = $dev; Tol = $tol; Ok = ([math]::Abs($dev) -le $tol -or $capped); Cap = $capped }
+        $tol = [math]::Min([double]$script:LevelAdaptCtlCap, [math]::Max([double]$script:LevelAdaptCtlFloor, [double]$script:LevelAdaptCtlK * [math]::Sqrt([math]::Pow($sp, 2) + [math]::Pow([double]$script:LevelShapeFloor, 2) + [math]::Pow((Get-LevelSE $m) / $kx, 2))))
+        $capped = ([int]$u.LTarget[$x] -ge $hv -and [double]$m.Shift -gt 0)
+        $vr.Ctl[$x] = @{ Dev = $dev; Tol = $tol; Ok = ([math]::Abs($dev) -le $tol -or $capped); Cap = $capped; K = $kx }
     }
     $vr.BadCtl = @($vr.Ctl.Keys | Sort-Object | Where-Object { -not $vr.Ctl[$_].Ok })
     $t1 = @($vr.Tier.Keys | Sort-Object | Where-Object { $vr.Tier[$_] -eq 1 -and -not $an.Named.ContainsKey($_) })
     $t2 = @($vr.Tier.Keys | Sort-Object | Where-Object { $vr.Tier[$_] -eq 2 -and -not $an.Named.ContainsKey($_) })
+    $vr.T1 = $t1; $vr.T2 = $t2
     $ctlTxt = ''
     foreach ($x in @($vr.Ctl.Keys | Sort-Object)) { $ctlTxt += ' ; ' + ((T 'contrôle c{0} {1} ns (tolérance {2})') -f "$x", (Format-LevelSigned $vr.Ctl[$x].Dev), (Format-UiNum ([math]::Round($vr.Ctl[$x].Tol, 1)) '0.#')) }
     $none = '-'
@@ -16008,6 +16291,256 @@ function Test-LevelAdaptVerify($u, [int]$p) {
         $vr.Why = ((@($vr.BadCtl | ForEach-Object { (T "contrôle d'extrapolation hors tolérance à c{0} ({1} ns, tolérance {2})") -f "$_", (Format-LevelSigned $vr.Ctl[$_].Dev), (Format-UiNum ([math]::Round($vr.Ctl[$_].Tol, 1)) '0.#') })) -join ', ')
     }
     return $vr
+}
+
+function Get-LevelPtsEpoch($u, [int]$c, $dmap) {
+    # 12.8 (F3R, v3f.py _pts_epoch) : mesures d un cylindre, toutes passes : W (valeur ecrite ramenee a l epoque de la passe
+    # de mesure par la derive de la passe, dmap), S (decalage), E (erreur-type), P (passe), WW (valeur ecrite)
+    $out = @()
+    if (-not $u.Raw.ContainsKey($c)) { return ,$out }
+    foreach ($t in @($u.Raw[$c])) {
+        if ($null -eq $t) { continue }
+        $pp = [int]$t[0]; $dd = if ($dmap -and $dmap.ContainsKey($pp)) { [double]$dmap[$pp] } else { 0.0 }
+        $out += ,@{ W = [double][int]$t[1] - $dd; S = [double]$t[2].Shift; E = (Get-LevelSE $t[2]); P = $pp; WW = [int]$t[1] }
+    }
+    return ,$out
+}
+
+function Get-LevelZeroPts($pts, [double]$kref, [double]$kp) {
+    # 12.8 (F3R, v3f.py zero_pts) : zero d un cylindre sans borne a CalHardNs : corde des deux points qui encadrent le zero
+    # si leurs valeurs ecrites sont a LevelAdaptDeltaMin au moins et la pente plausible ; sinon point le plus proche du zero,
+    # pente de la corde la plus large (LevelAdaptDeltaMin, plausible) ou pente commune. Incertitude : erreurs-types, plus
+    # 10 % (pente propre) ou 25 % (pente commune) du chemin
+    if (-not $pts -or @($pts).Count -eq 0) { return $null }
+    $xs = @(@($pts) | Sort-Object -Property @{ Expression = { $_.W } }, @{ Expression = { $_.S } }, @{ Expression = { $_.E } }, @{ Expression = { $_.P } }, @{ Expression = { $_.WW } })
+    $lo = [double]$script:LevelAdaptKRatioLo * $kref; $hi = [double]$script:LevelAdaptKRatioHi * $kref
+    for ($i = 0; $i -lt $xs.Count - 1; $i++) {
+        $a1 = $xs[$i]; $a2 = $xs[$i + 1]
+        if ($a1.S -gt 0 -and 0 -ge $a2.S -and [math]::Abs($a2.WW - $a1.WW) -ge $script:LevelAdaptDeltaMin -and $a2.W - $a1.W -gt 1e-6) {
+            $a = ($a1.S - $a2.S) / ($a2.W - $a1.W)
+            if ($lo -le $a -and $a -le $hi) { return @{ Est = $a1.W + $a1.S / $a; Sig = [math]::Max(1.0, [math]::Sqrt([math]::Pow($a1.E, 2) + [math]::Pow($a2.E, 2)) / $a); K = $a; Own = $true } }
+        }
+    }
+    $best = $xs[0]; foreach ($t in $xs) { if ([math]::Abs($t.S) -lt [math]::Abs($best.S)) { $best = $t } }
+    $far = $xs[0]; foreach ($t in $xs) { if ([math]::Abs($t.WW - $best.WW) -gt [math]::Abs($far.WW - $best.WW)) { $far = $t } }
+    $k = $null
+    if ([math]::Abs($far.WW - $best.WW) -ge $script:LevelAdaptDeltaMin -and [math]::Abs($far.W - $best.W) -gt 1e-6) {
+        $a = ($far.S - $best.S) / ($best.W - $far.W)
+        if ($lo -le $a -and $a -le $hi) { $k = $a }
+    }
+    $kk = if ($null -ne $k) { [double]$k } else { $kp }
+    $z = $best.W + $best.S / $kk
+    $sig = [math]::Sqrt([math]::Pow($best.E / $kk, 2) + [math]::Pow($(if ($null -ne $k) { 0.10 } else { 0.25 }) * [math]::Abs($best.S / $kk), 2))
+    return @{ Est = $z; Sig = [math]::Max(1.0, $sig); K = $kk; Own = ($null -ne $k) }
+}
+
+function Get-LevelFreshCtl($u, $taken, [int]$maxCyl = -1) {
+    # 12.8 (F3R, v3f.py fresh_ctl) : controle neuf apres une reprise avec un terme de centre : cylindre jamais ecrit de
+    # LevelAdaptCtlLo au dernier, hors cylindres pris et leurs voisins, point de reference interpole et fiable, valeur de
+    # 5 a CalHardNs - 15 ns ; le plus proche du centre. $null s il n y en a aucun. 12.8 (F3R-FIX, constat 2) : dernier :
+    # fin de la reference, au plus le dernier cylindre de l image ($maxCyl, MaxCyl de la calibration), comme
+    # Get-LevelCtlCyls
+    $cv = $u.Cv; $last = @($u.V).Count - 1
+    if ($maxCyl -ge 0) { $last = [math]::Min($last, $maxCyl) }
+    $cyls = @(@($cv.Cyls) | ForEach-Object { [int]$_ })
+    $tk = @{}; foreach ($t in @($taken)) { if ($null -ne $t) { $tk[[int]$t] = $true } }
+    $best = $null
+    for ($c = [int]$script:LevelAdaptCtlLo; $c -le $last; $c++) {
+        if ($tk.ContainsKey($c) -or $tk.ContainsKey($c - 1) -or $tk.ContainsKey($c + 1) -or [int]$u.Writes[$c] -gt 0) { continue }
+        $i = -1; for ($q = 0; $q -lt $cyls.Count; $q++) { if ($cyls[$q] -eq $c) { $i = $q; break } }
+        if ($i -lt 0) { continue }
+        if ($cv.Kinds -and $i -lt @($cv.Kinds).Count -and [string]$cv.Kinds[$i] -ne 'interp') { continue }
+        if (Test-CurvePointFlag $cv $i) { continue }
+        if ([double]$u.V[$c] -le 5 -or [double]$u.V[$c] -ge [double]$script:CalHardNs - 15) { continue }
+        $best = $c
+    }
+    return $best
+}
+
+function Get-LevelCenterCtl($u) {
+    # Controles de la tete ayant des mesures : integres (CtlFit), puis hors ajustement (Ctl)
+    return ,@(@(@($u.CtlFit) + @($u.Ctl)) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Where-Object { $u.Raw.ContainsKey($_) -and @($u.Raw[$_]).Count -gt 0 })
+}
+
+function Test-LevelCenterFit($u, $an, $names, [int[]]$cs2, $d, $sg, [int]$xs, [double]$s, [int[]]$reinc, [switch]$Bounds) {
+    # Ajustement de la forme avec le terme de centre et ses refus (v3f.py center_eval / center_rescue) : significativite et
+    # sens du terme, lissage, ecart de forme residuel, bornes, regularite (controle le plus ecarte et reintegres predits
+    # sans eux). Renvoie @{ Fit ; Bh ; Se ; Why } (Why vide : retenu) ou $null (ajustement impossible)
+    $sh = $u.ShapeV; $t0 = [double]$script:LevelShapeFloor
+    $f = Get-LevelWls $sh ([string[]]$names) $cs2 $d $sg
+    if (-not $f) { return $null }
+    $ih = [array]::IndexOf([string[]]$names, 'hc')
+    $bh = [double]$f.Beta[$ih]
+    $seh = [math]::Sqrt([math]::Max(1e-12, [double]$f.Cov[$ih][$ih]))
+    $o = @{ Fit = $f; Bh = $bh; Se = $seh; Why = '' }
+    if ($bh * $s -le 0 -or [math]::Abs($bh) -lt [double]$script:LevelAdaptCoefZ * $seh) { $o.Why = (T 'terme de centre non significatif ({0} ± {1} ns)') -f (Format-LevelSigned $bh), (Format-UiNum ([math]::Round($seh, 1)) '0.#'); return $o }
+    $cw = $null
+    foreach ($c in $cs2) { $ar = [math]::Abs([double]$f.Res[$c]); if ($ar -gt [math]::Max([double]$script:LevelCenterResOk, 3.0 * [double]$sg[$c]) -and ($null -eq $cw -or $ar -gt [math]::Abs([double]$f.Res[$cw]))) { $cw = $c } }
+    if ($null -ne $cw) { $o.Why = (T 'forme avec terme de centre peu lisse (c{0} à {1} ns)') -f "$cw", (Format-LevelSigned $f.Res[$cw]); return $o }
+    if ([double]$f.Tau -gt [double]$script:LevelTauMax) { $o.Why = (T 'écart de forme résiduel {0} ns avec le terme de centre') -f (Format-UiNum ([math]::Round($f.Tau, 1)) '0.#'); return $o }
+    $cs = if ($f.Coef.ContainsKey('s')) { [double]$f.Coef['s'] } else { 0.0 }
+    $cb = if ($f.Coef.ContainsKey('b')) { [double]$f.Coef['b'] } else { 0.0 }
+    if ([math]::Abs($cs) -gt $script:LevelAdaptSMax -or [math]::Abs($cb) -gt $script:LevelAdaptBMax) {
+        $o.Why = if ($Bounds) { (T 'forme avec terme de centre hors des bornes (échelle {0} %, pente {1} ns)') -f (Format-UiNum ([math]::Round(100 * $cs, 1)) '+0.0;-0.0;0.0'), (Format-LevelSigned $cb) } else { (T 'forme avec terme de centre hors des bornes') }
+        return $o
+    }
+    foreach ($c in @(@($xs) + @($reinc))) {
+        $rest = [int[]]@($cs2 | Where-Object { $_ -ne $c })
+        $g = Get-LevelWls $sh ([string[]]$names) $rest $d $sg
+        if (-not $g) { $o.Why = (T 'régularité non vérifiable à c{0}') -f "$c"; return $o }
+        $pr = Get-LevelPredict $sh $g $c
+        $rl = [double]$d[$c] - $pr[0]
+        $thr = [math]::Min([math]::Max([double]$script:LevelAdaptLooFloor, [double]$script:LevelAdaptLooK * [math]::Sqrt([math]::Pow([double]$sg[$c], 2) + [math]::Pow($t0, 2) + [math]::Pow($pr[1], 2))), [double]$script:LevelCenterLooCap)
+        if ([math]::Abs($rl) -gt $thr) { $o.Why = (T 'écart à c{0} non prédit par les autres cylindres du centre ({1} ns, tolérance {2})') -f "$c", (Format-LevelSigned $rl), (Format-UiNum ([math]::Round($thr, 1)) '0.#'); return $o }
+    }
+    return $o
+}
+
+function Get-LevelCenterEval($u, $an, [int]$stage, $vr) {
+    # 12.8 (F3R, v3f.py center_eval, stage 3) : correction du centre par les controles a la passe de verification.
+    # Declenchement : controle hors tolerance (vr.BadCtl) sans nouveau cylindre hors de la forme ; appui : un autre
+    # cylindre du centre (controle, cylindre ajuste ou ecart isole, c >= LevelCenterC0) ecarte dans le meme sens, aucun en
+    # sens contraire ; ajustement de la forme retenue + terme de centre hc sur les cylindres ajustes, les controles et
+    # l ecart isole du centre de meme sens (reintegre) ; zeros de toutes les passes, la verification ramenee a l epoque de
+    # la mesure par la derive de la tete. Renvoie $null (rien a faire) ou @{ Ok ; Why ; Stage ; AN ; Drift }
+    $sh = $u.ShapeV; $kref = [double]$u.KRef; $kp = [double]$an.KPool; $f0 = $an.Fit
+    $c0 = [int]$script:LevelCenterC0; $t0 = [double]$script:LevelShapeFloor
+    $dd = if ($stage -ge 3 -and $vr -and $null -ne $vr.Drift) { [double]$vr.Drift } else { 0.0 }
+    $dmap = @{ 3 = $dd; 4 = $dd }
+    $ctl = Get-LevelCenterCtl $u
+    if ($ctl.Count -eq 0) { return $null }
+    $iso = if ($an.Iso) { $an.Iso } else { @{} }
+    $named = if ($u.Named) { $u.Named } else { @{} }
+    $d = @{}; $sg = @{}; $ks = @{}
+    foreach ($k in @($an.Ks.Keys)) { $ks[[int]$k] = [double]$an.Ks[$k] }
+    $fcs = Get-LevelFitCyls $u
+    foreach ($c in @(@(@($fcs) + @($ctl)) | Sort-Object -Unique)) {
+        $z = Get-LevelZeroPts (Get-LevelPtsEpoch $u ([int]$c) $dmap) $kref $kp
+        if ($null -eq $z) { continue }
+        $d[[int]$c] = [double]$z.Est - [double]$sh.V[[int]$c]; $sg[[int]$c] = [double]$z.Sig
+        if ($z.Own) { $ks[[int]$c] = [double]$z.K }
+    }
+    # Ecarts de la verification (besoin - courbe adaptee, epoque de la verification) : controles par la corde (e1), puis
+    # cylindres ecrits, dans l ordre de v3f.py
+    $r = @{}; $sd = @{}; $ro = @()
+    foreach ($x in @($vr.Ctl.Keys | ForEach-Object { [int]$_ } | Sort-Object)) { $r[$x] = [double]$vr.Ctl[$x].Dev; $sd[$x] = [double]$vr.Ctl[$x].Tol / [double]$script:LevelAdaptCtlK; $ro += $x }
+    foreach ($c in @($vr.Dev.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
+        $m = $u.Raw[$c][-1][2]
+        $k = if ($an.Ks.ContainsKey($c)) { [double]$an.Ks[$c] } else { $kp }
+        $r[$c] = [double]$vr.Dev[$c]; $sd[$c] = [math]::Max(1.0, (Get-LevelSE $m) / $k); $ro += $c
+    }
+    $over = @($vr.BadCtl | ForEach-Object { [int]$_ })
+    if ($over.Count -eq 0) { return $null }
+    $xs = $over[0]; foreach ($x in $over) { if ([math]::Abs($r[$x]) / [double]$vr.Ctl[$x].Tol -gt [math]::Abs($r[$xs]) / [double]$vr.Ctl[$xs].Tol) { $xs = $x } }
+    $s = if ($r[$xs] -gt 0) { 1.0 } else { -1.0 }
+    $out = @{ Ok = $false; Why = ''; Stage = $stage; Xs = $xs; Drift = $dd; AN = $null }
+    $zone = @($ro | Where-Object { $_ -ge $c0 -and $_ -ne $xs -and ($ctl -contains $_ -or @($an.Cs) -contains $_ -or $iso.ContainsKey($_)) })
+    $sup = @($zone | Where-Object { $s * $r[$_] -ge [math]::Max([double]$script:LevelCenterMinOther, $(if ($ctl -contains $_) { $sd[$_] } else { 0.0 })) })
+    $opp = @($zone | Where-Object { $s * $r[$_] -le -[math]::Max([double]$script:LevelCenterOpp, 2.0 * $sd[$_]) })
+    if ($sup.Count -eq 0) { $out.Why = (T "écart du contrôle c{0} ({1} ns) sans appui d'un autre cylindre du centre") -f "$xs", (Format-LevelSigned $r[$xs]); return $out }
+    if ($opp.Count -gt 0) { $out.Why = (T 'écarts de sens contraires au centre (c{0} {1} ns, c{2} {3} ns)') -f "$xs", (Format-LevelSigned $r[$xs]), "$($opp[0])", (Format-LevelSigned $r[$opp[0]]); return $out }
+    $reinc = [int[]]@(@($iso.Keys | ForEach-Object { [int]$_ } | Sort-Object) | Where-Object { $d.ContainsKey($_) -and $r.ContainsKey($_) -and $s * $r[$_] -gt 0 -and $_ -ge $c0 })
+    $cs2 = [int[]]@($d.Keys | ForEach-Object { [int]$_ } | Sort-Object | Where-Object { -not ($named.ContainsKey($_) -and $reinc -notcontains $_) -and (@($an.Cs) -contains $_ -or $ctl -contains $_ -or $reinc -contains $_) })
+    $names = [string[]]@($f0.Names)
+    if ($names -notcontains 'hc') { $names = [string[]]@(@($names) + @('hc')) }
+    $tf = Test-LevelCenterFit $u $an $names $cs2 $d $sg $xs $s $reinc
+    if ($null -eq $tf) { $out.Why = (T 'terme de centre impossible à ajuster'); return $out }
+    if ($tf.Why) { $out.Why = $tf.Why; return $out }
+    $f = $tf.Fit
+    $an2 = $an.Clone()
+    $m0 = Get-LevelWls $sh ([string[]]@('a')) $cs2 $d $sg
+    $eff = 0.0
+    for ($c = 0; $c -lt $sh.N; $c++) { $ef = [math]::Abs((Get-LevelPredict $sh $f $c)[0] - [double]$m0.Coef['a']); if ($ef -gt $eff) { $eff = $ef } }
+    $loo = Get-LevelLoo $sh $names $cs2 $d $sg
+    $an2.Fit = $f; $an2.Cs = $cs2; $an2.Model = $(if ([string]$an.Model -like '*+c') { [string]$an.Model } else { [string]$an.Model + '+c' })
+    $an2.D = $d; $an2.Sig = $sg; $an2.Ks = $ks; $an2.Eff = $eff; $an2.Loo = $(if ($loo) { $loo } else { $an.Loo }); $an2.Reserve = @($an.Reserve)
+    $rc = @{}; foreach ($x in $ctl) { if ($r.ContainsKey($x)) { $rc[$x] = $r[$x] } }
+    $an2.Center = @{ Stage = $stage; Xs = $xs; R = $rc; Reinc = $reinc; Hc = $tf.Bh; Se = $tf.Se; Verified = $null; Drift = $dd; Sup = $sup; Rescue = '' }
+    $nm = @{}; foreach ($k in @($an.Named.Keys)) { if ($reinc -notcontains [int]$k) { $nm[[int]$k] = $an.Named[$k] } }
+    $an2.Named = $nm
+    $out.Ok = $true; $out.AN = $an2
+    return $out
+}
+
+function Get-LevelCenterRescue($u, $an, $cal) {
+    # 12.8 (F3R, e3, v3f.py center_rescue) : adaptation refusee a la passe de mesure (ecarts disperses, ecart isole avec trop
+    # peu de cylindres, ecart de forme residuel, forme hors des bornes) alors que les controles (un point, passe de mesure)
+    # s ecartent dans le meme sens que les cylindres du centre ecartes : forme niveau, echelle, pente et centre ajustee sur
+    # les cylindres non signales, les controles et les cylindres du centre de meme sens ; memes tests que la correction du
+    # centre ; les cylindres signales sous LevelCenterC0, les pistes de la surface et les pentes invraisemblables restent
+    # ecartes. Verification a la passe 3. Renvoie $null (rien a faire) ou @{ Ok ; Why ; Stage ; AN }
+    if (@('scatter', 'iso', 'tau', 'bounds') -notcontains [string]$an.WhyCode -or -not $an.D -or $an.D.Count -eq 0) { return $null }
+    $sh = $u.ShapeV; $kref = [double]$u.KRef; $kp = [double]$an.KPool
+    $c0 = [int]$script:LevelCenterC0; $t0 = [double]$script:LevelShapeFloor
+    $ctl = @(@($u.Ctl) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Where-Object { $u.Raw.ContainsKey($_) -and @($u.Raw[$_]).Count -gt 0 })
+    if ($ctl.Count -lt 2) { return $null }
+    $d = @{}; foreach ($k in @($an.D.Keys)) { $d[[int]$k] = [double]$an.D[$k] }
+    $sg = @{}; foreach ($k in @($an.Sig.Keys)) { $sg[[int]$k] = [double]$an.Sig[$k] }
+    foreach ($x in $ctl) {
+        $z = Get-LevelZeroPts (Get-LevelPtsEpoch $u $x @{}) $kref $kp
+        if ($null -eq $z) { return $null }
+        $d[$x] = [double]$z.Est - [double]$sh.V[$x]; $sg[$x] = [double]$z.Sig
+    }
+    $named = @{}
+    foreach ($k in @($u.Named.Keys)) { $named[[int]$k] = $u.Named[$k] }
+    foreach ($k in @($an.Named.Keys)) { $named[[int]$k] = $an.Named[$k] }
+    # Ecartes pour de bon : pistes signalees par le controle de surface de cette face, pentes propres invraisemblables
+    $hard = @{}
+    foreach ($c in @($an.BadK)) { if ($null -ne $c) { $hard[[int]$c] = $true } }
+    if ($cal -and $cal.Surf -and $cal.Surf.Faces -and $null -ne $u.Head -and $cal.Surf.Faces[[int]$u.Head]) { foreach ($b in @($cal.Surf.Faces[[int]$u.Head].Bad)) { if ($b) { $hard[[int]$b.C] = $true } } }
+    $inner = @(@($named.Keys | ForEach-Object { [int]$_ } | Sort-Object) | Where-Object { $_ -ge $c0 -and -not $hard.ContainsKey($_) -and $d.ContainsKey($_) })
+    $cs0 = [int[]]@((Get-LevelFitCyls $u) | Where-Object { $d.ContainsKey($_) -and -not $named.ContainsKey($_) -and $ctl -notcontains $_ })
+    $out = @{ Ok = $false; Why = ''; Stage = 2; AN = $null }
+    if ($cs0.Count -lt $script:LevelAdaptMinFit) { $out.Why = (T 'trop peu de cylindres non signalés ({0})') -f "$($cs0.Count)"; return $out }
+    $f0 = Get-LevelWls $sh ([string[]]@('a', 's', 'b')) $cs0 $d $sg
+    if (-not $f0) { return $null }
+    $r = @{}; $sd = @{}; $ro = @()
+    foreach ($c in @(@($ctl) + @($inner) + @($cs0 | Where-Object { $_ -ge $c0 }))) {
+        $pr = Get-LevelPredict $sh $f0 $c
+        $r[$c] = [double]$d[$c] - $pr[0]; $sd[$c] = [math]::Sqrt([math]::Pow([double]$sg[$c], 2) + [math]::Pow($t0, 2) + [math]::Pow($pr[1], 2)); $ro += $c
+    }
+    $tol = @{}; foreach ($x in $ctl) { $tol[$x] = [math]::Min([double]$script:LevelAdaptCtlCap, [math]::Max([double]$script:LevelAdaptCtlFloor, [double]$script:LevelAdaptCtlK * $sd[$x])) }
+    $over = @($ctl | Where-Object { [math]::Abs($r[$_]) -gt $tol[$_] })
+    if ($over.Count -eq 0) { $out.Why = (T 'contrôles dans la tolérance de la forme sans centre'); return $out }
+    $xs = $over[0]; foreach ($x in $over) { if ([math]::Abs($r[$x]) / $tol[$x] -gt [math]::Abs($r[$xs]) / $tol[$xs]) { $xs = $x } }
+    $s = if ($r[$xs] -gt 0) { 1.0 } else { -1.0 }
+    $zone = @($ro | Where-Object { $_ -ne $xs })
+    $sup = @($zone | Where-Object { $s * $r[$_] -ge [math]::Max([double]$script:LevelCenterMinOther, $(if ($ctl -contains $_) { $sd[$_] } else { 0.0 })) })
+    $opp = @($zone | Where-Object { $s * $r[$_] -le -[math]::Max([double]$script:LevelCenterOpp, 2.0 * $sd[$_]) })
+    if ($sup.Count -eq 0 -or $opp.Count -gt 0) { $out.Why = (T 'écart du centre irrégulier (c{0} {1} ns)') -f "$xs", (Format-LevelSigned $r[$xs]); return $out }
+    $reinc = [int[]]@($inner | Where-Object { $s * $r[$_] -gt 0 })
+    $cs2 = [int[]]@(@(@($cs0) + @($ctl) + @($reinc)) | Sort-Object -Unique)
+    $names = [string[]]@('a', 's', 'b', 'hc')
+    $tf = Test-LevelCenterFit $u $an $names $cs2 $d $sg $xs $s $reinc -Bounds
+    if ($null -eq $tf) { return $null }
+    if ($tf.Why) { $out.Why = $tf.Why; return $out }
+    $f = $tf.Fit
+    $m0 = Get-LevelWls $sh ([string[]]@('a')) $cs2 $d $sg
+    $eff = 0.0
+    for ($c = 0; $c -lt $sh.N; $c++) { $ef = [math]::Abs((Get-LevelPredict $sh $f $c)[0] - [double]$m0.Coef['a']); if ($ef -gt $eff) { $eff = $ef } }
+    $loo = Get-LevelLoo $sh $names $cs2 $d $sg
+    $an2 = $an.Clone()
+    $an2.Ok = $true; $an2.Why = ''; $an2.WhyCode = ''; $an2.Fit = $f; $an2.Cs = $cs2; $an2.Model = 'Msb+c'; $an2.D = $d; $an2.Sig = $sg; $an2.Eff = $eff; $an2.M0 = $m0
+    $an2.Loo = $(if ($loo) { $loo } else { @{} }); $an2.Reserve = @()
+    $nm = @{}; foreach ($k in @($named.Keys)) { if ($reinc -notcontains [int]$k) { $nm[[int]$k] = $named[$k] } }
+    $an2.Named = $nm
+    $rc = @{}; foreach ($x in $ctl) { $rc[$x] = $r[$x] }
+    $an2.Center = @{ Stage = 2; Xs = $xs; R = $rc; Reinc = $reinc; Hc = $tf.Bh; Se = $tf.Se; Verified = $null; Drift = 0.0; Sup = $sup; Rescue = [string]$an.Why }
+    $out.Ok = $true; $out.AN = $an2
+    return $out
+}
+
+function Write-LevelCenterLog($u, $ce) {
+    # 12.8 (F3R) : correction du centre retenue (terme de centre, controles, appui, cylindres reintegres) ou non retenue
+    if (-not $ce) { return }
+    $pfx = $u.Prefix
+    if (-not $ce.Ok) { Append-Log ($pfx + ((T 'Correction du centre non retenue : {0}.') -f "$($ce.Why)")); return }
+    $cn = $ce.AN.Center
+    $ctxt = (@(@($cn.R.Keys | ForEach-Object { [int]$_ } | Sort-Object) | ForEach-Object { "c$_ $(Format-LevelSigned $cn.R[$_]) ns" })) -join ', '
+    $stxt = (@(@($cn.Sup) | ForEach-Object { "c$_" })) -join ', '
+    $rtxt = if (@($cn.Reinc).Count -gt 0) { (T ' ; c{0} réintégré (écart de même sens, pas un défaut ponctuel)') -f ((@($cn.Reinc) | ForEach-Object { "$_" }) -join ',') } else { '' }
+    $fmt = if ([double]$cn.Hc -gt 0) { (T 'Besoin plus fort vers le centre : contrôles {0}, appui {1}{2} ; terme de centre {3} ns à c{4} (± {5}), ajusté sur {6}.') } else { (T 'Besoin plus faible vers le centre : contrôles {0}, appui {1}{2} ; terme de centre {3} ns à c{4} (± {5}), ajusté sur {6}.') }
+    Append-Log ($pfx + ($fmt -f "$ctxt", "$stxt", "$rtxt", (Format-LevelSigned $cn.Hc), "$($u.ShapeV.N - 1)", (Format-UiNum ([math]::Round([double]$cn.Se, 1)) '0.#'), (Format-CylList ([int[]]@($ce.AN.Cs)))))
 }
 
 function Set-LevelLevelOnly($u, $an) {
@@ -16045,10 +16578,17 @@ function Set-LevelNwcTargets($u) {
 function Get-LevelAdaptOutcome($cal, $u) {
     # Bilan d une tete adaptee (Mode 'adapte' : forme ajustee et verifiee, ou niveau seul confirme a deux
     # precompensations) ou refusee (Mode 'refus' : courbe de la reference decalee), pour Complete-LevelCalib : courbe,
-    # verdict, forme, reserves (Info : reserve « information » de la fenetre de decision), lignes du journal
+    # verdict, forme, reserves (Info : reserve « information » de la fenetre de decision), lignes du journal.
+    # 12.8 (F3R, v3f.py complete) : tete adaptee :
+    #  - e4 : correction de derive appliquee AVANT le plafond (cylindre plafonne a la verification : besoin + delta) ;
+    #  - plafond par disquette (decision 2) : courbe adaptee jusqu a CalHardMaxNs quand son besoin depasse CalHardNs
+    #    (Get-LevelAdaptHard) : reserve d information « au-dela de la borne », controle apres ecriture (G1, modele) ;
+    #  - Bk : niveau corrige de la derive et dit verifie (J2) ;
+    #  - reserve de centre (terme de centre non verifie par une ecriture du motif) et de controle (e2) : J3, R1 ;
+    #  - reserves dans l ordre de v3f.py (niveau, centre ou controle, au-dela de la borne, forme, a surveiller, plafond)
     $pfx = $u.Prefix; $e = $u.Est; $an = $u.AN; $mx = [int]$script:CalHardNs
     $iss = New-Object System.Collections.Generic.List[object]
-    $r = @{ Values = $null; Sat = @(); Floor = @(); Clip = @(); Verdict = ''; Shape = $null; Issues = $iss; Model = 'M0'; S = 0.0; B = 0.0; K = $null }
+    $r = @{ Values = $null; Sat = @(); Floor = @(); Clip = @(); Verdict = ''; Shape = $null; Issues = $iss; Model = 'M0'; S = 0.0; B = 0.0; Hc = $null; K = $null; Hard = $mx; Over = @(); Corr = $false }
     if ([string]$u.Mode -eq 'refus') {
         $bv = Build-LevelValues $u ([int]$u.Level) $e
         $r.Values = $bv.Values; $r.Sat = @($bv.Sat); $r.Floor = @($bv.Floor); $r.Clip = @($bv.Clip)
@@ -16058,28 +16598,50 @@ function Get-LevelAdaptOutcome($cal, $u) {
         Append-Log ($pfx + ((T 'Forme non conforme à la référence et non adaptée : {0}.') -f "$($u.Refus)"))
         $iss.Add(@{ Text = $pfx + ((T 'adaptation refusée : {0}') -f "$($u.Refus)"); Info = $false })
         if (-not $u.Conv) { $iss.Add(@{ Text = $pfx + ((T "niveau non vérifié par une écriture du motif ({0} passe(s))") -f "$($u.Passes)"); Info = $false }) }
-        if ($r.Sat.Count -gt 0 -and $u.Memo) {
+        if ($r.Sat.Count -gt 0 -and $u.Memo -and $mx -ge [int]$script:CalHardMaxNs) {
+            # 12.8 (F3R-FIX, constat 9) : borne precompMaxNs deja a CalHardMaxNs : plus de conseil de la relever
+            Append-Log ($pfx + ((T 'Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés.') -f "$mx", (Format-CylList ([int[]]$r.Sat))))
+            $iss.Add(@{ Text = $pfx + ((T 'plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés') -f "$mx", (Format-CylList ([int[]]$r.Sat))); Info = $true })
+        } elseif ($r.Sat.Count -gt 0 -and $u.Memo) {
             # 12.8 (FIX1C, constat 5) : courbe de refus partie de la forme d une marque (V' + niveau) : libelle neutre
             Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs).") -f "$mx", (Format-CylList ([int[]]$r.Sat))))
             $iss.Add(@{ Text = $pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs)") -f "$mx", (Format-CylList ([int[]]$r.Sat))); Info = $true })
         } elseif ($r.Sat.Count -gt 0) {
-            Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec le niveau de cette disquette ({2} ns par rapport à la référence) : support probablement fatigué, ces cylindres resteront sous-compensés.") -f "$mx", (Format-CylList ([int[]]$r.Sat)), ('{0:+0;-0;0}' -f [int]$u.Level)))
-            $iss.Add(@{ Text = $pfx + ((T "plafond de {0} ns atteint aux cylindres {1} (support fatigué ?)") -f "$mx", (Format-CylList ([int[]]$r.Sat))); Info = $true })
+            # 12.8 (F3R, decision du 21/10/2026) : forme non conforme : libelle neutre, autre type de disquette ou usure
+            Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec le niveau de cette disquette ({2} ns par rapport à la référence), de forme différente : autre type de disquette ou usure, non distingués ; ces cylindres resteront sous-compensés.") -f "$mx", (Format-CylList ([int[]]$r.Sat)), ('{0:+0;-0;0}' -f [int]$u.Level)))
+            $iss.Add(@{ Text = $pfx + ((T "plafond de {0} ns atteint aux cylindres {1} (autre type de disquette ou usure ?)") -f "$mx", (Format-CylList ([int[]]$r.Sat))); Info = $true })
         }
         if ($r.Floor.Count -gt 0) { $iss.Add(@{ Text = $pfx + ((T "précompensation nulle encore excessive aux cylindres {0}") -f (Format-CylList ([int[]]$r.Floor))); Info = $false }) }
         if ($an -and $an.KPool) { $r.K = [double]$an.KPool }
     } else {
         $bv = $u.AV; $vr = $u.VR; $sh = $u.ShapeV
         $vals = [int[]]@($bv.Values)
-        if ([double]$vr.Delta -ne 0) {
-            $dd = [int][math]::Round([double]$vr.Delta)
-            for ($c = 0; $c -lt $vals.Count; $c++) { $vals[$c] = if ($sh.V[$c] -gt 0) { [int][math]::Max(0, [math]::Min($mx, $vals[$c] + $dd)) } else { 0 } }
+        $clip = @($bv.Clip)
+        $hv = if ($null -ne $bv.Hard) { [int]$bv.Hard } else { $mx }
+        $dl = [double]$vr.Delta
+        $hh = Get-LevelAdaptHard $u ([string]$an.Model) $bv.Raw $dl $clip
+        # 12.8 (F3R-FIX, constat 1) : plafond de la disquette porte au-dela de CalHardNs : les cylindres Clip le suivent
+        # (e4 et Sat compris) ; sinon, comportement d avant (ramenes a CalHardNs, hors Sat)
+        $cf = ($hh -gt $mx)
+        if ($dl -ne 0 -or $hh -ne $hv) {
+            $dd = [int][math]::Round($dl)
+            for ($c = 0; $c -lt $vals.Count; $c++) {
+                if ([double]$sh.V[$c] -le 0) { $vals[$c] = 0 }
+                elseif (-not $cf -and $clip -contains $c) { $vals[$c] = [int][math]::Max(0, [math]::Min($mx, $vals[$c] + $dd)) }
+                elseif ([double]$bv.Raw[$c] -gt $hv) { $vals[$c] = [int][math]::Max(0, [math]::Min($hh, [math]::Round([double]$bv.Raw[$c] + $dl))) }
+                else { $vals[$c] = [int][math]::Max(0, [math]::Min($hh, $vals[$c] + $dd)) }
+            }
         }
         $r.Values = $vals
-        $r.Clip = @($bv.Clip)
-        $r.Sat = @(0..($vals.Count - 1) | Where-Object { $r.Clip -notcontains $_ -and [double]$bv.Raw[$_] + [double]$vr.Delta -gt $mx })
+        # Affectation par branche : « $x = if (...) { @() } » donnerait $null, et @($null).Count vaut 1
+        if ($cf) { $r.Clip = @() } else { $r.Clip = $clip }
+        $r.Sat = @(0..($vals.Count - 1) | Where-Object { ($cf -or $clip -notcontains $_) -and [double]$bv.Raw[$_] + $dl -gt $hh })
         $r.Floor = @($bv.Floor)
         $r.K = [double]$an.KPool
+        $r.Hard = $hh
+        $r.Over = @(if ($hh -gt $mx) { 0..($vals.Count - 1) | Where-Object { $vals[$_] -gt $mx } })
+        $r.Corr = [bool]$vr.Corr
+        $j2 = (T 'Niveau de la courbe adaptée corrigé de {0} ns (dérive entre deux passes ; décalage résiduel moyen {1} ns, dans la tolérance par cylindre {2}).') -f (Format-LevelSigned $dl), (Format-UiNum ([math]::Round([double]$vr.RBar, 1)) '0.#'), (Format-UiNum ([math]::Round([double]$vr.GMean, 1)) '0.#')
         if (-not $u.Conv) {
             $iss.Add(@{ Text = $pfx + ((T 'niveau de la courbe adaptée non vérifié (décalage résiduel moyen {0} ns, tolérance {1}) : décalé de {2} ns sans nouvelle écriture') -f (Format-UiNum ([math]::Round([double]$vr.RBar, 1)) '0.#'), (Format-UiNum ([math]::Round([double]$vr.RTol, 1)) '0.#'), (Format-LevelSigned $vr.Delta)); Info = $true })
         }
@@ -16087,12 +16649,32 @@ function Get-LevelAdaptOutcome($cal, $u) {
             $r.Shape = @{ Verdict = $(if ([double]$an.Fit.Tau -gt [double]$script:LevelTauOk) { 'approx' } else { 'ok' }); Reasons = @() }
             $r.Verdict = $r.Shape.Verdict
             Append-Log ($pfx + ((T 'Forme de la référence confirmée après mesure à deux précompensations : niveau {0} ns{1}.') -f ('{0:+0;-0;0}' -f [int]$u.Level), $(if ($u.Conv) { '' } else { ' ' + (T '(non vérifié)') })))
+            if ($vr.Corr) { Append-Log ($pfx + $j2) }
         } else {
             $r.Shape = @{ Verdict = 'adapte'; Reasons = @() }
             $r.Verdict = 'adapte'
             $r.Model = [string]$an.Model
             $r.S = if ($an.Fit.Coef.ContainsKey('s')) { [double]$an.Fit.Coef['s'] } else { 0.0 }
             $r.B = if ($an.Fit.Coef.ContainsKey('b')) { [double]$an.Fit.Coef['b'] } else { 0.0 }
+            if ($an.Fit.Coef.ContainsKey('hc')) { $r.Hc = [double]$an.Fit.Coef['hc'] }
+            # Reserve de centre (correction par les controles non verifiee par une ecriture du motif) ou de controle (e2)
+            $cres = @()
+            if ($an.Center -and $an.Center.Verified -eq $false) {
+                $ct = (@(@($an.Center.R.Keys | ForEach-Object { [int]$_ } | Sort-Object) | ForEach-Object { "c$_ $(Format-LevelSigned $an.Center.R[$_]) ns" })) -join ', '
+                $cres += ((T 'centre corrigé par les contrôles ({0}), non vérifié par une écriture du motif') -f "$ct")
+            }
+            if ($u.CtlReserve) { $cres += [string]$u.CtlReserve }
+            if ($cres.Count -gt 0) {
+                Append-Log ($pfx + ((T "Forme adaptée avec réserve : {0} : vers le centre, la courbe peut s'écarter du besoin de cette disquette ; contrôle après écriture imposé.") -f ($cres -join ' ; ')))
+                $iss.Add(@{ Text = $pfx + ((T "forme adaptée avec réserve ({0}) : vers le centre, la courbe peut s'écarter du besoin ; contrôle après écriture imposé") -f ($cres -join ' ; ')); Info = $false })
+            }
+            if ($vr.Corr) { Append-Log ($pfx + $j2) }
+            if ($r.Over.Count -gt 0) {
+                # Plafond par disquette : reserve d information (comme le plafond atteint), controle apres ecriture deja impose
+                $top = ($vals | Measure-Object -Maximum).Maximum
+                Append-Log ($pfx + ((T "Courbe adaptée au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns) : le besoin de cette disquette dépasse la borne precompMaxNs ; plafond porté à {3} ns pour cette disquette seulement ; contrôle après écriture imposé.") -f "$mx", (Format-CylList ([int[]]$r.Over)), "$top", "$hh"))
+                $iss.Add(@{ Text = $pfx + ((T "courbe adaptée au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns, plafond porté à {3} ns pour cette disquette seulement) : contrôle après écriture imposé") -f "$mx", (Format-CylList ([int[]]$r.Over)), "$top", "$hh"); Info = $true })
+            }
             if (@($an.Reserve).Count -gt 0) {
                 # 12.8 (G7) : reserve de forme : controle apres ecriture impose, et non calibration complete (elle ferait de
                 # cette disquette la reference du lecteur)
@@ -16109,9 +16691,14 @@ function Get-LevelAdaptOutcome($cal, $u) {
                 $iss.Add(@{ Text = $pfx + ($it -f (Format-LevelSigned $dEnd), "$last"); Info = $true })
             }
         }
-        if ($r.Sat.Count -gt 0) {
-            Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs).") -f "$mx", (Format-CylList ([int[]]$r.Sat))))
-            $iss.Add(@{ Text = $pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs)") -f "$mx", (Format-CylList ([int[]]$r.Sat))); Info = $true })
+        if ($r.Sat.Count -gt 0 -and $hh -ge [int]$script:CalHardMaxNs) {
+            # Plafond de la disquette (CalHardMaxNs) atteint : borne haute, plus reglable (12.8, F3R-FIX, constat 9 : aussi
+            # quand precompMaxNs vaut deja CalHardMaxNs)
+            Append-Log ($pfx + ((T 'Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés.') -f "$hh", (Format-CylList ([int[]]$r.Sat))))
+            $iss.Add(@{ Text = $pfx + ((T 'plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés') -f "$hh", (Format-CylList ([int[]]$r.Sat))); Info = $true })
+        } elseif ($r.Sat.Count -gt 0) {
+            Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs).") -f "$hh", (Format-CylList ([int[]]$r.Sat))))
+            $iss.Add(@{ Text = $pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs)") -f "$hh", (Format-CylList ([int[]]$r.Sat))); Info = $true })
         }
         if (@($r.Clip).Count -gt 0) { Append-Log ($pfx + ((T "Référence calculée avec une borne de {0} ns, au-delà de la borne actuelle (precompMaxNs = {1} ns) aux cylindres {2} : valeurs ramenées à {1} ns.") -f "$(Get-CurveMaxNs $u.Cv)", "$mx", (Format-CylList ([int[]]$r.Clip)))) }
     }
@@ -16203,8 +16790,10 @@ function Set-LevelBrandStart($cal, $u, [string]$brand) {
 function Get-LevelBrandVerified($u) {
     # Tete verifiee pour la memoire de marque : forme adaptee sans reserve et niveau verifie, ou niveau verifie sans nouvelle
     # adaptation (forme conforme ou approximative, sans bascule ni borne)
+    # 12.8 (F3R, G5) : jamais une tete avec reserve de controle (e2) ni terme de centre, meme verifie (le format a, s, b de
+    # la memoire de marque le perdrait) ; une courbe au-dela de CalHardNs (plafond par disquette) n en est pas exclue
     if ($null -eq $u.Head -or $u.Fail -or -not $u.Conv -or $u.Early -or $u.Sat -or $u.Low -or $u.Few) { return $false }
-    if ([string]$u.Mode -eq 'adapte') { return [bool](@($u.AN.Reserve).Count -eq 0) }
+    if ([string]$u.Mode -eq 'adapte') { return [bool](@($u.AN.Reserve).Count -eq 0 -and -not $u.CtlReserve -and -not $u.AN.Center) }
     if ([string]$u.Mode -eq 'refus') { return $false }
     return [bool]($u.Shape -and @('ok', 'approx') -contains [string]$u.Shape.Verdict)
 }
@@ -18336,7 +18925,7 @@ function Get-SafeFileName([string]$s) {
 
 function Update-RsRules {
     $r = $script:RestoreRules
-    $lblRsRules.Text = ((T "Règles appliquées à la copie : écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), pré-effacement, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)")
+    $lblRsRules.Text = ((T "Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (calibration rapide), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), pré-effacement, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)")
 }
 
 function Set-RsStep([int]$i, [string]$state, [string]$detail = '') {
@@ -18757,6 +19346,10 @@ function Resume-Restore([bool]$force) {
         if (-not (Show-AppConfirm @cq)) { return }
     }
     $r.Waiting = $false; $r.SwapBack = $false; $pnlRsWait.Visible = $false; $r.Idle = Get-Date; $r.Override = $false
+    # 12.8 (F3R-FIX, constat 3) : une disquette jugee differente par la sonde, ou confirmee comme changee, n est plus
+    # l original, meme apres un « Ecraser quand meme » sur une disquette precedente (mesure de la destination, cylindres
+    # preserves d une copie de flux)
+    if (-not $force) { $r.OnOriginal = $false }
     Set-RsStep 2 'ok'
     if (-not $force -and ($r.Mode -eq 'sector' -or $r.Finger)) { Start-RestoreProbe; return }
     if ($force) { $r.OnOriginal = $true; Set-RsStep 3 'warn' (T 'contrôle ignoré à votre demande') }
@@ -18862,6 +19455,54 @@ function Get-RestoreCalibInfo([string]$fam, [int]$nCyl = 0) {
     return @{ Need = $false; Text = $text; Notes = $notes.ToArray() }
 }
 
+function Get-RestoreFluxLevel {
+    # 12.8 (decision 3 du 21/10/2026) : copie de flux : reference de la calibration rapide de la destination (Get-LevelRef)
+    # pour la famille, les cylindres et la densite mesures dans le SCP de l original, et image de geometrie du motif de
+    # test a cette densite (New-CalibGeometry : Start-LevelCalib n accepte pas un flux). Regles de « Mesurer la disquette
+    # avant l ecriture lente » et du test rapide : haute densite, champ Pistes, image a une seule face, reference
+    # utilisable. Renvoie @{ Lr ; Geom ; Why ; Log } : Why non vide, mesure non faite (raison courte, etape 4 et journal) ;
+    # Log : ligne de journal complete quand la regle en a deja une (Get-LevelWriteSkip)
+    $r = $script:Restore
+    $out = @{ Lr = $null; Geom = $null; Why = ''; Log = '' }
+    if (Test-ScpHighDensity $r.Orig) { $out.Why = (T "flux haute densité : la haute densité n'a pas de calibration rapide"); return $out }
+    $info = $null
+    try { $info = Get-ScpCellInfo $r.Orig } catch { $info = $null }
+    if (-not $info -or [double]::IsNaN([double]$info.CellNs)) { $out.Why = (T 'densité du flux de l''original illisible'); return $out }
+    if ([double]$info.CellNs -lt 1700 -or [double]$info.CellNs -gt 2300) { $out.Why = ((T "cellule du flux de {0} ns, hors de la plage mesurable (1 700 à 2 300 ns)") -f "$([math]::Round([double]$info.CellNs, 0))"); return $out }
+    $sk = Get-LevelWriteSkip $r.Orig '' $txtWTracks.Text
+    if ($sk) {
+        $out.Why = $(if ($sk.Why) { (T "l'image ne recouvrirait pas tout le motif de test (une seule face, ou champ Pistes limité)") } else { (T "faces de l'image inconnues") })
+        $out.Log = [string]$sk.Why; return $out
+    }
+    $fam = if ([double]$info.CellNs -lt $script:PrecompThresholdNs) { 'long' } else { 'std' }
+    $set = Get-ImageTrackSet $r.Orig
+    $nc = if ($set) { 1 + [int](@($set.Keys | ForEach-Object { [int](([string]$_ -split '\.')[0]) }) | Measure-Object -Maximum).Maximum } else { 80 }
+    $nc = [math]::Max(2, [math]::Min(84, $nc))
+    $bits = [int]$info.Bits; $bits -= $bits % 16
+    try { $img = New-CalibGeometry @{ Bits = $bits; Rpm = 300 } $nc }
+    catch { $out.Why = ((T "image de géométrie impossible à créer : {0}") -f "$($_.Exception.Message)"); return $out }
+    $lr = Get-LevelRef $fam $true ([string]$r.Drive) $img $true -NCyl $nc -Bits $bits
+    if (-not $lr.Ok) { $out.Why = [string]$lr.Why; return $out }
+    $out.Lr = $lr
+    $out.Geom = @{ Img = $img; Label = ((T "copie de flux de {0}") -f "$([System.IO.Path]::GetFileName($r.Orig))"); Fmt = ''; BitsSrc = [string]$info.Source
+                   CylSrc = ((T "{0} cylindres d'après la lecture de l'original") -f "$nc"); NoHome = $true }
+    return $out
+}
+
+function Set-RestoreRepRules {
+    # Copie de flux : pistes deja critiques ou non reproductibles sur l original ni reecrites ni comptees au controle ;
+    # zones instables relues sur la copie (courtes zones, pistes non mesurables de l original) non jugees. 12.8
+    # (decision 3) : aussi apres la mesure de la destination (Complete-LevelCalib lance alors l ecriture)
+    $r = $script:Restore
+    if (-not $r -or $r.Mode -ne 'flux' -or -not $script:Rep -or -not $r.Read) { return }
+    $ign = @{}
+    foreach ($k in @(@($r.Read.CritKeys.Keys) + @($r.Read.WeakKeys.Keys))) { $ign[[string]$k] = $true }
+    if ($ign.Count -gt 0) { $script:Rep.Ignore = $ign }
+    $script:Rep.SrcWeak = $r.Read.WeakKeys
+    $nj = @{}; foreach ($k in @(@($r.Read.UnstKeys.Keys) + @($(if ($r.Read.NoMeas) { $r.Read.NoMeas.Keys } else { @() })))) { $nj[[string]$k] = $true }
+    $script:Rep.NoJudge = $nj
+}
+
 function Start-RestoreWrite {
     $r = $script:Restore
     $r.Stage = 'write'; $r.Idle = Get-Date
@@ -18892,22 +19533,34 @@ function Start-RestoreWrite {
         Set-Num $numWRetries $script:RestoreRules.WriteRetries
         Set-Num $numWRepair $script:RestoreRules.RepairPasses
         $chkWNoVerify.Checked = $false; $chkWPostCheck.Checked = $true; $chkWPrecomp.Checked = $true
-        # Test rapide choisi dans l onglet Ecriture avant la restauration : niveau mesure sur la destination quand une
-        # calibration existe (ou apres une calibration sur disquette sacrifiee) ; une calibration n est jamais refaite.
-        # 12.7 point 5 : de meme avec la case « Mesurer la disquette avant l ecriture lente » (liste au test standard ou fin)
-        $lvl = ($r.Saved -and ([int]$r.Saved.CalMode -eq 2 -or $chkWLevel.Checked))
+        # 12.8 (decision 3 du 21/10/2026) : destination qui n est pas l original (empreinte non retrouvee, cylindre 0
+        # different, ou changement de disquette confirme quand il n est pas verifiable) : niveau et forme mesures avant
+        # l ecriture par la calibration rapide (adaptative, avec la marque), en copie secteur comme en copie de flux, quand
+        # une calibration existe (ou apres une calibration sur disquette sacrifiee) ; une calibration n est jamais refaite.
+        # Regles de « Mesurer la disquette avant l ecriture lente » et du test rapide (D5) ; toute mesure non faite a sa
+        # ligne de journal. 12.8 avant cette decision : mesure seulement avec le test rapide ou la case « Mesurer la
+        # disquette », jamais en copie de flux
+        $measure = -not $r.OnOriginal
+        $r.LevelNote = ''   # 12.8 (F3R-FIX) : raison d une ecriture precedente (autre disquette) oubliee
+        $skipFmt = (T "Restauration : disquette de destination non mesurée avant l'écriture : {0}.")
+        if (-not $measure) { $r.LevelNote = (T "elle a le contenu de l'original, écrasée à votre demande : la mesure ne se fait que sur une autre disquette"); Append-Log ($skipFmt -f $r.LevelNote) }
         $cmbWCalMode.SelectedIndex = 1
         Update-PrecompForImage $r.Orig
         $r.SwapBack = $false
         $noCalib = $false
         if ($r.Mode -eq 'sector') {
             $r.HD = [string](Get-HighDensityReason $r.Orig $r.Fmt)
-            if (-not $r.HD) {
+            if ($r.HD) {
+                if ($measure) { $r.LevelNote = (T "haute densité ({0}), sans calibration rapide") -f "$($r.HD)"; Append-Log ($skipFmt -f $r.LevelNote) }
+            } else {
                 if ($r.CalibDone) { $noCalib = $true }          # calibration faite sur une disquette sacrifiee, destination remise
                 else {
                     $rc = (Get-CalibCylinders $r.Orig $r.Fmt).NCyl
                     $ci = Get-RestoreCalibInfo (Get-ImageFamily $r.Orig) $(if ($null -eq $rc) { 80 } else { [math]::Max(2, [math]::Min(84, [int]$rc)) })
-                    if ($ci.Need) { $r.Calib = $ci.Text; Append-Log ((T "Restauration : calibration par tête en test fin ({0}).") -f "$($ci.Text)") }
+                    if ($ci.Need) {
+                        $r.Calib = $ci.Text; Append-Log ((T "Restauration : calibration par tête en test fin ({0}).") -f "$($ci.Text)")
+                        if ($measure) { Append-Log (T "Restauration : la disquette de destination sera mesurée après la calibration si celle-ci est faite sur une disquette sacrifiée ; faite sur la destination elle-même, la calibration complète en tient lieu.") }
+                    }
                     else {
                         $noCalib = $true; $r.CalibUsed = $ci
                         Append-Log ((T "Restauration : calibration existante utilisée ({0}), le lecteur n'est pas recalibré.") -f "$($ci.Text)")
@@ -18917,22 +19570,28 @@ function Start-RestoreWrite {
             }
         }
         Append-Log ((T "Restauration : écriture tête par tête, {0} essais par piste, contrôle de toutes les pistes ({1} passes au plus).") -f "$($script:RestoreRules.WriteRetries)", "$($script:RestoreRules.RepairPasses)")
-        Start-PresetWrite 'slow' -NoCalib:$noCalib -LevelOnly:($lvl -and $noCalib -and $r.Mode -eq 'sector' -and -not $r.HD)
-        if ($r.Mode -eq 'flux' -and $script:Rep -and $r.Read) {
-            # Pistes deja critiques ou non reproductibles sur l original : ni reecrites ni comptees au controle
-            $ign = @{}
-            foreach ($k in @(@($r.Read.CritKeys.Keys) + @($r.Read.WeakKeys.Keys))) { $ign[[string]$k] = $true }
-            if ($ign.Count -gt 0) { $script:Rep.Ignore = $ign }
-            # Zones instables relues sur la copie : courtes zones ou pistes non mesurables de l original non jugees
-            $script:Rep.SrcWeak = $r.Read.WeakKeys
-            $nj = @{}; foreach ($k in @(@($r.Read.UnstKeys.Keys) + @($(if ($r.Read.NoMeas) { $r.Read.NoMeas.Keys } else { @() })))) { $nj[[string]$k] = $true }
-            $script:Rep.NoJudge = $nj
+        $levelStarted = $false
+        if ($r.Mode -eq 'flux' -and $measure) {
+            # Copie de flux : mesure de la destination sur la geometrie du flux de l original, puis ecriture (Complete-LevelCalib)
+            $fl = Get-RestoreFluxLevel
+            if ($fl.Why) { $r.LevelNote = $fl.Why; Append-Log $(if ($fl.Log) { [string]$fl.Log } else { $skipFmt -f $fl.Why }) }
+            else {
+                Append-Log (T 'Restauration : niveau et forme mesurés sur la disquette de destination (calibration rapide), la calibration du lecteur n''est pas refaite.')
+                $script:AfterCalib = 'write'
+                Start-LevelCalib $fl.Lr -NoFallback -Geom $fl.Geom
+                if (-not $script:Cal) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : la calibration rapide n''a pas été lancée.') }
+                $levelStarted = $true
+            }
+        }
+        if (-not $levelStarted) {
+            Start-PresetWrite 'slow' -NoCalib:$noCalib -LevelOnly:($measure -and $noCalib -and $r.Mode -eq 'sector' -and -not $r.HD)
+            Set-RestoreRepRules
         }
     } finally { $r.InCall = $false; $r.Idle = Get-Date }
     if (-not $script:Restore) { return }
     if ($script:Cal) { Set-RsStep 4 'run' }
     elseif ($script:GwProc -and -not $script:GwProc.HasExited) {
-        if ($r.Mode -ne 'sector') { Set-RsStep 4 'skip' (T 'non applicable à une copie de flux') }
+        if ($r.Mode -ne 'sector') { Set-RsStep 4 'skip' $(if ($r.LevelNote) { (T "niveau non mesuré : {0}") -f "$($r.LevelNote)" } else { (T 'non applicable à une copie de flux') }) }
         elseif ($r.HD) { Set-RsStep 4 'skip' ((T "non applicable : {0}") -f "$($r.HD)") }
         elseif ($r.CalibUsed) {
             $d = (T "calibration existante ({0}), pas de recalibration") -f "$($r.CalibUsed.Text)"
@@ -19077,7 +19736,7 @@ function Write-RestoreReport([bool]$ok, [string]$verdict) {
     if ($r.Level) { $L.Add(((T "Niveau      : {0}") -f "$($r.Level.Report)")) }
     if ($r.Preserved -and @($r.Preserved).Count -gt 0) { $L.Add(((T "Préservés   : cylindres {0}, non réécrits sur la disquette identique à l'original") -f "$(Format-CylList @($r.Preserved))")) }
     $rr = $script:RestoreRules
-    $L.Add(((T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), pré-effacement, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)"))
+    $L.Add(((T "Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (calibration rapide) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), pré-effacement, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)"))
     $L.Add('')
     $L.Add((T 'Étapes :'))
     $marks = @{ pending = '[ ]'; run = '[>]'; ok = '[OK]'; fail = '[ECHEC]'; skip = '[-]'; warn = '[!]' }
@@ -20907,6 +21566,16 @@ $script:LevelAdaptBigEffect = 15.0   # effet qui ouvre la fenetre « a surveille
 $script:LevelAdaptPersist   = 2      # declencheur B a la passe 2 confirme par les zeros a la pente de reference
 $script:LevelNwcDelta       = 24     # base de confirmation d une pente nulle (ns)
 $script:LevelAdaptTrigF1    = $false # declenchement des la passe 1 sur une forme non conforme a f = 1 (non retenu, § 2.3)
+# 12.8 (F3R, decisions du 21/10/2026, v128\c3\final\v3f.py) : terme de centre hc ((c - C0)+ / (n - 1 - C0))^2 de la forme
+# adaptee, ajuste sur les controles (passe 3) ou repris d un refus de la passe de mesure (e3) ; reglages (H) de
+# c3-variantes.md § 2.1. Plafond par disquette : CalHardMaxNs (470 ns), borne haute de write.precompMaxNs, pour la seule
+# courbe adaptee dont le besoin depasse CalHardNs (la reference et toute calibration complete restent a CalHardNs)
+$script:LevelCenterC0       = 60     # debut du terme de centre (= LevelAdaptCtlLo)
+$script:LevelCenterMinOther = 3.0    # appui : un autre cylindre du centre, meme sens, au moins max(3 ns ; 1 et.)
+$script:LevelCenterOpp      = 8.0    # aucun cylindre du centre en sens contraire au-dela de max(8 ns ; 2 et.)
+$script:LevelCenterLooCap   = 20.0   # regularite : controle et reintegres predits sans eux a min(max(15 ; 4 et.) ; 20) ns
+$script:LevelCenterResOk    = 10.0   # lissage : |residu| <= max(10 ns ; 3 et.)
+$script:LevelCenterFresh    = $true  # controle neuf (jamais ecrit) apres une reprise e3
 # 12.8 (lot 1c, § 10) : memoire de la correction par marque de disquette (write.levelBrand, write.levelBrands)
 $script:LevelBrandMax        = 30    # entrees gardees (les plus anciennes supprimees)
 $script:LevelBrandKeepLevels = 10    # niveaux gardes par entree

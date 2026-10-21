@@ -115,7 +115,7 @@ function Get-SafeFileName([string]$s) {
 
 function Update-RsRules {
     $r = $script:RestoreRules
-    $lblRsRules.Text = ((T "Règles appliquées à la copie : écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), pré-effacement, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)")
+    $lblRsRules.Text = ((T "Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (calibration rapide), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), pré-effacement, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)")
 }
 
 function Set-RsStep([int]$i, [string]$state, [string]$detail = '') {
@@ -536,6 +536,10 @@ function Resume-Restore([bool]$force) {
         if (-not (Show-AppConfirm @cq)) { return }
     }
     $r.Waiting = $false; $r.SwapBack = $false; $pnlRsWait.Visible = $false; $r.Idle = Get-Date; $r.Override = $false
+    # 12.8 (F3R-FIX, constat 3) : une disquette jugee differente par la sonde, ou confirmee comme changee, n est plus
+    # l original, meme apres un « Ecraser quand meme » sur une disquette precedente (mesure de la destination, cylindres
+    # preserves d une copie de flux)
+    if (-not $force) { $r.OnOriginal = $false }
     Set-RsStep 2 'ok'
     if (-not $force -and ($r.Mode -eq 'sector' -or $r.Finger)) { Start-RestoreProbe; return }
     if ($force) { $r.OnOriginal = $true; Set-RsStep 3 'warn' (T 'contrôle ignoré à votre demande') }
@@ -641,6 +645,54 @@ function Get-RestoreCalibInfo([string]$fam, [int]$nCyl = 0) {
     return @{ Need = $false; Text = $text; Notes = $notes.ToArray() }
 }
 
+function Get-RestoreFluxLevel {
+    # 12.8 (decision 3 du 21/10/2026) : copie de flux : reference de la calibration rapide de la destination (Get-LevelRef)
+    # pour la famille, les cylindres et la densite mesures dans le SCP de l original, et image de geometrie du motif de
+    # test a cette densite (New-CalibGeometry : Start-LevelCalib n accepte pas un flux). Regles de « Mesurer la disquette
+    # avant l ecriture lente » et du test rapide : haute densite, champ Pistes, image a une seule face, reference
+    # utilisable. Renvoie @{ Lr ; Geom ; Why ; Log } : Why non vide, mesure non faite (raison courte, etape 4 et journal) ;
+    # Log : ligne de journal complete quand la regle en a deja une (Get-LevelWriteSkip)
+    $r = $script:Restore
+    $out = @{ Lr = $null; Geom = $null; Why = ''; Log = '' }
+    if (Test-ScpHighDensity $r.Orig) { $out.Why = (T "flux haute densité : la haute densité n'a pas de calibration rapide"); return $out }
+    $info = $null
+    try { $info = Get-ScpCellInfo $r.Orig } catch { $info = $null }
+    if (-not $info -or [double]::IsNaN([double]$info.CellNs)) { $out.Why = (T 'densité du flux de l''original illisible'); return $out }
+    if ([double]$info.CellNs -lt 1700 -or [double]$info.CellNs -gt 2300) { $out.Why = ((T "cellule du flux de {0} ns, hors de la plage mesurable (1 700 à 2 300 ns)") -f "$([math]::Round([double]$info.CellNs, 0))"); return $out }
+    $sk = Get-LevelWriteSkip $r.Orig '' $txtWTracks.Text
+    if ($sk) {
+        $out.Why = $(if ($sk.Why) { (T "l'image ne recouvrirait pas tout le motif de test (une seule face, ou champ Pistes limité)") } else { (T "faces de l'image inconnues") })
+        $out.Log = [string]$sk.Why; return $out
+    }
+    $fam = if ([double]$info.CellNs -lt $script:PrecompThresholdNs) { 'long' } else { 'std' }
+    $set = Get-ImageTrackSet $r.Orig
+    $nc = if ($set) { 1 + [int](@($set.Keys | ForEach-Object { [int](([string]$_ -split '\.')[0]) }) | Measure-Object -Maximum).Maximum } else { 80 }
+    $nc = [math]::Max(2, [math]::Min(84, $nc))
+    $bits = [int]$info.Bits; $bits -= $bits % 16
+    try { $img = New-CalibGeometry @{ Bits = $bits; Rpm = 300 } $nc }
+    catch { $out.Why = ((T "image de géométrie impossible à créer : {0}") -f "$($_.Exception.Message)"); return $out }
+    $lr = Get-LevelRef $fam $true ([string]$r.Drive) $img $true -NCyl $nc -Bits $bits
+    if (-not $lr.Ok) { $out.Why = [string]$lr.Why; return $out }
+    $out.Lr = $lr
+    $out.Geom = @{ Img = $img; Label = ((T "copie de flux de {0}") -f "$([System.IO.Path]::GetFileName($r.Orig))"); Fmt = ''; BitsSrc = [string]$info.Source
+                   CylSrc = ((T "{0} cylindres d'après la lecture de l'original") -f "$nc"); NoHome = $true }
+    return $out
+}
+
+function Set-RestoreRepRules {
+    # Copie de flux : pistes deja critiques ou non reproductibles sur l original ni reecrites ni comptees au controle ;
+    # zones instables relues sur la copie (courtes zones, pistes non mesurables de l original) non jugees. 12.8
+    # (decision 3) : aussi apres la mesure de la destination (Complete-LevelCalib lance alors l ecriture)
+    $r = $script:Restore
+    if (-not $r -or $r.Mode -ne 'flux' -or -not $script:Rep -or -not $r.Read) { return }
+    $ign = @{}
+    foreach ($k in @(@($r.Read.CritKeys.Keys) + @($r.Read.WeakKeys.Keys))) { $ign[[string]$k] = $true }
+    if ($ign.Count -gt 0) { $script:Rep.Ignore = $ign }
+    $script:Rep.SrcWeak = $r.Read.WeakKeys
+    $nj = @{}; foreach ($k in @(@($r.Read.UnstKeys.Keys) + @($(if ($r.Read.NoMeas) { $r.Read.NoMeas.Keys } else { @() })))) { $nj[[string]$k] = $true }
+    $script:Rep.NoJudge = $nj
+}
+
 function Start-RestoreWrite {
     $r = $script:Restore
     $r.Stage = 'write'; $r.Idle = Get-Date
@@ -671,22 +723,34 @@ function Start-RestoreWrite {
         Set-Num $numWRetries $script:RestoreRules.WriteRetries
         Set-Num $numWRepair $script:RestoreRules.RepairPasses
         $chkWNoVerify.Checked = $false; $chkWPostCheck.Checked = $true; $chkWPrecomp.Checked = $true
-        # Test rapide choisi dans l onglet Ecriture avant la restauration : niveau mesure sur la destination quand une
-        # calibration existe (ou apres une calibration sur disquette sacrifiee) ; une calibration n est jamais refaite.
-        # 12.7 point 5 : de meme avec la case « Mesurer la disquette avant l ecriture lente » (liste au test standard ou fin)
-        $lvl = ($r.Saved -and ([int]$r.Saved.CalMode -eq 2 -or $chkWLevel.Checked))
+        # 12.8 (decision 3 du 21/10/2026) : destination qui n est pas l original (empreinte non retrouvee, cylindre 0
+        # different, ou changement de disquette confirme quand il n est pas verifiable) : niveau et forme mesures avant
+        # l ecriture par la calibration rapide (adaptative, avec la marque), en copie secteur comme en copie de flux, quand
+        # une calibration existe (ou apres une calibration sur disquette sacrifiee) ; une calibration n est jamais refaite.
+        # Regles de « Mesurer la disquette avant l ecriture lente » et du test rapide (D5) ; toute mesure non faite a sa
+        # ligne de journal. 12.8 avant cette decision : mesure seulement avec le test rapide ou la case « Mesurer la
+        # disquette », jamais en copie de flux
+        $measure = -not $r.OnOriginal
+        $r.LevelNote = ''   # 12.8 (F3R-FIX) : raison d une ecriture precedente (autre disquette) oubliee
+        $skipFmt = (T "Restauration : disquette de destination non mesurée avant l'écriture : {0}.")
+        if (-not $measure) { $r.LevelNote = (T "elle a le contenu de l'original, écrasée à votre demande : la mesure ne se fait que sur une autre disquette"); Append-Log ($skipFmt -f $r.LevelNote) }
         $cmbWCalMode.SelectedIndex = 1
         Update-PrecompForImage $r.Orig
         $r.SwapBack = $false
         $noCalib = $false
         if ($r.Mode -eq 'sector') {
             $r.HD = [string](Get-HighDensityReason $r.Orig $r.Fmt)
-            if (-not $r.HD) {
+            if ($r.HD) {
+                if ($measure) { $r.LevelNote = (T "haute densité ({0}), sans calibration rapide") -f "$($r.HD)"; Append-Log ($skipFmt -f $r.LevelNote) }
+            } else {
                 if ($r.CalibDone) { $noCalib = $true }          # calibration faite sur une disquette sacrifiee, destination remise
                 else {
                     $rc = (Get-CalibCylinders $r.Orig $r.Fmt).NCyl
                     $ci = Get-RestoreCalibInfo (Get-ImageFamily $r.Orig) $(if ($null -eq $rc) { 80 } else { [math]::Max(2, [math]::Min(84, [int]$rc)) })
-                    if ($ci.Need) { $r.Calib = $ci.Text; Append-Log ((T "Restauration : calibration par tête en test fin ({0}).") -f "$($ci.Text)") }
+                    if ($ci.Need) {
+                        $r.Calib = $ci.Text; Append-Log ((T "Restauration : calibration par tête en test fin ({0}).") -f "$($ci.Text)")
+                        if ($measure) { Append-Log (T "Restauration : la disquette de destination sera mesurée après la calibration si celle-ci est faite sur une disquette sacrifiée ; faite sur la destination elle-même, la calibration complète en tient lieu.") }
+                    }
                     else {
                         $noCalib = $true; $r.CalibUsed = $ci
                         Append-Log ((T "Restauration : calibration existante utilisée ({0}), le lecteur n'est pas recalibré.") -f "$($ci.Text)")
@@ -696,22 +760,28 @@ function Start-RestoreWrite {
             }
         }
         Append-Log ((T "Restauration : écriture tête par tête, {0} essais par piste, contrôle de toutes les pistes ({1} passes au plus).") -f "$($script:RestoreRules.WriteRetries)", "$($script:RestoreRules.RepairPasses)")
-        Start-PresetWrite 'slow' -NoCalib:$noCalib -LevelOnly:($lvl -and $noCalib -and $r.Mode -eq 'sector' -and -not $r.HD)
-        if ($r.Mode -eq 'flux' -and $script:Rep -and $r.Read) {
-            # Pistes deja critiques ou non reproductibles sur l original : ni reecrites ni comptees au controle
-            $ign = @{}
-            foreach ($k in @(@($r.Read.CritKeys.Keys) + @($r.Read.WeakKeys.Keys))) { $ign[[string]$k] = $true }
-            if ($ign.Count -gt 0) { $script:Rep.Ignore = $ign }
-            # Zones instables relues sur la copie : courtes zones ou pistes non mesurables de l original non jugees
-            $script:Rep.SrcWeak = $r.Read.WeakKeys
-            $nj = @{}; foreach ($k in @(@($r.Read.UnstKeys.Keys) + @($(if ($r.Read.NoMeas) { $r.Read.NoMeas.Keys } else { @() })))) { $nj[[string]$k] = $true }
-            $script:Rep.NoJudge = $nj
+        $levelStarted = $false
+        if ($r.Mode -eq 'flux' -and $measure) {
+            # Copie de flux : mesure de la destination sur la geometrie du flux de l original, puis ecriture (Complete-LevelCalib)
+            $fl = Get-RestoreFluxLevel
+            if ($fl.Why) { $r.LevelNote = $fl.Why; Append-Log $(if ($fl.Log) { [string]$fl.Log } else { $skipFmt -f $fl.Why }) }
+            else {
+                Append-Log (T 'Restauration : niveau et forme mesurés sur la disquette de destination (calibration rapide), la calibration du lecteur n''est pas refaite.')
+                $script:AfterCalib = 'write'
+                Start-LevelCalib $fl.Lr -NoFallback -Geom $fl.Geom
+                if (-not $script:Cal) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : la calibration rapide n''a pas été lancée.') }
+                $levelStarted = $true
+            }
+        }
+        if (-not $levelStarted) {
+            Start-PresetWrite 'slow' -NoCalib:$noCalib -LevelOnly:($measure -and $noCalib -and $r.Mode -eq 'sector' -and -not $r.HD)
+            Set-RestoreRepRules
         }
     } finally { $r.InCall = $false; $r.Idle = Get-Date }
     if (-not $script:Restore) { return }
     if ($script:Cal) { Set-RsStep 4 'run' }
     elseif ($script:GwProc -and -not $script:GwProc.HasExited) {
-        if ($r.Mode -ne 'sector') { Set-RsStep 4 'skip' (T 'non applicable à une copie de flux') }
+        if ($r.Mode -ne 'sector') { Set-RsStep 4 'skip' $(if ($r.LevelNote) { (T "niveau non mesuré : {0}") -f "$($r.LevelNote)" } else { (T 'non applicable à une copie de flux') }) }
         elseif ($r.HD) { Set-RsStep 4 'skip' ((T "non applicable : {0}") -f "$($r.HD)") }
         elseif ($r.CalibUsed) {
             $d = (T "calibration existante ({0}), pas de recalibration") -f "$($r.CalibUsed.Text)"
@@ -856,7 +926,7 @@ function Write-RestoreReport([bool]$ok, [string]$verdict) {
     if ($r.Level) { $L.Add(((T "Niveau      : {0}") -f "$($r.Level.Report)")) }
     if ($r.Preserved -and @($r.Preserved).Count -gt 0) { $L.Add(((T "Préservés   : cylindres {0}, non réécrits sur la disquette identique à l'original") -f "$(Format-CylList @($r.Preserved))")) }
     $rr = $script:RestoreRules
-    $L.Add(((T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), pré-effacement, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)"))
+    $L.Add(((T "Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (calibration rapide) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), pré-effacement, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)"))
     $L.Add('')
     $L.Add((T 'Étapes :'))
     $marks = @{ pending = '[ ]'; run = '[>]'; ok = '[OK]'; fail = '[ECHEC]'; skip = '[-]'; warn = '[!]' }

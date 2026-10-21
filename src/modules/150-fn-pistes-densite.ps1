@@ -48,6 +48,25 @@ function Get-ImageTrackSet([string]$path) {
                 $n = Get-ImageCylinders $path
                 if ($null -ne $n) { for ($c = 0; $c -lt $n; $c++) { $set["$c.0"] = $true; $set["$c.1"] = $true } }
             }
+            '.scp' {
+                # 12.8 (decision 3 du 21/10/2026) : copie de flux : pistes presentes dans la table des pistes de l en-tete
+                # (168 entrees, decalage non nul) ; octet 10 : 0 les deux faces (piste = cylindre x 2 + face), 1 ou 2 une
+                # seule face (0 ou 1), numerotee cylindre x 2 + face ou, a l ancienne, par cylindre
+                $fs = [System.IO.File]::OpenRead($path)
+                $hb = New-Object byte[] (16 + 4 * 168)
+                try { $nr = $fs.Read($hb, 0, $hb.Length) } finally { $fs.Dispose() }
+                if ($nr -eq $hb.Length -and [System.Text.Encoding]::ASCII.GetString($hb, 0, 3) -eq 'SCP') {
+                    $ss = [int]$hb[10]
+                    $idx = @(0..167 | Where-Object { [BitConverter]::ToUInt32($hb, 16 + 4 * $_) -ne 0 })
+                    if ($ss -eq 1 -or $ss -eq 2) {
+                        $hd = $ss - 1
+                        $paired = (@($idx | Where-Object { $_ % 2 -ne $hd }).Count -eq 0)
+                        foreach ($t in $idx) { $c = if ($paired) { [int][math]::Floor($t / 2) } else { $t }; $set["$c.$hd"] = $true }
+                    } else {
+                        foreach ($t in $idx) { $set["$([int][math]::Floor($t / 2)).$($t % 2)"] = $true }
+                    }
+                }
+            }
         }
     } catch { $set = @{} }
     if ($set.Count -gt 0) { return $set }

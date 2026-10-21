@@ -149,6 +149,16 @@ $script:LevelAdaptBigEffect = 15.0   # effet qui ouvre la fenetre « a surveille
 $script:LevelAdaptPersist   = 2      # declencheur B a la passe 2 confirme par les zeros a la pente de reference
 $script:LevelNwcDelta       = 24     # base de confirmation d une pente nulle (ns)
 $script:LevelAdaptTrigF1    = $false # declenchement des la passe 1 sur une forme non conforme a f = 1 (non retenu, § 2.3)
+# 12.8 (F3R, decisions du 21/10/2026, v128\c3\final\v3f.py) : terme de centre hc ((c - C0)+ / (n - 1 - C0))^2 de la forme
+# adaptee, ajuste sur les controles (passe 3) ou repris d un refus de la passe de mesure (e3) ; reglages (H) de
+# c3-variantes.md § 2.1. Plafond par disquette : CalHardMaxNs (470 ns), borne haute de write.precompMaxNs, pour la seule
+# courbe adaptee dont le besoin depasse CalHardNs (la reference et toute calibration complete restent a CalHardNs)
+$script:LevelCenterC0       = 60     # debut du terme de centre (= LevelAdaptCtlLo)
+$script:LevelCenterMinOther = 3.0    # appui : un autre cylindre du centre, meme sens, au moins max(3 ns ; 1 et.)
+$script:LevelCenterOpp      = 8.0    # aucun cylindre du centre en sens contraire au-dela de max(8 ns ; 2 et.)
+$script:LevelCenterLooCap   = 20.0   # regularite : controle et reintegres predits sans eux a min(max(15 ; 4 et.) ; 20) ns
+$script:LevelCenterResOk    = 10.0   # lissage : |residu| <= max(10 ns ; 3 et.)
+$script:LevelCenterFresh    = $true  # controle neuf (jamais ecrit) apres une reprise e3
 # 12.8 (lot 1c, § 10) : memoire de la correction par marque de disquette (write.levelBrand, write.levelBrands)
 $script:LevelBrandMax        = 30    # entrees gardees (les plus anciennes supprimees)
 $script:LevelBrandKeepLevels = 10    # niveaux gardes par entree
