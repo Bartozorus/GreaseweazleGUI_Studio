@@ -358,7 +358,11 @@ function Get-ConfirmShort([string]$heading, [string]$text, [int]$max = 100) {
     return $q
 }
 
-function Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [string]$Check = '', [string]$GoText = '', [string]$GoGlyph = '', [string]$Level = 'warn', [string]$Picto = 'warn') {
+function Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [string]$Check = '', [string]$GoText = '', [string]$GoGlyph = '', [string]$Level = 'warn', [string]$Picto = 'warn', [string]$AltText = '', $Combo = $null) {
+    # 12.8 (S3) : AltText : second bouton d action (btnConfirmAlt), a gauche du bouton principal, soumis a la meme case ;
+    # Combo = @{ Label ; Items ; Text ; Tip ; Map } : liste modifiable sous la case (cmbConfirmCombo, marque de la disquette).
+    # Reponse dans $script:ConfirmChoice ('go', 'alt', 'close') et texte de la liste dans $script:ConfirmComboText ; la
+    # fonction renvoie toujours $true pour le seul bouton principal
     # Confirmation d une action qui engage une disquette ou le materiel (frmConfirm), au modele de frmClean (A4 § 2.4,
     # R1 a R8) : bandeau de la couleur du niveau (danger, warn, info), avec pictogramme GDI+, titre et texte ; case de
     # confirmation en gras si $Check, qui nomme le lecteur ou la disquette (bouton principal actif et bleu seulement case
@@ -370,6 +374,12 @@ function Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [strin
     # ou bouton principal sans la case).
     if (-not $GoText) { $GoText = (T 'Continuer') }
     $W = 600; $tw = $W - 128
+    # 12.8 (S3) : second bouton : fenetre elargie pour que les trois boutons tiennent sur la ligne (memes largeurs que plus bas)
+    if ($AltText) {
+        $wGo = [math]::Max(170, [System.Windows.Forms.TextRenderer]::MeasureText($GoText, $script:BtnFontBold).Width + $(if ($GoGlyph) { 56 } else { 32 }))
+        $wAlt = [math]::Max(150, [System.Windows.Forms.TextRenderer]::MeasureText($AltText, $script:BtnFont).Width + 32)
+        $W = [int][math]::Max($W, $wAlt + 8 + $wGo + 8 + 110); $tw = $W - 128
+    }
     $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
     $gdi = New-Object System.Collections.Generic.List[object]       # images et polices liberees avec la fenetre
     $pal = switch ($Level) {
@@ -410,6 +420,21 @@ function Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [strin
         $chk.Location = New-Object System.Drawing.Point(16, $y); $chk.Size = New-Object System.Drawing.Size($W, ($hC + 6))
         $y = $chk.Bottom + 12
     }
+    # 12.8 (S3) : liste modifiable (marque de la disquette inseree), libelle a gauche, sous la case
+    $cmb = $null; $lblCmb = $null
+    if ($Combo) {
+        $lblCmb = New-Object System.Windows.Forms.Label
+        $lblCmb.Name = 'lblConfirmCombo'; $lblCmb.AutoSize = $true; $lblCmb.UseMnemonic = $false; $lblCmb.Text = [string]$Combo.Label; $lblCmb.Font = $dlg.Font
+        $lblCmb.Location = New-Object System.Drawing.Point(16, ($y + 4))
+        $cmb = New-Object System.Windows.Forms.ComboBox
+        $cmb.Name = 'cmbConfirmCombo'; $cmb.DropDownStyle = 'DropDown'
+        foreach ($it in @($Combo.Items)) { if ($it) { [void]$cmb.Items.Add([string]$it) } }
+        $cmb.Text = [string]$Combo.Text
+        $lx = 16 + $lblCmb.PreferredWidth + 8
+        $cmb.Location = New-Object System.Drawing.Point($lx, $y); $cmb.Width = [math]::Max(160, 16 + $W - $lx)
+        if ($Combo.Tip -and $tip) { $tip.SetToolTip($cmb, [string]$Combo.Tip) }
+        $y = $cmb.Bottom + 12
+    }
     # Boutons en bas a droite : action principale avec glyphe, puis Fermer (110 px, CancelButton)
     $btnGo = New-Object System.Windows.Forms.Button
     $btnGo.Name = 'btnConfirmGo'; $btnGo.Text = $GoText; $btnGo.DialogResult = [System.Windows.Forms.DialogResult]::OK
@@ -420,23 +445,40 @@ function Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [strin
     Set-Btn $btnCl '' 'normal'
     $btnCl.Location = New-Object System.Drawing.Point((16 + $W - $btnCl.Width), $y)
     $btnGo.Location = New-Object System.Drawing.Point(($btnCl.Left - 8 - $btnGo.Width), $y)
+    # 12.8 (S3) : second bouton d action, style normal, a gauche du bouton principal ; inactif tant que la case n est pas cochee
+    $btnAlt = $null
+    if ($AltText) {
+        $btnAlt = New-Object System.Windows.Forms.Button
+        $btnAlt.Name = 'btnConfirmAlt'; $btnAlt.Text = $AltText; $btnAlt.DialogResult = [System.Windows.Forms.DialogResult]::Retry
+        $btnAlt.Size = New-Object System.Drawing.Size([math]::Max(150, [System.Windows.Forms.TextRenderer]::MeasureText($AltText, $script:BtnFont).Width + 32), 34)
+        Set-Btn $btnAlt '' 'normal'
+        $btnAlt.Location = New-Object System.Drawing.Point(($btnGo.Left - 8 - $btnAlt.Width), $y)
+        $btnAlt.Enabled = (-not $chk)
+    }
     $dlg.ClientSize = New-Object System.Drawing.Size(($W + 32), ($y + $btnCl.Height + 16))
     $dlg.CancelButton = $btnCl                        # pas d AcceptButton : Entree ne confirme rien
     $dlg.Controls.Add($pnl); if ($chk) { $dlg.Controls.Add($chk) }; $dlg.Controls.AddRange(@($btnGo, $btnCl))
+    if ($btnAlt) { $dlg.Controls.Add($btnAlt) }
+    if ($cmb) { $dlg.Controls.Add($lblCmb); $dlg.Controls.Add($cmb) }
     [void](Set-CleanDlgFit $dlg ([System.Windows.Forms.Screen]::FromControl($form).WorkingArea))
     $prev = $script:ConfirmDlg
-    $script:ConfirmDlg = @{ Go = $btnGo; Glyph = $GoGlyph; GoStyle = '' }
+    $script:ConfirmDlg = @{ Go = $btnGo; Glyph = $GoGlyph; GoStyle = ''; Alt = $btnAlt }
     Set-ConfirmGo (-not $chk)
-    if ($chk) { $chk.Add_CheckedChanged({ Set-ConfirmGo $this.Checked }); $dlg.ActiveControl = $chk }
+    if ($chk) { $chk.Add_CheckedChanged({ Set-ConfirmGo $this.Checked; if ($script:ConfirmDlg.Alt) { $script:ConfirmDlg.Alt.Enabled = $this.Checked } }); $dlg.ActiveControl = $chk }
     else { $dlg.ActiveControl = $btnCl }
+    $script:ConfirmChoice = 'close'; $script:ConfirmComboText = $null
     try {
         $dr = if ($form.Visible) { $dlg.ShowDialog($form) } else { $dlg.ShowDialog() }
         $ok = [bool]($dr -eq [System.Windows.Forms.DialogResult]::OK -and (-not $chk -or $chk.Checked))
-        Append-Log ((T "Confirmation : {0} : {1}") -f (Get-ConfirmShort $Heading $Text), $(if ($ok) { (T 'confirmée') } else { (T 'refusée (Fermer)') }))
+        $alt = [bool]($btnAlt -and $dr -eq [System.Windows.Forms.DialogResult]::Retry -and (-not $chk -or $chk.Checked))
+        $script:ConfirmChoice = if ($ok) { 'go' } elseif ($alt) { 'alt' } else { 'close' }
+        if ($cmb) { $script:ConfirmComboText = [string]$cmb.Text }
+        $ans = if ($ok) { (T 'confirmée') } elseif ($alt) { (T 'autre choix : « {0} »') -f "$AltText" } else { (T 'refusée (Fermer)') }
+        Append-Log ((T "Confirmation : {0} : {1}") -f (Get-ConfirmShort $Heading $Text), $ans)
         return $ok
     } finally {
         $script:ConfirmDlg = $prev
-        foreach ($b in @($btnGo, $btnCl)) { if ($b.Image) { $i = $b.Image; $b.Image = $null; $i.Dispose() } }
+        foreach ($b in @($btnGo, $btnCl, $btnAlt)) { if ($b -and $b.Image) { $i = $b.Image; $b.Image = $null; $i.Dispose() } }
         $dlg.Dispose()
         foreach ($o in $gdi) { try { $o.Dispose() } catch { } }
     }

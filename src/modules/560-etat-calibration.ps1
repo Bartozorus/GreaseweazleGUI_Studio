@@ -172,6 +172,11 @@ $script:ConfigRefBackupKeep = 10
 # 12.8 (lot 1c, point 3) : repli « Calibration complete » demande par Start-LevelFallback (@{ Swap }) : confirmation sans
 # compte a rebours, case « disquette sacrifiee » obligatoire ; lu et remis a $null au debut de Start-PrecompCalib
 $script:CalFallbackAsk = $null
+# 12.8 (S3, decision du 21/10/2026) : mesure complete de cette disquette demandee par Start-DiskMeasure (@{ Brand ; HardNs ;
+# Ref }) : lue et remise a $null au debut de Start-PrecompCalib (signature inchangee : enveloppes de make-test) ;
+# calibration rapide relancee sans marque apres la garde de la passe 1 (W-M2) : lu et remis a $false par Start-LevelCalib
+$script:CalDiskOnly = $null
+$script:LevelNoBrand = $false
 # 12.7 : bareme de la calibration par famille. Les amplitudes ci-dessus (ns de precompensation, ou de decalage rapporte a
 # la cellule) sont celles de la double densite (2 us). Haute densite (1 us, famille hd) : amplitudes x CalHdK, d apres la
 # plage de mesure de ScpStats.Analyze (sans biais jusqu a 0,2 cellule : 400 ns a 2 us, 200 ns a 1 us, simulation du

@@ -31,8 +31,13 @@ function Update-SlowUi {
         $show = if ($quick) { $true } else { [bool](Get-Setting 'levelBeforeWrite') }
         if ($chkWLevel.Checked -ne $show) { $chkWLevel.Checked = $show }
     } finally { $script:SettingSync = $sv }
-    $chkWLevel.Text = if ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
+    # 12.8 (S3) : mesure complete choisie : duree de la case retiree (celle de la liste fait foi)
+    $full = ((Get-Setting 'levelBeforeWriteMode') -eq 'complete')
+    $chkWLevel.Text = if ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } elseif ($full) { (T "Mesurer la disquette avant l'écriture lente : précompensation et état de la surface") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
     $chkWLevel.Enabled = ($on -and -not $quick)
+    # 12.8 (S3) : liste du mode de la mesure (rapide ou complete) : active en ecriture lente quand la disquette est mesuree
+    # (case cochee, ou verrouillee au « Test rapide »)
+    if ($cmbWLevelMode) { $cmbWLevelMode.Enabled = ($on -and $chkWLevel.Checked); $lblWLevelMode.Enabled = $cmbWLevelMode.Enabled }
 }
 
 # Options "comment ecrire" de l ecriture ; la calibration les reprend sans --format ni --diskdefs (Get-CalibDriveArgs, motif HFE)
@@ -146,6 +151,13 @@ function Start-ImageWrite([switch]$NoWarmup) {
     }
     $pc0 = if ($chkWPrecomp.Checked -and $txtWPrecomp.Text.Trim()) { $txtWPrecomp.Text.Trim() } else { $null }
     $pc1 = if ($chkWPrecomp.Checked -and $txtWPrecomp1.Text.Trim()) { $txtWPrecomp1.Text.Trim() } else { $null }
+    # 12.8 (S3-FLUX, decision 2 du 21/10/2026) : image flux ecrite sans --format : gw l ecrit telle quelle et n applique
+    # --precomp qu aux pistes MasterTrack (Test-RawFluxWrite) : --precomp n est plus transmis, ligne de journal (avant :
+    # transmis sans effet, et repris par la ligne « Precomp » de gw)
+    if (($pc0 -or $pc1) -and (Test-RawFluxWrite $txtWFile.Text $cmbWFmt.Text)) {
+        Append-Log ((T "Image flux {0} écrite telle quelle (sans --format) : gw n'applique pas la précompensation à un flux, --precomp n'est pas transmis.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))")
+        $pc0 = $null; $pc1 = $null
+    }
     if (-not $slow -and $pc0) { $base += '--precomp'; $base += $pc0 }
     $base += Get-WriteFormatArgs
     $a = $base
@@ -393,7 +405,13 @@ function Start-PresetWrite([string]$mode, [switch]$NoCalib, [switch]$LevelOnly) 
         # Avant toute calibration : gw refuserait l ecriture apres coup (« Sector image requires a disk format »)
         [void](Show-AppMessage ((T "Image secteur sans géométrie ({0}) : gw exige le format.`nChoisir le format dans l'onglet Écriture, puis relancer l'écriture.") -f "$ext") (T 'Format requis') 'OK' 'Warning'); return
     }
-    if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) { Start-ImageWrite; return }
+    if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) {
+        # 12.8 (S3-FLUX, decision 2) : aucune mesure avant l ecriture d une image flux ; ligne de journal quand une mesure
+        # aurait ete faite pour une image calibrable (test rapide, ou case « Mesurer la disquette » en ecriture lente) ;
+        # restauration : ligne de Start-RestoreWrite
+        if (-not $script:Restore -and ($cmbWCalMode.SelectedIndex -eq 2 -or (Test-WriteLevelWanted $mode))) { Write-FluxLevelSkip $img $fmt }
+        Start-ImageWrite; return
+    }
     $hd = Get-HighDensityReason $img $fmt
     if ($hd) {
         # 12.7 : haute densite calibrable (hd) : courbe de la famille appliquee par le mode Auto si elle existe, profil
@@ -521,6 +539,27 @@ function Write-LevelHdNote([string]$hf, [bool]$heads) {
     else { Append-Log (T "Mesure de la disquette non disponible en haute densité : écriture avec le profil d'origine.") }
 }
 
+function Test-FluxImage([string]$img) {
+    # Image flux (SCP, KryoFlux, A2R, CTR) : transitions enregistrees, et non pistes de bits ou secteurs
+    return (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains [System.IO.Path]::GetExtension("$img").ToLower())
+}
+
+function Test-RawFluxWrite([string]$img, [string]$fmt) {
+    # 12.8 (S3-FLUX, decision 2 du 21/10/2026) : image flux ecrite sans --format (meme regle que Get-WriteFormatArgs) :
+    # gw l ecrit telle quelle et n applique --precomp qu aux pistes MasterTrack (tools/write.py de gw 1.23 : images a
+    # cellules ou a secteurs, flux decode par --format) : precompensation ignoree
+    return ((Test-FluxImage $img) -and -not ($fmt -and $fmt -ne '(auto)'))
+}
+
+function Write-FluxLevelSkip([string]$img, [string]$fmt) {
+    # 12.8 (S3-FLUX, decision 2) : aucune mesure de la disquette (calibration rapide ou mesure complete) avant l ecriture
+    # d une image flux, depuis le bouton ECRIRE et la Bibliotheque (restauration : Start-RestoreWrite) : ligne de journal.
+    # Flux decode par --format : gw lui applique la precompensation, mais la mesure ne se fait pas non plus
+    $n = [System.IO.Path]::GetFileName("$img")
+    if (Test-RawFluxWrite $img $fmt) { Append-Log ((T "Mesure de la disquette avant l'écriture non faite : image flux {0}, écrite telle quelle, à laquelle gw n'applique pas la précompensation (flux sans --format). Écriture sans mesure.") -f "$n") }
+    else { Append-Log ((T "Mesure de la disquette avant l'écriture non faite : image flux {0}, décodée par --format={1} ; la disquette n'est pas mesurée avant l'écriture d'une image flux. Écriture sans mesure.") -f "$n", "$fmt") }
+}
+
 function Get-LevelWriteSkip([string]$img, [string]$fmt, [string]$ts) {
     # 12.7 point 5 (arbitrage 15) : mesure de la disquette avant l ecriture lente exclue quand l image ne recouvrirait pas
     # tout le motif. La mesure ecrit le motif sur 4 a 9 cylindres par tete, sur tout le disque et les deux tetes
@@ -565,6 +604,8 @@ function Start-WriteTabWrite {
     $quick = ((Get-Setting 'calMode') -eq 'level')
     if (-not ($quick -or (Test-WriteLevelWanted $mode)) -or -not $img -or -not (Test-Path -LiteralPath $img)) { Start-ImageWrite; return }
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
+    # 12.8 (S3-FLUX, decision 2 du 21/10/2026) : image flux : jamais de mesure avant l ecriture, ligne de journal
+    if (Test-FluxImage $img) { Write-FluxLevelSkip $img $cmbWFmt.Text; Start-ImageWrite; return }
     $k = Get-WriteLevelKind $img $cmbWFmt.Text
     if (-not $k) { Start-ImageWrite; return }
     $auto = ($cmbWProfile.SelectedIndex -eq 0)

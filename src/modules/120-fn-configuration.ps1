@@ -132,6 +132,7 @@ function Update-SettingDependents([string]$k) {
     switch ($k) {
         'warmMinutes'      { Update-SlowUi }
         'levelBeforeWrite' { Update-SlowUi }
+        'levelBeforeWriteMode' { Update-SlowUi }      # 12.8 (S3) : liste active, texte de la case de la mesure
         'drive'            { Update-RsDrive }
         'restoreFormat'    { Update-RsFmtFound }
         'compareFormat'    { Update-CmpFmtFound }
@@ -429,7 +430,7 @@ function Save-Config {
         restore  = @{ folder = $txtRsDir.Text }
     }
     # 12.8 (point 7) : reglages de la table (global.drive ; write.calMode, slowWrite, slowWarmup, calibWarmup,
-    # calWarmupMinutes, levelBeforeWrite, precompProfileCode et precompProfile, precompThresholdNs ; ui.homeCalHeads et
+    # calWarmupMinutes, levelBeforeWrite, levelBeforeWriteMode, precompProfileCode et precompProfile, precompThresholdNs ; ui.homeCalHeads et
     # homeCalCyls ; align.presetCode et preset ; quality ; tools.passes et linger ; restore.formatChoice ;
     # compare.formatChoice ; library.dat, lot 4b), puis, pendant
     # une operation surchargee (D4 : ecriture depuis la Bibliotheque ; lot 2 : restauration), reglages de l onglet
@@ -596,7 +597,7 @@ function Load-Config {
     # (apres les champs --precomp) : lecteur, mode de calibration, duree du prechauffage (lignes de journal d une valeur
     # illisible ou ramenee a 0..30 min), profil precomp (code, sinon ancien texte francais ou anglais), seuil de famille,
     # carte « Calibrer le lecteur », mesure de l onglet Qualite, seuils de jitter, nettoyage de l onglet Outils
-    $lateKeys = @('slowWrite', 'warmSlowWrite', 'warmFullCalib', 'levelBeforeWrite')
+    $lateKeys = @('slowWrite', 'warmSlowWrite', 'warmFullCalib', 'levelBeforeWrite', 'levelBeforeWriteMode')
     Import-Settings $cfg -Except $lateKeys
     Update-LegacyCleanDefault $cfg             # 12.8 (D9) : ancien defaut du nettoyage de l onglet Outils
     $chkWPostCheck.Checked = [bool](Get-Cfg $w 'postCheck' $true)
@@ -607,7 +608,7 @@ function Load-Config {
     if ($script:OldCalib) { $script:OldCalib.P0 = $txtWPrecomp.Text; $script:OldCalib.P1 = $txtWPrecomp1.Text }   # retablis si conservees
     # Champs --precomp remplis par une ancienne calibration : profil d origine (sauf profil manuel, choisi par l utilisateur)
     if ($calPurged -and (Get-Setting 'precompProfile') -ne 'manual') { $txtWPrecomp.Text = $script:PrecompStd; $txtWPrecomp1.Text = $script:PrecompStd }
-    Import-Settings $cfg -Only $lateKeys       # ecriture lente, prechauffages (D6), mesure de la disquette
+    Import-Settings $cfg -Only $lateKeys       # ecriture lente, prechauffages (D6), mesure de la disquette et son mode (S3)
     Update-SlowUi
     $txtWTracks.Text   = [string](Get-Cfg $w 'tracks' '')
     Set-Combo $cmbWDensel (Get-Cfg $w 'densel' '(non)')

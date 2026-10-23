@@ -86,9 +86,21 @@ $tip.SetToolTip($numWWarmMin, (T "Durée maximale du préchauffage du lecteur av
 # restauration) : reglage levelBeforeWrite (write.levelBeforeWrite), case sous les prechauffages, active en ecriture lente.
 # 12.8 (D5) : liste au « Test rapide » : la disquette est toujours mesuree, la case est cochee et verrouillee (Update-SlowUi)
 $chkWLevel = New-Object System.Windows.Forms.CheckBox
-$chkWLevel.Name = 'chkWLevel'; $chkWLevel.Location = '12,470'; $chkWLevel.AutoSize = $true; $chkWLevel.Checked = $true; $chkWLevel.Enabled = $false
+$chkWLevel.Name = 'chkWLevel'; $chkWLevel.Location = '12,468'; $chkWLevel.AutoSize = $true; $chkWLevel.Checked = $true; $chkWLevel.Enabled = $false
 $chkWLevel.Text = (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)")
 $tip.SetToolTip($chkWLevel, (T "Avant d'écrire l'image, l'application reprend la forme de la dernière calibration complète en test fin du lecteur.`nElle mesure, sur la disquette insérée, son niveau de précompensation propre et l'état de sa surface : le motif de test y est écrit au plus 3 fois, sur 4 à 9 cylindres par tête, puis l'image les recouvre.`nSans calibration de référence utilisable, l'écriture se fait avec la courbe du lecteur, ou avec le profil d'origine s'il n'en a pas, et le journal en donne la raison.`nNon disponible en haute densité.") + "`n" + (T "Liste « Calibration précomp » au « Test rapide » : la disquette est mesurée avant l'écriture, rapide ou lente, quel que soit le point de départ (bouton ÉCRIRE, Bibliothèque, restauration) ; la case est alors cochée et verrouillée.`nMêmes exceptions partout, avec leur raison dans le journal : pas de mesure quand l'image ne recouvrirait pas tout le motif de test (image à une seule face, champ Pistes avec c=, h= ou step=), ni avec un profil autre qu'Auto ou la case --precomp décochée."))
+# 12.8 (S3, decision du 21/10/2026) : mode de la mesure avant une ecriture lente, reglage levelBeforeWriteMode
+# (write.levelBeforeWriteMode) : calibration rapide ou mesure complete de cette disquette ; liste active en ecriture lente
+# quand la disquette est mesuree (Update-SlowUi). Position du champ : a la suite du libelle (police de la fenetre) ; bas
+# de la liste (25 px de haut) a 517 px, hauteur de l onglet a la taille par defaut, journal replie : pas de defilement
+# (P10 de write-level) ; case de la mesure remontee de 2 px pour cela (468 au lieu de 470)
+$lblWLevelMode = New-Label (T 'Mesure :') '29,495'
+$lblWLevelMode.Name = 'lblWLevelMode'
+$cmbWLevelMode = New-Object System.Windows.Forms.ComboBox
+$cmbWLevelMode.Name = 'cmbWLevelMode'; $cmbWLevelMode.DropDownStyle = 'DropDownList'; $cmbWLevelMode.Width = 240; $cmbWLevelMode.Location = '100,492'
+[void]$cmbWLevelMode.Items.AddRange(@((T 'rapide (1 à 2 min)'), (T 'complète (20 à 25 min)')))
+$cmbWLevelMode.SelectedIndex = 0
+$tip.SetToolTip($cmbWLevelMode, (T "Mesure de la disquette avant une écriture lente.`nRapide : calibration rapide, qui mesure le niveau de la disquette, et sa forme si elle diffère de la référence du lecteur, sur 4 à 9 cylindres par tête (1 à 2 min).`nComplète : mesure complète de cette disquette, sur tous ses cylindres, comme une calibration complète en test fin (20 à 25 min), puis écriture de l'image. La référence du lecteur n'est pas modifiée. La courbe obtenue est mémorisée pour la marque de la disquette : les disquettes suivantes de cette marque en partent, avec une calibration rapide.`nÉcriture rapide : toujours la calibration rapide."))
 
 $numWRetries = New-Object System.Windows.Forms.NumericUpDown
 $numWRetries.Location = '560,22'; $numWRetries.Width = 50
@@ -200,11 +212,12 @@ $lblWProfileInfo.ForeColor = 'DimGray'; $lblWProfileInfo.Text = (T 'Choisissez u
 # 12.8 (FIX-PISTES) : avis de fin d une operation de la Bibliotheque (Set-WTabNotice) retire au texte suivant
 $lblWProfileInfo.Add_TextChanged({ Clear-WTabNotice })
 
-$tabW.Controls.AddRange(@($grpWImage, $grpWOpt, $grpWAdv, $btnWrite, $lblWProfileInfo, $chkWWarm, $chkWCalWarm, $lblWWarmMin, $numWWarmMin, $lblWWarmMinU, $chkWLevel))
+$tabW.Controls.AddRange(@($grpWImage, $grpWOpt, $grpWAdv, $btnWrite, $lblWProfileInfo, $chkWWarm, $chkWCalWarm, $lblWWarmMin, $numWWarmMin, $lblWWarmMinU, $chkWLevel, $lblWLevelMode, $cmbWLevelMode))
 $tabW.AutoScroll = $true                                  # fenetre basse ou journal agrandi : defilement plutot que bouton masque
 # Champ de la duree du prechauffage et son unite : a la suite du libelle, mesure dans la police de la fenetre (anglais compris)
 $numWWarmMin.Left = $lblWWarmMin.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblWWarmMin.Text, $form.Font).Width + 8
 $lblWWarmMinU.Left = $numWWarmMin.Right + 6
+$cmbWLevelMode.Left = $lblWLevelMode.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblWLevelMode.Text, $form.Font).Width + 8
 
 # --- Reglages a source unique (12.8, point 7) : liaisons des controles de l onglet (Register-SettingCtl), apres leurs
 # gestionnaires propres (Update-SlowUi, Update-PrecompForImage), qui s executent avant la liaison. Valeurs posees au
@@ -216,4 +229,5 @@ Register-SettingCtl 'warmSlowWrite' $chkWWarm
 Register-SettingCtl 'warmFullCalib' $chkWCalWarm
 Register-SettingCtl 'warmMinutes' $numWWarmMin
 Register-SettingCtl 'levelBeforeWrite' $chkWLevel
+Register-SettingCtl 'levelBeforeWriteMode' $cmbWLevelMode
 

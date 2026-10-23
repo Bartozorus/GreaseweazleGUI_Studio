@@ -347,10 +347,14 @@ function Get-LevelSurface($tracks, $cal, [int]$rpm) {
     return @{ Surf = $sf; Medium = $mc; Logs = $logs }
 }
 
-function Get-LevelSurfaceText($sf, $mc, [bool]$restore, [bool]$spd, [string[]]$notes) {
+function Get-LevelSurfaceText($sf, $mc, [bool]$restore, [bool]$spd, [string[]]$notes, [switch]$Disk) {
     # 12.7 point 5 : texte de la fenetre « Disquette a ecrire defectueuse » : synthese par face (compteurs du journal),
-    # vitesse et densite relue, risque, conseil de nettoyage (arbitrage 14), choix, absence de decision automatique
-    $t = if ($spd) { (T 'Le lecteur ne tourne pas à la vitesse de ce type de disquette. La première passe de la mesure du niveau, où le motif de test est écrit sur les cylindres mesurés puis relu sur 3 tours, a trouvé :') }
+    # vitesse et densite relue, risque, conseil de nettoyage (arbitrage 14), choix, absence de decision automatique.
+    # 12.8 (S3) : Disk : mesure complete de cette disquette (Invoke-CalibAnalysis) ; en restauration (copie secteur, liste
+    # « Mesure : complete », S3-FLUX), choix propres a la restauration (S3-FIX)
+    $t = if ($Disk -and $spd) { (T 'Le lecteur ne tourne pas à la vitesse de ce type de disquette. La première passe de la mesure complète de cette disquette, où le motif de test est écrit sur tous ses cylindres puis relu sur 3 tours, a trouvé :') }
+         elseif ($Disk) { (T 'La disquette à écrire semble défectueuse. La première passe de la mesure complète de cette disquette, où le motif de test est écrit sur tous ses cylindres puis relu sur 3 tours, a trouvé :') }
+         elseif ($spd) { (T 'Le lecteur ne tourne pas à la vitesse de ce type de disquette. La première passe de la mesure du niveau, où le motif de test est écrit sur les cylindres mesurés puis relu sur 3 tours, a trouvé :') }
          else { (T 'La disquette à écrire semble défectueuse. La première passe de la mesure du niveau, où le motif de test est écrit sur les cylindres mesurés puis relu sur 3 tours, a trouvé :') }
     foreach ($x in (Get-CalibSurfaceFaceLines $sf)) { $t += "`n  - " + $x }
     foreach ($x in @($mc.Lines)) { if ($x) { $t += "`n  - " + $x } }
@@ -358,7 +362,10 @@ function Get-LevelSurfaceText($sf, $mc, [bool]$restore, [bool]$spd, [string[]]$n
     foreach ($x in @($notes)) { if ($x) { $t += "`n" + $x } }
     if (Test-CalibCleanHint $sf $mc $false) { $t += "`n" + (T "Des trous de signal sur les deux faces viennent souvent de têtes sales : nettoyez-les (carte « Nettoyer les têtes du lecteur » de l'Accueil), puis recommencez.") }
     # Restauration, defaut de vitesse seul (arbitrage 12) : une autre disquette de destination n y changerait rien
-    $t += "`n`n" + $(if ($restore -and $spd) { (T "Écrire quand même : la mesure du niveau se poursuit, puis la copie est écrite sur cette disquette.`nArrêter : la restauration s'arrête.") }
+    $t += "`n`n" + $(if ($Disk -and $restore -and $spd) { (T "Écrire quand même : la mesure complète se poursuit, puis la copie est écrite sur cette disquette.`nArrêter : la restauration s'arrête.") }
+                     elseif ($Disk -and $restore) { (T "Écrire quand même : la mesure complète se poursuit, puis la copie est écrite sur cette disquette.`nArrêter : la restauration s'arrête ; relancez-la avec une autre disquette de destination.") }
+                     elseif ($Disk) { (T "Écrire quand même : la mesure complète se poursuit, puis l'image est écrite sur cette disquette.`nArrêter : rien de plus n'est écrit, l'image n'est pas écrite.") }
+                     elseif ($restore -and $spd) { (T "Écrire quand même : la mesure du niveau se poursuit, puis la copie est écrite sur cette disquette.`nArrêter : la restauration s'arrête.") }
                      elseif ($restore) { (T "Écrire quand même : la mesure du niveau se poursuit, puis la copie est écrite sur cette disquette.`nArrêter : la restauration s'arrête ; relancez-la avec une autre disquette de destination.") }
                      else { (T "Écrire quand même : la mesure du niveau se poursuit, puis l'image est écrite sur cette disquette.`nArrêter : rien de plus n'est écrit, l'image n'est pas écrite.") })
     $t += "`n`n" + (T "Pas de décision automatique : l'écriture attend votre réponse. Fermer la fenêtre équivaut à « Arrêter ».")

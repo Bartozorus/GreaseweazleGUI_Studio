@@ -35,6 +35,9 @@ $script:ProgTotal      = 0
 $script:ProgSeen       = $null
 $script:ProgOp         = ''
 $script:ConfirmDlg     = $null   # 12.8 (D3) : bouton principal de la fenetre frmConfirm ouverte (Set-ConfirmGo)
+# 12.8 (S3) : reponse de la derniere fenetre frmConfirm ('go', 'alt' : second bouton, 'close'), texte de sa liste de marque
+$script:ConfirmChoice  = ''
+$script:ConfirmComboText = $null
 
 # Chaine d etapes (convert -> read -> compare, ou read -> analyse d alignement) executee par le timer
 $script:Chain = New-Object System.Collections.Generic.Queue[scriptblock]
@@ -100,6 +103,10 @@ $script:SettingDefs = [ordered]@{
     warmFullCalib      = @{ Sec = 'write';   Key = 'calibWarmup';        Type = 'bool';   Def = $true }
     warmMinutes        = @{ Sec = 'write';   Key = 'calWarmupMinutes';   Type = 'double'; Def = 5.0;      Min = 0.0; Max = 30.0; Var = 'CalWarmupMinutes' }
     levelBeforeWrite   = @{ Sec = 'write';   Key = 'levelBeforeWrite';   Type = 'bool';   Def = $true }
+    # 12.8 (S3, decision du 21/10/2026) : mesure de la disquette avant une ecriture lente : calibration rapide ('quick') ou
+    # mesure complete de cette disquette ('complete', reference du lecteur inchangee) ; liste cmbWLevelMode de l onglet
+    # Ecriture, dans l ordre de ses elements
+    levelBeforeWriteMode = @{ Sec = 'write'; Key = 'levelBeforeWriteMode'; Type = 'enum'; Def = 'quick'; Codes = @('quick', 'complete') }
     precompProfile     = @{ Sec = 'write';   Key = 'precompProfileCode'; Type = 'enum';   Def = 'auto';   Codes = @('auto', 'std', 'long', 'manual'); LegacyKey = 'precompProfile'; Text = $true
                             Legacy = @{ 'Auto (selon image)' = 'auto'; 'Auto (from image)' = 'auto'; 'Standard 2 us' = 'std'; 'Long track 1,89 us' = 'long'; 'Long track 1.89 us' = 'long'; 'Manuel' = 'manual'; 'Manual' = 'manual' } }
     precompThresholdNs = @{ Sec = 'write';   Key = 'precompThresholdNs'; Type = 'int';    Def = $script:PrecompThresholdNs; Min = 0; Max = 100000; Var = 'PrecompThresholdNs' }

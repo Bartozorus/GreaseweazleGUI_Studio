@@ -18,7 +18,8 @@
 # jamais memorisee pour la marque. Au plus 3 passes et 3 ecritures par piste ; disquettes habituelles inchangees.
 # F3R-FIX (21/10/2026, reference alignee v128\c3\final2\v3f.py, oracle impl128\f3rfix\oracle\calib-f3r.ps1) : cylindres
 # Clip hors du declenchement du plafond par disquette et qui le suivent quand il est porte au-dela de CalHardNs ; seuil
-# max(400, CalHardNs) ; controle neuf au plus au dernier cylindre de l image.
+# max(400, CalHardNs) ; controle neuf au plus au dernier cylindre de l image. S3-FLUX (decision 3 du 21/10/2026) : borne
+# precompMaxNs reglee sous 400 ns respectee, sans plafond par disquette.
 
 function New-LevelShape($ref) {
     # Colonnes du modele de forme d une tete, relatives a sa reference : a (niveau), s (echelle centree sur la moyenne
@@ -499,10 +500,11 @@ function Get-LevelAdaptHard($u, [string]$model, $raw, [double]$delta = 0.0, $cli
     # autre que M0, M0+c compris) seulement. Une borne precompMaxNs deja egale a CalHardMaxNs reste telle quelle ; la
     # reference, le niveau seul (M0), la courbe de refus et toute calibration complete restent bornes a CalHardNs.
     # 12.8 (F3R-FIX, constat 4) : seuil de declenchement max(CalHardNsDefault, CalHardNs) : besoin au-dela de 400 ns, ou de
-    # la borne reglee si elle est plus haute ; une borne abaissee sous 400 ns reste le plafond des disquettes dont le besoin
-    # ne depasse pas 400 ns
+    # la borne reglee si elle est plus haute. 12.8 (S3-FLUX, decision 3 du 21/10/2026) : borne precompMaxNs reglee sous
+    # CalHardNsDefault (400 ns) : respectee, sans relevement par disquette (F3R-FIX : plafond porte a 470 ns pour un besoin
+    # au-dela de 400 ns), comme Get-DiskHardNs
     $base = [int]$script:CalHardNs; $ext = [int]$script:CalHardMaxNs
-    if ($ext -le $base -or -not $model -or $model -eq 'M0') { return $base }
+    if ($ext -le $base -or $base -lt [int]$script:CalHardNsDefault -or -not $model -or $model -eq 'M0') { return $base }
     $thr = [math]::Max([int]$script:CalHardNsDefault, $base)
     $V = $u.ShapeV.V; $need = $null
     for ($c = 0; $c -lt @($raw).Count; $c++) {
@@ -1101,15 +1103,23 @@ function Get-LevelBrandItems([string]$drive, $units, [string]$fam) {
     $map = @{}; $ok = @(); $old = @()
     $keys = @{}; foreach ($u in @($units)) { if ($null -ne $u.Head) { $keys["$($u.RefKey)|$($u.Tag)"] = $u.Cv } }
     $seen = @{}
-    foreach ($en in @(@($script:LevelBrands) | Where-Object { $_ } | Sort-Object { Get-CurveDate $_ } -Descending)) {
+    $all = @(@($script:LevelBrands) | Where-Object { $_ } | Sort-Object { Get-CurveDate $_ } -Descending)
+    foreach ($en in $all) {
         if ([string]$en.Drive -ne $drive) { continue }
         $kk = "$($en.RefKey)|$($en.Tag)"; if (-not $keys.ContainsKey($kk)) { continue }
         $bk = Get-LevelBrandKey $en.Brand; if ($seen.ContainsKey($bk)) { continue }
         $seen[$bk] = $true
         $valid = Test-LevelBrandValid $en $keys[$kk] $fam
-        $txt = if ($valid) { (T '{0} - mémorisée le {1}') -f "$($en.Brand)", "$($en.Date)" } else { (T '{0} - à remesurer (référence du lecteur changée)') -f "$($en.Brand)" }
+        # 12.8 (S3) : courbe complete d une tete de la marque, mesuree par « Mesure complete de cette disquette » (L-M),
+        # entrees valables de la marque pour ces tetes, quelle que soit la plus recente ; courbe d un autre calcul de
+        # calibration ou d un autre nombre de cylindres : a remesurer
+        $cvs = @($all | Where-Object { $null -ne $_.Curve -and [string]$_.Drive -eq $drive -and (Get-LevelBrandKey $_.Brand) -eq $bk -and $keys.ContainsKey("$($_.RefKey)|$($_.Tag)") -and (Test-LevelBrandValid $_ $keys["$($_.RefKey)|$($_.Tag)"] $fam) })
+        $stale = [bool](@($cvs | Where-Object { -not (Test-LevelBrandCurve $_ @($keys["$($_.RefKey)|$($_.Tag)"].Values).Count) }).Count -gt 0)
+        $txt = if ($valid -and $cvs.Count -gt 0 -and -not $stale) { (T '{0} - courbe complète mémorisée le {1}') -f "$($en.Brand)", "$($cvs[0].CurveDate)" }
+               elseif ($valid -and $stale) { (T '{0} - à remesurer (calcul de calibration changé)') -f "$($en.Brand)" }
+               elseif ($valid) { (T '{0} - mémorisée le {1}') -f "$($en.Brand)", "$($en.Date)" } else { (T '{0} - à remesurer (référence du lecteur changée)') -f "$($en.Brand)" }
         $map[$txt] = [string]$en.Brand
-        if ($valid) { $ok += $txt } else { $old += $txt }
+        if ($valid -and -not $stale) { $ok += $txt } else { $old += $txt }
     }
     $none = (T '(non précisée)'); $map[$none] = ''
     return @{ Items = @(@($none) + $ok + $old); Map = $map }
@@ -1134,6 +1144,19 @@ function Set-LevelBrandStart($cal, $u, [string]$brand) {
     if (-not (Test-LevelBrandValid $en $u.Cv ([string]$cal.Family))) { return }
     Update-LevelBrandStats $en
     $u.BrandEntry = $en
+    # 12.8 (S3, c4-design § 4.2) : courbe complete de la tete, mesuree par « Mesure complete de cette disquette » avec le meme
+    # calcul de calibration : point de depart V = cette courbe (Get-LevelBrandCurveValues), bornee au plafond par disquette ;
+    # forme d adaptation, Clip, cylindres de niveau et de controle : ceux de la reference (V0, FIX1C) ; niveau de depart :
+    # mediane des niveaux mesures depuis avec cette courbe (0 a la mesure). Garde de la passe 1 : Get-LevelBrandCurveGuard
+    if (Test-LevelBrandCurve $en @($u.V).Count) {
+        $u.V = Get-LevelBrandCurveValues $en $u.V
+        $u.D0 = [int][math]::Round([double]$en.A); $u.D = $u.D0
+        $ld = @(@($en.Levels) | Where-Object { $_ } | Sort-Object { Get-CurveDate $_ })
+        $u.Memo = @{ Brand = [string]$en.Brand; A = [double]$en.A; S = 0.0; B = 0.0; N = [int]$en.N; Model = 'Mc'; Curve = $true; CurveDate = [string]$en.CurveDate
+                     Hist = @(@($en.Levels) | Where-Object { $_ } | ForEach-Object { @{ Date = [string]$_.Date; Delta = [int]$_.Delta } })
+                     LastDate = $(if ($ld.Count -gt 0) { [string]$ld[-1].Date } else { [string]$en.Date }) }
+        return
+    }
     if ([double]$en.S -eq 0 -and [double]$en.B -eq 0) { return }
     $sh = New-LevelShape $u.V
     $vals = New-Object int[] $sh.N
@@ -1171,6 +1194,10 @@ function Get-LevelBrandPlan($cal, [string]$brand) {
         $fromBrand = [bool]($u.Memo -and $u.Trig -and (Get-LevelBrandKey ([string]$u.Memo.Brand)) -eq (Get-LevelBrandKey $brand))
         $en = Find-LevelBrand $brand ([string]$cal.Drive) ([string]$u.RefKey) ([string]$u.Tag)
         $valid = Test-LevelBrandValid $en $u.Cv ([string]$cal.Family)
+        # 12.8 (S3) : entree a courbe complete qui n a pas servi de depart a cette tete (courbe d un autre calcul de
+        # calibration, autre nombre de cylindres) : remplacee, comme une entree d une autre reference ; ses niveaux sont
+        # relatifs a la courbe, pas a la reference
+        if ($valid -and $null -ne $en.Curve -and -not ($u.Memo -and $u.Memo.Curve)) { $valid = $false }
         $why = ''
         if ($valid) {
             Update-LevelBrandStats $en
@@ -1214,7 +1241,9 @@ function Update-LevelBrands($cal, [string]$brand, [bool]$explicit) {
         if ($pl.Adapted) { $en.Shapes = @(@(@($en.Shapes) + @(@{ Date = $date; S = [math]::Round($s, 4); B = [math]::Round($b, 2) })) | Select-Object -Last ([int]$script:LevelBrandKeepShapes)); $en.Model = $model }
         $en.Date = $date; $en.Brand = $brand
         Update-LevelBrandStats $en
-        Append-Log ((T '{0}Forme mémorisée pour la marque « {1} » : niveau {2} ns, échelle {3} %, pente {4} ns ({5} mesure(s)).') -f "$pfx", "$brand", (Format-LevelSigned $en.A), (Format-UiNum ([math]::Round(100 * [double]$en.S, 1)) '+0.0;-0.0;0.0'), (Format-LevelSigned $en.B), "$($en.N)")
+        # 12.8 (S3) : entree a courbe complete (depart de cette tete) : niveau ajoute, courbe gardee
+        if ($null -ne $en.Curve) { Append-Log ((T '{0}Niveau mémorisé pour la marque « {1} », courbe complète du {2} : niveau {3} ns ({4} mesure(s)).') -f "$pfx", "$brand", "$($en.CurveDate)", (Format-LevelSigned $en.A), "$($en.N)") }
+        else { Append-Log ((T '{0}Forme mémorisée pour la marque « {1} » : niveau {2} ns, échelle {3} %, pente {4} ns ({5} mesure(s)).') -f "$pfx", "$brand", (Format-LevelSigned $en.A), (Format-UiNum ([math]::Round(100 * [double]$en.S, 1)) '+0.0;-0.0;0.0'), (Format-LevelSigned $en.B), "$($en.N)") }
     }
     $script:LevelBrand = $brand
     # Entrees gardees : les LevelBrandMax plus recentes
@@ -1232,9 +1261,175 @@ function Test-LevelAdaptedSpec([string[]]$specs) {
     if ($set.Count -eq 0 -or -not $script:LevelShifts) { return $false }
     foreach ($k in @($script:LevelShifts.Keys)) {
         $r = $script:LevelShifts[$k]
-        if ($r -and $r.Model -and [string]$r.Model -ne 'M0' -and $r.Spec -and $set.ContainsKey(([string]$r.Spec).Trim())) { return $true }
+        if ($r -and $r.Model -and [string]$r.Model -ne 'M0' -and $r.Spec -and $set.ContainsKey(([string]$r.Spec).Trim())) {
+            # 12.8 (S3, c4-design § 4.2) : courbe d une mesure complete de cette disquette : mesuree sur tous ses cylindres,
+            # controle impose seulement au-dela de 400 ns (ou de precompMaxNs reglee plus haut), comme le plafond par disquette
+            if ([string]$r.Model -eq 'mesure') { if (@(@($r.Values) | Where-Object { [int]$_ -gt (Get-DiskOverNs) }).Count -gt 0) { return $true }; continue }
+            return $true
+        }
     }
     return $false
+}
+
+function Get-DiskHardNs {
+    # 12.8 (S3, decisions du 21/10/2026) : borne de la courbe d une seule disquette (mesure complete de cette disquette,
+    # courbe complete d une marque) : plafond par disquette CalHardMaxNs (470 ns) ; borne precompMaxNs reglee sous
+    # CalHardNsDefault (400 ns) : celle de l utilisateur, sans relevement par disquette (decision 3)
+    $user = [int]$script:CalHardNsUser
+    if ($user -lt [int]$script:CalHardNsDefault) { return $user }
+    return [int][math]::Max($user, [int]$script:CalHardMaxNs)
+}
+
+function Get-DiskOverNs {
+    # 12.8 (S3) : seuil du controle apres ecriture impose d une courbe de cette disquette : max(400 ns, precompMaxNs), comme
+    # le declenchement du plafond par disquette de la calibration rapide (F3R-FIX, constat 4)
+    return [int][math]::Max([int]$script:CalHardNsDefault, [int]$script:CalHardNsUser)
+}
+
+function Get-DiskRefUnit($cal, $u) {
+    # 12.8 (S3) : reference en place d une tete de la mesure complete de cette disquette (unite de Get-LevelRef gardee dans
+    # $cal.DiskRef : RefKey, Tag, Head, Cv) ; $null sans elle
+    if (-not $cal -or -not $cal.DiskRef) { return $null }
+    $m = @(@($cal.DiskRef.Units) | Where-Object { $_ -and $_.Head -eq $u.Head })
+    if ($m.Count -gt 0) { return $m[0] }
+    return $null
+}
+
+function Test-LevelBrandCurve($en, [int]$nRef) {
+    # 12.8 (S3) : courbe complete d une entree de marque utilisable comme point de depart : calcul de calibration actuel
+    # (CalibCalc ; un autre calcul : « a remesurer »), au moins 2 valeurs, 4 cylindres d ecart au plus avec la reference
+    # (seuil de Get-LevelRef)
+    if (-not $en -or $null -eq $en.Curve) { return $false }
+    $n = @($en.Curve).Count
+    return [bool]($n -ge 2 -and [string]$en.CurveCalc -eq [string]$script:CalibCalc -and [math]::Abs($n - $nRef) -le 4)
+}
+
+function Get-LevelBrandCurveValues($en, $vref) {
+    # 12.8 (S3) : courbe de la marque ramenee aux cylindres de la reference : valeurs en trop retirees ; cylindres manquants
+    # (reference plus longue) : reference decalee de l ecart du dernier cylindre de la courbe ; bornee a 0..Get-DiskHardNs
+    $cap = Get-DiskHardNs
+    $cv = @($en.Curve); $rv = @($vref); $n = $rv.Count; $m = $cv.Count
+    $off = [double]$cv[$m - 1] - [double]$rv[[math]::Min($m, $n) - 1]
+    $out = New-Object int[] $n
+    for ($c = 0; $c -lt $n; $c++) {
+        $x = if ($c -lt $m) { [double]$cv[$c] } else { [double]$rv[$c] + $off }
+        $out[$c] = [int][math]::Max(0, [math]::Min($cap, [math]::Round($x)))
+    }
+    return ,$out
+}
+
+function Get-DiskSpotCyls($u, [int]$n) {
+    # 12.8 (S3) : cylindres d une mesure complete exclus de la courbe d une marque : ecart isole (Outliers), zone non
+    # reproductible (Contra), cylindres non reproductibles d une verification a l autre (NonRepro), ecarts locaux hors
+    # tolerance non corriges (Spot) ; jamais un defaut de cette disquette dans la courbe de la marque
+    $b = @{}
+    foreach ($c in @($u.Outliers)) { if ($null -ne $c) { $b[[int]$c] = $true } }
+    if ($u.Warn) {
+        foreach ($c in @($u.Warn.Contra)) { if ($null -ne $c) { $b[[int]$c] = $true } }
+        if ($u.Warn.Drift -and $u.Warn.Drift.NonRepro) { foreach ($k in @($u.Warn.Drift.NonRepro.Keys)) { $b[[int]$k] = $true } }
+        foreach ($s in @($u.Warn.Spot)) { if ([string]$s -match '^c(\d+)') { $b[[int]$Matches[1]] = $true } }
+    }
+    return ,[int[]]@(@($b.Keys) | ForEach-Object { [int]$_ } | Where-Object { $_ -ge 0 -and $_ -lt $n } | Sort-Object)
+}
+
+function Update-LevelBrandCurve($cal, [string]$brand) {
+    # 12.8 (S3, c4-design § 4.2) : memoire de la marque apres une mesure complete de cette disquette acceptee, tete par
+    # tete : tete sans reserve (DiskOk, Complete-DiskMeasure), reference en place (Get-DiskRefUnit). Ecart a la reference
+    # d(c) = courbe - reference, ajuste par niveau, echelle et pente (Get-LevelWls) hors cylindres exclus (Get-DiskSpotCyls) :
+    # ecart de forme residuel jusqu a LevelTauMax et moins de 2 cylindres hors de la forme (forme conforme ou approximative
+    # au sens de la calibration rapide) : entree (a, s, b) sans courbe, termes de forme gardes au-dela de LevelAdaptCoefZ
+    # erreurs-types ; sinon : courbe
+    # complete de la tete, cylindres exclus remplaces par l interpolation lineaire de leurs voisins dans leur segment
+    # monotone, niveau 0 (J-M1). L entree de la marque pour cette tete (meme lecteur, cle, tete) est remplacee : la mesure
+    # complete fait foi. Tete avec reserve : rien
+    if (-not $brand) { return }
+    $date = Get-Date -Format 'dd/MM/yyyy HH:mm'
+    foreach ($u in @($cal.Units)) {
+        if ($null -eq $u.Head -or -not $u.Fit) { continue }
+        $pfx = $u.Prefix
+        if (-not $u.DiskOk) { Append-Log ((T "{0}Rien n'est mémorisé pour la marque « {1} » : cette tête a une réserve.") -f "$pfx", "$brand"); continue }
+        $ru = Get-DiskRefUnit $cal $u
+        if (-not $ru) { continue }
+        $vals = @($u.Fit.Values); $vref = @($ru.Cv.Values)
+        $n = [math]::Min($vals.Count, $vref.Count)
+        if ($n -lt 2) { continue }
+        $bad = Get-DiskSpotCyls $u $n
+        $cs = [int[]]@(0..($n - 1) | Where-Object { $bad -notcontains $_ })
+        $d = @{}; $sig = @{}
+        for ($c = 0; $c -lt $n; $c++) {
+            $d[$c] = [double]$vals[$c] - [double]$vref[$c]
+            $sig[$c] = if ($u.Sig -and $u.Sig.ContainsKey($c)) { [double]$u.Sig[$c] } else { 5.0 }
+        }
+        $sh = New-LevelShape ([int[]]@($vref[0..($n - 1)]))
+        $fit = Get-LevelWls $sh ([string[]]@('a', 's', 'b')) $cs $d $sig
+        # Forme expliquee par niveau, echelle et pente au sens de la calibration rapide (Test-LevelShape, Get-LevelStats) :
+        # ecart de forme residuel jusqu a LevelTauMax et moins de 2 cylindres hors de la forme de plus de max(15 ns ; 4 et.)
+        $nOut = 0
+        if ($fit) { foreach ($c in $cs) { if ([math]::Abs([double]$fit.Res[$c]) -gt [math]::Max(15.0, 4.0 * [double]$sig[$c])) { $nOut++ } } }
+        $old = Find-LevelBrand $brand ([string]$cal.Drive) ([string]$ru.RefKey) ([string]$ru.Tag)
+        if ($old) { $script:LevelBrands = @(@($script:LevelBrands) | Where-Object { -not [object]::ReferenceEquals($_, $old) }) }
+        $en = @{ Brand = $brand; Drive = [string]$cal.Drive; RefKey = [string]$ru.RefKey; Tag = [string]$ru.Tag; Head = $u.Head; Family = [string]$cal.Family
+                 RefDate = [string]$ru.Cv.Date; LevelAlgo = 'lvl2'; Model = 'M0'; A = 0.0; S = 0.0; B = 0.0; N = 0; Date = $date; Levels = @(); Shapes = @()
+                 Curve = $null; CurveDate = ''; CurveCalc = ''; CurveMaxNs = 0; CurveSrc = '' }
+        if ($fit -and [double]$fit.Tau -le [double]$script:LevelTauMax -and $nOut -lt 2) {
+            # Forme expliquee par niveau, echelle et pente : entree (a, s, b), termes non significatifs retires (nouvel ajustement)
+            $names = @('a')
+            for ($i = 1; $i -lt 3; $i++) { $se = [math]::Sqrt([math]::Max(1e-12, [double]$fit.Cov[$i][$i])); if ([math]::Abs([double]$fit.Beta[$i]) -ge $script:LevelAdaptCoefZ * $se) { $names += [string]$fit.Names[$i] } }
+            $f2 = if ($names.Count -lt 3) { Get-LevelWls $sh ([string[]]$names) $cs $d $sig } else { $fit }
+            if (-not $f2) { $f2 = $fit; $names = @('a', 's', 'b') }
+            $co = $f2.Coef
+            $s = if ($co.ContainsKey('s')) { [double]$co['s'] } else { 0.0 }; $b = if ($co.ContainsKey('b')) { [double]$co['b'] } else { 0.0 }
+            $en.Model = switch ($names -join ',') { 'a,s' { 'Ms' } 'a,b' { 'Mb' } 'a,s,b' { 'Msb' } default { 'M0' } }
+            $en.Levels = @(@{ Date = $date; Delta = [int][math]::Round([double]$co['a']) })
+            if ($names.Count -gt 1) { $en.Shapes = @(@{ Date = $date; S = [math]::Round($s, 4); B = [math]::Round($b, 2) }) }
+            Update-LevelBrandStats $en
+            $script:LevelBrands = @(@($script:LevelBrands) + @($en))
+            Append-Log ((T '{0}Forme mémorisée pour la marque « {1} » : niveau {2} ns, échelle {3} %, pente {4} ns ({5} mesure(s)).') -f "$pfx", "$brand", (Format-LevelSigned $en.A), (Format-UiNum ([math]::Round(100 * [double]$en.S, 1)) '+0.0;-0.0;0.0'), (Format-LevelSigned $en.B), "$($en.N)")
+            continue
+        }
+        # Forme non expliquee par niveau, echelle et pente : courbe complete de la tete, cylindres exclus interpoles dans
+        # leur segment (changements de sens Breaks de la courbe)
+        $cur = New-Object int[] $vals.Count
+        for ($c = 0; $c -lt $vals.Count; $c++) { $cur[$c] = [int]$vals[$c] }
+        $brk = @(@($u.Fit.Breaks) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Sort-Object)
+        foreach ($c in $bad) {
+            $lo = 0; $hi = $vals.Count - 1
+            foreach ($bk in $brk) { if ($bk -le $c -and $bk -gt $lo) { $lo = $bk }; if ($bk -gt $c -and $bk - 1 -lt $hi) { $hi = $bk - 1 } }
+            $l = $c - 1; while ($l -ge $lo -and $bad -contains $l) { $l-- }
+            $r = $c + 1; while ($r -le $hi -and $bad -contains $r) { $r++ }
+            if ($l -ge $lo -and $r -le $hi) { $cur[$c] = [int][math]::Round([double]$vals[$l] + ($c - $l) * ([double]$vals[$r] - [double]$vals[$l]) / ($r - $l)) }
+            elseif ($l -ge $lo) { $cur[$c] = [int]$vals[$l] }
+            elseif ($r -le $hi) { $cur[$c] = [int]$vals[$r] }
+        }
+        $en.Model = 'Mc'; $en.Levels = @(@{ Date = $date; Delta = 0 })
+        $en.Curve = [int[]]$cur; $en.CurveDate = $date; $en.CurveCalc = [string]$script:CalibCalc; $en.CurveMaxNs = [int]$cal.HardNs; $en.CurveSrc = 'complete'
+        Update-LevelBrandStats $en
+        $script:LevelBrands = @(@($script:LevelBrands) + @($en))
+        Append-Log ((T '{0}Courbe complète mémorisée pour la marque « {1} » ({2} cylindres ; écarts isolés exclus : {3}).') -f "$pfx", "$brand", "$($cur.Count)", $(if ($bad.Count -gt 0) { Format-CylList ([int[]]$bad) } else { (T 'aucun') }))
+    }
+    $script:LevelBrand = $brand
+    $all = @(@($script:LevelBrands) | Where-Object { $_ })
+    if ($all.Count -gt $script:LevelBrandMax) { $script:LevelBrands = @($all | Sort-Object { Get-CurveDate $_ } -Descending | Select-Object -First ([int]$script:LevelBrandMax)) }
+}
+
+function Get-LevelBrandCurveGuard($cal) {
+    # 12.8 (S3, c4-design § 4.2) : garde de la passe 1 d une tete partie de la courbe complete d une marque (Memo.Curve) :
+    # adaptation declenchee, forme non conforme a cette courbe, ou niveau a plus de LevelFatigueNs de celui de la marque.
+    # Renvoie @{ Brand ; Why } (calibration rapide arretee, choix W-M2 : Stop-LevelBrandCurve), sinon $null
+    foreach ($u in @($cal.Units)) {
+        if (-not ($u.Memo -and $u.Memo.Curve) -or $u.Fail) { continue }
+        $why = ''
+        if ($u.Trig) { $why = (T 'adaptation déclenchée : {0}') -f (@($u.Trig.Reasons) -join ' ; ') }
+        elseif ($u.Est) {
+            $sh = Test-LevelShape $u.Est $u 1.0
+            if ($sh.Verdict -eq 'mismatch') { $why = (T 'forme non conforme : {0}') -f (@($sh.Reasons) -join ' ; ') }
+            elseif (-not [double]::IsNaN([double]$u.Est.Delta) -and [math]::Abs([double]$u.Est.Delta - [double]$u.Memo.A) -gt [double]$script:LevelFatigueNs) {
+                $why = (T 'niveau {0} ns par rapport à la courbe de la marque') -f ('{0:+0;-0;0}' -f [math]::Round([double]$u.Est.Delta, 0))
+            }
+        }
+        if ($why) { return @{ Brand = [string]$u.Memo.Brand; Why = ([string]$u.Prefix + $why) } }
+    }
+    return $null
 }
 
 function Get-LevelBrandsOfRef([string]$key, [string]$refDate, [string]$drive) {

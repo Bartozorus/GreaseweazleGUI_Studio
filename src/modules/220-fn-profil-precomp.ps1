@@ -167,6 +167,10 @@ function Update-PrecompForImage([string]$path) {
     # Auto
     if (-not $path -or -not (Test-Path -LiteralPath $path)) { $lblWProfileInfo.Text = ''; return }
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
+    # 12.8 (S3-FLUX, decision 2 du 21/10/2026) : image flux sans --format (Test-RawFluxWrite) : gw n y applique pas la
+    # precompensation ; champs remplis comme avant (ils servent si un format est choisi), mais le libelle ne les dit plus
+    # « appliques » : complement $fxNote a la place de celui de Set-PrecompFields
+    $fxNote = if (Test-RawFluxWrite $path $cmbWFmt.Text) { (T " ; image flux écrite telle quelle (sans --format) : gw n'applique pas la précompensation, --precomp n'est pas transmis") } else { '' }
     # Image haute densite (12.7) : calibrable (famille hd) -> profil calibre de sa famille, par tete en ecriture lente si
     # les courbes par tete sont a jour, sinon profil d origine haute densite ; non calibrable (ED, codages propres,
     # 360 tr/min) -> profil d origine de sa famille double densite, comme en 12.6. Pour les deux tetes, ecriture lente
@@ -185,12 +189,12 @@ function Update-PrecompForImage([string]$path) {
             if ($hcv) { $fl = (T "Auto : image haute densité ({0}) -> profil calibré {1} ({2})") -f "$hd", "$fn", "$spec" }
             elseif ($chkWSlow.Checked -and (Test-HeadCurvesCurrent $hf)) { $fl = (T "Auto : image haute densité ({0}) -> {1}") -f "$hd", "$fn" }
             else { $fl = (T "Auto : image haute densité ({0}) -> profil d'origine {1} ({2}), non calibré : calibrez le lecteur en haute densité (carte « Calibrer le lecteur » de l'Accueil)") -f "$hd", "$fn", "$spec" }
-            $lblWProfileInfo.Text = $fl + $x
+            $lblWProfileInfo.Text = $fl + $(if ($fxNote) { $fxNote } else { $x })
         } else {
             $hf = Get-ImageFamily $path $cmbWFmt.Text
             $def = if ($hf -eq 'long') { $script:PrecompLongDefault } else { $script:PrecompStdDefault }
             $chkWPrecomp.Checked = $true; $txtWPrecomp.Text = $def; $txtWPrecomp1.Text = $def
-            $lblWProfileInfo.Text = ((T "Auto : image haute densité ({0}) -> profil d'origine {1} ({2}) : calibration non disponible pour cette image") -f "$hd", (Get-CalibFamilyName $hf), "$def")
+            $lblWProfileInfo.Text = ((T "Auto : image haute densité ({0}) -> profil d'origine {1} ({2}) : calibration non disponible pour cette image") -f "$hd", (Get-CalibFamilyName $hf), "$def") + $fxNote
         }
         Append-Log ((T "Profil precomp : {0}") -f "$($lblWProfileInfo.Text)")
         $script:WProfileHd = $true
@@ -205,13 +209,16 @@ function Update-PrecompForImage([string]$path) {
         }
     } catch { Append-Log ((T "Détection du profil impossible ({0}) : {1}") -f "$ext", "$($_.Exception.Message)"); $info = $null }
     if ($null -eq $info) {
-        # formats secteur (ADF, IMG, ST...) : cellule standard par definition
+        # formats secteur (ADF, IMG, ST...) : cellule standard par definition ; 12.8 (S3-FLUX) : flux non analyse (KryoFlux,
+        # A2R, CTR, SCP sans module d analyse) : dit « image flux », et non « image secteur »
         $x = Set-PrecompFields $script:PrecompStd 'std'
+        if (Test-FluxImage $path) { $lblWProfileInfo.Text = ((T "Auto : image flux ({0}) -> standard 2 us ({1})") -f "$ext", "$($script:PrecompStd)") + $(if ($fxNote) { $fxNote } else { $x }); return }
         $lblWProfileInfo.Text = ((T "Auto : image secteur ({0}) -> standard 2 us ({1})") -f "$ext", "$($script:PrecompStd)") + $x
         return
     }
     $long = $info.CellNs -lt $script:PrecompThresholdNs
     $x = if ($long) { Set-PrecompFields $script:PrecompLong 'long' } else { Set-PrecompFields $script:PrecompStd 'std' }
+    if ($fxNote) { $x = $fxNote }
     $detail = ((T "cellule {0} ns, {1} bits/piste") -f "$([math]::Round($info.CellNs,0))", "$($info.Bits)")
     if ($info.DosTracks -ge 0 -and $info.Tracks -gt 0) { $detail += ((T ", {0}/{1} pistes DOS") -f "$($info.DosTracks)", "$($info.Tracks)") }
     $lblWProfileInfo.Text = ((T "Auto : {0} : {1} -> ") -f "$($info.Source)", "$detail") + $(if ($long) { ((T "LONG TRACK ({0})") -f "$($script:PrecompLong)") } else { ((T "standard 2 us ({0})") -f "$($script:PrecompStd)") }) + $x

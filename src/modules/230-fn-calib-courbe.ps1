@@ -334,9 +334,11 @@ function Format-CurveTable($cvs) {
         $lrs = Get-CurveLevelRecs $cv
         foreach ($rec in @($lrs)) {
             $vk = if ([string]$rec.Shape -eq 'mismatch') { 'mismatch' } else { [string]$rec.Verdict }
-            $vt = @{ ok = (T 'conforme'); approx = (T 'approximative'); mismatch = (T 'NON CONFORME'); sat = (T 'non vérifiée, plafond atteint'); low = (T 'non vérifiée, plancher atteint'); few = (T 'non vérifiée, trop peu de cylindres mesurés'); adapte = (T 'adaptée à cette disquette') }[$vk]
+            $vt = @{ ok = (T 'conforme'); approx = (T 'approximative'); mismatch = (T 'NON CONFORME'); sat = (T 'non vérifiée, plafond atteint'); low = (T 'non vérifiée, plancher atteint'); few = (T 'non vérifiée, trop peu de cylindres mesurés'); adapte = (T 'adaptée à cette disquette'); mesure = (T 'mesurée sur cette disquette') }[$vk]
             $hp = if ($null -eq $rec.Head) { '' } else { (T '[tête {0}] ') -f "$($rec.Head)" }
-            $lines += ($hp + ((T "Dernière calibration rapide ({0}, lecteur {1}) : niveau {2} ns ± {3} ; écart de forme {4} ns ; forme {5} ; {6} passe(s) ; profil appliqué : {7}") -f "$($rec.Date)", "$($rec.Drive)", ('{0:+0;-0;0}' -f [int]$rec.Delta), (Format-LevelNum $rec.SE), (Format-LevelNum $rec.Tau), "$vt", "$($rec.Passes)", "$($rec.Spec)"))
+            # 12.8 (S3) : courbe d une mesure complete de cette disquette : ecart moyen a la reference, sans niveau mesure
+            if ([string]$rec.Model -eq 'mesure') { $lines += ($hp + ((T "Dernière mesure complète d'une disquette ({0}, lecteur {1}) : courbe mesurée sur tous ses cylindres, écart moyen à cette référence {2} ns ; {3} passe(s) ; profil appliqué : {4}") -f "$($rec.Date)", "$($rec.Drive)", ('{0:+0;-0;0}' -f [int]$rec.Delta), "$($rec.Passes)", "$($rec.Spec)")) }
+            else { $lines += ($hp + ((T "Dernière calibration rapide ({0}, lecteur {1}) : niveau {2} ns ± {3} ; écart de forme {4} ns ; forme {5} ; {6} passe(s) ; profil appliqué : {7}") -f "$($rec.Date)", "$($rec.Drive)", ('{0:+0;-0;0}' -f [int]$rec.Delta), (Format-LevelNum $rec.SE), (Format-LevelNum $rec.Tau), "$vt", "$($rec.Passes)", "$($rec.Spec)")) }
             for ($i = 0; $i -lt @($rec.Cyls).Count; $i++) {
                 $kd = [string]$rec.Kinds[$i]; $kt = if ($kn.ContainsKey($kd)) { $kn[$kd] } else { Get-KindName $kd }
                 $lines += ((T "  c{0,-3} zéro {1,6:0.0} ± {2,4:0.0}  écart à la forme {3,6:+0.0;-0.0;0.0}  {4}") -f [int]$rec.Cyls[$i], [double]$rec.Zs[$i], [double]$rec.Sigs[$i], $(if ([double]::IsNaN([double]$rec.Est)) { '-' } else { [double]$rec.Ds[$i] - [double]$rec.Est }), "$kt")
@@ -588,12 +590,14 @@ function Draw-PrecompCurve($g, $size) {
             $ly = 70; $x2 = $L
             $dl = New-Object System.Drawing.Pen($script:Theme.Muted, 1.6); $dl.DashStyle = [System.Drawing.Drawing2D.DashStyle]::Dash
             $g.DrawLine($dl, $x2, $ly + 7, $x2 + 22, $ly + 7); $dl.Dispose()
-            $s = (T 'courbe décalée (dernière disquette)'); $g.DrawString($s, $font, $txt, $x2 + 28, $ly); $x2 += 28 + $g.MeasureString($s, $font).Width + 16
+            # 12.8 (S3) : courbe d une mesure complete de cette disquette (enregistrements 'mesure' seulement)
+            $allMes = (@(@($lvls.Values) | ForEach-Object { $_ } | Where-Object { [string]$_.Model -ne 'mesure' }).Count -eq 0)
+            $s = if ($allMes) { (T 'courbe mesurée (dernière disquette)') } else { (T 'courbe décalée (dernière disquette)') }; $g.DrawString($s, $font, $txt, $x2 + 28, $ly); $x2 += 28 + $g.MeasureString($s, $font).Width + 16
             $dm = @((New-Object System.Drawing.PointF([float]($x2 + 4), [float]($ly + 2))), (New-Object System.Drawing.PointF([float]($x2 + 9), [float]($ly + 7))), (New-Object System.Drawing.PointF([float]($x2 + 4), [float]($ly + 12))), (New-Object System.Drawing.PointF([float]($x2 - 1), [float]($ly + 7))))
             $g.DrawPolygon($grayPen, [System.Drawing.PointF[]]$dm)
             $s = (T 'mesure du niveau'); $g.DrawString($s, $font, $txt, $x2 + 13, $ly); $x2 += 13 + $g.MeasureString($s, $font).Width + 24
             # 12.8 (L6-TEXTES) : verdict 'adapte' (calibration rapide adaptative), meme libelle que Format-CurveTable
-            $vn = @{ ok = (T 'conforme'); approx = (T 'approximative'); mismatch = (T 'NON CONFORME'); sat = (T 'non vérifiée, plafond atteint'); low = (T 'non vérifiée, plancher atteint'); few = (T 'non vérifiée, trop peu de cylindres mesurés'); adapte = (T 'adaptée à cette disquette') }
+            $vn = @{ ok = (T 'conforme'); approx = (T 'approximative'); mismatch = (T 'NON CONFORME'); sat = (T 'non vérifiée, plafond atteint'); low = (T 'non vérifiée, plancher atteint'); few = (T 'non vérifiée, trop peu de cylindres mesurés'); adapte = (T 'adaptée à cette disquette'); mesure = (T 'mesurée sur cette disquette') }
             $ri = 0
             # 12.8 (L6-POLISH) : lignes dans l ordre des courbes (tete 0, puis tete 1), comme les lignes des courbes ; les
             # valeurs d une table de hachage ne suivent pas l ordre de ses cles (la tete 1 venait avant la tete 0)
@@ -601,7 +605,8 @@ function Draw-PrecompCurve($g, $size) {
                 if ($ri -gt 0) { $ly += 20; $x2 = $L }; $ri++
                 $vk = if ([string]$rec.Shape -eq 'mismatch') { 'mismatch' } else { [string]$rec.Verdict }
                 $vt = if ($vn.ContainsKey($vk)) { $vn[$vk] } else { $vk }
-                $s = if ($null -eq $rec.Head) { (T "niveau de la dernière disquette : {0} ns ± {1}, forme {2} ({3})") -f ('{0:+0;-0;0}' -f [int]$rec.Delta), (Format-LevelNum $rec.SE), "$vt", "$($rec.Date)" }
+                $s = if ([string]$rec.Model -eq 'mesure') { (T "tête {0} : courbe mesurée sur cette disquette, écart moyen {1} ns ({2})") -f "$($rec.Head)", ('{0:+0;-0;0}' -f [int]$rec.Delta), "$($rec.Date)" }
+                     elseif ($null -eq $rec.Head) { (T "niveau de la dernière disquette : {0} ns ± {1}, forme {2} ({3})") -f ('{0:+0;-0;0}' -f [int]$rec.Delta), (Format-LevelNum $rec.SE), "$vt", "$($rec.Date)" }
                      else { (T "tête {0} : niveau {1} ns ± {2}, forme {3} ({4})") -f "$($rec.Head)", ('{0:+0;-0;0}' -f [int]$rec.Delta), (Format-LevelNum $rec.SE), "$vt", "$($rec.Date)" }
                 $g.DrawString($s, $font, $txt, $x2, $ly); $x2 += $g.MeasureString($s, $font).Width + 20
             }
@@ -756,12 +761,19 @@ function ConvertTo-LevelConfig($r) {
 
 function ConvertTo-LevelBrandConfig($en) {
     # 12.8 (lot 1c, § 10.2) : entree de la memoire de marque (tableau plat dans la configuration, profondeur JSON limitee)
+    # 12.8 (S3) : courbe complete d une tete mesuree par « Mesure complete de cette disquette » (curve, curveDate,
+    # curveCalc, curveMaxNs, curveSrc), ecrite seulement quand elle existe : une entree (a, s, b) s ecrit comme avant
     if (-not $en) { return $null }
-    return [ordered]@{ brand = [string]$en.Brand; drive = [string]$en.Drive; refKey = [string]$en.RefKey; tag = [string]$en.Tag; head = $en.Head
-                       family = [string]$en.Family; refDate = [string]$en.RefDate; levelAlgo = 'lvl2'; model = [string]$en.Model
-                       a = [double]$en.A; s = [double]$en.S; b = [double]$en.B; n = [int]$en.N; date = [string]$en.Date
-                       levels = @(@($en.Levels) | Where-Object { $_ } | ForEach-Object { [ordered]@{ date = [string]$_.Date; delta = [int]$_.Delta } })
-                       shapes = @(@($en.Shapes) | Where-Object { $_ } | ForEach-Object { [ordered]@{ date = [string]$_.Date; s = [double]$_.S; b = [double]$_.B } }) }
+    $o = [ordered]@{ brand = [string]$en.Brand; drive = [string]$en.Drive; refKey = [string]$en.RefKey; tag = [string]$en.Tag; head = $en.Head
+                     family = [string]$en.Family; refDate = [string]$en.RefDate; levelAlgo = 'lvl2'; model = [string]$en.Model
+                     a = [double]$en.A; s = [double]$en.S; b = [double]$en.B; n = [int]$en.N; date = [string]$en.Date
+                     levels = @(@($en.Levels) | Where-Object { $_ } | ForEach-Object { [ordered]@{ date = [string]$_.Date; delta = [int]$_.Delta } })
+                     shapes = @(@($en.Shapes) | Where-Object { $_ } | ForEach-Object { [ordered]@{ date = [string]$_.Date; s = [double]$_.S; b = [double]$_.B } }) }
+    if ($null -ne $en.Curve -and @($en.Curve).Count -ge 2) {
+        $o.curve = @(@($en.Curve) | ForEach-Object { [int]$_ }); $o.curveDate = [string]$en.CurveDate; $o.curveCalc = [string]$en.CurveCalc
+        $o.curveMaxNs = [int]$en.CurveMaxNs; $o.curveSrc = [string]$en.CurveSrc
+    }
+    return $o
 }
 
 function ConvertFrom-LevelBrandConfig($o) {
@@ -773,7 +785,13 @@ function ConvertFrom-LevelBrandConfig($o) {
                  LevelAlgo = [string]$o.levelAlgo; Model = $(if ($o.model) { [string]$o.model } else { 'M0' }); A = [double]$o.a; S = [double]$o.s; B = [double]$o.b
                  N = [int]$o.n; Date = [string]$o.date
                  Levels = @(@($o.levels) | Where-Object { $_ } | ForEach-Object { @{ Date = [string]$_.date; Delta = [int]$_.delta } })
-                 Shapes = @(@($o.shapes) | Where-Object { $_ } | ForEach-Object { @{ Date = [string]$_.date; S = [double]$_.s; B = [double]$_.b } }) }
+                 Shapes = @(@($o.shapes) | Where-Object { $_ } | ForEach-Object { @{ Date = [string]$_.date; S = [double]$_.s; B = [double]$_.b } })
+                 # 12.8 (S3) : courbe complete d une tete (absente d une entree a, s, b : $null)
+                 Curve = $null; CurveDate = ''; CurveCalc = ''; CurveMaxNs = 0; CurveSrc = '' }
+        if ($null -ne $o.curve -and @($o.curve).Count -ge 2) {
+            $en.Curve = [int[]]@(@($o.curve) | ForEach-Object { [int]$_ }); $en.CurveDate = [string]$o.curveDate; $en.CurveCalc = [string]$o.curveCalc
+            $en.CurveMaxNs = $(if ($null -ne $o.curveMaxNs) { [int]$o.curveMaxNs } else { 0 }); $en.CurveSrc = [string]$o.curveSrc
+        }
         if (-not $en.Brand -or -not $en.RefKey -or -not $en.RefDate) { return $null }
         return $en
     } catch { return $null }

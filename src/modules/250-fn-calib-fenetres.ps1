@@ -16,7 +16,9 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
     # 12.8 (lot 1c, § 7 et 10.1) : lvl2 = @{ WarnText ; Info ; BrandAsk ; Brand ; Brands } (Get-LevelReviewPlan) : texte de
     # l avertissement (forme non conforme ou forme adaptee avec reserve) ; fenetre « information » (courbe adaptee et
     # verifiee : en-tete propre, « Ecrire l image » principal) ; champ de marque cmbRevBrand (« Memoriser cette forme pour
-    # la marque »), lu dans $script:CalReviewBrand a la fermeture
+    # la marque »), lu dans $script:CalReviewBrand a la fermeture. 12.8 (S3) : lvl2.OfferDisk, DiskMin : bouton
+    # btnRevDisk, « Mesure complete de cette disquette » ('disk', W-M1) ; $cal.DiskOnly : textes de la mesure complete de
+    # cette disquette (reference du lecteur inchangee)
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }   # elle dessine ces memes donnees
     if ($compare) { $script:CurveData = @($compare.Curves); $script:CurveLevel = @{}; $script:CurveZones = @($compare.Zones) }
     else {
@@ -42,11 +44,16 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
     $head = if ($toWrite -and $lvl -and $infoWin -and $lvl2.Verified -ne $false) { (T "Écrire l'image : l'image est écrite avec la courbe adaptée à cette disquette, vérifiée par une écriture du motif.`nArrêter : l'image n'est pas écrite ; le niveau n'est pas conservé et les profils de la référence sont rétablis.") }
             elseif ($toWrite -and $lvl -and $infoWin) { (T "Écrire l'image : l'image est écrite avec la courbe adaptée à cette disquette ; son niveau a été décalé sans nouvelle écriture du motif (voir ci-dessus).`nArrêter : l'image n'est pas écrite ; le niveau n'est pas conservé et les profils de la référence sont rétablis.") }
             elseif ($toWrite -and $lvl) { (T "Écrire l'image : l'image est écrite avec le niveau mesuré.`nArrêter : l'image n'est pas écrite ; le niveau n'est pas conservé et les profils de la référence sont rétablis.") }
+            elseif ($toWrite -and $cal.DiskOnly) { (T "Écrire l'image : l'image est écrite avec la courbe mesurée sur cette disquette.`nArrêter : l'image n'est pas écrite et cette mesure n'est pas conservée ; la référence du lecteur, inchangée, reste en place.") }
             elseif ($toWrite) { (T "Écrire l'image : la courbe est conservée et l'image est écrite avec elle.`nArrêter : l'image n'est pas écrite et cette calibration n'est pas conservée (la calibration précédente est rétablie).") }
             elseif ($lvl -and $noFields) { (T "Conserver le niveau : il est enregistré pour cette disquette et reste affiché dans la fenêtre Courbe ; les champs --precomp ne sont pas modifiés.`nAbandonner le niveau : il n'est pas enregistré.") }
             elseif ($lvl) { (T "Conserver le niveau : le profil décalé reste dans les champs --precomp, pour cette disquette seulement.`nAbandonner le niveau : les champs --precomp reprennent leurs valeurs d'avant la calibration rapide.") }
             else { (T "Conserver la courbe : elle est enregistrée et appliquée aux prochaines écritures.`nAbandonner la courbe : la calibration précédente est rétablie.") }
     if ($offerFull) { $head += "`n" + (T "Calibration complète : la courbe du lecteur est mesurée de nouveau en test fin, après un avertissement ; elle devient la nouvelle référence de forme.") }
+    # 12.8 (S3, W-M1) : mesure complete de cette disquette proposee par la calibration rapide avant une ecriture lente
+    # (Get-LevelReviewPlan, OfferDisk), a la place de « Calibration complete » ; reference du lecteur inchangee
+    $offerDisk = [bool]($lvl2 -and $lvl2.OfferDisk -and $lvl -and $toWrite -and -not $compare)
+    if ($offerDisk) { $head += "`n" + ((T "Mesure complète de cette disquette : la précompensation est mesurée sur tous ses cylindres (environ {0} min), après un avertissement, puis l'image est écrite ; la référence du lecteur n'est pas modifiée.") -f "$($lvl2.DiskMin)") }
     # 12.7 : ligne placee apres les autres (les fins de test n impriment que les premieres lignes, ou celles qui commencent
     # par Conserver, Abandonner ou Calibration complete)
     if ($offerRedo -and -not $compare) { $head += "`n" + $(if ($toWrite) { (T "Refaire sur une autre disquette : l'écriture est annulée ; cette courbe est mise de côté, la même calibration est refaite sur une autre disquette sacrifiée, puis vous choisissez la courbe. Relancez ensuite l'écriture depuis la Bibliothèque.") } else { (T "Refaire sur une autre disquette : cette courbe est mise de côté et la calibration précédente rétablie ; la même calibration est refaite sur une autre disquette sacrifiée, puis les deux courbes sont comparées et vous choisissez celle à conserver.") }) }
@@ -125,6 +132,15 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
         $btnFull.Location = New-Object System.Drawing.Point(($btnOk.Left - 8 - $btnFull.Width), $by)
         $bar.Controls.Add($btnFull)
     }
+    # 12.8 (S3, W-M1) : « Mesure complete de cette disquette (environ N min) » ('disk'), a gauche de btnRevKeep
+    if ($offerDisk) {
+        $btnDisk = New-Object System.Windows.Forms.Button
+        $btnDisk.Name = 'btnRevDisk'; $btnDisk.Text = ((T 'Mesure complète de cette disquette (environ {0} min)') -f "$($lvl2.DiskMin)"); $btnDisk.DialogResult = [System.Windows.Forms.DialogResult]::No
+        $btnDisk.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $btnDisk.Text '' 150), 34)
+        Set-Btn $btnDisk '' 'normal'
+        $btnDisk.Location = New-Object System.Drawing.Point(($btnOk.Left - 8 - $btnDisk.Width), $by)
+        $bar.Controls.Add($btnDisk)
+    }
     # 12.7 point 2 : « Refaire sur une autre disquette » (reserve qui peut venir du support), a gauche de btnRevKeep ;
     # comparaison A / B : « Conserver la courbe A » a gauche de « Conserver la courbe B »
     if ($offerRedo -and -not $compare) {
@@ -177,6 +193,7 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
     if ($dr -eq [System.Windows.Forms.DialogResult]::Retry) { return 'full' }
     if ($dr -eq [System.Windows.Forms.DialogResult]::Ignore) { return 'redo' }
     if ($dr -eq [System.Windows.Forms.DialogResult]::Yes) { return 'keepA' }
+    if ($dr -eq [System.Windows.Forms.DialogResult]::No -and $offerDisk) { return 'disk' }
     if ($dr -eq [System.Windows.Forms.DialogResult]::Abort) { return 'stop' }
     if ($compare) { return 'keep' }
     return $(if ($toWrite) { 'stop' } else { 'keep' })

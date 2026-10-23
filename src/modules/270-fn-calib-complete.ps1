@@ -11,6 +11,11 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     # sans compte a rebours, case « disquette sacrifiee » obligatoire. Variable et non parametre : signature inchangee
     # (enveloppes de make-test et des fins de test)
     $fb = $script:CalFallbackAsk; $script:CalFallbackAsk = $null
+    # 12.8 (S3, decision du 21/10/2026) : « Mesure complete de cette disquette » ($script:CalDiskOnly, pose par
+    # Start-DiskMeasure ; lu et remis a $null ici, avant toute sortie) : test fin, une courbe par tete, sur la disquette a
+    # ecrire, borne par disquette ; confirmation frmConfirm sans compte a rebours, case « Cette disquette sera effacee »
+    # obligatoire, marque de la disquette ; la reference du lecteur n est pas modifiee (Complete-DiskMeasure)
+    $do = $script:CalDiskOnly; $script:CalDiskOnly = $null
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     $script:Cal = $null
     $chk = Test-CalibImage $Geom
@@ -73,6 +78,21 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         # Confirmation sans compte a rebours : la case est obligatoire (une disquette de valeur est peut-etre inseree)
         $rc = Show-TimedConfirm 'frmCalibRedo' (T 'Calibration sur une autre disquette') ($Intro + $body + "`n`n" + $wear) (T 'Lancer la calibration B') 'Diagnostic' '' (T "J'ai retiré la disquette de la calibration A et inséré une autre disquette sacrifiée") '' (T "Pas de démarrage automatique : cochez la case, puis cliquez sur « Lancer la calibration B ».") -Seconds 0 -NeedCheck -Heading (T 'Calibration B : insérez une autre disquette sacrifiée') -Level 'warn' -Picto 'warn'
         $ans = @{ Ok = ($rc.Ok -and $rc.Checked); Swap = $false; Auto = $false }
+    } elseif ($do) {
+        # Mesure complete de cette disquette (M1, M2) : la disquette inseree est celle a ecrire ; marque proposee (champ
+        # modifiable, liste de l avertissement de la calibration rapide, L-M)
+        $bi = Get-LevelBrandItems ([string]$cmbDrive.Text) @($do.Ref.Units) $family
+        $m1 = (T "Mesure complète de cette disquette sur le lecteur {0} : la précompensation est mesurée sur ses {1} cylindres (2 faces), environ {2} min, puis l'image est écrite. La référence du lecteur n'est pas modifiée. La courbe obtenue est mémorisée pour la marque choisie ci-dessous ; sans marque, elle ne sert qu'à cette écriture.") -f "$($cmbDrive.Text)", "$nCyl", "$minutes"
+        # Texte : M1 et usure du support (le detail de la calibration, $body, reste au journal)
+        $cq = @{ Title = (T 'Calibration precomp'); Heading = (T 'Mesure complète de cette disquette'); Level = 'warn'; Picto = 'warn'
+                 Text = ($m1 + "`n`n" + $wear)
+                 Check = (T "Cette disquette sera effacée, puis l'image y sera écrite.")
+                 GoText = (T 'Lancer la mesure complète'); GoGlyph = 'Diagnostic'
+                 Combo = @{ Label = (T 'Marque de la disquette insérée :'); Items = $bi.Items; Text = [string]$do.Brand
+                            Tip = (T "Nom libre : marque, année ou lot. La courbe mesurée est mémorisée pour cette marque : les disquettes suivantes de cette marque en partent, avec une calibration rapide. Sans marque, elle ne sert qu'à cette écriture.") } }
+        $okD = [bool](Show-AppConfirm @cq)
+        if ($okD) { $do.Brand = Get-LevelBrandName ([string]$script:ConfirmComboText) $bi.Map; $script:LevelBrand = [string]$do.Brand }
+        $ans = @{ Ok = $okD; Swap = $false; Auto = $false }
     } elseif ($fb) {
         # Repli apres la calibration rapide : la disquette inseree est peut-etre celle a ecrire ; jamais de demarrage
         # automatique. Reponse au journal (Show-AppConfirm), puis ligne du point 3
@@ -102,6 +122,9 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     # Ecriture lente : une unite par tete (mesures, courbe et verification separees) ; sinon une unite pour les deux tetes
     # @() autour du if : une seule unite resterait sinon une hashtable nue ($cal.Units[0] = $null)
     Set-CalibScale $family     # 12.7 : bareme de la famille (amplitudes haute densite), apres les sorties anticipees
+    # 12.8 (S3) : borne de la courbe de cette disquette (Get-DiskHardNs : plafond par disquette, ou precompMaxNs reglee sous
+    # 400 ns) pendant la mesure complete, retablie a sa fin (Reset-DiskHardNs)
+    if ($do) { Set-DiskHardNs @{ DiskOnly = $true; HardNs = [int]$do.HardNs } }
     $units = @(if ($slow) { (New-CalibUnit 0), (New-CalibUnit 1) } else { New-CalibUnit $null })
     foreach ($u in $units) { foreach ($c in $cyls) { $u.Results[[int]$c] = @{} } }
     $script:Cal = @{
@@ -123,7 +146,18 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         # 12.8 (lot 1b) : passes de nouvel essai faites (Start-CalibRetest) ; ecritures par piste annoncees au plus
         Retests = 0; WriteMax = [int]$nPassMax
     }
-    if ($Geom) {
+    if ($do) {
+        # 12.8 (S3) : mesure complete de cette disquette : marque, borne de la courbe, reference en place (Get-LevelRef)
+        $script:Cal.DiskOnly = $true; $script:Cal.Brand = [string]$do.Brand; $script:Cal.HardNs = [int]$do.HardNs; $script:Cal.DiskRef = $do.Ref
+        Append-Log ((T "=== Mesure complète de cette disquette : lecteur {0}, image {1} ({2}, {3}) ; référence du lecteur inchangée ===") -f "$($cmbDrive.Text)", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$modeTxt")
+        if ($do.Brand) { Append-Log ((T 'Marque de la disquette insérée : « {0} ».') -f "$($do.Brand)") }
+        $thr = Get-DiskOverNs
+        if ([int]$do.HardNs -gt $thr) { Append-Log ((T "Borne de la courbe de cette disquette : {0} ns ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$($do.HardNs)", "$thr") }
+        else { Append-Log ((T "Borne de la courbe de cette disquette : {0} ns (precompMaxNs).") -f "$($do.HardNs)") }
+        Append-Log ((T "Cylindres de test : {0} ({1})") -f "$cylList", "$cylSrc")
+        Append-Log ((T "Motif de test : HFE de données pseudo-aléatoires généré, {0} cylindres, {1} cellules par piste ({2}), soit {3} ns par cellule à 300 tr/min. L'image ne fixe que la densité et le nombre de cylindres, son contenu n'est pas écrit.") -f "$nCyl", "$($pat.Bits)", "$($pat.Source)", "$([math]::Round($pat.CellNs, 1))")
+    }
+    elseif ($Geom) {
         # Densite du type choisi (source de Get-FormatCalibInfo), et non « HFE, bits par piste de l image » de la geometrie
         if ($Geom.BitsSrc) { $pat.Source = [string]$Geom.BitsSrc }
         Append-Log ((T "=== Calibration precomp : lecteur {0}, type {1} ({2}, {3}) ===") -f "$($cmbDrive.Text)", "$($chk.Label)", "$famTxt", "$modeTxt")
@@ -137,6 +171,198 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     $pbWCal.Value = 0; $pbWCal.Visible = $true; $lblWCal.Visible = $true
     Update-CalibProgress
     Start-CalibWarmup      # prechauffage du lecteur s il y a lieu, puis premiere passe de mesure
+}
+
+function Start-DiskMeasure($lr, [string]$brand) {
+    # 12.8 (S3, decision du 21/10/2026, c4-design § 4.2) : « Mesure complete de cette disquette » avant une ecriture lente :
+    # calibration complete en test fin, une courbe par tete, sur la disquette a ecrire, puis ecriture de l image avec ces
+    # courbes ; la reference du lecteur ($lr : Get-LevelRef, une unite par tete) n est pas modifiee. Appelants : fenetre de
+    # decision de la calibration rapide (W-M1), garde de la passe 1 (W-M2), liste « Mesure : complete » de l onglet
+    # Ecriture (Start-LevelBeforeWrite). Marque proposee dans l avertissement (M1) : $brand
+    if (-not $lr -or -not $lr.Ok -or @($lr.Units).Count -ne 2 -or $null -eq @($lr.Units)[0].Head) {
+        $script:AfterCalib = ''
+        Append-Log (T "Mesure complète de cette disquette impossible : elle demande la référence du lecteur par tête (écriture lente). Écriture annulée.")
+        return
+    }
+    $script:CalDiskOnly = @{ Brand = [string]$brand; HardNs = (Get-DiskHardNs); Ref = $lr }
+    $script:AfterCalib = 'write'
+    Start-PrecompCalib -ForceFine -Heads $true
+    $script:CalDiskOnly = $null      # deja remis a $null par Start-PrecompCalib (premiere instruction)
+    if (-not $script:Cal) { $script:AfterCalib = ''; Append-Log (T "Écriture annulée : la mesure complète de cette disquette n'a pas été lancée.") }
+}
+
+function Get-DiskMeasureMinutes([int]$nCyl) {
+    # 12.8 (S3) : duree estimee de la mesure complete de cette disquette (W-M1, W-M2), au calcul de Start-PrecompCalib en
+    # test fin : passes de mesure et de verification sur tous les cylindres, prechauffage du reglage warmFullCalib compris
+    $n = [math]::Max(2, [math]::Min(84, $nCyl))
+    $wu = if ([bool](Get-Setting 'warmFullCalib')) { [math]::Max(0.0, [double]$script:CalWarmupMinutes) } else { 0.0 }
+    $np = @($script:CalCoarse).Count + [int]$script:CalMaxVerify
+    return [int][math]::Max(1, [math]::Round($n * 2 * 1.4 * $np / 60 + $wu, 0))
+}
+
+function Set-DiskHardNs($x) {
+    # 12.8 (S3) : borne de la courbe pendant la mesure complete de cette disquette (Get-DiskHardNs : plafond par
+    # disquette, ou precompMaxNs reglee sous 400 ns), posee apres Set-CalibScale ; retablie par Reset-DiskHardNs
+    if ($x -and $x.DiskOnly -and [int]$x.HardNs -gt 0) { $script:CalHardNs = [int]$x.HardNs }
+}
+
+function Reset-DiskHardNs {
+    # 12.8 (S3) : borne de precompMaxNs retablie a la fin de la mesure complete de cette disquette (fin, arret, aucune
+    # mesure exploitable) : bareme de la famille en cours
+    Set-CalibScale $(if ([string]$script:CalScaleFam -eq 'hd') { 'hd' } else { '' })
+}
+
+function New-DiskMeasureRecord($cal, $u, $ru, [string]$date) {
+    # 12.8 (S3, c4-design § 4.2) : enregistrement de $script:LevelShifts d une tete mesuree par la mesure complete de cette
+    # disquette : Model et Mode 'mesure', courbe = Fit.Values de la mesure, profil, reference en place (RefKey, Tag,
+    # RefDate) ; niveau = ecart moyen a la reference (M4), historique de la reference garde (niveau de depart des
+    # disquettes suivantes, Get-LevelRef) ; LevelAlgo 'lvl2' : une 12.7 l ignore (G2)
+    $vals = [int[]]@($u.Fit.Values); $vref = @($ru.Cv.Values)
+    $n = [math]::Min($vals.Count, $vref.Count)
+    $dd = @(for ($c = 0; $c -lt $n; $c++) { [double]$vals[$c] - [double]$vref[$c] })
+    $avg = if ($dd.Count -gt 0) { [double]($dd | Measure-Object -Average).Average } else { 0.0 }
+    $sd = 0.0
+    if ($dd.Count -ge 2) { $ss = 0.0; foreach ($x in $dd) { $ss += [math]::Pow($x - $avg, 2) }; $sd = [math]::Sqrt($ss / ($dd.Count - 1)) }
+    $hk = "$($ru.RefKey)|$($ru.Tag)"; $old = $script:LevelShifts[$hk]
+    $hist = @(); if ($old -and [string]$old.RefDate -eq [string]$ru.Cv.Date) { $hist = @($old.Hist) }
+    $over = [int[]]@(0..($vals.Count - 1) | Where-Object { [int]$vals[$_] -gt [int]$script:CalHardNsUser })
+    return @{ RefKey = [string]$ru.RefKey; Tag = [string]$ru.Tag; Head = $u.Head; Drive = [string]$cal.Drive; Date = $date; RefDate = [string]$ru.Cv.Date; RefTest = [string]$ru.Cv.Test
+              Delta = [int][math]::Round($avg); Est = [math]::Round($avg, 1); SE = 0.0; Tau = [math]::Round($sd, 1)
+              Verdict = 'mesure'; Shape = 'mesure'; Reasons = [string[]]@(); Conv = [bool]($u.Warn.NonConv.Count -eq 0); Passes = [int]$cal.PassesDone
+              Cyls = [int[]]@(); Zs = [double[]]@(); Ds = [double[]]@(); Sigs = [double[]]@(); Kinds = [string[]]@()
+              Values = $vals; Spec = (Build-CurveProfile $vals); Sat = [int[]]@(); Floor = [int[]]@()
+              Hist = $hist; Version = $script:Version; Algo = $script:CalibAlgo; LevelAlgo = 'lvl2'; Model = 'mesure'; S = 0.0; B = 0.0
+              Hc = $null; Hard = [int]$cal.HardNs; Over = $over; Mode = 'mesure'; Brand = [string]$cal.Brand; Ctl = [int[]]@()
+              K = $(if ($null -ne $u.Slope) { [math]::Round([double]$u.Slope, 3) } else { $null })
+              Calc = [string]$script:CalibCalc; MaxNs = [int]$cal.HardNs
+              DevMin = $(if ($dd.Count) { [int](($dd | Measure-Object -Minimum).Minimum) } else { 0 }); DevMax = $(if ($dd.Count) { [int](($dd | Measure-Object -Maximum).Maximum) } else { 0 }) }
+}
+
+function Complete-DiskMeasure($cal, $issues, $kinds, [string]$surfIssue) {
+    # 12.8 (S3, c4-design § 4.2) : fin de la mesure complete de cette disquette (Complete-PrecompCalib, apres les
+    # diagnostics). Ni copie .bak, ni PrecompCurves, ni profil de famille, ni abandon des niveaux ou des marques : la
+    # reference du lecteur reste en place. Un enregistrement 'mesure' par tete dans $script:LevelShifts (New-DiskMeasureRecord),
+    # profils dans les champs --precomp (pour cette disquette seulement). Reserves : fenetre de decision ; « Arreter » :
+    # enregistrements d avant retablis, ecriture annulee. Resultat accepte : memoire de la marque (Update-LevelBrandCurve,
+    # tetes sans reserve), puis ecriture (chemin AfterCalib) ; courbe au-dela de 400 ns : controle apres ecriture impose.
+    # Ecriture annulee pendant la mesure (S3-FIX) : mesure non conservee, rien n est modifie ni enregistre
+    Reset-DiskHardNs
+    $famTxt = Get-CalibFamilyName $cal.Family
+    $date = Get-Date -Format 'dd/MM/yyyy HH:mm'
+    $toWrite = ($script:AfterCalib -eq 'write')
+    $elapsedTotal = if ($cal.StartTime -is [datetime]) { ((Get-Date) - $cal.StartTime).TotalSeconds } else { 0 }
+    $lblWCal.Text = ((T "Mesure complète de cette disquette terminée en {0}") -f (Format-CalDuration $elapsedTotal))
+    # 12.8 (S3-FIX) : ecriture annulee pendant la mesure (erreur gw pendant la passe du nouvel essai, Stop-PrecompCalib
+    # -GwError ; restauration deja arretee) : la mesure, faite pour cette ecriture seulement, n est pas conservee : ni
+    # enregistrement 'mesure', ni champs --precomp, ni marque, ni fenetre de decision ; rien n est enregistre (en
+    # restauration, l onglet Ecriture de l utilisateur, retabli par Close-Restore, reste tel quel) ; reference intacte
+    if (-not $toWrite) {
+        $pbWCal.Visible = $false
+        $lblWCal.Text = (T 'Mesure complète de cette disquette non conservée : écriture annulée.')
+        Append-Log (T "Mesure complète de cette disquette non conservée : l'écriture a été annulée. Ni la courbe de cette disquette ni la marque ne sont enregistrées ; la référence du lecteur, inchangée, reste en place.")
+        Set-HomeProgDone $cal 'stop'
+        if ($script:Restore) { Stop-Restore (T 'écriture annulée pendant la mesure complète de cette disquette') }
+        return
+    }
+    # Reserve de surface ou de vitesse (disquette douteuse, poursuivie a votre demande) : rien n est memorise pour la marque
+    $surfBad = [bool]($surfIssue -or @(@($kinds) | Where-Object { $_ -eq 'surface' -or $_ -eq 'speed' }).Count -gt 0)
+    $prevRecs = @{}; $recs = @()
+    foreach ($u in $cal.Units) {
+        $ru = Get-DiskRefUnit $cal $u
+        if (-not $ru) {
+            Append-Log (T "Mesure complète de cette disquette : référence du lecteur introuvable pour une tête, mesure non conservée.")
+            foreach ($k in @($prevRecs.Keys)) { if ($prevRecs[$k]) { $script:LevelShifts[$k] = $prevRecs[$k] } else { $script:LevelShifts.Remove($k) } }
+            if ($toWrite) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : calibration sans mesure exploitable.') }
+            $pbWCal.Visible = $false
+            if ($script:Restore) { Stop-Restore (T 'calibration sans mesure exploitable') }     # 12.8 (S3-FLUX) : restauration, copie secteur
+            return
+        }
+        $hk = "$($ru.RefKey)|$($ru.Tag)"
+        $prevRecs[$hk] = $script:LevelShifts[$hk]
+        $rec = New-DiskMeasureRecord $cal $u $ru $date
+        $script:LevelShifts[$hk] = $rec
+        $recs += ,$rec
+        if ($surfBad) { $u.DiskOk = $false }
+    }
+    Append-Log (T "Mesure complète de cette disquette : courbe appliquée à cette écriture ; référence du lecteur inchangée.")
+    foreach ($u in $cal.Units) {
+        Append-Log ($u.Prefix + ((T "Calibration terminée : profil {0} = {1}") -f "$famTxt", "$($u.Profile)"))
+        $v = @($u.Fit.Values)
+        for ($c0 = 0; $c0 -lt $v.Count; $c0 += 10) {
+            $hi = [math]::Min($v.Count - 1, $c0 + 9)
+            $line = ((T "  Précomp cylindres {0}-{1} : {2} ns") -f "$c0", "$hi", "$((@($v[$c0..$hi])) -join ' ')")
+            if ($u.Prefix) { $line = '  ' + $u.Prefix + $line.TrimStart() }
+            Append-Log $line
+        }
+    }
+    Append-Log ((T "Courbe obtenue avec le calcul de calibration v{0}.") -f "$($script:CalibCalc)")
+    # Champs --precomp : profil de chaque tete de cette disquette (mode Auto ; remis a la reference apres l ecriture)
+    $fieldsPrev = @{ Prof = $cmbWProfile.SelectedIndex; On = $chkWPrecomp.Checked; P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Lbl = (Get-WProfileText) }
+    if ($cmbWProfile.SelectedIndex -ne 0) { $cmbWProfile.SelectedIndex = 0 }
+    Set-LevelFields $recs $true
+    $r0 = @($recs | Where-Object { $_.Head -eq 0 })[0]; $r1 = @($recs | Where-Object { $_.Head -eq 1 })[0]
+    $lblWProfileInfo.Text = ((T "Profils {0} de cette disquette (mesure complète du {1}, lecteur {2}) : tête 0 de {3} à {4} ns, tête 1 de {5} à {6} ns, une valeur par cylindre ; référence du lecteur inchangée. À n'utiliser que pour cette disquette (bouton Courbe).") -f "$famTxt", "$date", "$($cal.Drive)", "$(@($r0.Values)[0])", "$(@($r0.Values)[-1])", "$(@($r1.Values)[0])", "$(@($r1.Values)[-1])")
+    if (-not $script:Restore) { [void](Save-Config) }
+    if ($issues.Count -gt 0) {
+        Append-Log ((T "Calibration : résultat douteux ({0}) : courbe affichée, décision demandée.") -f ($issues -join ' ; '))
+        if ($script:Restore) { $script:Restore.InCall = $true }
+        try { $choice = Show-CalibReview $cal @($issues) $toWrite $false $false $false $null }
+        finally { if ($script:Restore) { $script:Restore.InCall = $false; $script:Restore.Idle = Get-Date } }
+        if ($choice -eq 'stop') {
+            # « Arreter » : enregistrements d avant retablis, champs ramenes, reference intacte
+            foreach ($k in @($prevRecs.Keys)) { if ($prevRecs[$k]) { $script:LevelShifts[$k] = $prevRecs[$k] } else { $script:LevelShifts.Remove($k) } }
+            if ($cmbWProfile.SelectedIndex -ne $fieldsPrev.Prof) { $cmbWProfile.SelectedIndex = $fieldsPrev.Prof }
+            Update-PrecompForImage $txtWFile.Text
+            $chkWPrecomp.Checked = $fieldsPrev.On; $txtWPrecomp.Text = $fieldsPrev.P0; $txtWPrecomp1.Text = $fieldsPrev.P1
+            if ($null -ne $fieldsPrev.Lbl) { $lblWProfileInfo.Text = $fieldsPrev.Lbl }
+            if (-not $script:Restore) { [void](Save-Config) }
+            $pbWCal.Visible = $false
+            $lblWCal.Text = (T 'Mesure complète de cette disquette abandonnée : référence du lecteur inchangée.')
+            Append-Log (T "Mesure complète de cette disquette abandonnée à votre demande : courbe non conservée ; la référence du lecteur, inchangée, reste en place.")
+            if ($toWrite) {
+                $script:AfterCalib = ''
+                Append-Log (T 'Écriture annulée : résultat de calibration refusé.')
+                if ($script:Restore) { Stop-Restore (T 'résultat de calibration refusé') }
+            }
+            Set-HomeProgDone $cal 'abandon' $issues[0]
+            return
+        }
+        Append-Log (T 'Calibration : résultat accepté malgré les réserves.')
+    }
+    # Memoire de la marque (c4-design § 4.2) : tetes sans reserve seulement
+    if ([string]$cal.Brand) {
+        Update-LevelBrandCurve $cal ([string]$cal.Brand)
+        if (-not $script:Restore) { [void](Save-Config) }
+    }
+    else { Append-Log (T "Mesure complète de cette disquette sans marque : la courbe ne sert qu'à cette écriture, rien n'est mémorisé.") }
+    Set-HomeProgDone $cal $(if ($issues.Count -gt 0 -or $surfIssue) { 'warn' } else { 'ok' }) $(if ($issues.Count -gt 0) { $issues[0] } else { $surfIssue })
+    if ($script:Restore) {
+        # 12.8 (S3-FLUX, decision 2) : restauration en copie secteur : etape 4 et ligne « Niveau » du rapport (Set-RsCalibDone,
+        # Write-RestoreReport), comme apres la calibration rapide de la destination (Complete-LevelCalib)
+        $r = $script:Restore
+        $base = if ($r.CalibUsed) { ((T "calibration existante ({0}), pas de recalibration") -f "$($r.CalibUsed.Text)") + $(if ($r.CalibUsed.Notes.Count -gt 0) { ' ; ' + ($r.CalibUsed.Notes -join ' ; ') } else { '' }) }
+                elseif ($r.CalSwap) { (T "faite sur une disquette sacrifiée ({0})") -f "$($r.Calib)" } else { '' }
+        $lt = (T "courbe mesurée sur la destination (mesure complète de cette disquette, {0} passe(s))") -f "$($cal.PassesDone)"
+        if ($issues.Count -gt 0) { $lt += ' ; ' + ($issues -join ' ; ') }
+        $r.Level = @{ State = $(if ($issues.Count -gt 0 -or $surfIssue -or ($r.CalibUsed -and $r.CalibUsed.Notes.Count -gt 0)) { 'warn' } else { 'ok' }); Text = $(if ($base) { "$base ; $lt" } else { $lt }); Report = $lt }
+    }
+    if ($toWrite) {
+        $script:AfterCalib = ''
+        # G1 : courbe de cette disquette au-dela de 400 ns (ou de precompMaxNs reglee plus haut) : controle apres ecriture impose
+        $thr = Get-DiskOverNs
+        if (@($recs | Where-Object { @(@($_.Values) | Where-Object { [int]$_ -gt $thr }).Count -gt 0 }).Count -gt 0) {
+            $script:LevelPostForce = $true
+            Append-Log ((T "Contrôle après écriture imposé : courbe de cette disquette au-delà de {0} ns.") -f "$thr")
+        }
+        Append-Log (T "Mesure complète de cette disquette terminée : écriture de l'image avec la courbe de cette disquette.")
+        if ($script:Restore) { $script:Restore.InCall = $true }
+        try { Start-ImageWrite -NoWarmup:([bool]$cal.WarmSkip) } finally { if ($script:Restore) { $script:Restore.InCall = $false; $script:Restore.Idle = Get-Date } }
+        if ($script:Restore -and -not ($script:GwProc -and -not $script:GwProc.HasExited) -and $script:Chain.Count -eq 0) { Stop-Restore (T 'l''écriture n''a pas démarré après la calibration, voir le journal') }
+        # Profils de cette disquette remis a ceux de la reference apres l ecriture (minuteur principal), comme apres une
+        # calibration rapide ; pose apres Start-ImageWrite, qui peut ouvrir une fenetre avant de lancer gw
+        if (-not $script:Restore) { $script:LevelFieldsPending = $true }
+        return
+    }
 }
 
 function Get-CalibRetestMinutes([int]$nCyls, [int]$maxCyl, [bool]$fine) {
@@ -190,6 +416,7 @@ function Update-CalibProgress {
     $pbWCal.Value = [math]::Max(0, [math]::Min(100, $pct))
     $fmt = if ($cal.Mode -eq 'level') { (T "Calibration rapide : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
            elseif ($cal.Redo) { (T "Calibration B : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
+           elseif ($cal.DiskOnly) { (T "Mesure complète de cette disquette : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
            else { (T "Calibration : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
     $lblWCal.Text = ($fmt -f "$([math]::Min($total, $cal.PassesDone + 1))", "$total", "$($cal.ValueTxt)", "$phaseTxt", "$pct", (Format-CalDuration $remaining))
 }
@@ -212,6 +439,7 @@ function Stop-PrecompCalib([switch]$GwError) {
     if ($script:CalRedo -and $script:CalRedo.Stage -eq 'running') { $script:CalRedo.Stage = 'interrupted'; if (-not $script:CalRedo.Why) { $script:CalRedo.Why = (T 'calibration interrompue') } }
     $cal = $script:Cal
     $script:Cal = $null
+    if ($cal -and $cal.DiskOnly) { Reset-DiskHardNs }     # 12.8 (S3) : borne de precompMaxNs retablie
     $pbWCal.Visible = $false
     $lblWCal.Text = (T 'Calibration precomp interrompue.')
     Append-Log (T 'Calibration precomp interrompue.')
@@ -225,6 +453,7 @@ function Restart-PrecompCalib($cal, [bool]$swap) {
     # nouvellement inseree, sans nouvel avertissement (la case de la fenetre l a confirme) ; seuls les unites, le compte des
     # passes et l heure de debut repartent de zero ; prechauffage selon l activite du lecteur (Get-CalWarmupPlan).
     Set-CalibScale ([string]$cal.Family)     # 12.7 : bareme de la famille (deja pose par Start-PrecompCalib)
+    if ($cal.DiskOnly) { Set-DiskHardNs $cal }   # 12.8 (S3) : borne de cette disquette, de nouveau apres Set-CalibScale
     $units = @(if ($cal.Slow) { (New-CalibUnit 0), (New-CalibUnit 1) } else { New-CalibUnit $null })
     foreach ($u in $units) { foreach ($c in $cal.Cyls) { $u.Results[[int]$c] = @{} } }
     $cal.Units = $units; $cal.Stage = 'coarse'; $cal.Index = 0; $cal.Value = 0; $cal.ValueTxt = ''; $cal.Spec = ''; $cal.VerifyCount = 0
@@ -668,12 +897,23 @@ function Invoke-CalibAnalysis {
                 if ($mc.Rot) { $notes += (T "Vitesse du lecteur différente de celle du type de disquette : un format à 300 tr/min demande un lecteur à 300 tr/min (3,5 pouces, ou 5,25 pouces double densité), un format à 360 tr/min un lecteur à 360 tr/min (5,25 pouces haute densité, ou 3,5 pouces réglé à 360 tr/min). Changer de disquette n'y change rien.") }
                 if ($hdFam -and -not $spd) { $notes += (T "En haute densité, ce résultat vient le plus souvent d'une disquette double densité (sans trou de densité), d'un lecteur sans mode haute densité, ou d'un lecteur resté en double densité (option « Densel » de l'onglet Écriture, pour un lecteur qui suit la broche 2). Utilisez une disquette haute densité sacrifiée dans un lecteur haute densité.") }
                 if ($spd) { Append-Log ((T 'Contrôle de vitesse et de densité : {0} : décision demandée.') -f (Format-CalibSurfaceVerdict $sf $mc)) }
+                elseif ($cal.DiskOnly) { Append-Log ((T 'Contrôle de surface : disquette à écrire défectueuse ({0}) : décision demandée.') -f (Format-CalibSurfaceVerdict $sf $mc)) }
                 else { Append-Log ((T "Contrôle de surface : disquette de calibration douteuse ({0}) : décision demandée.") -f (Format-CalibSurfaceVerdict $sf $mc)) }
                 $redo = [bool]($script:CalRedo -and $script:CalRedo.Stage -eq 'running')
-                $opt = Get-CalibSurfaceOptions ([bool]$script:Restore) $redo ($script:AfterCalib -eq 'write') ([bool]$cal.Swap)
-                if ($spd) { $opt.Speed = $true; $opt.Change = $false; $opt.SwapBox = $false }
-                $opt.States = Get-CalibSurfaceStates $sf $mc    # 12.8 (lot 5, D15) : icones d etat de frmCalibSurface
-                $txt = Get-CalibSurfaceText $sf $opt $std ([bool]$cal.AutoStart) -Extra @($mc.Lines) -Notes @($notes) -Medium $mc -Hd $hdFam
+                if ($cal.DiskOnly) {
+                    # 12.8 (S3) : mesure complete de cette disquette : la disquette mesuree est celle a ecrire, ni disquette
+                    # sacrifiee ni changement de disquette : fenetre « Disquette a ecrire defectueuse » de la calibration
+                    # rapide (« Ecrire quand meme », « Arreter », fermeture = Arreter)
+                    $opt = @{ Change = $false; SwapBox = $false; Variant = 'level'; Title = $(if ($spd) { (T 'Contrôle de surface') } else { (T 'Disquette à écrire défectueuse') }); GoText = (T 'Écrire quand même')
+                              Speed = $spd; States = (Get-CalibSurfaceStates $sf $mc) }
+                    $txt = Get-LevelSurfaceText $sf $mc ([bool]$script:Restore) $spd $notes -Disk
+                }
+                else {
+                    $opt = Get-CalibSurfaceOptions ([bool]$script:Restore) $redo ($script:AfterCalib -eq 'write') ([bool]$cal.Swap)
+                    if ($spd) { $opt.Speed = $true; $opt.Change = $false; $opt.SwapBox = $false }
+                    $opt.States = Get-CalibSurfaceStates $sf $mc    # 12.8 (lot 5, D15) : icones d etat de frmCalibSurface
+                    $txt = Get-CalibSurfaceText $sf $opt $std ([bool]$cal.AutoStart) -Extra @($mc.Lines) -Notes @($notes) -Medium $mc -Hd $hdFam
+                }
                 $cal.Hold = $true; Update-CalibProgress; if ($cal.Home) { Update-HomeCalibCard }
                 if ($script:Restore) { $script:Restore.InCall = $true }
                 try { $ch = Show-CalibSurface $opt $txt }
@@ -1108,6 +1348,7 @@ function Complete-PrecompCalib {
     $elapsedTotal = if ($cal.StartTime -is [datetime]) { ((Get-Date) - $cal.StartTime).TotalSeconds } else { 0 }
     $lblWCal.Text = ((T "Calibration terminée en {0}") -f (Format-CalDuration $elapsedTotal))
     if (@($cal.Units | Where-Object { -not $_.Profile -or -not $_.Fit }).Count -gt 0) {
+        if ($cal.DiskOnly) { Reset-DiskHardNs }     # 12.8 (S3) : borne de precompMaxNs retablie
         Append-Log (T 'Calibration precomp : aucune mesure exploitable, profil inchangé.')
         Set-HomeProgDone $cal 'stop' (T 'Calibration precomp : aucune mesure exploitable, profil inchangé.')
         if ($script:AfterCalib) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : calibration sans mesure exploitable.') }
@@ -1123,6 +1364,7 @@ function Complete-PrecompCalib {
     # dev, surface) : reserves liees au support (« Refaire sur une autre disquette », point 2)
     $kinds = New-Object System.Collections.Generic.List[string]
     foreach ($u in $cal.Units) {
+        $kn0 = $kinds.Count      # 12.8 (S3) : reserves de cette unite (memoire de la marque, Complete-DiskMeasure)
         if ($u.Verify.Count -gt 0) {
             # 12.8 (lot 1b) : derniere mesure brute d une mesure ramenee au repere du jugement avant un nouvel essai (LogRaw :
             # temoin, Raw : cylindre relu, derive retiree)
@@ -1191,7 +1433,9 @@ function Complete-PrecompCalib {
         if ($u.Warn.Dev.Count -gt 0) { $issues.Add($u.Prefix + ((T "courbe éloignée des mesures (courbe moins mesure) : {0}") -f ($u.Warn.Dev -join ', '))); $kinds.Add('dev') }
         if ($u.Warn.NonConv.Count -gt 0) {
             $allConv = $false
-            Append-Log ($u.Prefix + ((T "Calibration non convergée aux cylindres {0} : résidu hors tolérance après la dernière vérification, la courbe ne suit pas la mesure à ces cylindres. Refaire la calibration en test fin, ou sur une autre disquette sacrifiée.") -f ($u.Warn.NonConv -join ', ')))
+            # 12.8 (S3) : mesure complete de cette disquette : pas de disquette sacrifiee a conseiller
+            if ($cal.DiskOnly) { Append-Log ($u.Prefix + ((T "Mesure non convergée aux cylindres {0} : résidu hors tolérance après la dernière vérification, la courbe ne suit pas la mesure de cette disquette à ces cylindres.") -f ($u.Warn.NonConv -join ', '))) }
+            else { Append-Log ($u.Prefix + ((T "Calibration non convergée aux cylindres {0} : résidu hors tolérance après la dernière vérification, la courbe ne suit pas la mesure à ces cylindres. Refaire la calibration en test fin, ou sur une autre disquette sacrifiée.") -f ($u.Warn.NonConv -join ', '))) }
         }
         if ($u.Warn.Sat.Count -gt 0) {
             $anySat = $true; $anyCeil = $true
@@ -1206,7 +1450,20 @@ function Complete-PrecompCalib {
             $anyCeil = $true
             $bmax = [int](@($u.Warn.Beyond | ForEach-Object { [int]$u.Fit.Values[$_] }) | Measure-Object -Maximum).Maximum
             $how = if ($u.Trend -and @($u.Trend.Keys).Count -gt 0) { (T ' et par la tendance de la courbe') } else { '' }
-            Append-Log ($u.Prefix + ((T "Besoin au-delà de {0} ns, plafond des passes de mesure, aux cylindres {1} : courbe jusqu'à {2} ns, déduite par extrapolation des mesures{3}, puis contrôlée par la vérification. Un besoin aussi fort est inhabituel : si une disquette en bon état ne l'atteint pas, le support de calibration est probablement fatigué.") -f "$($script:CalMaxNs)", (Format-CylList ([int[]]$u.Warn.Beyond)), "$bmax", "$how"))
+            # 12.8 (S3) : mesure complete de cette disquette : pas de support de calibration a mettre en cause
+            if ($cal.DiskOnly) { Append-Log ($u.Prefix + ((T "Besoin au-delà de {0} ns, plafond des passes de mesure, aux cylindres {1} : courbe de cette disquette jusqu'à {2} ns, déduite par extrapolation des mesures{3}, puis contrôlée par la vérification.") -f "$($script:CalMaxNs)", (Format-CylList ([int[]]$u.Warn.Beyond)), "$bmax", "$how")) }
+            else { Append-Log ($u.Prefix + ((T "Besoin au-delà de {0} ns, plafond des passes de mesure, aux cylindres {1} : courbe jusqu'à {2} ns, déduite par extrapolation des mesures{3}, puis contrôlée par la vérification. Un besoin aussi fort est inhabituel : si une disquette en bon état ne l'atteint pas, le support de calibration est probablement fatigué.") -f "$($script:CalMaxNs)", (Format-CylList ([int[]]$u.Warn.Beyond)), "$bmax", "$how")) }
+        }
+        if ($cal.DiskOnly) {
+            # 12.8 (S3) : courbe de cette disquette au-dela de 400 ns (Get-DiskOverNs) : reserve d information, controle apres
+            # ecriture impose (Complete-DiskMeasure) ; plafond porte par disquette (Get-DiskHardNs)
+            $thr = Get-DiskOverNs
+            $ov = [int[]]@(0..(@($u.Fit.Values).Count - 1) | Where-Object { [int]$u.Fit.Values[$_] -gt $thr })
+            if ($ov.Count -gt 0) {
+                $top = [int](@($u.Fit.Values) | Measure-Object -Maximum).Maximum
+                Append-Log ($u.Prefix + ((T "Courbe de cette disquette au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns) : plafond porté à {3} ns pour cette disquette seulement ; contrôle après écriture imposé.") -f "$thr", (Format-CylList $ov), "$top", "$($cal.HardNs)"))
+                $issues.Add($u.Prefix + ((T "courbe de cette disquette au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns, plafond porté à {3} ns pour cette disquette seulement) : contrôle après écriture imposé") -f "$thr", (Format-CylList $ov), "$top", "$($cal.HardNs)")); $kinds.Add('over')
+            }
         }
         $bk = @($u.Warn.Breaks)
         if ($bk.Count -ge 2) { Append-Log ($u.Prefix + ((T "Changement de sens du besoin entre c{0} et c{1} : courbe monotone par segments. La même signature sur une autre disquette désigne le lecteur, sinon le support.") -f "$($bk[0])", "$($bk[1])")) }
@@ -1216,12 +1473,23 @@ function Complete-PrecompCalib {
         # lecteur, son niveau au support ; un ecart net, ou un plafond nouveau, designe le support de calibration
         $pkey = if ($null -eq $u.Head) { $cal.Family } else { "$($cal.Family)_h$($u.Head)" }
         $prev = $script:PrecompCurves[$pkey]
+        # 12.8 (S3-FIX, M4) : mesure complete de cette disquette : reference reellement utilisee par la mesure (Get-DiskRefUnit :
+        # courbe par tete, ou courbe commune pour les deux tetes en restauration), celle de l enregistrement 'mesure'
+        if ($cal.DiskOnly) { $ru = Get-DiskRefUnit $cal $u; $prev = if ($ru) { $ru.Cv } else { $null } }
         if ($prev -and [string]$prev.Drive -eq [string]$cal.Drive -and @($prev.Values).Count -gt 0 -and $u.Fit) {
             $pv = @($prev.Values); $nv = @($u.Fit.Values); $nn = [math]::Min($pv.Count, $nv.Count)
             if ($nn -gt 0) {
                 $dd = @(for ($c = 0; $c -lt $nn; $c++) { [int]$nv[$c] - [int]$pv[$c] })
                 $ds = $dd | Measure-Object -Average -Minimum -Maximum
-                Append-Log ($u.Prefix + ((T "Écart avec la calibration précédente du lecteur {0} ({1}) : {2} ns en moyenne (de {3} à {4} ns).") -f "$($cal.Drive)", "$($prev.Date)", ('{0:+0;-0;0}' -f [math]::Round($ds.Average, 0)), ('{0:+0;-0;0}' -f $ds.Minimum), ('{0:+0;-0;0}' -f $ds.Maximum)))
+                if ($cal.DiskOnly) {
+                    # 12.8 (S3, M4) : la courbe en place est la reference du lecteur, gardee ; ecart de cette disquette, sans
+                    # diagnostic du support de calibration
+                    Append-Log ($u.Prefix + ((T "Écart de cette disquette à la référence du lecteur ({0}) : {1} ns en moyenne (de {2} à {3} ns).") -f "$($prev.Date)", ('{0:+0;-0;0}' -f [math]::Round($ds.Average, 0)), ('{0:+0;-0;0}' -f $ds.Minimum), ('{0:+0;-0;0}' -f $ds.Maximum)))
+                    $nn = 0
+                }
+                else { Append-Log ($u.Prefix + ((T "Écart avec la calibration précédente du lecteur {0} ({1}) : {2} ns en moyenne (de {3} à {4} ns).") -f "$($cal.Drive)", "$($prev.Date)", ('{0:+0;-0;0}' -f [math]::Round($ds.Average, 0)), ('{0:+0;-0;0}' -f $ds.Minimum), ('{0:+0;-0;0}' -f $ds.Maximum))) }
+            }
+            if ($nn -gt 0) {
                 # Plafond de la courbe precedente : borne de SON calcul (300 ns avant le calcul 12.4)
                 $pmax = [math]::Min((Get-CurveMaxNs $prev), [int]$script:CalHardNs)   # ramenee a la borne actuelle
                 $ptop = [int](@($pv[0..($nn - 1)]) | Measure-Object -Maximum).Maximum
@@ -1236,8 +1504,9 @@ function Complete-PrecompCalib {
             }
         }
         # Diagnostic de forme (calibration rapide) : sur les cylindres mesures par les deux calibrations, ecart de niveau
-        # et ecart de forme (dispersion apres retrait du niveau) ; donnees pour recaler les seuils sur materiel reel
-        if ($prev -and [string]$prev.Drive -eq [string]$cal.Drive -and $prev.Cyls -and $prev.Ys) {
+        # et ecart de forme (dispersion apres retrait du niveau) ; donnees pour recaler les seuils sur materiel reel. 12.8 (S3) :
+        # pas pour une mesure complete de cette disquette (M4 ci-dessus)
+        if (-not $cal.DiskOnly -and $prev -and [string]$prev.Drive -eq [string]$cal.Drive -and $prev.Cyls -and $prev.Ys) {
             $dd2 = @{}
             for ($i = 0; $i -lt @($prev.Cyls).Count; $i++) {
                 $c = [int]$prev.Cyls[$i]
@@ -1262,6 +1531,12 @@ function Complete-PrecompCalib {
         if ($u.Warn.Extrap.Count + $u.Warn.Cap.Count -gt 0) {
             Append-Log ($u.Prefix + ((T "Valeurs peu fiables : {0} extrapolée(s) au-delà des mesures ({1}), {2} plafonnée(s) à 0 ou {3} ns ({4}).") -f "$($u.Warn.Extrap.Count)", ($(if ($u.Warn.Extrap.Count) { $u.Warn.Extrap -join ',' } else { '-' })), "$($u.Warn.Cap.Count)", "$($script:CalHardNs)", ($(if ($u.Warn.Cap.Count) { $u.Warn.Cap -join ',' } else { '-' }))))
         }
+        # 12.8 (S3) : tete sans reserve pour la memoire de la marque (Update-LevelBrandCurve) : aucune reserve de cette unite,
+        # sauf la courbe au-dela de 400 ns (reserve d information), convergee
+        if ($cal.DiskOnly) {
+            $own = @(); for ($ki = $kn0; $ki -lt $kinds.Count; $ki++) { if ($kinds[$ki] -ne 'over') { $own += $kinds[$ki] } }
+            $u.DiskOk = [bool]($own.Count -eq 0 -and $u.Warn.NonConv.Count -eq 0)
+        }
     }
     # 12.7 : controle de surface de la passe 1. Defaut grossier, calibration poursuivie a la demande de l utilisateur :
     # journal, et reserve si la fenetre de decision s ouvre pour une autre raison. Disquette douteuse sans defaut grossier
@@ -1282,6 +1557,9 @@ function Complete-PrecompCalib {
     }
     elseif ($cal.Surf -and $cal.Surf.Defective -and -not $cal.SurfGross) { $issues.Add((Format-CalibSurfaceReserve $cal.Surf)); $kinds.Add('surface') }
     if ($anyCeil -and $cal.Swap) { Append-Log ((T "Calibration faite sur une disquette sacrifiée dont le besoin dépasse {0} ns : si elle est fatiguée, la courbe surestime le besoin de la disquette à écrire. Préférez une disquette sacrifiée en bon état.") -f "$($script:CalMaxNs)") }
+    # 12.8 (S3, c4-design § 4.2) : mesure complete de cette disquette : la reference du lecteur n est pas modifiee (ni
+    # copie .bak, ni PrecompCurves, ni abandon des niveaux et des marques) ; fin propre (Complete-DiskMeasure)
+    if ($cal.DiskOnly) { Complete-DiskMeasure $cal $issues $kinds $surfIssue; return }
     # 12.8 (lot 1c, point 4) : copie du fichier de configuration avant le remplacement de la reference (toute calibration
     # complete : bouton Calibrer, carte de l Accueil, calibration avant une ecriture, repli du point 3, calibration B,
     # restauration) ; sans courbe a remplacer : rien
