@@ -366,7 +366,9 @@ function Get-TrendEstimates($u, [int]$maxCyl, [bool]$dense) {
     $est = @{}; $sig = @{}; $kind = @{}; $info = @{}
     foreach ($k in @($u.Est.Keys)) { $est[[int]$k] = [double]$u.Est[$k]; $sig[[int]$k] = [double]$u.Sig[$k]; $kind[[int]$k] = [string]$u.Kind[$k] }
     $res = @{ Est = $est; Sig = $sig; Kind = $kind; Info = $info }
-    $cand = @($est.Keys | ForEach-Object { [int]$_ } | Where-Object { $kind[$_] -eq 'extrap' -and $est[$_] -gt $script:CalMaxNs -and ($sig[$_] -gt $script:CalTrendSig -or ($u.Own -and $u.Own.ContainsKey($_) -and -not $u.Own[$_])) } | Sort-Object)
+    # 12.8 (S3-HIGH) : cylindres mesures autour de leur besoin par la mesure directe (Reach, mesure complete de cette
+    # disquette seulement) : zero de la corde de leurs deux ecritures, jamais combine avec la tendance
+    $cand = @($est.Keys | ForEach-Object { [int]$_ } | Where-Object { $kind[$_] -eq 'extrap' -and $est[$_] -gt $script:CalMaxNs -and ($sig[$_] -gt $script:CalTrendSig -or ($u.Own -and $u.Own.ContainsKey($_) -and -not $u.Own[$_])) -and -not ($u.Reach -and $u.Reach.ContainsKey($_)) } | Sort-Object)
     if ($cand.Count -eq 0) { return $res }                      # cas courant : aucune combinaison
     $f0 = Fit-PrecompCurve $u.Est $u.Sig $maxCyl $u.Kind $dense
     $segs = @(if ($f0 -and $f0.Segs) { @($f0.Segs) } else { @{ Lo = 0; Hi = $maxCyl; Dir = 1 } })

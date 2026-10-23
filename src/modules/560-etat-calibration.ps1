@@ -51,7 +51,13 @@ $script:CalMaxVerify = 2                # passes de verification au plus
 # 12.8 (lot 1b) : nouvel essai automatique, apres la derniere verification, des cylindres non converges dont la cause
 # n est pas exclue (Get-CalibRetestPlan) : passes de verification ciblees de plus, au plus
 $script:CalMaxRetest = 1
-$script:CalBracketMargin = 80           # passe d encadrement : estimation + marge (ns) pour un cylindre encore sous-compense a 200 ns
+# 12.8 (S3-HIGH, essai E1 du 23/10/2026) : mesure complete de cette disquette ($script:CalDiskOnly) seulement : nouveaux
+# essais automatiques au plus (la calibration complete de reference garde CalMaxRetest). Ecritures du motif par piste au
+# plus, annoncees dans l avertissement M1 et au journal : passes de mesure, encadrement, mesure directe, verifications et
+# ces nouveaux essais, soit 10 ; la disquette mesuree est celle a ecrire, reecrite ensuite par l image (pas de disquette
+# sacrifiee a epargner)
+$script:CalDiskMaxRetest = 3
+$script:CalBracketMargin = 80          # passe d encadrement : estimation + marge (ns) pour un cylindre encore sous-compense a 200 ns
 # --- Controle de surface de la passe 1 (seuils provisoires (H)) ------------------------------------------------------
 $script:CalSurfDropRevs  = 2      # trous de signal (>= 20 us) dans au moins ce nombre de tours : defaut reproductible (H)
 $script:CalSurfOocFloor  = 20     # hors classe par tour (mediane des tours) : plancher, borne CRITIQUE de Get-HealthLevel (H)
