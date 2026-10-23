@@ -5,7 +5,7 @@ Le numéro de version est celui de `$script:Version` dans `src/GreaseweazleGUI.p
 
 Chaque version s'ouvre sur un résumé de ce qu'elle apporte, puis classe ses changements en Nouveautés, Améliorations et Corrections. La rubrique « À savoir pour la mise à jour » indique ce qu'il faut faire en installant la version, par exemple recalibrer un lecteur. « Pour les développeurs » regroupe la compilation, la publication et le format de configuration. Le fonctionnement détaillé est décrit dans le [wiki](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki).
 
-## [12.8] - 2026-10-21
+## [12.8] - 2026-10-23
 
 La restauration se fait avec un seul lecteur et reconnaît elle-même le format de la disquette d'origine, comme la « Comparaison » celui de son image de référence. En écriture lente, la calibration rapide adapte la courbe à une disquette d'une autre marque, au lieu d'exiger une calibration complète, et peut mémoriser cette forme par marque. Une « Mesure complète de cette disquette » mesure aussi la disquette à écrire sur tous ses cylindres, sans toucher à la référence du lecteur. L'onglet « Qualité & alignement » présente son résultat sur une carte, la « Bibliothèque » groupe ses résultats par jeu et sait identifier vos images avec une liste de référence, et les fenêtres de l'application sont harmonisées.
 
