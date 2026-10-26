@@ -157,9 +157,17 @@ function Get-HdAutoFields([string]$hf, [bool]$slow) {
     return @{ P0 = $s; P1 = $s }
 }
 
+function Set-WProfileText([string]$base, [string]$note) {
+    # 12.8.1 (spec-1281 § D.4) : libelle du profil Auto double densite et son complement « facteur » (T-C12,
+    # Get-WriteFactorNote), gardes separement : Update-WriteFactorNote refait le complement seul
+    $script:WFactorNote = @{ Base = $base; Note = $note }
+    $lblWProfileInfo.Text = $base + $note
+}
+
 function Update-PrecompForImage([string]$path) {
     Update-CurveButton $path
     $script:WProfileHd = $false
+    $script:WFactorNote = $null
     $mode = $cmbWProfile.Text
     if ($mode -eq (T 'Manuel')) { $lblWProfileInfo.Text = (T 'Profil manuel : --precomp non modifié.'); return }
     if ($mode -eq (T 'Standard 2 us'))      { $x = Set-PrecompFields $script:PrecompStd 'std';   $lblWProfileInfo.Text = ((T "Profil forcé : standard 2 us ({0})") -f "$($script:PrecompStd)") + $x; return }
@@ -213,7 +221,8 @@ function Update-PrecompForImage([string]$path) {
         # A2R, CTR, SCP sans module d analyse) : dit « image flux », et non « image secteur »
         $x = Set-PrecompFields $script:PrecompStd 'std'
         if (Test-FluxImage $path) { $lblWProfileInfo.Text = ((T "Auto : image flux ({0}) -> standard 2 us ({1})") -f "$ext", "$($script:PrecompStd)") + $(if ($fxNote) { $fxNote } else { $x }); return }
-        $lblWProfileInfo.Text = ((T "Auto : image secteur ({0}) -> standard 2 us ({1})") -f "$ext", "$($script:PrecompStd)") + $x
+        # 12.8.1 : facteur de precompensation different de 1 (mesure du lecteur, correction « lecteur cible ») : complement
+        Set-WProfileText (((T "Auto : image secteur ({0}) -> standard 2 us ({1})") -f "$ext", "$($script:PrecompStd)") + $x) (Get-WriteFactorNote $path)
         return
     }
     $long = $info.CellNs -lt $script:PrecompThresholdNs
@@ -221,6 +230,6 @@ function Update-PrecompForImage([string]$path) {
     if ($fxNote) { $x = $fxNote }
     $detail = ((T "cellule {0} ns, {1} bits/piste") -f "$([math]::Round($info.CellNs,0))", "$($info.Bits)")
     if ($info.DosTracks -ge 0 -and $info.Tracks -gt 0) { $detail += ((T ", {0}/{1} pistes DOS") -f "$($info.DosTracks)", "$($info.Tracks)") }
-    $lblWProfileInfo.Text = ((T "Auto : {0} : {1} -> ") -f "$($info.Source)", "$detail") + $(if ($long) { ((T "LONG TRACK ({0})") -f "$($script:PrecompLong)") } else { ((T "standard 2 us ({0})") -f "$($script:PrecompStd)") }) + $x
+    Set-WProfileText (((T "Auto : {0} : {1} -> ") -f "$($info.Source)", "$detail") + $(if ($long) { ((T "LONG TRACK ({0})") -f "$($script:PrecompLong)") } else { ((T "standard 2 us ({0})") -f "$($script:PrecompStd)") }) + $x) (Get-WriteFactorNote $path)
     Append-Log ((T "Profil precomp : {0}") -f "$($lblWProfileInfo.Text)")
 }

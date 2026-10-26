@@ -88,7 +88,8 @@ $tip.SetToolTip($numWWarmMin, (T "Durée maximale du préchauffage du lecteur av
 $chkWLevel = New-Object System.Windows.Forms.CheckBox
 $chkWLevel.Name = 'chkWLevel'; $chkWLevel.Location = '12,468'; $chkWLevel.AutoSize = $true; $chkWLevel.Checked = $true; $chkWLevel.Enabled = $false
 $chkWLevel.Text = (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)")
-$tip.SetToolTip($chkWLevel, (T "Avant d'écrire l'image, l'application reprend la forme de la dernière calibration complète en test fin du lecteur.`nElle mesure, sur la disquette insérée, son niveau de précompensation propre et l'état de sa surface : le motif de test y est écrit au plus 3 fois, sur 4 à 9 cylindres par tête, puis l'image les recouvre.`nSans calibration de référence utilisable, l'écriture se fait avec la courbe du lecteur, ou avec le profil d'origine s'il n'en a pas, et le journal en donne la raison.`nNon disponible en haute densité.") + "`n" + (T "Liste « Calibration précomp » au « Test rapide » : la disquette est mesurée avant l'écriture, rapide ou lente, quel que soit le point de départ (bouton ÉCRIRE, Bibliothèque, restauration) ; la case est alors cochée et verrouillée.`nMêmes exceptions partout, avec leur raison dans le journal : pas de mesure quand l'image ne recouvrirait pas tout le motif de test (image à une seule face, champ Pistes avec c=, h= ou step=), ni avec un profil autre qu'Auto ou la case --precomp décochée."))
+# 12.8.1 (spec-1281 § D.1) : infobulle des trois mesures de la liste « Mesure : », du facteur du lecteur et des exceptions
+$tip.SetToolTip($chkWLevel, (T "Avant d'écrire l'image, l'application mesure la disquette insérée avec la mesure choisie dans la liste « Mesure : ».`nSur l'image à écrire : la marge de lecture est mesurée sur le contenu même de l'image, à trois niveaux de la courbe du lecteur, et l'image est écrite avec le meilleur, tête par tête. Au motif : le niveau de précompensation et l'état de la surface sont mesurés sur le motif de test.`nSans mesure sur l'image (case décochée, « Test rapide », restauration, image qui ne s'y prête pas), le facteur du lecteur s'applique : médiane des 3 derniers facteurs mesurés pour ce lecteur et cette tête, 1 tant qu'aucun n'est mesuré.`nPas de mesure en haute densité, pour une image flux, à une seule face, ou quand le champ Pistes limite l'écriture, ni avec un profil autre qu'Auto ou la case --precomp décochée.") + "`n" + (T "Liste « Calibration précomp » au « Test rapide » : la disquette est toujours mesurée au motif avant l'écriture, rapide ou lente (bouton ÉCRIRE, Bibliothèque, restauration) ; la case est alors cochée et verrouillée."))
 # 12.8 (S3, decision du 21/10/2026) : mode de la mesure avant une ecriture lente, reglage levelBeforeWriteMode
 # (write.levelBeforeWriteMode) : calibration rapide ou mesure complete de cette disquette ; liste active en ecriture lente
 # quand la disquette est mesuree (Update-SlowUi). Position du champ : a la suite du libelle (police de la fenetre) ; bas
@@ -97,10 +98,30 @@ $tip.SetToolTip($chkWLevel, (T "Avant d'écrire l'image, l'application reprend l
 $lblWLevelMode = New-Label (T 'Mesure :') '29,495'
 $lblWLevelMode.Name = 'lblWLevelMode'
 $cmbWLevelMode = New-Object System.Windows.Forms.ComboBox
-$cmbWLevelMode.Name = 'cmbWLevelMode'; $cmbWLevelMode.DropDownStyle = 'DropDownList'; $cmbWLevelMode.Width = 240; $cmbWLevelMode.Location = '100,492'
-[void]$cmbWLevelMode.Items.AddRange(@((T 'rapide (1 à 2 min)'), (T 'complète (20 à 25 min)')))
+# 12.8.1 (spec-1281 § D.1) : trois elements, dans l ordre des codes (content, quick, complete) ; largeur 260
+$cmbWLevelMode.Name = 'cmbWLevelMode'; $cmbWLevelMode.DropDownStyle = 'DropDownList'; $cmbWLevelMode.Width = 260; $cmbWLevelMode.Location = '100,492'
+[void]$cmbWLevelMode.Items.AddRange(@((T "sur l'image à écrire (environ 10 min)"), (T 'rapide, au motif (1 à 2 min)'), (T 'complète, au motif (20 à 25 min)')))
 $cmbWLevelMode.SelectedIndex = 0
-$tip.SetToolTip($cmbWLevelMode, (T "Mesure de la disquette avant une écriture lente.`nRapide : calibration rapide, qui mesure le niveau de la disquette, et sa forme si elle diffère de la référence du lecteur, sur 4 à 9 cylindres par tête (1 à 2 min).`nComplète : mesure complète de cette disquette, sur tous ses cylindres, comme une calibration complète en test fin (20 à 25 min), puis écriture de l'image. La référence du lecteur n'est pas modifiée. La courbe obtenue est mémorisée pour la marque de la disquette : les disquettes suivantes de cette marque en partent, avec une calibration rapide.`nÉcriture rapide : toujours la calibration rapide."))
+$tip.SetToolTip($cmbWLevelMode, (T "Mesure de la disquette avant une écriture lente.`nSur l'image à écrire : 40 cylindres de l'image sont écrits à 3 niveaux de la courbe du lecteur et relus ; l'image est écrite avec le niveau qui donne la meilleure marge de lecture, pour chaque tête (environ 10 min). Images double densité MFM seulement ; sinon, calibration rapide au motif.`nRapide, au motif : calibration rapide sur le motif de test, 4 à 9 cylindres par tête (1 à 2 min).`nComplète, au motif : mesure complète de cette disquette sur tous ses cylindres (20 à 25 min), puis écriture de l'image ; la courbe obtenue est mémorisée pour la marque de la disquette.`n« Test rapide » et restauration : toujours la calibration rapide au motif."))
+# 12.8.1 (spec-1281 § D.2) : correction « lecteur cible » Dk du lecteur du bandeau, par tete ($script:TargetCorr), sur la
+# ligne de la liste « Mesure : » ; champs toujours actifs (toute ecriture avec facteur, rapide comprise). Libelle,
+# infobulle, valeurs et positions (a la suite de la liste) : Update-TargetCorrUi ; valeur changee : Set-TargetCorrFromUi ;
+# fin de la saisie (Leave) : Complete-TargetCorrEdit, ligne de journal. Bornes des champs : -TargetCorrMax..TargetCorrMax
+# (borne unique, 040)
+$lblWTgtCorr = New-Label ((T 'Correction lecteur cible ({0}) :') -f 'A') '374,495'
+$lblWTgtCorr.Name = 'lblWTgtCorr'
+$lblWTgt0 = New-Label ((T "tête {0}") -f '0') '560,495'
+$lblWTgt0.Name = 'lblWTgt0'
+$numWTgt0 = New-Object System.Windows.Forms.NumericUpDown
+$numWTgt0.Name = 'numWTgt0'; $numWTgt0.DecimalPlaces = 2; $numWTgt0.Increment = 0.01; $numWTgt0.Minimum = -$script:TargetCorrMax; $numWTgt0.Maximum = $script:TargetCorrMax; $numWTgt0.Width = 58; $numWTgt0.Location = '605,492'
+$lblWTgt1 = New-Label ((T "tête {0}") -f '1') '670,495'
+$lblWTgt1.Name = 'lblWTgt1'
+$numWTgt1 = New-Object System.Windows.Forms.NumericUpDown
+$numWTgt1.Name = 'numWTgt1'; $numWTgt1.DecimalPlaces = 2; $numWTgt1.Increment = 0.01; $numWTgt1.Minimum = -$script:TargetCorrMax; $numWTgt1.Maximum = $script:TargetCorrMax; $numWTgt1.Width = 58; $numWTgt1.Location = '715,492'
+$numWTgt0.Add_ValueChanged({ Set-TargetCorrFromUi 0 })
+$numWTgt1.Add_ValueChanged({ Set-TargetCorrFromUi 1 })
+$numWTgt0.Add_Leave({ Complete-TargetCorrEdit 0 })
+$numWTgt1.Add_Leave({ Complete-TargetCorrEdit 1 })
 
 $numWRetries = New-Object System.Windows.Forms.NumericUpDown
 $numWRetries.Location = '560,22'; $numWRetries.Width = 50
@@ -218,6 +239,9 @@ $tabW.AutoScroll = $true                                  # fenetre basse ou jou
 $numWWarmMin.Left = $lblWWarmMin.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblWWarmMin.Text, $form.Font).Width + 8
 $lblWWarmMinU.Left = $numWWarmMin.Right + 6
 $cmbWLevelMode.Left = $lblWLevelMode.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblWLevelMode.Text, $form.Font).Width + 8
+# 12.8.1 : champs de la correction « lecteur cible », a la suite de la liste (Set-TargetCorrLayout)
+$tabW.Controls.AddRange(@($lblWTgtCorr, $lblWTgt0, $numWTgt0, $lblWTgt1, $numWTgt1))
+Update-TargetCorrUi
 
 # --- Reglages a source unique (12.8, point 7) : liaisons des controles de l onglet (Register-SettingCtl), apres leurs
 # gestionnaires propres (Update-SlowUi, Update-PrecompForImage), qui s executent avant la liaison. Valeurs posees au
@@ -230,4 +254,7 @@ Register-SettingCtl 'warmFullCalib' $chkWCalWarm
 Register-SettingCtl 'warmMinutes' $numWWarmMin
 Register-SettingCtl 'levelBeforeWrite' $chkWLevel
 Register-SettingCtl 'levelBeforeWriteMode' $cmbWLevelMode
+# 12.8.1 (spec-1281 § D.2) : correction « lecteur cible » du lecteur choisi dans le bandeau ; saisie en cours d abord
+# terminee (ligne de journal du lecteur d avant)
+$cmbDrive.Add_TextChanged({ Complete-TargetCorrEdit; Update-TargetCorrUi })
 

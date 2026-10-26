@@ -242,6 +242,8 @@ function Get-HomeProgTitle($cal, $ww) {
     if ($cal) {
         $what = if ($cal.Home -and $cal.Geom -and $cal.Geom.Label) { [string]$cal.Geom.Label } else { Get-CalibFamilyName ([string]$cal.Family) }
         $kt = if ($cal.Slow) { (T 'une courbe par tête') } else { (T 'courbe commune') }
+        # 12.8.1 : mesure de la disquette sur l image (276) : image et famille
+        if ($cal.Mode -eq 'content') { return ((T 'Mesure de la disquette en cours : lecteur {0}, {1}') -f "$($cal.Drive)", "$([System.IO.Path]::GetFileName([string]$cal.Image)), $what") }
         if ($cal.Mode -eq 'level') { return ((T 'Calibration rapide en cours : lecteur {0}, {1}') -f "$($cal.Drive)", "$what, $kt") }
         $tt = if ($cal.Mode -eq 'fine') { (T 'test fin') } else { (T 'test standard') }
         return ((T 'Calibration en cours : lecteur {0}, {1}, {2}') -f "$($cal.Drive)", "$what", "$tt, $kt")

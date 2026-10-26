@@ -73,6 +73,10 @@ function Get-LogColor([string]$line) {
     # 12.8 (lot 1c, point 1) : mesures par cylindre d une passe de calibration (« erreur-type », « standard error ») :
     # donnees, jamais une erreur (le journal masque ne s ouvre pas pour elles)
     if ($line -match '^\[[^\]]+\] (Mesures de la passe .+ \(valeur écrite -> |Pass .+ measurements \(written value -> )') { return $script:LogColors.dim }
+    # 12.8.1 : mesure de la disquette sur l image : lectures par cylindre d une passe (donnees) ; arrets de gw repris,
+    # pistes ecartees (« illisibles »), facteur borne, peu determine ou non mesure : reserves, jamais une erreur
+    if ($line -match '^\[[^\]]+\] (Mesure sur l''image, passe |Measurement on the image, pass )') { return $script:LogColors.dim }
+    if ($line -match '^Mesure sur l''image : (gw s''est arrêté|nouvel arrêt de gw|arrêt de gw annoncé|pistes écartées)|^Measurement on the image: (gw stop|tracks left out)|^\[[^\]]+\] (Optimum à la borne|Marge peu sensible|Facteur non mesuré|Optimum at the|Margin barely|Factor not measured)') { return $script:LogColors.warn }
     # Lignes de synthese du controle apres ecriture : simples comptes par etat (« 0 critique(s) » n est pas une erreur)
     if ($line -match '^(Contrôle complet|Full check|Remesure après réécriture|Re-measure after rewrite)\b') { return $script:LogColors.std }
     # 12.8 (lot 3a) : lignes de qualite, une couleur par niveau. « erreurs » / « errors » du texte de SUPPORT SAIN et
@@ -298,6 +302,8 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
     # commande, seulement si le moteur a tourne). Nom distinct du parametre Soft (PowerShell ignore la casse).
     $warmRead = [bool]([bool]$Soft -or ($script:Cal -and $script:Cal.Stage -eq 'warmup' -and $first -eq 'read'))
     Start-Progress $(if ($warmRead) { (T 'Préchauffage') } elseif ($verbs.ContainsKey($first)) { $verbs[$first] } else { "gw $first" })
+    # 12.8.1 (spec-1281.md § A.7) : arret « Failed to verify Track C.H » de la commande, pose par Read-GwOutput (ecriture)
+    $script:GwVerifyFail = $null
     if ($script:GwIsWrite) { $script:WriteRetries = @{}; $script:WriteTracks = @{} }
     $script:GwWriteSummary = $false
     $driveKey = if ($script:Detect) { $null } else { Get-GwDriveKey $gwArgs }
@@ -401,6 +407,23 @@ function Read-GwOutput([bool]$flush) {
             if ($l -match '^T(\d+)\.(\d+)\b[^:]*: Writing Track') { $script:WriteTracks["$($Matches[1]).$($Matches[2])"] = $true }
             if ($l -match '^(All tracks verified|No tracks verified|\d+ tracks verified)') { $script:GwWriteSummary = $true }
         }
+        # 12.8.1 (A.7) : gw 1.23 arrete la commande sur une piste refusee a la verification apres les nouveaux essais
+        # (« ** FATAL ERROR: » puis « Failed to verify Track C.H », sur stderr) : premiere occurrence gardee, lue par la
+        # mesure sur l image (Invoke-ContentWriteNext) et par la regle douce du minuteur principal (600)
+        $vs = Get-GwVerifyStop $lines
+        if ($vs -and -not $script:GwVerifyFail) { $script:GwVerifyFail = $vs }
     }
     if ($lines.Count -gt 0) { Append-Log ($lines -join [Environment]::NewLine) }
+}
+
+function Get-GwEndRule([int]$code, [bool]$soft, [bool]$isWrite, [bool]$summary, [int]$progTotal, [int]$progSeen, $verifyFail, [string]$calMode) {
+    # Regle de fin d une commande gw (minuteur principal, 600), sans etat : arguments releves par le minuteur apres le
+    # dernier Read-GwOutput. Soft : lecture de prechauffage ($soft), ou 12.8.1 (spec-1281.md § A.7) ecriture de la mesure
+    # sur l image ($calMode 'content') arretee sur une piste refusee a la verification ($verifyFail, Read-GwOutput), quel
+    # que soit le code retour (1 en gw 1.23 ; 0 admis : revue 12.8.1, point 1). Incomplete : arret silencieux avec le code 0
+    # (ecriture sans ligne de bilan ; autre commande : moins de la moitie des pistes annoncees), sans effet si Soft.
+    # Next : etape suivante de la chaine (code 0 ou Soft)
+    if (-not $soft -and $isWrite -and $verifyFail -and $calMode -eq 'content') { $soft = $true }
+    $inc = if ($isWrite) { $code -eq 0 -and -not $summary } else { $code -eq 0 -and $progTotal -gt 0 -and $progSeen * 2 -lt $progTotal }
+    return @{ Soft = $soft; Incomplete = [bool]$inc; Next = ($code -eq 0 -or $soft) }
 }

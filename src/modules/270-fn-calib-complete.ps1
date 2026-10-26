@@ -484,7 +484,9 @@ function Update-CalibProgress {
     $remaining = $pass * ($total - $done)
     $phaseTxt = if ($cal.Phase -eq 'write') { (T 'écriture') } else { (T 'relecture') }
     $pbWCal.Value = [math]::Max(0, [math]::Min(100, $pct))
-    $fmt = if ($cal.Mode -eq 'level') { (T "Calibration rapide : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
+    # 12.8.1 : mesure de la disquette sur l image (276) : ValueTxt « tete 0 puis tete 1 »
+    $fmt = if ($cal.Mode -eq 'content') { (T "Mesure de la disquette sur l'image : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
+           elseif ($cal.Mode -eq 'level') { (T "Calibration rapide : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
            elseif ($cal.Redo) { (T "Calibration B : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
            elseif ($cal.DiskOnly) { (T "Mesure complète de cette disquette : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
            else { (T "Calibration : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
@@ -600,6 +602,11 @@ function Start-CalibWarmup {
         if ($plan.Reduced) { Append-Log ((T "Préchauffage du lecteur {0} : {1} de lecture sans écriture avant la calibration rapide et l'écriture lente, pour que le niveau soit mesuré dans l'état du lecteur au moment de l'écriture (durée réduite : lecteur déjà en activité pendant {2}, dernière commande terminée il y a {3}).") -f "$($cal.Drive)", "$durTxt", "$actTxt", "$idleTxt") }
         else { Append-Log ((T "Préchauffage du lecteur {0} : {1} de lecture sans écriture avant la calibration rapide et l'écriture lente, pour que le niveau soit mesuré dans l'état du lecteur au moment de l'écriture.") -f "$($cal.Drive)", "$durTxt") }
     }
+    elseif ($cal.Mode -eq 'content') {
+        # 12.8.1 : mesure de la disquette sur l image (276), avant l ecriture lente ; retour au stade 'content' (WarmNext)
+        if ($plan.Reduced) { Append-Log ((T "Préchauffage du lecteur {0} : {1} de lecture sans écriture avant la mesure de la disquette sur l'image et l'écriture lente (durée réduite : lecteur déjà en activité pendant {2}, dernière commande terminée il y a {3}).") -f "$($cal.Drive)", "$durTxt", "$actTxt", "$idleTxt") }
+        else { Append-Log ((T "Préchauffage du lecteur {0} : {1} de lecture sans écriture avant la mesure de la disquette sur l'image et l'écriture lente.") -f "$($cal.Drive)", "$durTxt") }
+    }
     elseif ($plan.Reduced) { Append-Log ((T "Préchauffage du lecteur {0} : {1} de lecture sans écriture avant la calibration, pour stabiliser sa température (durée réduite : lecteur déjà en activité pendant {2}, dernière commande terminée il y a {3}).") -f "$($cal.Drive)", "$durTxt", "$actTxt", "$idleTxt") }
     else { Append-Log ((T "Préchauffage du lecteur {0} : {1} de lecture sans écriture avant la calibration, pour stabiliser sa température.") -f "$($cal.Drive)", "$durTxt") }
     $cal.WarmNext = [string]$cal.Stage
@@ -658,6 +665,9 @@ function New-CalibPass {
     #  - encadrement : cylindres encore sous-compenses a la plus forte valeur mesuree, ecrits a leur estimation +
     #    CalBracketMargin (une valeur par cylindre ; par tete en ecriture lente), relus seuls ;
     #  - verification : le profil obtenu ; en ecriture lente tete 0 puis tete 1, chacune avec son profil.
+    # 12.8.1 (spec-1281.md § A.9) : mesure de la disquette sur l image (stade 'content' : premiere passe apres les fins du
+    # prechauffage, Start-CalibWarmup et Invoke-CalibWarmup) : passes propres (New-ContentPass, 276)
+    if ($script:Cal -and $script:Cal.Stage -eq 'content') { New-ContentPass; return }
     $cal = $script:Cal
     $writes = @(); $readTs = $cal.TSpec
     if ($cal.Stage -eq 'coarse') {

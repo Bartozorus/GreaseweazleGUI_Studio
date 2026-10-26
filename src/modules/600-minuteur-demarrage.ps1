@@ -10,6 +10,12 @@ $timer.Add_Tick({
             $code = $script:GwProc.ExitCode
             # Lecture de prechauffage : code retour et pistes manquantes sans effet, l etape suivante a toujours lieu
             $soft = [bool]$script:GwSoft; $script:GwSoft = $false; $script:GwLastCode = $code
+            # 12.8.1 (spec-1281.md § A.7) : mesure de la disquette sur l image, gw arrete sur une piste refusee a la
+            # verification (« Failed to verify Track », Read-GwOutput), code 1 ou 0 : commande traitee comme une lecture de
+            # prechauffage (ni « operation incomplete », ni arret de la sequence) ; l etape suivante (Invoke-ContentWriteNext)
+            # garde la piste et reprend la tete. Toute autre erreur gw suit la regle commune. Regle : Get-GwEndRule (110)
+            $gwEnd = Get-GwEndRule $code $soft ([bool]$script:GwIsWrite) ([bool]$script:GwWriteSummary) ([int]$script:ProgTotal) ([int]$script:ProgSeen.Count) $script:GwVerifyFail $(if ($script:Cal) { [string]$script:Cal.Mode } else { '' })
+            $soft = [bool]$gwEnd.Soft
             # Activite du lecteur : seulement si le moteur a tourne (code 0, ou au moins une piste lue ou ecrite) ;
             # nouvelle serie si la commande a commence CalWarmupGapMin apres la fin de la precedente
             if ($script:GwDriveKey -and ($code -eq 0 -or ($script:ProgSeen -and $script:ProgSeen.Count -gt 0))) {
@@ -33,9 +39,9 @@ $timer.Add_Tick({
             else { Append-Log ((T "<<< Terminé (code retour : {0}, {1} s, {2} ligne(s) reçues)") -f "$code", "$elapsed", "$($script:GwLines)") }
             # Arret silencieux avec le code 0 (ex. « Command Failed: WriteProtected ») : pas de controle ni d etape suivante,
             # ils masqueraient le probleme. Ecriture : gw imprime toujours une ligne de bilan quand il va au bout (verification
-            # comprise), quel que soit le nombre de pistes de l image. Autres commandes : moins de la moitie des pistes annoncees.
-            $incomplete = if ($wasWrite) { $code -eq 0 -and -not $script:GwWriteSummary }
-                          else { $code -eq 0 -and $script:ProgTotal -gt 0 -and $script:ProgSeen.Count * 2 -lt $script:ProgTotal }
+            # comprise), quel que soit le nombre de pistes de l image. Autres commandes : moins de la moitie des pistes annoncees
+            # (Get-GwEndRule, plus haut).
+            $incomplete = [bool]$gwEnd.Incomplete
             $script:GwLastIncomplete = [bool]$incomplete
             if ($incomplete -and -not $soft) {
                 Append-Log ((T "ERREUR : opération incomplète, gw s'est arrêté après {0} piste(s) sur {1} annoncées avec le code 0. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer.") -f "$($script:ProgSeen.Count)", "$($script:ProgTotal)")
@@ -58,7 +64,7 @@ $timer.Add_Tick({
             Set-Busy $false
             if ($script:Detect) { Complete-DriveProbe $code }
             if ($script:Chain.Count -gt 0) {
-                if ($code -eq 0 -or $soft) {
+                if ($gwEnd.Next) {
                     Invoke-NextChainStep
                 } else {
                     $why = ((T "gw a retourné le code {0}, voir le journal") -f "$code")

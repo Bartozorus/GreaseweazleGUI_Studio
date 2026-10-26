@@ -62,6 +62,8 @@ function Get-Setting([string]$k) {
         'precompThresholdNs' { return [int]$script:PrecompThresholdNs }
         'jitterOk'           { return [int]$script:JitterOk }
         'jitterWatch'        { return [int]$script:JitterWatch }
+        'contentKMid'        { return [double]$script:ContentKMid }     # 12.8.1 : niveaux de la mesure sur l image (276)
+        'contentKLow'        { return [double]$script:ContentKLow }
     }
     return $script:Settings[$k]
 }
@@ -74,6 +76,8 @@ function Set-SettingStore([string]$k, $v) {
         'precompThresholdNs' { $script:PrecompThresholdNs = [int]$v; return }
         'jitterOk'           { Set-JitterThresholds ([int]$v) ([int]$script:JitterWatch); return }
         'jitterWatch'        { Set-JitterThresholds ([int]$script:JitterOk) ([int]$v); return }
+        'contentKMid'        { $script:ContentKMid = [double]$v; return }
+        'contentKLow'        { $script:ContentKLow = [double]$v; return }
     }
     $script:Settings[$k] = $v
 }
@@ -207,6 +211,40 @@ function Update-LegacyCleanDefault($cfg) {
     Append-Log ((T "Nettoyage de l'onglet Outils : ancien réglage par défaut (3 passes, {0} ms par position) remplacé par le nouveau, 3 passes de {1} ms par position, comme le préréglage « Standard » de la fenêtre « Nettoyage des têtes ».") -f '100', "$(Get-Setting 'cleanLinger')")
 }
 
+function Update-LegacyLevelMode($cfg) {
+    # 12.8.1 (spec-1281 § C.6) : liste « Mesure : » de l onglet Ecriture. Configuration d une version anterieure (section
+    # write sans contentCalc) a « rapide » : la 12.8 ecrivait son defaut a chaque enregistrement, defaut et choix explicite
+    # ne se distinguent pas : mesure sur l image a ecrire, ligne de journal ; « complete » (choix explicite, la 12.8 ayant
+    # « rapide » pour defaut) gardee. contentCalc est ecrit au prochain enregistrement : migration faite une fois.
+    # Load-Config, apres Import-Settings des reglages de l ecriture lente
+    $w = Get-Cfg $cfg 'write' $null
+    if ($null -eq $w -or $null -ne (Get-Cfg $w 'contentCalc' $null)) { return }
+    if ((Get-Setting 'levelBeforeWriteMode') -ne 'quick') { return }
+    Set-Setting 'levelBeforeWriteMode' 'content'
+    Append-Log (T "Mesure de la disquette avant l'écriture lente : la liste « Mesure : » passe de « rapide » à « sur l'image à écrire », la nouvelle mesure de la version 12.8.1. Pour revenir à la calibration rapide, choisissez « rapide, au motif ».")
+}
+
+function Test-ContentLevelSettings($cfg) {
+    # 12.8.1 (spec-1281 § A.4) : niveaux moyen et bas de la mesure sur l image (contentKMid, contentKLow, configuration
+    # seulement) controles ensemble au chargement : valeurs lisibles et dans les bornes de la table, et bas <= moyen - 0,2 ;
+    # sinon les deux defauts, ligne de journal. Load-Config, apres Import-Settings
+    $w = Get-Cfg $cfg 'write' $null
+    $bad = $false
+    foreach ($k in @('contentKMid', 'contentKLow')) {
+        $raw = Get-Cfg $w $k $null
+        if ($null -eq $raw) { continue }
+        $x = ConvertTo-FiniteOrNull $raw
+        if ($null -eq $x -or [math]::Abs([double]$x - [double](Get-Setting $k)) -gt 1e-9) { $bad = $true }
+    }
+    $m = [double](Get-Setting 'contentKMid'); $l = [double](Get-Setting 'contentKLow')
+    if ($l -gt $m - 0.2 + 1e-9) { $bad = $true }
+    if (-not $bad) { return }
+    $rm = Get-Cfg $w 'contentKMid' $m; $rl = Get-Cfg $w 'contentKLow' $l
+    $dm = [double]$script:SettingDefs['contentKMid'].Def; $dl = [double]$script:SettingDefs['contentKLow'].Def
+    Set-Setting 'contentKMid' $dm; Set-Setting 'contentKLow' $dl
+    Append-Log ((T "Niveaux de la mesure sur l'image (contentKMid, contentKLow) incohérents ({0} ; {1}) : {2} et {3} par défaut. Le niveau bas va de 0 à 0,5, le niveau moyen de 0,3 à 0,8, et le niveau bas reste inférieur d'au moins 0,2 au niveau moyen.") -f "$rm", "$rl", (Format-UiNum $dm '0.0#'), (Format-UiNum $dl '0.0#'))
+}
+
 # --- Configuration -------------------------------------------------------------
 function Set-Defaults {
     $script:CalHardNs = $script:CalHardNsDefault; $script:CalHardNsUser = $script:CalHardNs; Set-CalibScale ''   # 12.7 : bareme double densite
@@ -301,6 +339,9 @@ function Set-Defaults {
     $cmbHelpAct.SelectedItem = 'write'
     $txtC.Text = 'write --pre-erase --erase-empty --retries=10 --precomp 40=140 "jeu.ipf"'
     Update-CurveButton $txtWFile.Text
+    # 12.8.1 (spec-1281 § D.2) : champs de la correction « lecteur cible » du lecteur du bandeau (valeurs par lecteur,
+    # gardees comme les calibrations : $script:TargetCorr n est pas remis)
+    Update-TargetCorrUi
 }
 
 function Backup-ConfigBeforeRef([string[]]$keys, [string]$why = 'replace') {
@@ -373,6 +414,10 @@ function Save-Config {
     if ($oc) { $lvCfg += @(@($oc.Levels.Values) | Where-Object { $_ -and -not $script:PrecompCurves[$_.RefKey] } | ForEach-Object { ConvertTo-LevelConfig $_ }) }
     # 12.8 (lot 1c, § 10.2) : memoire par marque de disquette (une 12.7 l ignore)
     $brCfg = @(@($script:LevelBrands) | Where-Object { $_ } | ForEach-Object { ConvertTo-LevelBrandConfig $_ })
+    # 12.8.1 (spec-1281 § C.5) : facteurs mesures des lecteurs (mesure de la disquette sur l image, un enregistrement par
+    # tete mesuree) et correction « lecteur cible » par lecteur ; une 12.8 les ignore
+    $cmCfg = @(@($script:ContentMeasures) | Where-Object { $_ } | ForEach-Object { ConvertTo-ContentConfig $_ })
+    $tcCfg = @(ConvertTo-TargetCorrConfig)
     $cfg = [ordered]@{
         _comment = (T 'Configuration GreaseweazleGUI - régénérée automatiquement. Supprimable sans risque.')
         _saved   = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
@@ -401,6 +446,7 @@ function Save-Config {
             precompCurves = $curvesCfg
             levelAlgo = $script:LevelFormat; levelShifts = $lvCfg   # 12.8 (G2) : format 'lvl1', relu par une 12.7
             levelBrand = [string]$script:LevelBrand; levelBrands = $brCfg
+            contentCalc = $script:ContentCalc; driveFactors = $cmCfg; targetCorrection = $tcCfg   # 12.8.1 (marqueur de migration : Update-LegacyLevelMode)
             tracks = $txtWTracks.Text; densel = $cmbWDensel.Text
             fakeIndex = $txtWFakeIdx.Text; diskdefs = $txtWDiskdefs.Text
         }
@@ -430,7 +476,7 @@ function Save-Config {
         restore  = @{ folder = $txtRsDir.Text }
     }
     # 12.8 (point 7) : reglages de la table (global.drive ; write.calMode, slowWrite, slowWarmup, calibWarmup,
-    # calWarmupMinutes, levelBeforeWrite, levelBeforeWriteMode, precompProfileCode et precompProfile, precompThresholdNs ; ui.homeCalHeads et
+    # calWarmupMinutes, levelBeforeWrite, levelBeforeWriteMode, contentKMid et contentKLow (12.8.1), precompProfileCode et precompProfile, precompThresholdNs ; ui.homeCalHeads et
     # homeCalCyls ; align.presetCode et preset ; quality ; tools.passes et linger ; restore.formatChoice ;
     # compare.formatChoice ; library.dat, lot 4b), puis, pendant
     # une operation surchargee (D4 : ecriture depuis la Bibliotheque ; lot 2 : restauration), reglages de l onglet
@@ -564,6 +610,16 @@ function Load-Config {
     $script:LevelBrands = @(); $brBad = 0
     foreach ($o in @(Get-Cfg $w 'levelBrands' @())) { $en = ConvertFrom-LevelBrandConfig $o; if ($en) { $script:LevelBrands += ,$en } else { $brBad++ } }
     if ($brBad -gt 0) { Append-Log ((T 'Mémoire par marque de disquette : {0} entrée(s) illisible(s) ignorée(s).') -f "$brBad") }
+    # 12.8.1 (spec-1281 § C.5) : facteurs mesures des lecteurs (enregistrement illisible : ignore) et correction « lecteur
+    # cible » par lecteur (valeur illisible : 0, hors bornes : ramenee a -TargetCorrMax..TargetCorrMax, 040) ; une ligne
+    # de journal pour les deux.
+    # Enregistrements d un autre calcul gardes : Get-DriveK ne les retient pas (decision du 25/10/2026 : facteurs gardes
+    # apres une recalibration du lecteur, date de la courbe non exigee)
+    $script:ContentMeasures = @(); $cmBad = 0
+    foreach ($o in @(Get-Cfg $w 'driveFactors' @())) { $rec = ConvertFrom-ContentConfig $o; if ($rec) { $script:ContentMeasures += ,$rec } else { $cmBad++ } }
+    $tcr = ConvertFrom-TargetCorrConfig @(Get-Cfg $w 'targetCorrection' @())
+    $script:TargetCorr = $tcr.Map
+    if ($cmBad -gt 0 -or [int]$tcr.Bad -gt 0) { Append-Log ((T 'Configuration : {0} facteur(s) mesuré(s) illisible(s), ignoré(s) ; {1} correction(s) lecteur cible illisible(s), ignorée(s) ou comptée(s) 0.') -f "$cmBad", "$($tcr.Bad)") }
     $script:OldCalib = $null
     $calPurged = $lostProf
     if ($old.Count -gt 0) {
@@ -600,6 +656,7 @@ function Load-Config {
     $lateKeys = @('slowWrite', 'warmSlowWrite', 'warmFullCalib', 'levelBeforeWrite', 'levelBeforeWriteMode')
     Import-Settings $cfg -Except $lateKeys
     Update-LegacyCleanDefault $cfg             # 12.8 (D9) : ancien defaut du nettoyage de l onglet Outils
+    Test-ContentLevelSettings $cfg             # 12.8.1 : niveaux de la mesure sur l image, controles ensemble
     $chkWPostCheck.Checked = [bool](Get-Cfg $w 'postCheck' $true)
     $rm = [int](Get-Cfg $w 'repairMax' 3); $numWRepair.Value = [math]::Max(0, [math]::Min(10, $rm))
     $numWRepair.Enabled = $chkWPostCheck.Checked; $lblWRepair.Enabled = $chkWPostCheck.Checked
@@ -609,7 +666,9 @@ function Load-Config {
     # Champs --precomp remplis par une ancienne calibration : profil d origine (sauf profil manuel, choisi par l utilisateur)
     if ($calPurged -and (Get-Setting 'precompProfile') -ne 'manual') { $txtWPrecomp.Text = $script:PrecompStd; $txtWPrecomp1.Text = $script:PrecompStd }
     Import-Settings $cfg -Only $lateKeys       # ecriture lente, prechauffages (D6), mesure de la disquette et son mode (S3)
+    Update-LegacyLevelMode $cfg                # 12.8.1 : liste « Mesure : » d une configuration 12.8, rapide -> sur l image
     Update-SlowUi
+    Update-TargetCorrUi                        # 12.8.1 : correction « lecteur cible » du lecteur du bandeau
     $txtWTracks.Text   = [string](Get-Cfg $w 'tracks' '')
     Set-Combo $cmbWDensel (Get-Cfg $w 'densel' '(non)')
     $txtWFakeIdx.Text  = [string](Get-Cfg $w 'fakeIndex' '')

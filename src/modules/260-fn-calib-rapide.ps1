@@ -1411,6 +1411,17 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
     $img = $txtWFile.Text
     $fam = Get-ImageFamily $img
     $nfc = Get-CalibCylinders $img $cmbWFmt.Text      # image secteur sans geometrie : cylindres du format choisi
+    # 12.8.1 (spec-1281.md § A.1) : liste « Mesure : sur l image a ecrire » (levelBeforeWriteMode = content), ecriture
+    # lente avec la case « Mesurer la disquette » (Measure), hors restauration : mesure de la disquette sur le contenu de
+    # l image (276) si l image et le contexte s y pretent (Test-ContentMeasurable) ; sinon ligne de journal, puis la suite
+    # de la 12.8 (calibration rapide au motif, ou courbe du lecteur sans reference). Test rapide et restauration : mesure
+    # au motif, ligne de journal plus bas
+    $content = ((Get-Setting 'levelBeforeWriteMode') -eq 'content')
+    if ($content -and $Measure -and $mode -eq 'slow' -and -not $Restore -and -not $script:Restore) {
+        $cm = Test-ContentMeasurable $img $cmbWFmt.Text
+        if ($cm.Ok) { Start-ContentMeasure $cm; return }
+        Append-Log ((T "Mesure sur l'image non faite ({0}) : calibration rapide au motif avant cette écriture.") -f "$($cm.Why)")
+    }
     $lr = Get-LevelRef $fam ($mode -eq 'slow') $cmbDrive.Text $img ([bool]$Restore) -NCyl $(if ($null -ne $nfc.NCyl) { [int]$nfc.NCyl } else { 0 })
     if ($lr.Ok) {
         # 12.8 (S3, decision du 21/10/2026) : liste « Mesure : complète » de l onglet Ecriture (levelBeforeWriteMode) : mesure
@@ -1423,6 +1434,11 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
                 Start-DiskMeasure $lr ([string]$script:LevelBrand); return
             }
             Append-Log (T "Mesure complète de cette disquette réservée à l'écriture lente (une courbe par tête) : calibration rapide avant cette écriture rapide.")
+        }
+        # 12.8.1 (decision 5) : avec « sur l image a ecrire », le Test rapide et la restauration gardent la mesure au motif
+        if ($content -and -not $Measure) {
+            if ($Restore) { Append-Log (T "Restauration : destination mesurée au motif (calibration rapide) ; la mesure sur l'image ne se fait pas en restauration.") }
+            else { Append-Log (T "Test rapide : mesure au motif (calibration rapide) ; la mesure sur l'image ne se fait qu'en test standard ou fin, avec la case « Mesurer la disquette avant l'écriture lente ».") }
         }
         $script:AfterCalib = 'write'
         # 12.8 (S3-FLUX, F3R-FIX) : ligne exacte, sans « (test rapide) » : la mesure de la destination ne depend plus du test

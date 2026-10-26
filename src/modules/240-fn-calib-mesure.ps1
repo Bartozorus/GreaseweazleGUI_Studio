@@ -149,7 +149,10 @@ function Reset-CalibProfiles {
     $pend = @(if ($script:OldCalib) { @($script:OldCalib.Curves.Keys | Where-Object { -not $script:PrecompCurves[$_] }) })
     $curves = @(@($curves) + $pend | Sort-Object -Unique)
     $changed = ($script:PrecompStd -ne $script:PrecompStdDefault) -or ($script:PrecompLong -ne $script:PrecompLongDefault)
-    if ($curves.Count -eq 0 -and -not $changed) {
+    # 12.8.1 (spec-1281 § B.5, decision du 25/10/2026) : facteurs mesures des lecteurs (mesure de la disquette sur l image)
+    # effaces avec les calibrations ; la correction « lecteur cible » ($script:TargetCorr), reglee a la main, est gardee
+    $nCm = @(@($script:ContentMeasures) | Where-Object { $_ }).Count
+    if ($curves.Count -eq 0 -and -not $changed -and $nCm -eq 0) {
         [void](Show-AppMessage (T 'Aucune calibration enregistrée : les profils sont déjà ceux d''origine.') (T 'Effacer les calibrations') 'OK' 'Information'); return
     }
     $list = if ($curves.Count -gt 0) { (@($curves | ForEach-Object { Get-CurveKeyLabel $_ }) -join ', ') } else { (T 'aucune') }
@@ -162,6 +165,7 @@ function Reset-CalibProfiles {
     $msg += "`n`n" + (T "Ensuite, le mode Auto applique les profils d'origine :`n- « Test standard » ou « Test fin » : « Écriture rapide » et « Écriture lente » de la Bibliothèque calibrent d'abord le lecteur ; « ÉCRIRE LA DISQUETTE » écrit sans calibrer ;`n- « Test rapide » : l'écriture d'une image calibrable en double densité est refusée sans nouvelle calibration complète du lecteur, à faire sur une disquette sacrifiée depuis la carte « Calibrer le lecteur » de l'Accueil ;`n- restauration d'une copie secteur par secteur en double densité : chaque tête est d'abord calibrée en test fin.")
     # 12.7 : courbe haute densite effacee : profil d origine haute densite, jamais de calibration automatique
     if (@($curves | Where-Object { "$_" -like 'hd*' }).Count -gt 0) { $msg += "`n" + ((T "Haute densité : profil d'origine {0}, sans calibration automatique ; recalibrez depuis la carte « Calibrer le lecteur » de l'Accueil.") -f "$($script:PrecompHdDefault)") }
+    if ($nCm -gt 0) { $msg += "`n" + ((T "Les {0} facteur(s) mesuré(s) des lecteurs (mesure de la disquette sur l'image) sont effacés aussi : les écritures suivantes reprennent le facteur 1 jusqu'à une nouvelle mesure. La correction « lecteur cible » est gardée.") -f "$nCm") }
     # 12.7 : boite par Show-AppMessage (code modifie), comme les autres messages de la 12.7
     $r = Show-AppMessage $msg (T 'Effacer les calibrations') 'YesNo' 'Warning'
     if ($r -ne 'Yes') { return }
@@ -171,11 +175,13 @@ function Reset-CalibProfiles {
     $script:LevelShifts = @{}; $script:OldCalib = $null
     # 12.8 (lot 1c, § 10.5) : memoires par marque effacees avec les calibrations (apres la copie ci-dessus)
     $script:LevelBrands = @()
+    $script:ContentMeasures = @()                                     # 12.8.1 : facteurs mesures ; Dk garde
     $script:PrecompStd = $script:PrecompStdDefault; $script:PrecompLong = $script:PrecompLongDefault
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
     Update-PrecompForImage $txtWFile.Text
     $pbWCal.Visible = $false; $lblWCal.Visible = $true; $lblWCal.Text = (T 'Calibrations effacées.')
     Append-Log ((T "Calibrations effacées : {0} courbe(s) ({1}) ; profils standard et long track remis aux valeurs d'origine ({2} ; {3}).") -f "$($curves.Count)", "$list", "$($script:PrecompStdDefault)", "$($script:PrecompLongDefault)")
+    if ($nCm -gt 0) { Append-Log ((T "Facteurs mesurés des lecteurs effacés avec les calibrations ({0}) ; la correction « lecteur cible » est gardée.") -f "$nCm") }
     [void](Save-Config)
 }
 

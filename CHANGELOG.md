@@ -5,6 +5,46 @@ Le numéro de version est celui de `$script:Version` dans `src/GreaseweazleGUI.p
 
 Chaque version s'ouvre sur un résumé de ce qu'elle apporte, puis classe ses changements en Nouveautés, Améliorations et Corrections. La rubrique « À savoir pour la mise à jour » indique ce qu'il faut faire en installant la version, par exemple recalibrer un lecteur. « Pour les développeurs » regroupe la compilation, la publication et le format de configuration. Le fonctionnement détaillé est décrit dans le [wiki](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki).
 
+## [12.8.1] - 2026-10-26
+
+« Mesurer la disquette avant l'écriture lente » mesure désormais la précompensation sur le contenu même de l'image à écrire, et non plus sur le motif de test. L'image est ensuite écrite au niveau de précompensation qui donne la meilleure relecture, tête par tête, et ce réglage est mémorisé pour le lecteur. Une correction « lecteur cible » adapte aussi l'écriture à un autre lecteur qui relira la disquette, par exemple celui d'un Amiga. La calibration du lecteur ne change pas : aucune recalibration n'est demandée.
+
+### Nouveautés
+
+- **Mesure sur l'image à écrire.** Dans l'onglet « Écriture », la liste « Mesure : » propose désormais par défaut « sur l'image à écrire (environ 10 min) ». Avant une écriture lente, l'application écrit 40 cylindres de l'image, répartis sur le disque, à trois niveaux de la courbe du lecteur. Après chaque passe, elle relit ces pistes et mesure leur marge de lecture, c'est-à-dire la qualité avec laquelle elles se relisent. L'image entière est ensuite écrite au meilleur niveau, tête par tête. Comptez environ 10 minutes avant l'écriture. Cette mesure concerne les images double densité en MFM : ADF, IPF, HFE, images secteur Amiga, PC et Atari ST.
+- **Confirmation avant la mesure.** La fenêtre « Mesure de la disquette » annonce la mesure et sa durée. « Mesurer puis écrire » la lance. « Écrire sans mesure » écrit tout de suite avec le facteur mémorisé du lecteur, que la fenêtre affiche. « Fermer » n'écrit rien.
+- **Facteur mémorisé par lecteur.** Le facteur mesuré est mémorisé pour le lecteur et pour chaque tête. Une écriture sans mesure sur l'image applique la médiane des trois dernières mesures de ce lecteur : case décochée, « Écrire sans mesure », « Test rapide », restauration ou écriture rapide. En écriture rapide, qui écrit les deux têtes ensemble, c'est la moyenne de leurs deux facteurs. Tant qu'aucune mesure n'est faite, ce facteur vaut 1, et l'écriture est celle de la version 12.8.
+- **Correction « lecteur cible ».** Dans l'onglet « Écriture », à droite de la liste « Mesure : », un champ par tête ajoute une correction au facteur du lecteur du bandeau. Elle va de −3,00 à +3,00 et vaut 0 par défaut. Elle sert quand la disquette sera relue par un autre lecteur, par exemple celui d'un Amiga, qui préfère une autre précompensation. Elle se règle d'après une relecture croisée, décrite pas à pas dans le wiki. Laissez 0 si vous ne la connaissez pas.
+- **Facteur au journal.** Chaque écriture note au journal le facteur appliqué à chaque tête, son origine et la correction « lecteur cible ». Quand ce facteur diffère de 1, le texte gris à droite du bouton « ÉCRIRE LA DISQUETTE » l'indique aussi.
+
+### Améliorations
+
+- **Précompensation jugée sur le vrai contenu.** Les essais ont montré que la courbe calculée sur le motif de test précompensait trop pour de vrais contenus. Ce motif ressemble peu à une vraie image, et le calcul ne visait pas la meilleure qualité de lecture. La mesure sur l'image juge donc la précompensation sur ce qui sera réellement écrit, d'après la qualité de lecture obtenue.
+- **Le lecteur qui relit compte aussi.** Le meilleur réglage dépend aussi du lecteur qui relira la disquette. Le facteur mesuré convient au lecteur qui écrit ; la correction « lecteur cible » l'adapte à un autre lecteur.
+- **Mesure tolérante aux pistes difficiles.** Si gw ne parvient pas à vérifier une piste pendant la mesure, la mesure continue : la piste est gardée à son niveau, et l'écriture de la tête reprend au cylindre suivant. Les pistes vides, longues, protégées ou qui ne sont pas du MFM sont écartées de la mesure, avec la raison au journal.
+- **Mesures au motif toujours proposées.** La calibration rapide et la mesure complète de cette disquette restent dans la liste « Mesure : », sous les noms « rapide, au motif » et « complète, au motif ».
+
+### À savoir pour la mise à jour
+
+- La calibration du lecteur ne change pas : 12.6 en double densité, 12.7 en haute densité. Vos courbes sont reprises sans question, et aucune recalibration n'est nécessaire. Les courbes et les mesures mémorisées par marque restent valables ; le facteur du lecteur s'y applique.
+- Au premier lancement, la liste « Mesure : » passe de « rapide » à « sur l'image à écrire », et le journal l'indique. Un choix « complète » est gardé. Pour revenir à la calibration rapide, choisissez « rapide, au motif ».
+- La mesure sur l'image ajoute environ 10 minutes à chaque écriture lente, et écrit trois fois de plus les pistes mesurées. Pour un lecteur déjà mesuré plusieurs fois, vous pouvez décocher « Mesurer la disquette avant l'écriture lente » : son facteur mémorisé s'applique alors, mais l'écriture ne s'adapte plus à chaque disquette.
+- La mesure sur l'image ne se fait qu'en écriture lente, la case cochée, en test standard ou fin. Le « Test rapide » et la restauration gardent la calibration rapide sur le motif de test, puis appliquent le facteur du lecteur.
+- La mesure sur l'image ne s'applique ni en haute densité, ni aux images flux, FM ou GCR, ni à une image à une seule face, ni quand le champ « Pistes » limite l'écriture. L'application fait alors ce que faisait la version 12.8, avec une ligne au journal. Si l'image ne s'y prête pas pour une autre raison, par exemple moins de 20 cylindres ou trop de pistes protégées, la calibration rapide au motif la remplace.
+- Les images haute densité, flux, FM ou GCR, les profils autres qu'« Auto (selon image) » et les écritures sans précompensation ne reçoivent ni facteur ni correction « lecteur cible ».
+- L'écriture rapide applique le facteur à la courbe commune du lecteur. Un lecteur calibré seulement en écriture lente n'a qu'une courbe par tête : l'écriture rapide écrit alors le profil d'origine, sans facteur ni correction « lecteur cible ». Gardez « Écriture lente » cochée pour en profiter.
+- La correction « lecteur cible » se rapporte à la courbe du lecteur qui écrit. Après une recalibration de ce lecteur sur une autre disquette, elle peut demander à être réajustée. Calibrez de préférence le lecteur sur une disquette saine.
+- Le facteur d'une tête, correction comprise, va de 0 à 4. La précompensation écrite reste dans la borne habituelle, 400 ns par défaut ; une courbe déjà au-dessus, issue d'une mesure complète, n'est jamais augmentée.
+- Les facteurs mesurés sont gardés après une nouvelle calibration du lecteur. « Effacer les calibrations » les efface ; la correction « lecteur cible » est gardée.
+- Les trois niveaux de la mesure ont été établis sur un petit nombre de lecteurs et de disquettes : ils restent provisoires.
+- Revenir à une version 12.8 remet la liste « Mesure : » à « rapide ». Dès que la 12.8 enregistre la configuration, par exemple à sa fermeture, les facteurs mesurés et la correction « lecteur cible » sont perdus. Une fois la 12.8.1 réinstallée, la liste repasse à « sur l'image à écrire ».
+
+### Pour les développeurs
+
+- Nouveaux modules `012-i18n-contenu.ps1`, `013-i18n-facteur.ps1`, `192-fn-marge-flux.ps1`, `274-fn-contenu-calcul.ps1`, `276-fn-contenu-mesure.ps1` et `565-etat-contenu.ps1`. La marge est comptée en PowerShell, par tri natif et recherches dichotomiques, sans nouveau bloc C#.
+- Configuration, section `write` : `levelBeforeWriteMode` (`content` par défaut, `quick` ou `complete`), `contentCalc`, `contentKMid` et `contentKLow` (niveaux de la mesure, 0,6 et 0,25 par défaut, réglables dans le fichier seulement), `driveFactors` et `targetCorrection`. Version de la mesure de la disquette sur l'image : `$script:ContentCalc = '12.8.1'` ; `CalibCalc` reste 12.6 et `CalibCalcHd` 12.7.
+- Fichier temporaire `%TEMP%\GreaseweazleGUI\contenu-mesure.scp` : relecture de la dernière passe de la mesure.
+
 ## [12.8] - 2026-10-23
 
 La restauration se fait avec un seul lecteur et reconnaît elle-même le format de la disquette d'origine, comme la « Comparaison » celui de son image de référence. En écriture lente, la calibration rapide adapte la courbe à une disquette d'une autre marque, au lieu d'exiger une calibration complète, et peut mémoriser cette forme par marque. Une « Mesure complète de cette disquette » mesure aussi la disquette à écrire sur tous ses cylindres, sans toucher à la référence du lecteur. L'onglet « Qualité & alignement » présente son résultat sur une carte, la « Bibliothèque » groupe ses résultats par jeu et sait identifier vos images avec une liste de référence, et les fenêtres de l'application sont harmonisées.

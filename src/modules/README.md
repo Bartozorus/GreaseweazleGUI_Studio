@@ -17,13 +17,15 @@ Dans tous les modules, aucune instruction n'est à cheval sur deux modules, et c
 
 | Module | Contenu |
 |---|---|
-| `000-entete.ps1` | En-tête, `param()`, `$script:Version`, versions du calcul de calibration (`CalibCalc`, `CalibCalcHd`) |
+| `000-entete.ps1` | En-tête, `param()`, `$script:Version`, versions du calcul de calibration (`CalibCalc`, `CalibCalcHd`) et de la mesure de la disquette sur l'image (`ContentCalc`, 12.8.1) |
 | `010-i18n.ps1` | Table I18n (textes anglais), `T`, `Format-UiNum` |
+| `012-i18n-contenu.ps1` | Table I18n, suite (12.8.1, lot B) : textes de la mesure de la disquette sur l'image |
+| `013-i18n-facteur.ps1` | Table I18n, suite (12.8.1, lot C) : facteur de précompensation de l'écriture, correction « lecteur cible », liste « Mesure : » |
 | `020-amorce.ps1` | Assemblies WinForms, chemins, état de gw, extensions reconnues |
 | `030-csharp.ps1` | Blocs C# compilés au démarrage : comparateur de secteurs, statistiques SCP, motif de calibration, ajustement de courbe, index rapide |
 | `040-etat-formats.ps1` | État de l'application, profils de précompensation, table des réglages (`$script:SettingDefs`), table des formats |
 | `100-fn-interface.ps1` | Interface commune : infobulles, aide, glyphes, logo, boutons, onglets, étiquettes, bandeau, cartes de l'Accueil, barre, journal, largeurs ajustées au texte, fenêtre de confirmation commune (`Show-AppConfirm`, `frmConfirm`) |
-| `110-fn-coeur-gw.ps1` | Chaîne d'étapes, arguments communs, occupation (`Get-AppBusy`, test unique « opération en cours »), journal et boîtes de message (`Show-AppMessage`), progression, détection des lecteurs, lancement de gw et lecture de sa sortie |
+| `110-fn-coeur-gw.ps1` | Chaîne d'étapes, arguments communs, occupation (`Get-AppBusy`, test unique « opération en cours »), journal et boîtes de message (`Show-AppMessage`), progression, détection des lecteurs, lancement de gw et lecture de sa sortie, règle de fin d'une commande (`Get-GwEndRule`) |
 | `120-fn-configuration.ps1` | Réglages à source unique (`Set-Setting`, `Register-SettingCtl`, `Update-SettingDependents`, `Import-Settings`, `Export-Settings`, `Reset-Settings`), valeurs par défaut, enregistrement et chargement de la configuration |
 | `130-fn-bibliotheque.ps1` | Bibliothèque : arborescence, archives ZIP, index, recherche, écriture depuis la Bibliothèque ; liste groupée des résultats (12.8, lot 4a : colonnes, tri, badges, filtres, travail différé au minuteur), panneau de détails (bloc INFO des IPF, ADF, documents associés, vignette, disquettes manquantes) ; liste de référence (lot 4b : choix, lecture à la première demande, identification des images et des archives par le travail différé, cache des empreintes ; FIX4B : états revalidés par la date du fichier, image extraite d'une archive contrôlée avant l'écriture, colonne de droite ajustée à la hauteur de la page) |
 | `135-fn-bibliotheque-analyse.ps1` | Bibliothèque, analyse sans interface (12.8, lot 4a) : noms TOSEC et No-Intro avec replis (`Get-LibNameInfo`), règle des mots de la recherche (`Select-LibMatches`), disquettes manquantes, CRC-32 par la bibliothèque ZIP native de .NET (`Get-Crc32` : archive en mémoire sans compression, CRC lu dans le répertoire central ; aucun calcul en PowerShell), bloc INFO des IPF (`Get-IpfInfoBlock`), blocs de démarrage et racine des ADF (`Get-AdfInfo`) |
@@ -35,6 +37,7 @@ Dans tous les modules, aucune instruction n'est à cheval sur deux modules, et c
 | `180-fn-comparaison.ps1` | Comparaison d'une image et d'une disquette, détection automatique du format de la comparaison |
 | `185-fn-detection-format.ps1` | Détection du format (12.8) : d'une disquette, pour la restauration et la comparaison (`Invoke-DiskFormatDetect`, `Select-DiskFormat`), et d'une image de référence (`Get-RefImageFormat`, `Select-RefDecodeFormat`) |
 | `190-fn-qualite-alignement.ps1` | Lecture des SCP, alignement, jitter, métriques de piste, analyse de l'onglet Qualité |
+| `192-fn-marge-flux.ps1` | Marge comptée d'une piste relue (12.8.1, lot A) : tours d'un SCP (`Read-ScpTrackRevs`), marge fixe au quantile 1e-3 (`Get-FluxMarginQ`), statistiques de piste (`Get-ContentTrackStats`) ; tri natif et recherches dichotomiques, sans bloc C# |
 | `195-fn-qualite-affichage.ps1` | Affichage de la qualité (12.8, lot 3) : état unique `$script:QualView` (`Set-QualityPending`, `Set-QualityResult`, `Set-QualityStale`), carte de résultat `pnlQualCard`, pictogrammes de score et d'état (`New-QualityPicto`), ressources GDI+ en cache, icônes d'état de l'onglet Écriture et de la restauration |
 | `200-fn-accueil-calibration.ps1` | Carte « Calibrer le lecteur », zone de progression et courbe de l'Accueil |
 | `210-fn-nettoyage.ps1` | Nettoyage des têtes : pictogrammes, fenêtre, déroulement |
@@ -45,6 +48,8 @@ Dans tous les modules, aucune instruction n'est à cheval sur deux modules, et c
 | `260-fn-calib-rapide.ps1` | Calibration rapide (niveau par disquette) : référence, passes, décision, bilan, fenêtre de décision |
 | `265-fn-calib-adaptative.ps1` | Calibration rapide adaptative (12.8, lot 1c) : forme de la disquette (moindres carrés, validation croisée, contrôles), passes de mesure et de vérification, mémoire par marque |
 | `270-fn-calib-complete.ps1` | Calibration complète : lancement, préchauffage, passes, analyse, fin |
+| `274-fn-contenu-calcul.ps1` | Mesure de la disquette sur l'image, calcul sans interface (12.8.1, lot A) : blocs et plan en carré latin, exclusions, contrôle par tête, facteur k* (`Get-ContentFactor`), facteur du lecteur (`Get-DriveK`, médiane des 3 dernières mesures), correction « lecteur cible », profil mis à l'échelle (`ConvertTo-ScaledSpec`), configuration (champ `Values` lu par `Get-RecValues`), arrêt « Failed to verify Track » (`Get-GwVerifyStop`) |
+| `276-fn-contenu-mesure.ps1` | Mesure de la disquette sur l'image, déroulé (12.8.1, lot B) : éligibilité (`Test-ContentMeasurable`), confirmation, passes et commandes gw, reprise après un arrêt de gw, relecture, analyse, enregistrement, écriture au facteur mesuré |
 | `280-fn-calib-surface.ps1` | Contrôle de surface et de vitesse des calibrations |
 | `290-fn-calib-b.ps1` | « Refaire sur une autre disquette » (calibration B) |
 | `300-fn-restauration.ps1` | Restauration : étapes, lecture, sonde, écriture, comparaison, rapport |
@@ -55,6 +60,7 @@ Dans tous les modules, aucune instruction n'est à cheval sur deux modules, et c
 | `540-ui-accueil-restauration-barre.ps1` | Accueil, interface de la Restauration, barre d'état, journal |
 | `550-etat-nettoyage.ps1` | Principe et état du nettoyage des têtes |
 | `560-etat-calibration.ps1` | Principe et constantes de la calibration, état des courbes |
+| `565-etat-contenu.ps1` | Constantes et état de la mesure de la disquette sur l'image (12.8.1, lot B) |
 | `570-etat-controle-ecriture.ps1` | Principe et état du contrôle après écriture |
 | `580-etat-restauration.ps1` | Principe, état et règles de la restauration |
 | `590-etat-detection.ps1` | État de la détection des lecteurs |

@@ -27,7 +27,7 @@ param(
 )
 
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
-$script:Version = '12.8'
+$script:Version = '12.8.1'
 # Version du calcul de calibration (motif de test, mesure du decalage, ajustement de la courbe, verification), enregistree
 # avec chaque courbe : a changer seulement quand ce calcul change. Une courbe faite avec ce calcul est reprise par les
 # versions suivantes de l application ; une courbe d un autre calcul n est reprise que si l utilisateur la conserve.
@@ -35,6 +35,10 @@ $script:CalibCalc = '12.6'
 # 12.7 : version du calcul de la famille haute densite (hd), distincte : son bareme provisoire changera apres les premieres
 # mesures reelles sans rouvrir le choix des courbes double densite (Get-CurveCalcRef)
 $script:CalibCalcHd = '12.7'
+# 12.8.1 : version de la mesure de la disquette sur l image (marge comptee sur le contenu de l image, facteur k par tete),
+# enregistree avec chaque mesure (write.driveFactors) : une mesure d une autre version n est plus le facteur du lecteur
+# (Get-DriveK). Distincte de CalibCalc : la calibration du lecteur (courbe V) ne change pas
+$script:ContentCalc = '12.8.1'
 $script:CalibAlgo = 'seg1'       # famille de modele de la courbe (information enregistree avec chaque courbe)
 $script:OldCalib = $null         # calibrations d un autre calcul, mises de cote au chargement en attendant le choix
 
@@ -2092,6 +2096,106 @@ function Format-UiNum([double]$v, [string]$fmt = '0.#') {
     return $v.ToString($fmt, $ci)
 }
 
+# --- Textes de la mesure de la disquette sur l image (12.8.1, lot B) ------------
+# Entrees de la table I18n (010) des textes de 276 (deroule de la mesure), 260 (choix de la mesure avant l ecriture
+# lente), 270 (progression, prechauffage), 200 (zone de progression de l Accueil) et 110 : cle francaise, valeur anglaise ;
+# placeholders {n} identiques dans les deux langues (spec-1281.md § D.5, T-B1 a T-B29)
+$script:I18n["Mesure de la disquette sur l'image"] = 'Disk measurement on the image'
+$script:I18n["Avant l'écriture lente, la précompensation est mesurée sur le contenu même de l'image, sur le lecteur {0} : {1} cylindres répartis sur le disque sont écrits 3 fois, à 3 niveaux de la courbe du lecteur ({2}), et relus après chaque passe. L'image est ensuite écrite avec, pour chaque tête, le niveau qui donne la meilleure marge de lecture.`n`nDurée : environ {3} min avant l'écriture de l'image. Ces pistes reçoivent 3 écritures de plus.`n`n« Écrire sans mesure » : facteur actuel du lecteur, tête 0 × {4}, tête 1 × {5}."] = "Before the slow write, precompensation is measured on the image content itself, on drive {0}: {1} cylinders spread over the disk are written 3 times, at 3 levels of the drive curve ({2}), and read back after each pass. The image is then written with, for each head, the level that gives the best read margin.`n`nDuration: about {3} min before the image is written. These tracks get 3 more writes.`n`n`"Write without measuring`": current drive factor, head 0 × {4}, head 1 × {5}."
+$script:I18n['Mesurer puis écrire'] = 'Measure, then write'
+$script:I18n['Écrire sans mesure'] = 'Write without measuring'
+$script:I18n['Mesure de la disquette'] = 'Disk measurement'
+$script:I18n["=== Mesure de la disquette sur l'image : lecteur {0}, image {1} ({2}) ; {3} cylindres ({4}), niveaux {5} × courbe du lecteur ; calibration du lecteur inchangée ==="] = '=== Disk measurement on the image: drive {0}, image {1} ({2}); {3} cylinders ({4}), levels {5} × drive curve; drive calibration unchanged ==='
+$script:I18n["Mesure sur l'image : courbe du lecteur du {0} ({1}) ; précompensation écrite bornée à 0..{2} ns."] = 'Measurement on the image: drive curve of {0} ({1}); written precompensation bounded to 0..{2} ns.'
+$script:I18n["Mesure sur l'image : passe {0}/{1}, {2}"] = 'Measurement on the image: pass {0}/{1}, {2}'
+$script:I18n['tête 0 puis tête 1'] = 'head 0 then head 1'
+$script:I18n["Mesure de la disquette sur l'image : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})"] = 'Disk measurement on the image: {4} %, about {5} left (pass {0}/{1}, {2}, {3})'
+$script:I18n["[tête {0}] Mesure sur l'image, passe {1}/{2} (cylindre, niveau, précomp écrite -> marge fixe, ns) : {3}"] = '[head {0}] Measurement on the image, pass {1}/{2} (cylinder, level, written precomp -> fixed margin, ns): {3}'
+$script:I18n["Mesure sur l'image : gw s'est arrêté sur la piste {0}.{1} (vérification refusée après les nouveaux essais) ; elle reste dans la mesure, à son niveau. Reprise de la tête {1} aux cylindres {2}."] = 'Measurement on the image: gw stopped at track {0}.{1} (verification failed after the retries); it stays in the measurement, at its level. Head {1} resumed at cylinders {2}.'
+$script:I18n["Mesure sur l'image : gw s'est arrêté sur la piste {0}.{1} (vérification refusée après les nouveaux essais), dernière de la commande ; elle reste dans la mesure, à son niveau."] = 'Measurement on the image: gw stopped at track {0}.{1} (verification failed after the retries), the last one of the command; it stays in the measurement, at its level.'
+$script:I18n["Mesure sur l'image : nouvel arrêt de gw sur la tête {0} à cette passe (piste {1}.{0}) : cylindres {2} non écrits à cette passe, écartés de la mesure."] = 'Measurement on the image: gw stopped again on head {0} in this pass (track {1}.{0}): cylinders {2} not written in this pass, left out of the measurement.'
+$script:I18n["Mesure sur l'image : arrêt de gw annoncé sur la piste {0}.{1}, hors de la commande de la tête {2} : cylindres {3} non écrits à cette passe, écartés de la mesure."] = 'Measurement on the image: gw stop reported at track {0}.{1}, outside the command of head {2}: cylinders {3} not written in this pass, left out of the measurement.'
+$script:I18n["Mesure sur l'image : pistes écartées : {0}."] = 'Measurement on the image: tracks left out: {0}.'
+$script:I18n["absentes de l'image : {0}"] = 'missing from the image: {0}'
+$script:I18n['longues : {0}'] = 'long: {0}'
+$script:I18n['protégées (IPF) : {0}'] = 'protected (IPF): {0}'
+$script:I18n['vides ou effacées : {0}'] = 'empty or erased: {0}'
+$script:I18n['longueur hors norme : {0}'] = 'abnormal length: {0}'
+$script:I18n['non MFM ou illisibles à tous les niveaux : {0}'] = 'not MFM or unreadable at every level: {0}'
+$script:I18n['non écrites (arrêt de gw) : {0}'] = 'not written (gw stopped): {0}'
+$script:I18n['{0}Facteur mesuré : k = {1} (sommet {2} ± {3} ; marge à k : {4} ns par rapport à k = 1 ; {5} cylindres, {6} pistes ; écart-type résiduel {7} ns).'] = '{0}Measured factor: k = {1} (vertex {2} ± {3}; margin at k: {4} ns against k = 1; {5} cylinders, {6} tracks; residual standard deviation {7} ns).'
+$script:I18n['{0}Optimum à la borne basse du plan ({1}) ou en dessous : k = {1} retenu.'] = '{0}Optimum at the lower bound of the plan ({1}) or below: k = {1} used.'
+$script:I18n['{0}Optimum à la borne haute du plan (1) ou au-dessus : k = 1 retenu, comme la courbe du lecteur.'] = '{0}Optimum at the upper bound of the plan (1) or above: k = 1 used, like the drive curve.'
+$script:I18n['{0}Marge peu sensible au niveau dans le plan : facteur peu déterminé.'] = '{0}Margin barely sensitive to the level in the plan: factor poorly determined.'
+$script:I18n['{0}Facteur non mesuré ({1}) : facteur du lecteur appliqué ({2}).'] = '{0}Factor not measured ({1}): drive factor applied ({2}).'
+$script:I18n['trop peu de pistes exploitables ({0} cylindres)'] = 'too few usable tracks ({0} cylinders)'
+$script:I18n['ajustement impossible'] = 'fit impossible'
+$script:I18n['k {0}, médiane des {1} dernières mesures du lecteur'] = 'k {0}, median of the last {1} measurements of the drive'
+$script:I18n['k {0} de la dernière mesure du lecteur, du {1}'] = 'k {0} from the last measurement of the drive, on {1}'
+$script:I18n['k 1, aucune mesure de ce lecteur'] = 'k 1, no measurement for this drive'
+$script:I18n["Mesure de la disquette sur l'image terminée en {0} : écriture de l'image avec le facteur mesuré."] = 'Disk measurement on the image finished in {0}: writing the image with the measured factor.'
+$script:I18n["Mesure sur l'image terminée en {0}"] = 'Measurement on the image finished in {0}'
+$script:I18n["Mesure sur l'image non faite ({0}) : calibration rapide au motif avant cette écriture."] = 'Measurement on the image not done ({0}): quick calibration on the test pattern before this write.'
+$script:I18n['image non mesurable sur son contenu (haute densité, flux, FM ou GCR)'] = 'image cannot be measured on its content (high density, flux, FM or GCR)'
+$script:I18n['aucune courbe du lecteur {0}'] = 'no curve for drive {0}'
+$script:I18n["courbe d'un autre lecteur ({0})"] = 'curve of another drive ({0})'
+$script:I18n['champ Pistes : {0}'] = 'Tracks field: {0}'
+$script:I18n["moins de 20 cylindres dans l'image"] = 'fewer than 20 cylinders in the image'
+$script:I18n["trop de pistes exclues de l'image (protégées, longues ou vides)"] = 'too many tracks excluded from the image (protected, long or empty)'
+$script:I18n["courbe du lecteur plus courte que l'image ({0} cylindres, {1} dans l'image)"] = 'drive curve shorter than the image ({0} cylinders, {1} in the image)'
+$script:I18n["Mesure sur l'image non faite à votre demande : écriture avec le facteur du lecteur."] = 'Measurement on the image skipped at your request: writing with the drive factor.'
+$script:I18n['Écriture annulée : mesure de la disquette non lancée.'] = 'Write cancelled: disk measurement not started.'
+$script:I18n['Écriture annulée : une commande gw est déjà en cours, mesure de la disquette non lancée.'] = 'Write cancelled: a gw command is already running, disk measurement not started.'
+$script:I18n["Mesure sur l'image : relecture absente ou illisible ({0}) : mesure arrêtée."] = 'Measurement on the image: read-back missing or unreadable ({0}): measurement stopped.'
+$script:I18n['fichier absent'] = 'file missing'
+$script:I18n['fichier sans en-tête SCP'] = 'file without SCP header'
+$script:I18n["Préchauffage du lecteur {0} : {1} de lecture sans écriture avant la mesure de la disquette sur l'image et l'écriture lente."] = 'Drive {0} warm-up: {1} of reading without writing before the disk measurement on the image and the slow write.'
+$script:I18n["Préchauffage du lecteur {0} : {1} de lecture sans écriture avant la mesure de la disquette sur l'image et l'écriture lente (durée réduite : lecteur déjà en activité pendant {2}, dernière commande terminée il y a {3})."] = 'Drive {0} warm-up: {1} of reading without writing before the disk measurement on the image and the slow write (reduced duration: drive already active for {2}, last command finished {3} ago).'
+$script:I18n['Mesure de la disquette en cours : lecteur {0}, {1}'] = 'Disk measurement in progress: drive {0}, {1}'
+$script:I18n["Test rapide : mesure au motif (calibration rapide) ; la mesure sur l'image ne se fait qu'en test standard ou fin, avec la case « Mesurer la disquette avant l'écriture lente »."] = 'Quick test: measurement on the test pattern (quick calibration); the measurement on the image is only done in standard or fine test, with the "Measure the disk before the slow write" box.'
+$script:I18n["Restauration : destination mesurée au motif (calibration rapide) ; la mesure sur l'image ne se fait pas en restauration."] = 'Restore: destination measured on the test pattern (quick calibration); the measurement on the image is not done during a restore.'
+# --- Textes de la 12.8.1, lot C : facteur de precompensation, correction « lecteur cible », liste « Mesure : » ------
+# Suite de la table $script:I18n (010-i18n) : cle francaise -> texte anglais, memes regles (placeholders {n} identiques,
+# `n pour les retours a la ligne). Principe : spec-1281.md, § D.5 (lot C) ; facteur sans mesure = mediane des 3 derniers
+# k* mesures (decision de l utilisateur du 25/10/2026)
+# Liste « Mesure : » et case de la mesure (520, Update-SlowUi)
+$script:I18n["sur l'image à écrire (environ 10 min)"] = 'on the image to write (about 10 min)'
+$script:I18n['rapide, au motif (1 à 2 min)'] = 'quick, on the test pattern (1 to 2 min)'
+$script:I18n['complète, au motif (20 à 25 min)'] = 'full, on the test pattern (20 to 25 min)'
+$script:I18n["Mesure de la disquette avant une écriture lente.`nSur l'image à écrire : 40 cylindres de l'image sont écrits à 3 niveaux de la courbe du lecteur et relus ; l'image est écrite avec le niveau qui donne la meilleure marge de lecture, pour chaque tête (environ 10 min). Images double densité MFM seulement ; sinon, calibration rapide au motif.`nRapide, au motif : calibration rapide sur le motif de test, 4 à 9 cylindres par tête (1 à 2 min).`nComplète, au motif : mesure complète de cette disquette sur tous ses cylindres (20 à 25 min), puis écriture de l'image ; la courbe obtenue est mémorisée pour la marque de la disquette.`n« Test rapide » et restauration : toujours la calibration rapide au motif."] = "Disk measurement before a slow write.`nOn the image to write: 40 cylinders of the image are written at 3 levels of the drive curve and read back; the image is written with the level that gives the best read margin, for each head (about 10 min). Double-density MFM images only; otherwise, quick calibration on the test pattern.`nQuick, on the test pattern: quick calibration on the test pattern, 4 to 9 cylinders per head (1 to 2 min).`nFull, on the test pattern: full measurement of this disk on all its cylinders (20 to 25 min), then the image is written; the resulting curve is stored for the brand of the disk.`n""Quick test"" and restore: always the quick calibration on the test pattern."
+$script:I18n["Mesurer la disquette avant l'écriture lente : précompensation mesurée sur l'image (environ 10 min)"] = 'Measure the disk before the slow write: precompensation measured on the image (about 10 min)'
+$script:I18n["Avant d'écrire l'image, l'application mesure la disquette insérée avec la mesure choisie dans la liste « Mesure : ».`nSur l'image à écrire : la marge de lecture est mesurée sur le contenu même de l'image, à trois niveaux de la courbe du lecteur, et l'image est écrite avec le meilleur, tête par tête. Au motif : le niveau de précompensation et l'état de la surface sont mesurés sur le motif de test.`nSans mesure sur l'image (case décochée, « Test rapide », restauration, image qui ne s'y prête pas), le facteur du lecteur s'applique : médiane des 3 derniers facteurs mesurés pour ce lecteur et cette tête, 1 tant qu'aucun n'est mesuré.`nPas de mesure en haute densité, pour une image flux, à une seule face, ou quand le champ Pistes limite l'écriture, ni avec un profil autre qu'Auto ou la case --precomp décochée."] = "Before writing the image, the application measures the inserted disk with the measurement chosen in the ""Measurement:"" list.`nOn the image to write: the read margin is measured on the image content itself, at three levels of the drive curve, and the image is written with the best one, head by head. On the test pattern: the precompensation level and the surface condition are measured on the test pattern.`nWithout a measurement on the image (box cleared, ""Quick test"", restore, image not suited to it), the drive factor applies: median of the last 3 factors measured for this drive and this head, 1 until one is measured.`nNo measurement in high density, for a flux image, a single-sided image, or when the Tracks field limits the write, nor with a profile other than Auto or the --precomp box cleared."
+$script:I18n["Liste « Calibration précomp » au « Test rapide » : la disquette est toujours mesurée au motif avant l'écriture, rapide ou lente (bouton ÉCRIRE, Bibliothèque, restauration) ; la case est alors cochée et verrouillée."] = '"Precomp calibration" list on "Quick test": the disk is always measured on the test pattern before the write, fast or slow (WRITE button, Library, restore); the box is then checked and locked.'
+# Correction « lecteur cible » (520, 140 : Update-TargetCorrUi, Set-TargetCorrFromUi ; {1} et {2} de l infobulle :
+# -TargetCorrMax et +TargetCorrMax, 040)
+$script:I18n['Correction lecteur cible ({0}) :'] = 'Target drive correction ({0}):'
+$script:I18n["Correction « lecteur cible » du lecteur {0}, par tête : elle s'ajoute au facteur de précompensation de chaque écriture, 0 par défaut.`nElle sert quand la disquette écrite ici sera lue par un autre lecteur (par exemple celui d'un Amiga) qui préfère une autre précompensation que ce lecteur.`nPour la régler : écrivez une disquette avec la mesure sur l'image, relisez-la sur ce lecteur puis sur le lecteur cible, et saisissez l'écart des facteurs optimaux (lecteur cible moins ce lecteur), de {1} à {2}. Laissez 0 si vous ne le connaissez pas.`nLe journal donne, à chaque écriture, le facteur appliqué à chaque tête."] = """Target drive"" correction of drive {0}, per head: it is added to the precompensation factor of each write, 0 by default.`nUse it when the disk written here will be read by another drive (for example an Amiga's) that prefers a different precompensation than this drive.`nTo set it: write a disk with the measurement on the image, read it back on this drive and then on the target drive, and enter the difference of the optimal factors (target drive minus this drive), from {1} to {2}. Leave 0 if you do not know it.`nThe log gives, for each write, the factor applied to each head."
+$script:I18n['Correction lecteur cible du lecteur {0}, tête {1} : {2} (avant : {3}).'] = 'Target drive correction of drive {0}, head {1}: {2} (before: {3}).'
+# Facteur de chaque ecriture (140 : Get-WriteFactorPlan, Get-WriteFactorSrcText, Get-WriteFactorNote)
+$script:I18n["Facteur de précompensation de cette écriture (lecteur {0}) : tête 0 × {1} ({2}) ; tête 1 × {3} ({4}). Courbe écrite = facteur × courbe, bornée à 0..{5} ns ; une valeur déjà au-dessus n'est jamais augmentée."] = 'Precompensation factor of this write (drive {0}): head 0 × {1} ({2}); head 1 × {3} ({4}). Written curve = factor × curve, bounded to 0..{5} ns; a value already above is never increased.'
+$script:I18n["Facteur de précompensation de cette écriture rapide (lecteur {0}) : × {1}, moyenne des deux têtes (tête 0 × {2}, {3} ; tête 1 × {4}, {5}). Courbe écrite = facteur × courbe, bornée à 0..{6} ns ; une valeur déjà au-dessus n'est jamais augmentée."] = 'Precompensation factor of this fast write (drive {0}): × {1}, average of both heads (head 0 × {2}, {3}; head 1 × {4}, {5}). Written curve = factor × curve, bounded to 0..{6} ns; a value already above is never increased.'
+$script:I18n['k {0} mesuré sur cette disquette, correction lecteur cible {1}'] = 'k {0} measured on this disk, target drive correction {1}'
+$script:I18n['k {0}, médiane des {1} dernières mesures du lecteur ({2}), correction lecteur cible {3}'] = 'k {0}, median of the last {1} measurements of the drive ({2}), target drive correction {3}'
+$script:I18n['k {0} de la dernière mesure du lecteur (du {1}), correction lecteur cible {2}'] = 'k {0} from the last measurement of the drive ({1}), target drive correction {2}'
+$script:I18n['k 1 (aucune mesure de ce lecteur), correction lecteur cible {0}'] = 'k 1 (no measurement for this drive), target drive correction {0}'
+$script:I18n['Facteur de la tête {0} ramené de {1} à {2} (il va de 0 à {3}).'] = 'Factor of head {0} brought from {1} to {2} (it ranges from 0 to {3}).'
+$script:I18n['Correction lecteur cible du lecteur {0} non appliquée à cette écriture : {1}.'] = 'Target drive correction of drive {0} not applied to this write: {1}.'
+$script:I18n['Facteur mesuré du lecteur {0} (tête 0 × {1}, tête 1 × {2}) non appliqué à cette écriture : {3}.'] = 'Measured factor of drive {0} (head 0 × {1}, head 1 × {2}) not applied to this write: {3}.'
+$script:I18n['profil précomp. « {0} »'] = 'precomp profile "{0}"'
+$script:I18n['précompensation désactivée'] = 'precompensation disabled'
+$script:I18n['image haute densité'] = 'high-density image'
+$script:I18n['image non calibrable en double densité'] = 'image not calibratable in double density'
+$script:I18n['aucune courbe du lecteur'] = 'no drive curve'
+# « courbe d'un autre lecteur ({0}) » : definie dans 012-i18n-contenu (lot B), meme traduction
+$script:I18n[" ; facteur appliqué à l'écriture : tête 0 × {0}, tête 1 × {1}"] = '; factor applied to the write: head 0 × {0}, head 1 × {1}'
+$script:I18n[" ; facteur appliqué à l'écriture rapide : × {0}, moyenne des deux têtes"] = '; factor applied to the fast write: × {0}, average of both heads'
+# Configuration (120 : Update-LegacyLevelMode, Test-ContentLevelSettings, Load-Config)
+$script:I18n["Mesure de la disquette avant l'écriture lente : la liste « Mesure : » passe de « rapide » à « sur l'image à écrire », la nouvelle mesure de la version 12.8.1. Pour revenir à la calibration rapide, choisissez « rapide, au motif »."] = 'Disk measurement before the slow write: the "Measurement:" list changes from "quick" to "on the image to write", the new measurement of version 12.8.1. To go back to the quick calibration, choose "quick, on the test pattern".'
+$script:I18n["Niveaux de la mesure sur l'image (contentKMid, contentKLow) incohérents ({0} ; {1}) : {2} et {3} par défaut. Le niveau bas va de 0 à 0,5, le niveau moyen de 0,3 à 0,8, et le niveau bas reste inférieur d'au moins 0,2 au niveau moyen."] = 'Levels of the measurement on the image (contentKMid, contentKLow) inconsistent ({0}; {1}): {2} and {3} by default. The low level ranges from 0 to 0.5, the middle level from 0.3 to 0.8, and the low level stays at least 0.2 below the middle level.'
+$script:I18n['Configuration : {0} facteur(s) mesuré(s) illisible(s), ignoré(s) ; {1} correction(s) lecteur cible illisible(s), ignorée(s) ou comptée(s) 0.'] = 'Configuration: {0} unreadable measured factor(s), ignored; {1} unreadable target drive correction(s), ignored or counted as 0.'
+# Effacer les calibrations (240 : Reset-CalibProfiles)
+$script:I18n["Les {0} facteur(s) mesuré(s) des lecteurs (mesure de la disquette sur l'image) sont effacés aussi : les écritures suivantes reprennent le facteur 1 jusqu'à une nouvelle mesure. La correction « lecteur cible » est gardée."] = 'The {0} measured drive factor(s) (disk measurement on the image) are cleared too: the next writes go back to factor 1 until a new measurement. The "target drive" correction is kept.'
+$script:I18n["Facteurs mesurés des lecteurs effacés avec les calibrations ({0}) ; la correction « lecteur cible » est gardée."] = 'Measured drive factors cleared with the calibrations ({0}); the "target drive" correction is kept.'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 try { Add-Type -AssemblyName System.IO.Compression.FileSystem } catch { }
@@ -2730,8 +2834,13 @@ $script:SettingDefs = [ordered]@{
     levelBeforeWrite   = @{ Sec = 'write';   Key = 'levelBeforeWrite';   Type = 'bool';   Def = $true }
     # 12.8 (S3, decision du 21/10/2026) : mesure de la disquette avant une ecriture lente : calibration rapide ('quick') ou
     # mesure complete de cette disquette ('complete', reference du lecteur inchangee) ; liste cmbWLevelMode de l onglet
-    # Ecriture, dans l ordre de ses elements
-    levelBeforeWriteMode = @{ Sec = 'write'; Key = 'levelBeforeWriteMode'; Type = 'enum'; Def = 'quick'; Codes = @('quick', 'complete') }
+    # Ecriture, dans l ordre de ses elements. 12.8.1 (spec-1281 § A.1) : mesure sur l image a ecrire ('content', nouveau
+    # defaut) en tete de liste ; une configuration 12.8 a 'quick' passe a 'content' une fois (Update-LegacyLevelMode)
+    levelBeforeWriteMode = @{ Sec = 'write'; Key = 'levelBeforeWriteMode'; Type = 'enum'; Def = 'content'; Codes = @('content', 'quick', 'complete') }
+    # 12.8.1 (spec-1281 § A.4) : niveaux moyen et bas de la mesure sur l image (k x courbe du lecteur, le haut vaut 1),
+    # dans la configuration seulement ; controles ensemble au chargement (Test-ContentLevelSettings : bas <= moyen - 0,2)
+    contentKMid        = @{ Sec = 'write';   Key = 'contentKMid';        Type = 'double'; Def = 0.6;      Min = 0.3; Max = 0.8; Var = 'ContentKMid' }
+    contentKLow        = @{ Sec = 'write';   Key = 'contentKLow';        Type = 'double'; Def = 0.25;     Min = 0.0; Max = 0.5; Var = 'ContentKLow' }
     precompProfile     = @{ Sec = 'write';   Key = 'precompProfileCode'; Type = 'enum';   Def = 'auto';   Codes = @('auto', 'std', 'long', 'manual'); LegacyKey = 'precompProfile'; Text = $true
                             Legacy = @{ 'Auto (selon image)' = 'auto'; 'Auto (from image)' = 'auto'; 'Standard 2 us' = 'std'; 'Long track 1,89 us' = 'long'; 'Long track 1.89 us' = 'long'; 'Manuel' = 'manual'; 'Manual' = 'manual' } }
     precompThresholdNs = @{ Sec = 'write';   Key = 'precompThresholdNs'; Type = 'int';    Def = $script:PrecompThresholdNs; Min = 0; Max = 100000; Var = 'PrecompThresholdNs' }
@@ -2754,6 +2863,19 @@ $script:SettingCtl  = @{}                                                   # cl
 $script:SettingOf   = New-Object 'System.Collections.Generic.Dictionary[object,string]'   # controle lie -> cle
 $script:SettingSync = $false                                                # garde de reentrance des liaisons
 $script:OpOverride  = $null                                                 # 12.8 (D4) : surcharge d une operation (Enter-OpOverride)
+$script:ContentKMid = [double]$script:SettingDefs['contentKMid'].Def        # 12.8.1 : niveaux de la mesure sur l image (Get-Setting)
+$script:ContentKLow = [double]$script:SettingDefs['contentKLow'].Def
+# 12.8.1 : bornes uniques du facteur de precompensation d une ecriture, definies ici, avant l interface (520).
+#  - TargetCorrMax : correction « lecteur cible » Dk, de -TargetCorrMax a +TargetCorrMax (Set-DriveDk,
+#    ConvertFrom-TargetCorrConfig : 274 ; champs numWTgt0 et numWTgt1 : 520 ; infobulle : 140) ;
+#  - ContentFMax : plafond du facteur ecrit k + Dk, ramene a 0..ContentFMax (Limit-WriteFactor : 274 ; Get-WriteFactorPlan :
+#    140 ; 276). La courbe ecrite reste bornee a 0..CalHardNs (ConvertTo-ScaledSpec, 274).
+# Portees le 26/10/2026 de 0,5 a 3,0 et de 1,5 a 4,0 : mesures reelles du couple Sony -> TEAC (courbe du Sony tres basse),
+# Dk d environ +1,75 et facteur total k + Dk d environ 2,6 ; marge au-dessus. La protection en ns reste la borne absolue
+# des valeurs ecrites, 0..CalHardNs
+$script:TargetCorrMax = 3.0
+$script:ContentFMax = 4.0
+$script:WFactorNote = $null                                                 # 12.8.1 : complement « facteur » du libelle du profil (Update-WriteFactorNote)
 
 $Formats = @('(auto)','amiga.amigados','amiga.amigados_hd','atarist.720','atarist.800','atarist.880',
              'ibm.360','ibm.720','ibm.1440','ibm.scan','commodore.1541','mac.800','raw.250','raw.500')
@@ -3546,6 +3668,10 @@ function Get-LogColor([string]$line) {
     # 12.8 (lot 1c, point 1) : mesures par cylindre d une passe de calibration (« erreur-type », « standard error ») :
     # donnees, jamais une erreur (le journal masque ne s ouvre pas pour elles)
     if ($line -match '^\[[^\]]+\] (Mesures de la passe .+ \(valeur écrite -> |Pass .+ measurements \(written value -> )') { return $script:LogColors.dim }
+    # 12.8.1 : mesure de la disquette sur l image : lectures par cylindre d une passe (donnees) ; arrets de gw repris,
+    # pistes ecartees (« illisibles »), facteur borne, peu determine ou non mesure : reserves, jamais une erreur
+    if ($line -match '^\[[^\]]+\] (Mesure sur l''image, passe |Measurement on the image, pass )') { return $script:LogColors.dim }
+    if ($line -match '^Mesure sur l''image : (gw s''est arrêté|nouvel arrêt de gw|arrêt de gw annoncé|pistes écartées)|^Measurement on the image: (gw stop|tracks left out)|^\[[^\]]+\] (Optimum à la borne|Marge peu sensible|Facteur non mesuré|Optimum at the|Margin barely|Factor not measured)') { return $script:LogColors.warn }
     # Lignes de synthese du controle apres ecriture : simples comptes par etat (« 0 critique(s) » n est pas une erreur)
     if ($line -match '^(Contrôle complet|Full check|Remesure après réécriture|Re-measure after rewrite)\b') { return $script:LogColors.std }
     # 12.8 (lot 3a) : lignes de qualite, une couleur par niveau. « erreurs » / « errors » du texte de SUPPORT SAIN et
@@ -3771,6 +3897,8 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
     # commande, seulement si le moteur a tourne). Nom distinct du parametre Soft (PowerShell ignore la casse).
     $warmRead = [bool]([bool]$Soft -or ($script:Cal -and $script:Cal.Stage -eq 'warmup' -and $first -eq 'read'))
     Start-Progress $(if ($warmRead) { (T 'Préchauffage') } elseif ($verbs.ContainsKey($first)) { $verbs[$first] } else { "gw $first" })
+    # 12.8.1 (spec-1281.md § A.7) : arret « Failed to verify Track C.H » de la commande, pose par Read-GwOutput (ecriture)
+    $script:GwVerifyFail = $null
     if ($script:GwIsWrite) { $script:WriteRetries = @{}; $script:WriteTracks = @{} }
     $script:GwWriteSummary = $false
     $driveKey = if ($script:Detect) { $null } else { Get-GwDriveKey $gwArgs }
@@ -3874,8 +4002,25 @@ function Read-GwOutput([bool]$flush) {
             if ($l -match '^T(\d+)\.(\d+)\b[^:]*: Writing Track') { $script:WriteTracks["$($Matches[1]).$($Matches[2])"] = $true }
             if ($l -match '^(All tracks verified|No tracks verified|\d+ tracks verified)') { $script:GwWriteSummary = $true }
         }
+        # 12.8.1 (A.7) : gw 1.23 arrete la commande sur une piste refusee a la verification apres les nouveaux essais
+        # (« ** FATAL ERROR: » puis « Failed to verify Track C.H », sur stderr) : premiere occurrence gardee, lue par la
+        # mesure sur l image (Invoke-ContentWriteNext) et par la regle douce du minuteur principal (600)
+        $vs = Get-GwVerifyStop $lines
+        if ($vs -and -not $script:GwVerifyFail) { $script:GwVerifyFail = $vs }
     }
     if ($lines.Count -gt 0) { Append-Log ($lines -join [Environment]::NewLine) }
+}
+
+function Get-GwEndRule([int]$code, [bool]$soft, [bool]$isWrite, [bool]$summary, [int]$progTotal, [int]$progSeen, $verifyFail, [string]$calMode) {
+    # Regle de fin d une commande gw (minuteur principal, 600), sans etat : arguments releves par le minuteur apres le
+    # dernier Read-GwOutput. Soft : lecture de prechauffage ($soft), ou 12.8.1 (spec-1281.md § A.7) ecriture de la mesure
+    # sur l image ($calMode 'content') arretee sur une piste refusee a la verification ($verifyFail, Read-GwOutput), quel
+    # que soit le code retour (1 en gw 1.23 ; 0 admis : revue 12.8.1, point 1). Incomplete : arret silencieux avec le code 0
+    # (ecriture sans ligne de bilan ; autre commande : moins de la moitie des pistes annoncees), sans effet si Soft.
+    # Next : etape suivante de la chaine (code 0 ou Soft)
+    if (-not $soft -and $isWrite -and $verifyFail -and $calMode -eq 'content') { $soft = $true }
+    $inc = if ($isWrite) { $code -eq 0 -and -not $summary } else { $code -eq 0 -and $progTotal -gt 0 -and $progSeen * 2 -lt $progTotal }
+    return @{ Soft = $soft; Incomplete = [bool]$inc; Next = ($code -eq 0 -or $soft) }
 }
 # ============================== FONCTIONS : CONFIGURATION ======================
 
@@ -3941,6 +4086,8 @@ function Get-Setting([string]$k) {
         'precompThresholdNs' { return [int]$script:PrecompThresholdNs }
         'jitterOk'           { return [int]$script:JitterOk }
         'jitterWatch'        { return [int]$script:JitterWatch }
+        'contentKMid'        { return [double]$script:ContentKMid }     # 12.8.1 : niveaux de la mesure sur l image (276)
+        'contentKLow'        { return [double]$script:ContentKLow }
     }
     return $script:Settings[$k]
 }
@@ -3953,6 +4100,8 @@ function Set-SettingStore([string]$k, $v) {
         'precompThresholdNs' { $script:PrecompThresholdNs = [int]$v; return }
         'jitterOk'           { Set-JitterThresholds ([int]$v) ([int]$script:JitterWatch); return }
         'jitterWatch'        { Set-JitterThresholds ([int]$script:JitterOk) ([int]$v); return }
+        'contentKMid'        { $script:ContentKMid = [double]$v; return }
+        'contentKLow'        { $script:ContentKLow = [double]$v; return }
     }
     $script:Settings[$k] = $v
 }
@@ -4086,6 +4235,40 @@ function Update-LegacyCleanDefault($cfg) {
     Append-Log ((T "Nettoyage de l'onglet Outils : ancien réglage par défaut (3 passes, {0} ms par position) remplacé par le nouveau, 3 passes de {1} ms par position, comme le préréglage « Standard » de la fenêtre « Nettoyage des têtes ».") -f '100', "$(Get-Setting 'cleanLinger')")
 }
 
+function Update-LegacyLevelMode($cfg) {
+    # 12.8.1 (spec-1281 § C.6) : liste « Mesure : » de l onglet Ecriture. Configuration d une version anterieure (section
+    # write sans contentCalc) a « rapide » : la 12.8 ecrivait son defaut a chaque enregistrement, defaut et choix explicite
+    # ne se distinguent pas : mesure sur l image a ecrire, ligne de journal ; « complete » (choix explicite, la 12.8 ayant
+    # « rapide » pour defaut) gardee. contentCalc est ecrit au prochain enregistrement : migration faite une fois.
+    # Load-Config, apres Import-Settings des reglages de l ecriture lente
+    $w = Get-Cfg $cfg 'write' $null
+    if ($null -eq $w -or $null -ne (Get-Cfg $w 'contentCalc' $null)) { return }
+    if ((Get-Setting 'levelBeforeWriteMode') -ne 'quick') { return }
+    Set-Setting 'levelBeforeWriteMode' 'content'
+    Append-Log (T "Mesure de la disquette avant l'écriture lente : la liste « Mesure : » passe de « rapide » à « sur l'image à écrire », la nouvelle mesure de la version 12.8.1. Pour revenir à la calibration rapide, choisissez « rapide, au motif ».")
+}
+
+function Test-ContentLevelSettings($cfg) {
+    # 12.8.1 (spec-1281 § A.4) : niveaux moyen et bas de la mesure sur l image (contentKMid, contentKLow, configuration
+    # seulement) controles ensemble au chargement : valeurs lisibles et dans les bornes de la table, et bas <= moyen - 0,2 ;
+    # sinon les deux defauts, ligne de journal. Load-Config, apres Import-Settings
+    $w = Get-Cfg $cfg 'write' $null
+    $bad = $false
+    foreach ($k in @('contentKMid', 'contentKLow')) {
+        $raw = Get-Cfg $w $k $null
+        if ($null -eq $raw) { continue }
+        $x = ConvertTo-FiniteOrNull $raw
+        if ($null -eq $x -or [math]::Abs([double]$x - [double](Get-Setting $k)) -gt 1e-9) { $bad = $true }
+    }
+    $m = [double](Get-Setting 'contentKMid'); $l = [double](Get-Setting 'contentKLow')
+    if ($l -gt $m - 0.2 + 1e-9) { $bad = $true }
+    if (-not $bad) { return }
+    $rm = Get-Cfg $w 'contentKMid' $m; $rl = Get-Cfg $w 'contentKLow' $l
+    $dm = [double]$script:SettingDefs['contentKMid'].Def; $dl = [double]$script:SettingDefs['contentKLow'].Def
+    Set-Setting 'contentKMid' $dm; Set-Setting 'contentKLow' $dl
+    Append-Log ((T "Niveaux de la mesure sur l'image (contentKMid, contentKLow) incohérents ({0} ; {1}) : {2} et {3} par défaut. Le niveau bas va de 0 à 0,5, le niveau moyen de 0,3 à 0,8, et le niveau bas reste inférieur d'au moins 0,2 au niveau moyen.") -f "$rm", "$rl", (Format-UiNum $dm '0.0#'), (Format-UiNum $dl '0.0#'))
+}
+
 # --- Configuration -------------------------------------------------------------
 function Set-Defaults {
     $script:CalHardNs = $script:CalHardNsDefault; $script:CalHardNsUser = $script:CalHardNs; Set-CalibScale ''   # 12.7 : bareme double densite
@@ -4180,6 +4363,9 @@ function Set-Defaults {
     $cmbHelpAct.SelectedItem = 'write'
     $txtC.Text = 'write --pre-erase --erase-empty --retries=10 --precomp 40=140 "jeu.ipf"'
     Update-CurveButton $txtWFile.Text
+    # 12.8.1 (spec-1281 § D.2) : champs de la correction « lecteur cible » du lecteur du bandeau (valeurs par lecteur,
+    # gardees comme les calibrations : $script:TargetCorr n est pas remis)
+    Update-TargetCorrUi
 }
 
 function Backup-ConfigBeforeRef([string[]]$keys, [string]$why = 'replace') {
@@ -4252,6 +4438,10 @@ function Save-Config {
     if ($oc) { $lvCfg += @(@($oc.Levels.Values) | Where-Object { $_ -and -not $script:PrecompCurves[$_.RefKey] } | ForEach-Object { ConvertTo-LevelConfig $_ }) }
     # 12.8 (lot 1c, § 10.2) : memoire par marque de disquette (une 12.7 l ignore)
     $brCfg = @(@($script:LevelBrands) | Where-Object { $_ } | ForEach-Object { ConvertTo-LevelBrandConfig $_ })
+    # 12.8.1 (spec-1281 § C.5) : facteurs mesures des lecteurs (mesure de la disquette sur l image, un enregistrement par
+    # tete mesuree) et correction « lecteur cible » par lecteur ; une 12.8 les ignore
+    $cmCfg = @(@($script:ContentMeasures) | Where-Object { $_ } | ForEach-Object { ConvertTo-ContentConfig $_ })
+    $tcCfg = @(ConvertTo-TargetCorrConfig)
     $cfg = [ordered]@{
         _comment = (T 'Configuration GreaseweazleGUI - régénérée automatiquement. Supprimable sans risque.')
         _saved   = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
@@ -4280,6 +4470,7 @@ function Save-Config {
             precompCurves = $curvesCfg
             levelAlgo = $script:LevelFormat; levelShifts = $lvCfg   # 12.8 (G2) : format 'lvl1', relu par une 12.7
             levelBrand = [string]$script:LevelBrand; levelBrands = $brCfg
+            contentCalc = $script:ContentCalc; driveFactors = $cmCfg; targetCorrection = $tcCfg   # 12.8.1 (marqueur de migration : Update-LegacyLevelMode)
             tracks = $txtWTracks.Text; densel = $cmbWDensel.Text
             fakeIndex = $txtWFakeIdx.Text; diskdefs = $txtWDiskdefs.Text
         }
@@ -4309,7 +4500,7 @@ function Save-Config {
         restore  = @{ folder = $txtRsDir.Text }
     }
     # 12.8 (point 7) : reglages de la table (global.drive ; write.calMode, slowWrite, slowWarmup, calibWarmup,
-    # calWarmupMinutes, levelBeforeWrite, levelBeforeWriteMode, precompProfileCode et precompProfile, precompThresholdNs ; ui.homeCalHeads et
+    # calWarmupMinutes, levelBeforeWrite, levelBeforeWriteMode, contentKMid et contentKLow (12.8.1), precompProfileCode et precompProfile, precompThresholdNs ; ui.homeCalHeads et
     # homeCalCyls ; align.presetCode et preset ; quality ; tools.passes et linger ; restore.formatChoice ;
     # compare.formatChoice ; library.dat, lot 4b), puis, pendant
     # une operation surchargee (D4 : ecriture depuis la Bibliotheque ; lot 2 : restauration), reglages de l onglet
@@ -4443,6 +4634,16 @@ function Load-Config {
     $script:LevelBrands = @(); $brBad = 0
     foreach ($o in @(Get-Cfg $w 'levelBrands' @())) { $en = ConvertFrom-LevelBrandConfig $o; if ($en) { $script:LevelBrands += ,$en } else { $brBad++ } }
     if ($brBad -gt 0) { Append-Log ((T 'Mémoire par marque de disquette : {0} entrée(s) illisible(s) ignorée(s).') -f "$brBad") }
+    # 12.8.1 (spec-1281 § C.5) : facteurs mesures des lecteurs (enregistrement illisible : ignore) et correction « lecteur
+    # cible » par lecteur (valeur illisible : 0, hors bornes : ramenee a -TargetCorrMax..TargetCorrMax, 040) ; une ligne
+    # de journal pour les deux.
+    # Enregistrements d un autre calcul gardes : Get-DriveK ne les retient pas (decision du 25/10/2026 : facteurs gardes
+    # apres une recalibration du lecteur, date de la courbe non exigee)
+    $script:ContentMeasures = @(); $cmBad = 0
+    foreach ($o in @(Get-Cfg $w 'driveFactors' @())) { $rec = ConvertFrom-ContentConfig $o; if ($rec) { $script:ContentMeasures += ,$rec } else { $cmBad++ } }
+    $tcr = ConvertFrom-TargetCorrConfig @(Get-Cfg $w 'targetCorrection' @())
+    $script:TargetCorr = $tcr.Map
+    if ($cmBad -gt 0 -or [int]$tcr.Bad -gt 0) { Append-Log ((T 'Configuration : {0} facteur(s) mesuré(s) illisible(s), ignoré(s) ; {1} correction(s) lecteur cible illisible(s), ignorée(s) ou comptée(s) 0.') -f "$cmBad", "$($tcr.Bad)") }
     $script:OldCalib = $null
     $calPurged = $lostProf
     if ($old.Count -gt 0) {
@@ -4479,6 +4680,7 @@ function Load-Config {
     $lateKeys = @('slowWrite', 'warmSlowWrite', 'warmFullCalib', 'levelBeforeWrite', 'levelBeforeWriteMode')
     Import-Settings $cfg -Except $lateKeys
     Update-LegacyCleanDefault $cfg             # 12.8 (D9) : ancien defaut du nettoyage de l onglet Outils
+    Test-ContentLevelSettings $cfg             # 12.8.1 : niveaux de la mesure sur l image, controles ensemble
     $chkWPostCheck.Checked = [bool](Get-Cfg $w 'postCheck' $true)
     $rm = [int](Get-Cfg $w 'repairMax' 3); $numWRepair.Value = [math]::Max(0, [math]::Min(10, $rm))
     $numWRepair.Enabled = $chkWPostCheck.Checked; $lblWRepair.Enabled = $chkWPostCheck.Checked
@@ -4488,7 +4690,9 @@ function Load-Config {
     # Champs --precomp remplis par une ancienne calibration : profil d origine (sauf profil manuel, choisi par l utilisateur)
     if ($calPurged -and (Get-Setting 'precompProfile') -ne 'manual') { $txtWPrecomp.Text = $script:PrecompStd; $txtWPrecomp1.Text = $script:PrecompStd }
     Import-Settings $cfg -Only $lateKeys       # ecriture lente, prechauffages (D6), mesure de la disquette et son mode (S3)
+    Update-LegacyLevelMode $cfg                # 12.8.1 : liste « Mesure : » d une configuration 12.8, rapide -> sur l image
     Update-SlowUi
+    Update-TargetCorrUi                        # 12.8.1 : correction « lecteur cible » du lecteur du bandeau
     $txtWTracks.Text   = [string](Get-Cfg $w 'tracks' '')
     Set-Combo $cmbWDensel (Get-Cfg $w 'densel' '(non)')
     $txtWFakeIdx.Text  = [string](Get-Cfg $w 'fakeIndex' '')
@@ -7191,9 +7395,11 @@ function Update-SlowUi {
         $show = if ($quick) { $true } else { [bool](Get-Setting 'levelBeforeWrite') }
         if ($chkWLevel.Checked -ne $show) { $chkWLevel.Checked = $show }
     } finally { $script:SettingSync = $sv }
-    # 12.8 (S3) : mesure complete choisie : duree de la case retiree (celle de la liste fait foi)
-    $full = ((Get-Setting 'levelBeforeWriteMode') -eq 'complete')
-    $chkWLevel.Text = if ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } elseif ($full) { (T "Mesurer la disquette avant l'écriture lente : précompensation et état de la surface") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
+    # 12.8 (S3) : mesure complete choisie : duree de la case retiree (celle de la liste fait foi). 12.8.1 (spec-1281 § D.1) :
+    # mesure sur l image a ecrire (defaut) : texte propre
+    $lm = [string](Get-Setting 'levelBeforeWriteMode')
+    $full = ($lm -eq 'complete')
+    $chkWLevel.Text = if ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } elseif ($lm -eq 'content') { (T "Mesurer la disquette avant l'écriture lente : précompensation mesurée sur l'image (environ 10 min)") } elseif ($full) { (T "Mesurer la disquette avant l'écriture lente : précompensation et état de la surface") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
     $chkWLevel.Enabled = ($on -and -not $quick)
     # 12.8 (S3) : liste du mode de la mesure (rapide ou complete) : active en ecriture lente quand la disquette est mesuree
     # (case cochee, ou verrouillee au « Test rapide »)
@@ -7220,6 +7426,9 @@ function Start-ImageWrite([switch]$NoWarmup) {
     # 12.8 (lot 1c, G1) : courbe adaptee a cette disquette par la calibration rapide qui precede : controle apres ecriture
     # impose, meme case decochee (drapeau lu une fois)
     $postForce = [bool]$script:LevelPostForce; $script:LevelPostForce = $false
+    # 12.8.1 (spec-1281 § A.10) : facteur mesure sur l image par la mesure qui precede (Complete-ContentMeasure, 276), lu
+    # une fois, comme LevelPostForce : il ne vaut que pour cette ecriture
+    $wfNext = $script:WriteFactorNext; $script:WriteFactorNext = $null
     if (-not (Test-Path -LiteralPath $txtWFile.Text)) {
         [void](Show-AppMessage (T 'Fichier image introuvable.') (T 'Erreur') 'OK' 'Warning'); return
     }
@@ -7318,6 +7527,21 @@ function Start-ImageWrite([switch]$NoWarmup) {
         Append-Log ((T "Image flux {0} écrite telle quelle (sans --format) : gw n'applique pas la précompensation à un flux, --precomp n'est pas transmis.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))")
         $pc0 = $null; $pc1 = $null
     }
+    # 12.8.1 (spec-1281 § A.10, decisions du 25/10/2026) : facteur de precompensation de cette ecriture
+    # (Get-WriteFactorPlan : k mesure sur l image, sinon k du lecteur, plus la correction « lecteur cible »), applique aux
+    # profils des champs --precomp par ConvertTo-ScaledSpec (facteur 1 : profils identiques a l octet a ceux de la v12.8) ;
+    # ecriture lente : champs des tetes physiques, donc avant le hswap ; rapide : facteur moyen des deux tetes sur le profil
+    # commun. Lignes de journal avant « Ecriture lente : ... » (format inchange, profils mis a l echelle). Profils non mis a
+    # l echelle gardes pour Test-LevelAdaptedSpec (compares aux enregistrements de la calibration rapide)
+    $pc0Raw = $pc0; $pc1Raw = $pc1
+    $wf = Get-WriteFactorPlan $txtWFile.Text $cmbWFmt.Text $slow $wfNext
+    if ($wf.Apply) {
+        if ($slow) {
+            if ($pc0) { $pc0 = ConvertTo-ScaledSpec $pc0 $wf.F0 $wf.Hard }
+            if ($pc1) { $pc1 = ConvertTo-ScaledSpec $pc1 $wf.F1 $wf.Hard }
+        } elseif ($pc0) { $pc0 = ConvertTo-ScaledSpec $pc0 $wf.FMean $wf.Hard }
+    }
+    foreach ($wl in @($wf.Lines)) { Append-Log $wl }
     if (-not $slow -and $pc0) { $base += '--precomp'; $base += $pc0 }
     $base += Get-WriteFormatArgs
     $a = $base
@@ -7329,8 +7553,8 @@ function Start-ImageWrite([switch]$NoWarmup) {
         # Ecriture lente : tete 0 sur tout le disque, puis tete 1 (gw applique --precomp par cylindre seulement).
         # Les champs correspondent aux tetes physiques (calibration) ; hswap : la tete logique h est ecrite par la tete 1 - h.
         $swap = (Get-TSpecExtras $userTs) -match '(^|:)\s*hswap\s*(:|$)'
-        $headPc = @{}
-        foreach ($h in 0, 1) { $phys = if ($swap) { 1 - $h } else { $h }; $headPc[$h] = if ($phys -eq 0) { $pc0 } else { $pc1 } }
+        $headPc = @{}; $headPcRaw = @{}
+        foreach ($h in 0, 1) { $phys = if ($swap) { 1 - $h } else { $h }; $headPc[$h] = if ($phys -eq 0) { $pc0 } else { $pc1 }; $headPcRaw[$h] = if ($phys -eq 0) { $pc0Raw } else { $pc1Raw } }
         foreach ($h in $heads) {
             $cmd = @($base); if ($headPc[$h]) { $cmd += '--precomp'; $cmd += $headPc[$h] }
             $script:WriteQueue.Enqueue([string[]]($cmd + @("--tracks=$(Set-TSpecHead $userTs $h)", "`"$($txtWFile.Text)`"")))
@@ -7344,7 +7568,7 @@ function Start-ImageWrite([switch]$NoWarmup) {
     # rapide (bouton Calibrer au test rapide, puis ECRIRE sans nouvelle mesure), meme case decochee ; la ligne de journal
     # est celle de Complete-LevelCalib, ecrite ici quand le drapeau n a pas ete pose
     if (-not $postForce) {
-        $wsp = if ($slow) { @($heads | ForEach-Object { $headPc[$_] }) } else { @($pc0) }
+        $wsp = if ($slow) { @($heads | ForEach-Object { $headPcRaw[$_] }) } else { @($pc0Raw) }   # 12.8.1 : profils non mis a l echelle
         if (Test-LevelAdaptedSpec ([string[]]@($wsp | Where-Object { $_ }))) { $postForce = $true; Append-Log (T 'Contrôle après écriture imposé : courbe adaptée à cette disquette.') }
     }
     $post = ([bool]$chkWPostCheck.Checked -or $postForce)
@@ -7826,6 +8050,208 @@ function Confirm-PartialWrite([string]$img, [string]$fmt, [string]$tspec) {
     if (Show-AppConfirm @cq) { return $true }
     Append-Log $no
     return $false
+}
+
+# --- Facteur de precompensation et correction « lecteur cible » (12.8.1) ------
+# Courbe ecrite = (k_h + Dk_h) x courbe, par tete (spec-1281 § A.10, C.3, C.4, D.2 ; decisions de l utilisateur du
+# 25/10/2026). k_h : mesure sur l image qui precede l ecriture (276, $script:WriteFactorNext), sinon k du lecteur :
+# mediane des 3 derniers k* mesures pour ce lecteur, cette famille et cette tete (Get-DriveK, 274), garde apres une
+# recalibration du lecteur, 1 sans mesure (ecriture de la v12.8). Il s applique a la courbe que la v12.8 aurait ecrite :
+# courbe du lecteur, courbe adaptee d une calibration rapide, courbe d une mesure complete ou d une marque. Dk_h :
+# correction « lecteur cible » du lecteur du bandeau ($script:TargetCorr, 274), reglee a la main dans l onglet Ecriture,
+# 0 par defaut. Haute densite, flux, FM, GCR, profil autre qu Auto : jamais de facteur.
+
+function Format-WriteFactorDk([double]$v) {
+    # Correction « lecteur cible » signee dans les textes : « +0,10 », « -0,05 », « +0,00 »
+    return (Format-UiNum $v '+0.00;-0.00;+0.00')
+}
+
+function Get-WriteFactorSrcText([string]$drive, [string]$fam, [int]$h, [double]$k, [string]$src, [double]$dk) {
+    # Origine du facteur d une tete dans les lignes de journal : mesure sur cette disquette ('mesure'), mesures du lecteur
+    # ('lecteur' : derniere, ou mediane des 3 dernieres avec leurs valeurs), aucune mesure ('defaut' : k = 1)
+    $kt = Format-UiNum $k '0.00'; $dt = Format-WriteFactorDk $dk
+    if ($src -eq 'mesure') { return ((T 'k {0} mesuré sur cette disquette, correction lecteur cible {1}') -f "$kt", "$dt") }
+    if ($src -eq 'lecteur') {
+        $dr = Get-DriveK $drive $fam $h
+        if ([int]$dr.N -ge 2) { return ((T 'k {0}, médiane des {1} dernières mesures du lecteur ({2}), correction lecteur cible {3}') -f "$kt", "$($dr.N)", ((@($dr.Ks) | ForEach-Object { Format-UiNum ([double]$_) '0.00' }) -join ' ; '), "$dt") }
+        $md = if ($dr.Rec -and $dr.Rec.Date) { [string]$dr.Rec.Date } else { '?' }
+        return ((T 'k {0} de la dernière mesure du lecteur (du {1}), correction lecteur cible {2}') -f "$kt", "$md", "$dt")
+    }
+    return ((T 'k 1 (aucune mesure de ce lecteur), correction lecteur cible {0}') -f "$dt")
+}
+
+function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $null, [switch]$Peek) {
+    # Facteur de precompensation d une ecriture de l onglet Ecriture (Start-ImageWrite), par tete : f_h = k_h + Dk_h,
+    # ramene a [0 ; ContentFMax] (Limit-WriteFactor, plafond : 040) ; ecriture rapide : FMean, moyenne des facteurs des
+    # deux tetes (decision du 25/10/2026). $next : facteur mesure sur l image ($script:WriteFactorNext), retenu pour le
+    # meme lecteur, la meme famille et la meme image seulement. Apply faux, raison Why : fichier absent, profil autre
+    # qu Auto, --precomp decoche, image non calibrable en double densite (haute densite, flux, FM, GCR...), famille sans
+    # courbe, courbe d un autre lecteur. Lines : lignes de journal, dans l ordre (T-C10 par tete bornee, puis T-C8 ou T-C9 ;
+    # sans facteur : correction non appliquee si Dk != 0, facteur du lecteur non applique si k != 1). Hard : borne des
+    # profils mis a l echelle (ConvertTo-ScaledSpec : une valeur deja au-dessus, venue d une mesure complete, n est
+    # jamais augmentee). Peek : calcul seul, sans les lignes d un facteur non applique (libelle du profil, texte
+    # « Ecrire sans mesure » de la confirmation de la mesure sur l image, 276)
+    $drive = [string]$cmbDrive.Text
+    $hard = [int]$script:CalHardNsUser; if ($hard -le 0) { $hard = [int]$script:CalHardNs }
+    $fMax = [double]$script:ContentFMax
+    $dk = @{ 0 = [double](Get-DriveDk $drive 0); 1 = [double](Get-DriveDk $drive 1) }
+    $r = @{ Apply = $false; Why = ''; F0 = 1.0; F1 = 1.0; FMean = 1.0; K = @{ 0 = 1.0; 1 = 1.0 }; Dk = $dk; Src = @{ 0 = 'defaut'; 1 = 'defaut' }
+            Hard = $hard; Fam = ''; Line = ''; Lines = @() }
+    $fam = ''
+    if (-not $img -or -not (Test-Path -LiteralPath $img)) { $r.Why = (T 'Fichier image introuvable.') }
+    elseif ($cmbWProfile.SelectedIndex -ne 0) { $r.Why = (T 'profil précomp. « {0} »') -f "$($cmbWProfile.Text)" }
+    elseif (-not $chkWPrecomp.Checked) { $r.Why = (T 'précompensation désactivée') }
+    else {
+        $kind = Get-WriteLevelKind $img $fmt
+        if ($kind -ne 'dd') {
+            $r.Why = if ($kind -eq 'hd' -or (Get-HighDensityReason $img $fmt)) { (T 'image haute densité') } else { (T 'image non calibrable en double densité') }
+        } else {
+            # Courbes que le mode Auto ecrit (Set-PrecompFields : par tete a jour en ecriture lente, sinon commune) ; tableau
+            # protege par Get-FamilyCurves (pas de @() autour de l appel)
+            $fam = Get-ImageFamily $img $fmt
+            $cvs = Get-FamilyCurves $fam $slow
+            $oth = @(@($cvs) | Where-Object { [string]$_.Drive -ne $drive } | ForEach-Object { if ($_.Drive) { [string]$_.Drive } else { '?' } } | Sort-Object -Unique)
+            if (@($cvs).Count -eq 0) { $r.Why = (T 'aucune courbe du lecteur') }
+            elseif ($oth.Count -gt 0) { $r.Why = (T "courbe d'un autre lecteur ({0})") -f ($oth -join ', ') }
+            else { $r.Apply = $true; $r.Fam = $fam }
+        }
+    }
+    if (-not $r.Apply) {
+        if ($Peek) { return $r }
+        if ($dk[0] -ne 0 -or $dk[1] -ne 0) { $r.Line = (T 'Correction lecteur cible du lecteur {0} non appliquée à cette écriture : {1}.') -f "$drive", "$($r.Why)" }
+        elseif ($img -and (Test-Path -LiteralPath $img)) {
+            $fk = Get-ImageFamily $img $fmt
+            if (@('std', 'long') -contains $fk) {
+                $k0 = [double](Get-DriveK $drive $fk 0).K; $k1 = [double](Get-DriveK $drive $fk 1).K
+                if ($k0 -ne 1 -or $k1 -ne 1) { $r.Line = (T 'Facteur mesuré du lecteur {0} (tête 0 × {1}, tête 1 × {2}) non appliqué à cette écriture : {3}.') -f "$drive", (Format-UiNum $k0 '0.00'), (Format-UiNum $k1 '0.00'), "$($r.Why)" }
+            }
+        }
+        if ($r.Line) { $r.Lines = @($r.Line) }
+        return $r
+    }
+    $useNext = ($null -ne $next -and [string]$next.Drive -eq $drive -and [string]$next.Fam -eq $fam -and [string]$next.Img -eq $img)
+    $txt = @{}; $lines = @()
+    foreach ($h in 0, 1) {
+        $k = $null; $src = 'defaut'
+        if ($useNext -and $next.K) {
+            $kv = $next.K[$h]; if ($null -eq $kv) { $kv = $next.K["$h"] }
+            if ($null -ne $kv) {
+                $k = [double]$kv; $sv = $null
+                if ($next.Src) { $sv = $next.Src[$h]; if ($null -eq $sv) { $sv = $next.Src["$h"] } }
+                $src = if ($sv) { [string]$sv } else { 'mesure' }
+            }
+        }
+        if ($null -eq $k -or [double]::IsNaN($k) -or [double]::IsInfinity($k)) { $dr = Get-DriveK $drive $fam $h; $k = [double]$dr.K; $src = [string]$dr.Src }
+        $raw = $k + [double]$dk[$h]
+        $lim = Limit-WriteFactor $raw $fMax
+        if ($lim.Clamped) { $lines += (T 'Facteur de la tête {0} ramené de {1} à {2} (il va de 0 à {3}).') -f "$h", (Format-UiNum $raw '0.00'), (Format-UiNum ([double]$lim.F) '0.00'), (Format-UiNum $fMax '0.0#') }
+        $r.K[$h] = $k; $r.Src[$h] = $src
+        if ($h -eq 0) { $r.F0 = [double]$lim.F } else { $r.F1 = [double]$lim.F }
+        $txt[$h] = Get-WriteFactorSrcText $drive $fam $h $k $src ([double]$dk[$h])
+    }
+    $r.FMean = [double](Limit-WriteFactor (($r.F0 + $r.F1) / 2) $fMax).F
+    if ($slow) {
+        $r.Line = (T "Facteur de précompensation de cette écriture (lecteur {0}) : tête 0 × {1} ({2}) ; tête 1 × {3} ({4}). Courbe écrite = facteur × courbe, bornée à 0..{5} ns ; une valeur déjà au-dessus n'est jamais augmentée.") -f "$drive", (Format-UiNum $r.F0 '0.00'), "$($txt[0])", (Format-UiNum $r.F1 '0.00'), "$($txt[1])", "$hard"
+    } else {
+        $r.Line = (T "Facteur de précompensation de cette écriture rapide (lecteur {0}) : × {1}, moyenne des deux têtes (tête 0 × {2}, {3} ; tête 1 × {4}, {5}). Courbe écrite = facteur × courbe, bornée à 0..{6} ns ; une valeur déjà au-dessus n'est jamais augmentée.") -f "$drive", (Format-UiNum $r.FMean '0.00'), (Format-UiNum $r.F0 '0.00'), "$($txt[0])", (Format-UiNum $r.F1 '0.00'), "$($txt[1])", "$hard"
+    }
+    $r.Lines = @($lines) + @($r.Line)
+    return $r
+}
+
+function Get-WriteFactorNote([string]$path) {
+    # Complement du libelle du profil Auto double densite (Update-PrecompForImage, T-C12) : facteur different de 1 que
+    # recevrait une ecriture de l onglet (Get-WriteFactorPlan -Peek, ecriture lente ou rapide selon la case) ; vide avec un
+    # facteur 1 (libelle de la v12.8)
+    $wf = Get-WriteFactorPlan $path $cmbWFmt.Text ([bool]$chkWSlow.Checked) $null -Peek
+    if (-not $wf.Apply) { return '' }
+    if ($chkWSlow.Checked) {
+        if ($wf.F0 -eq 1.0 -and $wf.F1 -eq 1.0) { return '' }
+        return ((T " ; facteur appliqué à l'écriture : tête 0 × {0}, tête 1 × {1}") -f (Format-UiNum $wf.F0 '0.00'), (Format-UiNum $wf.F1 '0.00'))
+    }
+    if ($wf.FMean -eq 1.0) { return '' }
+    return ((T " ; facteur appliqué à l'écriture rapide : × {0}, moyenne des deux têtes") -f (Format-UiNum $wf.FMean '0.00'))
+}
+
+function Update-WriteFactorNote {
+    # Complement du libelle refait apres un changement du facteur (correction « lecteur cible », lecteur du bandeau), sans
+    # refaire le profil ni les champs --precomp : seulement si le libelle est encore celui qu a pose Update-PrecompForImage
+    $n = $script:WFactorNote
+    if (-not $n -or [string]$lblWProfileInfo.Text -ne ([string]$n.Base + [string]$n.Note)) { return }
+    $x = Get-WriteFactorNote $txtWFile.Text
+    if ($x -eq [string]$n.Note) { return }
+    $n.Note = $x; $lblWProfileInfo.Text = [string]$n.Base + $x
+}
+
+function Set-TargetCorrLayout {
+    # Positions des champs de la correction « lecteur cible » sur la ligne de la liste « Mesure : » : libelle 14 px apres
+    # la liste, puis « tete 0 » et son champ, « tete 1 » et son champ, largeurs mesurees dans la police de la fenetre
+    # (anglais compris) ; bas des champs a celui de la liste (517 px : pas de defilement, P10 de write-level)
+    $f = $form.Font; $y = $cmbWLevelMode.Top; $ly = $lblWLevelMode.Top
+    $x = $cmbWLevelMode.Right + 14
+    $lblWTgtCorr.Location = New-Object System.Drawing.Point($x, $ly)
+    $x += [System.Windows.Forms.TextRenderer]::MeasureText($lblWTgtCorr.Text, $f).Width + 4
+    $lblWTgt0.Location = New-Object System.Drawing.Point($x, $ly)
+    $x += [System.Windows.Forms.TextRenderer]::MeasureText($lblWTgt0.Text, $f).Width + 2
+    $numWTgt0.Location = New-Object System.Drawing.Point($x, $y)
+    $x = $numWTgt0.Right + 10
+    $lblWTgt1.Location = New-Object System.Drawing.Point($x, $ly)
+    $x += [System.Windows.Forms.TextRenderer]::MeasureText($lblWTgt1.Text, $f).Width + 2
+    $numWTgt1.Location = New-Object System.Drawing.Point($x, $y)
+}
+
+function Update-TargetCorrUi {
+    # 12.8.1 (spec-1281 § D.2) : libelle (lecteur du bandeau), infobulle et valeurs des champs de la correction « lecteur
+    # cible », sous la garde des liaisons (gestionnaires sans effet), puis positions et complement du libelle du profil.
+    # Load-Config, Set-Defaults, changement de lecteur du bandeau
+    if (-not $numWTgt0 -or -not $numWTgt1 -or -not $lblWTgtCorr) { return }
+    $d = [string]$cmbDrive.Text
+    $sv = $script:SettingSync; $script:SettingSync = $true
+    try {
+        $lblWTgtCorr.Text = (T 'Correction lecteur cible ({0}) :') -f "$d"
+        $lblWTgt0.Text = (T "tête {0}") -f '0'; $lblWTgt1.Text = (T "tête {0}") -f '1'
+        foreach ($p in @(@($numWTgt0, 0), @($numWTgt1, 1))) {
+            $x = [decimal](Get-DriveDk $d ([int]$p[1]))
+            if ($x -lt $p[0].Minimum) { $x = $p[0].Minimum } elseif ($x -gt $p[0].Maximum) { $x = $p[0].Maximum }
+            if ($p[0].Value -ne $x) { $p[0].Value = $x }
+        }
+    } finally { $script:SettingSync = $sv }
+    $tt = (T "Correction « lecteur cible » du lecteur {0}, par tête : elle s'ajoute au facteur de précompensation de chaque écriture, 0 par défaut.`nElle sert quand la disquette écrite ici sera lue par un autre lecteur (par exemple celui d'un Amiga) qui préfère une autre précompensation que ce lecteur.`nPour la régler : écrivez une disquette avec la mesure sur l'image, relisez-la sur ce lecteur puis sur le lecteur cible, et saisissez l'écart des facteurs optimaux (lecteur cible moins ce lecteur), de {1} à {2}. Laissez 0 si vous ne le connaissez pas.`nLe journal donne, à chaque écriture, le facteur appliqué à chaque tête.") -f "$d", (Format-WriteFactorDk (-[double]$script:TargetCorrMax)), (Format-WriteFactorDk ([double]$script:TargetCorrMax))
+    foreach ($c in @($lblWTgtCorr, $lblWTgt0, $numWTgt0, $lblWTgt1, $numWTgt1)) { $tip.SetToolTip($c, $tt) }
+    Set-TargetCorrLayout
+    Update-WriteFactorNote
+}
+
+function Set-TargetCorrFromUi([int]$h) {
+    # Gestionnaire ValueChanged des champs de la correction « lecteur cible » : valeur du lecteur du bandeau (Set-DriveDk :
+    # bornee a -TargetCorrMax..TargetCorrMax (040), arrondie a 0,01), complement du libelle du profil ; rien sous la garde
+    # des liaisons (Update-TargetCorrUi). Enregistree par Save-Config, comme les reglages. Ligne de journal T-C7 a la fin de
+    # la saisie (Complete-TargetCorrEdit, Leave du champ), une par saisie et non une par pas de 0,01 (revue 12.8.1, point
+    # 5) : la valeur d avant la saisie est gardee ici, au premier changement
+    if ($script:SettingSync) { return }
+    $c = if ($h -eq 0) { $numWTgt0 } else { $numWTgt1 }
+    $d = [string]$cmbDrive.Text
+    if (-not $c -or -not $d) { return }
+    $old = Set-DriveDk $d $h ([double]$c.Value)
+    if ($null -eq $script:TgtCorrEdit) { $script:TgtCorrEdit = @{} }
+    $p = $script:TgtCorrEdit[$h]
+    if ($p -and [string]$p.Drive -ne $d) { Complete-TargetCorrEdit $h; $p = $null }
+    if (-not $p -and (Get-DriveDk $d $h) -ne $old) { $script:TgtCorrEdit[$h] = @{ Drive = $d; Old = [double]$old } }
+    Update-WriteFactorNote
+}
+
+function Complete-TargetCorrEdit([int]$h = -1) {
+    # Fin d une saisie de la correction « lecteur cible » (Leave du champ de la tete $h ; -1 : les deux tetes, au
+    # changement de lecteur du bandeau, 520) : ligne de journal T-C7 (valeur retenue et valeur d avant la saisie), si elles
+    # different ; saisie oubliee ensuite
+    if ($null -eq $script:TgtCorrEdit) { return }
+    foreach ($k in @(if ($h -lt 0) { 0, 1 } else { $h })) {
+        $p = $script:TgtCorrEdit[$k]
+        if (-not $p) { continue }
+        [void]$script:TgtCorrEdit.Remove($k)
+        $d = [string]$p.Drive; $old = [double]$p.Old; $new = Get-DriveDk $d $k
+        if ($new -ne $old) { Append-Log ((T 'Correction lecteur cible du lecteur {0}, tête {1} : {2} (avant : {3}).') -f "$d", "$k", (Format-WriteFactorDk $new), (Format-WriteFactorDk $old)) }
+    }
 }
 # ============================== FONCTIONS : PISTES, OPTIONS DE LECTURE, HAUTE DENSITE ===
 
@@ -10090,6 +10516,158 @@ function Invoke-AlignAnalysis {
 
     if ($script:AlignLoop) { $script:AlignNextAt = (Get-Date).AddSeconds([int]$numAlPause.Value) }
 }
+# ============================== FONCTIONS : MARGE COMPTEE DES FLUX ==============
+
+# 12.8.1 (lot A, spec-1281.md § B.1) : marge fixe Mfix d une piste relue, pour la mesure de la disquette sur l image (276).
+# Les intervalles d un tour (ns, multiples de la resolution du SCP, ScpStats.Decode) sont tries une fois (tri natif, sur
+# une copie) ; chaque comptage est une recherche dichotomique native (Array.BinarySearch) sur une cle entiere decalee,
+# jamais egale a un element. Horloge fixe du tour : T0 = duree / cellules de l image (ncell0, Get-PatternBits), sauf a plus
+# de 5 % de la cellule des 2T (comme ScpStats.Analyze sans motif) ; cellules du tour = somme des arrondis f / T0, une
+# recherche par classe ; T = duree / cellules. Marge d un intervalle de classe 2 a 4 : (1/2 - |f/T - k|) T, nulle hors de
+# [1,5 T ; 4,5 T[ ; Mfix = quantile 1e-3 des marges des tours regroupes (rang exact, comme rpm_analyse.q1e3), par
+# dichotomie sur m. Reference executable : v1281\verif_spec1281.py (ecart de 9,3e-7 ns a rpm_analyse sur 240 pistes
+# reelles). Aucun Add-Type ni boucle sur les octets : Decode (C#) reste la seule conversion d octets en intervalles.
+
+function Get-ScpRevTable([byte[]]$d) {
+    # Table des tours d un SCP deja lu (memes champs que Read-ScpFile, 190) : resolution (ns par tic), tours par piste et,
+    # par numero de piste, la liste des tours @{ Off (octet des donnees) ; Len (mots de 16 bits) ; DurNs (index x res) }.
+    # Piste absente (decalage nul), en-tete de piste ou tour hors du fichier : ignores. $null : fichier trop court ou
+    # sans signature SCP. Sans type C# : testable au niveau 2 du banc (logic-1281.ps1)
+    if ($null -eq $d -or $d.Length -lt 16 + 4 * 168 -or [System.Text.Encoding]::ASCII.GetString($d, 0, 3) -ne 'SCP') { return $null }
+    $revs = [int]$d[5]; $res = ([int]$d[11] + 1) * 25
+    $tracks = @{}
+    for ($t = 0; $t -lt 168; $t++) {
+        [int64]$o = [BitConverter]::ToUInt32($d, 16 + 4 * $t)
+        if ($o -eq 0 -or $o + 4 + 12 * $revs -gt $d.Length -or [System.Text.Encoding]::ASCII.GetString($d, [int]$o, 3) -ne 'TRK') { continue }
+        $list = @()
+        for ($r = 0; $r -lt $revs; $r++) {
+            [int64]$idx  = [BitConverter]::ToUInt32($d, [int]($o + 4 + 12 * $r))
+            [int64]$ln   = [BitConverter]::ToUInt32($d, [int]($o + 8 + 12 * $r))
+            [int64]$doff = [BitConverter]::ToUInt32($d, [int]($o + 12 + 12 * $r))
+            if ($o + $doff + 2 * $ln -gt $d.Length) { continue }
+            $list += @{ Off = [int]($o + $doff); Len = [int]$ln; DurNs = [double]$idx * $res }
+        }
+        $tracks[[int]$d[$o + 3]] = $list
+    }
+    return @{ Res = $res; Revs = $revs; Tracks = $tracks }
+}
+
+function Read-ScpTrackRevs([string]$path) {
+    # Tours bruts de chaque piste d un SCP (relecture de la mesure sur l image) : memes lectures que Read-ScpFile (190),
+    # sans Analyze ni Instability. Sortie : @{ Res ; Revs ; Tracks = @{ numero de piste -> List[object] des tours
+    # @{ Flux = [int[]] (ns) ; DurNs } } } ; $null : fichier trop court ou sans signature SCP
+    $d = [System.IO.File]::ReadAllBytes($path)
+    $tt = Get-ScpRevTable $d
+    if ($null -eq $tt) { return $null }
+    $tracks = @{}
+    foreach ($tn in @($tt.Tracks.Keys)) {
+        $l = New-Object 'System.Collections.Generic.List[object]'
+        foreach ($rv in @($tt.Tracks[$tn])) { $l.Add(@{ Flux = [ScpStats]::Decode($d, [int]$rv.Off, [int]$rv.Len, [int]$tt.Res); DurNs = [double]$rv.DurNs }) }
+        $tracks[$tn] = $l
+    }
+    return @{ Res = $tt.Res; Revs = $tt.Revs; Tracks = $tracks }
+}
+
+function Get-SortedCountLe([int[]]$s, [double]$y, [int]$res) {
+    # #{f <= y} dans le tableau trie : cle floor(y/res)*res + 1, jamais egale a un element (multiples de res)
+    $key = [math]::Floor($y / $res) * $res + 1
+    if ($key -ge [int]::MaxValue) { return $s.Length }
+    if ($key -le 0) { return 0 }
+    $r = [Array]::BinarySearch($s, [int]$key)    # [int] obligatoire : une cle Int64 ferait echouer le comparateur
+    return (-$r - 1)
+}
+
+function Get-SortedCountLt([int[]]$s, [double]$y, [int]$res) {
+    # #{f < y} dans le tableau trie : cle ceil(y/res)*res - 1
+    $key = [math]::Ceiling($y / $res) * $res - 1
+    if ($key -ge [int]::MaxValue) { return $s.Length }
+    if ($key -lt 0) { return 0 }
+    $r = [Array]::BinarySearch($s, [int]$key)
+    return (-$r - 1)
+}
+
+function Get-FluxRevPrep([int[]]$flux, [double]$durNs, [int]$res, [int]$ncell0, [double]$t0Tol = 0.05) {
+    # Tour prepare : intervalles tries (S), horloge fixe T0 (duree / ncell0, ou cellule des 2T a plus de t0Tol d ecart :
+    # piste d une autre longueur, faux gw du banc), cellules, T, intervalles hors classe Z (hors de [1,5 T ; 4,5 T[) et
+    # rangs des bornes 1,5 T et 4,5 T. $null : moins de 3 intervalles, duree ou cellules nulles, plus de 4 096 classes
+    if ($null -eq $flux -or $flux.Length -lt 3 -or $durNs -le 0 -or $ncell0 -le 0) { return $null }
+    $s = [int[]]$flux.Clone(); [Array]::Sort($s)                       # tri natif, copie : le flux de Decode reste intact
+    $n = $s.Length
+    $t0 = $durNs / $ncell0; $src = 'duree'
+    # Cellule des 2T, comme ScpStats.Analyze a cellsPerRev = 0 : element de rang floor(n2/2) des intervalles de 3 000 a
+    # 5 000 ns exclus, divise par 2, si n2 >= 50
+    $a = Get-SortedCountLe $s 3000.0 $res; $b = Get-SortedCountLt $s 5000.0 $res
+    if ($b - $a -ge 50) {
+        $med = [double]$s[$a + [int][math]::Floor(($b - $a) / 2)] / 2.0
+        if ([math]::Abs($t0 / $med - 1.0) -gt $t0Tol) { $t0 = $med; $src = 'mediane' }
+    }
+    # Cellules = somme des arrondis f/T0 (classe k : (k - 1/2) T0 <= f < (k + 1/2) T0), une recherche par classe non vide :
+    # k = classe du plus petit intervalle restant, tous les intervalles de cette classe comptes d un coup
+    [int64]$cells = 0
+    $lo = Get-SortedCountLt $s (0.5 * $t0) $res
+    $g = 0
+    while ($lo -lt $n -and $g -lt 4096) {
+        $k = [math]::Floor($s[$lo] / $t0 + 0.5)
+        $hi = Get-SortedCountLt $s (($k + 0.5) * $t0) $res
+        $cells += [int64]$k * ($hi - $lo); $lo = $hi; $g++
+    }
+    if ($lo -lt $n -or $cells -le 0) { return $null }                 # plus de 4 096 classes : bruit, piste vide
+    $T = $durNs / $cells
+    $lt15 = Get-SortedCountLt $s (1.5 * $T) $res; $lt45 = Get-SortedCountLt $s (4.5 * $T) $res
+    return @{ S = $s; N = $n; T = $T; T0 = $t0; T0Src = $src; Cells = $cells; Z = [int64]($lt15 + ($n - $lt45)); Lt15 = $lt15; Lt45 = $lt45 }
+}
+
+function Get-FluxMarginCount($r, [double]$m, [int]$res) {
+    # Nombre d intervalles de marge <= m dans le tour prepare $r : marge nulle (Z), puis les quatre fenetres de demi-largeur
+    # m autour des limites de decodage 1,5 T, 2,5 T, 3,5 T et 4,5 T (disjointes tant que m < T/2)
+    $s = $r.S; $T = [double]$r.T
+    [int64]$c = $r.Z                                                              # marge nulle
+    $c += (Get-SortedCountLe $s (1.5 * $T + $m) $res) - $r.Lt15                   # au-dessus de 1,5 T
+    $c += $r.Lt45 - (Get-SortedCountLt $s (4.5 * $T - $m) $res)                   # au-dessous de 4,5 T
+    $c += (Get-SortedCountLe $s (2.5 * $T + $m) $res) - (Get-SortedCountLt $s (2.5 * $T - $m) $res)
+    $c += (Get-SortedCountLe $s (3.5 * $T + $m) $res) - (Get-SortedCountLt $s (3.5 * $T - $m) $res)
+    return $c
+}
+
+function Get-FluxMarginQ($preps, [int]$res, [double]$q = 1e-3, [double]$tol = 1e-6, [int]$maxIt = 50) {
+    # Quantile q de la marge sur les tours regroupes, rang exact : (k + 1)-ieme plus petite marge, k = floor(q n), comme
+    # rpm_analyse.q1e3 ; dichotomie sur m dans [0 ; T/2[ (les quatre fenetres ne se recouvrent pas tant que m < T/2).
+    # Sortie : Mfix (0 si les marges nulles suffisent au rang, NaN sans tour), N, Z, K (rang), It (iterations)
+    $rs = @($preps | Where-Object { $null -ne $_ })
+    if ($rs.Count -eq 0) { return @{ Mfix = [double]::NaN; N = 0; Z = 0; K = 0; It = 0 } }
+    [int64]$n = 0; [int64]$z = 0; $tMax = 0.0
+    foreach ($r in $rs) { $n += $r.N; $z += $r.Z; if ([double]$r.T -gt $tMax) { $tMax = [double]$r.T } }
+    [int64]$k = [math]::Floor($q * $n)
+    [int64]$c0 = 0; foreach ($r in $rs) { $c0 += Get-FluxMarginCount $r 0.0 $res }
+    if ($c0 -ge $k + 1) { return @{ Mfix = 0.0; N = $n; Z = $z; K = $k; It = 0 } }
+    $lo = 0.0; $hi = 0.5 * $tMax; $it = 0
+    while (($hi - $lo) -gt $tol -and $it -lt $maxIt) {
+        $mid = ($lo + $hi) / 2; [int64]$c = 0
+        foreach ($r in $rs) { $c += Get-FluxMarginCount $r $mid $res }
+        if ($c -ge $k + 1) { $hi = $mid } else { $lo = $mid }
+        $it++
+    }
+    return @{ Mfix = $hi; N = $n; Z = $z; K = $k; It = $it }
+}
+
+function Get-ContentTrackStats($revs, [int]$res, [int]$ncell0) {
+    # Bilan d une piste relue (ses tours, Read-ScpTrackRevs) : tours exploitables (Get-FluxRevPrep), marge fixe Mfix de
+    # leurs intervalles regroupes, intervalles N et hors classe Z (marge nulle), cellules et intervalles par tour, T moyen,
+    # iterations de la dichotomie ; T0Src : origine de l horloge de chaque tour ('duree' ou 'mediane'). Sans tour
+    # exploitable : NRev = 0, Mfix = NaN
+    $preps = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($rv in $revs) {
+        if ($null -eq $rv -or $null -eq $rv.Flux) { continue }
+        $p = Get-FluxRevPrep ([int[]]$rv.Flux) ([double]$rv.DurNs) $res $ncell0
+        if ($null -ne $p) { $preps.Add($p) }
+    }
+    if ($preps.Count -eq 0) { return @{ NRev = 0; Mfix = [double]::NaN; N = [int64]0; Z = [int64]0; ZFrac = [double]::NaN; Cells = [int64[]]@(); Flux = [int[]]@(); T = [double]::NaN; It = 0; T0Src = [string[]]@() } }
+    $mq = Get-FluxMarginQ $preps $res
+    $sumT = 0.0; foreach ($p in $preps) { $sumT += [double]$p.T }
+    return @{ NRev = $preps.Count; Mfix = [double]$mq.Mfix; N = [int64]$mq.N; Z = [int64]$mq.Z; ZFrac = [double]$mq.Z / [double]$mq.N
+              Cells = [int64[]]@($preps | ForEach-Object { [int64]$_.Cells }); Flux = [int[]]@($preps | ForEach-Object { [int]$_.N })
+              T = $sumT / $preps.Count; It = [int]$mq.It; T0Src = [string[]]@($preps | ForEach-Object { [string]$_.T0Src }) }
+}
 # ============================== FONCTIONS : QUALITE, AFFICHAGE (12.8, LOT 3) ===
 # Etat unique de l affichage de l onglet Qualite & alignement ($script:QualView, A2 § 2.2) : vide, en cours, resultat,
 # perime ; jamais efface pendant une mesure, mais grise et marque (D16). Carte de resultat de la variante A (D14), dessinee
@@ -10948,6 +11526,8 @@ function Get-HomeProgTitle($cal, $ww) {
     if ($cal) {
         $what = if ($cal.Home -and $cal.Geom -and $cal.Geom.Label) { [string]$cal.Geom.Label } else { Get-CalibFamilyName ([string]$cal.Family) }
         $kt = if ($cal.Slow) { (T 'une courbe par tête') } else { (T 'courbe commune') }
+        # 12.8.1 : mesure de la disquette sur l image (276) : image et famille
+        if ($cal.Mode -eq 'content') { return ((T 'Mesure de la disquette en cours : lecteur {0}, {1}') -f "$($cal.Drive)", "$([System.IO.Path]::GetFileName([string]$cal.Image)), $what") }
         if ($cal.Mode -eq 'level') { return ((T 'Calibration rapide en cours : lecteur {0}, {1}') -f "$($cal.Drive)", "$what, $kt") }
         $tt = if ($cal.Mode -eq 'fine') { (T 'test fin') } else { (T 'test standard') }
         return ((T 'Calibration en cours : lecteur {0}, {1}, {2}') -f "$($cal.Drive)", "$what", "$tt, $kt")
@@ -11946,9 +12526,17 @@ function Get-HdAutoFields([string]$hf, [bool]$slow) {
     return @{ P0 = $s; P1 = $s }
 }
 
+function Set-WProfileText([string]$base, [string]$note) {
+    # 12.8.1 (spec-1281 § D.4) : libelle du profil Auto double densite et son complement « facteur » (T-C12,
+    # Get-WriteFactorNote), gardes separement : Update-WriteFactorNote refait le complement seul
+    $script:WFactorNote = @{ Base = $base; Note = $note }
+    $lblWProfileInfo.Text = $base + $note
+}
+
 function Update-PrecompForImage([string]$path) {
     Update-CurveButton $path
     $script:WProfileHd = $false
+    $script:WFactorNote = $null
     $mode = $cmbWProfile.Text
     if ($mode -eq (T 'Manuel')) { $lblWProfileInfo.Text = (T 'Profil manuel : --precomp non modifié.'); return }
     if ($mode -eq (T 'Standard 2 us'))      { $x = Set-PrecompFields $script:PrecompStd 'std';   $lblWProfileInfo.Text = ((T "Profil forcé : standard 2 us ({0})") -f "$($script:PrecompStd)") + $x; return }
@@ -12002,7 +12590,8 @@ function Update-PrecompForImage([string]$path) {
         # A2R, CTR, SCP sans module d analyse) : dit « image flux », et non « image secteur »
         $x = Set-PrecompFields $script:PrecompStd 'std'
         if (Test-FluxImage $path) { $lblWProfileInfo.Text = ((T "Auto : image flux ({0}) -> standard 2 us ({1})") -f "$ext", "$($script:PrecompStd)") + $(if ($fxNote) { $fxNote } else { $x }); return }
-        $lblWProfileInfo.Text = ((T "Auto : image secteur ({0}) -> standard 2 us ({1})") -f "$ext", "$($script:PrecompStd)") + $x
+        # 12.8.1 : facteur de precompensation different de 1 (mesure du lecteur, correction « lecteur cible ») : complement
+        Set-WProfileText (((T "Auto : image secteur ({0}) -> standard 2 us ({1})") -f "$ext", "$($script:PrecompStd)") + $x) (Get-WriteFactorNote $path)
         return
     }
     $long = $info.CellNs -lt $script:PrecompThresholdNs
@@ -12010,7 +12599,7 @@ function Update-PrecompForImage([string]$path) {
     if ($fxNote) { $x = $fxNote }
     $detail = ((T "cellule {0} ns, {1} bits/piste") -f "$([math]::Round($info.CellNs,0))", "$($info.Bits)")
     if ($info.DosTracks -ge 0 -and $info.Tracks -gt 0) { $detail += ((T ", {0}/{1} pistes DOS") -f "$($info.DosTracks)", "$($info.Tracks)") }
-    $lblWProfileInfo.Text = ((T "Auto : {0} : {1} -> ") -f "$($info.Source)", "$detail") + $(if ($long) { ((T "LONG TRACK ({0})") -f "$($script:PrecompLong)") } else { ((T "standard 2 us ({0})") -f "$($script:PrecompStd)") }) + $x
+    Set-WProfileText (((T "Auto : {0} : {1} -> ") -f "$($info.Source)", "$detail") + $(if ($long) { ((T "LONG TRACK ({0})") -f "$($script:PrecompLong)") } else { ((T "standard 2 us ({0})") -f "$($script:PrecompStd)") }) + $x) (Get-WriteFactorNote $path)
     Append-Log ((T "Profil precomp : {0}") -f "$($lblWProfileInfo.Text)")
 }
 # ============================== FONCTIONS : CALIBRATION : COURBES ==============
@@ -13009,7 +13598,10 @@ function Reset-CalibProfiles {
     $pend = @(if ($script:OldCalib) { @($script:OldCalib.Curves.Keys | Where-Object { -not $script:PrecompCurves[$_] }) })
     $curves = @(@($curves) + $pend | Sort-Object -Unique)
     $changed = ($script:PrecompStd -ne $script:PrecompStdDefault) -or ($script:PrecompLong -ne $script:PrecompLongDefault)
-    if ($curves.Count -eq 0 -and -not $changed) {
+    # 12.8.1 (spec-1281 § B.5, decision du 25/10/2026) : facteurs mesures des lecteurs (mesure de la disquette sur l image)
+    # effaces avec les calibrations ; la correction « lecteur cible » ($script:TargetCorr), reglee a la main, est gardee
+    $nCm = @(@($script:ContentMeasures) | Where-Object { $_ }).Count
+    if ($curves.Count -eq 0 -and -not $changed -and $nCm -eq 0) {
         [void](Show-AppMessage (T 'Aucune calibration enregistrée : les profils sont déjà ceux d''origine.') (T 'Effacer les calibrations') 'OK' 'Information'); return
     }
     $list = if ($curves.Count -gt 0) { (@($curves | ForEach-Object { Get-CurveKeyLabel $_ }) -join ', ') } else { (T 'aucune') }
@@ -13022,6 +13614,7 @@ function Reset-CalibProfiles {
     $msg += "`n`n" + (T "Ensuite, le mode Auto applique les profils d'origine :`n- « Test standard » ou « Test fin » : « Écriture rapide » et « Écriture lente » de la Bibliothèque calibrent d'abord le lecteur ; « ÉCRIRE LA DISQUETTE » écrit sans calibrer ;`n- « Test rapide » : l'écriture d'une image calibrable en double densité est refusée sans nouvelle calibration complète du lecteur, à faire sur une disquette sacrifiée depuis la carte « Calibrer le lecteur » de l'Accueil ;`n- restauration d'une copie secteur par secteur en double densité : chaque tête est d'abord calibrée en test fin.")
     # 12.7 : courbe haute densite effacee : profil d origine haute densite, jamais de calibration automatique
     if (@($curves | Where-Object { "$_" -like 'hd*' }).Count -gt 0) { $msg += "`n" + ((T "Haute densité : profil d'origine {0}, sans calibration automatique ; recalibrez depuis la carte « Calibrer le lecteur » de l'Accueil.") -f "$($script:PrecompHdDefault)") }
+    if ($nCm -gt 0) { $msg += "`n" + ((T "Les {0} facteur(s) mesuré(s) des lecteurs (mesure de la disquette sur l'image) sont effacés aussi : les écritures suivantes reprennent le facteur 1 jusqu'à une nouvelle mesure. La correction « lecteur cible » est gardée.") -f "$nCm") }
     # 12.7 : boite par Show-AppMessage (code modifie), comme les autres messages de la 12.7
     $r = Show-AppMessage $msg (T 'Effacer les calibrations') 'YesNo' 'Warning'
     if ($r -ne 'Yes') { return }
@@ -13031,11 +13624,13 @@ function Reset-CalibProfiles {
     $script:LevelShifts = @{}; $script:OldCalib = $null
     # 12.8 (lot 1c, § 10.5) : memoires par marque effacees avec les calibrations (apres la copie ci-dessus)
     $script:LevelBrands = @()
+    $script:ContentMeasures = @()                                     # 12.8.1 : facteurs mesures ; Dk garde
     $script:PrecompStd = $script:PrecompStdDefault; $script:PrecompLong = $script:PrecompLongDefault
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
     Update-PrecompForImage $txtWFile.Text
     $pbWCal.Visible = $false; $lblWCal.Visible = $true; $lblWCal.Text = (T 'Calibrations effacées.')
     Append-Log ((T "Calibrations effacées : {0} courbe(s) ({1}) ; profils standard et long track remis aux valeurs d'origine ({2} ; {3}).") -f "$($curves.Count)", "$list", "$($script:PrecompStdDefault)", "$($script:PrecompLongDefault)")
+    if ($nCm -gt 0) { Append-Log ((T "Facteurs mesurés des lecteurs effacés avec les calibrations ({0}) ; la correction « lecteur cible » est gardée.") -f "$nCm") }
     [void](Save-Config)
 }
 
@@ -15807,6 +16402,17 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
     $img = $txtWFile.Text
     $fam = Get-ImageFamily $img
     $nfc = Get-CalibCylinders $img $cmbWFmt.Text      # image secteur sans geometrie : cylindres du format choisi
+    # 12.8.1 (spec-1281.md § A.1) : liste « Mesure : sur l image a ecrire » (levelBeforeWriteMode = content), ecriture
+    # lente avec la case « Mesurer la disquette » (Measure), hors restauration : mesure de la disquette sur le contenu de
+    # l image (276) si l image et le contexte s y pretent (Test-ContentMeasurable) ; sinon ligne de journal, puis la suite
+    # de la 12.8 (calibration rapide au motif, ou courbe du lecteur sans reference). Test rapide et restauration : mesure
+    # au motif, ligne de journal plus bas
+    $content = ((Get-Setting 'levelBeforeWriteMode') -eq 'content')
+    if ($content -and $Measure -and $mode -eq 'slow' -and -not $Restore -and -not $script:Restore) {
+        $cm = Test-ContentMeasurable $img $cmbWFmt.Text
+        if ($cm.Ok) { Start-ContentMeasure $cm; return }
+        Append-Log ((T "Mesure sur l'image non faite ({0}) : calibration rapide au motif avant cette écriture.") -f "$($cm.Why)")
+    }
     $lr = Get-LevelRef $fam ($mode -eq 'slow') $cmbDrive.Text $img ([bool]$Restore) -NCyl $(if ($null -ne $nfc.NCyl) { [int]$nfc.NCyl } else { 0 })
     if ($lr.Ok) {
         # 12.8 (S3, decision du 21/10/2026) : liste « Mesure : complète » de l onglet Ecriture (levelBeforeWriteMode) : mesure
@@ -15819,6 +16425,11 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
                 Start-DiskMeasure $lr ([string]$script:LevelBrand); return
             }
             Append-Log (T "Mesure complète de cette disquette réservée à l'écriture lente (une courbe par tête) : calibration rapide avant cette écriture rapide.")
+        }
+        # 12.8.1 (decision 5) : avec « sur l image a ecrire », le Test rapide et la restauration gardent la mesure au motif
+        if ($content -and -not $Measure) {
+            if ($Restore) { Append-Log (T "Restauration : destination mesurée au motif (calibration rapide) ; la mesure sur l'image ne se fait pas en restauration.") }
+            else { Append-Log (T "Test rapide : mesure au motif (calibration rapide) ; la mesure sur l'image ne se fait qu'en test standard ou fin, avec la case « Mesurer la disquette avant l'écriture lente ».") }
         }
         $script:AfterCalib = 'write'
         # 12.8 (S3-FLUX, F3R-FIX) : ligne exacte, sans « (test rapide) » : la mesure de la destination ne depend plus du test
@@ -17879,7 +18490,9 @@ function Update-CalibProgress {
     $remaining = $pass * ($total - $done)
     $phaseTxt = if ($cal.Phase -eq 'write') { (T 'écriture') } else { (T 'relecture') }
     $pbWCal.Value = [math]::Max(0, [math]::Min(100, $pct))
-    $fmt = if ($cal.Mode -eq 'level') { (T "Calibration rapide : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
+    # 12.8.1 : mesure de la disquette sur l image (276) : ValueTxt « tete 0 puis tete 1 »
+    $fmt = if ($cal.Mode -eq 'content') { (T "Mesure de la disquette sur l'image : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
+           elseif ($cal.Mode -eq 'level') { (T "Calibration rapide : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
            elseif ($cal.Redo) { (T "Calibration B : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
            elseif ($cal.DiskOnly) { (T "Mesure complète de cette disquette : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
            else { (T "Calibration : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
@@ -17995,6 +18608,11 @@ function Start-CalibWarmup {
         if ($plan.Reduced) { Append-Log ((T "Préchauffage du lecteur {0} : {1} de lecture sans écriture avant la calibration rapide et l'écriture lente, pour que le niveau soit mesuré dans l'état du lecteur au moment de l'écriture (durée réduite : lecteur déjà en activité pendant {2}, dernière commande terminée il y a {3}).") -f "$($cal.Drive)", "$durTxt", "$actTxt", "$idleTxt") }
         else { Append-Log ((T "Préchauffage du lecteur {0} : {1} de lecture sans écriture avant la calibration rapide et l'écriture lente, pour que le niveau soit mesuré dans l'état du lecteur au moment de l'écriture.") -f "$($cal.Drive)", "$durTxt") }
     }
+    elseif ($cal.Mode -eq 'content') {
+        # 12.8.1 : mesure de la disquette sur l image (276), avant l ecriture lente ; retour au stade 'content' (WarmNext)
+        if ($plan.Reduced) { Append-Log ((T "Préchauffage du lecteur {0} : {1} de lecture sans écriture avant la mesure de la disquette sur l'image et l'écriture lente (durée réduite : lecteur déjà en activité pendant {2}, dernière commande terminée il y a {3}).") -f "$($cal.Drive)", "$durTxt", "$actTxt", "$idleTxt") }
+        else { Append-Log ((T "Préchauffage du lecteur {0} : {1} de lecture sans écriture avant la mesure de la disquette sur l'image et l'écriture lente.") -f "$($cal.Drive)", "$durTxt") }
+    }
     elseif ($plan.Reduced) { Append-Log ((T "Préchauffage du lecteur {0} : {1} de lecture sans écriture avant la calibration, pour stabiliser sa température (durée réduite : lecteur déjà en activité pendant {2}, dernière commande terminée il y a {3}).") -f "$($cal.Drive)", "$durTxt", "$actTxt", "$idleTxt") }
     else { Append-Log ((T "Préchauffage du lecteur {0} : {1} de lecture sans écriture avant la calibration, pour stabiliser sa température.") -f "$($cal.Drive)", "$durTxt") }
     $cal.WarmNext = [string]$cal.Stage
@@ -18053,6 +18671,9 @@ function New-CalibPass {
     #  - encadrement : cylindres encore sous-compenses a la plus forte valeur mesuree, ecrits a leur estimation +
     #    CalBracketMargin (une valeur par cylindre ; par tete en ecriture lente), relus seuls ;
     #  - verification : le profil obtenu ; en ecriture lente tete 0 puis tete 1, chacune avec son profil.
+    # 12.8.1 (spec-1281.md § A.9) : mesure de la disquette sur l image (stade 'content' : premiere passe apres les fins du
+    # prechauffage, Start-CalibWarmup et Invoke-CalibWarmup) : passes propres (New-ContentPass, 276)
+    if ($script:Cal -and $script:Cal.Stage -eq 'content') { New-ContentPass; return }
     $cal = $script:Cal
     $writes = @(); $readTs = $cal.TSpec
     if ($cal.Stage -eq 'coarse') {
@@ -19248,6 +19869,919 @@ function Complete-PrecompCalib {
         return
     }
     Show-PrecompCurve $cal.Family $cal.Slow
+}
+# ============================== FONCTIONS : MESURE SUR L IMAGE, CALCUL ==========
+
+# 12.8.1 (lot A, spec-1281.md § A et B.2) : calcul de la mesure de la disquette sur l image, sans interface ni texte T().
+# Blocs de cylindres et plan en carre latin (A.3, A.4) ; pistes exclues avant l ecriture (IPF) et apres la relecture
+# (A.2) ; donnees minimales et facteur k* de chaque tete (effets fixes passe + cylindre, quadratique en k, comme
+# revue_sony.Jeu et motif_analyse.py) ; facteur applique a un profil --precomp (A.10, C.3) ; k du lecteur, mediane des
+# 3 derniers k* mesures du lecteur, de la famille et de la tete (decision de l utilisateur du 25/10/2026, au lieu du
+# dernier de la spec) ; correction « lecteur cible » Dk (C.4) ; conversions de la configuration (C.5) ; arret « Failed to
+# verify Track » de gw (A.7). Constantes en parametres, defauts de 565 (B.4). References executables :
+# v1281\verif_spec1281.py (plan, ajustement) et v1281\verif_scaled.py (profils mis a l echelle).
+
+function Get-ContentBlocks([int]$nCyl, [int]$nBlocks = 8, [int]$len = 5, [int]$maxCyl = 80, [int]$minBlocks = 4) {
+    # Blocs de len cylindres mesures (A.3) : B = floor(min(nCyl, maxCyl) / len) ; B >= nBlocks : blocs
+    # floor(i (B - 1) / (nBlocks - 1) + 1/2), i = 0..nBlocks-1 (les deux bords et des blocs repartis entre eux) ;
+    # minBlocks <= B < nBlocks : tous ; moins : image non mesurable (Ok = $false). Cylindres maxCyl et au-dela jamais
+    # mesures (pistes vides de l IPF, courbe V prolongee). Cyls : cylindres des blocs, dans l ordre des blocs
+    if ($len -le 0 -or $nBlocks -le 0) { return @{ Ok = $false; Idx = [int[]]@(); Cyls = [int[]]@() } }
+    $nb = [int][math]::Floor([math]::Min($nCyl, $maxCyl) / [double]$len)
+    if ($nb -lt [math]::Max(1, $minBlocks)) { return @{ Ok = $false; Idx = [int[]]@(); Cyls = [int[]]@() } }
+    if ($nb -ge $nBlocks -and $nBlocks -ge 2) { $idx = @(0..($nBlocks - 1) | ForEach-Object { [int][math]::Floor($_ * ($nb - 1) / [double]($nBlocks - 1) + 0.5) } | Sort-Object -Unique) }
+    elseif ($nb -ge $nBlocks) { $idx = @(0) }
+    else { $idx = @(0..($nb - 1)) }
+    $cyls = foreach ($b in $idx) { for ($j = 0; $j -lt $len; $j++) { $len * $b + $j } }
+    return @{ Ok = $true; Idx = [int[]]$idx; Cyls = [int[]]@($cyls) }
+}
+
+function Get-ContentLevel([int]$b, [int]$p, [double[]]$levels) {
+    # Niveau k du bloc de rang b (0..B-1) a la passe p (0..2) : carre latin, chaque bloc recoit chaque niveau une fois et
+    # deux blocs voisins n ont jamais le meme niveau a une passe
+    return [double]$levels[($b + $p) % $levels.Count]
+}
+
+function Get-ContentPlan([int[]]$v0, [int[]]$v1, [int]$nCyl, [double[]]$levels, [int]$hard, $preSkip = @{}) {
+    # Plan de la mesure (A.4), meme plan pour les deux tetes : passe p (une par niveau), tete h, cylindres de la tete (sans
+    # les cles 'c.h' de $preSkip), niveau du bloc levels[(rang + p) mod n] et valeur ecrite w = max(0, min(hard,
+    # round(k x V_h(c)))) (arrondi au pair), V bornee a 0..hard (comme Get-LevelRef ; au-dela de la courbe, sa derniere
+    # valeur) ; Spec : profil --precomp de la passe et de la tete (Get-BracketSpec : entrees c=w triees, jointes par :).
+    # NCylHead : cylindres ecrits par tete a chaque passe
+    $bl = Get-ContentBlocks $nCyl
+    $lv = [double[]]@($levels)
+    $vs = @{ 0 = [int[]]@($v0); 1 = [int[]]@($v1) }
+    if (-not $bl.Ok -or $lv.Count -eq 0 -or $vs[0].Count -eq 0 -or $vs[1].Count -eq 0) { return @{ Ok = $false; Blocks = $bl.Idx; Cyls = $bl.Cyls; Levels = $lv; Pass = @(); NCylHead = @{ 0 = 0; 1 = 0 } } }
+    if ($null -eq $preSkip) { $preSkip = @{} }
+    $len = [int]($bl.Cyls.Count / $bl.Idx.Count)
+    $passes = @(); $nh = @{ 0 = 0; 1 = 0 }
+    for ($p = 0; $p -lt $lv.Count; $p++) {
+        $hh = @{}
+        foreach ($h in 0, 1) {
+            $v = $vs[$h]; $cs = New-Object 'System.Collections.Generic.List[int]'; $w = @{}; $kk = @{}
+            for ($bi = 0; $bi -lt $bl.Idx.Count; $bi++) {
+                $k = Get-ContentLevel $bi $p $lv
+                for ($j = 0; $j -lt $len; $j++) {
+                    $c = [int]$bl.Cyls[$bi * $len + $j]
+                    if ($preSkip.Contains("$c.$h")) { continue }
+                    $vc = if ($c -lt $v.Count) { $v[$c] } else { $v[$v.Count - 1] }
+                    $vc = [math]::Max(0, [math]::Min($hard, $vc))
+                    $w[$c] = [int][math]::Max(0.0, [math]::Min([double]$hard, [math]::Round($k * $vc)))
+                    $kk[$c] = $k; $cs.Add($c)
+                }
+            }
+            $cyls = [int[]]@($cs | Sort-Object)
+            $hh[$h] = @{ Cyls = $cyls; W = $w; K = $kk; Spec = $(if ($cyls.Count) { Get-BracketSpec $w } else { '' }) }
+            $nh[$h] = $cyls.Count
+        }
+        $passes += @{ H = $hh }
+    }
+    return @{ Ok = $true; Blocks = $bl.Idx; Cyls = $bl.Cyls; Levels = $lv; Pass = $passes; NCylHead = $nh }
+}
+
+function Get-IpfTrackInfo([string]$path) {
+    # Enregistrements IMGE d un IPF (meme parcours que Get-ImageTrackSet, 150 ; lecture des champs seulement) :
+    # 'c.h' -> @{ Bits (trkbits) ; Blocks (blkcnt, 0 = piste vide) ; Den (densite, offset 8 des donnees : 1 bruit, 2 auto,
+    # 3 et plus protections Copylock, Speedlock... valeurs a confirmer, spec § H.13) } ; $null : illisible ou sans CAPS
+    try {
+        $d = [System.IO.File]::ReadAllBytes($path)
+        if ($d.Length -lt 12 -or [System.Text.Encoding]::ASCII.GetString($d, 0, 4) -ne 'CAPS') { return $null }
+        $info = @{}; $pos = 0
+        while ($pos + 12 -le $d.Length) {
+            $id = [System.Text.Encoding]::ASCII.GetString($d, $pos, 4); $ln = Get-BE32 $d ($pos + 4)
+            if ($ln -lt 12) { break }
+            if ($id -eq 'IMGE' -and $pos + 12 + 44 -le $d.Length) {
+                $cyl  = Get-BE32 $d ($pos + 12)          # piste (cylindre)
+                $side = Get-BE32 $d ($pos + 16)          # face
+                $den  = Get-BE32 $d ($pos + 20)          # densite
+                $bits = Get-BE32 $d ($pos + 12 + 36)     # bits de la piste
+                $blk  = Get-BE32 $d ($pos + 12 + 40)     # nombre de blocs : 0 = piste vide
+                if ($cyl -lt 200 -and $side -le 1) { $info["$cyl.$side"] = @{ Bits = [int64]$bits; Blocks = [int64]$blk; Den = [int64]$den } }
+            } elseif ($id -eq 'DATA' -and $pos + 16 -le $d.Length) { $ln += Get-BE32 $d ($pos + 12) }
+            $pos += $ln
+        }
+        return $info
+    } catch { return $null }
+}
+
+function Get-ContentImageSkip([string]$img, [int[]]$cyls) {
+    # Pistes des cylindres mesures exclues avant l ecriture (A.2), 'c.h' -> raison : 'absente' (hors de Get-ImageTrackSet :
+    # IPF blkcnt ou trkbits nul, cylindre hors de l image), 'longue' (IPF : trkbits > 1,02 x mediane des trkbits de
+    # l image, meme rang que Get-IpfCellInfo), 'protegee' (IPF : densite autre que 2, auto). Image sans table de pistes
+    # lisible (IMG, ST, DSK...) : aucune exclusion, gw encode lui-meme du MFM standard
+    $skip = @{}
+    $set = Get-ImageTrackSet $img
+    $ipf = $null; $med = 0
+    if ([System.IO.Path]::GetExtension($img).ToLower() -eq '.ipf') {
+        $ipf = Get-IpfTrackInfo $img
+        if ($ipf) {
+            $bs = @($ipf.Values | Where-Object { $_.Blocks -gt 0 -and $_.Bits -gt 0 } | ForEach-Object { [int64]$_.Bits } | Sort-Object)
+            if ($bs.Count) { $med = [int64]$bs[[int]($bs.Count / 2)] }
+        }
+    }
+    foreach ($c in @($cyls)) {
+        foreach ($h in 0, 1) {
+            $key = "$c.$h"
+            if ($set -and -not $set.ContainsKey($key)) { $skip[$key] = 'absente'; continue }
+            if ($ipf -and $ipf.ContainsKey($key)) {
+                $r = $ipf[$key]
+                if ($r.Blocks -le 0 -or $r.Bits -le 0) { $skip[$key] = 'absente' }
+                elseif ($med -gt 0 -and $r.Bits -gt 1.02 * $med) { $skip[$key] = 'longue' }
+                elseif ($r.Den -ne 2) { $skip[$key] = 'protegee' }
+            }
+        }
+    }
+    return $skip
+}
+
+function Get-ContentExclusions($obs, [double]$zMax = 5e-4, [double]$cellsTol = 0.02, [double]$fluxMin = 0.5) {
+    # Pistes exclues apres la relecture (A.2), pour toute la mesure (aux 3 niveaux), 'c.h' -> raison, d apres les lectures
+    # de la piste aux passes ($obs : @{ C ; H ; P ; NRev ; N ; Z ; Cells ; Flux }) ; medianes prises sur toutes les lectures
+    # a tour exploitable de la mesure :
+    #  - 'vide' : aucune lecture a tour exploitable, ou intervalles moyens par tour sous fluxMin x la mediane a CHAQUE
+    #    lecture (piste effacee ou non formatee) ;
+    #  - 'longueur' : mediane des cellules par tour de la piste hors de [1 - cellsTol ; 1 + cellsTol] x la mediane ;
+    #  - 'nonmfm' : MINIMUM sur les lectures de Z/N au-dessus de zMax (une piste mal ecrite a un seul niveau reste dans
+    #    la mesure : sa marge basse est l information cherchee).
+    $per = [ordered]@{}
+    $fl = New-Object 'System.Collections.Generic.List[double]'; $ce = New-Object 'System.Collections.Generic.List[double]'
+    foreach ($o in $obs) {
+        if ($null -eq $o) { continue }
+        $key = "$([int]$o.C).$([int]$o.H)"
+        if (-not $per.Contains($key)) { $per[$key] = New-Object 'System.Collections.Generic.List[object]' }
+        $fx = @($o.Flux | Where-Object { $null -ne $_ }); $cx = @($o.Cells | Where-Object { $null -ne $_ })
+        if ([int]$o.NRev -gt 0 -and [double]$o.N -gt 0 -and $fx.Count -gt 0 -and $cx.Count -gt 0) {
+            $f = 0.0; foreach ($x in $fx) { $f += [double]$x }; $f /= $fx.Count
+            $mc = Get-Median $cx
+            $per[$key].Add(@{ Flux = $f; Cells = $mc; ZFrac = [double]$o.Z / [double]$o.N })
+            $fl.Add($f); $ce.Add($mc)
+        }
+    }
+    $mFlux = Get-Median $fl; $mCells = Get-Median $ce
+    $ex = @{}
+    foreach ($key in $per.Keys) {
+        $rs = $per[$key]
+        if ($rs.Count -eq 0) { $ex[$key] = 'vide'; continue }
+        $fMax = 0.0; $zMin = [double]::PositiveInfinity; $cs = @()
+        foreach ($r in $rs) { if ($r.Flux -gt $fMax) { $fMax = $r.Flux }; if ($r.ZFrac -lt $zMin) { $zMin = $r.ZFrac }; $cs += $r.Cells }
+        if ($fMax -lt $fluxMin * $mFlux) { $ex[$key] = 'vide' }
+        elseif ($mCells -gt 0 -and [math]::Abs((Get-Median $cs) / $mCells - 1.0) -gt $cellsTol) { $ex[$key] = 'longueur' }
+        elseif ($zMin -gt $zMax) { $ex[$key] = 'nonmfm' }
+    }
+    return $ex
+}
+
+function Get-ContentHeadCheck($rows, [int]$minCyl = 20, [int]$minLevelCyl = 6) {
+    # Donnees minimales d une tete (A.2), lignes retenues @{ P ; C ; K ; Y } : au moins minCyl cylindres a 2 lectures ou
+    # plus ('peu' sinon) ; parmi eux, 3 niveaux au moins (la quadratique en k en demande 3), chacun sur minLevelCyl
+    # cylindres au moins ('niveaux' sinon)
+    $byC = @{}
+    foreach ($r in $rows) {
+        if ($null -eq $r) { continue }
+        $c = [int]$r.C
+        if (-not $byC.ContainsKey($c)) { $byC[$c] = New-Object 'System.Collections.Generic.List[object]' }
+        $byC[$c].Add($r)
+    }
+    $cs = @($byC.Keys | Where-Object { $byC[$_].Count -ge 2 })
+    if ($cs.Count -lt $minCyl) { return @{ Ok = $false; NCyl = $cs.Count; Why = 'peu' } }
+    $lv = @{}
+    foreach ($c in $cs) { foreach ($k in @($byC[$c] | ForEach-Object { [int64][math]::Round([double]$_.K * 1e6) } | Sort-Object -Unique)) { $lv[$k] = 1 + [int]$lv[$k] } }
+    if ($lv.Count -lt 3 -or @($lv.Values | Where-Object { $_ -lt $minLevelCyl }).Count -gt 0) { return @{ Ok = $false; NCyl = $cs.Count; Why = 'niveaux' } }
+    return @{ Ok = $true; NCyl = $cs.Count; Why = '' }
+}
+
+function Get-ContentFactor($rows, [double]$kMin, [double]$kMax = 1.0) {
+    # Facteur k* d une tete (B.2) : y = a_passe + g_cylindre + b1 u + b2 u^2, u = k - 1, sur les lignes @{ P ; C ; K ; Y }
+    # retenues. Passes dans l ordre de premiere apparition, la premiere en reference ; cylindre absorbe exactement
+    # (colonnes et y centres dans chaque cylindre, cylindre a moins de 2 lignes ignore). Sommet de la parabole si b2 < 0
+    # (erreur-type par la methode delta), sinon +Inf ou -Inf du cote ou la marge augmente ; K = sommet borne a
+    # [kMin ; kMax] ; Gain = marge a K moins marge a k = 1 (ns) ; Flat : |b1| < 2 SeB1 et |b2| < 2 SeB2. Avec 3 niveaux, la
+    # quadratique passe par les 3 moyennes ajustees. Rend toujours une table avec Ok (Why : 'niveaux', 'singulier', 'ddl')
+    $rs = @($rows | Where-Object { $null -ne $_ })
+    $passes = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($r in $rs) { $p = [string]$r.P; if (-not $passes.Contains($p)) { $passes.Add($p) } }
+    $nan = [double]::NaN
+    $out = @{ Ok = $false; Why = ''; K = $nan; KVertex = $nan; Ext = $false; Bound = ''; Flat = $false; B1 = $nan; B2 = $nan; SeB1 = $nan; SeB2 = $nan
+              SeK = $nan; Gain = $nan; S = $nan; N = 0; NCyl = 0; Passes = [string[]]$passes.ToArray(); PassEff = @{} }
+    $np = $passes.Count; $q = [math]::Max(0, $np - 1) + 2; $iu = $q - 2; $iu2 = $q - 1
+    # Groupes par cylindre (ordre des lignes garde dans chaque groupe), cylindres croissants
+    $byC = @{}
+    foreach ($r in $rs) { $c = [int]$r.C; if (-not $byC.ContainsKey($c)) { $byC[$c] = New-Object 'System.Collections.Generic.List[object]' }; $byC[$c].Add($r) }
+    $Gm = New-Object 'double[][]' $q; for ($i = 0; $i -lt $q; $i++) { $Gm[$i] = New-Object double[] $q }
+    $gv = New-Object double[] $q; $yy = 0.0; $n = 0; $ncyl = 0
+    foreach ($c in @($byC.Keys | Sort-Object)) {
+        $grp = $byC[$c]; $m = $grp.Count
+        if ($m -lt 2) { continue }
+        $ncyl++
+        $Xr = New-Object 'double[][]' $m; $Yr = New-Object double[] $m
+        for ($j = 0; $j -lt $m; $j++) {
+            $r = $grp[$j]; $row = New-Object double[] $q
+            for ($i = 1; $i -lt $np; $i++) { if ([string]$r.P -eq $passes[$i]) { $row[$i - 1] = 1.0 } }
+            $u = [double]$r.K - 1.0; $row[$iu] = $u; $row[$iu2] = $u * $u
+            $Xr[$j] = $row; $Yr[$j] = [double]$r.Y
+        }
+        $mx = New-Object double[] $q; $my = 0.0
+        for ($i = 0; $i -lt $q; $i++) { $sx = 0.0; for ($j = 0; $j -lt $m; $j++) { $sx += $Xr[$j][$i] }; $mx[$i] = $sx / $m }
+        for ($j = 0; $j -lt $m; $j++) { $my += $Yr[$j] }; $my /= $m
+        for ($j = 0; $j -lt $m; $j++) {
+            $zr = New-Object double[] $q; for ($i = 0; $i -lt $q; $i++) { $zr[$i] = $Xr[$j][$i] - $mx[$i] }
+            $zy = $Yr[$j] - $my
+            for ($i = 0; $i -lt $q; $i++) { $gv[$i] += $zr[$i] * $zy; for ($jj = 0; $jj -lt $q; $jj++) { $Gm[$i][$jj] += $zr[$i] * $zr[$jj] } }
+            $yy += $zy * $zy; $n++
+        }
+    }
+    $out.N = $n; $out.NCyl = $ncyl
+    $keep = @(0..($q - 1) | Where-Object { $Gm[$_][$_] -gt 1e-9 })
+    if ($keep -notcontains $iu -or $keep -notcontains $iu2) { $out.Why = 'niveaux'; return $out }
+    $nk = $keep.Count
+    # Noms distincts sans tenir compte de la casse (variables PowerShell) : matrice $Gkm, second membre $gkv
+    $Gkm = New-Object 'double[][]' $nk; $gkv = New-Object double[] $nk
+    for ($i = 0; $i -lt $nk; $i++) { $Gkm[$i] = New-Object double[] $nk; for ($j = 0; $j -lt $nk; $j++) { $Gkm[$i][$j] = $Gm[$keep[$i]][$keep[$j]] }; $gkv[$i] = $gv[$keep[$i]] }
+    $sol = Solve-ContentLinear $Gkm $gkv
+    if ($null -eq $sol) { $out.Why = 'singulier'; return $out }
+    $sg = 0.0; for ($i = 0; $i -lt $nk; $i++) { $sg += $sol[$i] * $gkv[$i] }
+    $ssr = $yy - $sg
+    $df = $n - $ncyl - $nk
+    if ($df -le 0) { $out.Why = 'ddl'; return $out }
+    $s2 = [math]::Max(0.0, $ssr) / $df
+    # Inverse de G (colonnes de l identite) : variances et covariance de b1 et b2
+    $inv = New-Object 'double[][]' $nk; for ($i = 0; $i -lt $nk; $i++) { $inv[$i] = New-Object double[] $nk }
+    for ($j = 0; $j -lt $nk; $j++) {
+        $e = New-Object double[] $nk; $e[$j] = 1.0
+        $col = Solve-ContentLinear $Gkm $e
+        if ($null -eq $col) { $out.Why = 'singulier'; return $out }
+        for ($i = 0; $i -lt $nk; $i++) { $inv[$i][$j] = $col[$i] }
+    }
+    $pu = [array]::IndexOf($keep, $iu); $pu2 = [array]::IndexOf($keep, $iu2)
+    $vb1 = [math]::Max(0.0, $s2 * $inv[$pu][$pu]); $vb2 = [math]::Max(0.0, $s2 * $inv[$pu2][$pu2]); $cb = $s2 * $inv[$pu][$pu2]
+    $b1 = $sol[$pu]; $b2 = $sol[$pu2]
+    $uMin = $kMin - 1.0; $uMax = $kMax - 1.0
+    if ($b2 -lt 0) {
+        $kv = 1.0 - $b1 / (2 * $b2); $ext = $true
+        $g1 = -1.0 / (2 * $b2); $g2 = $b1 / (2 * $b2 * $b2)
+        $seK = [math]::Sqrt([math]::Max(0.0, $g1 * $g1 * $vb1 + $g2 * $g2 * $vb2 + 2 * $g1 * $g2 * $cb))
+    } else {
+        $ext = $false; $seK = $nan
+        $kv = if (($b1 * $uMax + $b2 * $uMax * $uMax) -gt ($b1 * $uMin + $b2 * $uMin * $uMin)) { [double]::PositiveInfinity } else { [double]::NegativeInfinity }
+    }
+    $k = [math]::Min([math]::Max($kv, $kMin), $kMax)
+    $bound = if ($kv -le $kMin) { 'low' } elseif ($kv -ge $kMax) { 'high' } else { '' }
+    $uk = $k - 1.0
+    $pe = @{}; for ($i = 1; $i -lt $np; $i++) { $pi = [array]::IndexOf($keep, $i - 1); $pe[$passes[$i]] = $(if ($pi -ge 0) { $sol[$pi] } else { 0.0 }) }
+    $seB1 = [math]::Sqrt($vb1); $seB2 = [math]::Sqrt($vb2)
+    $out.Ok = $true; $out.K = $k; $out.KVertex = $kv; $out.Ext = $ext; $out.Bound = $bound; $out.B1 = $b1; $out.B2 = $b2
+    $out.SeB1 = $seB1; $out.SeB2 = $seB2; $out.SeK = $seK; $out.Gain = $b1 * $uk + $b2 * $uk * $uk; $out.S = [math]::Sqrt($s2)
+    $out.Flat = ([math]::Abs($b1) -lt 2 * $seB1 -and [math]::Abs($b2) -lt 2 * $seB2); $out.PassEff = $pe
+    return $out
+}
+
+function Solve-ContentLinear([double[][]]$a, [double[]]$b) {
+    # Systeme a x = b (petit, dense) : elimination de Gauss a pivot partiel puis remontee (port de revue_sony.solve) ;
+    # $null si un pivot est inferieur a 1e-10 en valeur absolue. a et b ne sont pas modifies
+    $n = $b.Count
+    $M = New-Object 'double[][]' $n
+    for ($i = 0; $i -lt $n; $i++) { $row = New-Object double[] ($n + 1); for ($j = 0; $j -lt $n; $j++) { $row[$j] = $a[$i][$j] }; $row[$n] = $b[$i]; $M[$i] = $row }
+    for ($c = 0; $c -lt $n; $c++) {
+        $piv = $c
+        for ($r = $c + 1; $r -lt $n; $r++) { if ([math]::Abs($M[$r][$c]) -gt [math]::Abs($M[$piv][$c])) { $piv = $r } }
+        if ([math]::Abs($M[$piv][$c]) -lt 1e-10) { return $null }
+        $t = $M[$c]; $M[$c] = $M[$piv]; $M[$piv] = $t
+        for ($r = $c + 1; $r -lt $n; $r++) {
+            $f = $M[$r][$c] / $M[$c][$c]
+            for ($k = $c; $k -le $n; $k++) { $M[$r][$k] -= $f * $M[$c][$k] }
+        }
+    }
+    $x = New-Object double[] $n
+    for ($c = $n - 1; $c -ge 0; $c--) {
+        $s = 0.0; for ($k = $c + 1; $k -lt $n; $k++) { $s += $M[$c][$k] * $x[$k] }
+        $x[$c] = ($M[$c][$n] - $s) / $M[$c][$c]
+    }
+    return ,$x
+}
+
+function Limit-WriteFactor([double]$f, [double]$fMax = 0) {
+    # Facteur d une ecriture (k + Dk) ramene a [0 ; fMax] ; fMax absent ou nul : ContentFMax (plafond unique, 040) ; NaN :
+    # 1 (courbe telle quelle). Clamped : valeur changee
+    if (-not ($fMax -gt 0)) { $fMax = [double]$script:ContentFMax }
+    if ([double]::IsNaN($f)) { return @{ F = 1.0; Clamped = $true } }
+    $v = [math]::Min([math]::Max($f, 0.0), $fMax)
+    return @{ F = $v; Clamped = ($v -ne $f) }
+}
+
+function ConvertTo-ScaledSpec([string]$spec, [double]$f, [int]$hard) {
+    # Profil --precomp mis a l echelle (C.3) : chaque entree c=v devient c=w, w = round(f x v) (arrondi au pair), au plus
+    # max(hard, v) (une valeur au-dessus de la borne, venue d une mesure complete, n est jamais augmentee), au moins 0 ;
+    # cylindres et ordre des entrees gardes, entree illisible gardee telle quelle. f = 1 : $spec rendu tel quel (meme
+    # chaine : profils transmis a gw identiques a l octet a ceux de la v12.8)
+    if ($f -eq 1.0 -or -not $spec) { return $spec }
+    $parts = foreach ($e in ($spec -split ':')) {
+        if ($e -match '^\s*(\d+)\s*=\s*(\d+)\s*$') {
+            $v = [int]$Matches[2]
+            $w = [math]::Max(0.0, [math]::Min([math]::Round($f * $v), [double][math]::Max($hard, $v)))
+            "$([int]$Matches[1])=$([int]$w)"
+        } else { $e }
+    }
+    return (@($parts) -join ':')
+}
+
+function Get-DriveK([string]$drive, [string]$fam, [int]$h) {
+    # k du lecteur pour une ecriture sans mesure sur l image (C.3 ; decision de l utilisateur du 25/10/2026) : MEDIANE des
+    # k* des 3 derniers enregistrements de ce lecteur, de cette famille et de cette tete (date de mesure, ordre d ajout a
+    # date egale), de version ContentCalc et de calcul CalibCalc courants ; date de la courbe V non exigee (k garde apres
+    # une recalibration du lecteur). Rec : le plus recent ; N : enregistrements retenus (3 au plus), Ks : leurs k*.
+    # Sans enregistrement : K = 1, Src 'defaut' (ecriture de la v12.8)
+    $cand = @(); $i = 0
+    foreach ($r in $script:ContentMeasures) {
+        $i++
+        if ($null -eq $r -or $null -eq $r.Head -or $null -eq $r.K) { continue }
+        if ([string]$r.Drive -ne $drive -or [string]$r.Family -ne $fam -or [int]$r.Head -ne $h) { continue }
+        if ([string]$r.ContentCalc -ne [string]$script:ContentCalc -or [string]$r.Calc -ne [string]$script:CalibCalc) { continue }
+        $k = [double]$r.K
+        if ([double]::IsNaN($k) -or [double]::IsInfinity($k)) { continue }
+        $cand += @{ R = $r; D = (Get-CurveDate $r); I = $i; K = $k }
+    }
+    if ($cand.Count -eq 0) { return @{ K = 1.0; Src = 'defaut'; Rec = $null; N = 0; Ks = [double[]]@() } }
+    $last = @($cand | Sort-Object -Property @{ Expression = { $_.D }; Descending = $true }, @{ Expression = { $_.I }; Descending = $true } | Select-Object -First 3)
+    $ks = [double[]]@($last | ForEach-Object { $_.K })
+    return @{ K = [double](Get-Median $ks); Src = 'lecteur'; Rec = $last[0].R; N = $last.Count; Ks = $ks }
+}
+
+function Add-ContentMeasure($rec) {
+    # Ajoute un enregistrement de mesure (C.2) a $script:ContentMeasures et garde les ContentRecMax (20 par defaut) plus
+    # recents (date de mesure, ordre d ajout a date egale), ranges du plus ancien au plus recent
+    if ($null -eq $rec) { return }
+    $all = @($script:ContentMeasures | Where-Object { $null -ne $_ })
+    $all += $rec
+    $max = 20; if ($null -ne $script:ContentRecMax -and [int]$script:ContentRecMax -gt 0) { $max = [int]$script:ContentRecMax }
+    if ($all.Count -gt $max) {
+        $ix = for ($j = 0; $j -lt $all.Count; $j++) { @{ R = $all[$j]; D = (Get-CurveDate $all[$j]); I = $j } }
+        $keep = @($ix | Sort-Object -Property @{ Expression = { $_.D }; Descending = $true }, @{ Expression = { $_.I }; Descending = $true } | Select-Object -First $max)
+        $all = @($keep | Sort-Object -Property @{ Expression = { $_.D } }, @{ Expression = { $_.I } } | ForEach-Object { $_.R })
+    }
+    $script:ContentMeasures = $all
+}
+
+function Get-DriveDk([string]$drive, [int]$h) {
+    # Correction « lecteur cible » Dk d une tete du lecteur (C.4) : 0 par defaut (lecteur ou tete inconnus)
+    if ($h -lt 0 -or $h -gt 1 -or -not $drive -or $null -eq $script:TargetCorr -or -not $script:TargetCorr.ContainsKey($drive)) { return 0.0 }
+    $v = if ($h -eq 0) { $script:TargetCorr[$drive].Dk0 } else { $script:TargetCorr[$drive].Dk1 }
+    if ($null -eq $v) { return 0.0 }
+    return [double]$v
+}
+
+function Set-DriveDk([string]$drive, [int]$h, [double]$v) {
+    # Regle Dk d une tete du lecteur : bornee a [-TargetCorrMax ; TargetCorrMax] (borne unique, 040), arrondie a 0,01
+    # (NaN : 0) ; rend l ancienne valeur. Date de la correction mise a jour quand la valeur change
+    $old = Get-DriveDk $drive $h
+    if (-not $drive -or $h -lt 0 -or $h -gt 1) { return $old }
+    if ([double]::IsNaN($v)) { $v = 0.0 }
+    $m = [double]$script:TargetCorrMax
+    $v = [math]::Round([math]::Min($m, [math]::Max(-$m, $v)), 2)
+    if ($v -eq 0) { $v = 0.0 }                                          # -0 ecrit 0
+    if ($null -eq $script:TargetCorr) { $script:TargetCorr = @{} }
+    if (-not $script:TargetCorr.ContainsKey($drive)) { $script:TargetCorr[$drive] = @{ Dk0 = 0.0; Dk1 = 0.0; Date = ''; Note = '' } }
+    $e = $script:TargetCorr[$drive]
+    if ($h -eq 0) { $e.Dk0 = $v } else { $e.Dk1 = $v }
+    if ($v -ne $old) { $e.Date = Get-Date -Format 'dd/MM/yyyy HH:mm' }
+    return $old
+}
+
+function ConvertTo-FiniteOrNull($x) {
+    # Nombre fini (double), sinon $null (absent, texte illisible, NaN, infini : le JSON n admet ni NaN ni l infini)
+    if ($null -eq $x -or $x -is [bool]) { return $null }
+    try { $d = [double]$x } catch { return $null }
+    if ([double]::IsNaN($d) -or [double]::IsInfinity($d)) { return $null }
+    return $d
+}
+
+function Get-ConfigDouble($x, [double]$def) {
+    # Nombre de la configuration : valeur finie, sinon $def
+    $d = ConvertTo-FiniteOrNull $x
+    if ($null -eq $d) { return $def }
+    return [double]$d
+}
+
+function Get-RecValues($o) {
+    # Champ Values d un enregistrement (mesure C.2, courbe V, entree de write.driveFactors) : lu par l index sur une table
+    # (IDictionary). Sans la cle, $o.Values rendrait la propriete Values de la Hashtable, c est-a-dire toutes les valeurs
+    # de l enregistrement (revue 12.8.1, I1) ; objet de ConvertFrom-Json : propriete. Champ absent ou $null : rien dans
+    # le pipeline (@(Get-RecValues $x) vide)
+    if ($null -eq $o) { return }
+    $v = $null
+    if ($o -is [System.Collections.IDictionary]) { $v = $o['Values'] } else { $v = $o.Values }
+    if ($null -eq $v) { return }
+    return $v
+}
+
+function ConvertTo-ContentConfig($rec) {
+    # Enregistrement de mesure (C.2) -> entree de write.driveFactors (C.5) ; nombres non finis ecrits null ; Values par
+    # Get-RecValues (enregistrement sans cle Values : liste vide)
+    if ($null -eq $rec) { return $null }
+    return [ordered]@{ model = [string]$rec.Model; drive = [string]$rec.Drive; family = [string]$rec.Family; head = [int]$rec.Head
+                       date = [string]$rec.Date; image = [string]$rec.Image; k = (ConvertTo-FiniteOrNull $rec.K); kVertex = (ConvertTo-FiniteOrNull $rec.KVertex)
+                       bound = [string]$rec.Bound; flat = [bool]$rec.Flat; seK = (ConvertTo-FiniteOrNull $rec.SeK); b1 = (ConvertTo-FiniteOrNull $rec.B1)
+                       b2 = (ConvertTo-FiniteOrNull $rec.B2); gain = (ConvertTo-FiniteOrNull $rec.Gain); s = (ConvertTo-FiniteOrNull $rec.S)
+                       nCyl = [int]$rec.NCyl; nObs = [int]$rec.NObs; nExcl = [int]$rec.NExcl
+                       levels = @($rec.Levels | Where-Object { $null -ne $_ } | ForEach-Object { [double]$_ })
+                       dk = (ConvertTo-FiniteOrNull $rec.Dk); f = (ConvertTo-FiniteOrNull $rec.F)
+                       values = @(Get-RecValues $rec | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ }); spec = [string]$rec.Spec
+                       refKey = [string]$rec.RefKey; refDate = [string]$rec.RefDate; calc = [string]$rec.Calc; contentCalc = [string]$rec.ContentCalc
+                       version = [string]$rec.Version }
+}
+
+function ConvertFrom-ContentConfig($o) {
+    # Entree de write.driveFactors -> enregistrement de mesure (C.2) ; $null (ignoree par Load-Config, ligne T-C14) sans
+    # drive ou family, avec head autre que 0 ou 1, ou avec k non fini ou hors de [0 ; 1]. KVertex : $null sans sommet ;
+    # autres nombres absents : NaN (Dk : 0, F : k)
+    if ($null -eq $o) { return $null }
+    try {
+        $k = ConvertTo-FiniteOrNull $o.k; $hd = ConvertTo-FiniteOrNull $o.head
+        if (-not [string]$o.drive -or -not [string]$o.family -or $null -eq $hd -or ($hd -ne 0 -and $hd -ne 1) -or $null -eq $k -or $k -lt 0 -or $k -gt 1) { return $null }
+        $nan = [double]::NaN
+        return @{ Model = $(if ($o.model) { [string]$o.model } else { 'contenu' }); Drive = [string]$o.drive; Family = [string]$o.family; Head = [int]$hd
+                  Date = [string]$o.date; Image = [string]$o.image; K = [double]$k; KVertex = (ConvertTo-FiniteOrNull $o.kVertex); Bound = [string]$o.bound
+                  Flat = ($o.flat -eq $true); SeK = (Get-ConfigDouble $o.seK $nan); B1 = (Get-ConfigDouble $o.b1 $nan); B2 = (Get-ConfigDouble $o.b2 $nan)
+                  Gain = (Get-ConfigDouble $o.gain $nan); S = (Get-ConfigDouble $o.s $nan); NCyl = [int]$o.nCyl; NObs = [int]$o.nObs; NExcl = [int]$o.nExcl
+                  Levels = [double[]]@($o.levels | Where-Object { $null -ne $_ } | ForEach-Object { [double]$_ }); Dk = (Get-ConfigDouble $o.dk 0.0)
+                  F = (Get-ConfigDouble $o.f ([double]$k)); Values = [int[]]@(Get-RecValues $o | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ })
+                  Spec = [string]$o.spec; RefKey = [string]$o.refKey; RefDate = [string]$o.refDate; Calc = [string]$o.calc
+                  ContentCalc = [string]$o.contentCalc; Version = [string]$o.version }
+    } catch { return $null }
+}
+
+function ConvertTo-TargetCorrConfig {
+    # Dk de chaque lecteur -> write.targetCorrection (C.5), trie par lecteur ; l appelant l enveloppe dans @(), comme
+    # levelBrands (une seule entree serait sinon rendue seule)
+    if ($null -eq $script:TargetCorr) { return @() }
+    return @(@($script:TargetCorr.Keys | Sort-Object) | ForEach-Object {
+        [ordered]@{ drive = [string]$_; dk0 = (Get-DriveDk ([string]$_) 0); dk1 = (Get-DriveDk ([string]$_) 1); date = [string]$script:TargetCorr[$_].Date; note = [string]$script:TargetCorr[$_].Note }
+    })
+}
+
+function ConvertFrom-TargetCorrConfig($arr) {
+    # write.targetCorrection -> @{ Map (lecteur -> @{ Dk0 ; Dk1 ; Date ; Note }) ; Bad (entrees illisibles : sans lecteur,
+    # ou avec une valeur qui n est pas un nombre, comptee 0) } ; valeur hors bornes ramenee a [-TargetCorrMax ;
+    # TargetCorrMax] (borne unique, 040), arrondie a 0,01
+    $map = @{}; $bad = 0; $m = [double]$script:TargetCorrMax
+    foreach ($o in $arr) {
+        if ($null -eq $o) { continue }
+        $d = ([string]$o.drive).Trim()
+        if (-not $d) { $bad++; continue }
+        $ok = $true; $e = @{ Dk0 = 0.0; Dk1 = 0.0; Date = [string]$o.date; Note = [string]$o.note }
+        foreach ($pr in @(@('Dk0', $o.dk0), @('Dk1', $o.dk1))) {
+            if ($null -eq $pr[1]) { continue }
+            $v = ConvertTo-FiniteOrNull $pr[1]
+            if ($null -eq $v) { $ok = $false; continue }
+            $v = [math]::Round([math]::Min($m, [math]::Max(-$m, $v)), 2); if ($v -eq 0) { $v = 0.0 }
+            $e[$pr[0]] = $v
+        }
+        if (-not $ok) { $bad++ }
+        $map[$d] = $e
+    }
+    return @{ Map = $map; Bad = $bad }
+}
+
+function Get-GwVerifyStop([string[]]$lines) {
+    # Arret de gw 1.23 sur une piste refusee a la verification apres les nouveaux essais (A.7) : @{ C ; H } de la premiere
+    # ligne « Failed to verify Track C.H » (sans ancre : « ** FATAL ERROR: » peut la preceder), $null sinon
+    foreach ($l in @($lines)) {
+        if ($null -eq $l) { continue }
+        $m = [regex]::Match($l, 'Failed to verify Track (\d+)\.([01])')
+        if ($m.Success) { return @{ C = [int]$m.Groups[1].Value; H = [int]$m.Groups[2].Value } }
+    }
+    return $null
+}
+# ============================== FONCTIONS : MESURE SUR L IMAGE, DEROULE ==========
+
+# 12.8.1 (lot B, spec-1281.md § A et B.3) : mesure de la disquette sur l image avant une ecriture lente (liste « Mesure :
+# sur l image a ecrire », reglage levelBeforeWriteMode = content). Eligibilite de l image et du contexte
+# (Test-ContentMeasurable), confirmation frmConfirm, etat de calibration au mode 'content' ($script:Cal : barre, bouton
+# Arreter, prechauffage et minuteur de la calibration complete ; New-CalibPass renvoie le stade 'content' a
+# New-ContentPass), 3 passes des 40 cylindres du plan ecrits avec l image elle-meme a k x V (carre latin, Get-ContentPlan),
+# une commande gw write par tete puis une relecture de 3 tours ; arret « Failed to verify Track » de gw (110, 600) : piste
+# gardee a son niveau, reprise de la tete une fois par passe ; marge fixe de chaque piste relue (Get-ContentPassStats),
+# exclusions, facteur k* par tete (Get-ContentFactor), enregistrements de mesure, puis facteur de l ecriture qui suit
+# ($script:WriteFactorNext, lu une fois par Start-ImageWrite) et ecriture de l image. Calcul : 192 et 274 (lot A) ;
+# constantes et etat : 565 ; textes : 012.
+
+function Get-ContentLevels {
+    # Niveaux k du plan (A.4) : 1, k_mid, k_low ; reglages contentKMid et contentKLow (variables ContentKMid et ContentKLow,
+    # controlees au chargement par Load-Config), sinon defauts de 565. Garde : 0 <= k_low <= k_mid - 0,2 et k_mid <= 0,8
+    $d = [double[]]@($script:ContentLevelsDefault)
+    $m = ConvertTo-FiniteOrNull $script:ContentKMid; $l = ConvertTo-FiniteOrNull $script:ContentKLow
+    if ($null -eq $m -or $null -eq $l -or $l -lt 0 -or $l -gt $m - 0.2 + 1e-9 -or $m -gt 0.8 + 1e-9) { return ,$d }
+    return ,([double[]]@(1.0, [double]$m, [double]$l))
+}
+
+function Format-ContentLevels([double[]]$levels) {
+    # Niveaux au format de la langue, separes par « ; » (confirmation et journal) : « 1 ; 0,6 ; 0,25 »
+    return ((@($levels) | ForEach-Object { Format-UiNum ([double]$_) '0.##' }) -join ' ; ')
+}
+
+function Format-CylRanges([int[]]$cyls) {
+    # Cylindres en plages, syntaxe de gw (« 0-4,10-14,20-24 ») : --tracks=c= des commandes de la mesure et journal
+    $s = @($cyls | Sort-Object -Unique)
+    if ($s.Count -eq 0) { return '' }
+    $parts = @(); $a = [int]$s[0]; $b = [int]$s[0]
+    for ($i = 1; $i -le $s.Count; $i++) {
+        if ($i -lt $s.Count -and [int]$s[$i] -eq $b + 1) { $b = [int]$s[$i]; continue }
+        $parts += $(if ($a -eq $b) { "$a" } else { "$a-$b" })
+        if ($i -lt $s.Count) { $a = [int]$s[$i]; $b = $a }
+    }
+    return ($parts -join ',')
+}
+
+function Test-ContentMeasurable([string]$img, [string]$fmt) {
+    # Image et contexte de la mesure sur l image (A.2), conditions dans l ordre du tableau ; ecriture lente hors
+    # restauration, profil Auto et --precomp coche, image a deux faces : controles des appelants (Start-LevelBeforeWrite,
+    # Start-WriteTabWrite, Start-PresetWrite, Get-LevelWriteSkip) :
+    #  - image double densite MFM calibrable (Get-WriteLevelKind 'dd' : ni flux, ni haute densite, ni secteurs durs ou
+    #    TG43, densite etablie, cellule de 1 700 a 2 300 ns, module ScpStats), famille std ou long ;
+    #  - champ Pistes vide (c=, h=, step= deja ecartes par Get-LevelWriteSkip ; hswap, h0.off... : pistes physiques que le
+    #    plan, sans ces elements, ne viserait pas) ;
+    #  - courbe(s) V du lecteur du bandeau (Get-FamilyCurves : par tete a jour, sinon la courbe commune pour les deux
+    #    tetes, comme Set-PrecompFields), d au moins min(80, NCyl) valeurs ;
+    #  - 20 cylindres au moins dans l image (4 blocs), et 20 par tete apres les exclusions d avant l ecriture.
+    # Sortie : @{ Ok ; Why (raison du journal, T-B22) ; Img ; Drive ; Fam ; V = @{ 0 ; 1 } (int[]) ; RefKeys ; RefDates ;
+    # Common ; NCyl ; Ncell0 ; PreSkip ; Levels ; Hard ; Plan } (plan construit ici pour compter les pistes par tete)
+    $r = @{ Ok = $false; Why = ''; Img = $img; Drive = [string]$cmbDrive.Text; Fam = ''; V = @{}; RefKeys = @{}; RefDates = @{}; Common = $false
+            NCyl = 0; Ncell0 = 0; PreSkip = @{}; Levels = [double[]]@(); Hard = 0; Plan = $null }
+    $whyKind = (T 'image non mesurable sur son contenu (haute densité, flux, FM ou GCR)')
+    if ((Get-WriteLevelKind $img $fmt) -ne 'dd') { $r.Why = $whyKind; return $r }
+    $fam = Get-ImageFamily $img $fmt
+    if (@('std', 'long') -notcontains $fam) { $r.Why = $whyKind; return $r }
+    $r.Fam = $fam
+    $ts = ([string]$txtWTracks.Text).Trim()
+    if ($ts) { $r.Why = (T 'champ Pistes : {0}') -f "$ts"; return $r }
+    $nc = (Get-CalibCylinders $img $fmt).NCyl
+    $nc = if ($null -eq $nc) { 80 } else { [math]::Max(2, [math]::Min(84, [int]$nc)) }
+    $r.NCyl = $nc
+    # Get-FamilyCurves : tableau protege (pas de @() autour)
+    $cvs = Get-FamilyCurves $fam $true
+    if ($cvs.Count -eq 0) { $r.Why = (T 'aucune courbe du lecteur {0}') -f "$($r.Drive)"; return $r }
+    foreach ($cv in $cvs) { if ([string]$cv.Drive -ne $r.Drive) { $r.Why = (T "courbe d'un autre lecteur ({0})") -f "$($cv.Drive)"; return $r } }
+    $need = [math]::Min([int]$script:ContentMaxCyl, $nc)
+    # Valeurs des courbes par Get-RecValues (274) : une courbe sans cle Values compte 0 valeur
+    foreach ($cv in $cvs) {
+        $nv = @(Get-RecValues $cv).Count
+        if ($nv -lt $need) { $r.Why = (T "courbe du lecteur plus courte que l'image ({0} cylindres, {1} dans l'image)") -f "$nv", "$nc"; return $r }
+    }
+    if ($nc -lt [int]$script:ContentMinCyl) { $r.Why = (T "moins de 20 cylindres dans l'image"); return $r }
+    $common = ($cvs.Count -eq 1)
+    $c0 = $cvs[0]; $c1 = if ($common) { $cvs[0] } else { $cvs[1] }
+    $bl = Get-ContentBlocks $nc ([int]$script:ContentBlocks) ([int]$script:ContentBlockLen) ([int]$script:ContentMaxCyl) ([int]$script:ContentMinBlocks)
+    if (-not $bl.Ok) { $r.Why = (T "moins de 20 cylindres dans l'image"); return $r }
+    # Borne des valeurs ecrites : precompMaxNs de la double densite (CalHardNsUser, comme Get-WriteFactorPlan), a defaut
+    # CalHardNs (bareme d une calibration haute densite pas encore retabli par le minuteur)
+    $hard = [int]$script:CalHardNsUser; if ($hard -le 0) { $hard = [int]$script:CalHardNs }
+    $lv = Get-ContentLevels
+    $pre = Get-ContentImageSkip $img ([int[]]$bl.Cyls)
+    $plan = Get-ContentPlan ([int[]]@(Get-RecValues $c0)) ([int[]]@(Get-RecValues $c1)) $nc $lv $hard $pre
+    if (-not $plan.Ok -or [int]$plan.NCylHead[0] -lt [int]$script:ContentMinCyl -or [int]$plan.NCylHead[1] -lt [int]$script:ContentMinCyl) {
+        $r.Why = (T "trop de pistes exclues de l'image (protégées, longues ou vides)"); return $r
+    }
+    $r.V = @{ 0 = [int[]]@(Get-RecValues $c0); 1 = [int[]]@(Get-RecValues $c1) }
+    $r.RefKeys = @{ 0 = $(if ($common) { $fam } else { "${fam}_h0" }); 1 = $(if ($common) { $fam } else { "${fam}_h1" }) }
+    $r.RefDates = @{ 0 = [string]$c0.Date; 1 = [string]$c1.Date }
+    $r.Common = $common; $r.Ncell0 = [int](Get-PatternBits $fam $img).Bits; $r.PreSkip = $pre; $r.Levels = $lv; $r.Hard = $hard; $r.Plan = $plan
+    $r.Ok = $true
+    return $r
+}
+
+function Get-ContentWriteArgs($cal, $w) {
+    # Commande gw write d une tete a la passe en cours (A.5) : memes options que l ecriture lente (Start-ImageWrite,
+    # 140:135-162 : --pre-erase, --erase-empty et --no-verify selon les cases, --retries, Get-WriteFormatArgs), puis le
+    # --precomp du plan de la passe et de la tete restreint aux cylindres de la commande ($w = @{ H ; Cyls ; Resume } :
+    # commande complete, ou reprise apres un arret de gw), --tracks=c=<cylindres>:h=<tete> et l image. Jamais --tracks=h=
+    # seul : ces commandes ne se confondent pas avec l ecriture finale (regex de rpm_analyse.precomp_journal)
+    $ct = $cal.Content
+    $ph = $ct.Plan.Pass[[int]$ct.Pass].H[[int]$w.H]
+    $sel = @{}
+    foreach ($c in @($w.Cyls)) { $sel[[int]$c] = [int]$ph.W[[int]$c] }
+    $a = @('write') + (Get-CommonArgs)
+    if ($chkWPreErase.Checked)   { $a += '--pre-erase' }
+    if ($chkWEraseEmpty.Checked) { $a += '--erase-empty' }
+    if ($chkWNoVerify.Checked)   { $a += '--no-verify' }
+    $a += "--retries=$($numWRetries.Value)"
+    $a += Get-WriteFormatArgs
+    $a += @('--precomp', (Get-BracketSpec $sel), "--tracks=c=$(Format-CylRanges ([int[]]@($w.Cyls))):h=$([int]$w.H)", "`"$($cal.Image)`"")
+    return ,([string[]]$a)
+}
+
+function Get-ContentMeasureMinutes([int]$nTracks) {
+    # Duree estimee de la mesure avant l ecriture de l image (A.6) : 3 passes de nTracks pistes ecrites (ContentEstWrite,
+    # 1,25 s par piste, ecriture verifiee) et relues (ContentEstRead, 0,85 s par piste, 3 tours), plus le prechauffage du
+    # reglage warmFullCalib (borne haute : reduit ou saute si le lecteur vient de servir)
+    $wu = if ([bool](Get-Setting 'warmFullCalib')) { [math]::Max(0.0, [double]$script:CalWarmupMinutes) } else { 0.0 }
+    return [int][math]::Max(1, [math]::Round(3 * $nTracks * ([double]$script:ContentEstWrite + [double]$script:ContentEstRead) / 60 + $wu, 0))
+}
+
+function Get-ContentPeekFactors([string]$img, [string]$fmt, [string]$fam) {
+    # Facteurs d une ecriture sans mesure sur l image, par tete (texte « Ecrire sans mesure » de la confirmation, A.8) :
+    # plan de Start-ImageWrite (Get-WriteFactorPlan -Peek, 140) ; a defaut, k du lecteur (Get-DriveK) plus Dk, ramene a
+    # 0..ContentFMax (Limit-WriteFactor), le meme calcul
+    $f = @{ 0 = 1.0; 1 = 1.0 }
+    $wf = $null
+    try { $wf = Get-WriteFactorPlan $img $fmt $true $null -Peek } catch { $wf = $null }
+    if ($wf -and $wf.Apply) { $f[0] = [double]$wf.F0; $f[1] = [double]$wf.F1; return $f }
+    $drv = [string]$cmbDrive.Text
+    foreach ($h in 0, 1) { $f[$h] = [double](Limit-WriteFactor ([double](Get-DriveK $drv $fam $h).K + (Get-DriveDk $drv $h)) ([double]$script:ContentFMax)).F }
+    return $f
+}
+
+function Start-ContentMeasure($chk) {
+    # Lancement de la mesure sur l image (A.8, A.9), $chk : Test-ContentMeasurable. Refus si gw tourne ; confirmation
+    # frmConfirm sans case ni compte a rebours, reponse notee au journal par Show-AppConfirm : « Mesurer puis ecrire »
+    # (mesure), « Ecrire sans mesure » (ecriture avec le facteur du lecteur), Fermer (ecriture annulee). Etat $script:Cal
+    # au mode et au stade 'content' (barre, bouton Arreter, prechauffage et minuteur communs ; champs lus par
+    # Update-CalibProgress, Start-CalibWarmup, Invoke-CalibWarmup, Stop-PrecompCalib), ecriture apres la mesure
+    # (AfterCalib 'write', Complete-ContentMeasure), puis prechauffage s il y a lieu et premiere passe. Refus (gw en cours,
+    # avant ou apres la confirmation) : ecriture annulee, une ligne de journal (revue 12.8.1, point 7)
+    $refusTxt = (T 'Écriture annulée : une commande gw est déjà en cours, mesure de la disquette non lancée.')
+    if ($script:GwProc -and -not $script:GwProc.HasExited) { $script:AfterCalib = ''; Append-Log $refusTxt; return }
+    $drive = [string]$chk.Drive; $img = [string]$chk.Img; $fam = [string]$chk.Fam; $plan = $chk.Plan
+    $lv = [double[]]@($chk.Levels)
+    $cyls = [int[]]@($plan.Cyls | Sort-Object -Unique)
+    $min = Get-ContentMeasureMinutes ([int]$plan.NCylHead[0] + [int]$plan.NCylHead[1])
+    $lvTxt = Format-ContentLevels $lv
+    $pk = Get-ContentPeekFactors $img ([string]$cmbWFmt.Text) $fam
+    $cq = @{ Title = (T 'Mesure de la disquette'); Heading = (T "Mesure de la disquette sur l'image"); Level = 'info'; Picto = 'data'
+             Text = ((T "Avant l'écriture lente, la précompensation est mesurée sur le contenu même de l'image, sur le lecteur {0} : {1} cylindres répartis sur le disque sont écrits 3 fois, à 3 niveaux de la courbe du lecteur ({2}), et relus après chaque passe. L'image est ensuite écrite avec, pour chaque tête, le niveau qui donne la meilleure marge de lecture.`n`nDurée : environ {3} min avant l'écriture de l'image. Ces pistes reçoivent 3 écritures de plus.`n`n« Écrire sans mesure » : facteur actuel du lecteur, tête 0 × {4}, tête 1 × {5}.") -f "$drive", "$($cyls.Count)", "$lvTxt", "$min", (Format-UiNum ([double]$pk[0]) '0.00'), (Format-UiNum ([double]$pk[1]) '0.00'))
+             GoText = (T 'Mesurer puis écrire'); GoGlyph = 'Diagnostic'; AltText = (T 'Écrire sans mesure') }
+    $script:ConfirmChoice = $null
+    $go = [bool](Show-AppConfirm @cq)
+    if (-not $go) {
+        $script:AfterCalib = ''
+        if ([string]$script:ConfirmChoice -eq 'alt') {
+            # Ecriture sans mesure : facteur du lecteur (Start-ImageWrite, Get-DriveK + Dk), aucun facteur mesure en attente
+            $script:WriteFactorNext = $null
+            Append-Log (T "Mesure sur l'image non faite à votre demande : écriture avec le facteur du lecteur.")
+            Start-ImageWrite
+            return
+        }
+        Append-Log (T 'Écriture annulée : mesure de la disquette non lancée.')
+        return
+    }
+    if ($script:GwProc -and -not $script:GwProc.HasExited) { $script:AfterCalib = ''; Append-Log $refusTxt; return }
+    if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
+    $cylList = Format-CylRanges $cyls
+    $scp = Join-Path $script:TempDir $script:ContentScpName
+    $script:AlignLoop = $false; $script:AlignNextAt = $null
+    # Etat propre de la mesure : plan, passe en cours (0..2), file des commandes de la passe et commande en cours, reprises
+    # par passe et tete ('p|h'), cylindres non ecrits ('p|c|h' -> 'nonecrite'), exclusions d avant l ecriture ('c.h'),
+    # lectures de toutes les passes (List : jamais @() autour, pwsh 7.6), courbes V, references et bornes
+    $ct = @{ Plan = $plan; Pass = 0; Todo = [System.Collections.Generic.List[hashtable]]::new(); Current = $null; Resumes = @{}; Skip = @{}
+             PreSkip = $chk.PreSkip; Obs = [System.Collections.Generic.List[object]]::new(); Ncell0 = [int]$chk.Ncell0; Levels = $lv
+             KMin = [double](@($lv) | Measure-Object -Minimum).Minimum; V = $chk.V; RefKeys = $chk.RefKeys; RefDates = $chk.RefDates
+             Common = [bool]$chk.Common; Fam = $fam; Img = $img; Hard = [int]$chk.Hard }
+    $script:Cal = @{
+        Mode = 'content'; Stage = 'content'; Drive = $drive; Family = $fam; Slow = $true; Image = $img; Cyls = $cyls; CylList = $cylList
+        TSpec = "c=${cylList}:h=0-1"; Scp = $scp; Writes = (New-Object System.Collections.Queue)
+        ReadArgs = @(@('read') + (Get-CommonArgs) + @(Get-DriveReadArgs) + @('--revs=3', "--tracks=c=${cylList}:h=0-1", "`"$scp`""))
+        # Progression : passes faites / prevues, durees mesurees par phase ; estimation initiale par piste et par phase :
+        # moyenne de l ecriture et de la relecture (Update-CalibProgress compte Cyls x 2 pistes par phase)
+        StartTime = (Get-Date); PassStart = (Get-Date); PhaseStart = (Get-Date); Phase = 'write'; Value = 0; ValueTxt = (T 'tête 0 puis tête 1'); Spec = ''
+        PassesDone = 0; TotalPasses = $lv.Count; WriteDurs = @(); ReadDurs = @(); EstTrack = (([double]$script:ContentEstWrite + [double]$script:ContentEstRead) / 2)
+        Home = $false; Geom = $null; NoWarmup = (-not [bool](Get-Setting 'warmFullCalib')); Hold = $false; Redo = $false; DiskOnly = $false
+        Units = @(); Swap = $false; LevelAfter = $false; VerifyCount = 0; Retests = 0; Content = $ct
+    }
+    $script:AfterCalib = 'write'
+    Append-Log ((T "=== Mesure de la disquette sur l'image : lecteur {0}, image {1} ({2}) ; {3} cylindres ({4}), niveaux {5} × courbe du lecteur ; calibration du lecteur inchangée ===") -f "$drive", "$([System.IO.Path]::GetFileName($img))", (Get-CalibFamilyName $fam), "$($cyls.Count)", "$cylList", "$lvTxt")
+    $dates = if ($ct.Common) { [string]$ct.RefDates[0] } else { "$($ct.RefDates[0]) / $($ct.RefDates[1])" }
+    $kind = if ($ct.Common) { (T 'courbe commune') } else { (T 'une courbe par tête') }
+    Append-Log ((T "Mesure sur l'image : courbe du lecteur du {0} ({1}) ; précompensation écrite bornée à 0..{2} ns.") -f "$dates", "$kind", "$($ct.Hard)")
+    $pbWCal.Value = 0; $pbWCal.Visible = $true; $lblWCal.Visible = $true
+    Update-CalibProgress
+    Start-CalibWarmup      # prechauffage du lecteur s il y a lieu, puis premiere passe (New-CalibPass, stade 'content')
+}
+
+function New-ContentPass {
+    # Passe suivante de la mesure (New-CalibPass au stade 'content', apres le prechauffage ou la passe precedente) : file des
+    # commandes, tete 0 puis tete 1 comme l ecriture lente (cylindres de la passe dans le plan, sans les pistes exclues
+    # avant l ecriture), journal (passe, niveau de chaque bloc), phase d ecriture, premiere commande
+    $cal = $script:Cal
+    if (-not $cal -or -not $cal.Content) { return }
+    $ct = $cal.Content; $p = [int]$ct.Pass
+    $ct.Todo.Clear(); $ct.Current = $null
+    foreach ($h in 0, 1) {
+        $cs = [int[]]@($ct.Plan.Pass[$p].H[$h].Cyls)
+        if ($cs.Count -gt 0) { $ct.Todo.Add(@{ H = $h; Cyls = $cs; Resume = $false }) }
+    }
+    $bc = @($ct.Plan.Cyls); $nb = @($ct.Plan.Blocks).Count
+    $len = if ($nb -gt 0) { [int]($bc.Count / $nb) } else { 0 }
+    $bk = @(for ($bi = 0; $bi -lt $nb; $bi++) { $c0 = [int]$bc[$bi * $len]; "c$c0-$($c0 + $len - 1) × $(Format-UiNum (Get-ContentLevel $bi $p ([double[]]$ct.Levels)) '0.##')" })
+    $cal.ValueTxt = (T 'tête 0 puis tête 1')
+    Append-Log ((T "Mesure sur l'image : passe {0}/{1}, {2}") -f "$($p + 1)", "$($cal.TotalPasses)", "$($cal.ValueTxt), $($bk -join ' ; ')")
+    $cal.Phase = 'write'; $cal.PassStart = Get-Date; $cal.PhaseStart = $cal.PassStart
+    Update-CalibProgress
+    $script:Chain.Clear()
+    Invoke-ContentWriteNext
+}
+
+function Invoke-ContentWriteNext {
+    # Etape de la chaine apres chaque commande gw write de la mesure (et au debut de la passe) : (1) bilan de la commande
+    # finie : arret « Failed to verify Track » de gw ($script:GwVerifyFail, pose par Read-GwOutput, la commande ayant ete
+    # traitee comme une lecture de prechauffage par le minuteur, 600) lu et remis a $null, Register-ContentWriteStop ;
+    # (2) commande suivante de la file ; (3) file vide : relecture de 3 tours des cylindres du plan, deux tetes (SCP
+    # supprime avant, il garde la derniere passe), puis Invoke-ContentAnalysis
+    $cal = $script:Cal
+    if (-not $cal -or [string]$cal.Mode -ne 'content') { return }
+    $ct = $cal.Content
+    if ($null -ne $ct.Current) {
+        # $vStop, jamais $stop : meme nom que $stOp (barre d etat) pour PowerShell, qui ignore la casse ; Start-Progress,
+        # appele par Start-Gw plus bas, lirait cette variable locale (portee dynamique) au lieu du libelle
+        $vStop = $script:GwVerifyFail; $script:GwVerifyFail = $null
+        if ($vStop) { Register-ContentWriteStop $cal $ct.Current $vStop }
+        $ct.Current = $null
+    }
+    if ($ct.Todo.Count -gt 0) {
+        $w = $ct.Todo[0]; $ct.Todo.RemoveAt(0); $ct.Current = $w
+        $script:Chain.Enqueue({ Invoke-ContentWriteNext })
+        Start-Gw (Get-ContentWriteArgs $cal $w)
+        return
+    }
+    $cal.WriteDurs += ((Get-Date) - $cal.PhaseStart).TotalSeconds
+    $cal.Phase = 'read'; $cal.PhaseStart = Get-Date
+    if (Test-Path -LiteralPath $cal.Scp) { Remove-Item -LiteralPath $cal.Scp -Force }
+    $script:Chain.Enqueue({ Invoke-ContentAnalysis })
+    Start-Gw ([string[]]$cal.ReadArgs)
+}
+
+function Register-ContentWriteStop($cal, $w, $vStop) {
+    # Arret de gw sur une piste refusee a la verification apres les nouveaux essais (A.7), $w : commande finie, $vStop :
+    # @{ C ; H } (Get-GwVerifyStop). La piste en echec reste dans la mesure, a son niveau (sa marge basse est
+    # l information cherchee ; l exclure favoriserait les niveaux qui reussissent). Cylindres suivants de la commande, non
+    # ecrits : premier arret de la tete a cette passe (ContentResumeMax reprises), commande de reprise en tete de file,
+    # memes valeurs, cylindres restants ; arret suivant : cylindres restants ecartes de cette passe (Skip 'nonecrite').
+    # Arret annonce hors de la commande (autre tete ou cylindre absent, incoherence) : tous ses cylindres ecartes de cette
+    # passe
+    $ct = $cal.Content; $p = [int]$ct.Pass; $h = [int]$w.H
+    $cs = [int[]]@($w.Cyls | Sort-Object)
+    $sc = [int]$vStop.C; $sh = [int]$vStop.H
+    if ($sh -ne $h -or $cs -notcontains $sc) {
+        foreach ($c in $cs) { $ct.Skip["$p|$c|$h"] = 'nonecrite' }
+        Append-Log ((T "Mesure sur l'image : arrêt de gw annoncé sur la piste {0}.{1}, hors de la commande de la tête {2} : cylindres {3} non écrits à cette passe, écartés de la mesure.") -f "$sc", "$sh", "$h", (Format-CylRanges $cs))
+        return
+    }
+    $rest = [int[]]@($cs | Where-Object { $_ -gt $sc })
+    if ($rest.Count -eq 0) {
+        Append-Log ((T "Mesure sur l'image : gw s'est arrêté sur la piste {0}.{1} (vérification refusée après les nouveaux essais), dernière de la commande ; elle reste dans la mesure, à son niveau.") -f "$sc", "$h")
+        return
+    }
+    $key = "$p|$h"
+    $n = [int]$ct.Resumes[$key]
+    if ($n -lt [int]$script:ContentResumeMax) {
+        $ct.Resumes[$key] = $n + 1
+        $ct.Todo.Insert(0, @{ H = $h; Cyls = $rest; Resume = $true })
+        Append-Log ((T "Mesure sur l'image : gw s'est arrêté sur la piste {0}.{1} (vérification refusée après les nouveaux essais) ; elle reste dans la mesure, à son niveau. Reprise de la tête {1} aux cylindres {2}.") -f "$sc", "$h", (Format-CylRanges $rest))
+        return
+    }
+    foreach ($c in $rest) { $ct.Skip["$p|$c|$h"] = 'nonecrite' }
+    Append-Log ((T "Mesure sur l'image : nouvel arrêt de gw sur la tête {0} à cette passe (piste {1}.{0}) : cylindres {2} non écrits à cette passe, écartés de la mesure.") -f "$h", "$sc", (Format-CylRanges $rest))
+}
+
+function Get-ContentPassStats([string]$scp, $ct, [int]$pass) {
+    # Bilan de la relecture d une passe (point de substitution des fins de test) : tours bruts du SCP (Read-ScpTrackRevs,
+    # ScpStats.Decode), puis, pour chaque piste ecrite a la passe (cylindres de chaque tete dans le plan, sans les
+    # cylindres non ecrits apres un arret de gw), marge fixe et comptes (Get-ContentTrackStats). Ecrit dans le pipeline une
+    # lecture @{ C ; H ; P ; K ; W ; NRev ; Mfix ; N ; Z ; ZFrac ; Cells ; Flux } par piste ; piste absente du SCP : NRev = 0.
+    # Fichier sans en-tete SCP : exception (relecture illisible, T-B25 dans Invoke-ContentAnalysis)
+    $revs = Read-ScpTrackRevs $scp
+    if ($null -eq $revs) { throw (T 'fichier sans en-tête SCP') }
+    $ph = $ct.Plan.Pass[$pass]
+    foreach ($h in 0, 1) {
+        foreach ($c in @($ph.H[$h].Cyls)) {
+            if ($ct.Skip.ContainsKey("$pass|$c|$h")) { continue }
+            $tn = [int]$c * 2 + $h
+            $tr = if ($revs.Tracks.ContainsKey($tn)) { $revs.Tracks[$tn] } else { $null }
+            $st = Get-ContentTrackStats $tr ([int]$revs.Res) ([int]$ct.Ncell0)
+            @{ C = [int]$c; H = $h; P = $pass; K = [double]$ph.H[$h].K[[int]$c]; W = [int]$ph.H[$h].W[[int]$c]; NRev = [int]$st.NRev; Mfix = [double]$st.Mfix
+               N = [int64]$st.N; Z = [int64]$st.Z; ZFrac = [double]$st.ZFrac; Cells = $st.Cells; Flux = $st.Flux }
+        }
+    }
+}
+
+function Invoke-ContentAnalysis {
+    # Fin de la relecture d une passe : SCP absent, sans en-tete SCP ou exception de lecture : T-B25 et arret
+    # (Stop-PrecompCalib -GwError : Restore-CalibRetestPre rend $false hors du stade 'verify', mesure arretee, ecriture
+    # annulee, rien n est enregistre, comme la mesure complete) ; sinon lectures ajoutees a la mesure, journal par tete,
+    # passe suivante ou fin
+    $cal = $script:Cal
+    if (-not $cal -or [string]$cal.Mode -ne 'content') { return }
+    $ct = $cal.Content
+    $cal.ReadDurs += ((Get-Date) - $cal.PhaseStart).TotalSeconds
+    $fail = (T "Mesure sur l'image : relecture absente ou illisible ({0}) : mesure arrêtée.")
+    if (-not (Test-Path -LiteralPath $cal.Scp)) { Append-Log ($fail -f (T 'fichier absent')); Stop-PrecompCalib -GwError; return }
+    try { $stats = @(Get-ContentPassStats ([string]$cal.Scp) $ct ([int]$ct.Pass)) }
+    catch { Append-Log ($fail -f "$($_.Exception.Message)"); Stop-PrecompCalib -GwError; return }
+    foreach ($s in $stats) { if ($null -ne $s) { $ct.Obs.Add($s) } }
+    Write-ContentPassLog $cal $stats
+    $cal.PassesDone++
+    $ct.Pass = [int]$ct.Pass + 1
+    if ([int]$ct.Pass -lt [int]$cal.TotalPasses) { New-ContentPass; return }
+    Complete-ContentMeasure $cal
+}
+
+function Write-ContentPassLog($cal, $stats) {
+    # Lectures d une passe au journal, une ligne par tete, format stable lu par script (T-B10) : elements
+    # « c<cylindre> <niveau k> <precomp ecrite> -> <marge fixe> », en ns, k a deux decimales et Mfix a une, au format de la
+    # langue (Format-UiNum) ; piste sans tour exploitable : « -> - » ; cylindres croissants, separes par « ; »
+    $p = [int]$cal.Content.Pass
+    foreach ($h in 0, 1) {
+        $items = @(@($stats) | Where-Object { $null -ne $_ -and [int]$_.H -eq $h } | Sort-Object { [int]$_.C } | ForEach-Object {
+            $m = if ([int]$_.NRev -le 0 -or [double]::IsNaN([double]$_.Mfix)) { '-' } else { Format-UiNum ([double]$_.Mfix) '0.0' }
+            "c$($_.C) $(Format-UiNum ([double]$_.K) '0.00') $($_.W) -> $m"
+        })
+        if ($items.Count -eq 0) { continue }
+        Append-Log ((T "[tête {0}] Mesure sur l'image, passe {1}/{2} (cylindre, niveau, précomp écrite -> marge fixe, ns) : {3}") -f "$h", "$($p + 1)", "$($cal.TotalPasses)", ($items -join ' ; '))
+    }
+}
+
+function Complete-ContentMeasure($cal) {
+    # Fin de la mesure (A.10). Exclusions apres la relecture (Get-ContentExclusions, aux 3 niveaux), puis lignes retenues
+    # par tete (sans les pistes exclues, avant ou apres l ecriture, ni les cylindres non ecrits, ni les lectures sans tour)
+    # ; donnees minimales (Get-ContentHeadCheck), puis facteur k* borne a [k_min ; 1] (Get-ContentFactor) ; tete non
+    # mesuree : k du lecteur (Get-DriveK). Journal : pistes ecartees par raison (T-B14), facteur et reserves de chaque tete
+    # (T-B15 a T-B19). Pas de fenetre de decision : le resultat est applique. Enregistrements de mesure des tetes mesurees
+    # (C.2 : k du lecteur des ecritures suivantes, Add-ContentMeasure, Save-Config), puis facteur de l ecriture qui suit
+    # ($script:WriteFactorNext, lu une fois par Start-ImageWrite) et ecriture de l image ; prechauffage de l ecriture lente
+    # reduit ou saute, le lecteur venant de servir (comme Complete-DiskMeasure)
+    $ct = $cal.Content; $drive = [string]$cal.Drive; $fam = [string]$cal.Family
+    $ex = Get-ContentExclusions $ct.Obs ([double]$script:ContentZMax) ([double]$script:ContentCellsTol) ([double]$script:ContentFluxMin)
+    # Pistes ecartees, par raison : avant l ecriture (PreSkip), apres la relecture (exclusions), non ecrites a une passe
+    $byWhy = [ordered]@{ absente = @(); longue = @(); protegee = @(); vide = @(); longueur = @(); nonmfm = @(); nonecrite = @() }
+    foreach ($k in @($ct.PreSkip.Keys)) { $wy = [string]$ct.PreSkip[$k]; if ($byWhy.Contains($wy)) { $byWhy[$wy] += [string]$k } }
+    foreach ($k in @($ex.Keys)) { $wy = [string]$ex[$k]; if ($byWhy.Contains($wy)) { $byWhy[$wy] += [string]$k } }
+    $ne = @{}
+    foreach ($k in @($ct.Skip.Keys)) { $pp = ([string]$k) -split '\|'; $ne["$($pp[1]).$($pp[2])"] = $true }
+    $byWhy['nonecrite'] = @($ne.Keys)
+    $whyTxt = @{ absente = (T "absentes de l'image : {0}"); longue = (T 'longues : {0}'); protegee = (T 'protégées (IPF) : {0}'); vide = (T 'vides ou effacées : {0}')
+                 longueur = (T 'longueur hors norme : {0}'); nonmfm = (T 'non MFM ou illisibles à tous les niveaux : {0}'); nonecrite = (T 'non écrites (arrêt de gw) : {0}') }
+    $parts = @(foreach ($wy in @($byWhy.Keys)) { if (@($byWhy[$wy]).Count -gt 0) { $whyTxt[$wy] -f (Format-TrackList (Sort-TrackKeys @($byWhy[$wy]))) } })
+    if ($parts.Count -gt 0) { Append-Log ((T "Mesure sur l'image : pistes écartées : {0}.") -f ($parts -join ' ; ')) }
+    # Lignes retenues par tete : @{ P ; C ; K ; Y = Mfix }
+    $rows = @{ 0 = @(); 1 = @() }
+    foreach ($o in $ct.Obs) {
+        if ($null -eq $o) { continue }
+        $h = [int]$o.H
+        if ($ex.ContainsKey("$([int]$o.C).$h") -or [int]$o.NRev -le 0 -or [double]::IsNaN([double]$o.Mfix)) { continue }
+        $rows[$h] += ,@{ P = [string]$o.P; C = [int]$o.C; K = [double]$o.K; Y = [double]$o.Mfix }
+    }
+    $date = Get-Date -Format 'dd/MM/yyyy HH:mm'
+    $kk = @{ 0 = 1.0; 1 = 1.0 }; $src = @{ 0 = 'defaut'; 1 = 'defaut' }; $recs = @()
+    $kMinTxt = Format-UiNum ([double]$ct.KMin) '0.##'
+    foreach ($h in 0, 1) {
+        $pre = (T '[tête {0}] ') -f "$h"
+        $hc = Get-ContentHeadCheck $rows[$h] ([int]$script:ContentMinCyl) ([int]$script:ContentMinLevelCyl)
+        $fit = if ($hc.Ok) { Get-ContentFactor $rows[$h] ([double]$ct.KMin) 1.0 } else { $null }
+        if ($fit -and $fit.Ok) {
+            $k = [math]::Round([double]$fit.K, 3)
+            $kk[$h] = $k; $src[$h] = 'mesure'
+            $vx = if ($fit.Ext) { Format-UiNum ([double]$fit.KVertex) '0.00' } else { '-' }
+            $se = if ([double]::IsNaN([double]$fit.SeK)) { '-' } else { Format-UiNum ([double]$fit.SeK) '0.00' }
+            Append-Log ((T '{0}Facteur mesuré : k = {1} (sommet {2} ± {3} ; marge à k : {4} ns par rapport à k = 1 ; {5} cylindres, {6} pistes ; écart-type résiduel {7} ns).') -f "$pre", (Format-UiNum $k '0.00'), "$vx", "$se", (Format-UiNum ([double]$fit.Gain) '+0.0;-0.0;0.0'), "$($fit.NCyl)", "$($fit.N)", (Format-UiNum ([double]$fit.S) '0.0'))
+            if ([string]$fit.Bound -eq 'low') { Append-Log ((T '{0}Optimum à la borne basse du plan ({1}) ou en dessous : k = {1} retenu.') -f "$pre", "$kMinTxt") }
+            elseif ([string]$fit.Bound -eq 'high') { Append-Log ((T '{0}Optimum à la borne haute du plan (1) ou au-dessus : k = 1 retenu, comme la courbe du lecteur.') -f "$pre") }
+            if ($fit.Flat) { Append-Log ((T '{0}Marge peu sensible au niveau dans le plan : facteur peu déterminé.') -f "$pre") }
+            # Enregistrement de mesure (C.2) : courbe ecrite W_h = facteur x V_h, bornee a 0..max(borne, v) (ConvertTo-ScaledSpec)
+            $dk = [double](Get-DriveDk $drive $h)
+            $f = [double](Limit-WriteFactor ($k + $dk) ([double]$script:ContentFMax)).F
+            $vals = [int[]]@(foreach ($v in @($ct.V[$h])) { [int][math]::Max(0.0, [math]::Min([math]::Round($f * [double]$v), [double][math]::Max([int]$ct.Hard, [int]$v))) })
+            $nEx = @(@(@($ct.PreSkip.Keys) + @($ex.Keys)) | Where-Object { (([string]$_) -split '\.')[1] -eq "$h" }).Count
+            $recs += ,@{ Model = 'contenu'; Drive = $drive; Family = $fam; Head = $h; Date = $date; Image = [System.IO.Path]::GetFileName([string]$cal.Image)
+                         K = $k; KVertex = $(if ($fit.Ext) { [math]::Round([double]$fit.KVertex, 3) } else { $null }); Bound = [string]$fit.Bound; Flat = [bool]$fit.Flat
+                         SeK = [double]$fit.SeK; B1 = [double]$fit.B1; B2 = [double]$fit.B2; Gain = [double]$fit.Gain; S = [double]$fit.S
+                         NCyl = [int]$fit.NCyl; NObs = [int]$fit.N; NExcl = [int]$nEx; Levels = [double[]]@($ct.Levels); Dk = $dk; F = $f
+                         Values = $vals; Spec = (Build-CurveProfile $vals); RefKey = [string]$ct.RefKeys[$h]; RefDate = [string]$ct.RefDates[$h]
+                         Calc = [string]$script:CalibCalc; ContentCalc = [string]$script:ContentCalc; Version = [string]$script:Version }
+        } else {
+            # Tete non mesuree : k du lecteur (mediane des 3 derniers k* du lecteur, de la famille et de la tete ; 1 sans mesure)
+            $dr = Get-DriveK $drive $fam $h
+            $kk[$h] = [double]$dr.K; $src[$h] = [string]$dr.Src
+            $why = if (-not $hc.Ok -and [string]$hc.Why -eq 'peu') { (T 'trop peu de pistes exploitables ({0} cylindres)') -f "$($hc.NCyl)" } else { (T 'ajustement impossible') }
+            # Origine du k du lecteur, comme T-C8b (Get-WriteFactorSrcText, 140) : mediane de N >= 2 mesures, ou derniere mesure
+            $kTxt = Format-UiNum ([double]$dr.K) '0.00'
+            $kt = if ([string]$dr.Src -ne 'lecteur') { (T 'k 1, aucune mesure de ce lecteur') }
+                  elseif ([int]$dr.N -ge 2) { (T 'k {0}, médiane des {1} dernières mesures du lecteur') -f "$kTxt", "$($dr.N)" }
+                  else { (T 'k {0} de la dernière mesure du lecteur, du {1}') -f "$kTxt", $(if ($dr.Rec -and $dr.Rec.Date) { [string]$dr.Rec.Date } else { '?' }) }
+            Append-Log ((T '{0}Facteur non mesuré ({1}) : facteur du lecteur appliqué ({2}).') -f "$pre", "$why", "$kt")
+        }
+    }
+    foreach ($rc in $recs) { Add-ContentMeasure $rc }
+    if ($recs.Count -gt 0 -and -not $script:Restore) { [void](Save-Config) }
+    # Complement « facteur applique » du libelle du profil refait avec le nouveau k du lecteur (revue 12.8.1, point 6)
+    if ($recs.Count -gt 0) { Update-WriteFactorNote }
+    $el = if ($cal.StartTime -is [datetime]) { ((Get-Date) - $cal.StartTime).TotalSeconds } else { 0 }
+    $durTxt = Format-CalDuration $el
+    $pbWCal.Visible = $false
+    $lblWCal.Text = ((T "Mesure sur l'image terminée en {0}") -f "$durTxt")
+    $script:Cal = $null
+    if ($script:AfterCalib -ne 'write') { $script:WriteFactorNext = $null; return }
+    $script:AfterCalib = ''
+    $script:WriteFactorNext = @{ Drive = $drive; Fam = $fam; Img = [string]$cal.Image; K = @{ 0 = [double]$kk[0]; 1 = [double]$kk[1] }
+                                 Src = @{ 0 = [string]$src[0]; 1 = [string]$src[1] }; Date = $date }
+    Append-Log ((T "Mesure de la disquette sur l'image terminée en {0} : écriture de l'image avec le facteur mesuré.") -f "$durTxt")
+    Start-ImageWrite -NoWarmup:([bool]$cal.WarmSkip)
 }
 # ============================== FONCTIONS : CALIBRATION : CONTROLE DE SURFACE ET DE VITESSE ===
 
@@ -21157,7 +22691,8 @@ $tip.SetToolTip($numWWarmMin, (T "Durée maximale du préchauffage du lecteur av
 $chkWLevel = New-Object System.Windows.Forms.CheckBox
 $chkWLevel.Name = 'chkWLevel'; $chkWLevel.Location = '12,468'; $chkWLevel.AutoSize = $true; $chkWLevel.Checked = $true; $chkWLevel.Enabled = $false
 $chkWLevel.Text = (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)")
-$tip.SetToolTip($chkWLevel, (T "Avant d'écrire l'image, l'application reprend la forme de la dernière calibration complète en test fin du lecteur.`nElle mesure, sur la disquette insérée, son niveau de précompensation propre et l'état de sa surface : le motif de test y est écrit au plus 3 fois, sur 4 à 9 cylindres par tête, puis l'image les recouvre.`nSans calibration de référence utilisable, l'écriture se fait avec la courbe du lecteur, ou avec le profil d'origine s'il n'en a pas, et le journal en donne la raison.`nNon disponible en haute densité.") + "`n" + (T "Liste « Calibration précomp » au « Test rapide » : la disquette est mesurée avant l'écriture, rapide ou lente, quel que soit le point de départ (bouton ÉCRIRE, Bibliothèque, restauration) ; la case est alors cochée et verrouillée.`nMêmes exceptions partout, avec leur raison dans le journal : pas de mesure quand l'image ne recouvrirait pas tout le motif de test (image à une seule face, champ Pistes avec c=, h= ou step=), ni avec un profil autre qu'Auto ou la case --precomp décochée."))
+# 12.8.1 (spec-1281 § D.1) : infobulle des trois mesures de la liste « Mesure : », du facteur du lecteur et des exceptions
+$tip.SetToolTip($chkWLevel, (T "Avant d'écrire l'image, l'application mesure la disquette insérée avec la mesure choisie dans la liste « Mesure : ».`nSur l'image à écrire : la marge de lecture est mesurée sur le contenu même de l'image, à trois niveaux de la courbe du lecteur, et l'image est écrite avec le meilleur, tête par tête. Au motif : le niveau de précompensation et l'état de la surface sont mesurés sur le motif de test.`nSans mesure sur l'image (case décochée, « Test rapide », restauration, image qui ne s'y prête pas), le facteur du lecteur s'applique : médiane des 3 derniers facteurs mesurés pour ce lecteur et cette tête, 1 tant qu'aucun n'est mesuré.`nPas de mesure en haute densité, pour une image flux, à une seule face, ou quand le champ Pistes limite l'écriture, ni avec un profil autre qu'Auto ou la case --precomp décochée.") + "`n" + (T "Liste « Calibration précomp » au « Test rapide » : la disquette est toujours mesurée au motif avant l'écriture, rapide ou lente (bouton ÉCRIRE, Bibliothèque, restauration) ; la case est alors cochée et verrouillée."))
 # 12.8 (S3, decision du 21/10/2026) : mode de la mesure avant une ecriture lente, reglage levelBeforeWriteMode
 # (write.levelBeforeWriteMode) : calibration rapide ou mesure complete de cette disquette ; liste active en ecriture lente
 # quand la disquette est mesuree (Update-SlowUi). Position du champ : a la suite du libelle (police de la fenetre) ; bas
@@ -21166,10 +22701,30 @@ $tip.SetToolTip($chkWLevel, (T "Avant d'écrire l'image, l'application reprend l
 $lblWLevelMode = New-Label (T 'Mesure :') '29,495'
 $lblWLevelMode.Name = 'lblWLevelMode'
 $cmbWLevelMode = New-Object System.Windows.Forms.ComboBox
-$cmbWLevelMode.Name = 'cmbWLevelMode'; $cmbWLevelMode.DropDownStyle = 'DropDownList'; $cmbWLevelMode.Width = 240; $cmbWLevelMode.Location = '100,492'
-[void]$cmbWLevelMode.Items.AddRange(@((T 'rapide (1 à 2 min)'), (T 'complète (20 à 25 min)')))
+# 12.8.1 (spec-1281 § D.1) : trois elements, dans l ordre des codes (content, quick, complete) ; largeur 260
+$cmbWLevelMode.Name = 'cmbWLevelMode'; $cmbWLevelMode.DropDownStyle = 'DropDownList'; $cmbWLevelMode.Width = 260; $cmbWLevelMode.Location = '100,492'
+[void]$cmbWLevelMode.Items.AddRange(@((T "sur l'image à écrire (environ 10 min)"), (T 'rapide, au motif (1 à 2 min)'), (T 'complète, au motif (20 à 25 min)')))
 $cmbWLevelMode.SelectedIndex = 0
-$tip.SetToolTip($cmbWLevelMode, (T "Mesure de la disquette avant une écriture lente.`nRapide : calibration rapide, qui mesure le niveau de la disquette, et sa forme si elle diffère de la référence du lecteur, sur 4 à 9 cylindres par tête (1 à 2 min).`nComplète : mesure complète de cette disquette, sur tous ses cylindres, comme une calibration complète en test fin (20 à 25 min), puis écriture de l'image. La référence du lecteur n'est pas modifiée. La courbe obtenue est mémorisée pour la marque de la disquette : les disquettes suivantes de cette marque en partent, avec une calibration rapide.`nÉcriture rapide : toujours la calibration rapide."))
+$tip.SetToolTip($cmbWLevelMode, (T "Mesure de la disquette avant une écriture lente.`nSur l'image à écrire : 40 cylindres de l'image sont écrits à 3 niveaux de la courbe du lecteur et relus ; l'image est écrite avec le niveau qui donne la meilleure marge de lecture, pour chaque tête (environ 10 min). Images double densité MFM seulement ; sinon, calibration rapide au motif.`nRapide, au motif : calibration rapide sur le motif de test, 4 à 9 cylindres par tête (1 à 2 min).`nComplète, au motif : mesure complète de cette disquette sur tous ses cylindres (20 à 25 min), puis écriture de l'image ; la courbe obtenue est mémorisée pour la marque de la disquette.`n« Test rapide » et restauration : toujours la calibration rapide au motif."))
+# 12.8.1 (spec-1281 § D.2) : correction « lecteur cible » Dk du lecteur du bandeau, par tete ($script:TargetCorr), sur la
+# ligne de la liste « Mesure : » ; champs toujours actifs (toute ecriture avec facteur, rapide comprise). Libelle,
+# infobulle, valeurs et positions (a la suite de la liste) : Update-TargetCorrUi ; valeur changee : Set-TargetCorrFromUi ;
+# fin de la saisie (Leave) : Complete-TargetCorrEdit, ligne de journal. Bornes des champs : -TargetCorrMax..TargetCorrMax
+# (borne unique, 040)
+$lblWTgtCorr = New-Label ((T 'Correction lecteur cible ({0}) :') -f 'A') '374,495'
+$lblWTgtCorr.Name = 'lblWTgtCorr'
+$lblWTgt0 = New-Label ((T "tête {0}") -f '0') '560,495'
+$lblWTgt0.Name = 'lblWTgt0'
+$numWTgt0 = New-Object System.Windows.Forms.NumericUpDown
+$numWTgt0.Name = 'numWTgt0'; $numWTgt0.DecimalPlaces = 2; $numWTgt0.Increment = 0.01; $numWTgt0.Minimum = -$script:TargetCorrMax; $numWTgt0.Maximum = $script:TargetCorrMax; $numWTgt0.Width = 58; $numWTgt0.Location = '605,492'
+$lblWTgt1 = New-Label ((T "tête {0}") -f '1') '670,495'
+$lblWTgt1.Name = 'lblWTgt1'
+$numWTgt1 = New-Object System.Windows.Forms.NumericUpDown
+$numWTgt1.Name = 'numWTgt1'; $numWTgt1.DecimalPlaces = 2; $numWTgt1.Increment = 0.01; $numWTgt1.Minimum = -$script:TargetCorrMax; $numWTgt1.Maximum = $script:TargetCorrMax; $numWTgt1.Width = 58; $numWTgt1.Location = '715,492'
+$numWTgt0.Add_ValueChanged({ Set-TargetCorrFromUi 0 })
+$numWTgt1.Add_ValueChanged({ Set-TargetCorrFromUi 1 })
+$numWTgt0.Add_Leave({ Complete-TargetCorrEdit 0 })
+$numWTgt1.Add_Leave({ Complete-TargetCorrEdit 1 })
 
 $numWRetries = New-Object System.Windows.Forms.NumericUpDown
 $numWRetries.Location = '560,22'; $numWRetries.Width = 50
@@ -21287,6 +22842,9 @@ $tabW.AutoScroll = $true                                  # fenetre basse ou jou
 $numWWarmMin.Left = $lblWWarmMin.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblWWarmMin.Text, $form.Font).Width + 8
 $lblWWarmMinU.Left = $numWWarmMin.Right + 6
 $cmbWLevelMode.Left = $lblWLevelMode.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblWLevelMode.Text, $form.Font).Width + 8
+# 12.8.1 : champs de la correction « lecteur cible », a la suite de la liste (Set-TargetCorrLayout)
+$tabW.Controls.AddRange(@($lblWTgtCorr, $lblWTgt0, $numWTgt0, $lblWTgt1, $numWTgt1))
+Update-TargetCorrUi
 
 # --- Reglages a source unique (12.8, point 7) : liaisons des controles de l onglet (Register-SettingCtl), apres leurs
 # gestionnaires propres (Update-SlowUi, Update-PrecompForImage), qui s executent avant la liaison. Valeurs posees au
@@ -21299,6 +22857,9 @@ Register-SettingCtl 'warmFullCalib' $chkWCalWarm
 Register-SettingCtl 'warmMinutes' $numWWarmMin
 Register-SettingCtl 'levelBeforeWrite' $chkWLevel
 Register-SettingCtl 'levelBeforeWriteMode' $cmbWLevelMode
+# 12.8.1 (spec-1281 § D.2) : correction « lecteur cible » du lecteur choisi dans le bandeau ; saisie en cours d abord
+# terminee (ligne de journal du lecteur d avant)
+$cmbDrive.Add_TextChanged({ Complete-TargetCorrEdit; Update-TargetCorrUi })
 
 # ============================== LECTURE ========================================
 $tabR = New-TabPage (T 'Lecture / Dump')
@@ -22542,6 +24103,31 @@ $script:CurveData = $null; $script:CurveForm = $null; $script:CurveFamily = 'std
 $script:CurveZones = @()   # 12.7 : zones de desaccord entre les calibrations A et B (fenetre de comparaison, Draw-PrecompCurve)
 $script:UiReady = $false                                 # vrai une fois la fenetre principale affichee
 
+# ============================== MESURE DE LA DISQUETTE SUR L IMAGE =============
+# 12.8.1 : mesure de la disquette sur l image (276) ; principe : spec-1281.md, § A
+# Principe. Avant une ecriture lente, 40 cylindres de l image (8 blocs de 5 repartis sur le disque) sont ecrits avec
+# l image elle-meme, en 3 passes, a k x V : V est la courbe du lecteur (inchangee), k parcourt 3 niveaux selon un carre
+# latin (chaque bloc recoit chaque niveau une fois). Apres chaque passe, ces pistes sont relues sur 3 tours et leur marge
+# fixe (Mfix : quantile 1e-3 de l ecart de chaque intervalle a ses limites de decodage, horloge fixe) est comptee
+# (192). Par tete, la marge est ajustee par effets fixes passe + cylindre et une quadratique en k ; son sommet, borne a
+# [k_min ; 1], est le facteur k* de la tete (274). La courbe ecrite vaut (k* + Dk) x V, bornee a 0..CalHardNs (Dk :
+# correction « lecteur cible » du lecteur). Sans mesure, le facteur du lecteur (mediane des 3 derniers k* du lecteur, de
+# la famille et de la tete, 1 sans mesure) s applique. Pistes exclues : absentes, longues ou protegees de l image (IPF),
+# avant l ecriture ; vides, de longueur hors norme ou non MFM a tous les niveaux, apres la relecture. Arret de gw sur une
+# piste refusee a la verification : piste gardee, reprise de la tete une fois par passe.
+$script:ContentLevelsDefault = @(1.0, 0.6, 0.25)   # niveaux k x V par defaut (contentKMid, contentKLow : 040)
+$script:ContentBlocks = 8; $script:ContentBlockLen = 5; $script:ContentMinBlocks = 4; $script:ContentMaxCyl = 80
+$script:ContentQ = 1e-3; $script:ContentTolM = 1e-6; $script:ContentMaxIt = 50; $script:ContentT0Tol = 0.05
+$script:ContentZMax = 5e-4; $script:ContentCellsTol = 0.02; $script:ContentFluxMin = 0.5
+$script:ContentMinCyl = 20; $script:ContentMinLevelCyl = 6; $script:ContentResumeMax = 1
+$script:ContentEstWrite = 1.25; $script:ContentEstRead = 0.85     # s par piste (balayages du 25/10/2026)
+$script:ContentRecMax = 20; $script:ContentScpName = 'contenu-mesure.scp'   # plafond du facteur ContentFMax : 040
+$script:ContentMeasures = @()        # enregistrements de mesure (C.2), relus par Load-Config
+$script:TargetCorr = @{}             # Dk par lecteur (C.4), relu par Load-Config
+$script:TgtCorrEdit = @{}            # saisie en cours d un champ Dk (tete -> lecteur et valeur d avant), 140
+$script:WriteFactorNext = $null      # facteur mesure pour l ecriture qui suit (A.10), lu une fois par Start-ImageWrite
+$script:GwVerifyFail = $null         # arret « Failed to verify Track C.H » de la derniere commande gw write (110)
+
 # ============================== CONTROLE APRES ECRITURE ========================
 # Apres une ecriture reussie : relecture en flux (3 tours) de toutes les pistes ecrites,
 # classement de chaque piste avec Get-TrackMetrics (memes criteres que l onglet Qualite :
@@ -22608,6 +24194,12 @@ $timer.Add_Tick({
             $code = $script:GwProc.ExitCode
             # Lecture de prechauffage : code retour et pistes manquantes sans effet, l etape suivante a toujours lieu
             $soft = [bool]$script:GwSoft; $script:GwSoft = $false; $script:GwLastCode = $code
+            # 12.8.1 (spec-1281.md § A.7) : mesure de la disquette sur l image, gw arrete sur une piste refusee a la
+            # verification (« Failed to verify Track », Read-GwOutput), code 1 ou 0 : commande traitee comme une lecture de
+            # prechauffage (ni « operation incomplete », ni arret de la sequence) ; l etape suivante (Invoke-ContentWriteNext)
+            # garde la piste et reprend la tete. Toute autre erreur gw suit la regle commune. Regle : Get-GwEndRule (110)
+            $gwEnd = Get-GwEndRule $code $soft ([bool]$script:GwIsWrite) ([bool]$script:GwWriteSummary) ([int]$script:ProgTotal) ([int]$script:ProgSeen.Count) $script:GwVerifyFail $(if ($script:Cal) { [string]$script:Cal.Mode } else { '' })
+            $soft = [bool]$gwEnd.Soft
             # Activite du lecteur : seulement si le moteur a tourne (code 0, ou au moins une piste lue ou ecrite) ;
             # nouvelle serie si la commande a commence CalWarmupGapMin apres la fin de la precedente
             if ($script:GwDriveKey -and ($code -eq 0 -or ($script:ProgSeen -and $script:ProgSeen.Count -gt 0))) {
@@ -22631,9 +24223,9 @@ $timer.Add_Tick({
             else { Append-Log ((T "<<< Terminé (code retour : {0}, {1} s, {2} ligne(s) reçues)") -f "$code", "$elapsed", "$($script:GwLines)") }
             # Arret silencieux avec le code 0 (ex. « Command Failed: WriteProtected ») : pas de controle ni d etape suivante,
             # ils masqueraient le probleme. Ecriture : gw imprime toujours une ligne de bilan quand il va au bout (verification
-            # comprise), quel que soit le nombre de pistes de l image. Autres commandes : moins de la moitie des pistes annoncees.
-            $incomplete = if ($wasWrite) { $code -eq 0 -and -not $script:GwWriteSummary }
-                          else { $code -eq 0 -and $script:ProgTotal -gt 0 -and $script:ProgSeen.Count * 2 -lt $script:ProgTotal }
+            # comprise), quel que soit le nombre de pistes de l image. Autres commandes : moins de la moitie des pistes annoncees
+            # (Get-GwEndRule, plus haut).
+            $incomplete = [bool]$gwEnd.Incomplete
             $script:GwLastIncomplete = [bool]$incomplete
             if ($incomplete -and -not $soft) {
                 Append-Log ((T "ERREUR : opération incomplète, gw s'est arrêté après {0} piste(s) sur {1} annoncées avec le code 0. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer.") -f "$($script:ProgSeen.Count)", "$($script:ProgTotal)")
@@ -22656,7 +24248,7 @@ $timer.Add_Tick({
             Set-Busy $false
             if ($script:Detect) { Complete-DriveProbe $code }
             if ($script:Chain.Count -gt 0) {
-                if ($code -eq 0 -or $soft) {
+                if ($gwEnd.Next) {
                     Invoke-NextChainStep
                 } else {
                     $why = ((T "gw a retourné le code {0}, voir le journal") -f "$code")

@@ -105,8 +105,13 @@ $script:SettingDefs = [ordered]@{
     levelBeforeWrite   = @{ Sec = 'write';   Key = 'levelBeforeWrite';   Type = 'bool';   Def = $true }
     # 12.8 (S3, decision du 21/10/2026) : mesure de la disquette avant une ecriture lente : calibration rapide ('quick') ou
     # mesure complete de cette disquette ('complete', reference du lecteur inchangee) ; liste cmbWLevelMode de l onglet
-    # Ecriture, dans l ordre de ses elements
-    levelBeforeWriteMode = @{ Sec = 'write'; Key = 'levelBeforeWriteMode'; Type = 'enum'; Def = 'quick'; Codes = @('quick', 'complete') }
+    # Ecriture, dans l ordre de ses elements. 12.8.1 (spec-1281 § A.1) : mesure sur l image a ecrire ('content', nouveau
+    # defaut) en tete de liste ; une configuration 12.8 a 'quick' passe a 'content' une fois (Update-LegacyLevelMode)
+    levelBeforeWriteMode = @{ Sec = 'write'; Key = 'levelBeforeWriteMode'; Type = 'enum'; Def = 'content'; Codes = @('content', 'quick', 'complete') }
+    # 12.8.1 (spec-1281 § A.4) : niveaux moyen et bas de la mesure sur l image (k x courbe du lecteur, le haut vaut 1),
+    # dans la configuration seulement ; controles ensemble au chargement (Test-ContentLevelSettings : bas <= moyen - 0,2)
+    contentKMid        = @{ Sec = 'write';   Key = 'contentKMid';        Type = 'double'; Def = 0.6;      Min = 0.3; Max = 0.8; Var = 'ContentKMid' }
+    contentKLow        = @{ Sec = 'write';   Key = 'contentKLow';        Type = 'double'; Def = 0.25;     Min = 0.0; Max = 0.5; Var = 'ContentKLow' }
     precompProfile     = @{ Sec = 'write';   Key = 'precompProfileCode'; Type = 'enum';   Def = 'auto';   Codes = @('auto', 'std', 'long', 'manual'); LegacyKey = 'precompProfile'; Text = $true
                             Legacy = @{ 'Auto (selon image)' = 'auto'; 'Auto (from image)' = 'auto'; 'Standard 2 us' = 'std'; 'Long track 1,89 us' = 'long'; 'Long track 1.89 us' = 'long'; 'Manuel' = 'manual'; 'Manual' = 'manual' } }
     precompThresholdNs = @{ Sec = 'write';   Key = 'precompThresholdNs'; Type = 'int';    Def = $script:PrecompThresholdNs; Min = 0; Max = 100000; Var = 'PrecompThresholdNs' }
@@ -129,6 +134,19 @@ $script:SettingCtl  = @{}                                                   # cl
 $script:SettingOf   = New-Object 'System.Collections.Generic.Dictionary[object,string]'   # controle lie -> cle
 $script:SettingSync = $false                                                # garde de reentrance des liaisons
 $script:OpOverride  = $null                                                 # 12.8 (D4) : surcharge d une operation (Enter-OpOverride)
+$script:ContentKMid = [double]$script:SettingDefs['contentKMid'].Def        # 12.8.1 : niveaux de la mesure sur l image (Get-Setting)
+$script:ContentKLow = [double]$script:SettingDefs['contentKLow'].Def
+# 12.8.1 : bornes uniques du facteur de precompensation d une ecriture, definies ici, avant l interface (520).
+#  - TargetCorrMax : correction « lecteur cible » Dk, de -TargetCorrMax a +TargetCorrMax (Set-DriveDk,
+#    ConvertFrom-TargetCorrConfig : 274 ; champs numWTgt0 et numWTgt1 : 520 ; infobulle : 140) ;
+#  - ContentFMax : plafond du facteur ecrit k + Dk, ramene a 0..ContentFMax (Limit-WriteFactor : 274 ; Get-WriteFactorPlan :
+#    140 ; 276). La courbe ecrite reste bornee a 0..CalHardNs (ConvertTo-ScaledSpec, 274).
+# Portees le 26/10/2026 de 0,5 a 3,0 et de 1,5 a 4,0 : mesures reelles du couple Sony -> TEAC (courbe du Sony tres basse),
+# Dk d environ +1,75 et facteur total k + Dk d environ 2,6 ; marge au-dessus. La protection en ns reste la borne absolue
+# des valeurs ecrites, 0..CalHardNs
+$script:TargetCorrMax = 3.0
+$script:ContentFMax = 4.0
+$script:WFactorNote = $null                                                 # 12.8.1 : complement « facteur » du libelle du profil (Update-WriteFactorNote)
 
 $Formats = @('(auto)','amiga.amigados','amiga.amigados_hd','atarist.720','atarist.800','atarist.880',
              'ibm.360','ibm.720','ibm.1440','ibm.scan','commodore.1541','mac.800','raw.250','raw.500')
