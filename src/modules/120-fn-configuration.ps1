@@ -224,6 +224,19 @@ function Update-LegacyLevelMode($cfg) {
     Append-Log (T "Mesure de la disquette avant l'écriture lente : la liste « Mesure : » passe de « rapide » à « sur l'image à écrire », la nouvelle mesure de la version 12.8.1. Pour revenir à la calibration rapide, choisissez « rapide, au motif ».")
 }
 
+function Update-LegacyEraseMode($cfg) {
+    # 12.8.2 : case « Effacer avant d ecrire » (write.preErase, auparavant « Pre-effacer chaque piste »). Configuration
+    # d une version anterieure (section write sans le marqueur eraseMode = 'hfreq') avec la case decochee : son sens
+    # change (double densite : effacement haute frequence, et non plus pre-effacement en continu), elle est recochee une
+    # fois, ligne de journal ; Save-Config ecrit le marqueur, le choix suivant de l utilisateur est garde. Load-Config,
+    # apres la lecture de la case
+    $w = Get-Cfg $cfg 'write' $null
+    if ($null -eq $w -or [string](Get-Cfg $w 'eraseMode' '') -eq 'hfreq') { return }
+    if ($chkWPreErase.Checked) { return }
+    $chkWPreErase.Checked = $true
+    Append-Log (T "Case « Effacer avant d'écrire » (auparavant « Pré-effacer chaque piste ») recochée, une seule fois : son effet change dans cette version. Sur une disquette double densité, elle efface désormais les pistes en haute fréquence avant l'écriture, au lieu du pré-effacement en continu qui coûtait de la marge de lecture ; en haute densité, elle pré-efface comme avant. Décochez-la de nouveau si vous ne voulez aucun effacement avant l'écriture.")
+}
+
 function Test-ContentLevelSettings($cfg) {
     # 12.8.1 (spec-1281 § A.4) : niveaux moyen et bas de la mesure sur l image (contentKMid, contentKLow, configuration
     # seulement) controles ensemble au chargement : valeurs lisibles et dans les bornes de la table, et bas <= moyen - 0,2 ;
@@ -337,7 +350,7 @@ function Set-Defaults {
     $txtRsDir.Text = ''; $txtRsName.Text = ''
     Update-RsRules; Reset-RsSteps; Update-RsFmtFound
     $cmbHelpAct.SelectedItem = 'write'
-    $txtC.Text = 'write --pre-erase --erase-empty --retries=10 --precomp 40=140 "jeu.ipf"'
+    $txtC.Text = 'write --erase-empty --retries=10 --precomp 40=140 "jeu.ipf"'   # 12.8.2 : sans --pre-erase (disquette double densite)
     Update-CurveButton $txtWFile.Text
     # 12.8.1 (spec-1281 § D.2) : champs de la correction « lecteur cible » du lecteur du bandeau (valeurs par lecteur,
     # gardees comme les calibrations : $script:TargetCorr n est pas remis)
@@ -432,6 +445,7 @@ function Save-Config {
         write    = @{
             file = $txtWFile.Text; format = $cmbWFmt.Text
             preErase = [bool]$chkWPreErase.Checked; eraseEmpty = [bool]$chkWEraseEmpty.Checked
+            eraseMode = 'hfreq'                # 12.8.2 : marqueur de migration de la case (Update-LegacyEraseMode)
             noVerify = [bool]$chkWNoVerify.Checked; reverse = [bool]$chkWReverse.Checked
             hardSectors = [bool]$chkWHard.Checked; genTg43 = [bool]$chkWTG43.Checked
             retries = [int]$numWRetries.Value
@@ -546,6 +560,7 @@ function Load-Config {
     $txtWFile.Text = [string](Get-Cfg $w 'file' '')
     Set-Combo $cmbWFmt (Get-Cfg $w 'format' '(auto)')
     $chkWPreErase.Checked   = [bool](Get-Cfg $w 'preErase' $true)
+    Update-LegacyEraseMode $cfg                # 12.8.2 : case decochee d une version anterieure recochee une fois
     $chkWEraseEmpty.Checked = [bool](Get-Cfg $w 'eraseEmpty' $true)
     $chkWNoVerify.Checked   = [bool](Get-Cfg $w 'noVerify' $false)
     $chkWReverse.Checked    = [bool](Get-Cfg $w 'reverse' $false)
@@ -620,6 +635,10 @@ function Load-Config {
     $tcr = ConvertFrom-TargetCorrConfig @(Get-Cfg $w 'targetCorrection' @())
     $script:TargetCorr = $tcr.Map
     if ($cmBad -gt 0 -or [int]$tcr.Bad -gt 0) { Append-Log ((T 'Configuration : {0} facteur(s) mesuré(s) illisible(s), ignoré(s) ; {1} correction(s) lecteur cible illisible(s), ignorée(s) ou comptée(s) 0.') -f "$cmBad", "$($tcr.Bad)") }
+    # Revue 12.8.2 : facteurs d un autre calcul qui ne s appliquent plus (aucune mesure du calcul actuel pour ce lecteur,
+    # cette famille et cette tete, Get-StaleDriveFactors) : une ligne a chaque demarrage, jusqu a une nouvelle mesure
+    $sdf = Get-StaleDriveFactors
+    if ([int]$sdf.N -gt 0) { Append-Log ((T "Facteurs de précompensation mesurés sur l'image : {0} mesure(s) du lecteur {1}, faite(s) avec un autre calcul de calibration, ne sont plus appliquées. Après la recalibration du lecteur, refaites une mesure sur l'image ; d'ici là, une écriture sans mesure utilise le facteur 1, plus la correction « lecteur cible ».") -f "$($sdf.N)", ((@($sdf.Drives)) -join ', ')) }
     $script:OldCalib = $null
     $calPurged = $lostProf
     if ($old.Count -gt 0) {

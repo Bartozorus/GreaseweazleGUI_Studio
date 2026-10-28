@@ -14,7 +14,8 @@ $timer.Add_Tick({
             # verification (« Failed to verify Track », Read-GwOutput), code 1 ou 0 : commande traitee comme une lecture de
             # prechauffage (ni « operation incomplete », ni arret de la sequence) ; l etape suivante (Invoke-ContentWriteNext)
             # garde la piste et reprend la tete. Toute autre erreur gw suit la regle commune. Regle : Get-GwEndRule (110)
-            $gwEnd = Get-GwEndRule $code $soft ([bool]$script:GwIsWrite) ([bool]$script:GwWriteSummary) ([int]$script:ProgTotal) ([int]$script:ProgSeen.Count) $script:GwVerifyFail $(if ($script:Cal) { [string]$script:Cal.Mode } else { '' })
+            $eraseFailed = ([bool]$script:GwIsErase -and [bool]$script:GwCmdFailed); $script:GwIsErase = $false   # 12.8.2
+            $gwEnd = Get-GwEndRule $code $soft ([bool]$script:GwIsWrite) ([bool]$script:GwWriteSummary) ([int]$script:ProgTotal) ([int]$script:ProgSeen.Count) $script:GwVerifyFail $(if ($script:Cal) { [string]$script:Cal.Mode } else { '' }) $eraseFailed
             $soft = [bool]$gwEnd.Soft
             # Activite du lecteur : seulement si le moteur a tourne (code 0, ou au moins une piste lue ou ecrite) ;
             # nouvelle serie si la commande a commence CalWarmupGapMin apres la fin de la precedente
@@ -44,7 +45,8 @@ $timer.Add_Tick({
             $incomplete = [bool]$gwEnd.Incomplete
             $script:GwLastIncomplete = [bool]$incomplete
             if ($incomplete -and -not $soft) {
-                Append-Log ((T "ERREUR : opération incomplète, gw s'est arrêté après {0} piste(s) sur {1} annoncées avec le code 0. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer.") -f "$($script:ProgSeen.Count)", "$($script:ProgTotal)")
+                if ($eraseFailed) { Append-Log (T "ERREUR : l'effacement a échoué (« Command Failed » de gw, code 0) : la suite de l'opération n'est pas lancée. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer.") }
+                else { Append-Log ((T "ERREUR : opération incomplète, gw s'est arrêté après {0} piste(s) sur {1} annoncées avec le code 0. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer.") -f "$($script:ProgSeen.Count)", "$($script:ProgTotal)") }
                 $script:Chain.Clear(); $script:WriteQueue.Clear()
                 Stop-WriteWarmup        # defensif : une lecture de prechauffage est « soft »
                 $why = (T 'opération gw incomplète : disquette protégée en écriture, absente, ou lecteur en défaut ? Voir le journal')

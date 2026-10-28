@@ -221,7 +221,7 @@ $lstLibDocs.Add_DoubleClick({ if (Get-LibOpenTarget) { Open-LibDoc } })
 $btnLibFast = New-Object System.Windows.Forms.Button
 $btnLibFast.Text = (T 'Écriture rapide'); $btnLibFast.Location = '466,262'; $btnLibFast.Size = '154,34'; $btnLibFast.Font = $bold
 $btnLibFast.Anchor = 'Bottom,Right'; $btnLibFast.Enabled = $false
-$tip.SetToolTip($btnLibFast, (T "Écrit l'image sélectionnée en une passe, les deux têtes ensemble : image entière, profil de précompensation Auto,`npré-effacement, effacement des pistes vides, vérification gw, 10 essais, sans contrôle complet des pistes.`nSans calibration commune pour la famille de l'image, le lecteur est d'abord calibré : la disquette reçoit le motif de test, puis l'image."))
+$tip.SetToolTip($btnLibFast, (T "Écrit l'image sélectionnée en une passe, les deux têtes ensemble : image entière, profil de précompensation Auto,`neffacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, vérification gw, 10 essais, sans contrôle complet des pistes.`nSans calibration commune pour la famille de l'image, le lecteur est d'abord calibré : la disquette reçoit le motif de test, puis l'image."))
 $tip.SetToolTip($btnLibFast, $tip.GetToolTip($btnLibFast) + "`n" + (T 'Test rapide choisi dans l''onglet Écriture : avant l''écriture, le niveau de la courbe est mesuré sur la disquette à écrire (4 à 9 cylindres par tête, 1 à 3 écritures du motif par piste).'))
 $btnLibFast.Add_Click({ Start-LibWrite 'fast' })
 $btnLibSlow = New-Object System.Windows.Forms.Button

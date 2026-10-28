@@ -49,8 +49,10 @@ $grpWImage.Controls.AddRange(@((New-Label (T 'Image :') '12,23'), $txtWFile, $bt
 $grpWOpt = New-Group (T 'Options d''écriture') '10,98' '762,162'
 
 $chkWPreErase = New-Object System.Windows.Forms.CheckBox
-$chkWPreErase.Text = (T 'Pré-effacer chaque piste'); $chkWPreErase.Location = '12,24'; $chkWPreErase.Width = 170
-$tip.SetToolTip($chkWPreErase, (T '--pre-erase : efface la piste juste avant de l''écrire. Recommandé sur une disquette déjà utilisée.'))
+# 12.8.2 : « Effacer avant d ecrire » (meme case, meme cle write.preErase) : effacement haute frequence en double densite,
+# pre-effacement en haute densite (Start-ImageWrite, 150 : Get-EraseMode)
+$chkWPreErase.Text = (T "Effacer avant d'écrire"); $chkWPreErase.Location = '12,24'; $chkWPreErase.Width = 170
+$tip.SetToolTip($chkWPreErase, (T "Efface les pistes avant de les écrire (cochée par défaut).`nDisquette double densité : les pistes de l'image sont d'abord effacées en haute fréquence par le lecteur qui écrit (gw erase --hfreq), puis écrites sans pré-effacement.`nDisquette haute densité : chaque piste est pré-effacée juste avant son écriture (--pre-erase), comme avant ; de même avec les secteurs durs, un lecteur 8 pouces (TG43), --densel ou une image dont l'application ne connaît pas les pistes (ligne au journal).`nMesuré sur un lecteur haute densité qui écrit des disquettes double densité : la marge de lecture sur un lecteur double densité est nettement meilleure qu'avec le pré-effacement (environ 60 ns de plus).`nLes calibrations et les réécritures du contrôle après écriture effacent toujours leurs pistes selon cette règle, même case décochée."))
 $chkWEraseEmpty = New-Object System.Windows.Forms.CheckBox
 $chkWEraseEmpty.Text = (T 'Effacer les pistes vides'); $chkWEraseEmpty.Location = '190,24'; $chkWEraseEmpty.Width = 165
 $tip.SetToolTip($chkWEraseEmpty, (T '--erase-empty : efface les pistes vides de l''image au lieu de les sauter. Supprime les résidus de l''ancien contenu.'))
@@ -100,9 +102,9 @@ $lblWLevelMode.Name = 'lblWLevelMode'
 $cmbWLevelMode = New-Object System.Windows.Forms.ComboBox
 # 12.8.1 (spec-1281 § D.1) : trois elements, dans l ordre des codes (content, quick, complete) ; largeur 260
 $cmbWLevelMode.Name = 'cmbWLevelMode'; $cmbWLevelMode.DropDownStyle = 'DropDownList'; $cmbWLevelMode.Width = 260; $cmbWLevelMode.Location = '100,492'
-[void]$cmbWLevelMode.Items.AddRange(@((T "sur l'image à écrire (environ 10 min)"), (T 'rapide, au motif (1 à 2 min)'), (T 'complète, au motif (20 à 25 min)')))
+[void]$cmbWLevelMode.Items.AddRange(@((T "sur l'image à écrire (environ 12 min)"), (T 'rapide, au motif (1 à 2 min)'), (T 'complète, au motif (25 à 30 min)')))
 $cmbWLevelMode.SelectedIndex = 0
-$tip.SetToolTip($cmbWLevelMode, (T "Mesure de la disquette avant une écriture lente.`nSur l'image à écrire : 40 cylindres de l'image sont écrits à 3 niveaux de la courbe du lecteur et relus ; l'image est écrite avec le niveau qui donne la meilleure marge de lecture, pour chaque tête (environ 10 min). Images double densité MFM seulement ; sinon, calibration rapide au motif.`nRapide, au motif : calibration rapide sur le motif de test, 4 à 9 cylindres par tête (1 à 2 min).`nComplète, au motif : mesure complète de cette disquette sur tous ses cylindres (20 à 25 min), puis écriture de l'image ; la courbe obtenue est mémorisée pour la marque de la disquette.`n« Test rapide » et restauration : toujours la calibration rapide au motif."))
+$tip.SetToolTip($cmbWLevelMode, (T "Mesure de la disquette avant une écriture lente.`nSur l'image à écrire : 40 cylindres de l'image sont écrits à 3 niveaux de la courbe du lecteur et relus ; l'image est écrite avec le niveau qui donne la meilleure marge de lecture, pour chaque tête (environ 12 min). Images double densité MFM seulement ; sinon, calibration rapide au motif.`nRapide, au motif : calibration rapide sur le motif de test, 4 à 9 cylindres par tête (1 à 2 min).`nComplète, au motif : mesure complète de cette disquette sur tous ses cylindres (25 à 30 min), puis écriture de l'image ; la courbe obtenue est mémorisée pour la marque de la disquette.`n« Test rapide » et restauration : toujours la calibration rapide au motif."))
 # 12.8.1 (spec-1281 § D.2) : correction « lecteur cible » Dk du lecteur du bandeau, par tete ($script:TargetCorr), sur la
 # ligne de la liste « Mesure : » ; champs toujours actifs (toute ecriture avec facteur, rapide comprise). Libelle,
 # infobulle, valeurs et positions (a la suite de la liste) : Update-TargetCorrUi ; valeur changee : Set-TargetCorrFromUi ;
@@ -142,7 +144,7 @@ $chkWSlow.Add_CheckedChanged({ Update-SlowUi; if ($script:UiReady) { Update-Prec
 
 $chkWPostCheck = New-Object System.Windows.Forms.CheckBox
 $chkWPostCheck.Text = (T 'Contrôler toutes les pistes'); $chkWPostCheck.Location = '500,50'; $chkWPostCheck.Width = 255
-$tip.SetToolTip($chkWPostCheck, (T "Après une écriture réussie, relit en flux toutes les pistes écrites et classe chacune avec les critères de l'onglet Qualité & alignement.`nUne piste À SURVEILLER, CRITIQUE ou illisible est réécrite seule (avec pré-effacement), puis seule remesurée,`njusqu'au nombre de passes de réécriture choisi. Résultat dans l'onglet Qualité & alignement."))
+$tip.SetToolTip($chkWPostCheck, (T "Après une écriture réussie, relit en flux toutes les pistes écrites et classe chacune avec les critères de l'onglet Qualité & alignement.`nUne piste À SURVEILLER, CRITIQUE ou illisible est réécrite seule (après un effacement haute fréquence de la piste en double densité, avec pré-effacement en haute densité), puis seule remesurée,`njusqu'au nombre de passes de réécriture choisi. Résultat dans l'onglet Qualité & alignement."))
 
 $lblWRepair = New-Label (T 'Passes de réécriture :') '560,81'
 $numWRepair = New-Object System.Windows.Forms.NumericUpDown

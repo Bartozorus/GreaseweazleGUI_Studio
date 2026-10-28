@@ -35,7 +35,7 @@ function Update-SlowUi {
     # mesure sur l image a ecrire (defaut) : texte propre
     $lm = [string](Get-Setting 'levelBeforeWriteMode')
     $full = ($lm -eq 'complete')
-    $chkWLevel.Text = if ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } elseif ($lm -eq 'content') { (T "Mesurer la disquette avant l'écriture lente : précompensation mesurée sur l'image (environ 10 min)") } elseif ($full) { (T "Mesurer la disquette avant l'écriture lente : précompensation et état de la surface") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
+    $chkWLevel.Text = if ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } elseif ($lm -eq 'content') { (T "Mesurer la disquette avant l'écriture lente : précompensation mesurée sur l'image (environ 12 min)") } elseif ($full) { (T "Mesurer la disquette avant l'écriture lente : précompensation et état de la surface") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
     $chkWLevel.Enabled = ($on -and -not $quick)
     # 12.8 (S3) : liste du mode de la mesure (rapide ou complete) : active en ecriture lente quand la disquette est mesuree
     # (case cochee, ou verrouillee au « Test rapide »)
@@ -71,13 +71,14 @@ function Start-ImageWrite([switch]$NoWarmup) {
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     # Image flux a plusieurs tours : pistes dont le contenu change d un tour a l autre (bits faibles d une protection),
     # que gw ne reproduit pas (il n ecrit que le premier tour) : avertissement, confirmation, pas de reecriture au controle
-    $script:ImageUnstable = $null; $script:ImageSrcWeak = $null; $script:ImageNoJudge = $null; $script:ImageScpFailed = $false
+    $script:ImageUnstable = $null; $script:ImageSrcWeak = $null; $script:ImageNoJudge = $null; $script:ImageScpFailed = $false; $script:ImageSrcOver = $null
     if (-not $script:Restore -and $script:ScpStatsOk -and [System.IO.Path]::GetExtension($txtWFile.Text).ToLower() -eq '.scp') {
-        # Analyse (quelques secondes pour un flux complet) mise en cache par fichier, taille et date
-        $uk = @{}; $ck = @{}; $nj = @{}; $failed = $false
+        # Analyse (quelques secondes pour un flux complet) mise en cache par fichier, taille et date. 12.8.2 (decision du
+        # 27/10/2026) : $ov, pistes deja hors norme par leurs erreurs (Test-SrcOverErr), ni reecrites ni comptees au controle
+        $uk = @{}; $ck = @{}; $nj = @{}; $ov = @{}; $failed = $false
         $fi = Get-Item -LiteralPath $txtWFile.Text
         $ckey = "$($fi.FullName)|$($fi.Length)|$($fi.LastWriteTimeUtc.Ticks)"
-        if ($script:ScpWeakCache -and $script:ScpWeakCache.Key -eq $ckey) { $uk = $script:ScpWeakCache.Weak.Clone(); $ck = $script:ScpWeakCache.Crit.Clone(); $nj = $script:ScpWeakCache.NoJudge.Clone(); $failed = [bool]$script:ScpWeakCache.Failed }
+        if ($script:ScpWeakCache -and $script:ScpWeakCache.Key -eq $ckey -and $null -ne $script:ScpWeakCache.Over) { $uk = $script:ScpWeakCache.Weak.Clone(); $ck = $script:ScpWeakCache.Crit.Clone(); $nj = $script:ScpWeakCache.NoJudge.Clone(); $ov = $script:ScpWeakCache.Over.Clone(); $failed = [bool]$script:ScpWeakCache.Failed }
         else {
             $oldTxt = $stOp.Text; $stOp.Text = (T "Analyse de l'image flux..."); $status.Refresh()
             $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
@@ -89,11 +90,12 @@ function Start-ImageWrite([switch]$NoWarmup) {
                     # Image jugee aux seuils Standard, comme un original en restauration
                     $lv = if ($m.Bad) { 2 } else { Get-HealthLevel $m.Ooc $m.Dr $m.Stab $m.J $script:JitterStdOk $script:JitterStdWatch }
                     if ($m.Weak) { $uk[$key] = $true } elseif ($lv -ge 2) { $ck[$key] = $true }
+                    elseif (Test-SrcOverErr $m) { $ov[$key] = $true }
                     # Courte zone instable (raccord ou protection) ou stabilite non mesurable (un seul tour, densite) : une
                     # zone instable relue sur la copie n y sera pas jugee
                     elseif ($m.ShortUnstable -or $m.Blocks -eq 0) { $nj[$key] = $true }
                 }
-                $script:ScpWeakCache = @{ Key = $ckey; Weak = $uk.Clone(); Crit = $ck.Clone(); NoJudge = $nj.Clone(); Failed = $false }
+                $script:ScpWeakCache = @{ Key = $ckey; Weak = $uk.Clone(); Crit = $ck.Clone(); NoJudge = $nj.Clone(); Over = $ov.Clone(); Failed = $false }
             } catch { $failed = $true } finally { $form.Cursor = [System.Windows.Forms.Cursors]::Default; $stOp.Text = $oldTxt }
         }
         if ($uk.Count -gt 0) {
@@ -109,9 +111,9 @@ function Start-ImageWrite([switch]$NoWarmup) {
             Append-Log ((T "Image flux : {0} piste(s) déjà critique(s) ou illisible(s) dans l'image ({1}) : piste non formatée, protection ou défaut de l'original. gw en écrit le premier tour tel quel : ces pistes ne sont ni réécrites ni comptées par le contrôle.") -f "$($ck.Count)", "$(Format-TrackList (Sort-TrackKeys @($ck.Keys)))")
         }
         $ign = @{}
-        foreach ($k in @(@($uk.Keys) + @($ck.Keys))) { $ign[[string]$k] = $true }
+        foreach ($k in @(@($uk.Keys) + @($ck.Keys) + @($ov.Keys))) { $ign[[string]$k] = $true }
         if ($ign.Count -gt 0) { $script:ImageUnstable = $ign }
-        $script:ImageSrcWeak = $uk; $script:ImageNoJudge = $nj; $script:ImageScpFailed = $failed
+        $script:ImageSrcWeak = $uk; $script:ImageNoJudge = $nj; $script:ImageScpFailed = $failed; $script:ImageSrcOver = $ov
     }
     $slow = $chkWSlow.Checked
     $userTs = $txtWTracks.Text.Trim()
@@ -135,10 +137,36 @@ function Start-ImageWrite([switch]$NoWarmup) {
             }
         }
     }
+    # 12.8.2 : case « Effacer avant d ecrire » (150, Get-EraseMode). Disquette double densite : effacement haute frequence
+    # des pistes ecrites par l operation (Get-WriteEraseKeys, memes elements du champ Pistes), commandes gw erase --hfreq en
+    # tete de la file WriteQueue, avant la premiere ecriture (apres le prechauffage de l ecriture lente), puis ecriture
+    # sans --pre-erase ; pistes inconnues : pre-effacement, comme avant. Haute densite, flux SCP de densite inconnue,
+    # secteurs durs, TG43, --densel : --pre-erase, comme en 12.8.1. Case decochee : aucun effacement.
+    # Revue 12.8.2 : $em, effacement de l ecriture (repli 'pre' si ses pistes sont inconnues) ; $emCheck, effacement des
+    # reecritures du controle apres ecriture (New-WriteCheck) : selon la densite et les options de lecteur seules, les
+    # pistes faibles etant toujours connues. EraseLog : pistes effacees et ecrites par l operation (Read-GwOutput), pour
+    # signaler celles qui restent effacees apres un arret (Fail-Restore)
+    $hdImg = Test-ImageHighDensity $txtWFile.Text $cmbWFmt.Text
+    $emCheck = Get-EraseMode $hdImg
+    $em = $emCheck
+    $eraseKeys = $null; $eraseCmds = @(); $script:EraseLog = $null
+    if ($chkWPreErase.Checked -and $em -eq 'hfreq') {
+        $eraseKeys = Get-WriteEraseKeys $txtWFile.Text $cmbWFmt.Text $userTs ([int[]]$heads)
+        if ($null -eq $eraseKeys) {
+            $em = 'pre'
+            Append-Log ((T "Effacement avant l'écriture : pistes de l'image {0} inconnues, l'effacement haute fréquence ne peut pas les viser : pré-effacement de chaque piste (--pre-erase), comme avant.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))")
+        } else {
+            $eraseCmds = New-HfreqEraseCmds $eraseKeys (Get-TSpecExtras $userTs)
+            if (@($eraseCmds).Count -gt 0) { $script:EraseLog = @{ Owner = 'write'; Round = 0; Erased = @{}; Written = @{} } }
+        }
+    } elseif ($chkWPreErase.Checked) {
+        if (Test-ScpDensityUnknown $txtWFile.Text) { Append-Log ((T "Effacement avant l'écriture : densité du flux {0} inconnue (module d'analyse SCP indisponible) : pré-effacement de chaque piste (--pre-erase), comme avant.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))") }
+        elseif (-not $hdImg) { $fb = Get-EraseFallbackNote; if ($fb) { Append-Log $fb } }
+    }
     # $base : toutes les options sauf --tracks et l image (reprises telles quelles par les reecritures ciblees) ;
     # en ecriture lente, sans --precomp : chaque tete a sa commande et sa valeur
     $base = @('write') + (Get-CommonArgs)
-    if ($chkWPreErase.Checked)   { $base += '--pre-erase' }
+    if ($chkWPreErase.Checked -and $em -ne 'hfreq') { $base += '--pre-erase' }
     if ($chkWEraseEmpty.Checked) { $base += '--erase-empty' }
     if ($chkWNoVerify.Checked)   { $base += '--no-verify' }
     $base += "--retries=$($numWRetries.Value)"
@@ -185,6 +213,16 @@ function Start-ImageWrite([switch]$NoWarmup) {
     $a += "`"$($txtWFile.Text)`""
     $headPc = $null
     $script:WriteQueue.Clear()
+    # 12.8.2 : effacement haute frequence en tete de la file (Invoke-WriteQueueNext), avant toute ecriture. Revue 12.8.2 :
+    # ecriture lente sur une disquette identique a l original (restauration, « Ecraser quand meme ») : chaque tete est
+    # effacee juste avant son ecriture (un arret de gw n expose que la tete en cours ; Fail-Restore cite les pistes restees
+    # effacees)
+    $perHead = ($slow -and $script:Restore -and $script:Restore.OnOriginal -and @($eraseCmds).Count -gt 0)
+    if (-not $perHead) { foreach ($ec in $eraseCmds) { $script:WriteQueue.Enqueue([string[]]$ec) } }
+    if (@($eraseCmds).Count -gt 0) {
+        Append-Log ((T "Effacement haute fréquence avant l'écriture (disquette double densité, lecteur {0}) : pistes {1}, puis écriture sans pré-effacement.") -f "$($cmbDrive.Text)", (Format-EraseTracks $eraseCmds))
+        if ($perHead) { Append-Log (T "Écriture sur une disquette identique à l'original : chaque tête est effacée juste avant son écriture.") }
+    }
     if ($slow) {
         # Ecriture lente : tete 0 sur tout le disque, puis tete 1 (gw applique --precomp par cylindre seulement).
         # Les champs correspondent aux tetes physiques (calibration) ; hswap : la tete logique h est ecrite par la tete 1 - h.
@@ -192,6 +230,10 @@ function Start-ImageWrite([switch]$NoWarmup) {
         $headPc = @{}; $headPcRaw = @{}
         foreach ($h in 0, 1) { $phys = if ($swap) { 1 - $h } else { $h }; $headPc[$h] = if ($phys -eq 0) { $pc0 } else { $pc1 }; $headPcRaw[$h] = if ($phys -eq 0) { $pc0Raw } else { $pc1Raw } }
         foreach ($h in $heads) {
+            if ($perHead) {
+                $hk = @(@($eraseKeys) | Where-Object { ([string]$_ -split '\.')[1] -eq "$h" })
+                foreach ($ec in (New-HfreqEraseCmds $hk (Get-TSpecExtras $userTs))) { $script:WriteQueue.Enqueue([string[]]$ec) }
+            }
             $cmd = @($base); if ($headPc[$h]) { $cmd += '--precomp'; $cmd += $headPc[$h] }
             $script:WriteQueue.Enqueue([string[]]($cmd + @("--tracks=$(Set-TSpecHead $userTs $h)", "`"$($txtWFile.Text)`"")))
         }
@@ -215,14 +257,15 @@ function Start-ImageWrite([switch]$NoWarmup) {
     if ($post -and -not $blocker) {
         # Options de lecteur reprises par les relectures de controle (gw read les accepte toutes)
         $readOpts = @(Get-DriveReadArgs)
-        New-WriteCheck $base $txtWFile.Text $userTs ([int]$numWRepair.Value) $readOpts $headPc
+        New-WriteCheck $base $txtWFile.Text $userTs ([int]$numWRepair.Value) $readOpts $headPc $emCheck
         if ($script:ImageUnstable) { $script:Rep.Ignore = $script:ImageUnstable }
-        $script:Rep.SrcWeak = $script:ImageSrcWeak; $script:Rep.NoJudge = $script:ImageNoJudge
+        $script:Rep.SrcWeak = $script:ImageSrcWeak; $script:Rep.NoJudge = $script:ImageNoJudge; $script:Rep.SrcOver = $script:ImageSrcOver
         # SCP non analyse (module absent, restauration : voir Start-RestoreWrite) ou analyse en echec : rien n est juge
         if ([System.IO.Path]::GetExtension($txtWFile.Text).ToLower() -eq '.scp' -and ($script:ImageScpFailed -or ((-not $script:Restore) -and $null -eq $script:ImageNoJudge))) { $script:Rep.UnstDefect = $false }
         $script:Chain.Clear()
-        if ($slow) { for ($i = 0; $i -lt $script:WriteQueue.Count; $i++) { $script:Chain.Enqueue({ Invoke-WriteQueueNext }) } }
-        else { $script:WriteArgs = $a; $script:Chain.Enqueue({ Start-Gw $script:WriteArgs }) }
+        # File WriteQueue : effacement haute frequence (12.8.2), puis en ecriture lente une ecriture par tete
+        for ($i = 0; $i -lt $script:WriteQueue.Count; $i++) { $script:Chain.Enqueue({ Invoke-WriteQueueNext }) }
+        if (-not $slow) { $script:WriteArgs = $a; $script:Chain.Enqueue({ Start-Gw $script:WriteArgs }) }
         $script:Chain.Enqueue({ Start-WriteCheck })
         if ($slow) { Start-WriteWarmup $warmTs ([bool]$NoWarmup) } else { Invoke-NextChainStep }
     } elseif ($slow) {
@@ -230,6 +273,16 @@ function Start-ImageWrite([switch]$NoWarmup) {
         for ($i = 0; $i -lt $script:WriteQueue.Count; $i++) { $script:Chain.Enqueue({ Invoke-WriteQueueNext }) }
         if ($script:Restore) { $script:Chain.Enqueue({ Invoke-RestoreNext }) }   # restauration sans controle complet
         Start-WriteWarmup $warmTs ([bool]$NoWarmup)
+    } elseif ($script:WriteQueue.Count -gt 0) {
+        # 12.8.2 : ecriture rapide precedee de l effacement haute frequence (file WriteQueue), puis la restauration ;
+        # etapes deja en attente gardees apres l ecriture, comme sans effacement
+        $rest = if ($script:Restore) { @() } else { @($script:Chain.ToArray()) }
+        $script:Chain.Clear()
+        for ($i = 0; $i -lt $script:WriteQueue.Count; $i++) { $script:Chain.Enqueue({ Invoke-WriteQueueNext }) }
+        $script:WriteArgs = $a; $script:Chain.Enqueue({ Start-Gw $script:WriteArgs })
+        if ($script:Restore) { $script:Chain.Enqueue({ Invoke-RestoreNext }) }
+        foreach ($s in $rest) { $script:Chain.Enqueue($s) }
+        Invoke-NextChainStep
     } else {
         if ($script:Restore) { $script:Chain.Clear(); $script:Chain.Enqueue({ Invoke-RestoreNext }) }
         Start-Gw $a
@@ -264,8 +317,9 @@ function Test-CalibCurrent([string]$fam, [bool]$heads) {
 }
 
 function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
-    # Parametres d une ecriture rapide ou lente : image entiere, profil Auto, pre-effacement, effacement des pistes vides,
-    # verification gw, 10 essais, precomp transmise. Rapide : une commande pour les deux tetes, sans controle complet.
+    # Parametres d une ecriture rapide ou lente : image entiere, profil Auto, effacement avant l ecriture (case « Effacer
+    # avant d ecrire » ; 12.8.2 : haute frequence en double densite, pre-effacement en haute densite), effacement des
+    # pistes vides, verification gw, 10 essais, precomp transmise. Rapide : une commande pour les deux tetes, sans controle complet.
     # Lente : tete 0 puis tete 1 (profils par tete), controle de toutes les pistes, 3 passes de reecriture. Les options
     # de lecteur (flippy, densel, fake index, diskdefs, secteurs durs, TG43) decrivent le materiel : conservees, comme
     # les elements step, h0.off, h1.off et hswap du champ Pistes (seuls c= et h= sont retires : image entiere).
@@ -296,10 +350,10 @@ function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
     $chkWSlow.Checked = ($mode -eq 'slow')
     if ($mode -eq 'slow') {
         $chkWPostCheck.Checked = $true; $numWRepair.Value = 3
-        Append-Log (T 'Écriture lente : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 essais, tête 0 puis tête 1, contrôle de toutes les pistes, 3 passes de réécriture.')
+        Append-Log (T "Écriture lente : image entière, profil Auto, effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, vérification gw, 10 essais, tête 0 puis tête 1, contrôle de toutes les pistes, 3 passes de réécriture.")
     } else {
         $chkWPostCheck.Checked = $false
-        Append-Log (T 'Écriture rapide : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 essais, les deux têtes ensemble, sans contrôle complet des pistes.')
+        Append-Log (T "Écriture rapide : image entière, profil Auto, effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, vérification gw, 10 essais, les deux têtes ensemble, sans contrôle complet des pistes.")
         if ($null -ne $oneHead) { Append-Log ((T "Image à une seule face : seule la tête {0} est écrite (h={0} dans Pistes).") -f "$oneHead") }
     }
     if ($facesUnknown) { Append-Log (T "Nombre de faces de l'image inconnu : effacement des pistes vides désactivé (seules les pistes présentes dans l'image sont écrites).") }
@@ -713,6 +767,8 @@ function Get-WriteFactorSrcText([string]$drive, [string]$fam, [int]$h, [double]$
         $md = if ($dr.Rec -and $dr.Rec.Date) { [string]$dr.Rec.Date } else { '?' }
         return ((T 'k {0} de la dernière mesure du lecteur (du {1}), correction lecteur cible {2}') -f "$kt", "$md", "$dt")
     }
+    # Revue 12.8.2 : mesures de ce lecteur ecartees parce qu elles viennent d un autre calcul (Get-DriveK, Old)
+    if ([int](Get-DriveK $drive $fam $h).Old -gt 0) { return ((T 'k 1 (mesures de ce lecteur faites avec un autre calcul de calibration, à refaire), correction lecteur cible {0}') -f "$dt") }
     return ((T 'k 1 (aucune mesure de ce lecteur), correction lecteur cible {0}') -f "$dt")
 }
 

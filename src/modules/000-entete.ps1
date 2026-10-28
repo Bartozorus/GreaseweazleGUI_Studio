@@ -27,11 +27,13 @@ param(
 )
 
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
-$script:Version = '12.8.1'
+$script:Version = '12.8.2'
 # Version du calcul de calibration (motif de test, mesure du decalage, ajustement de la courbe, verification), enregistree
 # avec chaque courbe : a changer seulement quand ce calcul change. Une courbe faite avec ce calcul est reprise par les
 # versions suivantes de l application ; une courbe d un autre calcul n est reprise que si l utilisateur la conserve.
-$script:CalibCalc = '12.6'
+# 12.8.2 : en double densite, chaque passe efface ses pistes en haute frequence (gw erase --hfreq) puis ecrit le motif
+# sans --pre-erase (New-CalibPass) : la mesure change, les courbes du calcul 12.6 sont mises de cote au chargement
+$script:CalibCalc = '12.8.2'
 # 12.7 : version du calcul de la famille haute densite (hd), distincte : son bareme provisoire changera apres les premieres
 # mesures reelles sans rouvrir le choix des courbes double densite (Get-CurveCalcRef)
 $script:CalibCalcHd = '12.7'

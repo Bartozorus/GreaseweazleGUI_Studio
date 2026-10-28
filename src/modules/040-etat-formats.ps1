@@ -49,6 +49,9 @@ $script:AlignPrev   = $null
 $script:AlignTmp    = $null
 $script:AlignLast   = $null     # derniere mesure : cle 'cyl.tete' -> @{Score;Jitter;Asym;Err;Stab;Cell}
 $script:GwIsWrite   = $false    # le gw en cours est un 'write' : on capture les retries de verification
+$script:GwIsErase   = $false    # 12.8.2 : le gw en cours est un 'erase' (pistes effacees, « Command Failed » avec le code 0)
+$script:GwCmdFailed = $false    # 12.8.2 : « Command Failed » d un gw erase en cours (Get-GwEndRule)
+$script:EraseLog    = $null     # 12.8.2 : pistes effacees et ecrites de l operation en cours (Start-ImageWrite, 170)
 $script:GwSoft      = $false    # le gw en cours est une lecture de prechauffage : code retour et piste manquante sans effet
 $script:GwLastCode  = 0         # code retour du dernier gw termine (prechauffage)
 $script:GwLastIncomplete = $false   # dernier gw termine avec le code 0 mais incomplet (prechauffage)
@@ -85,7 +88,68 @@ $script:JitterStdOk = 120
 $script:JitterStdWatch = 250
 $script:JitterOk = $script:JitterStdOk              # jitter (ns) sous lequel une piste peut etre SAINE (reglage de l Accueil)
 $script:JitterWatch = $script:JitterStdWatch        # jitter (ns) sous lequel une piste est au plus A SURVEILLER, CRITIQUE au-dela
+# 12.8.2 (decision du 27/10/2026) : erreurs par tour (hors classe) au plus pour l etat SAIN de Get-HealthLevel, partout ou
+# il juge : onglet Qualite, controle apres ecriture et son garde-fou, source SCP de l ecriture, original en restauration,
+# detection du format ; couleur de la colonne Erreurs (Get-AlLevel). 3 jusqu en 12.8.1 : le raccord d ecriture et le
+# premier intervalle de la lecture, qui valaient environ 1 erreur par tour, ne comptent plus (S10, S11) ; 2 garde a peu
+# pres la sensibilite de la 12.8.1 aux defauts des donnees. Une piste de la source au-dela n est pas reecrite par le
+# controle de la copie (Test-SrcOverErr). Ni la calibration, ni le controle de surface, ni les courbes n utilisent
+# Get-HealthLevel (CalSurfOocFloor, 560 : borne CRITIQUE de 20, inchangee).
+$script:HealthErrOk = 2
 $script:AlignRefLabel = ''
+# 12.8.2 (S11) : zone de l index (Read-ScpFile, Set-ScpTrackPost). gw ecrit les images ADF et a secteurs d index a index
+# (« Terminate at index ») : la jonction d ecriture tombe sur l index, dans l espace entre le dernier et le premier
+# secteur (sources gw 1.23 : AmigaDOS DD, 2 048 cellules de vide apres l index, 4,0 ms, et 3 552 avant, 7,0 ms ; ibm.360
+# et ibm.720, IAM a 2,94 ms et premier IDAM a 5,1 ms, dernier secteur fini 8,5 ms avant l index, 3,0 ms pour ibm.800 ;
+# atarist.720 a 880, sans IAM, premier sync a 2,8 ms au moins, dernier secteur fini 3,1 ms au moins avant l index ; IPF
+# Speedball 2 : premier sync a 4,7 ms). Relue par un autre lecteur, elle se decale de la position de son capteur d index
+# (TEAC : 0,2 a 0,64 ms apres l index ; Sony qui a ecrit : jusqu a 28 us apres, 6 us avant ; essais du 27/10/2026). 1,0 ms
+# de part et d autre couvre ce decalage et reste a 1,8 ms au moins des secteurs (1,1 ms avec le decalage du TEAC). Hors
+# de cette hypothese (verification du 27/10/2026) : les formats gw a petit gap apres l index (coco.* et dragon.*, synchro
+# a 1,4 ms ; ensoniq.mirage, IAM a 1,0 ms ; tsc.flex, synchro a 0,9 ms), dont le premier en-tete peut entrer dans la
+# zone relue par un autre lecteur : garde par synchro ci-dessous.
+# Les trous de signal restent comptes partout, premier intervalle compris (jamais vus au raccord).
+# Garde-fous (revue du 27/10/2026), piste par piste : zone ecartee seulement si celle du tour 0 ne contient pas de donnees
+# (Test-ScpZoneData : le raccord n est pas a l index pour une image IPF dont le raccord est ailleurs, un SCP avec bloc
+# WRSP, un original non cale sur l index ou ecrit par un Amiga, un index simule) ; par tour et par bout, hors classe
+# ecartes seulement s ils forment une seule grappe de ScpIdxClusterMax intervalles au plus, du debut du premier a la fin
+# du dernier en ScpIdxClusterNs au plus (raccord mesure sur 30 lectures : 12 us et 4 intervalles au plus sur les copies
+# gw, 38 us et 11 intervalles sur les originaux de duplicateur ; 60 us et 100 us y donnent les memes comptes) ; sinon tous
+# sont comptes (defaut du support a l index). Verification du 27/10/2026 (Get-ScpZoneOoc) : une grappe prolongee au-dela
+# de la zone (hors classe a ScpIdxClusterNs au plus de sa fin) fait compter le bout ; des grappes aux deux bouts d un
+# meme tour (de part et d autre de l index) ne sont ecartees qu a ScpIdxClusterMax intervalles et ScpIdxClusterNs de
+# distance cumulee a l index au plus (raccord du Sony a cheval : 4 intervalles et 34 us au plus) ; 0 changement sur les
+# 30 lectures d essai.
+$script:ScpIdxZoneNs = 1000000
+$script:ScpIdxClusterNs = 60000
+$script:ScpIdxClusterMax = 12
+# Garde par synchro (verification du 27/10/2026, Test-ScpZoneSync) : zone aussi jugee « avec donnees » si le tour 0
+# contient la double synchro MFM 0x4489 (classes ScpIdxSync : AmigaDOS, IBM et Atari MFM) qui commence a moins de
+# ScpIdxZoneNs apres l index, ou a moins de ScpIdxSyncBeforeNs avant la fin du tour 0 (secteur a cheval sur l index) : un
+# defaut dans le seul bloc riche de la zone, ou un secteur a donnees uniformes (zeros) a cheval sur l index, ne la font
+# plus prendre pour du vide. Un secteur AmigaDOS dure 17,4 ms ; la derniere synchro d une copie gw est a 20,6 ms au moins
+# de l index (30 lectures d essai), celle d ibm.800 et d atarist.880 a 19,5 ms environ : une erreur de ce cote compte la
+# zone (fausse alerte possible), elle ne masque rien.
+$script:ScpIdxSync = '3434324343'
+$script:ScpIdxSyncBeforeNs = 18500000
+# Tour de moins de 100 ms (plus de 600 tr/min) : plusieurs index par rotation (disque a secteurs durs lu sans
+# --hard-sectors) : ni zone de l index, ni tours alignes
+$script:ScpIdxMinRevNs = 100000000
+# 12.8.2 (S12) : stabilite sur tours alignes, a partir de 3 tours (avec 2 tours, un seul compte de B a A : une variation
+# a travers l index serait invisible ; ecart du nombre de flux, comme avant). Classes calculees sur ScpPostWin
+# intervalles a chaque bout du tour 0 (ancres, zone de l index ; tout le tour au besoin) et sur ScpRevWin a chaque bout
+# des autres tours (zone de l index et recherche des ancres, environ 9 ms en double densite ; segment classe a part
+# au-dela) ; tout le tour si les ScpZoneWin intervalles d un bout durent moins de ScpIdxZoneNs (512 intervalles : plus de
+# 2 ms en double densite). Ancre : Len intervalles consecutifs (comme les blocs de ScpStats.Instability), cherchee a
+# +/- Win puis +/- Win2 de sa position attendue (le deplacement de l index est de quelques flux ; Win2 : celui du C#),
+# Tries positions essayees et Cand candidats au plus par bout du tour 0. Donnees dans la zone de l index (meme critere de
+# bloc, moities uniques aussi) : pas de ZoneStep intervalles apres un bloc trop uniforme, de Len / 2 apres un motif
+# periodique, ZoneTries blocs au plus par bout.
+$script:ScpPostWin = 4096
+$script:ScpRevWin = 2048
+$script:ScpZoneWin = 512
+$script:ScpAnchor = @{ Len = 32; Win = 64; Win2 = 600; Tries = 128; Cand = 4; ZoneStep = 4; ZoneTries = 96 }
+$script:ScpPostFail = $null                         # echecs du post-traitement d un fichier (Read-ScpFile, Set-ScpTrackPost)
 
 # --- Reglages a source unique (12.8, point 7) ----------------------------------
 # Un reglage modifiable depuis plusieurs interfaces, ou enregistre dans la configuration, est defini ici une seule fois :

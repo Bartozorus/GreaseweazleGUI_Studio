@@ -26,7 +26,9 @@ function Get-WriteWarmupTSpec([string]$userTs, [int[]]$heads, [string]$image) {
 }
 
 function Invoke-WriteQueueNext {
-    # Ecriture lente : commande gw write suivante (une par tete) ; pistes et retries de la precedente cumules pour le controle
+    # Ecriture lente : commande gw write suivante (une par tete) ; pistes et retries de la precedente cumules pour le controle.
+    # 12.8.2 : la file commence par les commandes gw erase --hfreq de l effacement avant l ecriture (Start-ImageWrite,
+    # ecriture rapide comprise)
     if ($script:WriteQueue.Count -eq 0) { return }
     Merge-RepRetries
     Start-Gw ([string[]]$script:WriteQueue.Dequeue())

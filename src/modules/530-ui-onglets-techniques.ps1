@@ -256,7 +256,7 @@ $cmbAlHead.Location = '530,11'; $cmbAlHead.Width = 55; $cmbAlHead.DropDownStyle 
 $numAlRevs = New-Object System.Windows.Forms.NumericUpDown
 $numAlRevs.Location = '645,11'; $numAlRevs.Width = 45
 $numAlRevs.Minimum = 1; $numAlRevs.Maximum = 10
-$tip.SetToolTip($numAlRevs, (T 'Tours lus par piste. 3 suffit ; 5 pour une disquette douteuse.'))
+$tip.SetToolTip($numAlRevs, (T "Tours lus par piste : 3 suffit, 5 pour une disquette douteuse. En double densité et à partir de 3 tours, la stabilité compare des tours alignés ; avec 2, elle compare le nombre de flux de chaque tour, que l'index de certains lecteurs fait varier."))   # 12.8.2
 
 $chkAlLoop = New-Object System.Windows.Forms.CheckBox
 $chkAlLoop.Text = (T 'Continu'); $chkAlLoop.Location = '700,12'; $chkAlLoop.Width = 75
@@ -429,10 +429,12 @@ $btnErase.Add_Click({
     $tr = $txtEraseTracks.Text.Trim(); $drv = "$($cmbDrive.Text)"
     $txt = if ($tr) { (T "Les pistes {0} de la disquette du lecteur {1} seront effacées : leur contenu ne pourra pas être récupéré.") -f "$tr", $drv }
            else { (T "Toute la disquette du lecteur {0} sera effacée : son contenu ne pourra pas être récupéré.") -f $drv }
+    # 12.8.2 : effacement haute frequence (gw erase --hfreq), et non plus en courant continu
+    $txt += "`n`n" + (T "L'effacement se fait en haute fréquence (gw erase --hfreq). N'effacez pas en continu une disquette double densité avant de l'écrire, avec un aimant par exemple : écrite ensuite par un lecteur haute densité, elle perdrait de la marge de lecture.")
     $cq = @{ Title = (T 'Confirmation effacement'); Heading = (T 'Effacement irréversible'); Text = $txt; Level = 'danger'; Picto = 'erase'
              Check = ((T 'La disquette du lecteur {0} peut être effacée') -f $drv); GoText = (T 'Effacer la disquette'); GoGlyph = 'Delete' }
     if (Show-AppConfirm @cq) {
-        $a = @('erase') + (Get-CommonArgs)
+        $a = @('erase') + (Get-CommonArgs) + @('--hfreq')
         if ($tr) { $a += "--tracks=$tr" }
         Start-Gw $a
     }

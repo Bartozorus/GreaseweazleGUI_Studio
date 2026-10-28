@@ -467,8 +467,10 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     $warm = ($toWrite -and $chkWSlow.Checked -and $chkWWarm.Checked)
     $wu = if ($warm) { [math]::Max(0.0, [double]$script:CalWarmupMinutes) } else { 0.0 }
     # 12.8 (lot 1c) : 2 passes en general, 3 passes avec 2 cylindres de controle de plus quand la forme est adaptee
-    $minLo = [math]::Max(1, [math]::Round($cyls.Count * 2 * 1.4 * 2 / 60 + $wu, 0))
-    $minHi = [math]::Max($minLo, [math]::Round(($cyls.Count + $ctl0.Count) * 2 * 1.4 * 3 / 60 + $wu, 0))
+    # 12.8.2 (revue) : effacement haute frequence de chaque passe en double densite compris (Get-CalibEraseEst, 150)
+    $estEr = Get-CalibEraseEst ([string]$fam -eq 'hd')
+    $minLo = [math]::Max(1, [math]::Round($cyls.Count * 2 * (1.4 + $estEr) * 2 / 60 + $wu, 0))
+    $minHi = [math]::Max($minLo, [math]::Round(($cyls.Count + $ctl0.Count) * 2 * (1.4 + $estEr) * 3 / 60 + $wu, 0))
     $minutes = if ($slow -and $minHi -gt $minLo) { (T '{0} à {1}') -f "$minLo", "$minHi" } else { "$minLo" }
     $script:AlignLoop = $false; $script:AlignNextAt = $null
     $ans = $null                        # 12.7 : jamais celle d un appelant (portee dynamique)
@@ -515,7 +517,7 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
         CanFallback = ($toWrite -and -not $NoFallback -and -not $script:Restore); Notes = @($lr.Notes)
         Scp = (Join-Path $script:TempDir 'precomp-calib.scp'); Writes = (New-Object System.Collections.Queue); ReadArgs = @()
         StartTime = (Get-Date); PassStart = (Get-Date); PhaseStart = (Get-Date); Phase = 'write'
-        PassesDone = 0; TotalPasses = 2; WriteDurs = @(); ReadDurs = @(); EstTrack = 0.7; TrackWrites = 0
+        PassesDone = 0; TotalPasses = 2; WriteDurs = @(); ReadDurs = @(); EstTrack = 0.7; EstErase = $estEr; TrackWrites = 0
         # Carte Calibration de l Accueil (progression sur la carte). 12.8 (S3-FLUX) : Geom.NoHome (geometrie de la copie de flux
         # mesuree en restauration, F3R) retire avec cette mesure
         Home = [bool]$Geom; Geom = $Geom
@@ -1166,7 +1168,7 @@ function Get-LevelReviewPlan($cal, $res, [bool]$toWrite) {
     $over = @(@($res.Recs) | Where-Object { $_ -and (@($_.Over).Count -gt 0 -or @($_.Sat).Count -gt 0) })
     $fat = @($units | Where-Object { $_.Fatigue })
     $offerDisk = [bool]($toWrite -and $cal.CanDisk -and $cal.Slow -and $cal.Lr -and ($mm.Count + $resv.Count + $ctlR.Count + $cenR.Count + $over.Count + $fat.Count) -gt 0)
-    $diskMin = if ($offerDisk) { Get-DiskMeasureMinutes ([int]$cal.MaxCyl + 1) } else { 0 }
+    $diskMin = if ($offerDisk) { Get-DiskMeasureMinutes ([int]$cal.MaxCyl + 1) ([string]$cal.Family -eq 'hd') } else { 0 }
     return @{ Warn = [bool]$warnText; WarnText = $warnText; OfferFull = $offerFull; Info = $infoWin; BrandAsk = $brandAsk; Brand = $prefill; Brands = $names; Adapted = $adapted; MemoCurve = $memoCv; Verified = $verified
               OfferDisk = $offerDisk; DiskMin = $diskMin }
 }
@@ -1368,7 +1370,7 @@ function Stop-LevelBrandCurve($cal, $gd) {
     Append-Log ((T "Cette disquette ne ressemble pas à la courbe de la marque « {0} » ({1}) : calibration arrêtée après la passe 1.") -f "$($gd.Brand)", "$($gd.Why)")
     $toWrite = ($script:AfterCalib -eq 'write')
     $disk = [bool]($toWrite -and $cal.CanDisk -and $cal.Slow -and $cal.Lr)
-    $min = if ($disk) { Get-DiskMeasureMinutes ([int]$cal.MaxCyl + 1) } else { 0 }
+    $min = if ($disk) { Get-DiskMeasureMinutes ([int]$cal.MaxCyl + 1) ([string]$cal.Family -eq 'hd') } else { 0 }
     $txt = if ($disk) { (T "Cette disquette ne ressemble pas à la marque « {0} ». Choisissez une calibration rapide sur la référence du lecteur (1 à 2 min) ou une mesure complète de cette disquette (environ {1} min).") -f "$($gd.Brand)", "$min" }
            else { (T "Cette disquette ne ressemble pas à la marque « {0} ». Relancez une calibration rapide sur la référence du lecteur (1 à 2 min), sans la marque.") -f "$($gd.Brand)" }
     $txt += "`n`n" + ((T 'Raison : {0}.') -f "$($gd.Why)") + "`n" + (T "Fermer : la calibration est interrompue et rien de plus n'est écrit.")

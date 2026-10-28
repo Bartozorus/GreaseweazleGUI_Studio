@@ -407,7 +407,8 @@ function Step-FmtDetectFlux {
     if ($script:ScpStatsOk) {
         try { $d.HD = [bool](Test-ScpHighDensity $d.Scp) } catch { $d.HD = $false }
         try {
-            $t = Read-ScpFile $d.Scp
+            # 12.8.2 : lecture avec --fake-index (options de lecteur, Get-DriveReadArgs) : index simule, zone de l index comptee
+            $t = Read-ScpFile $d.Scp -NoIndexZone:(@($script:FmtDetectArgs | Where-Object { "$_" -match '^--fake-index=' }).Count -gt 0)
             foreach ($tn in @($t.Keys)) {
                 $mm = Get-TrackMetrics $t[$tn]; $d.Tracks++
                 $lv = if ($mm.Bad) { 2 } else { Get-HealthLevel $mm.Ooc $mm.Dr $mm.Stab $mm.J $script:JitterStdOk $script:JitterStdWatch }
@@ -457,7 +458,7 @@ function Step-FmtDetectProbe {
     $d.ProbeDone = $true
     if ((Test-Path -LiteralPath $d.ProbeScp) -and $script:ScpStatsOk) {
         try {
-            $t = Read-ScpFile $d.ProbeScp
+            $t = Read-ScpFile $d.ProbeScp -NoIndexZone:(@($script:FmtDetectArgs | Where-Object { "$_" -match '^--fake-index=' }).Count -gt 0)
             foreach ($tn in @($t.Keys)) {
                 $mm = Get-TrackMetrics $t[$tn]; $d.ProbeTracks++
                 $lv = if ($mm.Bad) { 2 } else { Get-HealthLevel $mm.Ooc $mm.Dr $mm.Stab $mm.J $script:JitterStdOk $script:JitterStdWatch }

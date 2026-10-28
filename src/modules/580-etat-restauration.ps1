@@ -9,7 +9,8 @@
 #  5-7. ecriture lente tete par tete deleguee a Start-PresetWrite : une calibration existante (par tete, sinon commune)
 #     n est jamais refaite, ses reserves sont signalees ; calibration par tete en test fin seulement si la famille n en a
 #     aucune, eventuellement sur une disquette sacrifiee (la destination est alors redemandee et de nouveau sondee) ;
-#     pre-effacement, verification gw, essais et passes de reecriture de $script:RestoreRules, controle de toutes les pistes ;
+#     effacement avant l ecriture (12.8.2 : haute frequence en double densite, pre-effacement en haute densite),
+#     verification gw, essais et passes de reecriture de $script:RestoreRules, controle de toutes les pistes ;
 #  8. relecture de la copie sans nouvel essai et comparaison secteur par secteur avec l original.
 # Machine d etats $script:Restore, un seul repartiteur Invoke-RestoreNext. Calibration, ecriture et controle vident
 # la chaine d etapes : ils rappellent la restauration par des points d accroche (Complete-WriteCheck, fin de

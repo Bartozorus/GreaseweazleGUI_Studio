@@ -100,13 +100,15 @@ function Get-ContentWriteArgs($cal, $w) {
     # 140:135-162 : --pre-erase, --erase-empty et --no-verify selon les cases, --retries, Get-WriteFormatArgs), puis le
     # --precomp du plan de la passe et de la tete restreint aux cylindres de la commande ($w = @{ H ; Cyls ; Resume } :
     # commande complete, ou reprise apres un arret de gw), --tracks=c=<cylindres>:h=<tete> et l image. Jamais --tracks=h=
-    # seul : ces commandes ne se confondent pas avec l ecriture finale (regex de rpm_analyse.precomp_journal)
+    # seul : ces commandes ne se confondent pas avec l ecriture finale (regex de rpm_analyse.precomp_journal).
+    # 12.8.2 : double densite (Content.EraseMode 'hfreq', Start-ContentMeasure) : jamais --pre-erase, la passe commence par
+    # un effacement haute frequence de ses pistes (New-ContentPass) ; autre mode : --pre-erase selon la case, comme avant
     $ct = $cal.Content
     $ph = $ct.Plan.Pass[[int]$ct.Pass].H[[int]$w.H]
     $sel = @{}
     foreach ($c in @($w.Cyls)) { $sel[[int]$c] = [int]$ph.W[[int]$c] }
     $a = @('write') + (Get-CommonArgs)
-    if ($chkWPreErase.Checked)   { $a += '--pre-erase' }
+    if ($chkWPreErase.Checked -and [string]$ct.EraseMode -ne 'hfreq') { $a += '--pre-erase' }
     if ($chkWEraseEmpty.Checked) { $a += '--erase-empty' }
     if ($chkWNoVerify.Checked)   { $a += '--no-verify' }
     $a += "--retries=$($numWRetries.Value)"
@@ -118,9 +120,17 @@ function Get-ContentWriteArgs($cal, $w) {
 function Get-ContentMeasureMinutes([int]$nTracks) {
     # Duree estimee de la mesure avant l ecriture de l image (A.6) : 3 passes de nTracks pistes ecrites (ContentEstWrite,
     # 1,25 s par piste, ecriture verifiee) et relues (ContentEstRead, 0,85 s par piste, 3 tours), plus le prechauffage du
-    # reglage warmFullCalib (borne haute : reduit ou saute si le lecteur vient de servir)
+    # reglage warmFullCalib (borne haute : reduit ou saute si le lecteur vient de servir). 12.8.2 (revue) : effacement haute
+    # frequence de chaque passe compris (Get-ContentEraseEst)
     $wu = if ([bool](Get-Setting 'warmFullCalib')) { [math]::Max(0.0, [double]$script:CalWarmupMinutes) } else { 0.0 }
-    return [int][math]::Max(1, [math]::Round(3 * $nTracks * ([double]$script:ContentEstWrite + [double]$script:ContentEstRead) / 60 + $wu, 0))
+    return [int][math]::Max(1, [math]::Round(3 * $nTracks * ([double]$script:ContentEstWrite + [double]$script:ContentEstRead + (Get-ContentEraseEst)) / 60 + $wu, 0))
+}
+
+function Get-ContentEraseEst {
+    # 12.8.2 (revue) : duree estimee, en s par piste et par passe, de l effacement haute frequence de la mesure sur l image
+    # (New-ContentPass : case « Effacer avant d ecrire » cochee, double densite, seule densite mesuree ici) ; 0 sinon
+    if ($chkWPreErase.Checked -and (Get-EraseMode $false) -eq 'hfreq') { return [double]$script:EraseEstTrack }
+    return 0.0
 }
 
 function Get-ContentPeekFactors([string]$img, [string]$fmt, [string]$fam) {
@@ -155,6 +165,8 @@ function Start-ContentMeasure($chk) {
     $cq = @{ Title = (T 'Mesure de la disquette'); Heading = (T "Mesure de la disquette sur l'image"); Level = 'info'; Picto = 'data'
              Text = ((T "Avant l'écriture lente, la précompensation est mesurée sur le contenu même de l'image, sur le lecteur {0} : {1} cylindres répartis sur le disque sont écrits 3 fois, à 3 niveaux de la courbe du lecteur ({2}), et relus après chaque passe. L'image est ensuite écrite avec, pour chaque tête, le niveau qui donne la meilleure marge de lecture.`n`nDurée : environ {3} min avant l'écriture de l'image. Ces pistes reçoivent 3 écritures de plus.`n`n« Écrire sans mesure » : facteur actuel du lecteur, tête 0 × {4}, tête 1 × {5}.") -f "$drive", "$($cyls.Count)", "$lvTxt", "$min", (Format-UiNum ([double]$pk[0]) '0.00'), (Format-UiNum ([double]$pk[1]) '0.00'))
              GoText = (T 'Mesurer puis écrire'); GoGlyph = 'Diagnostic'; AltText = (T 'Écrire sans mesure') }
+    # 12.8.2 (revue) : effacement haute frequence de chaque passe (New-ContentPass), compris dans la duree
+    if ((Get-ContentEraseEst) -gt 0) { $cq.Text += "`n`n" + (T "Case « Effacer avant d'écrire » cochée : ces pistes sont effacées en haute fréquence avant chaque passe, durée comprise.") }
     $script:ConfirmChoice = $null
     $go = [bool](Show-AppConfirm @cq)
     if (-not $go) {
@@ -176,11 +188,13 @@ function Start-ContentMeasure($chk) {
     $script:AlignLoop = $false; $script:AlignNextAt = $null
     # Etat propre de la mesure : plan, passe en cours (0..2), file des commandes de la passe et commande en cours, reprises
     # par passe et tete ('p|h'), cylindres non ecrits ('p|c|h' -> 'nonecrite'), exclusions d avant l ecriture ('c.h'),
-    # lectures de toutes les passes (List : jamais @() autour, pwsh 7.6), courbes V, references et bornes
+    # lectures de toutes les passes (List : jamais @() autour, pwsh 7.6), courbes V, references et bornes. 12.8.2 : mode
+    # de l effacement avant les ecritures (EraseMode, 150 : 'hfreq' en double densite, seule densite mesuree ici)
     $ct = @{ Plan = $plan; Pass = 0; Todo = [System.Collections.Generic.List[hashtable]]::new(); Current = $null; Resumes = @{}; Skip = @{}
              PreSkip = $chk.PreSkip; Obs = [System.Collections.Generic.List[object]]::new(); Ncell0 = [int]$chk.Ncell0; Levels = $lv
              KMin = [double](@($lv) | Measure-Object -Minimum).Minimum; V = $chk.V; RefKeys = $chk.RefKeys; RefDates = $chk.RefDates
-             Common = [bool]$chk.Common; Fam = $fam; Img = $img; Hard = [int]$chk.Hard }
+             Common = [bool]$chk.Common; Fam = $fam; Img = $img; Hard = [int]$chk.Hard
+             EraseMode = (Get-EraseMode (Test-ImageHighDensity $img ([string]$cmbWFmt.Text))) }
     $script:Cal = @{
         Mode = 'content'; Stage = 'content'; Drive = $drive; Family = $fam; Slow = $true; Image = $img; Cyls = $cyls; CylList = $cylList
         TSpec = "c=${cylList}:h=0-1"; Scp = $scp; Writes = (New-Object System.Collections.Queue)
@@ -188,7 +202,7 @@ function Start-ContentMeasure($chk) {
         # Progression : passes faites / prevues, durees mesurees par phase ; estimation initiale par piste et par phase :
         # moyenne de l ecriture et de la relecture (Update-CalibProgress compte Cyls x 2 pistes par phase)
         StartTime = (Get-Date); PassStart = (Get-Date); PhaseStart = (Get-Date); Phase = 'write'; Value = 0; ValueTxt = (T 'tête 0 puis tête 1'); Spec = ''
-        PassesDone = 0; TotalPasses = $lv.Count; WriteDurs = @(); ReadDurs = @(); EstTrack = (([double]$script:ContentEstWrite + [double]$script:ContentEstRead) / 2)
+        PassesDone = 0; TotalPasses = $lv.Count; WriteDurs = @(); ReadDurs = @(); EstTrack = (([double]$script:ContentEstWrite + [double]$script:ContentEstRead) / 2); EstErase = (Get-ContentEraseEst)
         Home = $false; Geom = $null; NoWarmup = (-not [bool](Get-Setting 'warmFullCalib')); Hold = $false; Redo = $false; DiskOnly = $false
         Units = @(); Swap = $false; LevelAfter = $false; VerifyCount = 0; Retests = 0; Content = $ct
     }
@@ -197,6 +211,7 @@ function Start-ContentMeasure($chk) {
     $dates = if ($ct.Common) { [string]$ct.RefDates[0] } else { "$($ct.RefDates[0]) / $($ct.RefDates[1])" }
     $kind = if ($ct.Common) { (T 'courbe commune') } else { (T 'une courbe par tête') }
     Append-Log ((T "Mesure sur l'image : courbe du lecteur du {0} ({1}) ; précompensation écrite bornée à 0..{2} ns.") -f "$dates", "$kind", "$($ct.Hard)")
+    if ($chkWPreErase.Checked -and [string]$ct.EraseMode -eq 'hfreq') { Append-Log (T "Mesure sur l'image : disquette double densité, chaque passe commence par un effacement haute fréquence de ses pistes (gw erase --hfreq) ; écritures sans pré-effacement.") }
     $pbWCal.Value = 0; $pbWCal.Visible = $true; $lblWCal.Visible = $true
     Update-CalibProgress
     Start-CalibWarmup      # prechauffage du lecteur s il y a lieu, puis premiere passe (New-CalibPass, stade 'content')
@@ -213,6 +228,14 @@ function New-ContentPass {
     foreach ($h in 0, 1) {
         $cs = [int[]]@($ct.Plan.Pass[$p].H[$h].Cyls)
         if ($cs.Count -gt 0) { $ct.Todo.Add(@{ H = $h; Cyls = $cs; Resume = $false }) }
+    }
+    # 12.8.2 : double densite, case « Effacer avant d ecrire » cochee : effacement haute frequence des pistes de la passe
+    # (cylindres de chaque tete dans le plan, sans les pistes exclues avant l ecriture), en tete de file (@{ Erase }) ;
+    # champ Pistes vide (Test-ContentMeasurable) : aucun element de lecteur
+    if ($chkWPreErase.Checked -and [string]$ct.EraseMode -eq 'hfreq') {
+        $ks = @(foreach ($t in $ct.Todo) { foreach ($c in @($t.Cyls)) { "$c.$($t.H)" } })
+        $ers = New-HfreqEraseCmds $ks ''
+        for ($i = $ers.Count - 1; $i -ge 0; $i--) { $ct.Todo.Insert(0, @{ Erase = [string[]]$ers[$i] }) }
     }
     $bc = @($ct.Plan.Cyls); $nb = @($ct.Plan.Blocks).Count
     $len = if ($nb -gt 0) { [int]($bc.Count / $nb) } else { 0 }
@@ -242,8 +265,11 @@ function Invoke-ContentWriteNext {
         $ct.Current = $null
     }
     if ($ct.Todo.Count -gt 0) {
-        $w = $ct.Todo[0]; $ct.Todo.RemoveAt(0); $ct.Current = $w
+        $w = $ct.Todo[0]; $ct.Todo.RemoveAt(0)
         $script:Chain.Enqueue({ Invoke-ContentWriteNext })
+        # 12.8.2 : effacement haute frequence de la passe (New-ContentPass) : aucun arret de verification a relever ensuite
+        if ($w.Erase) { $ct.Current = $null; Start-Gw ([string[]]$w.Erase); return }
+        $ct.Current = $w
         Start-Gw (Get-ContentWriteArgs $cal $w)
         return
     }
@@ -408,7 +434,8 @@ function Complete-ContentMeasure($cal) {
             $why = if (-not $hc.Ok -and [string]$hc.Why -eq 'peu') { (T 'trop peu de pistes exploitables ({0} cylindres)') -f "$($hc.NCyl)" } else { (T 'ajustement impossible') }
             # Origine du k du lecteur, comme T-C8b (Get-WriteFactorSrcText, 140) : mediane de N >= 2 mesures, ou derniere mesure
             $kTxt = Format-UiNum ([double]$dr.K) '0.00'
-            $kt = if ([string]$dr.Src -ne 'lecteur') { (T 'k 1, aucune mesure de ce lecteur') }
+            $kt = if ([string]$dr.Src -ne 'lecteur' -and [int]$dr.Old -gt 0) { (T 'k 1, mesures de ce lecteur faites avec un autre calcul de calibration, à refaire') }
+                  elseif ([string]$dr.Src -ne 'lecteur') { (T 'k 1, aucune mesure de ce lecteur') }
                   elseif ([int]$dr.N -ge 2) { (T 'k {0}, médiane des {1} dernières mesures du lecteur') -f "$kTxt", "$($dr.N)" }
                   else { (T 'k {0} de la dernière mesure du lecteur, du {1}') -f "$kTxt", $(if ($dr.Rec -and $dr.Rec.Date) { [string]$dr.Rec.Date } else { '?' }) }
             Append-Log ((T '{0}Facteur non mesuré ({1}) : facteur du lecteur appliqué ({2}).') -f "$pre", "$why", "$kt")

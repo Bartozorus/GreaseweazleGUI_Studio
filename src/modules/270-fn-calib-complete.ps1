@@ -39,8 +39,10 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     $noWarm = if ($PSBoundParameters.ContainsKey('NoWarmup')) { [bool]$NoWarmup } else { -not [bool](Get-Setting 'warmFullCalib') }
     # Duree estimee : passes d ecriture et de relecture, plus le prechauffage du lecteur (borne haute : il est reduit ou
     # saute si le lecteur vient de servir, plan recalcule apres l avertissement par Start-CalibWarmup)
+    # 12.8.2 (revue) : effacement haute frequence de chaque passe en double densite compris (Get-CalibEraseEst, 150)
     $wu = if ($noWarm) { 0.0 } else { [math]::Max(0.0, [double]$script:CalWarmupMinutes) }
-    $minutes = [math]::Max(1, [math]::Round($cyls.Count * 2 * 1.4 * $nPassEst / 60 + $wu, 0))
+    $estEr = Get-CalibEraseEst ([string]$family -eq 'hd')
+    $minutes = [math]::Max(1, [math]::Round($cyls.Count * 2 * (1.4 + $estEr) * $nPassEst / 60 + $wu, 0))
     $modeTxt = if ($fine) { (T 'test fin, tous les cylindres') } else { (T 'test standard, un cylindre sur 10') }
     if ($slow) { $modeTxt += (T ', une courbe par tête (écriture lente)') }
     $famTxt = Get-CalibFamilyName $family
@@ -57,7 +59,7 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     # 12.8 (lot 1b) : nouvel essai automatique des cylindres non converges : supplement borne d une passe de verification
     # ciblee (Get-CalibRetestMinutes), et non un total (la duree estimee ne compte ni l encadrement ni les mesures
     # complementaires du test standard)
-    $minRetest = Get-CalibRetestMinutes $cyls.Count $maxCyl $fine
+    $minRetest = Get-CalibRetestMinutes $cyls.Count $maxCyl $fine $estEr
     $body += "`n" + ((T "Si des cylindres restent non convergés, un nouvel essai automatique ajoute au plus {0} min (une passe de vérification ciblée).") -f "$minRetest")
     if ($wu -gt 0) { $body += "`n" + ((T "Préchauffage du lecteur avant la première passe : jusqu'à {0} de lecture sans écriture (moins si le lecteur vient de servir), compris dans la durée estimée.") -f (Format-CalDuration (60 * $wu))) }
     # Courbe remplacee d un autre nombre de cylindres (plus de 4 d ecart, seuil de Get-LevelRef) : la nouvelle s applique
@@ -150,7 +152,7 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         Scp = (Join-Path $script:TempDir 'precomp-calib.scp'); Writes = (New-Object System.Collections.Queue); ReadArgs = @()
         # Progression globale : passes faites / prevues, durees mesurees par phase, estimation initiale 0,7 s par piste et par phase
         StartTime = (Get-Date); PassStart = (Get-Date); PhaseStart = (Get-Date); Phase = 'write'
-        PassesDone = 0; TotalPasses = $nPassEst; WriteDurs = @(); ReadDurs = @(); EstTrack = 0.7
+        PassesDone = 0; TotalPasses = $nPassEst; WriteDurs = @(); ReadDurs = @(); EstTrack = 0.7; EstErase = $estEr
         Home = [bool]$Geom; Geom = $Geom; NoWarmup = [bool]$noWarm   # carte Calibration de l Accueil ; 12.8 : reglage warmFullCalib
         # 12.7 : controle de surface de la passe 1 (Invoke-CalibAnalysis) : avertissement valide seul, numero de la disquette
         # (Restart-PrecompCalib), bilan, defaut grossier, fenetre ouverte (Hold) ; Redo : calibration B (point 2) ; Cyls0 :
@@ -209,13 +211,14 @@ function Start-DiskMeasure($lr, [string]$brand) {
     if (-not $script:Cal) { $script:AfterCalib = ''; Append-Log (T "Écriture annulée : la mesure complète de cette disquette n'a pas été lancée.") }
 }
 
-function Get-DiskMeasureMinutes([int]$nCyl) {
+function Get-DiskMeasureMinutes([int]$nCyl, [bool]$hd = $false) {
     # 12.8 (S3) : duree estimee de la mesure complete de cette disquette (W-M1, W-M2), au calcul de Start-PrecompCalib en
-    # test fin : passes de mesure et de verification sur tous les cylindres, prechauffage du reglage warmFullCalib compris
+    # test fin : passes de mesure et de verification sur tous les cylindres, prechauffage du reglage warmFullCalib compris ;
+    # 12.8.2 (revue) : effacement haute frequence de chaque passe en double densite compris (Get-CalibEraseEst)
     $n = [math]::Max(2, [math]::Min(84, $nCyl))
     $wu = if ([bool](Get-Setting 'warmFullCalib')) { [math]::Max(0.0, [double]$script:CalWarmupMinutes) } else { 0.0 }
     $np = @($script:CalCoarse).Count + [int]$script:CalMaxVerify
-    return [int][math]::Max(1, [math]::Round($n * 2 * 1.4 * $np / 60 + $wu, 0))
+    return [int][math]::Max(1, [math]::Round($n * 2 * (1.4 + (Get-CalibEraseEst $hd)) * $np / 60 + $wu, 0))
 }
 
 function Set-DiskHardNs($x) {
@@ -435,14 +438,14 @@ function Complete-DiskMeasure($cal, $issues, $kinds, [string]$surfIssue) {
     }
 }
 
-function Get-CalibRetestMinutes([int]$nCyls, [int]$maxCyl, [bool]$fine) {
+function Get-CalibRetestMinutes([int]$nCyls, [int]$maxCyl, [bool]$fine, [double]$estErase = 0.0) {
     # 12.8 (lot 1b) : duree au plus du nouvel essai automatique des cylindres non converges (avertissement de
     # Start-PrecompCalib), au rythme de la duree estimee (2 pistes par cylindre, 1,4 s par piste et par passe) : une passe
     # de verification ciblee, bornee par une passe sur tous les cylindres que la calibration peut tester (test standard :
     # 30 cylindres complementaires au plus, Start-CalibDensify), arrondie a la minute superieure ; sans prechauffage (il
-    # precede la premiere passe)
+    # precede la premiere passe) ; 12.8.2 (revue) : $estErase, effacement haute frequence par piste (Get-CalibEraseEst)
     $n = [math]::Min($maxCyl + 1, $nCyls + $(if ($fine) { 0 } else { 30 }))
-    return [int][math]::Max(1, [math]::Ceiling($n * 2 * 1.4 / 60))
+    return [int][math]::Max(1, [math]::Ceiling($n * 2 * (1.4 + $estErase) / 60))
 }
 
 function Format-CalDuration([double]$sec) {
@@ -471,7 +474,8 @@ function Update-CalibProgress {
         return
     }
     $nTracks = $cal.Cyls.Count * 2
-    $avgW = if ($cal.WriteDurs.Count -gt 0) { ($cal.WriteDurs | Measure-Object -Average).Average } else { $nTracks * $cal.EstTrack }
+    # 12.8.2 (revue) : avant la premiere passe, effacement haute frequence de la phase d ecriture compris (EstErase)
+    $avgW = if ($cal.WriteDurs.Count -gt 0) { ($cal.WriteDurs | Measure-Object -Average).Average } else { $nTracks * ($cal.EstTrack + [double]$cal.EstErase) }
     $avgR = if ($cal.ReadDurs.Count -gt 0)  { ($cal.ReadDurs  | Measure-Object -Average).Average } else { $nTracks * $cal.EstTrack }
     if ($avgW -lt 1) { $avgW = 1 }; if ($avgR -lt 1) { $avgR = 1 }
     $pass = $avgW + $avgR
@@ -635,7 +639,7 @@ function Invoke-CalibWarmup {
         } else { $cal.WarmFailRun = 0 }
         if ($cal.WarmFailRun -ge $script:CalWarmupMaxFails) {
             if (Test-Path -LiteralPath $cal.WarmScp) { Remove-Item -LiteralPath $cal.WarmScp -Force -ErrorAction SilentlyContinue }
-            Append-Log ((T "Préchauffage du lecteur {0} arrêté après {1} lectures de suite sans aboutir (Greaseweazle, lecteur ou disquette absent ?) : la calibration commence, sa première écriture signalera le défaut s'il persiste.") -f "$($cal.Drive)", "$($cal.WarmFailRun)")
+            Append-Log ((T "Préchauffage du lecteur {0} arrêté après {1} lectures de suite sans aboutir (Greaseweazle, lecteur ou disquette absent ?) : la calibration commence, sa première commande signalera le défaut s'il persiste.") -f "$($cal.Drive)", "$($cal.WarmFailRun)")
             $cal.Stage = if ($cal.WarmNext) { [string]$cal.WarmNext } else { 'coarse' }
             New-CalibPass; return
         }
@@ -780,14 +784,35 @@ function New-CalibPass {
     }
     if (Test-Path -LiteralPath $cal.Scp) { Remove-Item -LiteralPath $cal.Scp -Force }
     $cal.Writes.Clear()
+    # 12.8.2 : disquette double densite (Get-EraseMode : famille autre que hd, motif de moins de 150 000 cellules comme
+    # Test-CurveHd, ni secteurs durs ni TG43) : toutes les pistes que la passe ecrit (TSPEC des ecritures, Get-TSpecKeys)
+    # sont d abord effacees en haute frequence (gw erase --hfreq, TSPEC exacts : une piste non reecrite a cette passe garde
+    # son motif), puis le motif est ecrit sans --pre-erase ; haute densite : --pre-erase, comme avant. Toutes les
+    # calibrations passent ici : complete, test rapide, mesure complete de la disquette, carte de l Accueil, calibration B,
+    # refaire, nouvel essai, verifications et temoins de derive
+    $hf = ((Get-EraseMode ([string]$cal.Family -eq 'hd' -or [int]$cal.PatternBits -ge 150000)) -eq 'hfreq')
+    $ek = @{}
+    if ($hf) {
+        foreach ($w in $writes) {
+            $wk = Get-TSpecKeys ([string]$w[0])
+            if (@($wk).Count -eq 0) { $hf = $false; break }        # TSPEC illisible : pre-effacement pour cette passe
+            foreach ($k in $wk) { $ek[[string]$k] = $true }
+        }
+    }
+    if ($hf) {
+        foreach ($ec in (New-HfreqEraseCmds @($ek.Keys) '')) { $cal.Writes.Enqueue([string[]]$ec) }
+        if (-not $cal.EraseNoted) { $cal.EraseNoted = $true; Append-Log (T "Calibration : disquette double densité, chaque passe efface d'abord en haute fréquence les pistes qu'elle écrit (gw erase --hfreq), puis écrit le motif sans pré-effacement.") }
+    }
+    $pe = if ($hf) { @('--no-verify') } else { @('--pre-erase', '--no-verify') }
     foreach ($w in $writes) {
-        $cal.Writes.Enqueue([string[]](@('write') + (Get-CommonArgs) + @('--pre-erase', '--no-verify') + (Get-CalibDriveArgs) + @("--tracks=$($w[0])", '--precomp', $w[1], "`"$($cal.Pattern)`"")))
+        $cal.Writes.Enqueue([string[]](@('write') + (Get-CommonArgs) + $pe + (Get-CalibDriveArgs) + @("--tracks=$($w[0])", '--precomp', $w[1], "`"$($cal.Pattern)`"")))
     }
     $cal.ReadArgs  = @('read') + (Get-CommonArgs) + @(Get-DriveReadArgs) + @('--revs=3', "--tracks=$readTs", "`"$($cal.Scp)`"")
     $cal.PassStart = Get-Date; $cal.PhaseStart = $cal.PassStart; $cal.Phase = 'write'
     Update-CalibProgress
     $script:Chain.Clear()
-    for ($i = 0; $i -lt $writes.Count; $i++) { $script:Chain.Enqueue({ Start-Gw ([string[]]$script:Cal.Writes.Dequeue()) }) }
+    $nCmd = $cal.Writes.Count
+    for ($i = 0; $i -lt $nCmd; $i++) { $script:Chain.Enqueue({ Start-Gw ([string[]]$script:Cal.Writes.Dequeue()) }) }
     $script:Chain.Enqueue({
         $script:Cal.WriteDurs += ((Get-Date) - $script:Cal.PhaseStart).TotalSeconds
         $script:Cal.Phase = 'read'; $script:Cal.PhaseStart = Get-Date

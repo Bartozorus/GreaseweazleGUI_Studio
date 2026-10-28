@@ -115,7 +115,7 @@ function Get-SafeFileName([string]$s) {
 
 function Update-RsRules {
     $r = $script:RestoreRules
-    $lblRsRules.Text = ((T "Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (calibration rapide), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), pré-effacement, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)")
+    $lblRsRules.Text = ((T "Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (calibration rapide), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), effacement avant l'écriture, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)")
 }
 
 function Set-RsStep([int]$i, [string]$state, [string]$detail = '') {
@@ -215,7 +215,7 @@ function Start-Restore {
     # detection en mode automatique (Complete-RestoreDetect)
     $script:Restore = @{
         Mode = ''; Fmt = ''; Ext = ''; Choice = $fmt; Drive = $drv; Name = $name; Dir = $dir; Found = ''; FluxRetry = $false
-        Orig = ''; Back = ''; Report = ''; Probe = ''
+        Orig = ''; Back = ''; Report = ''; Probe = ''; FakeIndex = $false   # 12.8.2 : FakeIndex, Invoke-RestoreRead
         # FIX2 : debut des chemins fixe des le lancement (Get-RestoreStem) ; FluxWhy : raison courte d une copie de flux
         # decidee par la detection ou par la relance D12 (etape 2 en « ! ») ; FmtName : nom court du format detecte ;
         # SectorRead : lecture secteur incomplete conservee avant une relance D12 (Path, Miss, Extra)
@@ -281,6 +281,8 @@ function Invoke-RestoreRead {
     $r = $script:Restore
     Set-RsStep 0 'run'
     $a = @('read') + (Get-CommonArgs) + @(Get-DriveReadArgs)
+    # 12.8.2 : original lu avec un index simule (--fake-index) : zone de l index comptee a l analyse du flux (Read-ScpFile)
+    $r.FakeIndex = (@($a | Where-Object { "$_" -match '^--fake-index=' }).Count -gt 0)
     if ($r.Mode -eq 'sector') {
         $a += @("--format=$($r.Fmt)", "--revs=$($script:RestoreRules.ReadRevs)", "--retries=$($script:RestoreRules.ReadRetries)", "--seek-retries=$($script:RestoreRules.SeekRetries)")
     } else {
@@ -413,8 +415,8 @@ function Complete-RestoreRead {
             # Copie de flux HD : ni precompensation, ni verification gw, ni controle des pistes -> rien ne serait verifie
             Fail-Restore 1 (T 'flux haute densité : une copie de flux ne pourrait pas être contrôlée. Choisissez un format haute densité (amiga.amigados_hd, ibm.1440) pour une copie vérifiée secteur par secteur.'); return
         } else {
-            try { $t = Read-ScpFile $r.Orig -Finger } catch { Fail-Restore 1 ((T "flux illisible : {0}") -f "$($_.Exception.Message)"); return }
-            $n = 0; $sane = 0; $watch = 0; $crit = 0; $critKeys = @{}; $weakKeys = @{}; $unstKeys = @{}; $noMeas = @{}; $fp = $null; $maxTn = 0
+            try { $t = Read-ScpFile $r.Orig -Finger -NoIndexZone:([bool]$r.FakeIndex) } catch { Fail-Restore 1 ((T "flux illisible : {0}") -f "$($_.Exception.Message)"); return }
+            $n = 0; $sane = 0; $watch = 0; $crit = 0; $critKeys = @{}; $weakKeys = @{}; $unstKeys = @{}; $noMeas = @{}; $overKeys = @{}; $fp = $null; $maxTn = 0
             foreach ($tn in @($t.Keys | Sort-Object)) {
                 # Original juge aux seuils Standard (120 / 250 ns), independants du reglage du jitter
                 $m = Get-TrackMetrics $t[$tn]; $n++
@@ -425,6 +427,9 @@ function Complete-RestoreRead {
                 # Zone instable d un tour a l autre : bits faibles d une protection probable, non reproductibles
                 if ($m.Weak) { $weakKeys[$key] = $true } elseif ($m.ShortUnstable -and $lv -lt 2) { $unstKeys[$key] = $true }
                 elseif ($lv -lt 2 -and $m.Blocks -eq 0) { $noMeas[$key] = $true }
+                # 12.8.2 (decision du 27/10/2026) : deja hors norme par ses erreurs (Copylock, defaut d origine), ni critique
+                # ni a zone instable : une reecriture ne peut pas la corriger, ignoree au controle de la copie
+                if ($lv -lt 2 -and -not $m.Weak -and (Test-SrcOverErr $m)) { $overKeys[$key] = $true }
                 # Empreinte : piste stable la plus riche en motifs, pour reconnaitre l original dans le lecteur de destination
                 $r0 = $t[$tn][0]
                 if ($lv -lt 2 -and -not $m.Weak -and $r0.Finger -and $r0.Finger.Count -ge 6 -and (-not $fp -or $r0.Rich -gt $fp.Rich)) {
@@ -439,7 +444,7 @@ function Complete-RestoreRead {
             }
             # Pistes deja critiques (cylindres non formates, protection) ou a zone instable (bits faibles) sur l original :
             # ni reecrites ni comptees au controle de la copie, jamais reecrites sur une disquette identique a l original
-            $r.Read = @{ Tracks = $n; Sane = $sane; Watch = $watch; Crit = $crit; CritKeys = $critKeys; WeakKeys = $weakKeys; UnstKeys = $unstKeys; NoMeas = $noMeas; MaxCyl = [int][math]::Floor($maxTn / 2) }
+            $r.Read = @{ Tracks = $n; Sane = $sane; Watch = $watch; Crit = $crit; CritKeys = $critKeys; WeakKeys = $weakKeys; UnstKeys = $unstKeys; NoMeas = $noMeas; OverKeys = $overKeys; MaxCyl = [int][math]::Floor($maxTn / 2) }
             $r.Finger = $fp
             $txt = if ($weakKeys.Count -gt 0) { (T "{0} pistes : {1} saines, {2} à surveiller, {3} critiques, {4} à zone instable") -f "$n", "$sane", "$watch", "$crit", "$($weakKeys.Count)" }
                    else { (T "{0} pistes : {1} saines, {2} à surveiller, {3} critiques") -f "$n", "$sane", "$watch", "$crit" }
@@ -490,12 +495,14 @@ function Enter-RestoreWait([string]$extra) {
 }
 
 function Get-RestoreKeepCyls {
-    # Flux : cylindres portant une piste non reproductible (zone instable, meme courte) ou deja critique sur l original,
-    # jamais reecrits sur une disquette identique a l original
+    # Flux : cylindres portant une piste non reproductible (zone instable, meme courte), deja critique ou deja hors norme
+    # par ses erreurs sur l original (12.8.2 : OverKeys, par exemple Copylock), jamais reecrits sur une disquette identique
+    # a l original
     $r = $script:Restore; $set = @{}
     if (-not $r -or $r.Mode -ne 'flux' -or -not $r.Read) { return @() }
     $src = @(@($r.Read.CritKeys.Keys) + @($r.Read.WeakKeys.Keys))
     if ($r.Read.UnstKeys) { $src += @($r.Read.UnstKeys.Keys) }
+    if ($r.Read.OverKeys) { $src += @($r.Read.OverKeys.Keys) }
     foreach ($k in $src) { $set[[int](([string]$k -split '\.')[0])] = $true }
     return @($set.Keys | Sort-Object)
 }
@@ -651,10 +658,12 @@ function Set-RestoreRepRules {
     # (decision 3) : aussi apres la mesure de la destination (Complete-LevelCalib lance alors l ecriture)
     $r = $script:Restore
     if (-not $r -or $r.Mode -ne 'flux' -or -not $script:Rep -or -not $r.Read) { return }
+    # 12.8.2 (decision du 27/10/2026) : aussi les pistes deja hors norme par leurs erreurs (OverKeys, Rep.SrcOver)
+    $ov = if ($r.Read.OverKeys) { $r.Read.OverKeys } else { @{} }
     $ign = @{}
-    foreach ($k in @(@($r.Read.CritKeys.Keys) + @($r.Read.WeakKeys.Keys))) { $ign[[string]$k] = $true }
+    foreach ($k in @(@($r.Read.CritKeys.Keys) + @($r.Read.WeakKeys.Keys) + @($ov.Keys))) { $ign[[string]$k] = $true }
     if ($ign.Count -gt 0) { $script:Rep.Ignore = $ign }
-    $script:Rep.SrcWeak = $r.Read.WeakKeys
+    $script:Rep.SrcWeak = $r.Read.WeakKeys; $script:Rep.SrcOver = $ov
     $nj = @{}; foreach ($k in @(@($r.Read.UnstKeys.Keys) + @($(if ($r.Read.NoMeas) { $r.Read.NoMeas.Keys } else { @() })))) { $nj[[string]$k] = $true }
     $script:Rep.NoJudge = $nj
 }
@@ -663,6 +672,7 @@ function Start-RestoreWrite {
     $r = $script:Restore
     $r.Stage = 'write'; $r.Idle = Get-Date
     $script:LastCheck = $null
+    $script:EraseLog = $null          # 12.8.2 : seul celui de l ecriture de cette restauration compte (Fail-Restore)
     $r.InCall = $true
     try {
         # Regles strictes dans l onglet Ecriture (etat d origine remis en fin de restauration)
@@ -880,7 +890,7 @@ function Write-RestoreReport([bool]$ok, [string]$verdict) {
     if ($r.Level) { $L.Add(((T "Niveau      : {0}") -f "$($r.Level.Report)")) }
     if ($r.Preserved -and @($r.Preserved).Count -gt 0) { $L.Add(((T "Préservés   : cylindres {0}, non réécrits sur la disquette identique à l'original") -f "$(Format-CylList @($r.Preserved))")) }
     $rr = $script:RestoreRules
-    $L.Add(((T "Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (calibration rapide) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), pré-effacement, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)"))
+    $L.Add(((T "Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (calibration rapide) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)"))
     $L.Add('')
     $L.Add((T 'Étapes :'))
     $marks = @{ pending = '[ ]'; run = '[>]'; ok = '[OK]'; fail = '[ECHEC]'; skip = '[-]'; warn = '[!]' }
@@ -947,6 +957,14 @@ function Finish-Restore {
 function Fail-Restore([int]$step, [string]$why) {
     $r = $script:Restore
     if (-not $r) { return }
+    # Revue 12.8.2 : echec pendant l ecriture sur une disquette identique a l original (« Ecraser quand meme ») : pistes
+    # effacees en haute frequence par cette ecriture (EraseLog de Start-ImageWrite, remis a $null par Start-RestoreWrite)
+    # et jamais ecrites ensuite : citees au journal et dans le resultat, avec l image lue qui les contient
+    $lost = @()
+    if ($r.OnOriginal -and [string]$r.Stage -eq 'write' -and $script:EraseLog -and [string]$script:EraseLog.Owner -eq 'write') {
+        $el = $script:EraseLog
+        $lost = Sort-TrackKeys @(@($el.Erased.Keys) | Where-Object { -not $el.Written.ContainsKey([string]$_) })
+    }
     $r.Stage = 'failed'
     $script:Chain.Clear(); $script:WriteQueue.Clear(); $script:GwCapture = $null; $script:AfterCalib = ''
     if ($script:FmtDetect -and $script:FmtDetect.Owner -eq 'restore') { $script:FmtDetect = $null }   # FIX2 : detection interrompue (erreur gw)
@@ -954,8 +972,14 @@ function Fail-Restore([int]$step, [string]$why) {
     if ($step -ge 0) { Set-RsStep $step 'fail' $why }
     $verdict = (T 'RESTAURATION ÉCHOUÉE') + ' : ' + $why
     Append-Log $verdict
+    $lostTxt = ''
+    if (@($lost).Count -gt 0) {
+        $lostTxt = (T "Pistes de la disquette d'origine effacées et non réécrites : {0}. Leur contenu est dans l'image lue {1} : écrivez cette image sur la disquette pour les rétablir.") -f "$(Format-TrackList $lost)", "$([System.IO.Path]::GetFileName([string]$r.Orig))"
+        Append-Log $lostTxt
+    }
     Write-RestoreReport $false $verdict
     $note = if ($step -le 1) { (T 'Rien n''a été écrit : la disquette de destination n''a pas été touchée.') } else { (T 'Le détail est dans le journal et dans le rapport.') }
+    if ($lostTxt) { $note = $lostTxt + "`n`n" + $note }
     Show-RestoreResult $false ($verdict + "`n`n" + $note)
     Close-Restore
 }

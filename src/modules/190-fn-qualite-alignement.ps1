@@ -1,12 +1,21 @@
 ﻿# ============================== FONCTIONS : QUALITE ET ALIGNEMENT ==============
 
 # ============================== ALIGNEMENT : LOGIQUE ===========================
-function Read-ScpFile([string]$path, [int]$cellsPerRev = 0, [switch]$Finger) {
+function Read-ScpFile([string]$path, [int]$cellsPerRev = 0, [switch]$Finger, [switch]$NoIndexZone) {
     # cellsPerRev > 0 : motif de test connu (calibration) ; la cellule vaut alors duree du tour / nombre de cellules,
     # au lieu de la mediane des intervalles de deux cellules, qui derive quand le decalage residuel est grand.
+    # 12.8.2 (S10 a S12) : hors calibration, post-traitement de chaque piste (Set-ScpTrackPost) : premier intervalle de
+    # la lecture et zone de l index non comptes, stabilite sur tours alignes ; la calibration (cellsPerRev > 0) garde
+    # le comptage d avant (courbes inchangees). -NoIndexZone : index synthetique connu de l appelant (--fake-index) :
+    # zone de l index comptee comme le reste de la piste ; de meme pour un SCP non cale sur l index (en-tete, bit 0 des
+    # drapeaux, comme gw : image/scp.py) et pour des tours plus courts qu une rotation (secteurs durs lus comme des
+    # index : Set-ScpTrackPost, ScpIdxMinRevNs). Revue 12.8.2 : echec du post-traitement d une piste (comptage d avant
+    # pour cette piste) : une ligne de journal par fichier, avec le premier message.
     $d = [System.IO.File]::ReadAllBytes($path)
     if ([System.Text.Encoding]::ASCII.GetString($d, 0, 3) -ne 'SCP') { throw (T 'Fichier SCP invalide') }
     $revs = $d[5]; $res = ($d[11] + 1) * 25
+    $zone = (-not $NoIndexZone) -and ((($d[8] -band 1) -eq 1) -or $revs -eq 1)
+    $script:ScpPostFail = @{ N = 0; Msg = '' }
     $tracks = @{}
     for ($t = 0; $t -lt 168; $t++) {
         $o = [BitConverter]::ToUInt32($d, 16 + 4 * $t)
@@ -30,7 +39,11 @@ function Read-ScpFile([string]$path, [int]$cellsPerRev = 0, [switch]$Finger) {
             $list[0].Blocks = $ins[0]; $list[0].Unstable = $ins[1]; $list[0].MaxRun = $ins[2]; $list[0].RunPos = $ins[3]
             if ($Finger) { $list[0].Finger = [ScpStats]::Fingerprint($fl[0], [double]$list[0].Cell, 8); $list[0].Rich = [ScpStats]::RichCount($fl[0], [double]$list[0].Cell) }
         }
+        if ($cellsPerRev -le 0 -and $list.Count -gt 0) { Set-ScpTrackPost $fl $list $zone }
         $tracks[[int]$tn] = $list
+    }
+    if ($script:ScpPostFail.N -gt 0) {
+        Append-Log ((T "Analyse SCP : calcul 12.8.2 des erreurs et de la stabilité en échec sur {0} piste(s), jugée(s) comme dans les versions précédentes : {1}") -f "$($script:ScpPostFail.N)", "$($script:ScpPostFail.Msg)")
     }
     return $tracks
 }
@@ -50,6 +63,345 @@ function Read-ScpTrackFlux([string]$path, [int]$tn) {
         $fl.Add([ScpStats]::Decode($d, [int]($o + $doff), [int]$ln, $res))
     }
     return ,$fl
+}
+
+# --- 12.8.2 (S10 a S12) : premier intervalle, zone de l index, stabilite sur tours alignes ----------------------------
+# Post-traitement en PowerShell des tours lus par Read-ScpFile (le C# de 030 n est pas modifie) : classes des seuls
+# segments utiles (ScpStats.Classes, meme regle que Analyze), sommes de flux en code natif (Linq), aucune boucle
+# PowerShell sur tous les intervalles d une piste. Constantes : 040 (ScpIdxZoneNs, ScpIdxMinRevNs, ScpPostWin,
+# ScpRevWin, ScpZoneWin, ScpAnchor).
+function Get-ScpClassText($flux, [int]$start, [int]$len, [double]$cell, [int]$start2 = 0, [int]$len2 = 0) {
+    # Classes de $flux[$start .. $start + $len - 1], suivies de celles de $flux[$start2 .. $start2 + $len2 - 1] : '2' a
+    # '5', 'x' hors classe ou trou (ScpStats.Classes, une seule fois pour les deux segments)
+    if ($len2 -le 0 -and $start -eq 0 -and $len -eq $flux.Length) { return [ScpStats]::Classes($flux, $cell) }
+    $seg = [int[]]::new($len + [math]::Max(0, $len2))
+    [Array]::Copy($flux, $start, $seg, 0, $len)
+    if ($len2 -gt 0) { [Array]::Copy($flux, $start2, $seg, $len, $len2) }
+    return [ScpStats]::Classes($seg, $cell)
+}
+
+function Get-ScpEdgeClasses($f, [double]$cell, [int]$k) {
+    # Classes des $k premiers et des $k derniers intervalles d un tour : @(debut, fin, indice du premier intervalle de la
+    # fin, tour entier). Tour entier si le tour est court, ou si les ScpZoneWin intervalles d un bout ($k >= ScpZoneWin)
+    # durent moins de ScpIdxZoneNs (intervalles tres courts : la zone de l index doit etre couverte)
+    $n = $f.Length; $zw = [int]$script:ScpZoneWin
+    if ($n -le 2 * $k -or [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f, 0, $zw)) -lt $script:ScpIdxZoneNs -or
+        [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f, $n - $zw + 1, $zw - 1)) -lt $script:ScpIdxZoneNs) {
+        $s = Get-ScpClassText $f 0 $n $cell
+        return @($s, $s, 0, $true)
+    }
+    $s = Get-ScpClassText $f 0 $k $cell ($n - $k) $k
+    return @($s.Substring(0, $k), $s.Substring($k), ($n - $k), $false)
+}
+
+function Get-ScpZoneOoc($f, [string]$hs, [string]$ts, [int]$to, [int]$first) {
+    # S11 : intervalles hors classe (pas les trous) qui commencent a moins de ScpIdxZoneNs de l index (debut du tour, a
+    # partir de l intervalle $first) ou qui finissent a moins de ScpIdxZoneNs de l index suivant (fin du tour : apres
+    # T - ScpIdxZoneNs). $hs : classes du debut du tour, $ts : de la fin, dont le premier intervalle a l indice $to.
+    # Revue 12.8.2 : par bout, ecartes seulement s ils forment une seule grappe (raccord d ecriture) : ScpIdxClusterMax
+    # intervalles au plus, du debut du premier a la fin du dernier en ScpIdxClusterNs au plus ; sinon aucun (defaut du
+    # support a l index : compte). Verification du 27/10/2026 : une grappe qui se prolonge au-dela de la zone (hors classe
+    # hors zone a ScpIdxClusterNs au plus de la fin de la grappe) fait compter le bout ; grappes aux deux bouts du tour (de
+    # part et d autre de l index) : ScpIdxClusterMax intervalles au plus au total et distances a l index (bout le plus
+    # lointain de chaque grappe) de ScpIdxClusterNs au plus en somme, sinon les deux bouts sont comptes. Rend @(hors classe
+    # ecartes, distance a l index du bout le plus lointain d une grappe ecartee, en ns). Seuls les intervalles hors classe
+    # sont visites, et pas au-dela d une grappe impossible ni de ScpIdxZoneNs + ScpIdxClusterNs ; durees cumulees entre
+    # deux d entre eux en code natif.
+    $zn = $script:ScpIdxZoneNs; $cn = $script:ScpIdxClusterNs; $cm = [int]$script:ScpIdxClusterMax; $n = $f.Length
+    $z = 0; $far = 0
+    # Debut du tour : $cum = debut de l intervalle $p ; grappe de $t0 (debut du premier) a $t1 (fin du dernier)
+    $p = $hs.IndexOf([char]'x', $first); $last = 0; $cum = 0; $c = 0; $t0 = -1; $t1 = 0; $ok = $true
+    while ($p -ge 0) {
+        if ($p -gt $last) { $cum += [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f, $last, $p - $last)) }
+        $last = $p
+        if ($cum -ge $zn) {
+            if ($c -gt 0 -and $f[$p] -lt 20000 -and $cum - $t1 -le $cn) { $ok = $false }
+            if (-not $ok -or $c -eq 0 -or $cum -ge $zn + $cn) { break }
+        } elseif ($f[$p] -lt 20000) {
+            $c++; if ($t0 -lt 0) { $t0 = $cum }; $t1 = $cum + $f[$p]
+            if ($c -gt $cm -or $t1 - $t0 -gt $cn) { $ok = $false; break }
+        }
+        $p = $hs.IndexOf([char]'x', $p + 1)
+    }
+    $hc = $c; $hf = $t1; $hok = $ok
+    # Fin du tour : $tail = duree de la fin de l intervalle $a a la fin du tour ; grappe de $u0 a $u1 avant l index
+    $q = $ts.LastIndexOf([char]'x'); $hi = $n; $tail = 0; $c = 0; $u0 = -1; $u1 = 0; $ok = $true
+    while ($q -ge 0) {
+        $a = $to + $q
+        if ($hi - $a - 1 -gt 0) { $tail += [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f, $a + 1, $hi - $a - 1)) }
+        $hi = $a + 1
+        if ($tail -ge $zn) {
+            if ($c -gt 0 -and $f[$a] -lt 20000 -and $a -ge $first -and $tail - $u1 -le $cn) { $ok = $false }
+            if (-not $ok -or $c -eq 0 -or $tail -ge $zn + $cn) { break }
+        } elseif ($f[$a] -lt 20000 -and $a -ge $first) {
+            $c++; if ($u0 -lt 0) { $u0 = $tail }; $u1 = $tail + $f[$a]
+            if ($c -gt $cm -or $u1 - $u0 -gt $cn) { $ok = $false; break }
+        }
+        if ($q -eq 0) { break }
+        $q = $ts.LastIndexOf([char]'x', $q - 1)
+    }
+    if ($hok -and $ok -and $hc -gt 0 -and $c -gt 0 -and ($hc + $c -gt $cm -or $hf + $u1 -gt $cn)) { $hok = $false; $ok = $false }
+    if ($hok -and $hc -gt 0) { $z += $hc; $far = $hf }
+    if ($ok -and $c -gt 0) { $z += $c; $far = [math]::Max($far, $u1) }
+    return @($z, $far)
+}
+
+function Get-ScpZoneEnd($f, [bool]$head, [int]$lim) {
+    # Limite de la zone de l index d un tour, par dichotomie (sommes en code natif). Debut : nombre d intervalles qui
+    # commencent avant ScpIdxZoneNs, au plus $lim (classes connues) ; fin : indice du premier intervalle qui finit apres
+    # T - ScpIdxZoneNs, au moins $n - $lim.
+    $n = $f.Length; $zn = $script:ScpIdxZoneNs
+    if ($head) {
+        $lo = 0; $hi = [math]::Min($n, $lim)
+        while ($lo -lt $hi) {
+            $mid = [int][math]::Floor(($lo + $hi) / 2)
+            if ([System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f, 0, $mid)) -ge $zn) { $hi = $mid } else { $lo = $mid + 1 }
+        }
+        return $lo
+    }
+    $lo = [math]::Max(0, $n - $lim); $hi = $n
+    while ($lo -lt $hi) {
+        $mid = [int][math]::Ceiling(($lo + $hi) / 2)
+        if ([System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f, $mid, $n - $mid)) -ge $zn) { $lo = $mid } else { $hi = $mid - 1 }
+    }
+    return $lo
+}
+
+function Test-ScpZoneData($f0, [string]$hs, [string]$ts, [int]$to, [double]$cell) {
+    # Revue 12.8.2 : zone de l index du tour 0 qui contient des donnees (le raccord n y est pas : image IPF, bloc WRSP,
+    # original non cale sur l index ou ecrit par un Amiga, index simule) : un bloc de Len intervalles entierement dans la
+    # zone, sans hors classe, au motif varie (aucune classe sur plus de 80 % du bloc) et present une seule fois a
+    # +/- Win2 (critere des ancres, Find-ScpAnchor), dont les deux moities sont aussi uniques : un bloc a cheval sur la
+    # rupture de phase d un remplissage periodique (gap 4E coupe par le raccord) a une moitie periodique. Vide (2T),
+    # remplissage periodique et raccord : faux ; debut d un secteur (synchro et en-tete) ou secteur coupe : vrai. Suites
+    # de 2T sautees d un coup ; pas de ZoneStep apres un bloc trop uniforme ou dont une moitie se repete, de Len / 2 apres
+    # un motif periodique ; ZoneTries blocs au plus par bout. $hs, $ts, $to : classes des bouts du tour 0
+    # (Get-ScpEdgeClasses) ; $cell : cellule du tour 0. Verification du 27/10/2026 : sans bloc retenu, synchro MFM pres de
+    # l index (Test-ScpZoneSync) : un defaut dans le seul bloc riche de la zone, ou un secteur a donnees uniformes (zeros :
+    # suites de 2T) a cheval sur l index, ne font plus prendre la zone pour du vide.
+    $A = $script:ScpAnchor; $L = [int]$A.Len; $W2 = [int]$A.Win2; $mx = [math]::Floor(0.8 * $L); $h = [int]($L / 2)
+    $ord = [System.StringComparison]::Ordinal; $chars = [char[]]'345x'; $cs = @('2', '3', '4', '5')
+    foreach ($head in $true, $false) {
+        # Zone [$za, $zb) dans $s (noms distincts de $A : PowerShell ne distingue pas la casse)
+        if ($head) { $s = $hs; $za = 0; $zb = Get-ScpZoneEnd $f0 $true $hs.Length }
+        else { $s = $ts; $za = (Get-ScpZoneEnd $f0 $false $ts.Length) - $to; $zb = $ts.Length }
+        $p = $za; $tries = 0
+        while ($tries -lt [int]$A.ZoneTries -and $p + $L -le $zb) {
+            $p = $s.IndexOfAny($chars, $p)
+            if ($p -lt 0 -or $p + $L -gt $zb) { break }
+            $tries++
+            $blk = $s.Substring($p, $L)
+            $ix = $blk.LastIndexOf([char]'x')
+            if ($ix -ge 0) { $p += $ix + 1; continue }
+            $ok = $true
+            foreach ($c in $cs) { if ($L - $blk.Replace($c, '').Length -gt $mx) { $ok = $false; break } }
+            if (-not $ok) { $p += [int]$A.ZoneStep; continue }
+            $lo = [math]::Max(0, $p - $W2); $hi = [math]::Min($s.Length, $p + $L + $W2)
+            if ($s.IndexOf($blk, $lo, $hi - $lo, $ord) -eq $p -and $s.IndexOf($blk, $p + 1, $hi - $p - 1, $ord) -lt 0) {
+                $u = $true
+                foreach ($o in 0, $h) {
+                    $hb = $blk.Substring($o, $h); $q = $p + $o
+                    $lo = [math]::Max(0, $q - $W2); $hi = [math]::Min($s.Length, $q + $h + $W2)
+                    if ($s.IndexOf($hb, $lo, $hi - $lo, $ord) -ne $q -or $s.IndexOf($hb, $q + 1, $hi - $q - 1, $ord) -ge 0) { $u = $false; break }
+                }
+                if ($u) { return $true }
+                $p += [int]$A.ZoneStep
+            } else { $p += $h }
+        }
+    }
+    return (Test-ScpZoneSync $f0 $hs $ts $to $cell)
+}
+
+function Test-ScpZoneSync($f0, [string]$hs, [string]$ts, [int]$to, [double]$cell) {
+    # Verification du 27/10/2026 : le tour 0 contient-il une double synchro MFM 0x4489 (classes ScpIdxSync) qui commence a
+    # moins de ScpIdxZoneNs apres l index (debut du tour, a partir de l intervalle 1) ou a moins de ScpIdxSyncBeforeNs de
+    # la fin du tour 0 (secteur a cheval sur l index) ? Seule la premiere synchro du debut et la derniere de la fin sont
+    # jugees (les plus proches de l index). Fin du tour 0 classee sur moins de ScpIdxSyncBeforeNs (suites de 2T) et sans
+    # synchro : ScpRevWin intervalles de plus avant elle (tout le debut du tour au besoin), raccordes a ses classes.
+    # Recherches par les surcharges a quatre arguments (chaine, debut, longueur, Ordinal) : une seule candidate en 5.1.
+    $sy = [string]$script:ScpIdxSync; $bn = $script:ScpIdxSyncBeforeNs; $n = $f0.Length; $ord = [System.StringComparison]::Ordinal
+    $p = $hs.IndexOf($sy, 1, $hs.Length - 1, $ord)
+    if ($p -ge 1 -and [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f0, 0, $p)) -lt $script:ScpIdxZoneNs) { return $true }
+    $q = $ts.LastIndexOf($sy, $ts.Length - 1, $ts.Length, $ord)
+    if ($q -ge 0) { return ([System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f0, $to + $q, $n - $to - $q)) -lt $bn) }
+    if ($to -le 0 -or [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f0, $to, $n - $to)) -ge $bn) { return $false }
+    $s0 = [math]::Max(0, $to - [int]$script:ScpRevWin)
+    if ($s0 -gt 0 -and [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f0, $s0, $n - $s0)) -lt $bn) { $s0 = 0 }
+    $e0 = [math]::Min($n, $to + $sy.Length - 1)
+    $seg = Get-ScpClassText $f0 $s0 ($e0 - $s0) $cell
+    $q = $seg.LastIndexOf($sy, $seg.Length - 1, $seg.Length, $ord)
+    return ($q -ge 0 -and [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f0, $s0 + $q, $n - $s0 - $q)) -lt $bn)
+}
+
+function Find-ScpAnchor($fl, $list, $edges, [string]$s, [int]$to, [bool]$head, [int]$minAbs) {
+    # S12 : ancre du tour 0 et sa position dans chaque tour ; tableau des positions absolues, ou $null.
+    #  Candidats du tour 0, dans l ordre ($s : classes du debut du tour 0 pour A, de la fin pour B, premier intervalle
+    #  d indice $to) : A, premiers blocs de Len intervalles qui commencent apres ScpIdxZoneNs ; B, derniers blocs qui
+    #  finissent avant T - ScpIdxZoneNs et commencent apres $minAbs (fin de A). Bloc retenu : aucun intervalle hors
+    #  classe ni trou, motif varie (aucune classe sur plus de 80 % du bloc, comme le bloc « riche » de
+    #  ScpStats.Instability), une seule fois a +/- Win2 dans le tour 0. Suites de 2T (vide, remplissage) sautees d un
+    #  coup ; apres un refus, bloc suivant ; Tries positions et Cand candidats au plus.
+    #  Chaque candidat est cherche par sa suite exacte de classes dans chaque tour, autour de la position attendue
+    #  (position au tour precedent, plus la derive des deux tours precedents : index synthetique), a +/- Win puis a
+    #  +/- Win2, sur les classes du seul segment cherche (prises dans les bouts du tour deja classes, $edges, ou classees
+    #  a part) ; retenu s il y est une seule fois dans tous les tours. Revue 12.8.2 : trouve a plus de Win de sa position
+    #  attendue dans un tour (derive d un index simule), le bloc doit aussi etre unique dans le tour 0 sur la fenetre
+    #  elargie de cet ecart : sinon un double du bloc, pris pour lui dans un tour ou il est abime, fausserait AB ou BA.
+    $A = $script:ScpAnchor; $L = [int]$A.Len; $W = [int]$A.Win; $W2 = [int]$A.Win2; $mx = [math]::Floor(0.8 * $L)
+    $ord = [System.StringComparison]::Ordinal; $chars = [char[]]'345x'; $cs = @('2', '3', '4', '5')
+    $f0 = $fl[0]; $n0 = $f0.Length; $nr = $fl.Count; $zn = $script:ScpIdxZoneNs
+    $zl = [int][math]::Ceiling($zn / [math]::Floor(1.65 * [double]$list[0].Cell))
+    if ($head) { $p = $zl } else { $e = $s.Length - 1 - $zl }
+    $tries = 0; $cand = 0
+    while ($tries -lt $A.Tries -and $cand -lt $A.Cand) {
+        if ($head) {
+            if ($p -ge $s.Length) { break }
+            $p = $s.IndexOfAny($chars, $p)
+            if ($p -lt 0 -or $p + $L + $W -gt $s.Length) { break }
+        } else {
+            if ($e -lt 0) { break }
+            $e = $s.LastIndexOfAny($chars, $e)
+            $p = $e - $L + 1
+            if ($e -lt 0 -or $p - $W -lt 0 -or $to + $p -lt $minAbs) { break }
+        }
+        $tries++
+        $b = $s.Substring($p, $L)
+        if ($head) { $ix = $b.IndexOf([char]'x'); if ($ix -ge 0) { $p = $p + $ix + 1; continue } }
+        else { $ix = $b.LastIndexOf([char]'x'); if ($ix -ge 0) { $e = $p + $ix - 1; continue } }
+        $ok = $true
+        foreach ($c in $cs) { if ($L - $b.Replace($c, '').Length -gt $mx) { $ok = $false; break } }
+        if ($ok) {
+            $lo = [math]::Max(0, $p - $W2); $hi = [math]::Min($s.Length, $p + $L + $W2)
+            $ok = ($s.IndexOf($b, $lo, $hi - $lo, $ord) -eq $p -and $s.IndexOf($b, $p + 1, $hi - $p - 1, $ord) -lt 0)
+        }
+        $abs = $to + $p
+        if ($ok) {
+            if ($head) { $ok = ([System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f0, 0, $abs)) -ge $zn) }
+            else { $ok = ([System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f0, $abs + $L, $n0 - $abs - $L)) -ge $zn) }
+        }
+        if (-not $ok) { if ($head) { $p += $L } else { $e -= $L }; continue }
+        # Candidat retenu : position dans les autres tours
+        $cand++
+        $pos = [int[]]::new($nr); $pos[0] = $abs; $dev = 0
+        for ($r = 1; $r -lt $nr -and $ok; $r++) {
+            $f = $fl[$r]
+            $ex = $pos[$r - 1]; if ($r -ge 2) { $ex += $pos[$r - 1] - $pos[$r - 2] }
+            $lo = [math]::Max(0, $ex - $W2); $hi = [math]::Min($f.Length, $ex + $L + $W2)
+            $q = -1
+            if ($hi - $lo -ge $L) {
+                $ed = $edges[$r]; $eh = [string]$ed[0]; $et = [string]$ed[1]; $eo = [int]$ed[2]
+                if ($hi -le $eh.Length) { $seg = $eh.Substring($lo, $hi - $lo) }
+                elseif ($lo -ge $eo) { $seg = $et.Substring($lo - $eo, $hi - $lo) }
+                else { $seg = Get-ScpClassText $f $lo ($hi - $lo) ([double]$list[$r].Cell) }
+                $a1 =[math]::Max(0, $ex - $W - $lo); $b1 = [math]::Min($seg.Length, $ex + $L + $W - $lo)
+                if ($b1 - $a1 -ge $L) {
+                    $q = $seg.IndexOf($b, $a1, $b1 - $a1, $ord)
+                    if ($q -ge 0 -and $seg.IndexOf($b, $q + 1, $b1 - $q - 1, $ord) -ge 0) { $q = -2 }
+                }
+                if ($q -eq -1) {
+                    $q = $seg.IndexOf($b, $ord)
+                    if ($q -ge 0 -and $seg.IndexOf($b, $q + 1, $ord) -ge 0) { $q = -2 }
+                }
+            }
+            if ($q -lt 0) { $ok = $false } else { $pos[$r] = $lo + $q; $dev = [math]::Max($dev, [math]::Abs($pos[$r] - $ex)) }
+        }
+        if ($ok -and $dev -gt $W) {
+            $lo = [math]::Max(0, $p - $W2 - $dev); $hi = [math]::Min($s.Length, $p + $L + $W2 + $dev)
+            $ok = ($s.IndexOf($b, $lo, $hi - $lo, $ord) -eq $p -and $s.IndexOf($b, $p + 1, $hi - $p - 1, $ord) -lt 0)
+        }
+        if ($ok) { return ,$pos }
+        if ($head) { $p += $L } else { $e = $p - 1 }
+    }
+    return $null
+}
+
+function Set-ScpTrackPost($fl, $list, [bool]$zone) {
+    # Post-traitement d une piste lue par Read-ScpFile hors calibration. $fl : flux de chaque tour ; $list : ScpRev de
+    # chaque tour (Analyze) ; $zone : index reel, cale par gw (S11 permise). Pistes illisibles (jitter non mesure) : rien.
+    #  S10 : le premier intervalle du tour 0, tronque par gw (flux.py, cue_at_index), n est pas compte hors classe ; un
+    #        premier intervalle de 20 us ou plus reste un trou (verification du 27/10/2026 : gw le tronque, c est un vrai
+    #        trou d au moins 20 us). NFlux ne change pas.
+    #  S11 : hors classe a moins de ScpIdxZoneNs d un index (Get-ScpZoneOoc), non comptes : jonction d ecriture de gw,
+    #        dans l espace entre le dernier et le premier secteur ; trous comptes partout. Double densite (cellule de 1,7
+    #        a 2,3 us, classes justes ; verification : et hors classe du tour 0 au plus 5 % des flux, sinon haute densite a
+    #        cellule mal estimee ou piste critique de toute facon), tours d au moins ScpIdxMinRevNs (un index par
+    #        rotation). Revue 12.8.2 : pas si la zone du tour 0 contient des donnees (Test-ScpZoneData, synchro MFM
+    #        comprise) ; par tour et par bout, une seule grappe ecartee.
+    #  S12 : stabilite sur tours alignes : ancres A (debut du corps de piste) et B (fin) du tour 0, retrouvees dans chaque
+    #        tour (Find-ScpAnchor ; bouts du tour 0, puis tout le tour 0 si aucun couple n y est trouve). StabAl =
+    #        max(ecart des comptes de flux de A a B des tours, ecart des comptes de B a A du tour suivant, a travers
+    #        l index) : un deplacement de l index ne change aucun compte. Au moins 3 tours (2 : un seul compte de B a A)
+    #        d au moins ScpIdxMinRevNs, double densite ; ancre introuvable ou ambigue dans un tour : StabAl -1, Stab
+    #        d avant (NFlux) ; Tried : alignement tente (repli signale au journal par l appelant).
+    # Ecrit OutOfClass des tours et ajoute au tour 0 la propriete Post = @{ ZoneOoc (hors classe ecartes, tous tours) ;
+    # ZoneFarNs (distance a l index de la grappe ecartee la plus lointaine) ; First ('ooc' ou '') ;
+    # StabAl ; Tried ; Zone (S11 appliquee) ; ZoneData (zone avec des donnees : S11 non appliquee) ; PA ; PB (positions
+    # des ancres) }. Toute erreur : piste laissee au comptage d avant, comptee dans ScpPostFail (journal : Read-ScpFile).
+    $nr = $list.Count
+    if ($nr -eq 0 -or $fl.Count -ne $nr -or $fl[0].Length -eq 0) { return }
+    foreach ($x in $list) { if ([double]::IsNaN([double]$x.Jitter)) { return } }
+    $post = @{ ZoneOoc = 0; ZoneFarNs = 0; First = ''; StabAl = -1; Tried = $false; Zone = $false; ZoneData = $false; PA = $null; PB = $null }
+    $dOoc = [int[]]::new($nr)
+    try {
+        $c0 = [double]$list[0].Cell; $v = $fl[0][0]
+        if ($v -lt 20000) {
+            $q = $v / $c0; $k = [math]::Round($q)
+            if ([math]::Abs($q - $k) -gt 0.35 -or $k -lt 2 -or $k -gt 5) { $dOoc[0] = 1; $post.First = 'ooc' }
+        }
+        if ($c0 -ge 1700 -and $c0 -le 2300 -and 20 * [int]$list[0].OutOfClass -le [int]$list[0].NFlux) {
+            # Classes des bouts de chaque tour : ScpPostWin intervalles au tour 0 (ancres), ScpRevWin aux autres (zone de
+            # l index et recherche des ancres)
+            $edges = New-Object object[] $nr
+            for ($r = 0; $r -lt $nr; $r++) { $edges[$r] = Get-ScpEdgeClasses $fl[$r] ([double]$list[$r].Cell) $(if ($r -eq 0) { [int]$script:ScpPostWin } else { [int]$script:ScpRevWin }) }
+            $e0 = $edges[0]
+            $hs0 = [string]$e0[0]; $ts0 = [string]$e0[1]; $to0 = [int]$e0[2]; $full0 = [bool]$e0[3]
+            # Un index par rotation (secteurs durs lus sans --hard-sectors : plusieurs) : zone de l index et tours alignes
+            $oneIdx = $true
+            foreach ($x in $list) { if ([double]$x.IndexMs * 1e6 -lt $script:ScpIdxMinRevNs) { $oneIdx = $false } }
+            if ($zone -and $oneIdx) {
+                if (Test-ScpZoneData $fl[0] $hs0 $ts0 $to0 $c0) { $post.ZoneData = $true }
+                else {
+                    $post.Zone = $true
+                    for ($r = 0; $r -lt $nr; $r++) {
+                        $e = $edges[$r]
+                        $z = Get-ScpZoneOoc $fl[$r] ([string]$e[0]) ([string]$e[1]) ([int]$e[2]) $(if ($r -eq 0) { 1 } else { 0 })
+                        $dOoc[$r] += [int]$z[0]; $post.ZoneOoc += [int]$z[0]
+                        if ([int]$z[1] -gt $post.ZoneFarNs) { $post.ZoneFarNs = [int]$z[1] }
+                    }
+                }
+            }
+            if ($nr -ge 3 -and $oneIdx) {
+                $post.Tried = $true
+                $L = [int]$script:ScpAnchor.Len; $pa = $null; $pb = $null
+                foreach ($att in 0, 1) {
+                    $pb = $null
+                    $pa = Find-ScpAnchor $fl $list $edges $hs0 0 $true 0
+                    if ($null -ne $pa) { $pb = Find-ScpAnchor $fl $list $edges $ts0 $to0 $false ($pa[0] + $L) }
+                    if (($null -ne $pa -and $null -ne $pb) -or $full0) { break }
+                    # Aucun couple d ancres dans les bouts du tour 0 (secteurs vides, long remplissage) : tout le tour 0
+                    $hs0 = Get-ScpClassText $fl[0] 0 $fl[0].Length $c0; $ts0 = $hs0; $to0 = 0; $full0 = $true
+                }
+                if ($null -ne $pa -and $null -ne $pb) {
+                    $aMin = [int]::MaxValue; $aMax = [int]::MinValue; $bMin = [int]::MaxValue; $bMax = [int]::MinValue
+                    for ($r = 0; $r -lt $nr; $r++) {
+                        $ab = $pb[$r] - $pa[$r]
+                        if ($ab -lt $aMin) { $aMin = $ab }; if ($ab -gt $aMax) { $aMax = $ab }
+                        if ($r -lt $nr - 1) {
+                            $ba = $fl[$r].Length - $pb[$r] + $pa[$r + 1]
+                            if ($ba -lt $bMin) { $bMin = $ba }; if ($ba -gt $bMax) { $bMax = $ba }
+                        }
+                    }
+                    if ($aMin -gt 0 -and $bMin -gt 0) { $post.StabAl = [int][math]::Max($aMax - $aMin, $bMax - $bMin); $post.PA = $pa; $post.PB = $pb }
+                }
+            }
+        }
+        # Propriete ajoutee avant toute correction : en cas d echec, la piste reste entiere au comptage d avant
+        $list[0].PSObject.Properties.Add([System.Management.Automation.PSNoteProperty]::new('Post', $post))
+    } catch {
+        if ($script:ScpPostFail) { $script:ScpPostFail.N++; if (-not $script:ScpPostFail.Msg) { $script:ScpPostFail.Msg = [string]$_.Exception.Message } }
+        return
+    }
+    for ($r = 0; $r -lt $nr; $r++) { if ($dOoc[$r] -ne 0) { $list[$r].OutOfClass = [int]$list[$r].OutOfClass - $dOoc[$r] } }
 }
 
 function Get-AlignCyls {
@@ -86,7 +438,7 @@ function Get-AlLevel([string]$kind, [double]$v) {
         'score'  { if ($v -lt 100) { 0 } elseif ($v -lt 200) { 1 } elseif ($v -lt 400) { 2 } else { 3 } }
         'jitter' { if ($v -lt $script:JitterOk * 0.5) { 0 } elseif ($v -lt $script:JitterOk) { 1 } elseif ($v -lt (Get-JitterRedBound)) { 2 } else { 3 } }
         'asym'   { if ($v -lt 0.02){ 0 } elseif ($v -lt 0.05){ 1 } elseif ($v -lt 0.10){ 2 } else { 3 } }
-        'err'    { if ($v -le 0)   { 0 } elseif ($v -le 3)   { 1 } elseif ($v -le 20)  { 2 } else { 3 } }
+        'err'    { if ($v -le 0)   { 0 } elseif ($v -le $script:HealthErrOk) { 1 } elseif ($v -le 20)  { 2 } else { 3 } }   # 12.8.2 : borne SAIN de Get-HealthLevel
         'stab'   { if ($v -le 2)   { 0 } elseif ($v -le 5)   { 1 } elseif ($v -le 10)  { 2 } else { 3 } }
         'delta'  { if ($v -le 10)  { 0 } elseif ($v -le 30)  { 1 } elseif ($v -le 100) { 2 } else { 3 } }   # ecart % vs reference
         default  { 3 }
@@ -198,7 +550,8 @@ function Get-HealthLevel([double]$err, [double]$drop, [double]$stab, [double]$ji
     # Seuils de jitter reglables (Accueil, « Regler le jitter ») ; l asymetrie n entre pas dans l etat. Seuils explicites
     # (Standard 120 / 250 ns) pour juger un ORIGINAL et pour le garde-fou du controle : un reglage strict ne doit faire
     # que reecrire davantage de pistes de la copie, pas rejeter une source lisible ni bloquer les reecritures.
-    if ($err -le 3 -and $drop -le 0 -and $stab -le 2 -and $jit -lt $okT) { return 0 }
+    # 12.8.2 : SAIN jusqu a HealthErrOk erreurs par tour (2 ; 3 jusqu en 12.8.1), meme seuil pour tous les appelants.
+    if ($err -le $script:HealthErrOk -and $drop -le 0 -and $stab -le 2 -and $jit -lt $okT) { return 0 }
     if ($err -le 20 -and $drop -le 1 -and $stab -le 10 -and $jit -lt $watchT) { return 1 }
     return 2
 }
@@ -209,7 +562,9 @@ function Get-JitterRedBound {
 }
 
 function Update-QualityTip {
-    $tip.SetToolTip($lvAl, ((T "État par piste : SAIN / À SURVEILLER / CRITIQUE, d'après les erreurs, les trous, la stabilité et le jitter.`nJitter : SAIN sous {0} ns, À SURVEILLER sous {1} ns (onglet Accueil, « Régler le jitter »).`nCouleurs de la colonne Jitter : <{2} / <{0} / <{3} ns. Asymétrie : <0,02 / <0,05 / <0,10 (couleur et score seulement, sans effet sur l'état).") -f "$($script:JitterOk)", "$($script:JitterWatch)", "$([math]::Round($script:JitterOk * 0.5))", "$([math]::Round((Get-JitterRedBound)))"))
+    # 12.8.2 : definition des erreurs (premier intervalle et zone de l index non comptes) et de la stabilite (tours alignes),
+    # en derniere ligne
+    $tip.SetToolTip($lvAl, ((T "État par piste : SAIN / À SURVEILLER / CRITIQUE, d'après les erreurs, les trous, la stabilité et le jitter.`nJitter : SAIN sous {0} ns, À SURVEILLER sous {1} ns (onglet Accueil, « Régler le jitter »).`nCouleurs de la colonne Jitter : <{2} / <{0} / <{3} ns. Asymétrie : <0,02 / <0,05 / <0,10 (couleur et score seulement, sans effet sur l'état).`nErreurs : intervalles hors classe par tour, sans le premier intervalle de la lecture ; en double densité, sans le raccord d'écriture de gw quand il tient dans la zone de ± 1 ms autour de l'index (sauf index simulé ou données dans cette zone) ; les trous sont comptés partout. Stabilité : écart du nombre de flux entre les tours ; en double densité et à partir de 3 tours, comparés alignés sur les mêmes données.") -f "$($script:JitterOk)", "$($script:JitterWatch)", "$([math]::Round($script:JitterOk * 0.5))", "$([math]::Round((Get-JitterRedBound)))"))
 }
 
 function Set-JitterThresholds([int]$ok, [int]$watch) {
@@ -252,7 +607,7 @@ function Show-JitterSettings {
     $dlg.Name = 'frmJitter'; $dlg.Text = (T 'Réglage du jitter')
     $dlg.FormBorderStyle = 'FixedDialog'; $dlg.MaximizeBox = $false; $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false
     $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font; $dlg.BackColor = [System.Drawing.Color]::White
-    $text = (T "Le jitter mesure la dispersion des intervalles entre les transitions magnétiques d'une piste, en nanosecondes : plus il est faible, plus la piste est nette.`n`nCes seuils fixent l'état de chaque piste dans l'onglet « Qualité & alignement », dans le contrôle après écriture et dans la restauration. Une piste n'est SAINE que si son jitter est sous le premier seuil, et si ses erreurs, ses trous et sa stabilité sont bons. Au-delà du second seuil, elle est CRITIQUE.`n`nAprès une écriture avec contrôle de toutes les pistes (écriture lente, restauration), une piste qui n'est pas SAINE est réécrite, dans la limite des passes de réécriture : un réglage plus strict fait réécrire davantage de pistes, donc davantage d'écritures sur la disquette. Le jugement de la disquette d'origine en restauration et le garde-fou (plus de la moitié des pistes faibles : aucune réécriture) gardent les seuils Standard.")
+    $text = (T "Le jitter mesure la dispersion des intervalles entre les transitions magnétiques d'une piste, en nanosecondes : plus il est faible, plus la piste est nette.`n`nCes seuils fixent l'état de chaque piste dans l'onglet « Qualité & alignement », dans le contrôle après écriture et dans la restauration. Une piste n'est SAINE que si son jitter est sous le premier seuil, et si ses erreurs, ses trous et sa stabilité sont bons. Au-delà du second seuil, elle est CRITIQUE. Les erreurs ne comptent pas le premier intervalle de la lecture ni, en double densité, le raccord d'écriture de gw dans la zone de ± 1 ms autour de l'index ; en double densité et à partir de 3 tours, la stabilité compare les tours alignés sur les mêmes données.`n`nAprès une écriture avec contrôle de toutes les pistes (écriture lente, restauration), une piste qui n'est pas SAINE est réécrite, dans la limite des passes de réécriture : un réglage plus strict fait réécrire davantage de pistes, donc davantage d'écritures sur la disquette. Le jugement de la disquette d'origine en restauration et le garde-fou (plus de la moitié des pistes faibles : aucune réécriture) gardent les seuils Standard.")
     $ban = New-DlgBanner $dlg 16 $W (T 'Seuils de jitter des pistes') $text 'info' (New-DlgPicto 'jitter') $gdi 'lblJitText'
     $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
     $y = $ban.Bottom + 14
@@ -352,8 +707,13 @@ function Show-JitterSettings {
 # Metriques d une piste (liste de ScpRev, un par tour) : base commune de l onglet Qualite et du
 # controle apres ecriture, pour que « piste faible » ait partout la meme definition.
 function Get-TrackMetrics($st) {
+    # 12.8.2 : Ooc sans le premier intervalle de la lecture ni les hors classe de la zone de l index, Stab sur tours
+    # alignes (Read-ScpFile, Set-ScpTrackPost : propriete Post du tour 0) ; ZoneOoc : hors classe ecartes (tous tours) ;
+    # ZoneFarNs : distance a l index de la grappe ecartee la plus lointaine ; StabAligned : faux = ecart du nombre de flux
+    # (moins de 3 tours, haute densite, secteurs durs, piste sans post-traitement : calibration) ; StabFallback :
+    # alignement tente mais sans ancres communes (repli sur l ecart du nombre de flux, signale au journal)
     $m = @{ Bad = $false; Missing = $false; J = 0.0; R3 = 0.0; R4 = 0.0; Ooc = 0.0; Dr = 0.0; Cell = 0.0; Stab = 0.0; Asym = 0.0; Score = 9999; Level = 2
-            Weak = $false; ShortUnstable = $false; Blocks = 0; Unstable = 0; MaxRun = 0; RunPos = -1 }
+            Weak = $false; ShortUnstable = $false; Blocks = 0; Unstable = 0; MaxRun = 0; RunPos = -1; ZoneOoc = 0; ZoneFarNs = 0; StabAligned = $false; StabFallback = $false }
     $list = @($st)
     if ($list.Count -eq 0) { $m.Bad = $true; return $m }
     foreach ($x in $list) { if ([double]::IsNaN($x.Jitter)) { $m.Bad = $true } }
@@ -366,6 +726,12 @@ function Get-TrackMetrics($st) {
     $m.Cell = ($list | Measure-Object -Property Cell -Average).Average
     $nf     = $list | ForEach-Object { $_.NFlux }
     $m.Stab = ($nf | Measure-Object -Maximum).Maximum - ($nf | Measure-Object -Minimum).Minimum
+    $pp = $list[0].PSObject.Properties['Post']
+    if ($pp -and $pp.Value) {
+        $m.ZoneOoc = [int]$pp.Value.ZoneOoc; $m.ZoneFarNs = [int]$pp.Value.ZoneFarNs
+        if ([int]$pp.Value.StabAl -ge 0) { $m.Stab = [int]$pp.Value.StabAl; $m.StabAligned = $true }
+        elseif ($pp.Value.Tried) { $m.StabFallback = $true }
+    }
     $m.Asym = [math]::Abs($m.R3 - 1.5) + [math]::Abs($m.R4 - 2.0)
     $m.Score = [math]::Round($m.J + 2000 * $m.Asym + 5 * $m.Ooc + 50 * $m.Dr + $m.Stab, 0)
     $m.Level = Get-HealthLevel $m.Ooc $m.Dr $m.Stab $m.J
@@ -458,11 +824,13 @@ function Invoke-AlignAnalysis {
     $lvAl.BeginUpdate()
     try {
         $lvAl.Items.Clear()
-        $total = 0.0; $count = 0
+        $total = 0.0; $count = 0; $zo = 0; $zt = 0; $zf = 0; $fb = @()
         foreach ($tn in ($tracks.Keys | Sort-Object)) {
             $st = $tracks[$tn]; $cyl = [math]::Floor($tn / 2); $hd = $tn % 2; $key = "$cyl.$hd"
             $lab = "$cyl.$hd"
             $m = Get-TrackMetrics $st
+            if ($m.ZoneOoc -gt 0) { $zo += $m.ZoneOoc; $zt++; if ($m.ZoneFarNs -gt $zf) { $zf = $m.ZoneFarNs } }
+            if ($m.StabFallback) { $fb += $lab }
             if ($m.Bad) {
                 [void]$lvAl.Items.Add((New-AlignRow $lab $m '' '-' -1))
                 $last[$key] = @{ Score = 9999; Jitter = 0; Asym = 0; Err = 0; Stab = 0; Cell = 0 }
@@ -499,6 +867,12 @@ function Invoke-AlignAnalysis {
             $res.Health = 0; $res.HealthText = ((T "SUPPORT SAIN  -  {0}/{1} pistes propres (erreurs, trous, stabilité, jitter dans les normes)") -f "$nTracks", "$nTracks")
         }
         Append-Log ((T "Mesure : {0}") -f "$($res.HealthText)")
+        # 12.8.2 (S11, S12) : hors classe du raccord ecartes (distance a l index la plus grande), pistes sans tours alignes ;
+        # mesure continue : a la premiere passe seulement (revue : le compte change a chaque relecture)
+        if (-not $script:AlignLoop -or [int]$script:QualView.Pass -le 1) {
+            if ($zo -gt 0) { Append-Log ((T "Mesure : {0} intervalle(s) hors classe du raccord d'écriture, dans la zone de ± 1 ms autour de l'index (jusqu'à {2} ms), non compté(s), sur {1} piste(s).") -f "$zo", "$zt", (Format-UiNum ($zf / 1e6) '0.00')) }
+            if ($fb.Count -gt 0) { Append-Log ((T "Mesure : stabilité de {0} piste(s) jugée sur l'écart du nombre de flux entre les tours, faute de repère commun pour les aligner : {1}.") -f "$($fb.Count)", "$($fb -join ', ')") }
+        }
         if ($weakL.Count -gt 0) { Append-Log ((T "Mesure : zone instable d'un tour à l'autre sur {0} piste(s) : {1}. Bits faibles d'une protection contre la copie probable, ou défaut localisé du support : une copie faite depuis un flux n'en écrit qu'un tour et ne les reproduit pas fidèlement.") -f "$($weakL.Count)", "$($weakL -join ', ')") }
         $clu = @(Get-UnstableClusters $weakL)
         if ($clu.Count -gt 0) { Append-Log ((T "Mesure : pistes instables sur des cylindres voisins d'une même face ({0}) : défaut du support probable (rayure, usure) plutôt qu'une protection.") -f "$($clu -join ', ')") }

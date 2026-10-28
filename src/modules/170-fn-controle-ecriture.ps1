@@ -20,17 +20,23 @@ function Get-WriteCheckBlocker([string]$path, [string]$fmt) {
     return $null
 }
 
-function New-WriteCheck([string[]]$base, [string]$image, [string]$userTSpec, [int]$max, [string[]]$readOpts, $headPrecomp) {
+function New-WriteCheck([string[]]$base, [string]$image, [string]$userTSpec, [int]$max, [string[]]$readOpts, $headPrecomp, [string]$eraseMode = '') {
     # $headPrecomp : ecriture lente, --precomp par tete logique (0, 1 -> profil ou $null) ; $base est alors sans --precomp
+    # 12.8.2 : $eraseMode, effacement des reecritures (Invoke-WriteCheckAnalysis) : 'hfreq' (double densite) ou 'pre'
+    # (haute densite, flux SCP de densite inconnue, secteurs durs, TG43, --densel : Get-EraseMode) ; vide : d apres l image
+    # et le format de l onglet (150). Revue 12.8.2 : jamais le repli « pistes de l image inconnues » de l ecriture
+    # (Start-ImageWrite, $emCheck) : les pistes faibles sont toujours connues
     $script:WriteTracks = @{}; $script:WriteRetries = @{}   # rien d une ecriture precedente dans le perimetre
+    if (-not $eraseMode) { $eraseMode = Get-EraseMode (Test-ImageHighDensity $image $cmbWFmt.Text) }
     $script:Rep = @{
-        Base = @($base); Image = $image; UserTSpec = $userTSpec; Max = [math]::Max(0, $max)
+        Base = @($base); Image = $image; UserTSpec = $userTSpec; Max = [math]::Max(0, $max); EraseMode = $eraseMode
         Common = @(Get-CommonArgs); ReadOpts = @($readOpts)   # lecteur et port memorises au clic : les relectures visent le meme disque
         HeadPrecomp = $headPrecomp; Written = @{}              # Written : pistes ecrites, cumulees sur les commandes (ecriture lente)
         Round = 0; Scope = $null; Weak = @(); State = @{}; Retries = @{}; Rewrites = @{}
         Pending = (New-Object System.Collections.Queue); Scps = @(); Safety = $false; Measured = 0
         # Zone instable relue sur la copie = defaut de la copie, sauf source capable d en porter (voir Set-CopyUnstable)
         UnstDefect = (-not (Test-SourceMayHaveWeak $image)); NoJudge = $null; SrcWeak = $null
+        SrcOver = $null                                        # 12.8.2 : pistes deja hors norme dans la source (Test-SrcOverErr)
     }
     # Une mesure continue de l onglet Qualite ecraserait le resultat du controle : elle est arretee
     $script:AlignLoop = $false; $script:AlignNextAt = $null; $script:AlLastMove = 0
@@ -55,13 +61,28 @@ function Test-SourceMayHaveWeak([string]$path) {
     } catch { return $true }
 }
 
+function Test-RepFakeIndex($rep) {
+    # 12.8.2 (S11) : relectures du controle avec un index simule (--fake-index des options de relecture, Rep.ReadOpts, ou
+    # de l ecriture, Rep.Base) : la jonction d ecriture n est pas a l index relu, la zone de l index est comptee
+    return (@(@($rep.ReadOpts) + @($rep.Base) | Where-Object { "$_" -match '^--fake-index=' }).Count -gt 0)
+}
+
+function Test-SrcOverErr($m) {
+    # 12.8.2 (decision du 27/10/2026) : piste de la source (original en restauration, image SCP de l onglet Ecriture) deja
+    # hors norme par ses erreurs, au-dela du seuil SAIN (HealthErrOk, Get-HealthLevel) : protection (Copylock) ou defaut
+    # d origine, qu une reecriture ne peut pas corriger. Le controle de la copie l ignore comme une piste critique : ni
+    # reecrite, ni comptee faible. Piste illisible : non (deja critique).
+    return ($null -ne $m -and -not $m.Bad -and [double]$m.Ooc -gt $script:HealthErrOk)
+}
+
 function Set-CopyUnstable($rep, [string]$k, $m) {
     # gw ecrit un tour fige de la source : une zone instable d un tour a l autre relue sur la copie ne vient pas de la
     # source quand celle-ci n en contient pas a cette piste (image secteur, HFE v1/v2, piste stable d un SCP analyse).
     # Elle signale alors un defaut de la copie (support fatigue, defaut localise) : la piste est faible et reecrite.
-    # Pistes instables ou critiques de la source (Rep.Ignore) : traitees a part. Non jugees (Unjudged : ni reecrites ni
-    # comptees saines) : source qui peut porter des zones faibles (Test-SourceMayHaveWeak), SCP non analysable, piste
-    # que la source porte avec une courte zone instable ou que l analyse n a pas pu mesurer (Rep.NoJudge).
+    # Pistes instables, critiques ou (12.8.2) deja hors norme de la source (Rep.Ignore) : traitees a part. Non jugees
+    # (Unjudged : ni reecrites ni comptees saines) : source qui peut porter des zones faibles (Test-SourceMayHaveWeak), SCP
+    # non analysable, piste que la source porte avec une courte zone instable ou que l analyse n a pas pu mesurer
+    # (Rep.NoJudge).
     if (-not $m -or $m.Bad -or -not $m.Weak) { return }
     if ($rep.Ignore -and $rep.Ignore.ContainsKey($k)) { return }
     if (-not $rep.UnstDefect -or ($rep.NoJudge -and $rep.NoJudge.ContainsKey($k))) { $m.Unjudged = $true; return }
@@ -109,6 +130,7 @@ function Invoke-RepNextCmd {
     $cmd = [string[]]$rep.Pending.Dequeue()
     if ($rep.Round -eq 0) { $lblWCal.Text = (T 'Contrôle après écriture : relecture de toutes les pistes...') }
     elseif ($cmd[0] -eq 'write') { $lblWCal.Text = ((T "Contrôle après écriture : réécriture {0}/{1} de {2} piste(s) faible(s)...") -f "$($rep.Round)", "$($rep.Max)", "$($rep.Weak.Count)") }
+    elseif ($cmd[0] -eq 'erase') { $lblWCal.Text = ((T "Contrôle après écriture : effacement haute fréquence avant la réécriture {0}/{1} de {2} piste(s) faible(s)...") -f "$($rep.Round)", "$($rep.Max)", "$($rep.Weak.Count)") }
     else { $lblWCal.Text = ((T "Contrôle après écriture : remesure {0}/{1} de {2} piste(s)...") -f "$($rep.Round)", "$($rep.Max)", "$($rep.Weak.Count)") }
     Set-QualityRunText $lblWCal.Text                      # 12.8 (lot 3a) : etape du controle sur la carte de l onglet Qualite
     Start-Gw $cmd
@@ -174,9 +196,10 @@ function Invoke-WriteCheckAnalysis {
         foreach ($k in @($rep.Weak)) { $rep.Rewrites[$k] = 1 + $(if ($rep.Rewrites.ContainsKey($k)) { [int]$rep.Rewrites[$k] } else { 0 }) }
     }
     $tracks = @{}
+    $fake = Test-RepFakeIndex $rep
     foreach ($scp in $rep.Scps) {
         if (-not (Test-Path -LiteralPath $scp)) { Append-Log (T 'Contrôle après écriture : fichier SCP absent, analyse impossible.'); Stop-WriteCheck; return }
-        try { $t = Read-ScpFile $scp } catch { Append-Log ((T "Contrôle après écriture : {0}") -f "$($_.Exception.Message)"); Stop-WriteCheck; return }
+        try { $t = Read-ScpFile $scp -NoIndexZone:$fake } catch { Append-Log ((T "Contrôle après écriture : {0}") -f "$($_.Exception.Message)"); Stop-WriteCheck; return }
         foreach ($tn in $t.Keys) { $tracks[[int]$tn] = $t[$tn] }
     }
     # Pistes attendues : premier controle = image (ou TSPEC utilisateur relu, limite a l image) ; ensuite = pistes reecrites
@@ -196,10 +219,27 @@ function Invoke-WriteCheckAnalysis {
     if ($unjK.Count -gt 0 -and $rep.Round -eq 0) { Append-Log ((T "Contrôle : zone instable sur {0} piste(s) non jugée(s) ({1}) : la source peut en contenir (protection) sans que l'application puisse le vérifier. Ni réécrites ni comptées comme saines.") -f "$($unjK.Count)", "$(Format-TrackList $unjK)") }
     $defK = @($expected | Where-Object { $rep.State[$_].CopyDefect })
     if ($defK.Count -gt 0) { Append-Log ((T "Contrôle : zone instable d'un tour à l'autre sur la copie, piste(s) {0} : la source n'en contient pas, défaut probable du support. Ces pistes sont traitées comme faibles.") -f "$(Format-TrackList $defK)") }
+    # 12.8.2 (S11, S12) : hors classe de la zone de l index (jonction d ecriture de gw) ecartes du comptage, avec la
+    # distance a l index la plus grande, et pistes dont la stabilite n a pas pu etre mesuree sur tours alignes : une
+    # ligne par analyse ; index simule : une ligne au premier controle
+    $zo = 0; $zt = 0; $zf = 0; $fb = @()
+    foreach ($k in $expected) {
+        $ms = $rep.State[$k]; $z = [int]$ms.ZoneOoc
+        if ($z -gt 0) { $zo += $z; $zt++; if ([int]$ms.ZoneFarNs -gt $zf) { $zf = [int]$ms.ZoneFarNs } }
+        if ($ms.StabFallback) { $fb += $k }
+    }
+    if ($zo -gt 0) { Append-Log ((T "Contrôle après écriture : {0} intervalle(s) hors classe du raccord d'écriture de gw, dans la zone de ± 1 ms autour de l'index (jusqu'à {2} ms), non compté(s), sur {1} piste(s) relue(s) en 3 tours.") -f "$zo", "$zt", (Format-UiNum ($zf / 1e6) '0.00')) }
+    if ($fb.Count -gt 0) { Append-Log ((T "Contrôle après écriture : stabilité de {0} piste(s) jugée sur l'écart du nombre de flux entre les tours, faute de repère commun pour les aligner : {1}.") -f "$($fb.Count)", "$(Format-TrackList $fb)") }
+    if ($fake -and $rep.Round -eq 0) { Append-Log (T "Contrôle après écriture : index simulé (--fake-index), la zone de l'index est comptée comme le reste de la piste.") }
     if ($rep.Ignore) {
-        # Restauration d un flux ou image SCP : pistes deja critiques ou non reproductibles (zone instable), non comptees
+        # Restauration d un flux ou image SCP : pistes deja critiques ou non reproductibles (zone instable), non comptees.
+        # 12.8.2 (decision du 27/10/2026) : pistes deja hors norme par leurs erreurs dans la source (Rep.SrcOver, aussi dans
+        # Rep.Ignore : Copylock, defaut d origine), non reecrites, signalees par une ligne a part
         $ign = @(@($watch) + @($crit) | Where-Object { $rep.Ignore.ContainsKey($_) })
+        $ovr = @($ign | Where-Object { $rep.SrcOver -and $rep.SrcOver.ContainsKey($_) })
+        $ign = @($ign | Where-Object { -not ($rep.SrcOver -and $rep.SrcOver.ContainsKey($_)) })
         if ($ign.Count -gt 0 -and $rep.Round -eq 0) { Append-Log ((T "Contrôle : {0} piste(s) non reproductible(s) ou déjà critique(s) dans la source, non comptée(s) : {1}") -f "$($ign.Count)", "$(Format-TrackList $ign)") }
+        if ($ovr.Count -gt 0 -and $rep.Round -eq 0) { Append-Log ((T "Contrôle : {0} piste(s) déjà hors norme dans l'original, non réécrite(s) : {1}") -f "$($ovr.Count)", "$(Format-TrackList (Sort-TrackKeys $ovr))") }
         $watch = @($watch | Where-Object { -not $rep.Ignore.ContainsKey($_) }); $crit = @($crit | Where-Object { -not $rep.Ignore.ContainsKey($_) })
     }
     $weak = Sort-TrackKeys (@($watch) + @($crit))
@@ -223,23 +263,44 @@ function Invoke-WriteCheckAnalysis {
         Complete-WriteCheck; return
     }
     if ($rep.Round -ge $rep.Max) { Complete-WriteCheck; return }
-    # Passe de reecriture : pistes faibles seules, pre-effacement force, puis remesure de ces seules pistes
+    # Passe de reecriture : pistes faibles seules, puis remesure de ces seules pistes. 12.8.2 : double densite
+    # (Rep.EraseMode 'hfreq') : effacement haute frequence des pistes faibles (gw erase --hfreq, memes elements du champ
+    # Pistes), toujours, quelle que soit la case « Effacer avant d ecrire » (comme le pre-effacement force d avant), puis
+    # reecriture sans --pre-erase ; haute densite (et autres cas 'pre') : pre-effacement force. Revue 12.8.2 : chaque
+    # reecriture est precedee de l effacement de ses seules pistes (meme --tracks), et non toutes les pistes de la passe
+    # d abord : un arret de gw n expose que les pistes de la commande en cours ; pistes effacees de la passe (EraseLog,
+    # Read-GwOutput) restees sans ecriture : marquees illisibles par Update-RepPartial
     $rep.Round++
     Append-Log ((T "Réécriture des pistes faibles, passe {0}/{1} : {2}") -f "$($rep.Round)", "$($rep.Max)", "$(Format-TrackList $weak)")
     $groups = Get-TrackGroups $weak
     $extras = Get-TSpecExtras $rep.UserTSpec
-    $wbase = @($rep.Base); if ($wbase -notcontains '--pre-erase') { $wbase += '--pre-erase' }
+    $hf = ([string]$rep.EraseMode -eq 'hfreq')
+    $wbase = @($rep.Base)
+    if ($hf) { $wbase = @($wbase | Where-Object { $_ -ne '--pre-erase' }) } elseif ($wbase -notcontains '--pre-erase') { $wbase += '--pre-erase' }
     $rep.Pending.Clear()
+    # Lecteur et port memorises au clic (Rep.Common, comme les relectures) et --fake-index de l ecriture (Rep.Base)
+    $eda = @(@($rep.Common) + @(@($rep.Base) | Where-Object { $_ -match '^--fake-index=' }))
+    $wts = @()
     if ($null -ne $rep.HeadPrecomp) {
         # Ecriture lente : une reecriture par tete, chacune avec sa precompensation
         foreach ($h in 0, 1) {
             $cs = @($weak | Where-Object { ($_ -split '\.')[1] -eq "$h" } | ForEach-Object { [int](($_ -split '\.')[0]) })
             if ($cs.Count -eq 0) { continue }
             $cmd = @($wbase); if ($rep.HeadPrecomp[$h]) { $cmd += @('--precomp', $rep.HeadPrecomp[$h]) }
-            $rep.Pending.Enqueue([string[]]($cmd + @("--tracks=c=$(Format-CylList $cs):h=$h$extras", "`"$($rep.Image)`"")))
+            $wts += @{ Ts = "c=$(Format-CylList $cs):h=$h$extras"; Cmd = $cmd }
         }
     } else {
-        foreach ($g in $groups) { $rep.Pending.Enqueue([string[]]($wbase + @("--tracks=$g$extras", "`"$($rep.Image)`""))) }
+        foreach ($g in $groups) { $wts += @{ Ts = "$g$extras"; Cmd = $wbase } }
+    }
+    $ers = @()
+    foreach ($wt in $wts) {
+        if ($hf) { $ec = [string[]](@('erase') + $eda + @('--hfreq', "--tracks=$($wt.Ts)")); $rep.Pending.Enqueue($ec); $ers += ,$ec }
+        $rep.Pending.Enqueue([string[]](@($wt.Cmd) + @("--tracks=$($wt.Ts)", "`"$($rep.Image)`"")))
+    }
+    $script:EraseLog = $null
+    if ($hf -and $ers.Count -gt 0) {
+        $script:EraseLog = @{ Owner = 'check'; Round = [int]$rep.Round; Erased = @{}; Written = @{} }
+        Append-Log ((T "Effacement haute fréquence des pistes faibles avant leur réécriture (disquette double densité) : {0}.") -f (Format-EraseTracks $ers))
     }
     Add-RepReads $groups $extras
     Start-RepPending
@@ -303,6 +364,9 @@ function Complete-WriteCheck([switch]$GwError) {
     $ignK = @(@($rep.State.Keys) | Where-Object { $rep.Ignore -and $rep.Ignore.ContainsKey($_) -and ($rep.State[$_].Bad -or $rep.State[$_].Level -ge 1 -or $rep.State[$_].Weak) })
     $unjK = @(@($rep.State.Keys) | Where-Object { $rep.State[$_].Unjudged -and -not $rep.State[$_].Bad -and $rep.State[$_].Level -lt 1 -and -not ($rep.Ignore -and $rep.Ignore.ContainsKey($_)) })
     $nOk = $n - $ignK.Count - $unjK.Count
+    # 12.8.2 : pistes deja hors norme dans la source (Rep.SrcOver) citees a part des pistes non reproductibles ou critiques
+    $ovrK = @($ignK | Where-Object { $rep.SrcOver -and $rep.SrcOver.ContainsKey($_) })
+    $ignC = @($ignK | Where-Object { -not ($rep.SrcOver -and $rep.SrcOver.ContainsKey($_)) })
     if ($GwError) {
         # gw a echoue pendant une passe de reecriture : les pistes de la passe restent faibles
         $txt = ((T "CONTRÔLE APRÈS ÉCRITURE interrompu par une erreur gw à la passe {0}/{1} : {2} piste(s) faible(s) ou non remesurée(s) : {3}  ->  support fatigué ou lecteur en défaut") -f "$($rep.Round)", "$($rep.Max)", "$($weak.Count)", "$(Format-TrackList $weak)"); $lvl = 3
@@ -310,7 +374,8 @@ function Complete-WriteCheck([switch]$GwError) {
         $txt = (T 'CONTRÔLE APRÈS ÉCRITURE : aucune piste mesurée.'); $lvl = 3
     } elseif ($weak.Count -eq 0) {
         $txt = ((T "CONTRÔLE APRÈS ÉCRITURE : {0}/{1} pistes saines") -f "$nOk", "$n")
-        if ($ignK.Count -gt 0) { $txt += ((T ", {0} piste(s) non reproductible(s) ou déjà critique(s) non comptée(s) : {1}") -f "$($ignK.Count)", "$(Format-TrackList (Sort-TrackKeys $ignK))") }
+        if ($ignC.Count -gt 0) { $txt += ((T ", {0} piste(s) non reproductible(s) ou déjà critique(s) non comptée(s) : {1}") -f "$($ignC.Count)", "$(Format-TrackList (Sort-TrackKeys $ignC))") }
+        if ($ovrK.Count -gt 0) { $txt += ((T ", {0} piste(s) déjà hors norme dans l'original non comptée(s) : {1}") -f "$($ovrK.Count)", "$(Format-TrackList (Sort-TrackKeys $ovrK))") }
         if ($unjK.Count -gt 0) { $txt += ((T ", {0} piste(s) à zone instable non jugée(s) : {1}") -f "$($unjK.Count)", "$(Format-TrackList (Sort-TrackKeys $unjK))") }
         if ($nRew -gt 0) { $txt += ((T ", après réécriture de {0} piste(s) en {1} passe(s)") -f "$nRew", "$($rep.Round)") }
         $lvl = 0
@@ -342,9 +407,10 @@ function Update-RepPartial {
     # Les pistes remesurees prennent leur nouvelle mesure ; les autres restent « faibles ou non remesurees ».
     $rep = $script:Rep
     $remeasured = @{}
+    $fake = Test-RepFakeIndex $rep
     foreach ($scp in @($rep.Scps)) {
         if (-not (Test-Path -LiteralPath $scp)) { continue }
-        try { $t = Read-ScpFile $scp } catch { continue }
+        try { $t = Read-ScpFile $scp -NoIndexZone:$fake } catch { continue }
         foreach ($tn in @($t.Keys)) {
             $k = "$([math]::Floor([int]$tn / 2)).$([int]$tn % 2)"
             if (@($rep.Weak) -notcontains $k) { continue }
@@ -353,6 +419,15 @@ function Update-RepPartial {
             $rep.Rewrites[$k] = 1 + $(if ($rep.Rewrites.ContainsKey($k)) { [int]$rep.Rewrites[$k] } else { 0 })
             $remeasured[$k] = $true
         }
+    }
+    # Revue 12.8.2 : pistes faibles de la passe effacees en haute frequence (lignes « Erasing Track », EraseLog de la passe)
+    # sans ligne « Writing Track » ensuite, ni remesure : vierges, et non plus a leur mesure d avant la passe ; marquees
+    # illisibles (absentes de la relecture), une ligne de journal
+    $el = $script:EraseLog
+    if ($el -and [string]$el.Owner -eq 'check' -and [int]$el.Round -eq [int]$rep.Round) {
+        $blank = Sort-TrackKeys @(@($rep.Weak) | Where-Object { $el.Erased.ContainsKey([string]$_) -and -not $el.Written.ContainsKey([string]$_) -and -not $remeasured.ContainsKey($_) })
+        foreach ($k in $blank) { $mm = Get-TrackMetrics @(); $mm.Missing = $true; $rep.State[$k] = $mm }
+        if (@($blank).Count -gt 0) { Append-Log ((T "Contrôle après écriture : piste(s) effacée(s) en haute fréquence et non réécrite(s) après l'arrêt de gw : {0}. Elles sont vierges sur la disquette : réécrivez l'image.") -f "$(Format-TrackList $blank)") }
     }
     $rep.Weak = Sort-TrackKeys @(@($rep.Weak) | Where-Object { -not $remeasured.ContainsKey($_) -or $rep.State[$_].Bad -or $rep.State[$_].Level -ge 1 })
 }

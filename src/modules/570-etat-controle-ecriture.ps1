@@ -4,7 +4,8 @@
 # classement de chaque piste avec Get-TrackMetrics (memes criteres que l onglet Qualite :
 # erreurs hors classe, trous, stabilite entre tours, jitter). Une piste A SURVEILLER,
 # CRITIQUE, illisible ou absente de la relecture est faible : elle est reecrite seule
-# (pre-effacement force), puis seule remesuree. Au plus N passes (« Passes de reecriture »,
+# (12.8.2 : apres un effacement haute frequence de la piste en double densite, pre-effacement force en haute
+# densite), puis seule remesuree. Au plus N passes (« Passes de reecriture »,
 # 3 par defaut ; 0 = controle seul). Les pistes vides de l image (IPF : enregistrement
 # sans bloc) ne sont pas controlees. Garde-fou : si plus de la moitie des pistes sont
 # faibles au premier controle (format non MFM, disquette inadaptee, lecteur en defaut),

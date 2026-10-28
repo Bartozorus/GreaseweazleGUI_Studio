@@ -27,11 +27,13 @@ param(
 )
 
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
-$script:Version = '12.8.1'
+$script:Version = '12.8.2'
 # Version du calcul de calibration (motif de test, mesure du decalage, ajustement de la courbe, verification), enregistree
 # avec chaque courbe : a changer seulement quand ce calcul change. Une courbe faite avec ce calcul est reprise par les
 # versions suivantes de l application ; une courbe d un autre calcul n est reprise que si l utilisateur la conserve.
-$script:CalibCalc = '12.6'
+# 12.8.2 : en double densite, chaque passe efface ses pistes en haute frequence (gw erase --hfreq) puis ecrit le motif
+# sans --pre-erase (New-CalibPass) : la mesure change, les courbes du calcul 12.6 sont mises de cote au chargement
+$script:CalibCalc = '12.8.2'
 # 12.7 : version du calcul de la famille haute densite (hd), distincte : son bareme provisoire changera apres les premieres
 # mesures reelles sans rouvrir le choix des courbes double densite (Get-CurveCalcRef)
 $script:CalibCalcHd = '12.7'
@@ -2196,6 +2198,79 @@ $script:I18n['Configuration : {0} facteur(s) mesuré(s) illisible(s), ignoré(s)
 # Effacer les calibrations (240 : Reset-CalibProfiles)
 $script:I18n["Les {0} facteur(s) mesuré(s) des lecteurs (mesure de la disquette sur l'image) sont effacés aussi : les écritures suivantes reprennent le facteur 1 jusqu'à une nouvelle mesure. La correction « lecteur cible » est gardée."] = 'The {0} measured drive factor(s) (disk measurement on the image) are cleared too: the next writes go back to factor 1 until a new measurement. The "target drive" correction is kept.'
 $script:I18n["Facteurs mesurés des lecteurs effacés avec les calibrations ({0}) ; la correction « lecteur cible » est gardée."] = 'Measured drive factors cleared with the calibrations ({0}); the "target drive" correction is kept.'
+# --- Textes de la 12.8.2 : effacement avant l ecriture -------------------------------------------------------------
+# Suite de la table $script:I18n (010-i18n) : cle francaise -> texte anglais, memes regles (placeholders {n} identiques,
+# `n pour les retours a la ligne). Essais E1, E2 et E5 du 27/10/2026 : double densite, effacement haute frequence
+# (gw erase --hfreq) puis ecriture sans --pre-erase ; haute densite inchangee. Les anciens textes du pre-effacement
+# restent dans 010, sans effet (aucun conflit au report en 12.9)
+# Case « Effacer avant d ecrire » (520) et migration de la configuration (120, Update-LegacyEraseMode)
+$script:I18n["Effacer avant d'écrire"] = 'Erase before writing'
+$script:I18n["Efface les pistes avant de les écrire (cochée par défaut).`nDisquette double densité : les pistes de l'image sont d'abord effacées en haute fréquence par le lecteur qui écrit (gw erase --hfreq), puis écrites sans pré-effacement.`nDisquette haute densité : chaque piste est pré-effacée juste avant son écriture (--pre-erase), comme avant ; de même avec les secteurs durs, un lecteur 8 pouces (TG43), --densel ou une image dont l'application ne connaît pas les pistes (ligne au journal).`nMesuré sur un lecteur haute densité qui écrit des disquettes double densité : la marge de lecture sur un lecteur double densité est nettement meilleure qu'avec le pré-effacement (environ 60 ns de plus).`nLes calibrations et les réécritures du contrôle après écriture effacent toujours leurs pistes selon cette règle, même case décochée."] = "Erases the tracks before writing them (checked by default).`nDouble-density disk: the image tracks are first erased with a high-frequency signal by the writing drive (gw erase --hfreq), then written without pre-erase.`nHigh-density disk: each track is pre-erased just before it is written (--pre-erase), as before; likewise with hard sectors, an 8-inch drive (TG43), --densel or an image whose tracks the application does not know (line in the log).`nMeasured on a high-density drive writing double-density disks: the read margin on a double-density drive is clearly better than with pre-erase (about 60 ns more).`nCalibrations and the rewrites of the post-write check always erase their tracks by this rule, even when unchecked."
+$script:I18n["Case « Effacer avant d'écrire » (auparavant « Pré-effacer chaque piste ») recochée, une seule fois : son effet change dans cette version. Sur une disquette double densité, elle efface désormais les pistes en haute fréquence avant l'écriture, au lieu du pré-effacement en continu qui coûtait de la marge de lecture ; en haute densité, elle pré-efface comme avant. Décochez-la de nouveau si vous ne voulez aucun effacement avant l'écriture."] = '"Erase before writing" box (formerly "Pre-erase each track") checked again, once only: its effect changes in this version. On a double-density disk it now erases the tracks with a high-frequency signal before writing, instead of the DC pre-erase that cost read margin; on high density it pre-erases as before. Uncheck it again if you want no erase before writing.'
+# Ecriture (140 : Start-ImageWrite, Set-WritePreset ; 510 : bouton « Ecriture rapide » de la Bibliotheque)
+$script:I18n["Effacement haute fréquence avant l'écriture (disquette double densité, lecteur {0}) : pistes {1}, puis écriture sans pré-effacement."] = 'High-frequency erase before writing (double-density disk, drive {0}): tracks {1}, then write without pre-erase.'
+$script:I18n["Effacement avant l'écriture : pistes de l'image {0} inconnues, l'effacement haute fréquence ne peut pas les viser : pré-effacement de chaque piste (--pre-erase), comme avant."] = 'Erase before writing: tracks of image {0} unknown, the high-frequency erase cannot target them: each track is pre-erased (--pre-erase), as before.'
+$script:I18n["Effacement avant l'écriture : secteurs durs ou lecteur 8 pouces (TG43), que gw erase ne prend pas en charge : pré-effacement de chaque piste (--pre-erase), comme avant."] = 'Erase before writing: hard sectors or 8-inch drive (TG43), not supported by gw erase: each track is pre-erased (--pre-erase), as before.'
+$script:I18n["Écriture lente : image entière, profil Auto, effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, vérification gw, 10 essais, tête 0 puis tête 1, contrôle de toutes les pistes, 3 passes de réécriture."] = 'Slow write: whole image, Auto profile, erase before writing (high-frequency on double density, pre-erase on high density), erase empty tracks, gw verification, 10 retries, head 0 then head 1, full track check, 3 rewrite passes.'
+$script:I18n["Écriture rapide : image entière, profil Auto, effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, vérification gw, 10 essais, les deux têtes ensemble, sans contrôle complet des pistes."] = 'Fast write: whole image, Auto profile, erase before writing (high-frequency on double density, pre-erase on high density), erase empty tracks, gw verification, 10 retries, both heads together, no full track check.'
+$script:I18n["Écrit l'image sélectionnée en une passe, les deux têtes ensemble : image entière, profil de précompensation Auto,`neffacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, vérification gw, 10 essais, sans contrôle complet des pistes.`nSans calibration commune pour la famille de l'image, le lecteur est d'abord calibré : la disquette reçoit le motif de test, puis l'image."] = "Writes the selected image in one pass, both heads together: whole image, Auto precompensation profile,`nerase before writing (high-frequency on double density, pre-erase on high density), erase empty tracks, gw verification, 10 retries, no full track check.`nWithout a common calibration for the image family, the drive is calibrated first: the disk receives the test pattern, then the image."
+# Controle apres ecriture (170, 520)
+$script:I18n["Après une écriture réussie, relit en flux toutes les pistes écrites et classe chacune avec les critères de l'onglet Qualité & alignement.`nUne piste À SURVEILLER, CRITIQUE ou illisible est réécrite seule (après un effacement haute fréquence de la piste en double densité, avec pré-effacement en haute densité), puis seule remesurée,`njusqu'au nombre de passes de réécriture choisi. Résultat dans l'onglet Qualité & alignement."] = "After a successful write, reads back every written track as flux and grades each one with the Quality & alignment criteria.`nA TO WATCH, CRITICAL or unreadable track is rewritten on its own (after a high-frequency erase of the track on double density, with pre-erase on high density), then re-measured on its own,`nup to the chosen number of rewrite passes. Result in the Quality & alignment tab."
+$script:I18n["Effacement haute fréquence des pistes faibles avant leur réécriture (disquette double densité) : {0}."] = 'High-frequency erase of the weak tracks before rewriting them (double-density disk): {0}.'
+$script:I18n["Contrôle après écriture : effacement haute fréquence avant la réécriture {0}/{1} de {2} piste(s) faible(s)..."] = 'Post-write check: high-frequency erase before rewrite {0}/{1} of {2} weak track(s)...'
+# Calibrations (270, New-CalibPass) et mesure sur l image (276)
+$script:I18n["Calibration : disquette double densité, chaque passe efface d'abord en haute fréquence les pistes qu'elle écrit (gw erase --hfreq), puis écrit le motif sans pré-effacement."] = 'Calibration: double-density disk, each pass first erases the tracks it writes with a high-frequency signal (gw erase --hfreq), then writes the pattern without pre-erase.'
+$script:I18n["Mesure sur l'image : disquette double densité, chaque passe commence par un effacement haute fréquence de ses pistes (gw erase --hfreq) ; écritures sans pré-effacement."] = 'Measurement on the image: double-density disk, each pass starts with a high-frequency erase of its tracks (gw erase --hfreq); writes without pre-erase.'
+# Restauration (300 : regles affichees et rapport)
+$script:I18n["Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (calibration rapide), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), effacement avant l'écriture, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original."] = 'Rules applied to the copy: destination disk measured before writing when possible (quick calibration), head-by-head write with the existing drive calibration (per-head calibration if none exists), erase before writing, gw verification, {0} retries per track, check of all tracks (up to {1} rewrite passes), then read-back and comparison with the original.'
+$script:I18n["Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (calibration rapide) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai."] = 'Rules       : read {0} revolutions, {1} retries x {2} series; destination measured before writing when possible (quick calibration); head-by-head write, existing calibration kept (per-head calibration with the fine test if none exists), erase before writing (high-frequency on double density, pre-erase on high density), gw verification, {3} retries per track; check of all tracks, up to {4} rewrite passes; final read-back without retry.'
+# Bouton EFFACER de l onglet Outils (530)
+$script:I18n["L'effacement se fait en haute fréquence (gw erase --hfreq). N'effacez pas en continu une disquette double densité avant de l'écrire, avec un aimant par exemple : écrite ensuite par un lecteur haute densité, elle perdrait de la marge de lecture."] = 'The erase uses a high-frequency signal (gw erase --hfreq). Do not DC-erase a double-density disk before writing it, with a magnet for instance: written afterwards by a high-density drive, it would lose read margin.'
+# Revue 12.8.2 : replis sur le pre-effacement (150 : Get-EraseFallbackNote ; 140 : flux SCP de densite inconnue)
+$script:I18n["Effacement avant l'écriture : broche 2 du lecteur réglée (--densel={0}), que gw erase ne règle pas : pré-effacement de chaque piste (--pre-erase), comme avant."] = 'Erase before writing: drive pin 2 set (--densel={0}), which gw erase does not set: each track is pre-erased (--pre-erase), as before.'
+$script:I18n["Effacement avant l'écriture : densité du flux {0} inconnue (module d'analyse SCP indisponible) : pré-effacement de chaque piste (--pre-erase), comme avant."] = 'Erase before writing: density of flux {0} unknown (SCP analysis module unavailable): each track is pre-erased (--pre-erase), as before.'
+# Revue 12.8.2 : arret de gw apres un effacement (140, 170, 300, 600)
+$script:I18n["Écriture sur une disquette identique à l'original : chaque tête est effacée juste avant son écriture."] = 'Writing to a disk identical to the original: each head is erased just before it is written.'
+$script:I18n["Contrôle après écriture : piste(s) effacée(s) en haute fréquence et non réécrite(s) après l'arrêt de gw : {0}. Elles sont vierges sur la disquette : réécrivez l'image."] = 'Post-write check: track(s) erased with a high-frequency signal and not rewritten after gw stopped: {0}. They are blank on the disk: write the image again.'
+$script:I18n["Pistes de la disquette d'origine effacées et non réécrites : {0}. Leur contenu est dans l'image lue {1} : écrivez cette image sur la disquette pour les rétablir."] = 'Tracks of the original disk erased and not rewritten: {0}. Their content is in the read image {1}: write this image to the disk to restore them.'
+$script:I18n["ERREUR : l'effacement a échoué (« Command Failed » de gw, code 0) : la suite de l'opération n'est pas lancée. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer."] = 'ERROR: the erase failed (gw "Command Failed", code 0): the rest of the operation is not started. Check the drive, the USB cable and the power supply, then retry.'
+$script:I18n["Préchauffage du lecteur {0} arrêté après {1} lectures de suite sans aboutir (Greaseweazle, lecteur ou disquette absent ?) : la calibration commence, sa première commande signalera le défaut s'il persiste."] = 'Drive {0} warm-up stopped after {1} consecutive reads that did not complete (Greaseweazle, drive or disk missing?): the calibration starts, its first command will report the fault if it persists.'
+# Revue 12.8.2 : facteurs mesures d un autre calcul (274 : Get-DriveK, Get-StaleDriveFactors ; 120, 140, 276)
+$script:I18n['k 1 (mesures de ce lecteur faites avec un autre calcul de calibration, à refaire), correction lecteur cible {0}'] = 'k 1 (measurements of this drive made with another calibration calculation, to be redone), target drive correction {0}'
+$script:I18n['k 1, mesures de ce lecteur faites avec un autre calcul de calibration, à refaire'] = 'k 1, measurements of this drive made with another calibration calculation, to be redone'
+$script:I18n["Facteurs de précompensation mesurés sur l'image : {0} mesure(s) du lecteur {1}, faite(s) avec un autre calcul de calibration, ne sont plus appliquées. Après la recalibration du lecteur, refaites une mesure sur l'image ; d'ici là, une écriture sans mesure utilise le facteur 1, plus la correction « lecteur cible »."] = 'Precompensation factors measured on the image: {0} measurement(s) of drive {1}, made with another calibration calculation, are no longer applied. After recalibrating the drive, measure on the image again; until then, a write without measurement uses factor 1, plus the "target drive" correction.'
+# Revue 12.8.2 : durees avec l effacement haute frequence (276, 520, 140)
+$script:I18n["Case « Effacer avant d'écrire » cochée : ces pistes sont effacées en haute fréquence avant chaque passe, durée comprise."] = '"Erase before writing" box checked: these tracks are erased with a high-frequency signal before each pass, included in the duration.'
+$script:I18n["sur l'image à écrire (environ 12 min)"] = 'on the image to write (about 12 min)'
+$script:I18n['complète, au motif (25 à 30 min)'] = 'full, on the test pattern (25 to 30 min)'
+$script:I18n["Mesurer la disquette avant l'écriture lente : précompensation mesurée sur l'image (environ 12 min)"] = 'Measure the disk before the slow write: precompensation measured on the image (about 12 min)'
+$script:I18n["Mesure de la disquette avant une écriture lente.`nSur l'image à écrire : 40 cylindres de l'image sont écrits à 3 niveaux de la courbe du lecteur et relus ; l'image est écrite avec le niveau qui donne la meilleure marge de lecture, pour chaque tête (environ 12 min). Images double densité MFM seulement ; sinon, calibration rapide au motif.`nRapide, au motif : calibration rapide sur le motif de test, 4 à 9 cylindres par tête (1 à 2 min).`nComplète, au motif : mesure complète de cette disquette sur tous ses cylindres (25 à 30 min), puis écriture de l'image ; la courbe obtenue est mémorisée pour la marque de la disquette.`n« Test rapide » et restauration : toujours la calibration rapide au motif."] = "Disk measurement before a slow write.`nOn the image to write: 40 cylinders of the image are written at 3 levels of the drive curve and read back; the image is written with the level that gives the best read margin, for each head (about 12 min). Double-density MFM images only; otherwise, quick calibration on the test pattern.`nQuick, on the test pattern: quick calibration on the test pattern, 4 to 9 cylinders per head (1 to 2 min).`nFull, on the test pattern: full measurement of this disk on all its cylinders (25 to 30 min), then the image is written; the resulting curve is stored for the brand of the disk.`n""Quick test"" and restore: always the quick calibration on the test pattern."
+# --- Textes de la 12.8.2 : zone de l index et stabilite sur tours alignes (S10 a S12) --------------------------------
+# Suite de la table $script:I18n (010-i18n) : cle francaise -> texte anglais, memes regles (placeholders {n} identiques,
+# `n pour les retours a la ligne). Essais du 27/10/2026 : les « erreurs » d une copie saine sont toutes a moins de 0,65 ms
+# de l index (raccord d ecriture de gw et premier intervalle de la lecture) ; le Stab du Sony venait du deplacement de
+# son index. Les anciens textes des infobulles restent dans 010, sans effet (aucun conflit au report en 12.9)
+# Infobulle du tableau de l onglet Qualite (190, Update-QualityTip)
+$script:I18n["État par piste : SAIN / À SURVEILLER / CRITIQUE, d'après les erreurs, les trous, la stabilité et le jitter.`nJitter : SAIN sous {0} ns, À SURVEILLER sous {1} ns (onglet Accueil, « Régler le jitter »).`nCouleurs de la colonne Jitter : <{2} / <{0} / <{3} ns. Asymétrie : <0,02 / <0,05 / <0,10 (couleur et score seulement, sans effet sur l'état).`nErreurs : intervalles hors classe par tour, sans le premier intervalle de la lecture ; en double densité, sans le raccord d'écriture de gw quand il tient dans la zone de ± 1 ms autour de l'index (sauf index simulé ou données dans cette zone) ; les trous sont comptés partout. Stabilité : écart du nombre de flux entre les tours ; en double densité et à partir de 3 tours, comparés alignés sur les mêmes données."] ="Per-track status: HEALTHY / TO WATCH / CRITICAL, from errors, dropouts, stability and jitter.`nJitter: HEALTHY below {0} ns, TO WATCH below {1} ns (Home tab, `"Adjust the jitter`").`nJitter column colours: <{2} / <{0} / <{3} ns. Asymmetry: <0.02 / <0.05 / <0.10 (colour and score only, no effect on the status).`nErrors: out-of-class intervals per revolution, excluding the first interval of the read; in double density, excluding the gw write splice when it fits in the ± 1 ms zone around the index (except with a simulated index or data in that zone); dropouts are counted everywhere. Stability: difference in flux count between revolutions; in double density and from 3 revolutions, compared aligned on the same data."
+# Fenetre « Reglage du jitter » (190, Show-JitterSettings)
+$script:I18n["Le jitter mesure la dispersion des intervalles entre les transitions magnétiques d'une piste, en nanosecondes : plus il est faible, plus la piste est nette.`n`nCes seuils fixent l'état de chaque piste dans l'onglet « Qualité & alignement », dans le contrôle après écriture et dans la restauration. Une piste n'est SAINE que si son jitter est sous le premier seuil, et si ses erreurs, ses trous et sa stabilité sont bons. Au-delà du second seuil, elle est CRITIQUE. Les erreurs ne comptent pas le premier intervalle de la lecture ni, en double densité, le raccord d'écriture de gw dans la zone de ± 1 ms autour de l'index ; en double densité et à partir de 3 tours, la stabilité compare les tours alignés sur les mêmes données.`n`nAprès une écriture avec contrôle de toutes les pistes (écriture lente, restauration), une piste qui n'est pas SAINE est réécrite, dans la limite des passes de réécriture : un réglage plus strict fait réécrire davantage de pistes, donc davantage d'écritures sur la disquette. Le jugement de la disquette d'origine en restauration et le garde-fou (plus de la moitié des pistes faibles : aucune réécriture) gardent les seuils Standard."] = "The jitter measures the spread of the intervals between the magnetic transitions of a track, in nanoseconds: the lower it is, the cleaner the track.`n`nThese thresholds set the state of each track in the `"Quality & alignment`" tab, in the check after writing and in the restore. A track is HEALTHY only if its jitter is below the first threshold, and if its errors, dropouts and stability are good. Above the second threshold, it is CRITICAL. Errors count neither the first interval of the read nor, in double density, the gw write splice in the ± 1 ms zone around the index; in double density and from 3 revolutions, stability compares revolutions aligned on the same data.`n`nAfter a write with all tracks checked (slow write, restore), a track that is not HEALTHY is rewritten, within the rewrite passes: a stricter setting rewrites more tracks, hence more writes on the disk. Judging the original disk during a restore and the safeguard (more than half of the tracks weak: no rewrite) keep the Standard thresholds."
+# Infobulle de la carte de resultat (195, Get-QualityCardModel)
+$script:I18n["État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter. Erreurs comptées sans le premier intervalle de la lecture ni, en double densité, le raccord d'écriture dans la zone de ± 1 ms autour de l'index ; stabilité mesurée sur des tours alignés (double densité, 3 tours ou plus).`nIndépendant du contenu : comparable d'une disquette à l'autre."] = "Media condition: based only on errors, signal dropouts, revolution-to-revolution stability and jitter. Errors counted without the first interval of the read or, in double density, the write splice in the ± 1 ms zone around the index; stability measured on aligned revolutions (double density, 3 revolutions or more).`nContent-independent: comparable from one disk to another."
+# Journal : controle apres ecriture (170, Invoke-WriteCheckAnalysis) et mesure de l onglet Qualite (190, Invoke-AlignAnalysis)
+$script:I18n["Contrôle après écriture : {0} intervalle(s) hors classe du raccord d'écriture de gw, dans la zone de ± 1 ms autour de l'index (jusqu'à {2} ms), non compté(s), sur {1} piste(s) relue(s) en 3 tours."] = 'Post-write check: {0} out-of-class interval(s) of the gw write splice, in the ± 1 ms zone around the index (up to {2} ms), not counted, on {1} track(s) read back over 3 revolutions.'
+$script:I18n["Contrôle après écriture : index simulé (--fake-index), la zone de l'index est comptée comme le reste de la piste."] = 'Post-write check: simulated index (--fake-index), the index zone is counted like the rest of the track.'
+$script:I18n["Mesure : {0} intervalle(s) hors classe du raccord d'écriture, dans la zone de ± 1 ms autour de l'index (jusqu'à {2} ms), non compté(s), sur {1} piste(s)."] = 'Measurement: {0} out-of-class interval(s) of the write splice, in the ± 1 ms zone around the index (up to {2} ms), not counted, on {1} track(s).'
+# Revue 12.8.2 : pistes sans tours alignes (repli sur l ecart du nombre de flux), echec du post-traitement (Read-ScpFile),
+# infobulle « Tours » de l onglet Qualite (530 ; l ancien texte reste dans 010, sans effet)
+$script:I18n["Contrôle après écriture : stabilité de {0} piste(s) jugée sur l'écart du nombre de flux entre les tours, faute de repère commun pour les aligner : {1}."] = 'Post-write check: stability of {0} track(s) judged on the difference in flux count between revolutions, for lack of a common landmark to align them: {1}.'
+$script:I18n["Mesure : stabilité de {0} piste(s) jugée sur l'écart du nombre de flux entre les tours, faute de repère commun pour les aligner : {1}."] = 'Measurement: stability of {0} track(s) judged on the difference in flux count between revolutions, for lack of a common landmark to align them: {1}.'
+$script:I18n["Analyse SCP : calcul 12.8.2 des erreurs et de la stabilité en échec sur {0} piste(s), jugée(s) comme dans les versions précédentes : {1}"] = 'SCP analysis: 12.8.2 calculation of errors and stability failed on {0} track(s), judged as in previous versions: {1}'
+$script:I18n["Tours lus par piste : 3 suffit, 5 pour une disquette douteuse. En double densité et à partir de 3 tours, la stabilité compare des tours alignés ; avec 2, elle compare le nombre de flux de chaque tour, que l'index de certains lecteurs fait varier."] = 'Revolutions read per track: 3 is enough, 5 for a doubtful disk. In double density and from 3 revolutions, stability compares aligned revolutions; with 2, it compares the flux count of each revolution, which the index of some drives makes vary.'
+# Verification du 27/10/2026 (decision de l utilisateur, Copylock) : pistes deja hors norme par leurs erreurs dans la source
+# (original en restauration, image SCP), ignorees au controle de la copie (170, Invoke-WriteCheckAnalysis et
+# Complete-WriteCheck)
+$script:I18n["Contrôle : {0} piste(s) déjà hors norme dans l'original, non réécrite(s) : {1}"] = 'Check: {0} track(s) already out of spec in the original, not rewritten: {1}'
+$script:I18n[", {0} piste(s) déjà hors norme dans l'original non comptée(s) : {1}"] = ', {0} track(s) already out of spec in the original not counted: {1}'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 try { Add-Type -AssemblyName System.IO.Compression.FileSystem } catch { }
@@ -2778,6 +2853,9 @@ $script:AlignPrev   = $null
 $script:AlignTmp    = $null
 $script:AlignLast   = $null     # derniere mesure : cle 'cyl.tete' -> @{Score;Jitter;Asym;Err;Stab;Cell}
 $script:GwIsWrite   = $false    # le gw en cours est un 'write' : on capture les retries de verification
+$script:GwIsErase   = $false    # 12.8.2 : le gw en cours est un 'erase' (pistes effacees, « Command Failed » avec le code 0)
+$script:GwCmdFailed = $false    # 12.8.2 : « Command Failed » d un gw erase en cours (Get-GwEndRule)
+$script:EraseLog    = $null     # 12.8.2 : pistes effacees et ecrites de l operation en cours (Start-ImageWrite, 170)
 $script:GwSoft      = $false    # le gw en cours est une lecture de prechauffage : code retour et piste manquante sans effet
 $script:GwLastCode  = 0         # code retour du dernier gw termine (prechauffage)
 $script:GwLastIncomplete = $false   # dernier gw termine avec le code 0 mais incomplet (prechauffage)
@@ -2814,7 +2892,68 @@ $script:JitterStdOk = 120
 $script:JitterStdWatch = 250
 $script:JitterOk = $script:JitterStdOk              # jitter (ns) sous lequel une piste peut etre SAINE (reglage de l Accueil)
 $script:JitterWatch = $script:JitterStdWatch        # jitter (ns) sous lequel une piste est au plus A SURVEILLER, CRITIQUE au-dela
+# 12.8.2 (decision du 27/10/2026) : erreurs par tour (hors classe) au plus pour l etat SAIN de Get-HealthLevel, partout ou
+# il juge : onglet Qualite, controle apres ecriture et son garde-fou, source SCP de l ecriture, original en restauration,
+# detection du format ; couleur de la colonne Erreurs (Get-AlLevel). 3 jusqu en 12.8.1 : le raccord d ecriture et le
+# premier intervalle de la lecture, qui valaient environ 1 erreur par tour, ne comptent plus (S10, S11) ; 2 garde a peu
+# pres la sensibilite de la 12.8.1 aux defauts des donnees. Une piste de la source au-dela n est pas reecrite par le
+# controle de la copie (Test-SrcOverErr). Ni la calibration, ni le controle de surface, ni les courbes n utilisent
+# Get-HealthLevel (CalSurfOocFloor, 560 : borne CRITIQUE de 20, inchangee).
+$script:HealthErrOk = 2
 $script:AlignRefLabel = ''
+# 12.8.2 (S11) : zone de l index (Read-ScpFile, Set-ScpTrackPost). gw ecrit les images ADF et a secteurs d index a index
+# (« Terminate at index ») : la jonction d ecriture tombe sur l index, dans l espace entre le dernier et le premier
+# secteur (sources gw 1.23 : AmigaDOS DD, 2 048 cellules de vide apres l index, 4,0 ms, et 3 552 avant, 7,0 ms ; ibm.360
+# et ibm.720, IAM a 2,94 ms et premier IDAM a 5,1 ms, dernier secteur fini 8,5 ms avant l index, 3,0 ms pour ibm.800 ;
+# atarist.720 a 880, sans IAM, premier sync a 2,8 ms au moins, dernier secteur fini 3,1 ms au moins avant l index ; IPF
+# Speedball 2 : premier sync a 4,7 ms). Relue par un autre lecteur, elle se decale de la position de son capteur d index
+# (TEAC : 0,2 a 0,64 ms apres l index ; Sony qui a ecrit : jusqu a 28 us apres, 6 us avant ; essais du 27/10/2026). 1,0 ms
+# de part et d autre couvre ce decalage et reste a 1,8 ms au moins des secteurs (1,1 ms avec le decalage du TEAC). Hors
+# de cette hypothese (verification du 27/10/2026) : les formats gw a petit gap apres l index (coco.* et dragon.*, synchro
+# a 1,4 ms ; ensoniq.mirage, IAM a 1,0 ms ; tsc.flex, synchro a 0,9 ms), dont le premier en-tete peut entrer dans la
+# zone relue par un autre lecteur : garde par synchro ci-dessous.
+# Les trous de signal restent comptes partout, premier intervalle compris (jamais vus au raccord).
+# Garde-fous (revue du 27/10/2026), piste par piste : zone ecartee seulement si celle du tour 0 ne contient pas de donnees
+# (Test-ScpZoneData : le raccord n est pas a l index pour une image IPF dont le raccord est ailleurs, un SCP avec bloc
+# WRSP, un original non cale sur l index ou ecrit par un Amiga, un index simule) ; par tour et par bout, hors classe
+# ecartes seulement s ils forment une seule grappe de ScpIdxClusterMax intervalles au plus, du debut du premier a la fin
+# du dernier en ScpIdxClusterNs au plus (raccord mesure sur 30 lectures : 12 us et 4 intervalles au plus sur les copies
+# gw, 38 us et 11 intervalles sur les originaux de duplicateur ; 60 us et 100 us y donnent les memes comptes) ; sinon tous
+# sont comptes (defaut du support a l index). Verification du 27/10/2026 (Get-ScpZoneOoc) : une grappe prolongee au-dela
+# de la zone (hors classe a ScpIdxClusterNs au plus de sa fin) fait compter le bout ; des grappes aux deux bouts d un
+# meme tour (de part et d autre de l index) ne sont ecartees qu a ScpIdxClusterMax intervalles et ScpIdxClusterNs de
+# distance cumulee a l index au plus (raccord du Sony a cheval : 4 intervalles et 34 us au plus) ; 0 changement sur les
+# 30 lectures d essai.
+$script:ScpIdxZoneNs = 1000000
+$script:ScpIdxClusterNs = 60000
+$script:ScpIdxClusterMax = 12
+# Garde par synchro (verification du 27/10/2026, Test-ScpZoneSync) : zone aussi jugee « avec donnees » si le tour 0
+# contient la double synchro MFM 0x4489 (classes ScpIdxSync : AmigaDOS, IBM et Atari MFM) qui commence a moins de
+# ScpIdxZoneNs apres l index, ou a moins de ScpIdxSyncBeforeNs avant la fin du tour 0 (secteur a cheval sur l index) : un
+# defaut dans le seul bloc riche de la zone, ou un secteur a donnees uniformes (zeros) a cheval sur l index, ne la font
+# plus prendre pour du vide. Un secteur AmigaDOS dure 17,4 ms ; la derniere synchro d une copie gw est a 20,6 ms au moins
+# de l index (30 lectures d essai), celle d ibm.800 et d atarist.880 a 19,5 ms environ : une erreur de ce cote compte la
+# zone (fausse alerte possible), elle ne masque rien.
+$script:ScpIdxSync = '3434324343'
+$script:ScpIdxSyncBeforeNs = 18500000
+# Tour de moins de 100 ms (plus de 600 tr/min) : plusieurs index par rotation (disque a secteurs durs lu sans
+# --hard-sectors) : ni zone de l index, ni tours alignes
+$script:ScpIdxMinRevNs = 100000000
+# 12.8.2 (S12) : stabilite sur tours alignes, a partir de 3 tours (avec 2 tours, un seul compte de B a A : une variation
+# a travers l index serait invisible ; ecart du nombre de flux, comme avant). Classes calculees sur ScpPostWin
+# intervalles a chaque bout du tour 0 (ancres, zone de l index ; tout le tour au besoin) et sur ScpRevWin a chaque bout
+# des autres tours (zone de l index et recherche des ancres, environ 9 ms en double densite ; segment classe a part
+# au-dela) ; tout le tour si les ScpZoneWin intervalles d un bout durent moins de ScpIdxZoneNs (512 intervalles : plus de
+# 2 ms en double densite). Ancre : Len intervalles consecutifs (comme les blocs de ScpStats.Instability), cherchee a
+# +/- Win puis +/- Win2 de sa position attendue (le deplacement de l index est de quelques flux ; Win2 : celui du C#),
+# Tries positions essayees et Cand candidats au plus par bout du tour 0. Donnees dans la zone de l index (meme critere de
+# bloc, moities uniques aussi) : pas de ZoneStep intervalles apres un bloc trop uniforme, de Len / 2 apres un motif
+# periodique, ZoneTries blocs au plus par bout.
+$script:ScpPostWin = 4096
+$script:ScpRevWin = 2048
+$script:ScpZoneWin = 512
+$script:ScpAnchor = @{ Len = 32; Win = 64; Win2 = 600; Tries = 128; Cand = 4; ZoneStep = 4; ZoneTries = 96 }
+$script:ScpPostFail = $null                         # echecs du post-traitement d un fichier (Read-ScpFile, Set-ScpTrackPost)
 
 # --- Reglages a source unique (12.8, point 7) ----------------------------------
 # Un reglage modifiable depuis plusieurs interfaces, ou enregistre dans la configuration, est defini ici une seule fois :
@@ -3901,6 +4040,9 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
     $script:GwVerifyFail = $null
     if ($script:GwIsWrite) { $script:WriteRetries = @{}; $script:WriteTracks = @{} }
     $script:GwWriteSummary = $false
+    # Revue 12.8.2 : gw erase 1.23 intercepte l erreur du Greaseweazle, imprime « Command Failed: ... » et rend le code 0
+    # (tools/erase.py) : drapeau pose par Read-GwOutput, lu par la regle de fin (Get-GwEndRule : commande incomplete)
+    $script:GwIsErase = ($first -eq 'erase'); $script:GwCmdFailed = $false
     $driveKey = if ($script:Detect) { $null } else { Get-GwDriveKey $gwArgs }
     if ($chkTime.Checked) { $gwArgs = @('--time') + $gwArgs }
     $argLine = $gwArgs -join ' '
@@ -3999,7 +4141,10 @@ function Read-GwOutput([bool]$flush) {
                 $k = "$($Matches[1]).$($Matches[2])"; $n = [int]$Matches[3]
                 if (-not $script:WriteRetries.ContainsKey($k) -or $n -gt $script:WriteRetries[$k]) { $script:WriteRetries[$k] = $n }
             }
-            if ($l -match '^T(\d+)\.(\d+)\b[^:]*: Writing Track') { $script:WriteTracks["$($Matches[1]).$($Matches[2])"] = $true }
+            if ($l -match '^T(\d+)\.(\d+)\b[^:]*: Writing Track') {
+                $script:WriteTracks["$($Matches[1]).$($Matches[2])"] = $true
+                if ($script:EraseLog) { $script:EraseLog.Written["$($Matches[1]).$($Matches[2])"] = $true }   # 12.8.2 (Start-ImageWrite, 170)
+            }
             if ($l -match '^(All tracks verified|No tracks verified|\d+ tracks verified)') { $script:GwWriteSummary = $true }
         }
         # 12.8.1 (A.7) : gw 1.23 arrete la commande sur une piste refusee a la verification apres les nouveaux essais
@@ -4008,18 +4153,29 @@ function Read-GwOutput([bool]$flush) {
         $vs = Get-GwVerifyStop $lines
         if ($vs -and -not $script:GwVerifyFail) { $script:GwVerifyFail = $vs }
     }
+    if ($script:GwIsErase) {
+        # Revue 12.8.2 : gw erase imprime « Tc.h: Erasing Track » avant d effacer chaque piste (pistes logiques, comme
+        # « Writing Track ») : pistes touchees par l effacement de l operation en cours (EraseLog) ; « Command Failed » :
+        # echec avec le code 0
+        foreach ($l in $lines) {
+            if ($l -match '^Command Failed') { $script:GwCmdFailed = $true }
+            elseif ($script:EraseLog -and $l -match '^T(\d+)\.(\d+)\b[^:]*: Erasing Track') { $script:EraseLog.Erased["$($Matches[1]).$($Matches[2])"] = $true }
+        }
+    }
     if ($lines.Count -gt 0) { Append-Log ($lines -join [Environment]::NewLine) }
 }
 
-function Get-GwEndRule([int]$code, [bool]$soft, [bool]$isWrite, [bool]$summary, [int]$progTotal, [int]$progSeen, $verifyFail, [string]$calMode) {
+function Get-GwEndRule([int]$code, [bool]$soft, [bool]$isWrite, [bool]$summary, [int]$progTotal, [int]$progSeen, $verifyFail, [string]$calMode, [bool]$cmdFailed = $false) {
     # Regle de fin d une commande gw (minuteur principal, 600), sans etat : arguments releves par le minuteur apres le
     # dernier Read-GwOutput. Soft : lecture de prechauffage ($soft), ou 12.8.1 (spec-1281.md § A.7) ecriture de la mesure
     # sur l image ($calMode 'content') arretee sur une piste refusee a la verification ($verifyFail, Read-GwOutput), quel
     # que soit le code retour (1 en gw 1.23 ; 0 admis : revue 12.8.1, point 1). Incomplete : arret silencieux avec le code 0
     # (ecriture sans ligne de bilan ; autre commande : moins de la moitie des pistes annoncees), sans effet si Soft.
-    # Next : etape suivante de la chaine (code 0 ou Soft)
+    # Next : etape suivante de la chaine (code 0 ou Soft). Revue 12.8.2 : $cmdFailed, gw erase arrete par « Command
+    # Failed » avec le code 0 (Read-GwOutput) : incomplete quel que soit le nombre de pistes vues (effacement d une ou deux
+    # pistes, ou echec sur la derniere) ; l ecriture qui suit n est pas lancee
     if (-not $soft -and $isWrite -and $verifyFail -and $calMode -eq 'content') { $soft = $true }
-    $inc = if ($isWrite) { $code -eq 0 -and -not $summary } else { $code -eq 0 -and $progTotal -gt 0 -and $progSeen * 2 -lt $progTotal }
+    $inc = if ($isWrite) { $code -eq 0 -and -not $summary } else { $code -eq 0 -and (($progTotal -gt 0 -and $progSeen * 2 -lt $progTotal) -or $cmdFailed) }
     return @{ Soft = $soft; Incomplete = [bool]$inc; Next = ($code -eq 0 -or $soft) }
 }
 # ============================== FONCTIONS : CONFIGURATION ======================
@@ -4248,6 +4404,19 @@ function Update-LegacyLevelMode($cfg) {
     Append-Log (T "Mesure de la disquette avant l'écriture lente : la liste « Mesure : » passe de « rapide » à « sur l'image à écrire », la nouvelle mesure de la version 12.8.1. Pour revenir à la calibration rapide, choisissez « rapide, au motif ».")
 }
 
+function Update-LegacyEraseMode($cfg) {
+    # 12.8.2 : case « Effacer avant d ecrire » (write.preErase, auparavant « Pre-effacer chaque piste »). Configuration
+    # d une version anterieure (section write sans le marqueur eraseMode = 'hfreq') avec la case decochee : son sens
+    # change (double densite : effacement haute frequence, et non plus pre-effacement en continu), elle est recochee une
+    # fois, ligne de journal ; Save-Config ecrit le marqueur, le choix suivant de l utilisateur est garde. Load-Config,
+    # apres la lecture de la case
+    $w = Get-Cfg $cfg 'write' $null
+    if ($null -eq $w -or [string](Get-Cfg $w 'eraseMode' '') -eq 'hfreq') { return }
+    if ($chkWPreErase.Checked) { return }
+    $chkWPreErase.Checked = $true
+    Append-Log (T "Case « Effacer avant d'écrire » (auparavant « Pré-effacer chaque piste ») recochée, une seule fois : son effet change dans cette version. Sur une disquette double densité, elle efface désormais les pistes en haute fréquence avant l'écriture, au lieu du pré-effacement en continu qui coûtait de la marge de lecture ; en haute densité, elle pré-efface comme avant. Décochez-la de nouveau si vous ne voulez aucun effacement avant l'écriture.")
+}
+
 function Test-ContentLevelSettings($cfg) {
     # 12.8.1 (spec-1281 § A.4) : niveaux moyen et bas de la mesure sur l image (contentKMid, contentKLow, configuration
     # seulement) controles ensemble au chargement : valeurs lisibles et dans les bornes de la table, et bas <= moyen - 0,2 ;
@@ -4361,7 +4530,7 @@ function Set-Defaults {
     $txtRsDir.Text = ''; $txtRsName.Text = ''
     Update-RsRules; Reset-RsSteps; Update-RsFmtFound
     $cmbHelpAct.SelectedItem = 'write'
-    $txtC.Text = 'write --pre-erase --erase-empty --retries=10 --precomp 40=140 "jeu.ipf"'
+    $txtC.Text = 'write --erase-empty --retries=10 --precomp 40=140 "jeu.ipf"'   # 12.8.2 : sans --pre-erase (disquette double densite)
     Update-CurveButton $txtWFile.Text
     # 12.8.1 (spec-1281 § D.2) : champs de la correction « lecteur cible » du lecteur du bandeau (valeurs par lecteur,
     # gardees comme les calibrations : $script:TargetCorr n est pas remis)
@@ -4456,6 +4625,7 @@ function Save-Config {
         write    = @{
             file = $txtWFile.Text; format = $cmbWFmt.Text
             preErase = [bool]$chkWPreErase.Checked; eraseEmpty = [bool]$chkWEraseEmpty.Checked
+            eraseMode = 'hfreq'                # 12.8.2 : marqueur de migration de la case (Update-LegacyEraseMode)
             noVerify = [bool]$chkWNoVerify.Checked; reverse = [bool]$chkWReverse.Checked
             hardSectors = [bool]$chkWHard.Checked; genTg43 = [bool]$chkWTG43.Checked
             retries = [int]$numWRetries.Value
@@ -4570,6 +4740,7 @@ function Load-Config {
     $txtWFile.Text = [string](Get-Cfg $w 'file' '')
     Set-Combo $cmbWFmt (Get-Cfg $w 'format' '(auto)')
     $chkWPreErase.Checked   = [bool](Get-Cfg $w 'preErase' $true)
+    Update-LegacyEraseMode $cfg                # 12.8.2 : case decochee d une version anterieure recochee une fois
     $chkWEraseEmpty.Checked = [bool](Get-Cfg $w 'eraseEmpty' $true)
     $chkWNoVerify.Checked   = [bool](Get-Cfg $w 'noVerify' $false)
     $chkWReverse.Checked    = [bool](Get-Cfg $w 'reverse' $false)
@@ -4644,6 +4815,10 @@ function Load-Config {
     $tcr = ConvertFrom-TargetCorrConfig @(Get-Cfg $w 'targetCorrection' @())
     $script:TargetCorr = $tcr.Map
     if ($cmBad -gt 0 -or [int]$tcr.Bad -gt 0) { Append-Log ((T 'Configuration : {0} facteur(s) mesuré(s) illisible(s), ignoré(s) ; {1} correction(s) lecteur cible illisible(s), ignorée(s) ou comptée(s) 0.') -f "$cmBad", "$($tcr.Bad)") }
+    # Revue 12.8.2 : facteurs d un autre calcul qui ne s appliquent plus (aucune mesure du calcul actuel pour ce lecteur,
+    # cette famille et cette tete, Get-StaleDriveFactors) : une ligne a chaque demarrage, jusqu a une nouvelle mesure
+    $sdf = Get-StaleDriveFactors
+    if ([int]$sdf.N -gt 0) { Append-Log ((T "Facteurs de précompensation mesurés sur l'image : {0} mesure(s) du lecteur {1}, faite(s) avec un autre calcul de calibration, ne sont plus appliquées. Après la recalibration du lecteur, refaites une mesure sur l'image ; d'ici là, une écriture sans mesure utilise le facteur 1, plus la correction « lecteur cible ».") -f "$($sdf.N)", ((@($sdf.Drives)) -join ', ')) }
     $script:OldCalib = $null
     $calPurged = $lostProf
     if ($old.Count -gt 0) {
@@ -7399,7 +7574,7 @@ function Update-SlowUi {
     # mesure sur l image a ecrire (defaut) : texte propre
     $lm = [string](Get-Setting 'levelBeforeWriteMode')
     $full = ($lm -eq 'complete')
-    $chkWLevel.Text = if ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } elseif ($lm -eq 'content') { (T "Mesurer la disquette avant l'écriture lente : précompensation mesurée sur l'image (environ 10 min)") } elseif ($full) { (T "Mesurer la disquette avant l'écriture lente : précompensation et état de la surface") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
+    $chkWLevel.Text = if ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } elseif ($lm -eq 'content') { (T "Mesurer la disquette avant l'écriture lente : précompensation mesurée sur l'image (environ 12 min)") } elseif ($full) { (T "Mesurer la disquette avant l'écriture lente : précompensation et état de la surface") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
     $chkWLevel.Enabled = ($on -and -not $quick)
     # 12.8 (S3) : liste du mode de la mesure (rapide ou complete) : active en ecriture lente quand la disquette est mesuree
     # (case cochee, ou verrouillee au « Test rapide »)
@@ -7435,13 +7610,14 @@ function Start-ImageWrite([switch]$NoWarmup) {
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     # Image flux a plusieurs tours : pistes dont le contenu change d un tour a l autre (bits faibles d une protection),
     # que gw ne reproduit pas (il n ecrit que le premier tour) : avertissement, confirmation, pas de reecriture au controle
-    $script:ImageUnstable = $null; $script:ImageSrcWeak = $null; $script:ImageNoJudge = $null; $script:ImageScpFailed = $false
+    $script:ImageUnstable = $null; $script:ImageSrcWeak = $null; $script:ImageNoJudge = $null; $script:ImageScpFailed = $false; $script:ImageSrcOver = $null
     if (-not $script:Restore -and $script:ScpStatsOk -and [System.IO.Path]::GetExtension($txtWFile.Text).ToLower() -eq '.scp') {
-        # Analyse (quelques secondes pour un flux complet) mise en cache par fichier, taille et date
-        $uk = @{}; $ck = @{}; $nj = @{}; $failed = $false
+        # Analyse (quelques secondes pour un flux complet) mise en cache par fichier, taille et date. 12.8.2 (decision du
+        # 27/10/2026) : $ov, pistes deja hors norme par leurs erreurs (Test-SrcOverErr), ni reecrites ni comptees au controle
+        $uk = @{}; $ck = @{}; $nj = @{}; $ov = @{}; $failed = $false
         $fi = Get-Item -LiteralPath $txtWFile.Text
         $ckey = "$($fi.FullName)|$($fi.Length)|$($fi.LastWriteTimeUtc.Ticks)"
-        if ($script:ScpWeakCache -and $script:ScpWeakCache.Key -eq $ckey) { $uk = $script:ScpWeakCache.Weak.Clone(); $ck = $script:ScpWeakCache.Crit.Clone(); $nj = $script:ScpWeakCache.NoJudge.Clone(); $failed = [bool]$script:ScpWeakCache.Failed }
+        if ($script:ScpWeakCache -and $script:ScpWeakCache.Key -eq $ckey -and $null -ne $script:ScpWeakCache.Over) { $uk = $script:ScpWeakCache.Weak.Clone(); $ck = $script:ScpWeakCache.Crit.Clone(); $nj = $script:ScpWeakCache.NoJudge.Clone(); $ov = $script:ScpWeakCache.Over.Clone(); $failed = [bool]$script:ScpWeakCache.Failed }
         else {
             $oldTxt = $stOp.Text; $stOp.Text = (T "Analyse de l'image flux..."); $status.Refresh()
             $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
@@ -7453,11 +7629,12 @@ function Start-ImageWrite([switch]$NoWarmup) {
                     # Image jugee aux seuils Standard, comme un original en restauration
                     $lv = if ($m.Bad) { 2 } else { Get-HealthLevel $m.Ooc $m.Dr $m.Stab $m.J $script:JitterStdOk $script:JitterStdWatch }
                     if ($m.Weak) { $uk[$key] = $true } elseif ($lv -ge 2) { $ck[$key] = $true }
+                    elseif (Test-SrcOverErr $m) { $ov[$key] = $true }
                     # Courte zone instable (raccord ou protection) ou stabilite non mesurable (un seul tour, densite) : une
                     # zone instable relue sur la copie n y sera pas jugee
                     elseif ($m.ShortUnstable -or $m.Blocks -eq 0) { $nj[$key] = $true }
                 }
-                $script:ScpWeakCache = @{ Key = $ckey; Weak = $uk.Clone(); Crit = $ck.Clone(); NoJudge = $nj.Clone(); Failed = $false }
+                $script:ScpWeakCache = @{ Key = $ckey; Weak = $uk.Clone(); Crit = $ck.Clone(); NoJudge = $nj.Clone(); Over = $ov.Clone(); Failed = $false }
             } catch { $failed = $true } finally { $form.Cursor = [System.Windows.Forms.Cursors]::Default; $stOp.Text = $oldTxt }
         }
         if ($uk.Count -gt 0) {
@@ -7473,9 +7650,9 @@ function Start-ImageWrite([switch]$NoWarmup) {
             Append-Log ((T "Image flux : {0} piste(s) déjà critique(s) ou illisible(s) dans l'image ({1}) : piste non formatée, protection ou défaut de l'original. gw en écrit le premier tour tel quel : ces pistes ne sont ni réécrites ni comptées par le contrôle.") -f "$($ck.Count)", "$(Format-TrackList (Sort-TrackKeys @($ck.Keys)))")
         }
         $ign = @{}
-        foreach ($k in @(@($uk.Keys) + @($ck.Keys))) { $ign[[string]$k] = $true }
+        foreach ($k in @(@($uk.Keys) + @($ck.Keys) + @($ov.Keys))) { $ign[[string]$k] = $true }
         if ($ign.Count -gt 0) { $script:ImageUnstable = $ign }
-        $script:ImageSrcWeak = $uk; $script:ImageNoJudge = $nj; $script:ImageScpFailed = $failed
+        $script:ImageSrcWeak = $uk; $script:ImageNoJudge = $nj; $script:ImageScpFailed = $failed; $script:ImageSrcOver = $ov
     }
     $slow = $chkWSlow.Checked
     $userTs = $txtWTracks.Text.Trim()
@@ -7499,10 +7676,36 @@ function Start-ImageWrite([switch]$NoWarmup) {
             }
         }
     }
+    # 12.8.2 : case « Effacer avant d ecrire » (150, Get-EraseMode). Disquette double densite : effacement haute frequence
+    # des pistes ecrites par l operation (Get-WriteEraseKeys, memes elements du champ Pistes), commandes gw erase --hfreq en
+    # tete de la file WriteQueue, avant la premiere ecriture (apres le prechauffage de l ecriture lente), puis ecriture
+    # sans --pre-erase ; pistes inconnues : pre-effacement, comme avant. Haute densite, flux SCP de densite inconnue,
+    # secteurs durs, TG43, --densel : --pre-erase, comme en 12.8.1. Case decochee : aucun effacement.
+    # Revue 12.8.2 : $em, effacement de l ecriture (repli 'pre' si ses pistes sont inconnues) ; $emCheck, effacement des
+    # reecritures du controle apres ecriture (New-WriteCheck) : selon la densite et les options de lecteur seules, les
+    # pistes faibles etant toujours connues. EraseLog : pistes effacees et ecrites par l operation (Read-GwOutput), pour
+    # signaler celles qui restent effacees apres un arret (Fail-Restore)
+    $hdImg = Test-ImageHighDensity $txtWFile.Text $cmbWFmt.Text
+    $emCheck = Get-EraseMode $hdImg
+    $em = $emCheck
+    $eraseKeys = $null; $eraseCmds = @(); $script:EraseLog = $null
+    if ($chkWPreErase.Checked -and $em -eq 'hfreq') {
+        $eraseKeys = Get-WriteEraseKeys $txtWFile.Text $cmbWFmt.Text $userTs ([int[]]$heads)
+        if ($null -eq $eraseKeys) {
+            $em = 'pre'
+            Append-Log ((T "Effacement avant l'écriture : pistes de l'image {0} inconnues, l'effacement haute fréquence ne peut pas les viser : pré-effacement de chaque piste (--pre-erase), comme avant.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))")
+        } else {
+            $eraseCmds = New-HfreqEraseCmds $eraseKeys (Get-TSpecExtras $userTs)
+            if (@($eraseCmds).Count -gt 0) { $script:EraseLog = @{ Owner = 'write'; Round = 0; Erased = @{}; Written = @{} } }
+        }
+    } elseif ($chkWPreErase.Checked) {
+        if (Test-ScpDensityUnknown $txtWFile.Text) { Append-Log ((T "Effacement avant l'écriture : densité du flux {0} inconnue (module d'analyse SCP indisponible) : pré-effacement de chaque piste (--pre-erase), comme avant.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))") }
+        elseif (-not $hdImg) { $fb = Get-EraseFallbackNote; if ($fb) { Append-Log $fb } }
+    }
     # $base : toutes les options sauf --tracks et l image (reprises telles quelles par les reecritures ciblees) ;
     # en ecriture lente, sans --precomp : chaque tete a sa commande et sa valeur
     $base = @('write') + (Get-CommonArgs)
-    if ($chkWPreErase.Checked)   { $base += '--pre-erase' }
+    if ($chkWPreErase.Checked -and $em -ne 'hfreq') { $base += '--pre-erase' }
     if ($chkWEraseEmpty.Checked) { $base += '--erase-empty' }
     if ($chkWNoVerify.Checked)   { $base += '--no-verify' }
     $base += "--retries=$($numWRetries.Value)"
@@ -7549,6 +7752,16 @@ function Start-ImageWrite([switch]$NoWarmup) {
     $a += "`"$($txtWFile.Text)`""
     $headPc = $null
     $script:WriteQueue.Clear()
+    # 12.8.2 : effacement haute frequence en tete de la file (Invoke-WriteQueueNext), avant toute ecriture. Revue 12.8.2 :
+    # ecriture lente sur une disquette identique a l original (restauration, « Ecraser quand meme ») : chaque tete est
+    # effacee juste avant son ecriture (un arret de gw n expose que la tete en cours ; Fail-Restore cite les pistes restees
+    # effacees)
+    $perHead = ($slow -and $script:Restore -and $script:Restore.OnOriginal -and @($eraseCmds).Count -gt 0)
+    if (-not $perHead) { foreach ($ec in $eraseCmds) { $script:WriteQueue.Enqueue([string[]]$ec) } }
+    if (@($eraseCmds).Count -gt 0) {
+        Append-Log ((T "Effacement haute fréquence avant l'écriture (disquette double densité, lecteur {0}) : pistes {1}, puis écriture sans pré-effacement.") -f "$($cmbDrive.Text)", (Format-EraseTracks $eraseCmds))
+        if ($perHead) { Append-Log (T "Écriture sur une disquette identique à l'original : chaque tête est effacée juste avant son écriture.") }
+    }
     if ($slow) {
         # Ecriture lente : tete 0 sur tout le disque, puis tete 1 (gw applique --precomp par cylindre seulement).
         # Les champs correspondent aux tetes physiques (calibration) ; hswap : la tete logique h est ecrite par la tete 1 - h.
@@ -7556,6 +7769,10 @@ function Start-ImageWrite([switch]$NoWarmup) {
         $headPc = @{}; $headPcRaw = @{}
         foreach ($h in 0, 1) { $phys = if ($swap) { 1 - $h } else { $h }; $headPc[$h] = if ($phys -eq 0) { $pc0 } else { $pc1 }; $headPcRaw[$h] = if ($phys -eq 0) { $pc0Raw } else { $pc1Raw } }
         foreach ($h in $heads) {
+            if ($perHead) {
+                $hk = @(@($eraseKeys) | Where-Object { ([string]$_ -split '\.')[1] -eq "$h" })
+                foreach ($ec in (New-HfreqEraseCmds $hk (Get-TSpecExtras $userTs))) { $script:WriteQueue.Enqueue([string[]]$ec) }
+            }
             $cmd = @($base); if ($headPc[$h]) { $cmd += '--precomp'; $cmd += $headPc[$h] }
             $script:WriteQueue.Enqueue([string[]]($cmd + @("--tracks=$(Set-TSpecHead $userTs $h)", "`"$($txtWFile.Text)`"")))
         }
@@ -7579,14 +7796,15 @@ function Start-ImageWrite([switch]$NoWarmup) {
     if ($post -and -not $blocker) {
         # Options de lecteur reprises par les relectures de controle (gw read les accepte toutes)
         $readOpts = @(Get-DriveReadArgs)
-        New-WriteCheck $base $txtWFile.Text $userTs ([int]$numWRepair.Value) $readOpts $headPc
+        New-WriteCheck $base $txtWFile.Text $userTs ([int]$numWRepair.Value) $readOpts $headPc $emCheck
         if ($script:ImageUnstable) { $script:Rep.Ignore = $script:ImageUnstable }
-        $script:Rep.SrcWeak = $script:ImageSrcWeak; $script:Rep.NoJudge = $script:ImageNoJudge
+        $script:Rep.SrcWeak = $script:ImageSrcWeak; $script:Rep.NoJudge = $script:ImageNoJudge; $script:Rep.SrcOver = $script:ImageSrcOver
         # SCP non analyse (module absent, restauration : voir Start-RestoreWrite) ou analyse en echec : rien n est juge
         if ([System.IO.Path]::GetExtension($txtWFile.Text).ToLower() -eq '.scp' -and ($script:ImageScpFailed -or ((-not $script:Restore) -and $null -eq $script:ImageNoJudge))) { $script:Rep.UnstDefect = $false }
         $script:Chain.Clear()
-        if ($slow) { for ($i = 0; $i -lt $script:WriteQueue.Count; $i++) { $script:Chain.Enqueue({ Invoke-WriteQueueNext }) } }
-        else { $script:WriteArgs = $a; $script:Chain.Enqueue({ Start-Gw $script:WriteArgs }) }
+        # File WriteQueue : effacement haute frequence (12.8.2), puis en ecriture lente une ecriture par tete
+        for ($i = 0; $i -lt $script:WriteQueue.Count; $i++) { $script:Chain.Enqueue({ Invoke-WriteQueueNext }) }
+        if (-not $slow) { $script:WriteArgs = $a; $script:Chain.Enqueue({ Start-Gw $script:WriteArgs }) }
         $script:Chain.Enqueue({ Start-WriteCheck })
         if ($slow) { Start-WriteWarmup $warmTs ([bool]$NoWarmup) } else { Invoke-NextChainStep }
     } elseif ($slow) {
@@ -7594,6 +7812,16 @@ function Start-ImageWrite([switch]$NoWarmup) {
         for ($i = 0; $i -lt $script:WriteQueue.Count; $i++) { $script:Chain.Enqueue({ Invoke-WriteQueueNext }) }
         if ($script:Restore) { $script:Chain.Enqueue({ Invoke-RestoreNext }) }   # restauration sans controle complet
         Start-WriteWarmup $warmTs ([bool]$NoWarmup)
+    } elseif ($script:WriteQueue.Count -gt 0) {
+        # 12.8.2 : ecriture rapide precedee de l effacement haute frequence (file WriteQueue), puis la restauration ;
+        # etapes deja en attente gardees apres l ecriture, comme sans effacement
+        $rest = if ($script:Restore) { @() } else { @($script:Chain.ToArray()) }
+        $script:Chain.Clear()
+        for ($i = 0; $i -lt $script:WriteQueue.Count; $i++) { $script:Chain.Enqueue({ Invoke-WriteQueueNext }) }
+        $script:WriteArgs = $a; $script:Chain.Enqueue({ Start-Gw $script:WriteArgs })
+        if ($script:Restore) { $script:Chain.Enqueue({ Invoke-RestoreNext }) }
+        foreach ($s in $rest) { $script:Chain.Enqueue($s) }
+        Invoke-NextChainStep
     } else {
         if ($script:Restore) { $script:Chain.Clear(); $script:Chain.Enqueue({ Invoke-RestoreNext }) }
         Start-Gw $a
@@ -7628,8 +7856,9 @@ function Test-CalibCurrent([string]$fam, [bool]$heads) {
 }
 
 function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
-    # Parametres d une ecriture rapide ou lente : image entiere, profil Auto, pre-effacement, effacement des pistes vides,
-    # verification gw, 10 essais, precomp transmise. Rapide : une commande pour les deux tetes, sans controle complet.
+    # Parametres d une ecriture rapide ou lente : image entiere, profil Auto, effacement avant l ecriture (case « Effacer
+    # avant d ecrire » ; 12.8.2 : haute frequence en double densite, pre-effacement en haute densite), effacement des
+    # pistes vides, verification gw, 10 essais, precomp transmise. Rapide : une commande pour les deux tetes, sans controle complet.
     # Lente : tete 0 puis tete 1 (profils par tete), controle de toutes les pistes, 3 passes de reecriture. Les options
     # de lecteur (flippy, densel, fake index, diskdefs, secteurs durs, TG43) decrivent le materiel : conservees, comme
     # les elements step, h0.off, h1.off et hswap du champ Pistes (seuls c= et h= sont retires : image entiere).
@@ -7660,10 +7889,10 @@ function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
     $chkWSlow.Checked = ($mode -eq 'slow')
     if ($mode -eq 'slow') {
         $chkWPostCheck.Checked = $true; $numWRepair.Value = 3
-        Append-Log (T 'Écriture lente : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 essais, tête 0 puis tête 1, contrôle de toutes les pistes, 3 passes de réécriture.')
+        Append-Log (T "Écriture lente : image entière, profil Auto, effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, vérification gw, 10 essais, tête 0 puis tête 1, contrôle de toutes les pistes, 3 passes de réécriture.")
     } else {
         $chkWPostCheck.Checked = $false
-        Append-Log (T 'Écriture rapide : image entière, profil Auto, pré-effacement, effacement des pistes vides, vérification gw, 10 essais, les deux têtes ensemble, sans contrôle complet des pistes.')
+        Append-Log (T "Écriture rapide : image entière, profil Auto, effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, vérification gw, 10 essais, les deux têtes ensemble, sans contrôle complet des pistes.")
         if ($null -ne $oneHead) { Append-Log ((T "Image à une seule face : seule la tête {0} est écrite (h={0} dans Pistes).") -f "$oneHead") }
     }
     if ($facesUnknown) { Append-Log (T "Nombre de faces de l'image inconnu : effacement des pistes vides désactivé (seules les pistes présentes dans l'image sont écrites).") }
@@ -8077,6 +8306,8 @@ function Get-WriteFactorSrcText([string]$drive, [string]$fam, [int]$h, [double]$
         $md = if ($dr.Rec -and $dr.Rec.Date) { [string]$dr.Rec.Date } else { '?' }
         return ((T 'k {0} de la dernière mesure du lecteur (du {1}), correction lecteur cible {2}') -f "$kt", "$md", "$dt")
     }
+    # Revue 12.8.2 : mesures de ce lecteur ecartees parce qu elles viennent d un autre calcul (Get-DriveK, Old)
+    if ([int](Get-DriveK $drive $fam $h).Old -gt 0) { return ((T 'k 1 (mesures de ce lecteur faites avec un autre calcul de calibration, à refaire), correction lecteur cible {0}') -f "$dt") }
     return ((T 'k 1 (aucune mesure de ce lecteur), correction lecteur cible {0}') -f "$dt")
 }
 
@@ -8581,6 +8812,208 @@ function Test-ScpHighDensity([string]$path) {
     }
     return $false
 }
+
+# --- Effacement avant l ecriture (12.8.2) ----------------------------------------------------------------------------
+# Essais du 27/10/2026 (E1, E2, E5) : un lecteur haute densite (Sony MPF920-Z) qui ecrit des disquettes double densite
+# (cellule 2 us) perd 35 a 65 ns de marge, relue sur un lecteur double densite, avec le pre-effacement de gw
+# (--pre-erase : effacement en courant continu, WGATE sans WDATA, 1,1 tour avant chaque essai d ecriture) ; un effacement
+# haute frequence des pistes par le lecteur qui ecrit (gw erase --hfreq), puis une ecriture sans --pre-erase, gagne +61 /
+# +64 ns sur cette methode. Regle « double densite » : toute ecriture, mesure ou calibration dont l image ou la famille
+# n est pas haute densite : effacement haute frequence ('hfreq') ; haute densite, non essayee : pre-effacement de la
+# 12.8.1 ('pre'). --erase-empty inchange (pistes absentes de l image, effacees en continu par gw : sans donnees).
+
+function Test-ScpDensityUnknown([string]$img) {
+    # Flux SCP dont la densite n est pas mesurable : module d analyse SCP absent (Test-ScpHighDensity a besoin de ScpStats)
+    return ((-not $script:ScpStatsOk) -and [System.IO.Path]::GetExtension("$img").ToLower() -eq '.scp')
+}
+
+function Test-ImageHighDensity([string]$img, [string]$fmt) {
+    # Image haute densite pour l effacement avant l ecriture : famille hd (Get-ImageFamily), haute densite non calibrable
+    # (Get-HighDensityReason : ED, 360 tr/min, codages propres...) ou flux SCP haute densite (Test-ScpHighDensity, module
+    # d analyse SCP present) ; flux SCP de densite inconnue (Test-ScpDensityUnknown) : traite comme haute densite, donc
+    # pre-effacement de la 12.8.1 (revue 12.8.2) ; autre densite inconnue ou fichier illisible : double densite, comme
+    # Get-ImageFamily
+    try {
+        if ((Get-ImageFamily $img $fmt) -eq 'hd') { return $true }
+        if (Get-HighDensityReason $img $fmt) { return $true }
+        if (Test-ScpDensityUnknown $img) { return $true }
+        if ($script:ScpStatsOk -and [System.IO.Path]::GetExtension("$img").ToLower() -eq '.scp' -and (Test-Path -LiteralPath $img) -and (Test-ScpHighDensity $img)) { return $true }
+    } catch { }
+    return $false
+}
+
+function Get-EraseFallbackNote {
+    # Options de lecteur de l onglet Ecriture qui imposent le pre-effacement de la 12.8.1 (Get-EraseMode) : texte de la
+    # ligne de journal, $null sinon. gw erase 1.23 n accepte que --device, --drive, --revs, --tracks, --hfreq et
+    # --fake-index : secteurs durs (gw erase mesure la duree d un tour sur l index, qu un disque a secteurs durs
+    # fausserait) ; TG43 et --densel (revue 12.8.2) : broche 2, que gw erase ne regle pas, l effacement se ferait dans un
+    # autre etat de la broche que l ecriture (5,25 pouces haute densite bivitesse, 8 pouces : non essaye)
+    if ($chkWHard.Checked -or $chkWTG43.Checked) { return (T "Effacement avant l'écriture : secteurs durs ou lecteur 8 pouces (TG43), que gw erase ne prend pas en charge : pré-effacement de chaque piste (--pre-erase), comme avant.") }
+    if ($cmbWDensel.Text -and $cmbWDensel.Text -ne '(non)') { return ((T "Effacement avant l'écriture : broche 2 du lecteur réglée (--densel={0}), que gw erase ne règle pas : pré-effacement de chaque piste (--pre-erase), comme avant.") -f "$($cmbWDensel.Text)") }
+    return $null
+}
+
+function Get-EraseMode([bool]$hd) {
+    # Effacement avant une ecriture : 'hfreq' (double densite) ou 'pre' (haute densite ; options de lecteur que gw erase ne
+    # prend pas en charge, Get-EraseFallbackNote : secteurs durs, TG43, --densel)
+    if ($hd -or (Get-EraseFallbackNote)) { return 'pre' }
+    return 'hfreq'
+}
+
+function Get-CalibEraseEst([bool]$hd) {
+    # Duree estimee de l effacement haute frequence d une passe de calibration, en s par piste (0 sans effacement) :
+    # EraseEstTrack (565, essai E5 : 52 pistes en 19 s), compte dans les durees annoncees et l estimation de la barre
+    if ((Get-EraseMode $hd) -eq 'hfreq') { return [double]$script:EraseEstTrack }
+    return 0.0
+}
+
+function Get-EraseDriveArgs {
+    # Options de lecteur de l ecriture (Get-WriteFormatArgs) que gw erase accepte : --fake-index seul (lecteur sans capteur
+    # d index) ; gw erase n a ni --densel ni --reverse
+    return @(Get-WriteFormatArgs | Where-Object { $_ -match '^--fake-index=' })
+}
+
+function Get-EraseTSpecs($keys) {
+    # Pistes 'cyl.tete' (tetes 0 et 1) -> TSPEC exacts de gw erase, aucune piste en trop : cylindres a deux faces en h=0-1,
+    # puis face 0 seule, puis face 1 seule (memes groupes que Get-TrackGroups), cylindres en plages (Format-CylRanges, 276 :
+    # « 0-39,41-79 »). Tableau protege par la virgule : pas de @() autour de l appel
+    $hs = @{}
+    foreach ($k in @($keys)) {
+        if ("$k" -notmatch '^(\d+)\.([01])$') { continue }
+        $c = [int]$Matches[1]; $h = [int]$Matches[2]
+        if (-not $hs.ContainsKey($c)) { $hs[$c] = @{} }
+        $hs[$c][$h] = $true
+    }
+    $g = [ordered]@{ '0-1' = @(); '0' = @(); '1' = @() }
+    foreach ($c in @($hs.Keys | Sort-Object)) {
+        $n = if ($hs[$c].ContainsKey(0) -and $hs[$c].ContainsKey(1)) { '0-1' } elseif ($hs[$c].ContainsKey(0)) { '0' } else { '1' }
+        $g[$n] += [int]$c
+    }
+    return ,@(foreach ($n in @($g.Keys)) { if (@($g[$n]).Count -gt 0) { "c=$(Format-CylRanges ([int[]]@($g[$n]))):h=$n" } })
+}
+
+function New-HfreqEraseCmds($keys, [string]$extras = '', $driveArgs = $null) {
+    # Commandes gw erase --hfreq des pistes 'cyl.tete' : une par TSPEC de Get-EraseTSpecs (une seule quand toutes les pistes
+    # ont les memes tetes, trois au plus), lecteur et port de l ecriture, --fake-index de l onglet Ecriture ($driveArgs ;
+    # $null : Get-CommonArgs et Get-EraseDriveArgs), elements de lecteur du champ Pistes ($extras, forme de
+    # Get-TSpecExtras : step, hswap, h0.off, h1.off, memes pistes physiques que l ecriture). Tableau de string[], vide sans
+    # piste ; protege par la virgule : pas de @() autour de l appel
+    $da = if ($null -ne $driveArgs) { @($driveArgs) } else { @(@(Get-CommonArgs) + @(Get-EraseDriveArgs)) }
+    $out = New-Object System.Collections.Generic.List[object]
+    foreach ($ts in (Get-EraseTSpecs $keys)) {
+        $out.Add([string[]](@('erase') + $da + @('--hfreq', "--tracks=$ts$extras")))
+    }
+    return ,$out.ToArray()
+}
+
+function Format-EraseTracks($cmds) {
+    # Pistes des commandes de New-HfreqEraseCmds pour le journal : valeurs de --tracks, separees par « ; »
+    return ((@(foreach ($c in @($cmds)) { foreach ($a in @($c)) { if ("$a" -like '--tracks=*') { "$a".Substring(9) } } })) -join ' ; ')
+}
+
+function Get-TSpecKeys([string]$tspec) {
+    # Pistes 'cyl.tete' d un TSPEC a c= lisible (« c=0-4,10:h=0-1 » ; sans h= : tetes 0 et 1, comme Get-TSpecSelection) ;
+    # tableau vide sans c= ou c= illisible. Protege par la virgule : pas de @() autour de l appel
+    $sel = Get-TSpecSelection $tspec
+    if (-not $sel.Ok -or $null -eq $sel.Cyls) { return ,@() }
+    $k = @(foreach ($c in @($sel.Cyls.Keys)) { foreach ($h in @($sel.Heads)) { "$c.$h" } })
+    return ,(Sort-TrackKeys $k)
+}
+
+function Get-ImageDefaultGwFormat([string]$img) {
+    # Format que gw 1.23 prend sans --format pour l extension (default_format des classes d image : adf.py, d64.py,
+    # d81.py) ; $null sinon (SCP, HFE, IPF, MSA, DSK, EDSK... : pistes par defaut c=0-81:h=0-1, tools/write.py)
+    switch ([System.IO.Path]::GetExtension("$img").ToLower()) {
+        '.adf' { return 'amiga.amigados' }
+        '.d64' { return 'commodore.1541' }
+        '.d71' { return 'commodore.1571' }
+        '.d81' { return 'commodore.1581' }
+    }
+    return $null
+}
+
+function Get-ImageGeometryTrackSet([string]$path) {
+    # 12.8.2 (revue) : pistes d une image secteur double densite dont l en-tete donne la geometrie ('cyl.tete' -> $true),
+    # pour l effacement avant l ecriture seulement (Get-WriteEraseKeys ; Get-ImageTrackSet et ses autres usages sont
+    # inchanges) ; $null sinon. Lecture conforme a gw 1.23 (image/msa.py, edsk.py, dsk.py) :
+    #  - MSA (Atari ST) : 10 octets big-endian, signature 0E 0F, secteurs par piste, faces - 1, premier et dernier
+    #    cylindre (inclus) ; plus de 12 secteurs par piste (haute densite, que la taille du fichier compresse ne revele
+    #    pas toujours a Get-HighDensityReason) : $null ;
+    #  - DSK et EDSK (Amstrad CPC) : signature « MV - CPC » ou « EXTENDED CPC DSK », cylindres a 0x30, faces a 0x31 ; EDSK :
+    #    table des tailles de piste a 0x34 (par 256 octets, cylindre x faces + face, 0 = piste absente) ; DSK : taille
+    #    commune a 0x32. Piste de plus de 6 656 octets (plus de 12 secteurs de 512 : haute densite) : $null. DSK sans ces
+    #    signatures (image brute, --format exige) : $null
+    $ext = [System.IO.Path]::GetExtension("$path").ToLower()
+    if (@('.msa', '.dsk', '.edsk') -notcontains $ext) { return $null }
+    $set = @{}
+    try {
+        $fs = [System.IO.File]::OpenRead($path)
+        try { $b = New-Object byte[] 256; $n = $fs.Read($b, 0, 256) } finally { $fs.Dispose() }
+        if ($ext -eq '.msa') {
+            if ($n -lt 10 -or $b[0] -ne 0x0E -or $b[1] -ne 0x0F) { return $null }
+            $spt = [int]$b[2] * 256 + [int]$b[3]; $ns = [int]$b[4] * 256 + [int]$b[5] + 1
+            $st = [int]$b[6] * 256 + [int]$b[7]; $et = [int]$b[8] * 256 + [int]$b[9]
+            if ($spt -lt 1 -or $spt -gt 12 -or $ns -lt 1 -or $ns -gt 2 -or $st -gt $et -or $et -gt 99) { return $null }
+            for ($c = $st; $c -le $et; $c++) { for ($h = 0; $h -lt $ns; $h++) { $set["$c.$h"] = $true } }
+        } else {
+            if ($n -lt 0x34) { return $null }
+            $sig = [System.Text.Encoding]::ASCII.GetString($b, 0, 16)
+            $nc = [int]$b[0x30]; $ns = [int]$b[0x31]
+            if ($nc -lt 1 -or $ns -lt 1 -or $ns -gt 2) { return $null }
+            if ($sig.StartsWith('EXTENDED CPC DSK')) {
+                if (0x34 + $nc * $ns -gt $n) { return $null }
+                for ($i = 0; $i -lt $nc * $ns; $i++) {
+                    $sz = [int]$b[0x34 + $i]
+                    if ($sz -gt 0x1A) { return $null }
+                    if ($sz -gt 0) { $set["$([int][math]::Floor($i / $ns)).$($i % $ns)"] = $true }
+                }
+            } elseif ($sig.StartsWith('MV - CPC')) {
+                if ([int]$b[0x32] + 256 * [int]$b[0x33] -gt 0x1A00) { return $null }
+                for ($c = 0; $c -lt $nc; $c++) { for ($h = 0; $h -lt $ns; $h++) { $set["$c.$h"] = $true } }
+            } else { return $null }
+        }
+    } catch { return $null }
+    if ($set.Count -gt 0) { return $set }
+    return $null
+}
+
+function Get-WriteEraseKeys([string]$img, [string]$fmt, [string]$userTs, [int[]]$heads) {
+    # Pistes 'cyl.tete' qu une ecriture d image ecrit (Start-ImageWrite), d apres gw 1.23 (tools/write.py) : gw parcourt
+    # les pistes du format (explicite, sinon format implicite de l extension, Get-ImageDefaultGwFormat ; sans format :
+    # c=0-81:h=0-1), dont c= et h= du champ Pistes remplacent les cylindres et les tetes, et n ecrit que celles que l image
+    # contient. Pistes de l image : Get-ImageTrackSet, sinon geometrie de l en-tete (Get-ImageGeometryTrackSet : MSA, DSK et
+    # EDSK), sinon toutes les pistes du format explicite ; retenues aussi par les tetes ecrites ($heads : faces de l image
+    # en ecriture lente). Revue 12.8.2 : cylindres de l image au-dela du format (ADF de 84 cylindres en amiga.amigados) ou
+    # au-dela de 81 sans format (SCP, HFE, IPF de 84 cylindres) : jamais effaces, gw ne les ecrit pas. Pistes absentes de
+    # l image : non comptees (--erase-empty les efface en continu, elles ne portent pas de donnees). $null : pistes
+    # inconnues (image sans table de pistes ni geometrie lisible ni format explicite, format absent de la table GwFormats,
+    # c= illisible) ; l ecriture garde alors le pre-effacement. Protege par la virgule
+    $sel = Get-TSpecSelection $userTs
+    if (-not $sel.Ok) { return $null }
+    $explicit = ($fmt -and $fmt -ne '(auto)')
+    $fn = if ($explicit) { $fmt } else { Get-ImageDefaultGwFormat $img }
+    $fe = $null
+    if ($fn) {
+        if (-not $script:GwFormats.Contains($fn)) { return $null }
+        $fe = $script:GwFormats[$fn]
+        if ([int]$fe.Cyls -le 0) { return $null }
+    }
+    $fh = @(if ($fe -and [int]$fe.Heads -eq 1) { 0 } else { 0, 1 })
+    $set = Get-ImageTrackSet $img
+    if ($null -eq $set) { $set = Get-ImageGeometryTrackSet $img }
+    if ($null -eq $set) {
+        if (-not $explicit -or -not $fe) { return $null }
+        $set = @{}
+        for ($c = 0; $c -lt [int]$fe.Cyls; $c++) { foreach ($h in $fh) { $set["$c.$h"] = $true } }
+    }
+    $nc = if ($fe) { [int]$fe.Cyls } else { 82 }
+    $hasH = [regex]::IsMatch(":$userTs", ':\s*h\s*=')
+    $keys = @(@($set.Keys) | Where-Object {
+        $p = ([string]$_ -split '\.'); $c = [int]$p[0]; $h = [int]$p[1]
+        (Test-TSpecKey $sel $_) -and @($heads) -contains $h -and ($null -ne $sel.Cyls -or $c -lt $nc) -and ($hasH -or $fh -contains $h)
+    })
+    return ,(Sort-TrackKeys $keys)
+}
 # ============================== FONCTIONS : ECRITURE LENTE : FILE ET PRECHAUFFAGE ===
 
 function Get-WriteWarmupTSpec([string]$userTs, [int[]]$heads, [string]$image) {
@@ -8609,7 +9042,9 @@ function Get-WriteWarmupTSpec([string]$userTs, [int[]]$heads, [string]$image) {
 }
 
 function Invoke-WriteQueueNext {
-    # Ecriture lente : commande gw write suivante (une par tete) ; pistes et retries de la precedente cumules pour le controle
+    # Ecriture lente : commande gw write suivante (une par tete) ; pistes et retries de la precedente cumules pour le controle.
+    # 12.8.2 : la file commence par les commandes gw erase --hfreq de l effacement avant l ecriture (Start-ImageWrite,
+    # ecriture rapide comprise)
     if ($script:WriteQueue.Count -eq 0) { return }
     Merge-RepRetries
     Start-Gw ([string[]]$script:WriteQueue.Dequeue())
@@ -8742,17 +9177,23 @@ function Get-WriteCheckBlocker([string]$path, [string]$fmt) {
     return $null
 }
 
-function New-WriteCheck([string[]]$base, [string]$image, [string]$userTSpec, [int]$max, [string[]]$readOpts, $headPrecomp) {
+function New-WriteCheck([string[]]$base, [string]$image, [string]$userTSpec, [int]$max, [string[]]$readOpts, $headPrecomp, [string]$eraseMode = '') {
     # $headPrecomp : ecriture lente, --precomp par tete logique (0, 1 -> profil ou $null) ; $base est alors sans --precomp
+    # 12.8.2 : $eraseMode, effacement des reecritures (Invoke-WriteCheckAnalysis) : 'hfreq' (double densite) ou 'pre'
+    # (haute densite, flux SCP de densite inconnue, secteurs durs, TG43, --densel : Get-EraseMode) ; vide : d apres l image
+    # et le format de l onglet (150). Revue 12.8.2 : jamais le repli « pistes de l image inconnues » de l ecriture
+    # (Start-ImageWrite, $emCheck) : les pistes faibles sont toujours connues
     $script:WriteTracks = @{}; $script:WriteRetries = @{}   # rien d une ecriture precedente dans le perimetre
+    if (-not $eraseMode) { $eraseMode = Get-EraseMode (Test-ImageHighDensity $image $cmbWFmt.Text) }
     $script:Rep = @{
-        Base = @($base); Image = $image; UserTSpec = $userTSpec; Max = [math]::Max(0, $max)
+        Base = @($base); Image = $image; UserTSpec = $userTSpec; Max = [math]::Max(0, $max); EraseMode = $eraseMode
         Common = @(Get-CommonArgs); ReadOpts = @($readOpts)   # lecteur et port memorises au clic : les relectures visent le meme disque
         HeadPrecomp = $headPrecomp; Written = @{}              # Written : pistes ecrites, cumulees sur les commandes (ecriture lente)
         Round = 0; Scope = $null; Weak = @(); State = @{}; Retries = @{}; Rewrites = @{}
         Pending = (New-Object System.Collections.Queue); Scps = @(); Safety = $false; Measured = 0
         # Zone instable relue sur la copie = defaut de la copie, sauf source capable d en porter (voir Set-CopyUnstable)
         UnstDefect = (-not (Test-SourceMayHaveWeak $image)); NoJudge = $null; SrcWeak = $null
+        SrcOver = $null                                        # 12.8.2 : pistes deja hors norme dans la source (Test-SrcOverErr)
     }
     # Une mesure continue de l onglet Qualite ecraserait le resultat du controle : elle est arretee
     $script:AlignLoop = $false; $script:AlignNextAt = $null; $script:AlLastMove = 0
@@ -8777,13 +9218,28 @@ function Test-SourceMayHaveWeak([string]$path) {
     } catch { return $true }
 }
 
+function Test-RepFakeIndex($rep) {
+    # 12.8.2 (S11) : relectures du controle avec un index simule (--fake-index des options de relecture, Rep.ReadOpts, ou
+    # de l ecriture, Rep.Base) : la jonction d ecriture n est pas a l index relu, la zone de l index est comptee
+    return (@(@($rep.ReadOpts) + @($rep.Base) | Where-Object { "$_" -match '^--fake-index=' }).Count -gt 0)
+}
+
+function Test-SrcOverErr($m) {
+    # 12.8.2 (decision du 27/10/2026) : piste de la source (original en restauration, image SCP de l onglet Ecriture) deja
+    # hors norme par ses erreurs, au-dela du seuil SAIN (HealthErrOk, Get-HealthLevel) : protection (Copylock) ou defaut
+    # d origine, qu une reecriture ne peut pas corriger. Le controle de la copie l ignore comme une piste critique : ni
+    # reecrite, ni comptee faible. Piste illisible : non (deja critique).
+    return ($null -ne $m -and -not $m.Bad -and [double]$m.Ooc -gt $script:HealthErrOk)
+}
+
 function Set-CopyUnstable($rep, [string]$k, $m) {
     # gw ecrit un tour fige de la source : une zone instable d un tour a l autre relue sur la copie ne vient pas de la
     # source quand celle-ci n en contient pas a cette piste (image secteur, HFE v1/v2, piste stable d un SCP analyse).
     # Elle signale alors un defaut de la copie (support fatigue, defaut localise) : la piste est faible et reecrite.
-    # Pistes instables ou critiques de la source (Rep.Ignore) : traitees a part. Non jugees (Unjudged : ni reecrites ni
-    # comptees saines) : source qui peut porter des zones faibles (Test-SourceMayHaveWeak), SCP non analysable, piste
-    # que la source porte avec une courte zone instable ou que l analyse n a pas pu mesurer (Rep.NoJudge).
+    # Pistes instables, critiques ou (12.8.2) deja hors norme de la source (Rep.Ignore) : traitees a part. Non jugees
+    # (Unjudged : ni reecrites ni comptees saines) : source qui peut porter des zones faibles (Test-SourceMayHaveWeak), SCP
+    # non analysable, piste que la source porte avec une courte zone instable ou que l analyse n a pas pu mesurer
+    # (Rep.NoJudge).
     if (-not $m -or $m.Bad -or -not $m.Weak) { return }
     if ($rep.Ignore -and $rep.Ignore.ContainsKey($k)) { return }
     if (-not $rep.UnstDefect -or ($rep.NoJudge -and $rep.NoJudge.ContainsKey($k))) { $m.Unjudged = $true; return }
@@ -8831,6 +9287,7 @@ function Invoke-RepNextCmd {
     $cmd = [string[]]$rep.Pending.Dequeue()
     if ($rep.Round -eq 0) { $lblWCal.Text = (T 'Contrôle après écriture : relecture de toutes les pistes...') }
     elseif ($cmd[0] -eq 'write') { $lblWCal.Text = ((T "Contrôle après écriture : réécriture {0}/{1} de {2} piste(s) faible(s)...") -f "$($rep.Round)", "$($rep.Max)", "$($rep.Weak.Count)") }
+    elseif ($cmd[0] -eq 'erase') { $lblWCal.Text = ((T "Contrôle après écriture : effacement haute fréquence avant la réécriture {0}/{1} de {2} piste(s) faible(s)...") -f "$($rep.Round)", "$($rep.Max)", "$($rep.Weak.Count)") }
     else { $lblWCal.Text = ((T "Contrôle après écriture : remesure {0}/{1} de {2} piste(s)...") -f "$($rep.Round)", "$($rep.Max)", "$($rep.Weak.Count)") }
     Set-QualityRunText $lblWCal.Text                      # 12.8 (lot 3a) : etape du controle sur la carte de l onglet Qualite
     Start-Gw $cmd
@@ -8896,9 +9353,10 @@ function Invoke-WriteCheckAnalysis {
         foreach ($k in @($rep.Weak)) { $rep.Rewrites[$k] = 1 + $(if ($rep.Rewrites.ContainsKey($k)) { [int]$rep.Rewrites[$k] } else { 0 }) }
     }
     $tracks = @{}
+    $fake = Test-RepFakeIndex $rep
     foreach ($scp in $rep.Scps) {
         if (-not (Test-Path -LiteralPath $scp)) { Append-Log (T 'Contrôle après écriture : fichier SCP absent, analyse impossible.'); Stop-WriteCheck; return }
-        try { $t = Read-ScpFile $scp } catch { Append-Log ((T "Contrôle après écriture : {0}") -f "$($_.Exception.Message)"); Stop-WriteCheck; return }
+        try { $t = Read-ScpFile $scp -NoIndexZone:$fake } catch { Append-Log ((T "Contrôle après écriture : {0}") -f "$($_.Exception.Message)"); Stop-WriteCheck; return }
         foreach ($tn in $t.Keys) { $tracks[[int]$tn] = $t[$tn] }
     }
     # Pistes attendues : premier controle = image (ou TSPEC utilisateur relu, limite a l image) ; ensuite = pistes reecrites
@@ -8918,10 +9376,27 @@ function Invoke-WriteCheckAnalysis {
     if ($unjK.Count -gt 0 -and $rep.Round -eq 0) { Append-Log ((T "Contrôle : zone instable sur {0} piste(s) non jugée(s) ({1}) : la source peut en contenir (protection) sans que l'application puisse le vérifier. Ni réécrites ni comptées comme saines.") -f "$($unjK.Count)", "$(Format-TrackList $unjK)") }
     $defK = @($expected | Where-Object { $rep.State[$_].CopyDefect })
     if ($defK.Count -gt 0) { Append-Log ((T "Contrôle : zone instable d'un tour à l'autre sur la copie, piste(s) {0} : la source n'en contient pas, défaut probable du support. Ces pistes sont traitées comme faibles.") -f "$(Format-TrackList $defK)") }
+    # 12.8.2 (S11, S12) : hors classe de la zone de l index (jonction d ecriture de gw) ecartes du comptage, avec la
+    # distance a l index la plus grande, et pistes dont la stabilite n a pas pu etre mesuree sur tours alignes : une
+    # ligne par analyse ; index simule : une ligne au premier controle
+    $zo = 0; $zt = 0; $zf = 0; $fb = @()
+    foreach ($k in $expected) {
+        $ms = $rep.State[$k]; $z = [int]$ms.ZoneOoc
+        if ($z -gt 0) { $zo += $z; $zt++; if ([int]$ms.ZoneFarNs -gt $zf) { $zf = [int]$ms.ZoneFarNs } }
+        if ($ms.StabFallback) { $fb += $k }
+    }
+    if ($zo -gt 0) { Append-Log ((T "Contrôle après écriture : {0} intervalle(s) hors classe du raccord d'écriture de gw, dans la zone de ± 1 ms autour de l'index (jusqu'à {2} ms), non compté(s), sur {1} piste(s) relue(s) en 3 tours.") -f "$zo", "$zt", (Format-UiNum ($zf / 1e6) '0.00')) }
+    if ($fb.Count -gt 0) { Append-Log ((T "Contrôle après écriture : stabilité de {0} piste(s) jugée sur l'écart du nombre de flux entre les tours, faute de repère commun pour les aligner : {1}.") -f "$($fb.Count)", "$(Format-TrackList $fb)") }
+    if ($fake -and $rep.Round -eq 0) { Append-Log (T "Contrôle après écriture : index simulé (--fake-index), la zone de l'index est comptée comme le reste de la piste.") }
     if ($rep.Ignore) {
-        # Restauration d un flux ou image SCP : pistes deja critiques ou non reproductibles (zone instable), non comptees
+        # Restauration d un flux ou image SCP : pistes deja critiques ou non reproductibles (zone instable), non comptees.
+        # 12.8.2 (decision du 27/10/2026) : pistes deja hors norme par leurs erreurs dans la source (Rep.SrcOver, aussi dans
+        # Rep.Ignore : Copylock, defaut d origine), non reecrites, signalees par une ligne a part
         $ign = @(@($watch) + @($crit) | Where-Object { $rep.Ignore.ContainsKey($_) })
+        $ovr = @($ign | Where-Object { $rep.SrcOver -and $rep.SrcOver.ContainsKey($_) })
+        $ign = @($ign | Where-Object { -not ($rep.SrcOver -and $rep.SrcOver.ContainsKey($_)) })
         if ($ign.Count -gt 0 -and $rep.Round -eq 0) { Append-Log ((T "Contrôle : {0} piste(s) non reproductible(s) ou déjà critique(s) dans la source, non comptée(s) : {1}") -f "$($ign.Count)", "$(Format-TrackList $ign)") }
+        if ($ovr.Count -gt 0 -and $rep.Round -eq 0) { Append-Log ((T "Contrôle : {0} piste(s) déjà hors norme dans l'original, non réécrite(s) : {1}") -f "$($ovr.Count)", "$(Format-TrackList (Sort-TrackKeys $ovr))") }
         $watch = @($watch | Where-Object { -not $rep.Ignore.ContainsKey($_) }); $crit = @($crit | Where-Object { -not $rep.Ignore.ContainsKey($_) })
     }
     $weak = Sort-TrackKeys (@($watch) + @($crit))
@@ -8945,23 +9420,44 @@ function Invoke-WriteCheckAnalysis {
         Complete-WriteCheck; return
     }
     if ($rep.Round -ge $rep.Max) { Complete-WriteCheck; return }
-    # Passe de reecriture : pistes faibles seules, pre-effacement force, puis remesure de ces seules pistes
+    # Passe de reecriture : pistes faibles seules, puis remesure de ces seules pistes. 12.8.2 : double densite
+    # (Rep.EraseMode 'hfreq') : effacement haute frequence des pistes faibles (gw erase --hfreq, memes elements du champ
+    # Pistes), toujours, quelle que soit la case « Effacer avant d ecrire » (comme le pre-effacement force d avant), puis
+    # reecriture sans --pre-erase ; haute densite (et autres cas 'pre') : pre-effacement force. Revue 12.8.2 : chaque
+    # reecriture est precedee de l effacement de ses seules pistes (meme --tracks), et non toutes les pistes de la passe
+    # d abord : un arret de gw n expose que les pistes de la commande en cours ; pistes effacees de la passe (EraseLog,
+    # Read-GwOutput) restees sans ecriture : marquees illisibles par Update-RepPartial
     $rep.Round++
     Append-Log ((T "Réécriture des pistes faibles, passe {0}/{1} : {2}") -f "$($rep.Round)", "$($rep.Max)", "$(Format-TrackList $weak)")
     $groups = Get-TrackGroups $weak
     $extras = Get-TSpecExtras $rep.UserTSpec
-    $wbase = @($rep.Base); if ($wbase -notcontains '--pre-erase') { $wbase += '--pre-erase' }
+    $hf = ([string]$rep.EraseMode -eq 'hfreq')
+    $wbase = @($rep.Base)
+    if ($hf) { $wbase = @($wbase | Where-Object { $_ -ne '--pre-erase' }) } elseif ($wbase -notcontains '--pre-erase') { $wbase += '--pre-erase' }
     $rep.Pending.Clear()
+    # Lecteur et port memorises au clic (Rep.Common, comme les relectures) et --fake-index de l ecriture (Rep.Base)
+    $eda = @(@($rep.Common) + @(@($rep.Base) | Where-Object { $_ -match '^--fake-index=' }))
+    $wts = @()
     if ($null -ne $rep.HeadPrecomp) {
         # Ecriture lente : une reecriture par tete, chacune avec sa precompensation
         foreach ($h in 0, 1) {
             $cs = @($weak | Where-Object { ($_ -split '\.')[1] -eq "$h" } | ForEach-Object { [int](($_ -split '\.')[0]) })
             if ($cs.Count -eq 0) { continue }
             $cmd = @($wbase); if ($rep.HeadPrecomp[$h]) { $cmd += @('--precomp', $rep.HeadPrecomp[$h]) }
-            $rep.Pending.Enqueue([string[]]($cmd + @("--tracks=c=$(Format-CylList $cs):h=$h$extras", "`"$($rep.Image)`"")))
+            $wts += @{ Ts = "c=$(Format-CylList $cs):h=$h$extras"; Cmd = $cmd }
         }
     } else {
-        foreach ($g in $groups) { $rep.Pending.Enqueue([string[]]($wbase + @("--tracks=$g$extras", "`"$($rep.Image)`""))) }
+        foreach ($g in $groups) { $wts += @{ Ts = "$g$extras"; Cmd = $wbase } }
+    }
+    $ers = @()
+    foreach ($wt in $wts) {
+        if ($hf) { $ec = [string[]](@('erase') + $eda + @('--hfreq', "--tracks=$($wt.Ts)")); $rep.Pending.Enqueue($ec); $ers += ,$ec }
+        $rep.Pending.Enqueue([string[]](@($wt.Cmd) + @("--tracks=$($wt.Ts)", "`"$($rep.Image)`"")))
+    }
+    $script:EraseLog = $null
+    if ($hf -and $ers.Count -gt 0) {
+        $script:EraseLog = @{ Owner = 'check'; Round = [int]$rep.Round; Erased = @{}; Written = @{} }
+        Append-Log ((T "Effacement haute fréquence des pistes faibles avant leur réécriture (disquette double densité) : {0}.") -f (Format-EraseTracks $ers))
     }
     Add-RepReads $groups $extras
     Start-RepPending
@@ -9025,6 +9521,9 @@ function Complete-WriteCheck([switch]$GwError) {
     $ignK = @(@($rep.State.Keys) | Where-Object { $rep.Ignore -and $rep.Ignore.ContainsKey($_) -and ($rep.State[$_].Bad -or $rep.State[$_].Level -ge 1 -or $rep.State[$_].Weak) })
     $unjK = @(@($rep.State.Keys) | Where-Object { $rep.State[$_].Unjudged -and -not $rep.State[$_].Bad -and $rep.State[$_].Level -lt 1 -and -not ($rep.Ignore -and $rep.Ignore.ContainsKey($_)) })
     $nOk = $n - $ignK.Count - $unjK.Count
+    # 12.8.2 : pistes deja hors norme dans la source (Rep.SrcOver) citees a part des pistes non reproductibles ou critiques
+    $ovrK = @($ignK | Where-Object { $rep.SrcOver -and $rep.SrcOver.ContainsKey($_) })
+    $ignC = @($ignK | Where-Object { -not ($rep.SrcOver -and $rep.SrcOver.ContainsKey($_)) })
     if ($GwError) {
         # gw a echoue pendant une passe de reecriture : les pistes de la passe restent faibles
         $txt = ((T "CONTRÔLE APRÈS ÉCRITURE interrompu par une erreur gw à la passe {0}/{1} : {2} piste(s) faible(s) ou non remesurée(s) : {3}  ->  support fatigué ou lecteur en défaut") -f "$($rep.Round)", "$($rep.Max)", "$($weak.Count)", "$(Format-TrackList $weak)"); $lvl = 3
@@ -9032,7 +9531,8 @@ function Complete-WriteCheck([switch]$GwError) {
         $txt = (T 'CONTRÔLE APRÈS ÉCRITURE : aucune piste mesurée.'); $lvl = 3
     } elseif ($weak.Count -eq 0) {
         $txt = ((T "CONTRÔLE APRÈS ÉCRITURE : {0}/{1} pistes saines") -f "$nOk", "$n")
-        if ($ignK.Count -gt 0) { $txt += ((T ", {0} piste(s) non reproductible(s) ou déjà critique(s) non comptée(s) : {1}") -f "$($ignK.Count)", "$(Format-TrackList (Sort-TrackKeys $ignK))") }
+        if ($ignC.Count -gt 0) { $txt += ((T ", {0} piste(s) non reproductible(s) ou déjà critique(s) non comptée(s) : {1}") -f "$($ignC.Count)", "$(Format-TrackList (Sort-TrackKeys $ignC))") }
+        if ($ovrK.Count -gt 0) { $txt += ((T ", {0} piste(s) déjà hors norme dans l'original non comptée(s) : {1}") -f "$($ovrK.Count)", "$(Format-TrackList (Sort-TrackKeys $ovrK))") }
         if ($unjK.Count -gt 0) { $txt += ((T ", {0} piste(s) à zone instable non jugée(s) : {1}") -f "$($unjK.Count)", "$(Format-TrackList (Sort-TrackKeys $unjK))") }
         if ($nRew -gt 0) { $txt += ((T ", après réécriture de {0} piste(s) en {1} passe(s)") -f "$nRew", "$($rep.Round)") }
         $lvl = 0
@@ -9064,9 +9564,10 @@ function Update-RepPartial {
     # Les pistes remesurees prennent leur nouvelle mesure ; les autres restent « faibles ou non remesurees ».
     $rep = $script:Rep
     $remeasured = @{}
+    $fake = Test-RepFakeIndex $rep
     foreach ($scp in @($rep.Scps)) {
         if (-not (Test-Path -LiteralPath $scp)) { continue }
-        try { $t = Read-ScpFile $scp } catch { continue }
+        try { $t = Read-ScpFile $scp -NoIndexZone:$fake } catch { continue }
         foreach ($tn in @($t.Keys)) {
             $k = "$([math]::Floor([int]$tn / 2)).$([int]$tn % 2)"
             if (@($rep.Weak) -notcontains $k) { continue }
@@ -9075,6 +9576,15 @@ function Update-RepPartial {
             $rep.Rewrites[$k] = 1 + $(if ($rep.Rewrites.ContainsKey($k)) { [int]$rep.Rewrites[$k] } else { 0 })
             $remeasured[$k] = $true
         }
+    }
+    # Revue 12.8.2 : pistes faibles de la passe effacees en haute frequence (lignes « Erasing Track », EraseLog de la passe)
+    # sans ligne « Writing Track » ensuite, ni remesure : vierges, et non plus a leur mesure d avant la passe ; marquees
+    # illisibles (absentes de la relecture), une ligne de journal
+    $el = $script:EraseLog
+    if ($el -and [string]$el.Owner -eq 'check' -and [int]$el.Round -eq [int]$rep.Round) {
+        $blank = Sort-TrackKeys @(@($rep.Weak) | Where-Object { $el.Erased.ContainsKey([string]$_) -and -not $el.Written.ContainsKey([string]$_) -and -not $remeasured.ContainsKey($_) })
+        foreach ($k in $blank) { $mm = Get-TrackMetrics @(); $mm.Missing = $true; $rep.State[$k] = $mm }
+        if (@($blank).Count -gt 0) { Append-Log ((T "Contrôle après écriture : piste(s) effacée(s) en haute fréquence et non réécrite(s) après l'arrêt de gw : {0}. Elles sont vierges sur la disquette : réécrivez l'image.") -f "$(Format-TrackList $blank)") }
     }
     $rep.Weak = Sort-TrackKeys @(@($rep.Weak) | Where-Object { -not $remeasured.ContainsKey($_) -or $rep.State[$_].Bad -or $rep.State[$_].Level -ge 1 })
 }
@@ -9899,7 +10409,8 @@ function Step-FmtDetectFlux {
     if ($script:ScpStatsOk) {
         try { $d.HD = [bool](Test-ScpHighDensity $d.Scp) } catch { $d.HD = $false }
         try {
-            $t = Read-ScpFile $d.Scp
+            # 12.8.2 : lecture avec --fake-index (options de lecteur, Get-DriveReadArgs) : index simule, zone de l index comptee
+            $t = Read-ScpFile $d.Scp -NoIndexZone:(@($script:FmtDetectArgs | Where-Object { "$_" -match '^--fake-index=' }).Count -gt 0)
             foreach ($tn in @($t.Keys)) {
                 $mm = Get-TrackMetrics $t[$tn]; $d.Tracks++
                 $lv = if ($mm.Bad) { 2 } else { Get-HealthLevel $mm.Ooc $mm.Dr $mm.Stab $mm.J $script:JitterStdOk $script:JitterStdWatch }
@@ -9949,7 +10460,7 @@ function Step-FmtDetectProbe {
     $d.ProbeDone = $true
     if ((Test-Path -LiteralPath $d.ProbeScp) -and $script:ScpStatsOk) {
         try {
-            $t = Read-ScpFile $d.ProbeScp
+            $t = Read-ScpFile $d.ProbeScp -NoIndexZone:(@($script:FmtDetectArgs | Where-Object { "$_" -match '^--fake-index=' }).Count -gt 0)
             foreach ($tn in @($t.Keys)) {
                 $mm = Get-TrackMetrics $t[$tn]; $d.ProbeTracks++
                 $lv = if ($mm.Bad) { 2 } else { Get-HealthLevel $mm.Ooc $mm.Dr $mm.Stab $mm.J $script:JitterStdOk $script:JitterStdWatch }
@@ -9982,12 +10493,21 @@ function Complete-DiskFormatDetect($res) {
 # ============================== FONCTIONS : QUALITE ET ALIGNEMENT ==============
 
 # ============================== ALIGNEMENT : LOGIQUE ===========================
-function Read-ScpFile([string]$path, [int]$cellsPerRev = 0, [switch]$Finger) {
+function Read-ScpFile([string]$path, [int]$cellsPerRev = 0, [switch]$Finger, [switch]$NoIndexZone) {
     # cellsPerRev > 0 : motif de test connu (calibration) ; la cellule vaut alors duree du tour / nombre de cellules,
     # au lieu de la mediane des intervalles de deux cellules, qui derive quand le decalage residuel est grand.
+    # 12.8.2 (S10 a S12) : hors calibration, post-traitement de chaque piste (Set-ScpTrackPost) : premier intervalle de
+    # la lecture et zone de l index non comptes, stabilite sur tours alignes ; la calibration (cellsPerRev > 0) garde
+    # le comptage d avant (courbes inchangees). -NoIndexZone : index synthetique connu de l appelant (--fake-index) :
+    # zone de l index comptee comme le reste de la piste ; de meme pour un SCP non cale sur l index (en-tete, bit 0 des
+    # drapeaux, comme gw : image/scp.py) et pour des tours plus courts qu une rotation (secteurs durs lus comme des
+    # index : Set-ScpTrackPost, ScpIdxMinRevNs). Revue 12.8.2 : echec du post-traitement d une piste (comptage d avant
+    # pour cette piste) : une ligne de journal par fichier, avec le premier message.
     $d = [System.IO.File]::ReadAllBytes($path)
     if ([System.Text.Encoding]::ASCII.GetString($d, 0, 3) -ne 'SCP') { throw (T 'Fichier SCP invalide') }
     $revs = $d[5]; $res = ($d[11] + 1) * 25
+    $zone = (-not $NoIndexZone) -and ((($d[8] -band 1) -eq 1) -or $revs -eq 1)
+    $script:ScpPostFail = @{ N = 0; Msg = '' }
     $tracks = @{}
     for ($t = 0; $t -lt 168; $t++) {
         $o = [BitConverter]::ToUInt32($d, 16 + 4 * $t)
@@ -10011,7 +10531,11 @@ function Read-ScpFile([string]$path, [int]$cellsPerRev = 0, [switch]$Finger) {
             $list[0].Blocks = $ins[0]; $list[0].Unstable = $ins[1]; $list[0].MaxRun = $ins[2]; $list[0].RunPos = $ins[3]
             if ($Finger) { $list[0].Finger = [ScpStats]::Fingerprint($fl[0], [double]$list[0].Cell, 8); $list[0].Rich = [ScpStats]::RichCount($fl[0], [double]$list[0].Cell) }
         }
+        if ($cellsPerRev -le 0 -and $list.Count -gt 0) { Set-ScpTrackPost $fl $list $zone }
         $tracks[[int]$tn] = $list
+    }
+    if ($script:ScpPostFail.N -gt 0) {
+        Append-Log ((T "Analyse SCP : calcul 12.8.2 des erreurs et de la stabilité en échec sur {0} piste(s), jugée(s) comme dans les versions précédentes : {1}") -f "$($script:ScpPostFail.N)", "$($script:ScpPostFail.Msg)")
     }
     return $tracks
 }
@@ -10031,6 +10555,345 @@ function Read-ScpTrackFlux([string]$path, [int]$tn) {
         $fl.Add([ScpStats]::Decode($d, [int]($o + $doff), [int]$ln, $res))
     }
     return ,$fl
+}
+
+# --- 12.8.2 (S10 a S12) : premier intervalle, zone de l index, stabilite sur tours alignes ----------------------------
+# Post-traitement en PowerShell des tours lus par Read-ScpFile (le C# de 030 n est pas modifie) : classes des seuls
+# segments utiles (ScpStats.Classes, meme regle que Analyze), sommes de flux en code natif (Linq), aucune boucle
+# PowerShell sur tous les intervalles d une piste. Constantes : 040 (ScpIdxZoneNs, ScpIdxMinRevNs, ScpPostWin,
+# ScpRevWin, ScpZoneWin, ScpAnchor).
+function Get-ScpClassText($flux, [int]$start, [int]$len, [double]$cell, [int]$start2 = 0, [int]$len2 = 0) {
+    # Classes de $flux[$start .. $start + $len - 1], suivies de celles de $flux[$start2 .. $start2 + $len2 - 1] : '2' a
+    # '5', 'x' hors classe ou trou (ScpStats.Classes, une seule fois pour les deux segments)
+    if ($len2 -le 0 -and $start -eq 0 -and $len -eq $flux.Length) { return [ScpStats]::Classes($flux, $cell) }
+    $seg = [int[]]::new($len + [math]::Max(0, $len2))
+    [Array]::Copy($flux, $start, $seg, 0, $len)
+    if ($len2 -gt 0) { [Array]::Copy($flux, $start2, $seg, $len, $len2) }
+    return [ScpStats]::Classes($seg, $cell)
+}
+
+function Get-ScpEdgeClasses($f, [double]$cell, [int]$k) {
+    # Classes des $k premiers et des $k derniers intervalles d un tour : @(debut, fin, indice du premier intervalle de la
+    # fin, tour entier). Tour entier si le tour est court, ou si les ScpZoneWin intervalles d un bout ($k >= ScpZoneWin)
+    # durent moins de ScpIdxZoneNs (intervalles tres courts : la zone de l index doit etre couverte)
+    $n = $f.Length; $zw = [int]$script:ScpZoneWin
+    if ($n -le 2 * $k -or [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f, 0, $zw)) -lt $script:ScpIdxZoneNs -or
+        [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f, $n - $zw + 1, $zw - 1)) -lt $script:ScpIdxZoneNs) {
+        $s = Get-ScpClassText $f 0 $n $cell
+        return @($s, $s, 0, $true)
+    }
+    $s = Get-ScpClassText $f 0 $k $cell ($n - $k) $k
+    return @($s.Substring(0, $k), $s.Substring($k), ($n - $k), $false)
+}
+
+function Get-ScpZoneOoc($f, [string]$hs, [string]$ts, [int]$to, [int]$first) {
+    # S11 : intervalles hors classe (pas les trous) qui commencent a moins de ScpIdxZoneNs de l index (debut du tour, a
+    # partir de l intervalle $first) ou qui finissent a moins de ScpIdxZoneNs de l index suivant (fin du tour : apres
+    # T - ScpIdxZoneNs). $hs : classes du debut du tour, $ts : de la fin, dont le premier intervalle a l indice $to.
+    # Revue 12.8.2 : par bout, ecartes seulement s ils forment une seule grappe (raccord d ecriture) : ScpIdxClusterMax
+    # intervalles au plus, du debut du premier a la fin du dernier en ScpIdxClusterNs au plus ; sinon aucun (defaut du
+    # support a l index : compte). Verification du 27/10/2026 : une grappe qui se prolonge au-dela de la zone (hors classe
+    # hors zone a ScpIdxClusterNs au plus de la fin de la grappe) fait compter le bout ; grappes aux deux bouts du tour (de
+    # part et d autre de l index) : ScpIdxClusterMax intervalles au plus au total et distances a l index (bout le plus
+    # lointain de chaque grappe) de ScpIdxClusterNs au plus en somme, sinon les deux bouts sont comptes. Rend @(hors classe
+    # ecartes, distance a l index du bout le plus lointain d une grappe ecartee, en ns). Seuls les intervalles hors classe
+    # sont visites, et pas au-dela d une grappe impossible ni de ScpIdxZoneNs + ScpIdxClusterNs ; durees cumulees entre
+    # deux d entre eux en code natif.
+    $zn = $script:ScpIdxZoneNs; $cn = $script:ScpIdxClusterNs; $cm = [int]$script:ScpIdxClusterMax; $n = $f.Length
+    $z = 0; $far = 0
+    # Debut du tour : $cum = debut de l intervalle $p ; grappe de $t0 (debut du premier) a $t1 (fin du dernier)
+    $p = $hs.IndexOf([char]'x', $first); $last = 0; $cum = 0; $c = 0; $t0 = -1; $t1 = 0; $ok = $true
+    while ($p -ge 0) {
+        if ($p -gt $last) { $cum += [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f, $last, $p - $last)) }
+        $last = $p
+        if ($cum -ge $zn) {
+            if ($c -gt 0 -and $f[$p] -lt 20000 -and $cum - $t1 -le $cn) { $ok = $false }
+            if (-not $ok -or $c -eq 0 -or $cum -ge $zn + $cn) { break }
+        } elseif ($f[$p] -lt 20000) {
+            $c++; if ($t0 -lt 0) { $t0 = $cum }; $t1 = $cum + $f[$p]
+            if ($c -gt $cm -or $t1 - $t0 -gt $cn) { $ok = $false; break }
+        }
+        $p = $hs.IndexOf([char]'x', $p + 1)
+    }
+    $hc = $c; $hf = $t1; $hok = $ok
+    # Fin du tour : $tail = duree de la fin de l intervalle $a a la fin du tour ; grappe de $u0 a $u1 avant l index
+    $q = $ts.LastIndexOf([char]'x'); $hi = $n; $tail = 0; $c = 0; $u0 = -1; $u1 = 0; $ok = $true
+    while ($q -ge 0) {
+        $a = $to + $q
+        if ($hi - $a - 1 -gt 0) { $tail += [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f, $a + 1, $hi - $a - 1)) }
+        $hi = $a + 1
+        if ($tail -ge $zn) {
+            if ($c -gt 0 -and $f[$a] -lt 20000 -and $a -ge $first -and $tail - $u1 -le $cn) { $ok = $false }
+            if (-not $ok -or $c -eq 0 -or $tail -ge $zn + $cn) { break }
+        } elseif ($f[$a] -lt 20000 -and $a -ge $first) {
+            $c++; if ($u0 -lt 0) { $u0 = $tail }; $u1 = $tail + $f[$a]
+            if ($c -gt $cm -or $u1 - $u0 -gt $cn) { $ok = $false; break }
+        }
+        if ($q -eq 0) { break }
+        $q = $ts.LastIndexOf([char]'x', $q - 1)
+    }
+    if ($hok -and $ok -and $hc -gt 0 -and $c -gt 0 -and ($hc + $c -gt $cm -or $hf + $u1 -gt $cn)) { $hok = $false; $ok = $false }
+    if ($hok -and $hc -gt 0) { $z += $hc; $far = $hf }
+    if ($ok -and $c -gt 0) { $z += $c; $far = [math]::Max($far, $u1) }
+    return @($z, $far)
+}
+
+function Get-ScpZoneEnd($f, [bool]$head, [int]$lim) {
+    # Limite de la zone de l index d un tour, par dichotomie (sommes en code natif). Debut : nombre d intervalles qui
+    # commencent avant ScpIdxZoneNs, au plus $lim (classes connues) ; fin : indice du premier intervalle qui finit apres
+    # T - ScpIdxZoneNs, au moins $n - $lim.
+    $n = $f.Length; $zn = $script:ScpIdxZoneNs
+    if ($head) {
+        $lo = 0; $hi = [math]::Min($n, $lim)
+        while ($lo -lt $hi) {
+            $mid = [int][math]::Floor(($lo + $hi) / 2)
+            if ([System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f, 0, $mid)) -ge $zn) { $hi = $mid } else { $lo = $mid + 1 }
+        }
+        return $lo
+    }
+    $lo = [math]::Max(0, $n - $lim); $hi = $n
+    while ($lo -lt $hi) {
+        $mid = [int][math]::Ceiling(($lo + $hi) / 2)
+        if ([System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f, $mid, $n - $mid)) -ge $zn) { $lo = $mid } else { $hi = $mid - 1 }
+    }
+    return $lo
+}
+
+function Test-ScpZoneData($f0, [string]$hs, [string]$ts, [int]$to, [double]$cell) {
+    # Revue 12.8.2 : zone de l index du tour 0 qui contient des donnees (le raccord n y est pas : image IPF, bloc WRSP,
+    # original non cale sur l index ou ecrit par un Amiga, index simule) : un bloc de Len intervalles entierement dans la
+    # zone, sans hors classe, au motif varie (aucune classe sur plus de 80 % du bloc) et present une seule fois a
+    # +/- Win2 (critere des ancres, Find-ScpAnchor), dont les deux moities sont aussi uniques : un bloc a cheval sur la
+    # rupture de phase d un remplissage periodique (gap 4E coupe par le raccord) a une moitie periodique. Vide (2T),
+    # remplissage periodique et raccord : faux ; debut d un secteur (synchro et en-tete) ou secteur coupe : vrai. Suites
+    # de 2T sautees d un coup ; pas de ZoneStep apres un bloc trop uniforme ou dont une moitie se repete, de Len / 2 apres
+    # un motif periodique ; ZoneTries blocs au plus par bout. $hs, $ts, $to : classes des bouts du tour 0
+    # (Get-ScpEdgeClasses) ; $cell : cellule du tour 0. Verification du 27/10/2026 : sans bloc retenu, synchro MFM pres de
+    # l index (Test-ScpZoneSync) : un defaut dans le seul bloc riche de la zone, ou un secteur a donnees uniformes (zeros :
+    # suites de 2T) a cheval sur l index, ne font plus prendre la zone pour du vide.
+    $A = $script:ScpAnchor; $L = [int]$A.Len; $W2 = [int]$A.Win2; $mx = [math]::Floor(0.8 * $L); $h = [int]($L / 2)
+    $ord = [System.StringComparison]::Ordinal; $chars = [char[]]'345x'; $cs = @('2', '3', '4', '5')
+    foreach ($head in $true, $false) {
+        # Zone [$za, $zb) dans $s (noms distincts de $A : PowerShell ne distingue pas la casse)
+        if ($head) { $s = $hs; $za = 0; $zb = Get-ScpZoneEnd $f0 $true $hs.Length }
+        else { $s = $ts; $za = (Get-ScpZoneEnd $f0 $false $ts.Length) - $to; $zb = $ts.Length }
+        $p = $za; $tries = 0
+        while ($tries -lt [int]$A.ZoneTries -and $p + $L -le $zb) {
+            $p = $s.IndexOfAny($chars, $p)
+            if ($p -lt 0 -or $p + $L -gt $zb) { break }
+            $tries++
+            $blk = $s.Substring($p, $L)
+            $ix = $blk.LastIndexOf([char]'x')
+            if ($ix -ge 0) { $p += $ix + 1; continue }
+            $ok = $true
+            foreach ($c in $cs) { if ($L - $blk.Replace($c, '').Length -gt $mx) { $ok = $false; break } }
+            if (-not $ok) { $p += [int]$A.ZoneStep; continue }
+            $lo = [math]::Max(0, $p - $W2); $hi = [math]::Min($s.Length, $p + $L + $W2)
+            if ($s.IndexOf($blk, $lo, $hi - $lo, $ord) -eq $p -and $s.IndexOf($blk, $p + 1, $hi - $p - 1, $ord) -lt 0) {
+                $u = $true
+                foreach ($o in 0, $h) {
+                    $hb = $blk.Substring($o, $h); $q = $p + $o
+                    $lo = [math]::Max(0, $q - $W2); $hi = [math]::Min($s.Length, $q + $h + $W2)
+                    if ($s.IndexOf($hb, $lo, $hi - $lo, $ord) -ne $q -or $s.IndexOf($hb, $q + 1, $hi - $q - 1, $ord) -ge 0) { $u = $false; break }
+                }
+                if ($u) { return $true }
+                $p += [int]$A.ZoneStep
+            } else { $p += $h }
+        }
+    }
+    return (Test-ScpZoneSync $f0 $hs $ts $to $cell)
+}
+
+function Test-ScpZoneSync($f0, [string]$hs, [string]$ts, [int]$to, [double]$cell) {
+    # Verification du 27/10/2026 : le tour 0 contient-il une double synchro MFM 0x4489 (classes ScpIdxSync) qui commence a
+    # moins de ScpIdxZoneNs apres l index (debut du tour, a partir de l intervalle 1) ou a moins de ScpIdxSyncBeforeNs de
+    # la fin du tour 0 (secteur a cheval sur l index) ? Seule la premiere synchro du debut et la derniere de la fin sont
+    # jugees (les plus proches de l index). Fin du tour 0 classee sur moins de ScpIdxSyncBeforeNs (suites de 2T) et sans
+    # synchro : ScpRevWin intervalles de plus avant elle (tout le debut du tour au besoin), raccordes a ses classes.
+    # Recherches par les surcharges a quatre arguments (chaine, debut, longueur, Ordinal) : une seule candidate en 5.1.
+    $sy = [string]$script:ScpIdxSync; $bn = $script:ScpIdxSyncBeforeNs; $n = $f0.Length; $ord = [System.StringComparison]::Ordinal
+    $p = $hs.IndexOf($sy, 1, $hs.Length - 1, $ord)
+    if ($p -ge 1 -and [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f0, 0, $p)) -lt $script:ScpIdxZoneNs) { return $true }
+    $q = $ts.LastIndexOf($sy, $ts.Length - 1, $ts.Length, $ord)
+    if ($q -ge 0) { return ([System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f0, $to + $q, $n - $to - $q)) -lt $bn) }
+    if ($to -le 0 -or [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f0, $to, $n - $to)) -ge $bn) { return $false }
+    $s0 = [math]::Max(0, $to - [int]$script:ScpRevWin)
+    if ($s0 -gt 0 -and [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f0, $s0, $n - $s0)) -lt $bn) { $s0 = 0 }
+    $e0 = [math]::Min($n, $to + $sy.Length - 1)
+    $seg = Get-ScpClassText $f0 $s0 ($e0 - $s0) $cell
+    $q = $seg.LastIndexOf($sy, $seg.Length - 1, $seg.Length, $ord)
+    return ($q -ge 0 -and [System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f0, $s0 + $q, $n - $s0 - $q)) -lt $bn)
+}
+
+function Find-ScpAnchor($fl, $list, $edges, [string]$s, [int]$to, [bool]$head, [int]$minAbs) {
+    # S12 : ancre du tour 0 et sa position dans chaque tour ; tableau des positions absolues, ou $null.
+    #  Candidats du tour 0, dans l ordre ($s : classes du debut du tour 0 pour A, de la fin pour B, premier intervalle
+    #  d indice $to) : A, premiers blocs de Len intervalles qui commencent apres ScpIdxZoneNs ; B, derniers blocs qui
+    #  finissent avant T - ScpIdxZoneNs et commencent apres $minAbs (fin de A). Bloc retenu : aucun intervalle hors
+    #  classe ni trou, motif varie (aucune classe sur plus de 80 % du bloc, comme le bloc « riche » de
+    #  ScpStats.Instability), une seule fois a +/- Win2 dans le tour 0. Suites de 2T (vide, remplissage) sautees d un
+    #  coup ; apres un refus, bloc suivant ; Tries positions et Cand candidats au plus.
+    #  Chaque candidat est cherche par sa suite exacte de classes dans chaque tour, autour de la position attendue
+    #  (position au tour precedent, plus la derive des deux tours precedents : index synthetique), a +/- Win puis a
+    #  +/- Win2, sur les classes du seul segment cherche (prises dans les bouts du tour deja classes, $edges, ou classees
+    #  a part) ; retenu s il y est une seule fois dans tous les tours. Revue 12.8.2 : trouve a plus de Win de sa position
+    #  attendue dans un tour (derive d un index simule), le bloc doit aussi etre unique dans le tour 0 sur la fenetre
+    #  elargie de cet ecart : sinon un double du bloc, pris pour lui dans un tour ou il est abime, fausserait AB ou BA.
+    $A = $script:ScpAnchor; $L = [int]$A.Len; $W = [int]$A.Win; $W2 = [int]$A.Win2; $mx = [math]::Floor(0.8 * $L)
+    $ord = [System.StringComparison]::Ordinal; $chars = [char[]]'345x'; $cs = @('2', '3', '4', '5')
+    $f0 = $fl[0]; $n0 = $f0.Length; $nr = $fl.Count; $zn = $script:ScpIdxZoneNs
+    $zl = [int][math]::Ceiling($zn / [math]::Floor(1.65 * [double]$list[0].Cell))
+    if ($head) { $p = $zl } else { $e = $s.Length - 1 - $zl }
+    $tries = 0; $cand = 0
+    while ($tries -lt $A.Tries -and $cand -lt $A.Cand) {
+        if ($head) {
+            if ($p -ge $s.Length) { break }
+            $p = $s.IndexOfAny($chars, $p)
+            if ($p -lt 0 -or $p + $L + $W -gt $s.Length) { break }
+        } else {
+            if ($e -lt 0) { break }
+            $e = $s.LastIndexOfAny($chars, $e)
+            $p = $e - $L + 1
+            if ($e -lt 0 -or $p - $W -lt 0 -or $to + $p -lt $minAbs) { break }
+        }
+        $tries++
+        $b = $s.Substring($p, $L)
+        if ($head) { $ix = $b.IndexOf([char]'x'); if ($ix -ge 0) { $p = $p + $ix + 1; continue } }
+        else { $ix = $b.LastIndexOf([char]'x'); if ($ix -ge 0) { $e = $p + $ix - 1; continue } }
+        $ok = $true
+        foreach ($c in $cs) { if ($L - $b.Replace($c, '').Length -gt $mx) { $ok = $false; break } }
+        if ($ok) {
+            $lo = [math]::Max(0, $p - $W2); $hi = [math]::Min($s.Length, $p + $L + $W2)
+            $ok = ($s.IndexOf($b, $lo, $hi - $lo, $ord) -eq $p -and $s.IndexOf($b, $p + 1, $hi - $p - 1, $ord) -lt 0)
+        }
+        $abs = $to + $p
+        if ($ok) {
+            if ($head) { $ok = ([System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f0, 0, $abs)) -ge $zn) }
+            else { $ok = ([System.Linq.Enumerable]::Sum([System.ArraySegment[int]]::new($f0, $abs + $L, $n0 - $abs - $L)) -ge $zn) }
+        }
+        if (-not $ok) { if ($head) { $p += $L } else { $e -= $L }; continue }
+        # Candidat retenu : position dans les autres tours
+        $cand++
+        $pos = [int[]]::new($nr); $pos[0] = $abs; $dev = 0
+        for ($r = 1; $r -lt $nr -and $ok; $r++) {
+            $f = $fl[$r]
+            $ex = $pos[$r - 1]; if ($r -ge 2) { $ex += $pos[$r - 1] - $pos[$r - 2] }
+            $lo = [math]::Max(0, $ex - $W2); $hi = [math]::Min($f.Length, $ex + $L + $W2)
+            $q = -1
+            if ($hi - $lo -ge $L) {
+                $ed = $edges[$r]; $eh = [string]$ed[0]; $et = [string]$ed[1]; $eo = [int]$ed[2]
+                if ($hi -le $eh.Length) { $seg = $eh.Substring($lo, $hi - $lo) }
+                elseif ($lo -ge $eo) { $seg = $et.Substring($lo - $eo, $hi - $lo) }
+                else { $seg = Get-ScpClassText $f $lo ($hi - $lo) ([double]$list[$r].Cell) }
+                $a1 =[math]::Max(0, $ex - $W - $lo); $b1 = [math]::Min($seg.Length, $ex + $L + $W - $lo)
+                if ($b1 - $a1 -ge $L) {
+                    $q = $seg.IndexOf($b, $a1, $b1 - $a1, $ord)
+                    if ($q -ge 0 -and $seg.IndexOf($b, $q + 1, $b1 - $q - 1, $ord) -ge 0) { $q = -2 }
+                }
+                if ($q -eq -1) {
+                    $q = $seg.IndexOf($b, $ord)
+                    if ($q -ge 0 -and $seg.IndexOf($b, $q + 1, $ord) -ge 0) { $q = -2 }
+                }
+            }
+            if ($q -lt 0) { $ok = $false } else { $pos[$r] = $lo + $q; $dev = [math]::Max($dev, [math]::Abs($pos[$r] - $ex)) }
+        }
+        if ($ok -and $dev -gt $W) {
+            $lo = [math]::Max(0, $p - $W2 - $dev); $hi = [math]::Min($s.Length, $p + $L + $W2 + $dev)
+            $ok = ($s.IndexOf($b, $lo, $hi - $lo, $ord) -eq $p -and $s.IndexOf($b, $p + 1, $hi - $p - 1, $ord) -lt 0)
+        }
+        if ($ok) { return ,$pos }
+        if ($head) { $p += $L } else { $e = $p - 1 }
+    }
+    return $null
+}
+
+function Set-ScpTrackPost($fl, $list, [bool]$zone) {
+    # Post-traitement d une piste lue par Read-ScpFile hors calibration. $fl : flux de chaque tour ; $list : ScpRev de
+    # chaque tour (Analyze) ; $zone : index reel, cale par gw (S11 permise). Pistes illisibles (jitter non mesure) : rien.
+    #  S10 : le premier intervalle du tour 0, tronque par gw (flux.py, cue_at_index), n est pas compte hors classe ; un
+    #        premier intervalle de 20 us ou plus reste un trou (verification du 27/10/2026 : gw le tronque, c est un vrai
+    #        trou d au moins 20 us). NFlux ne change pas.
+    #  S11 : hors classe a moins de ScpIdxZoneNs d un index (Get-ScpZoneOoc), non comptes : jonction d ecriture de gw,
+    #        dans l espace entre le dernier et le premier secteur ; trous comptes partout. Double densite (cellule de 1,7
+    #        a 2,3 us, classes justes ; verification : et hors classe du tour 0 au plus 5 % des flux, sinon haute densite a
+    #        cellule mal estimee ou piste critique de toute facon), tours d au moins ScpIdxMinRevNs (un index par
+    #        rotation). Revue 12.8.2 : pas si la zone du tour 0 contient des donnees (Test-ScpZoneData, synchro MFM
+    #        comprise) ; par tour et par bout, une seule grappe ecartee.
+    #  S12 : stabilite sur tours alignes : ancres A (debut du corps de piste) et B (fin) du tour 0, retrouvees dans chaque
+    #        tour (Find-ScpAnchor ; bouts du tour 0, puis tout le tour 0 si aucun couple n y est trouve). StabAl =
+    #        max(ecart des comptes de flux de A a B des tours, ecart des comptes de B a A du tour suivant, a travers
+    #        l index) : un deplacement de l index ne change aucun compte. Au moins 3 tours (2 : un seul compte de B a A)
+    #        d au moins ScpIdxMinRevNs, double densite ; ancre introuvable ou ambigue dans un tour : StabAl -1, Stab
+    #        d avant (NFlux) ; Tried : alignement tente (repli signale au journal par l appelant).
+    # Ecrit OutOfClass des tours et ajoute au tour 0 la propriete Post = @{ ZoneOoc (hors classe ecartes, tous tours) ;
+    # ZoneFarNs (distance a l index de la grappe ecartee la plus lointaine) ; First ('ooc' ou '') ;
+    # StabAl ; Tried ; Zone (S11 appliquee) ; ZoneData (zone avec des donnees : S11 non appliquee) ; PA ; PB (positions
+    # des ancres) }. Toute erreur : piste laissee au comptage d avant, comptee dans ScpPostFail (journal : Read-ScpFile).
+    $nr = $list.Count
+    if ($nr -eq 0 -or $fl.Count -ne $nr -or $fl[0].Length -eq 0) { return }
+    foreach ($x in $list) { if ([double]::IsNaN([double]$x.Jitter)) { return } }
+    $post = @{ ZoneOoc = 0; ZoneFarNs = 0; First = ''; StabAl = -1; Tried = $false; Zone = $false; ZoneData = $false; PA = $null; PB = $null }
+    $dOoc = [int[]]::new($nr)
+    try {
+        $c0 = [double]$list[0].Cell; $v = $fl[0][0]
+        if ($v -lt 20000) {
+            $q = $v / $c0; $k = [math]::Round($q)
+            if ([math]::Abs($q - $k) -gt 0.35 -or $k -lt 2 -or $k -gt 5) { $dOoc[0] = 1; $post.First = 'ooc' }
+        }
+        if ($c0 -ge 1700 -and $c0 -le 2300 -and 20 * [int]$list[0].OutOfClass -le [int]$list[0].NFlux) {
+            # Classes des bouts de chaque tour : ScpPostWin intervalles au tour 0 (ancres), ScpRevWin aux autres (zone de
+            # l index et recherche des ancres)
+            $edges = New-Object object[] $nr
+            for ($r = 0; $r -lt $nr; $r++) { $edges[$r] = Get-ScpEdgeClasses $fl[$r] ([double]$list[$r].Cell) $(if ($r -eq 0) { [int]$script:ScpPostWin } else { [int]$script:ScpRevWin }) }
+            $e0 = $edges[0]
+            $hs0 = [string]$e0[0]; $ts0 = [string]$e0[1]; $to0 = [int]$e0[2]; $full0 = [bool]$e0[3]
+            # Un index par rotation (secteurs durs lus sans --hard-sectors : plusieurs) : zone de l index et tours alignes
+            $oneIdx = $true
+            foreach ($x in $list) { if ([double]$x.IndexMs * 1e6 -lt $script:ScpIdxMinRevNs) { $oneIdx = $false } }
+            if ($zone -and $oneIdx) {
+                if (Test-ScpZoneData $fl[0] $hs0 $ts0 $to0 $c0) { $post.ZoneData = $true }
+                else {
+                    $post.Zone = $true
+                    for ($r = 0; $r -lt $nr; $r++) {
+                        $e = $edges[$r]
+                        $z = Get-ScpZoneOoc $fl[$r] ([string]$e[0]) ([string]$e[1]) ([int]$e[2]) $(if ($r -eq 0) { 1 } else { 0 })
+                        $dOoc[$r] += [int]$z[0]; $post.ZoneOoc += [int]$z[0]
+                        if ([int]$z[1] -gt $post.ZoneFarNs) { $post.ZoneFarNs = [int]$z[1] }
+                    }
+                }
+            }
+            if ($nr -ge 3 -and $oneIdx) {
+                $post.Tried = $true
+                $L = [int]$script:ScpAnchor.Len; $pa = $null; $pb = $null
+                foreach ($att in 0, 1) {
+                    $pb = $null
+                    $pa = Find-ScpAnchor $fl $list $edges $hs0 0 $true 0
+                    if ($null -ne $pa) { $pb = Find-ScpAnchor $fl $list $edges $ts0 $to0 $false ($pa[0] + $L) }
+                    if (($null -ne $pa -and $null -ne $pb) -or $full0) { break }
+                    # Aucun couple d ancres dans les bouts du tour 0 (secteurs vides, long remplissage) : tout le tour 0
+                    $hs0 = Get-ScpClassText $fl[0] 0 $fl[0].Length $c0; $ts0 = $hs0; $to0 = 0; $full0 = $true
+                }
+                if ($null -ne $pa -and $null -ne $pb) {
+                    $aMin = [int]::MaxValue; $aMax = [int]::MinValue; $bMin = [int]::MaxValue; $bMax = [int]::MinValue
+                    for ($r = 0; $r -lt $nr; $r++) {
+                        $ab = $pb[$r] - $pa[$r]
+                        if ($ab -lt $aMin) { $aMin = $ab }; if ($ab -gt $aMax) { $aMax = $ab }
+                        if ($r -lt $nr - 1) {
+                            $ba = $fl[$r].Length - $pb[$r] + $pa[$r + 1]
+                            if ($ba -lt $bMin) { $bMin = $ba }; if ($ba -gt $bMax) { $bMax = $ba }
+                        }
+                    }
+                    if ($aMin -gt 0 -and $bMin -gt 0) { $post.StabAl = [int][math]::Max($aMax - $aMin, $bMax - $bMin); $post.PA = $pa; $post.PB = $pb }
+                }
+            }
+        }
+        # Propriete ajoutee avant toute correction : en cas d echec, la piste reste entiere au comptage d avant
+        $list[0].PSObject.Properties.Add([System.Management.Automation.PSNoteProperty]::new('Post', $post))
+    } catch {
+        if ($script:ScpPostFail) { $script:ScpPostFail.N++; if (-not $script:ScpPostFail.Msg) { $script:ScpPostFail.Msg = [string]$_.Exception.Message } }
+        return
+    }
+    for ($r = 0; $r -lt $nr; $r++) { if ($dOoc[$r] -ne 0) { $list[$r].OutOfClass = [int]$list[$r].OutOfClass - $dOoc[$r] } }
 }
 
 function Get-AlignCyls {
@@ -10067,7 +10930,7 @@ function Get-AlLevel([string]$kind, [double]$v) {
         'score'  { if ($v -lt 100) { 0 } elseif ($v -lt 200) { 1 } elseif ($v -lt 400) { 2 } else { 3 } }
         'jitter' { if ($v -lt $script:JitterOk * 0.5) { 0 } elseif ($v -lt $script:JitterOk) { 1 } elseif ($v -lt (Get-JitterRedBound)) { 2 } else { 3 } }
         'asym'   { if ($v -lt 0.02){ 0 } elseif ($v -lt 0.05){ 1 } elseif ($v -lt 0.10){ 2 } else { 3 } }
-        'err'    { if ($v -le 0)   { 0 } elseif ($v -le 3)   { 1 } elseif ($v -le 20)  { 2 } else { 3 } }
+        'err'    { if ($v -le 0)   { 0 } elseif ($v -le $script:HealthErrOk) { 1 } elseif ($v -le 20)  { 2 } else { 3 } }   # 12.8.2 : borne SAIN de Get-HealthLevel
         'stab'   { if ($v -le 2)   { 0 } elseif ($v -le 5)   { 1 } elseif ($v -le 10)  { 2 } else { 3 } }
         'delta'  { if ($v -le 10)  { 0 } elseif ($v -le 30)  { 1 } elseif ($v -le 100) { 2 } else { 3 } }   # ecart % vs reference
         default  { 3 }
@@ -10179,7 +11042,8 @@ function Get-HealthLevel([double]$err, [double]$drop, [double]$stab, [double]$ji
     # Seuils de jitter reglables (Accueil, « Regler le jitter ») ; l asymetrie n entre pas dans l etat. Seuils explicites
     # (Standard 120 / 250 ns) pour juger un ORIGINAL et pour le garde-fou du controle : un reglage strict ne doit faire
     # que reecrire davantage de pistes de la copie, pas rejeter une source lisible ni bloquer les reecritures.
-    if ($err -le 3 -and $drop -le 0 -and $stab -le 2 -and $jit -lt $okT) { return 0 }
+    # 12.8.2 : SAIN jusqu a HealthErrOk erreurs par tour (2 ; 3 jusqu en 12.8.1), meme seuil pour tous les appelants.
+    if ($err -le $script:HealthErrOk -and $drop -le 0 -and $stab -le 2 -and $jit -lt $okT) { return 0 }
     if ($err -le 20 -and $drop -le 1 -and $stab -le 10 -and $jit -lt $watchT) { return 1 }
     return 2
 }
@@ -10190,7 +11054,9 @@ function Get-JitterRedBound {
 }
 
 function Update-QualityTip {
-    $tip.SetToolTip($lvAl, ((T "État par piste : SAIN / À SURVEILLER / CRITIQUE, d'après les erreurs, les trous, la stabilité et le jitter.`nJitter : SAIN sous {0} ns, À SURVEILLER sous {1} ns (onglet Accueil, « Régler le jitter »).`nCouleurs de la colonne Jitter : <{2} / <{0} / <{3} ns. Asymétrie : <0,02 / <0,05 / <0,10 (couleur et score seulement, sans effet sur l'état).") -f "$($script:JitterOk)", "$($script:JitterWatch)", "$([math]::Round($script:JitterOk * 0.5))", "$([math]::Round((Get-JitterRedBound)))"))
+    # 12.8.2 : definition des erreurs (premier intervalle et zone de l index non comptes) et de la stabilite (tours alignes),
+    # en derniere ligne
+    $tip.SetToolTip($lvAl, ((T "État par piste : SAIN / À SURVEILLER / CRITIQUE, d'après les erreurs, les trous, la stabilité et le jitter.`nJitter : SAIN sous {0} ns, À SURVEILLER sous {1} ns (onglet Accueil, « Régler le jitter »).`nCouleurs de la colonne Jitter : <{2} / <{0} / <{3} ns. Asymétrie : <0,02 / <0,05 / <0,10 (couleur et score seulement, sans effet sur l'état).`nErreurs : intervalles hors classe par tour, sans le premier intervalle de la lecture ; en double densité, sans le raccord d'écriture de gw quand il tient dans la zone de ± 1 ms autour de l'index (sauf index simulé ou données dans cette zone) ; les trous sont comptés partout. Stabilité : écart du nombre de flux entre les tours ; en double densité et à partir de 3 tours, comparés alignés sur les mêmes données.") -f "$($script:JitterOk)", "$($script:JitterWatch)", "$([math]::Round($script:JitterOk * 0.5))", "$([math]::Round((Get-JitterRedBound)))"))
 }
 
 function Set-JitterThresholds([int]$ok, [int]$watch) {
@@ -10233,7 +11099,7 @@ function Show-JitterSettings {
     $dlg.Name = 'frmJitter'; $dlg.Text = (T 'Réglage du jitter')
     $dlg.FormBorderStyle = 'FixedDialog'; $dlg.MaximizeBox = $false; $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false
     $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font; $dlg.BackColor = [System.Drawing.Color]::White
-    $text = (T "Le jitter mesure la dispersion des intervalles entre les transitions magnétiques d'une piste, en nanosecondes : plus il est faible, plus la piste est nette.`n`nCes seuils fixent l'état de chaque piste dans l'onglet « Qualité & alignement », dans le contrôle après écriture et dans la restauration. Une piste n'est SAINE que si son jitter est sous le premier seuil, et si ses erreurs, ses trous et sa stabilité sont bons. Au-delà du second seuil, elle est CRITIQUE.`n`nAprès une écriture avec contrôle de toutes les pistes (écriture lente, restauration), une piste qui n'est pas SAINE est réécrite, dans la limite des passes de réécriture : un réglage plus strict fait réécrire davantage de pistes, donc davantage d'écritures sur la disquette. Le jugement de la disquette d'origine en restauration et le garde-fou (plus de la moitié des pistes faibles : aucune réécriture) gardent les seuils Standard.")
+    $text = (T "Le jitter mesure la dispersion des intervalles entre les transitions magnétiques d'une piste, en nanosecondes : plus il est faible, plus la piste est nette.`n`nCes seuils fixent l'état de chaque piste dans l'onglet « Qualité & alignement », dans le contrôle après écriture et dans la restauration. Une piste n'est SAINE que si son jitter est sous le premier seuil, et si ses erreurs, ses trous et sa stabilité sont bons. Au-delà du second seuil, elle est CRITIQUE. Les erreurs ne comptent pas le premier intervalle de la lecture ni, en double densité, le raccord d'écriture de gw dans la zone de ± 1 ms autour de l'index ; en double densité et à partir de 3 tours, la stabilité compare les tours alignés sur les mêmes données.`n`nAprès une écriture avec contrôle de toutes les pistes (écriture lente, restauration), une piste qui n'est pas SAINE est réécrite, dans la limite des passes de réécriture : un réglage plus strict fait réécrire davantage de pistes, donc davantage d'écritures sur la disquette. Le jugement de la disquette d'origine en restauration et le garde-fou (plus de la moitié des pistes faibles : aucune réécriture) gardent les seuils Standard.")
     $ban = New-DlgBanner $dlg 16 $W (T 'Seuils de jitter des pistes') $text 'info' (New-DlgPicto 'jitter') $gdi 'lblJitText'
     $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
     $y = $ban.Bottom + 14
@@ -10333,8 +11199,13 @@ function Show-JitterSettings {
 # Metriques d une piste (liste de ScpRev, un par tour) : base commune de l onglet Qualite et du
 # controle apres ecriture, pour que « piste faible » ait partout la meme definition.
 function Get-TrackMetrics($st) {
+    # 12.8.2 : Ooc sans le premier intervalle de la lecture ni les hors classe de la zone de l index, Stab sur tours
+    # alignes (Read-ScpFile, Set-ScpTrackPost : propriete Post du tour 0) ; ZoneOoc : hors classe ecartes (tous tours) ;
+    # ZoneFarNs : distance a l index de la grappe ecartee la plus lointaine ; StabAligned : faux = ecart du nombre de flux
+    # (moins de 3 tours, haute densite, secteurs durs, piste sans post-traitement : calibration) ; StabFallback :
+    # alignement tente mais sans ancres communes (repli sur l ecart du nombre de flux, signale au journal)
     $m = @{ Bad = $false; Missing = $false; J = 0.0; R3 = 0.0; R4 = 0.0; Ooc = 0.0; Dr = 0.0; Cell = 0.0; Stab = 0.0; Asym = 0.0; Score = 9999; Level = 2
-            Weak = $false; ShortUnstable = $false; Blocks = 0; Unstable = 0; MaxRun = 0; RunPos = -1 }
+            Weak = $false; ShortUnstable = $false; Blocks = 0; Unstable = 0; MaxRun = 0; RunPos = -1; ZoneOoc = 0; ZoneFarNs = 0; StabAligned = $false; StabFallback = $false }
     $list = @($st)
     if ($list.Count -eq 0) { $m.Bad = $true; return $m }
     foreach ($x in $list) { if ([double]::IsNaN($x.Jitter)) { $m.Bad = $true } }
@@ -10347,6 +11218,12 @@ function Get-TrackMetrics($st) {
     $m.Cell = ($list | Measure-Object -Property Cell -Average).Average
     $nf     = $list | ForEach-Object { $_.NFlux }
     $m.Stab = ($nf | Measure-Object -Maximum).Maximum - ($nf | Measure-Object -Minimum).Minimum
+    $pp = $list[0].PSObject.Properties['Post']
+    if ($pp -and $pp.Value) {
+        $m.ZoneOoc = [int]$pp.Value.ZoneOoc; $m.ZoneFarNs = [int]$pp.Value.ZoneFarNs
+        if ([int]$pp.Value.StabAl -ge 0) { $m.Stab = [int]$pp.Value.StabAl; $m.StabAligned = $true }
+        elseif ($pp.Value.Tried) { $m.StabFallback = $true }
+    }
     $m.Asym = [math]::Abs($m.R3 - 1.5) + [math]::Abs($m.R4 - 2.0)
     $m.Score = [math]::Round($m.J + 2000 * $m.Asym + 5 * $m.Ooc + 50 * $m.Dr + $m.Stab, 0)
     $m.Level = Get-HealthLevel $m.Ooc $m.Dr $m.Stab $m.J
@@ -10439,11 +11316,13 @@ function Invoke-AlignAnalysis {
     $lvAl.BeginUpdate()
     try {
         $lvAl.Items.Clear()
-        $total = 0.0; $count = 0
+        $total = 0.0; $count = 0; $zo = 0; $zt = 0; $zf = 0; $fb = @()
         foreach ($tn in ($tracks.Keys | Sort-Object)) {
             $st = $tracks[$tn]; $cyl = [math]::Floor($tn / 2); $hd = $tn % 2; $key = "$cyl.$hd"
             $lab = "$cyl.$hd"
             $m = Get-TrackMetrics $st
+            if ($m.ZoneOoc -gt 0) { $zo += $m.ZoneOoc; $zt++; if ($m.ZoneFarNs -gt $zf) { $zf = $m.ZoneFarNs } }
+            if ($m.StabFallback) { $fb += $lab }
             if ($m.Bad) {
                 [void]$lvAl.Items.Add((New-AlignRow $lab $m '' '-' -1))
                 $last[$key] = @{ Score = 9999; Jitter = 0; Asym = 0; Err = 0; Stab = 0; Cell = 0 }
@@ -10480,6 +11359,12 @@ function Invoke-AlignAnalysis {
             $res.Health = 0; $res.HealthText = ((T "SUPPORT SAIN  -  {0}/{1} pistes propres (erreurs, trous, stabilité, jitter dans les normes)") -f "$nTracks", "$nTracks")
         }
         Append-Log ((T "Mesure : {0}") -f "$($res.HealthText)")
+        # 12.8.2 (S11, S12) : hors classe du raccord ecartes (distance a l index la plus grande), pistes sans tours alignes ;
+        # mesure continue : a la premiere passe seulement (revue : le compte change a chaque relecture)
+        if (-not $script:AlignLoop -or [int]$script:QualView.Pass -le 1) {
+            if ($zo -gt 0) { Append-Log ((T "Mesure : {0} intervalle(s) hors classe du raccord d'écriture, dans la zone de ± 1 ms autour de l'index (jusqu'à {2} ms), non compté(s), sur {1} piste(s).") -f "$zo", "$zt", (Format-UiNum ($zf / 1e6) '0.00')) }
+            if ($fb.Count -gt 0) { Append-Log ((T "Mesure : stabilité de {0} piste(s) jugée sur l'écart du nombre de flux entre les tours, faute de repère commun pour les aligner : {1}.") -f "$($fb.Count)", "$($fb -join ', ')") }
+        }
         if ($weakL.Count -gt 0) { Append-Log ((T "Mesure : zone instable d'un tour à l'autre sur {0} piste(s) : {1}. Bits faibles d'une protection contre la copie probable, ou défaut localisé du support : une copie faite depuis un flux n'en écrit qu'un tour et ne les reproduit pas fidèlement.") -f "$($weakL.Count)", "$($weakL -join ', ')") }
         $clu = @(Get-UnstableClusters $weakL)
         if ($clu.Count -gt 0) { Append-Log ((T "Mesure : pistes instables sur des cylindres voisins d'une même face ({0}) : défaut du support probable (rayure, usure) plutôt qu'une protection.") -f "$($clu -join ', ')") }
@@ -11111,7 +11996,7 @@ function Get-QualityCardModel($v) {
     if ($show -eq $true -and $fullL2) { $tips += $fullL2 }
     if ($r -and $null -ne $show) { if ($r.HealthText) { $tips += [string]$r.HealthText }; if ($r.ScoreText) { $tips += [string]$r.ScoreText } }
     $tips += ''
-    $tips += (T "État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter.`nIndépendant du contenu : comparable d'une disquette à l'autre.")
+    $tips += (T "État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter. Erreurs comptées sans le premier intervalle de la lecture ni, en double densité, le raccord d'écriture dans la zone de ± 1 ms autour de l'index ; stabilité mesurée sur des tours alignés (double densité, 3 tours ou plus).`nIndépendant du contenu : comparable d'une disquette à l'autre.")
     $tips += (T "Score de qualité de lecture (plus bas = mieux). Dépend du contenu : à comparer uniquement sur une même image`n(deux lecteurs, deux précompensations, deux réglages).")
     $m.Tip = ($tips -join "`n").Trim()
     $m.Access = @(@($m.Chip, "$($m.Score) $($m.Level)".Trim(), $m.State) | Where-Object { $_ -and $_ -ne [string][char]0x2013 }) -join ' ; '
@@ -11656,14 +12541,16 @@ function Update-HomeCalibDialog {
         $txt += "`r`n`r`n" + (Get-HomeCurveState $fam)
         $s.Info.Text = $txt
         $s.Curve.Enabled = ((Get-FamilyCurves $fam $heads).Count -gt 0)
-        # Durees : memes estimations que Start-PrecompCalib (passes prevues, 1,4 s par piste et par phase, sans le
+        # Durees : memes estimations que Start-PrecompCalib (passes prevues, 1,4 s par piste et par phase, plus l effacement
+        # haute frequence en double densite (12.8.2, Get-CalibEraseEst), sans le
         # prechauffage, annonce par sa case) et Start-LevelCalib (2 passes)
         $np = $script:CalCoarse.Count + $script:CalMaxVerify
+        $pt = 1.4 + (Get-CalibEraseEst ($fam -eq 'hd'))
         $nStd = @(0..($n - 1) | Where-Object { $_ % 10 -eq 0 }).Count + $(if (($n - 1) % 10 -ne 0) { 1 } else { 0 })
         # 12.8 (D9) : memes noms que la liste « Calibration précomp » de l onglet Ecriture (test standard, fin, rapide)
-        $s.Std.Text = ((T "Test standard (calibration complète, 1 cylindre sur 10) : environ {0} min") -f "$([math]::Max(1, [math]::Round($nStd * 2 * 1.4 * $np / 60, 0)))")
+        $s.Std.Text = ((T "Test standard (calibration complète, 1 cylindre sur 10) : environ {0} min") -f "$([math]::Max(1, [math]::Round($nStd * 2 * $pt * $np / 60, 0)))")
         # Haute densite : pas de calibration rapide (12.7), le test fin n en est pas la reference
-        $fineMin = "$([math]::Max(1, [math]::Round($n * 2 * 1.4 * $np / 60, 0)))"
+        $fineMin = "$([math]::Max(1, [math]::Round($n * 2 * $pt * $np / 60, 0)))"
         $s.Fine.Text = if ($fam -eq 'hd') { (T "Test fin (calibration complète, tous les cylindres) : environ {0} min") -f $fineMin } else { (T "Test fin (calibration complète, tous les cylindres) : environ {0} min ; référence du test rapide") -f $fineMin }
         $lr = Get-LevelRef $fam $heads $cmbDrive.Text '' $false -NCyl $n -Bits ([int]$info.Bits) -ForHome
         if ($lr.Ok) {
@@ -11671,9 +12558,9 @@ function Update-HomeCalibDialog {
             foreach ($u in @($lr.Units)) { foreach ($c in @(@($u.LCyls) + @($u.Wit) + @($(if ($null -ne $u.Probe) { $u.Probe })))) { $lc[[int]$c] = $true } }
             $s.Quick.Enabled = $true
             # 12.8 (lot 1c) : par tete, 2 passes en general, 3 avec 2 cylindres de controle quand la forme est adaptee
-            $qLo = [math]::Max(1, [math]::Round($lc.Count * 2 * 1.4 * 2 / 60, 0))
+            $qLo = [math]::Max(1, [math]::Round($lc.Count * 2 * $pt * 2 / 60, 0))
             if ($heads) {
-                $qHi = [math]::Max($qLo, [math]::Round(($lc.Count + [int]$script:LevelAdaptCtlCyls) * 2 * 1.4 * 3 / 60, 0))
+                $qHi = [math]::Max($qLo, [math]::Round(($lc.Count + [int]$script:LevelAdaptCtlCyls) * 2 * $pt * 3 / 60, 0))
                 $qd = if ($qHi -gt $qLo) { (T '{0} à {1}') -f "$qLo", "$qHi" } else { "$qLo" }
                 $s.Quick.Text = ((T "Test rapide (niveau et forme de la disquette insérée) : {0} min") -f "$qd")
             } else { $s.Quick.Text = ((T "Test rapide (niveau de la disquette insérée) : environ {0} min") -f "$qLo") }
@@ -15458,8 +16345,10 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     $warm = ($toWrite -and $chkWSlow.Checked -and $chkWWarm.Checked)
     $wu = if ($warm) { [math]::Max(0.0, [double]$script:CalWarmupMinutes) } else { 0.0 }
     # 12.8 (lot 1c) : 2 passes en general, 3 passes avec 2 cylindres de controle de plus quand la forme est adaptee
-    $minLo = [math]::Max(1, [math]::Round($cyls.Count * 2 * 1.4 * 2 / 60 + $wu, 0))
-    $minHi = [math]::Max($minLo, [math]::Round(($cyls.Count + $ctl0.Count) * 2 * 1.4 * 3 / 60 + $wu, 0))
+    # 12.8.2 (revue) : effacement haute frequence de chaque passe en double densite compris (Get-CalibEraseEst, 150)
+    $estEr = Get-CalibEraseEst ([string]$fam -eq 'hd')
+    $minLo = [math]::Max(1, [math]::Round($cyls.Count * 2 * (1.4 + $estEr) * 2 / 60 + $wu, 0))
+    $minHi = [math]::Max($minLo, [math]::Round(($cyls.Count + $ctl0.Count) * 2 * (1.4 + $estEr) * 3 / 60 + $wu, 0))
     $minutes = if ($slow -and $minHi -gt $minLo) { (T '{0} à {1}') -f "$minLo", "$minHi" } else { "$minLo" }
     $script:AlignLoop = $false; $script:AlignNextAt = $null
     $ans = $null                        # 12.7 : jamais celle d un appelant (portee dynamique)
@@ -15506,7 +16395,7 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
         CanFallback = ($toWrite -and -not $NoFallback -and -not $script:Restore); Notes = @($lr.Notes)
         Scp = (Join-Path $script:TempDir 'precomp-calib.scp'); Writes = (New-Object System.Collections.Queue); ReadArgs = @()
         StartTime = (Get-Date); PassStart = (Get-Date); PhaseStart = (Get-Date); Phase = 'write'
-        PassesDone = 0; TotalPasses = 2; WriteDurs = @(); ReadDurs = @(); EstTrack = 0.7; TrackWrites = 0
+        PassesDone = 0; TotalPasses = 2; WriteDurs = @(); ReadDurs = @(); EstTrack = 0.7; EstErase = $estEr; TrackWrites = 0
         # Carte Calibration de l Accueil (progression sur la carte). 12.8 (S3-FLUX) : Geom.NoHome (geometrie de la copie de flux
         # mesuree en restauration, F3R) retire avec cette mesure
         Home = [bool]$Geom; Geom = $Geom
@@ -16157,7 +17046,7 @@ function Get-LevelReviewPlan($cal, $res, [bool]$toWrite) {
     $over = @(@($res.Recs) | Where-Object { $_ -and (@($_.Over).Count -gt 0 -or @($_.Sat).Count -gt 0) })
     $fat = @($units | Where-Object { $_.Fatigue })
     $offerDisk = [bool]($toWrite -and $cal.CanDisk -and $cal.Slow -and $cal.Lr -and ($mm.Count + $resv.Count + $ctlR.Count + $cenR.Count + $over.Count + $fat.Count) -gt 0)
-    $diskMin = if ($offerDisk) { Get-DiskMeasureMinutes ([int]$cal.MaxCyl + 1) } else { 0 }
+    $diskMin = if ($offerDisk) { Get-DiskMeasureMinutes ([int]$cal.MaxCyl + 1) ([string]$cal.Family -eq 'hd') } else { 0 }
     return @{ Warn = [bool]$warnText; WarnText = $warnText; OfferFull = $offerFull; Info = $infoWin; BrandAsk = $brandAsk; Brand = $prefill; Brands = $names; Adapted = $adapted; MemoCurve = $memoCv; Verified = $verified
               OfferDisk = $offerDisk; DiskMin = $diskMin }
 }
@@ -16359,7 +17248,7 @@ function Stop-LevelBrandCurve($cal, $gd) {
     Append-Log ((T "Cette disquette ne ressemble pas à la courbe de la marque « {0} » ({1}) : calibration arrêtée après la passe 1.") -f "$($gd.Brand)", "$($gd.Why)")
     $toWrite = ($script:AfterCalib -eq 'write')
     $disk = [bool]($toWrite -and $cal.CanDisk -and $cal.Slow -and $cal.Lr)
-    $min = if ($disk) { Get-DiskMeasureMinutes ([int]$cal.MaxCyl + 1) } else { 0 }
+    $min = if ($disk) { Get-DiskMeasureMinutes ([int]$cal.MaxCyl + 1) ([string]$cal.Family -eq 'hd') } else { 0 }
     $txt = if ($disk) { (T "Cette disquette ne ressemble pas à la marque « {0} ». Choisissez une calibration rapide sur la référence du lecteur (1 à 2 min) ou une mesure complète de cette disquette (environ {1} min).") -f "$($gd.Brand)", "$min" }
            else { (T "Cette disquette ne ressemble pas à la marque « {0} ». Relancez une calibration rapide sur la référence du lecteur (1 à 2 min), sans la marque.") -f "$($gd.Brand)" }
     $txt += "`n`n" + ((T 'Raison : {0}.') -f "$($gd.Why)") + "`n" + (T "Fermer : la calibration est interrompue et rien de plus n'est écrit.")
@@ -18045,8 +18934,10 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     $noWarm = if ($PSBoundParameters.ContainsKey('NoWarmup')) { [bool]$NoWarmup } else { -not [bool](Get-Setting 'warmFullCalib') }
     # Duree estimee : passes d ecriture et de relecture, plus le prechauffage du lecteur (borne haute : il est reduit ou
     # saute si le lecteur vient de servir, plan recalcule apres l avertissement par Start-CalibWarmup)
+    # 12.8.2 (revue) : effacement haute frequence de chaque passe en double densite compris (Get-CalibEraseEst, 150)
     $wu = if ($noWarm) { 0.0 } else { [math]::Max(0.0, [double]$script:CalWarmupMinutes) }
-    $minutes = [math]::Max(1, [math]::Round($cyls.Count * 2 * 1.4 * $nPassEst / 60 + $wu, 0))
+    $estEr = Get-CalibEraseEst ([string]$family -eq 'hd')
+    $minutes = [math]::Max(1, [math]::Round($cyls.Count * 2 * (1.4 + $estEr) * $nPassEst / 60 + $wu, 0))
     $modeTxt = if ($fine) { (T 'test fin, tous les cylindres') } else { (T 'test standard, un cylindre sur 10') }
     if ($slow) { $modeTxt += (T ', une courbe par tête (écriture lente)') }
     $famTxt = Get-CalibFamilyName $family
@@ -18063,7 +18954,7 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     # 12.8 (lot 1b) : nouvel essai automatique des cylindres non converges : supplement borne d une passe de verification
     # ciblee (Get-CalibRetestMinutes), et non un total (la duree estimee ne compte ni l encadrement ni les mesures
     # complementaires du test standard)
-    $minRetest = Get-CalibRetestMinutes $cyls.Count $maxCyl $fine
+    $minRetest = Get-CalibRetestMinutes $cyls.Count $maxCyl $fine $estEr
     $body += "`n" + ((T "Si des cylindres restent non convergés, un nouvel essai automatique ajoute au plus {0} min (une passe de vérification ciblée).") -f "$minRetest")
     if ($wu -gt 0) { $body += "`n" + ((T "Préchauffage du lecteur avant la première passe : jusqu'à {0} de lecture sans écriture (moins si le lecteur vient de servir), compris dans la durée estimée.") -f (Format-CalDuration (60 * $wu))) }
     # Courbe remplacee d un autre nombre de cylindres (plus de 4 d ecart, seuil de Get-LevelRef) : la nouvelle s applique
@@ -18156,7 +19047,7 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         Scp = (Join-Path $script:TempDir 'precomp-calib.scp'); Writes = (New-Object System.Collections.Queue); ReadArgs = @()
         # Progression globale : passes faites / prevues, durees mesurees par phase, estimation initiale 0,7 s par piste et par phase
         StartTime = (Get-Date); PassStart = (Get-Date); PhaseStart = (Get-Date); Phase = 'write'
-        PassesDone = 0; TotalPasses = $nPassEst; WriteDurs = @(); ReadDurs = @(); EstTrack = 0.7
+        PassesDone = 0; TotalPasses = $nPassEst; WriteDurs = @(); ReadDurs = @(); EstTrack = 0.7; EstErase = $estEr
         Home = [bool]$Geom; Geom = $Geom; NoWarmup = [bool]$noWarm   # carte Calibration de l Accueil ; 12.8 : reglage warmFullCalib
         # 12.7 : controle de surface de la passe 1 (Invoke-CalibAnalysis) : avertissement valide seul, numero de la disquette
         # (Restart-PrecompCalib), bilan, defaut grossier, fenetre ouverte (Hold) ; Redo : calibration B (point 2) ; Cyls0 :
@@ -18215,13 +19106,14 @@ function Start-DiskMeasure($lr, [string]$brand) {
     if (-not $script:Cal) { $script:AfterCalib = ''; Append-Log (T "Écriture annulée : la mesure complète de cette disquette n'a pas été lancée.") }
 }
 
-function Get-DiskMeasureMinutes([int]$nCyl) {
+function Get-DiskMeasureMinutes([int]$nCyl, [bool]$hd = $false) {
     # 12.8 (S3) : duree estimee de la mesure complete de cette disquette (W-M1, W-M2), au calcul de Start-PrecompCalib en
-    # test fin : passes de mesure et de verification sur tous les cylindres, prechauffage du reglage warmFullCalib compris
+    # test fin : passes de mesure et de verification sur tous les cylindres, prechauffage du reglage warmFullCalib compris ;
+    # 12.8.2 (revue) : effacement haute frequence de chaque passe en double densite compris (Get-CalibEraseEst)
     $n = [math]::Max(2, [math]::Min(84, $nCyl))
     $wu = if ([bool](Get-Setting 'warmFullCalib')) { [math]::Max(0.0, [double]$script:CalWarmupMinutes) } else { 0.0 }
     $np = @($script:CalCoarse).Count + [int]$script:CalMaxVerify
-    return [int][math]::Max(1, [math]::Round($n * 2 * 1.4 * $np / 60 + $wu, 0))
+    return [int][math]::Max(1, [math]::Round($n * 2 * (1.4 + (Get-CalibEraseEst $hd)) * $np / 60 + $wu, 0))
 }
 
 function Set-DiskHardNs($x) {
@@ -18441,14 +19333,14 @@ function Complete-DiskMeasure($cal, $issues, $kinds, [string]$surfIssue) {
     }
 }
 
-function Get-CalibRetestMinutes([int]$nCyls, [int]$maxCyl, [bool]$fine) {
+function Get-CalibRetestMinutes([int]$nCyls, [int]$maxCyl, [bool]$fine, [double]$estErase = 0.0) {
     # 12.8 (lot 1b) : duree au plus du nouvel essai automatique des cylindres non converges (avertissement de
     # Start-PrecompCalib), au rythme de la duree estimee (2 pistes par cylindre, 1,4 s par piste et par passe) : une passe
     # de verification ciblee, bornee par une passe sur tous les cylindres que la calibration peut tester (test standard :
     # 30 cylindres complementaires au plus, Start-CalibDensify), arrondie a la minute superieure ; sans prechauffage (il
-    # precede la premiere passe)
+    # precede la premiere passe) ; 12.8.2 (revue) : $estErase, effacement haute frequence par piste (Get-CalibEraseEst)
     $n = [math]::Min($maxCyl + 1, $nCyls + $(if ($fine) { 0 } else { 30 }))
-    return [int][math]::Max(1, [math]::Ceiling($n * 2 * 1.4 / 60))
+    return [int][math]::Max(1, [math]::Ceiling($n * 2 * (1.4 + $estErase) / 60))
 }
 
 function Format-CalDuration([double]$sec) {
@@ -18477,7 +19369,8 @@ function Update-CalibProgress {
         return
     }
     $nTracks = $cal.Cyls.Count * 2
-    $avgW = if ($cal.WriteDurs.Count -gt 0) { ($cal.WriteDurs | Measure-Object -Average).Average } else { $nTracks * $cal.EstTrack }
+    # 12.8.2 (revue) : avant la premiere passe, effacement haute frequence de la phase d ecriture compris (EstErase)
+    $avgW = if ($cal.WriteDurs.Count -gt 0) { ($cal.WriteDurs | Measure-Object -Average).Average } else { $nTracks * ($cal.EstTrack + [double]$cal.EstErase) }
     $avgR = if ($cal.ReadDurs.Count -gt 0)  { ($cal.ReadDurs  | Measure-Object -Average).Average } else { $nTracks * $cal.EstTrack }
     if ($avgW -lt 1) { $avgW = 1 }; if ($avgR -lt 1) { $avgR = 1 }
     $pass = $avgW + $avgR
@@ -18641,7 +19534,7 @@ function Invoke-CalibWarmup {
         } else { $cal.WarmFailRun = 0 }
         if ($cal.WarmFailRun -ge $script:CalWarmupMaxFails) {
             if (Test-Path -LiteralPath $cal.WarmScp) { Remove-Item -LiteralPath $cal.WarmScp -Force -ErrorAction SilentlyContinue }
-            Append-Log ((T "Préchauffage du lecteur {0} arrêté après {1} lectures de suite sans aboutir (Greaseweazle, lecteur ou disquette absent ?) : la calibration commence, sa première écriture signalera le défaut s'il persiste.") -f "$($cal.Drive)", "$($cal.WarmFailRun)")
+            Append-Log ((T "Préchauffage du lecteur {0} arrêté après {1} lectures de suite sans aboutir (Greaseweazle, lecteur ou disquette absent ?) : la calibration commence, sa première commande signalera le défaut s'il persiste.") -f "$($cal.Drive)", "$($cal.WarmFailRun)")
             $cal.Stage = if ($cal.WarmNext) { [string]$cal.WarmNext } else { 'coarse' }
             New-CalibPass; return
         }
@@ -18786,14 +19679,35 @@ function New-CalibPass {
     }
     if (Test-Path -LiteralPath $cal.Scp) { Remove-Item -LiteralPath $cal.Scp -Force }
     $cal.Writes.Clear()
+    # 12.8.2 : disquette double densite (Get-EraseMode : famille autre que hd, motif de moins de 150 000 cellules comme
+    # Test-CurveHd, ni secteurs durs ni TG43) : toutes les pistes que la passe ecrit (TSPEC des ecritures, Get-TSpecKeys)
+    # sont d abord effacees en haute frequence (gw erase --hfreq, TSPEC exacts : une piste non reecrite a cette passe garde
+    # son motif), puis le motif est ecrit sans --pre-erase ; haute densite : --pre-erase, comme avant. Toutes les
+    # calibrations passent ici : complete, test rapide, mesure complete de la disquette, carte de l Accueil, calibration B,
+    # refaire, nouvel essai, verifications et temoins de derive
+    $hf = ((Get-EraseMode ([string]$cal.Family -eq 'hd' -or [int]$cal.PatternBits -ge 150000)) -eq 'hfreq')
+    $ek = @{}
+    if ($hf) {
+        foreach ($w in $writes) {
+            $wk = Get-TSpecKeys ([string]$w[0])
+            if (@($wk).Count -eq 0) { $hf = $false; break }        # TSPEC illisible : pre-effacement pour cette passe
+            foreach ($k in $wk) { $ek[[string]$k] = $true }
+        }
+    }
+    if ($hf) {
+        foreach ($ec in (New-HfreqEraseCmds @($ek.Keys) '')) { $cal.Writes.Enqueue([string[]]$ec) }
+        if (-not $cal.EraseNoted) { $cal.EraseNoted = $true; Append-Log (T "Calibration : disquette double densité, chaque passe efface d'abord en haute fréquence les pistes qu'elle écrit (gw erase --hfreq), puis écrit le motif sans pré-effacement.") }
+    }
+    $pe = if ($hf) { @('--no-verify') } else { @('--pre-erase', '--no-verify') }
     foreach ($w in $writes) {
-        $cal.Writes.Enqueue([string[]](@('write') + (Get-CommonArgs) + @('--pre-erase', '--no-verify') + (Get-CalibDriveArgs) + @("--tracks=$($w[0])", '--precomp', $w[1], "`"$($cal.Pattern)`"")))
+        $cal.Writes.Enqueue([string[]](@('write') + (Get-CommonArgs) + $pe + (Get-CalibDriveArgs) + @("--tracks=$($w[0])", '--precomp', $w[1], "`"$($cal.Pattern)`"")))
     }
     $cal.ReadArgs  = @('read') + (Get-CommonArgs) + @(Get-DriveReadArgs) + @('--revs=3', "--tracks=$readTs", "`"$($cal.Scp)`"")
     $cal.PassStart = Get-Date; $cal.PhaseStart = $cal.PassStart; $cal.Phase = 'write'
     Update-CalibProgress
     $script:Chain.Clear()
-    for ($i = 0; $i -lt $writes.Count; $i++) { $script:Chain.Enqueue({ Start-Gw ([string[]]$script:Cal.Writes.Dequeue()) }) }
+    $nCmd = $cal.Writes.Count
+    for ($i = 0; $i -lt $nCmd; $i++) { $script:Chain.Enqueue({ Start-Gw ([string[]]$script:Cal.Writes.Dequeue()) }) }
     $script:Chain.Enqueue({
         $script:Cal.WriteDurs += ((Get-Date) - $script:Cal.PhaseStart).TotalSeconds
         $script:Cal.Phase = 'read'; $script:Cal.PhaseStart = Get-Date
@@ -20189,21 +21103,39 @@ function Get-DriveK([string]$drive, [string]$fam, [int]$h) {
     # k* des 3 derniers enregistrements de ce lecteur, de cette famille et de cette tete (date de mesure, ordre d ajout a
     # date egale), de version ContentCalc et de calcul CalibCalc courants ; date de la courbe V non exigee (k garde apres
     # une recalibration du lecteur). Rec : le plus recent ; N : enregistrements retenus (3 au plus), Ks : leurs k*.
-    # Sans enregistrement : K = 1, Src 'defaut' (ecriture de la v12.8)
-    $cand = @(); $i = 0
+    # Sans enregistrement : K = 1, Src 'defaut' (ecriture de la v12.8). Revue 12.8.2 : Old, enregistrements de ce lecteur,
+    # de cette famille et de cette tete ecartes parce qu ils viennent d un autre calcul (CalibCalc ou ContentCalc) : textes
+    # « mesures faites avec un autre calcul, a refaire » au lieu de « aucune mesure »
+    $cand = @(); $i = 0; $old = 0
     foreach ($r in $script:ContentMeasures) {
         $i++
         if ($null -eq $r -or $null -eq $r.Head -or $null -eq $r.K) { continue }
         if ([string]$r.Drive -ne $drive -or [string]$r.Family -ne $fam -or [int]$r.Head -ne $h) { continue }
-        if ([string]$r.ContentCalc -ne [string]$script:ContentCalc -or [string]$r.Calc -ne [string]$script:CalibCalc) { continue }
         $k = [double]$r.K
         if ([double]::IsNaN($k) -or [double]::IsInfinity($k)) { continue }
+        if ([string]$r.ContentCalc -ne [string]$script:ContentCalc -or [string]$r.Calc -ne [string]$script:CalibCalc) { $old++; continue }
         $cand += @{ R = $r; D = (Get-CurveDate $r); I = $i; K = $k }
     }
-    if ($cand.Count -eq 0) { return @{ K = 1.0; Src = 'defaut'; Rec = $null; N = 0; Ks = [double[]]@() } }
+    if ($cand.Count -eq 0) { return @{ K = 1.0; Src = 'defaut'; Rec = $null; N = 0; Ks = [double[]]@(); Old = $old } }
     $last = @($cand | Sort-Object -Property @{ Expression = { $_.D }; Descending = $true }, @{ Expression = { $_.I }; Descending = $true } | Select-Object -First 3)
     $ks = [double[]]@($last | ForEach-Object { $_.K })
-    return @{ K = [double](Get-Median $ks); Src = 'lecteur'; Rec = $last[0].R; N = $last.Count; Ks = $ks }
+    return @{ K = [double](Get-Median $ks); Src = 'lecteur'; Rec = $last[0].R; N = $last.Count; Ks = $ks; Old = $old }
+}
+
+function Get-StaleDriveFactors {
+    # Revue 12.8.2 : lecteurs dont les facteurs mesures ne sont plus appliques (Get-DriveK) : enregistrements d un autre
+    # calcul (CalibCalc ou ContentCalc) pour un lecteur, une famille et une tete sans aucun enregistrement du calcul
+    # actuel. Renvoie @{ N : enregistrements ecartes ; Drives : lecteurs concernes, tries } (ligne de journal de Load-Config)
+    $cur = @{}; $old = @{}
+    foreach ($r in @($script:ContentMeasures)) {
+        if ($null -eq $r -or $null -eq $r.Head -or $null -eq $r.K) { continue }
+        $key = "$($r.Drive)|$($r.Family)|$([int]$r.Head)"
+        if ([string]$r.ContentCalc -eq [string]$script:ContentCalc -and [string]$r.Calc -eq [string]$script:CalibCalc) { $cur[$key] = $true }
+        else { if (-not $old.ContainsKey($key)) { $old[$key] = 0 }; $old[$key]++ }
+    }
+    $n = 0; $drv = @{}
+    foreach ($key in @($old.Keys)) { if (-not $cur.ContainsKey($key)) { $n += [int]$old[$key]; $drv[($key -split '\|')[0]] = $true } }
+    return @{ N = $n; Drives = @($drv.Keys | Sort-Object) }
 }
 
 function Add-ContentMeasure($rec) {
@@ -20453,13 +21385,15 @@ function Get-ContentWriteArgs($cal, $w) {
     # 140:135-162 : --pre-erase, --erase-empty et --no-verify selon les cases, --retries, Get-WriteFormatArgs), puis le
     # --precomp du plan de la passe et de la tete restreint aux cylindres de la commande ($w = @{ H ; Cyls ; Resume } :
     # commande complete, ou reprise apres un arret de gw), --tracks=c=<cylindres>:h=<tete> et l image. Jamais --tracks=h=
-    # seul : ces commandes ne se confondent pas avec l ecriture finale (regex de rpm_analyse.precomp_journal)
+    # seul : ces commandes ne se confondent pas avec l ecriture finale (regex de rpm_analyse.precomp_journal).
+    # 12.8.2 : double densite (Content.EraseMode 'hfreq', Start-ContentMeasure) : jamais --pre-erase, la passe commence par
+    # un effacement haute frequence de ses pistes (New-ContentPass) ; autre mode : --pre-erase selon la case, comme avant
     $ct = $cal.Content
     $ph = $ct.Plan.Pass[[int]$ct.Pass].H[[int]$w.H]
     $sel = @{}
     foreach ($c in @($w.Cyls)) { $sel[[int]$c] = [int]$ph.W[[int]$c] }
     $a = @('write') + (Get-CommonArgs)
-    if ($chkWPreErase.Checked)   { $a += '--pre-erase' }
+    if ($chkWPreErase.Checked -and [string]$ct.EraseMode -ne 'hfreq') { $a += '--pre-erase' }
     if ($chkWEraseEmpty.Checked) { $a += '--erase-empty' }
     if ($chkWNoVerify.Checked)   { $a += '--no-verify' }
     $a += "--retries=$($numWRetries.Value)"
@@ -20471,9 +21405,17 @@ function Get-ContentWriteArgs($cal, $w) {
 function Get-ContentMeasureMinutes([int]$nTracks) {
     # Duree estimee de la mesure avant l ecriture de l image (A.6) : 3 passes de nTracks pistes ecrites (ContentEstWrite,
     # 1,25 s par piste, ecriture verifiee) et relues (ContentEstRead, 0,85 s par piste, 3 tours), plus le prechauffage du
-    # reglage warmFullCalib (borne haute : reduit ou saute si le lecteur vient de servir)
+    # reglage warmFullCalib (borne haute : reduit ou saute si le lecteur vient de servir). 12.8.2 (revue) : effacement haute
+    # frequence de chaque passe compris (Get-ContentEraseEst)
     $wu = if ([bool](Get-Setting 'warmFullCalib')) { [math]::Max(0.0, [double]$script:CalWarmupMinutes) } else { 0.0 }
-    return [int][math]::Max(1, [math]::Round(3 * $nTracks * ([double]$script:ContentEstWrite + [double]$script:ContentEstRead) / 60 + $wu, 0))
+    return [int][math]::Max(1, [math]::Round(3 * $nTracks * ([double]$script:ContentEstWrite + [double]$script:ContentEstRead + (Get-ContentEraseEst)) / 60 + $wu, 0))
+}
+
+function Get-ContentEraseEst {
+    # 12.8.2 (revue) : duree estimee, en s par piste et par passe, de l effacement haute frequence de la mesure sur l image
+    # (New-ContentPass : case « Effacer avant d ecrire » cochee, double densite, seule densite mesuree ici) ; 0 sinon
+    if ($chkWPreErase.Checked -and (Get-EraseMode $false) -eq 'hfreq') { return [double]$script:EraseEstTrack }
+    return 0.0
 }
 
 function Get-ContentPeekFactors([string]$img, [string]$fmt, [string]$fam) {
@@ -20508,6 +21450,8 @@ function Start-ContentMeasure($chk) {
     $cq = @{ Title = (T 'Mesure de la disquette'); Heading = (T "Mesure de la disquette sur l'image"); Level = 'info'; Picto = 'data'
              Text = ((T "Avant l'écriture lente, la précompensation est mesurée sur le contenu même de l'image, sur le lecteur {0} : {1} cylindres répartis sur le disque sont écrits 3 fois, à 3 niveaux de la courbe du lecteur ({2}), et relus après chaque passe. L'image est ensuite écrite avec, pour chaque tête, le niveau qui donne la meilleure marge de lecture.`n`nDurée : environ {3} min avant l'écriture de l'image. Ces pistes reçoivent 3 écritures de plus.`n`n« Écrire sans mesure » : facteur actuel du lecteur, tête 0 × {4}, tête 1 × {5}.") -f "$drive", "$($cyls.Count)", "$lvTxt", "$min", (Format-UiNum ([double]$pk[0]) '0.00'), (Format-UiNum ([double]$pk[1]) '0.00'))
              GoText = (T 'Mesurer puis écrire'); GoGlyph = 'Diagnostic'; AltText = (T 'Écrire sans mesure') }
+    # 12.8.2 (revue) : effacement haute frequence de chaque passe (New-ContentPass), compris dans la duree
+    if ((Get-ContentEraseEst) -gt 0) { $cq.Text += "`n`n" + (T "Case « Effacer avant d'écrire » cochée : ces pistes sont effacées en haute fréquence avant chaque passe, durée comprise.") }
     $script:ConfirmChoice = $null
     $go = [bool](Show-AppConfirm @cq)
     if (-not $go) {
@@ -20529,11 +21473,13 @@ function Start-ContentMeasure($chk) {
     $script:AlignLoop = $false; $script:AlignNextAt = $null
     # Etat propre de la mesure : plan, passe en cours (0..2), file des commandes de la passe et commande en cours, reprises
     # par passe et tete ('p|h'), cylindres non ecrits ('p|c|h' -> 'nonecrite'), exclusions d avant l ecriture ('c.h'),
-    # lectures de toutes les passes (List : jamais @() autour, pwsh 7.6), courbes V, references et bornes
+    # lectures de toutes les passes (List : jamais @() autour, pwsh 7.6), courbes V, references et bornes. 12.8.2 : mode
+    # de l effacement avant les ecritures (EraseMode, 150 : 'hfreq' en double densite, seule densite mesuree ici)
     $ct = @{ Plan = $plan; Pass = 0; Todo = [System.Collections.Generic.List[hashtable]]::new(); Current = $null; Resumes = @{}; Skip = @{}
              PreSkip = $chk.PreSkip; Obs = [System.Collections.Generic.List[object]]::new(); Ncell0 = [int]$chk.Ncell0; Levels = $lv
              KMin = [double](@($lv) | Measure-Object -Minimum).Minimum; V = $chk.V; RefKeys = $chk.RefKeys; RefDates = $chk.RefDates
-             Common = [bool]$chk.Common; Fam = $fam; Img = $img; Hard = [int]$chk.Hard }
+             Common = [bool]$chk.Common; Fam = $fam; Img = $img; Hard = [int]$chk.Hard
+             EraseMode = (Get-EraseMode (Test-ImageHighDensity $img ([string]$cmbWFmt.Text))) }
     $script:Cal = @{
         Mode = 'content'; Stage = 'content'; Drive = $drive; Family = $fam; Slow = $true; Image = $img; Cyls = $cyls; CylList = $cylList
         TSpec = "c=${cylList}:h=0-1"; Scp = $scp; Writes = (New-Object System.Collections.Queue)
@@ -20541,7 +21487,7 @@ function Start-ContentMeasure($chk) {
         # Progression : passes faites / prevues, durees mesurees par phase ; estimation initiale par piste et par phase :
         # moyenne de l ecriture et de la relecture (Update-CalibProgress compte Cyls x 2 pistes par phase)
         StartTime = (Get-Date); PassStart = (Get-Date); PhaseStart = (Get-Date); Phase = 'write'; Value = 0; ValueTxt = (T 'tête 0 puis tête 1'); Spec = ''
-        PassesDone = 0; TotalPasses = $lv.Count; WriteDurs = @(); ReadDurs = @(); EstTrack = (([double]$script:ContentEstWrite + [double]$script:ContentEstRead) / 2)
+        PassesDone = 0; TotalPasses = $lv.Count; WriteDurs = @(); ReadDurs = @(); EstTrack = (([double]$script:ContentEstWrite + [double]$script:ContentEstRead) / 2); EstErase = (Get-ContentEraseEst)
         Home = $false; Geom = $null; NoWarmup = (-not [bool](Get-Setting 'warmFullCalib')); Hold = $false; Redo = $false; DiskOnly = $false
         Units = @(); Swap = $false; LevelAfter = $false; VerifyCount = 0; Retests = 0; Content = $ct
     }
@@ -20550,6 +21496,7 @@ function Start-ContentMeasure($chk) {
     $dates = if ($ct.Common) { [string]$ct.RefDates[0] } else { "$($ct.RefDates[0]) / $($ct.RefDates[1])" }
     $kind = if ($ct.Common) { (T 'courbe commune') } else { (T 'une courbe par tête') }
     Append-Log ((T "Mesure sur l'image : courbe du lecteur du {0} ({1}) ; précompensation écrite bornée à 0..{2} ns.") -f "$dates", "$kind", "$($ct.Hard)")
+    if ($chkWPreErase.Checked -and [string]$ct.EraseMode -eq 'hfreq') { Append-Log (T "Mesure sur l'image : disquette double densité, chaque passe commence par un effacement haute fréquence de ses pistes (gw erase --hfreq) ; écritures sans pré-effacement.") }
     $pbWCal.Value = 0; $pbWCal.Visible = $true; $lblWCal.Visible = $true
     Update-CalibProgress
     Start-CalibWarmup      # prechauffage du lecteur s il y a lieu, puis premiere passe (New-CalibPass, stade 'content')
@@ -20566,6 +21513,14 @@ function New-ContentPass {
     foreach ($h in 0, 1) {
         $cs = [int[]]@($ct.Plan.Pass[$p].H[$h].Cyls)
         if ($cs.Count -gt 0) { $ct.Todo.Add(@{ H = $h; Cyls = $cs; Resume = $false }) }
+    }
+    # 12.8.2 : double densite, case « Effacer avant d ecrire » cochee : effacement haute frequence des pistes de la passe
+    # (cylindres de chaque tete dans le plan, sans les pistes exclues avant l ecriture), en tete de file (@{ Erase }) ;
+    # champ Pistes vide (Test-ContentMeasurable) : aucun element de lecteur
+    if ($chkWPreErase.Checked -and [string]$ct.EraseMode -eq 'hfreq') {
+        $ks = @(foreach ($t in $ct.Todo) { foreach ($c in @($t.Cyls)) { "$c.$($t.H)" } })
+        $ers = New-HfreqEraseCmds $ks ''
+        for ($i = $ers.Count - 1; $i -ge 0; $i--) { $ct.Todo.Insert(0, @{ Erase = [string[]]$ers[$i] }) }
     }
     $bc = @($ct.Plan.Cyls); $nb = @($ct.Plan.Blocks).Count
     $len = if ($nb -gt 0) { [int]($bc.Count / $nb) } else { 0 }
@@ -20595,8 +21550,11 @@ function Invoke-ContentWriteNext {
         $ct.Current = $null
     }
     if ($ct.Todo.Count -gt 0) {
-        $w = $ct.Todo[0]; $ct.Todo.RemoveAt(0); $ct.Current = $w
+        $w = $ct.Todo[0]; $ct.Todo.RemoveAt(0)
         $script:Chain.Enqueue({ Invoke-ContentWriteNext })
+        # 12.8.2 : effacement haute frequence de la passe (New-ContentPass) : aucun arret de verification a relever ensuite
+        if ($w.Erase) { $ct.Current = $null; Start-Gw ([string[]]$w.Erase); return }
+        $ct.Current = $w
         Start-Gw (Get-ContentWriteArgs $cal $w)
         return
     }
@@ -20761,7 +21719,8 @@ function Complete-ContentMeasure($cal) {
             $why = if (-not $hc.Ok -and [string]$hc.Why -eq 'peu') { (T 'trop peu de pistes exploitables ({0} cylindres)') -f "$($hc.NCyl)" } else { (T 'ajustement impossible') }
             # Origine du k du lecteur, comme T-C8b (Get-WriteFactorSrcText, 140) : mediane de N >= 2 mesures, ou derniere mesure
             $kTxt = Format-UiNum ([double]$dr.K) '0.00'
-            $kt = if ([string]$dr.Src -ne 'lecteur') { (T 'k 1, aucune mesure de ce lecteur') }
+            $kt = if ([string]$dr.Src -ne 'lecteur' -and [int]$dr.Old -gt 0) { (T 'k 1, mesures de ce lecteur faites avec un autre calcul de calibration, à refaire') }
+                  elseif ([string]$dr.Src -ne 'lecteur') { (T 'k 1, aucune mesure de ce lecteur') }
                   elseif ([int]$dr.N -ge 2) { (T 'k {0}, médiane des {1} dernières mesures du lecteur') -f "$kTxt", "$($dr.N)" }
                   else { (T 'k {0} de la dernière mesure du lecteur, du {1}') -f "$kTxt", $(if ($dr.Rec -and $dr.Rec.Date) { [string]$dr.Rec.Date } else { '?' }) }
             Append-Log ((T '{0}Facteur non mesuré ({1}) : facteur du lecteur appliqué ({2}).') -f "$pre", "$why", "$kt")
@@ -21400,7 +22359,7 @@ function Get-SafeFileName([string]$s) {
 
 function Update-RsRules {
     $r = $script:RestoreRules
-    $lblRsRules.Text = ((T "Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (calibration rapide), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), pré-effacement, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)")
+    $lblRsRules.Text = ((T "Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (calibration rapide), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), effacement avant l'écriture, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)")
 }
 
 function Set-RsStep([int]$i, [string]$state, [string]$detail = '') {
@@ -21500,7 +22459,7 @@ function Start-Restore {
     # detection en mode automatique (Complete-RestoreDetect)
     $script:Restore = @{
         Mode = ''; Fmt = ''; Ext = ''; Choice = $fmt; Drive = $drv; Name = $name; Dir = $dir; Found = ''; FluxRetry = $false
-        Orig = ''; Back = ''; Report = ''; Probe = ''
+        Orig = ''; Back = ''; Report = ''; Probe = ''; FakeIndex = $false   # 12.8.2 : FakeIndex, Invoke-RestoreRead
         # FIX2 : debut des chemins fixe des le lancement (Get-RestoreStem) ; FluxWhy : raison courte d une copie de flux
         # decidee par la detection ou par la relance D12 (etape 2 en « ! ») ; FmtName : nom court du format detecte ;
         # SectorRead : lecture secteur incomplete conservee avant une relance D12 (Path, Miss, Extra)
@@ -21566,6 +22525,8 @@ function Invoke-RestoreRead {
     $r = $script:Restore
     Set-RsStep 0 'run'
     $a = @('read') + (Get-CommonArgs) + @(Get-DriveReadArgs)
+    # 12.8.2 : original lu avec un index simule (--fake-index) : zone de l index comptee a l analyse du flux (Read-ScpFile)
+    $r.FakeIndex = (@($a | Where-Object { "$_" -match '^--fake-index=' }).Count -gt 0)
     if ($r.Mode -eq 'sector') {
         $a += @("--format=$($r.Fmt)", "--revs=$($script:RestoreRules.ReadRevs)", "--retries=$($script:RestoreRules.ReadRetries)", "--seek-retries=$($script:RestoreRules.SeekRetries)")
     } else {
@@ -21698,8 +22659,8 @@ function Complete-RestoreRead {
             # Copie de flux HD : ni precompensation, ni verification gw, ni controle des pistes -> rien ne serait verifie
             Fail-Restore 1 (T 'flux haute densité : une copie de flux ne pourrait pas être contrôlée. Choisissez un format haute densité (amiga.amigados_hd, ibm.1440) pour une copie vérifiée secteur par secteur.'); return
         } else {
-            try { $t = Read-ScpFile $r.Orig -Finger } catch { Fail-Restore 1 ((T "flux illisible : {0}") -f "$($_.Exception.Message)"); return }
-            $n = 0; $sane = 0; $watch = 0; $crit = 0; $critKeys = @{}; $weakKeys = @{}; $unstKeys = @{}; $noMeas = @{}; $fp = $null; $maxTn = 0
+            try { $t = Read-ScpFile $r.Orig -Finger -NoIndexZone:([bool]$r.FakeIndex) } catch { Fail-Restore 1 ((T "flux illisible : {0}") -f "$($_.Exception.Message)"); return }
+            $n = 0; $sane = 0; $watch = 0; $crit = 0; $critKeys = @{}; $weakKeys = @{}; $unstKeys = @{}; $noMeas = @{}; $overKeys = @{}; $fp = $null; $maxTn = 0
             foreach ($tn in @($t.Keys | Sort-Object)) {
                 # Original juge aux seuils Standard (120 / 250 ns), independants du reglage du jitter
                 $m = Get-TrackMetrics $t[$tn]; $n++
@@ -21710,6 +22671,9 @@ function Complete-RestoreRead {
                 # Zone instable d un tour a l autre : bits faibles d une protection probable, non reproductibles
                 if ($m.Weak) { $weakKeys[$key] = $true } elseif ($m.ShortUnstable -and $lv -lt 2) { $unstKeys[$key] = $true }
                 elseif ($lv -lt 2 -and $m.Blocks -eq 0) { $noMeas[$key] = $true }
+                # 12.8.2 (decision du 27/10/2026) : deja hors norme par ses erreurs (Copylock, defaut d origine), ni critique
+                # ni a zone instable : une reecriture ne peut pas la corriger, ignoree au controle de la copie
+                if ($lv -lt 2 -and -not $m.Weak -and (Test-SrcOverErr $m)) { $overKeys[$key] = $true }
                 # Empreinte : piste stable la plus riche en motifs, pour reconnaitre l original dans le lecteur de destination
                 $r0 = $t[$tn][0]
                 if ($lv -lt 2 -and -not $m.Weak -and $r0.Finger -and $r0.Finger.Count -ge 6 -and (-not $fp -or $r0.Rich -gt $fp.Rich)) {
@@ -21724,7 +22688,7 @@ function Complete-RestoreRead {
             }
             # Pistes deja critiques (cylindres non formates, protection) ou a zone instable (bits faibles) sur l original :
             # ni reecrites ni comptees au controle de la copie, jamais reecrites sur une disquette identique a l original
-            $r.Read = @{ Tracks = $n; Sane = $sane; Watch = $watch; Crit = $crit; CritKeys = $critKeys; WeakKeys = $weakKeys; UnstKeys = $unstKeys; NoMeas = $noMeas; MaxCyl = [int][math]::Floor($maxTn / 2) }
+            $r.Read = @{ Tracks = $n; Sane = $sane; Watch = $watch; Crit = $crit; CritKeys = $critKeys; WeakKeys = $weakKeys; UnstKeys = $unstKeys; NoMeas = $noMeas; OverKeys = $overKeys; MaxCyl = [int][math]::Floor($maxTn / 2) }
             $r.Finger = $fp
             $txt = if ($weakKeys.Count -gt 0) { (T "{0} pistes : {1} saines, {2} à surveiller, {3} critiques, {4} à zone instable") -f "$n", "$sane", "$watch", "$crit", "$($weakKeys.Count)" }
                    else { (T "{0} pistes : {1} saines, {2} à surveiller, {3} critiques") -f "$n", "$sane", "$watch", "$crit" }
@@ -21775,12 +22739,14 @@ function Enter-RestoreWait([string]$extra) {
 }
 
 function Get-RestoreKeepCyls {
-    # Flux : cylindres portant une piste non reproductible (zone instable, meme courte) ou deja critique sur l original,
-    # jamais reecrits sur une disquette identique a l original
+    # Flux : cylindres portant une piste non reproductible (zone instable, meme courte), deja critique ou deja hors norme
+    # par ses erreurs sur l original (12.8.2 : OverKeys, par exemple Copylock), jamais reecrits sur une disquette identique
+    # a l original
     $r = $script:Restore; $set = @{}
     if (-not $r -or $r.Mode -ne 'flux' -or -not $r.Read) { return @() }
     $src = @(@($r.Read.CritKeys.Keys) + @($r.Read.WeakKeys.Keys))
     if ($r.Read.UnstKeys) { $src += @($r.Read.UnstKeys.Keys) }
+    if ($r.Read.OverKeys) { $src += @($r.Read.OverKeys.Keys) }
     foreach ($k in $src) { $set[[int](([string]$k -split '\.')[0])] = $true }
     return @($set.Keys | Sort-Object)
 }
@@ -21936,10 +22902,12 @@ function Set-RestoreRepRules {
     # (decision 3) : aussi apres la mesure de la destination (Complete-LevelCalib lance alors l ecriture)
     $r = $script:Restore
     if (-not $r -or $r.Mode -ne 'flux' -or -not $script:Rep -or -not $r.Read) { return }
+    # 12.8.2 (decision du 27/10/2026) : aussi les pistes deja hors norme par leurs erreurs (OverKeys, Rep.SrcOver)
+    $ov = if ($r.Read.OverKeys) { $r.Read.OverKeys } else { @{} }
     $ign = @{}
-    foreach ($k in @(@($r.Read.CritKeys.Keys) + @($r.Read.WeakKeys.Keys))) { $ign[[string]$k] = $true }
+    foreach ($k in @(@($r.Read.CritKeys.Keys) + @($r.Read.WeakKeys.Keys) + @($ov.Keys))) { $ign[[string]$k] = $true }
     if ($ign.Count -gt 0) { $script:Rep.Ignore = $ign }
-    $script:Rep.SrcWeak = $r.Read.WeakKeys
+    $script:Rep.SrcWeak = $r.Read.WeakKeys; $script:Rep.SrcOver = $ov
     $nj = @{}; foreach ($k in @(@($r.Read.UnstKeys.Keys) + @($(if ($r.Read.NoMeas) { $r.Read.NoMeas.Keys } else { @() })))) { $nj[[string]$k] = $true }
     $script:Rep.NoJudge = $nj
 }
@@ -21948,6 +22916,7 @@ function Start-RestoreWrite {
     $r = $script:Restore
     $r.Stage = 'write'; $r.Idle = Get-Date
     $script:LastCheck = $null
+    $script:EraseLog = $null          # 12.8.2 : seul celui de l ecriture de cette restauration compte (Fail-Restore)
     $r.InCall = $true
     try {
         # Regles strictes dans l onglet Ecriture (etat d origine remis en fin de restauration)
@@ -22165,7 +23134,7 @@ function Write-RestoreReport([bool]$ok, [string]$verdict) {
     if ($r.Level) { $L.Add(((T "Niveau      : {0}") -f "$($r.Level.Report)")) }
     if ($r.Preserved -and @($r.Preserved).Count -gt 0) { $L.Add(((T "Préservés   : cylindres {0}, non réécrits sur la disquette identique à l'original") -f "$(Format-CylList @($r.Preserved))")) }
     $rr = $script:RestoreRules
-    $L.Add(((T "Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (calibration rapide) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), pré-effacement, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)"))
+    $L.Add(((T "Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (calibration rapide) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)"))
     $L.Add('')
     $L.Add((T 'Étapes :'))
     $marks = @{ pending = '[ ]'; run = '[>]'; ok = '[OK]'; fail = '[ECHEC]'; skip = '[-]'; warn = '[!]' }
@@ -22232,6 +23201,14 @@ function Finish-Restore {
 function Fail-Restore([int]$step, [string]$why) {
     $r = $script:Restore
     if (-not $r) { return }
+    # Revue 12.8.2 : echec pendant l ecriture sur une disquette identique a l original (« Ecraser quand meme ») : pistes
+    # effacees en haute frequence par cette ecriture (EraseLog de Start-ImageWrite, remis a $null par Start-RestoreWrite)
+    # et jamais ecrites ensuite : citees au journal et dans le resultat, avec l image lue qui les contient
+    $lost = @()
+    if ($r.OnOriginal -and [string]$r.Stage -eq 'write' -and $script:EraseLog -and [string]$script:EraseLog.Owner -eq 'write') {
+        $el = $script:EraseLog
+        $lost = Sort-TrackKeys @(@($el.Erased.Keys) | Where-Object { -not $el.Written.ContainsKey([string]$_) })
+    }
     $r.Stage = 'failed'
     $script:Chain.Clear(); $script:WriteQueue.Clear(); $script:GwCapture = $null; $script:AfterCalib = ''
     if ($script:FmtDetect -and $script:FmtDetect.Owner -eq 'restore') { $script:FmtDetect = $null }   # FIX2 : detection interrompue (erreur gw)
@@ -22239,8 +23216,14 @@ function Fail-Restore([int]$step, [string]$why) {
     if ($step -ge 0) { Set-RsStep $step 'fail' $why }
     $verdict = (T 'RESTAURATION ÉCHOUÉE') + ' : ' + $why
     Append-Log $verdict
+    $lostTxt = ''
+    if (@($lost).Count -gt 0) {
+        $lostTxt = (T "Pistes de la disquette d'origine effacées et non réécrites : {0}. Leur contenu est dans l'image lue {1} : écrivez cette image sur la disquette pour les rétablir.") -f "$(Format-TrackList $lost)", "$([System.IO.Path]::GetFileName([string]$r.Orig))"
+        Append-Log $lostTxt
+    }
     Write-RestoreReport $false $verdict
     $note = if ($step -le 1) { (T 'Rien n''a été écrit : la disquette de destination n''a pas été touchée.') } else { (T 'Le détail est dans le journal et dans le rapport.') }
+    if ($lostTxt) { $note = $lostTxt + "`n`n" + $note }
     Show-RestoreResult $false ($verdict + "`n`n" + $note)
     Close-Restore
 }
@@ -22562,7 +23545,7 @@ $lstLibDocs.Add_DoubleClick({ if (Get-LibOpenTarget) { Open-LibDoc } })
 $btnLibFast = New-Object System.Windows.Forms.Button
 $btnLibFast.Text = (T 'Écriture rapide'); $btnLibFast.Location = '466,262'; $btnLibFast.Size = '154,34'; $btnLibFast.Font = $bold
 $btnLibFast.Anchor = 'Bottom,Right'; $btnLibFast.Enabled = $false
-$tip.SetToolTip($btnLibFast, (T "Écrit l'image sélectionnée en une passe, les deux têtes ensemble : image entière, profil de précompensation Auto,`npré-effacement, effacement des pistes vides, vérification gw, 10 essais, sans contrôle complet des pistes.`nSans calibration commune pour la famille de l'image, le lecteur est d'abord calibré : la disquette reçoit le motif de test, puis l'image."))
+$tip.SetToolTip($btnLibFast, (T "Écrit l'image sélectionnée en une passe, les deux têtes ensemble : image entière, profil de précompensation Auto,`neffacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, vérification gw, 10 essais, sans contrôle complet des pistes.`nSans calibration commune pour la famille de l'image, le lecteur est d'abord calibré : la disquette reçoit le motif de test, puis l'image."))
 $tip.SetToolTip($btnLibFast, $tip.GetToolTip($btnLibFast) + "`n" + (T 'Test rapide choisi dans l''onglet Écriture : avant l''écriture, le niveau de la courbe est mesuré sur la disquette à écrire (4 à 9 cylindres par tête, 1 à 3 écritures du motif par piste).'))
 $btnLibFast.Add_Click({ Start-LibWrite 'fast' })
 $btnLibSlow = New-Object System.Windows.Forms.Button
@@ -22652,8 +23635,10 @@ $grpWImage.Controls.AddRange(@((New-Label (T 'Image :') '12,23'), $txtWFile, $bt
 $grpWOpt = New-Group (T 'Options d''écriture') '10,98' '762,162'
 
 $chkWPreErase = New-Object System.Windows.Forms.CheckBox
-$chkWPreErase.Text = (T 'Pré-effacer chaque piste'); $chkWPreErase.Location = '12,24'; $chkWPreErase.Width = 170
-$tip.SetToolTip($chkWPreErase, (T '--pre-erase : efface la piste juste avant de l''écrire. Recommandé sur une disquette déjà utilisée.'))
+# 12.8.2 : « Effacer avant d ecrire » (meme case, meme cle write.preErase) : effacement haute frequence en double densite,
+# pre-effacement en haute densite (Start-ImageWrite, 150 : Get-EraseMode)
+$chkWPreErase.Text = (T "Effacer avant d'écrire"); $chkWPreErase.Location = '12,24'; $chkWPreErase.Width = 170
+$tip.SetToolTip($chkWPreErase, (T "Efface les pistes avant de les écrire (cochée par défaut).`nDisquette double densité : les pistes de l'image sont d'abord effacées en haute fréquence par le lecteur qui écrit (gw erase --hfreq), puis écrites sans pré-effacement.`nDisquette haute densité : chaque piste est pré-effacée juste avant son écriture (--pre-erase), comme avant ; de même avec les secteurs durs, un lecteur 8 pouces (TG43), --densel ou une image dont l'application ne connaît pas les pistes (ligne au journal).`nMesuré sur un lecteur haute densité qui écrit des disquettes double densité : la marge de lecture sur un lecteur double densité est nettement meilleure qu'avec le pré-effacement (environ 60 ns de plus).`nLes calibrations et les réécritures du contrôle après écriture effacent toujours leurs pistes selon cette règle, même case décochée."))
 $chkWEraseEmpty = New-Object System.Windows.Forms.CheckBox
 $chkWEraseEmpty.Text = (T 'Effacer les pistes vides'); $chkWEraseEmpty.Location = '190,24'; $chkWEraseEmpty.Width = 165
 $tip.SetToolTip($chkWEraseEmpty, (T '--erase-empty : efface les pistes vides de l''image au lieu de les sauter. Supprime les résidus de l''ancien contenu.'))
@@ -22703,9 +23688,9 @@ $lblWLevelMode.Name = 'lblWLevelMode'
 $cmbWLevelMode = New-Object System.Windows.Forms.ComboBox
 # 12.8.1 (spec-1281 § D.1) : trois elements, dans l ordre des codes (content, quick, complete) ; largeur 260
 $cmbWLevelMode.Name = 'cmbWLevelMode'; $cmbWLevelMode.DropDownStyle = 'DropDownList'; $cmbWLevelMode.Width = 260; $cmbWLevelMode.Location = '100,492'
-[void]$cmbWLevelMode.Items.AddRange(@((T "sur l'image à écrire (environ 10 min)"), (T 'rapide, au motif (1 à 2 min)'), (T 'complète, au motif (20 à 25 min)')))
+[void]$cmbWLevelMode.Items.AddRange(@((T "sur l'image à écrire (environ 12 min)"), (T 'rapide, au motif (1 à 2 min)'), (T 'complète, au motif (25 à 30 min)')))
 $cmbWLevelMode.SelectedIndex = 0
-$tip.SetToolTip($cmbWLevelMode, (T "Mesure de la disquette avant une écriture lente.`nSur l'image à écrire : 40 cylindres de l'image sont écrits à 3 niveaux de la courbe du lecteur et relus ; l'image est écrite avec le niveau qui donne la meilleure marge de lecture, pour chaque tête (environ 10 min). Images double densité MFM seulement ; sinon, calibration rapide au motif.`nRapide, au motif : calibration rapide sur le motif de test, 4 à 9 cylindres par tête (1 à 2 min).`nComplète, au motif : mesure complète de cette disquette sur tous ses cylindres (20 à 25 min), puis écriture de l'image ; la courbe obtenue est mémorisée pour la marque de la disquette.`n« Test rapide » et restauration : toujours la calibration rapide au motif."))
+$tip.SetToolTip($cmbWLevelMode, (T "Mesure de la disquette avant une écriture lente.`nSur l'image à écrire : 40 cylindres de l'image sont écrits à 3 niveaux de la courbe du lecteur et relus ; l'image est écrite avec le niveau qui donne la meilleure marge de lecture, pour chaque tête (environ 12 min). Images double densité MFM seulement ; sinon, calibration rapide au motif.`nRapide, au motif : calibration rapide sur le motif de test, 4 à 9 cylindres par tête (1 à 2 min).`nComplète, au motif : mesure complète de cette disquette sur tous ses cylindres (25 à 30 min), puis écriture de l'image ; la courbe obtenue est mémorisée pour la marque de la disquette.`n« Test rapide » et restauration : toujours la calibration rapide au motif."))
 # 12.8.1 (spec-1281 § D.2) : correction « lecteur cible » Dk du lecteur du bandeau, par tete ($script:TargetCorr), sur la
 # ligne de la liste « Mesure : » ; champs toujours actifs (toute ecriture avec facteur, rapide comprise). Libelle,
 # infobulle, valeurs et positions (a la suite de la liste) : Update-TargetCorrUi ; valeur changee : Set-TargetCorrFromUi ;
@@ -22745,7 +23730,7 @@ $chkWSlow.Add_CheckedChanged({ Update-SlowUi; if ($script:UiReady) { Update-Prec
 
 $chkWPostCheck = New-Object System.Windows.Forms.CheckBox
 $chkWPostCheck.Text = (T 'Contrôler toutes les pistes'); $chkWPostCheck.Location = '500,50'; $chkWPostCheck.Width = 255
-$tip.SetToolTip($chkWPostCheck, (T "Après une écriture réussie, relit en flux toutes les pistes écrites et classe chacune avec les critères de l'onglet Qualité & alignement.`nUne piste À SURVEILLER, CRITIQUE ou illisible est réécrite seule (avec pré-effacement), puis seule remesurée,`njusqu'au nombre de passes de réécriture choisi. Résultat dans l'onglet Qualité & alignement."))
+$tip.SetToolTip($chkWPostCheck, (T "Après une écriture réussie, relit en flux toutes les pistes écrites et classe chacune avec les critères de l'onglet Qualité & alignement.`nUne piste À SURVEILLER, CRITIQUE ou illisible est réécrite seule (après un effacement haute fréquence de la piste en double densité, avec pré-effacement en haute densité), puis seule remesurée,`njusqu'au nombre de passes de réécriture choisi. Résultat dans l'onglet Qualité & alignement."))
 
 $lblWRepair = New-Label (T 'Passes de réécriture :') '560,81'
 $numWRepair = New-Object System.Windows.Forms.NumericUpDown
@@ -23119,7 +24104,7 @@ $cmbAlHead.Location = '530,11'; $cmbAlHead.Width = 55; $cmbAlHead.DropDownStyle 
 $numAlRevs = New-Object System.Windows.Forms.NumericUpDown
 $numAlRevs.Location = '645,11'; $numAlRevs.Width = 45
 $numAlRevs.Minimum = 1; $numAlRevs.Maximum = 10
-$tip.SetToolTip($numAlRevs, (T 'Tours lus par piste. 3 suffit ; 5 pour une disquette douteuse.'))
+$tip.SetToolTip($numAlRevs, (T "Tours lus par piste : 3 suffit, 5 pour une disquette douteuse. En double densité et à partir de 3 tours, la stabilité compare des tours alignés ; avec 2, elle compare le nombre de flux de chaque tour, que l'index de certains lecteurs fait varier."))   # 12.8.2
 
 $chkAlLoop = New-Object System.Windows.Forms.CheckBox
 $chkAlLoop.Text = (T 'Continu'); $chkAlLoop.Location = '700,12'; $chkAlLoop.Width = 75
@@ -23292,10 +24277,12 @@ $btnErase.Add_Click({
     $tr = $txtEraseTracks.Text.Trim(); $drv = "$($cmbDrive.Text)"
     $txt = if ($tr) { (T "Les pistes {0} de la disquette du lecteur {1} seront effacées : leur contenu ne pourra pas être récupéré.") -f "$tr", $drv }
            else { (T "Toute la disquette du lecteur {0} sera effacée : son contenu ne pourra pas être récupéré.") -f $drv }
+    # 12.8.2 : effacement haute frequence (gw erase --hfreq), et non plus en courant continu
+    $txt += "`n`n" + (T "L'effacement se fait en haute fréquence (gw erase --hfreq). N'effacez pas en continu une disquette double densité avant de l'écrire, avec un aimant par exemple : écrite ensuite par un lecteur haute densité, elle perdrait de la marge de lecture.")
     $cq = @{ Title = (T 'Confirmation effacement'); Heading = (T 'Effacement irréversible'); Text = $txt; Level = 'danger'; Picto = 'erase'
              Check = ((T 'La disquette du lecteur {0} peut être effacée') -f $drv); GoText = (T 'Effacer la disquette'); GoGlyph = 'Delete' }
     if (Show-AppConfirm @cq) {
-        $a = @('erase') + (Get-CommonArgs)
+        $a = @('erase') + (Get-CommonArgs) + @('--hfreq')
         if ($tr) { $a += "--tracks=$tr" }
         Start-Gw $a
     }
@@ -24121,6 +25108,7 @@ $script:ContentQ = 1e-3; $script:ContentTolM = 1e-6; $script:ContentMaxIt = 50; 
 $script:ContentZMax = 5e-4; $script:ContentCellsTol = 0.02; $script:ContentFluxMin = 0.5
 $script:ContentMinCyl = 20; $script:ContentMinLevelCyl = 6; $script:ContentResumeMax = 1
 $script:ContentEstWrite = 1.25; $script:ContentEstRead = 0.85     # s par piste (balayages du 25/10/2026)
+$script:EraseEstTrack = 0.37         # 12.8.2 : s par piste effacee en haute frequence (essai E5 du 27/10/2026 : 52 pistes en 19 s)
 $script:ContentRecMax = 20; $script:ContentScpName = 'contenu-mesure.scp'   # plafond du facteur ContentFMax : 040
 $script:ContentMeasures = @()        # enregistrements de mesure (C.2), relus par Load-Config
 $script:TargetCorr = @{}             # Dk par lecteur (C.4), relu par Load-Config
@@ -24133,7 +25121,8 @@ $script:GwVerifyFail = $null         # arret « Failed to verify Track C.H » de
 # classement de chaque piste avec Get-TrackMetrics (memes criteres que l onglet Qualite :
 # erreurs hors classe, trous, stabilite entre tours, jitter). Une piste A SURVEILLER,
 # CRITIQUE, illisible ou absente de la relecture est faible : elle est reecrite seule
-# (pre-effacement force), puis seule remesuree. Au plus N passes (« Passes de reecriture »,
+# (12.8.2 : apres un effacement haute frequence de la piste en double densite, pre-effacement force en haute
+# densite), puis seule remesuree. Au plus N passes (« Passes de reecriture »,
 # 3 par defaut ; 0 = controle seul). Les pistes vides de l image (IPF : enregistrement
 # sans bloc) ne sont pas controlees. Garde-fou : si plus de la moitie des pistes sont
 # faibles au premier controle (format non MFM, disquette inadaptee, lecteur en defaut),
@@ -24153,7 +25142,8 @@ $script:Rep = $null
 #  5-7. ecriture lente tete par tete deleguee a Start-PresetWrite : une calibration existante (par tete, sinon commune)
 #     n est jamais refaite, ses reserves sont signalees ; calibration par tete en test fin seulement si la famille n en a
 #     aucune, eventuellement sur une disquette sacrifiee (la destination est alors redemandee et de nouveau sondee) ;
-#     pre-effacement, verification gw, essais et passes de reecriture de $script:RestoreRules, controle de toutes les pistes ;
+#     effacement avant l ecriture (12.8.2 : haute frequence en double densite, pre-effacement en haute densite),
+#     verification gw, essais et passes de reecriture de $script:RestoreRules, controle de toutes les pistes ;
 #  8. relecture de la copie sans nouvel essai et comparaison secteur par secteur avec l original.
 # Machine d etats $script:Restore, un seul repartiteur Invoke-RestoreNext. Calibration, ecriture et controle vident
 # la chaine d etapes : ils rappellent la restauration par des points d accroche (Complete-WriteCheck, fin de
@@ -24198,7 +25188,8 @@ $timer.Add_Tick({
             # verification (« Failed to verify Track », Read-GwOutput), code 1 ou 0 : commande traitee comme une lecture de
             # prechauffage (ni « operation incomplete », ni arret de la sequence) ; l etape suivante (Invoke-ContentWriteNext)
             # garde la piste et reprend la tete. Toute autre erreur gw suit la regle commune. Regle : Get-GwEndRule (110)
-            $gwEnd = Get-GwEndRule $code $soft ([bool]$script:GwIsWrite) ([bool]$script:GwWriteSummary) ([int]$script:ProgTotal) ([int]$script:ProgSeen.Count) $script:GwVerifyFail $(if ($script:Cal) { [string]$script:Cal.Mode } else { '' })
+            $eraseFailed = ([bool]$script:GwIsErase -and [bool]$script:GwCmdFailed); $script:GwIsErase = $false   # 12.8.2
+            $gwEnd = Get-GwEndRule $code $soft ([bool]$script:GwIsWrite) ([bool]$script:GwWriteSummary) ([int]$script:ProgTotal) ([int]$script:ProgSeen.Count) $script:GwVerifyFail $(if ($script:Cal) { [string]$script:Cal.Mode } else { '' }) $eraseFailed
             $soft = [bool]$gwEnd.Soft
             # Activite du lecteur : seulement si le moteur a tourne (code 0, ou au moins une piste lue ou ecrite) ;
             # nouvelle serie si la commande a commence CalWarmupGapMin apres la fin de la precedente
@@ -24228,7 +25219,8 @@ $timer.Add_Tick({
             $incomplete = [bool]$gwEnd.Incomplete
             $script:GwLastIncomplete = [bool]$incomplete
             if ($incomplete -and -not $soft) {
-                Append-Log ((T "ERREUR : opération incomplète, gw s'est arrêté après {0} piste(s) sur {1} annoncées avec le code 0. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer.") -f "$($script:ProgSeen.Count)", "$($script:ProgTotal)")
+                if ($eraseFailed) { Append-Log (T "ERREUR : l'effacement a échoué (« Command Failed » de gw, code 0) : la suite de l'opération n'est pas lancée. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer.") }
+                else { Append-Log ((T "ERREUR : opération incomplète, gw s'est arrêté après {0} piste(s) sur {1} annoncées avec le code 0. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer.") -f "$($script:ProgSeen.Count)", "$($script:ProgTotal)") }
                 $script:Chain.Clear(); $script:WriteQueue.Clear()
                 Stop-WriteWarmup        # defensif : une lecture de prechauffage est « soft »
                 $why = (T 'opération gw incomplète : disquette protégée en écriture, absente, ou lecteur en défaut ? Voir le journal')

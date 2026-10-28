@@ -326,3 +326,205 @@ function Test-ScpHighDensity([string]$path) {
     }
     return $false
 }
+
+# --- Effacement avant l ecriture (12.8.2) ----------------------------------------------------------------------------
+# Essais du 27/10/2026 (E1, E2, E5) : un lecteur haute densite (Sony MPF920-Z) qui ecrit des disquettes double densite
+# (cellule 2 us) perd 35 a 65 ns de marge, relue sur un lecteur double densite, avec le pre-effacement de gw
+# (--pre-erase : effacement en courant continu, WGATE sans WDATA, 1,1 tour avant chaque essai d ecriture) ; un effacement
+# haute frequence des pistes par le lecteur qui ecrit (gw erase --hfreq), puis une ecriture sans --pre-erase, gagne +61 /
+# +64 ns sur cette methode. Regle « double densite » : toute ecriture, mesure ou calibration dont l image ou la famille
+# n est pas haute densite : effacement haute frequence ('hfreq') ; haute densite, non essayee : pre-effacement de la
+# 12.8.1 ('pre'). --erase-empty inchange (pistes absentes de l image, effacees en continu par gw : sans donnees).
+
+function Test-ScpDensityUnknown([string]$img) {
+    # Flux SCP dont la densite n est pas mesurable : module d analyse SCP absent (Test-ScpHighDensity a besoin de ScpStats)
+    return ((-not $script:ScpStatsOk) -and [System.IO.Path]::GetExtension("$img").ToLower() -eq '.scp')
+}
+
+function Test-ImageHighDensity([string]$img, [string]$fmt) {
+    # Image haute densite pour l effacement avant l ecriture : famille hd (Get-ImageFamily), haute densite non calibrable
+    # (Get-HighDensityReason : ED, 360 tr/min, codages propres...) ou flux SCP haute densite (Test-ScpHighDensity, module
+    # d analyse SCP present) ; flux SCP de densite inconnue (Test-ScpDensityUnknown) : traite comme haute densite, donc
+    # pre-effacement de la 12.8.1 (revue 12.8.2) ; autre densite inconnue ou fichier illisible : double densite, comme
+    # Get-ImageFamily
+    try {
+        if ((Get-ImageFamily $img $fmt) -eq 'hd') { return $true }
+        if (Get-HighDensityReason $img $fmt) { return $true }
+        if (Test-ScpDensityUnknown $img) { return $true }
+        if ($script:ScpStatsOk -and [System.IO.Path]::GetExtension("$img").ToLower() -eq '.scp' -and (Test-Path -LiteralPath $img) -and (Test-ScpHighDensity $img)) { return $true }
+    } catch { }
+    return $false
+}
+
+function Get-EraseFallbackNote {
+    # Options de lecteur de l onglet Ecriture qui imposent le pre-effacement de la 12.8.1 (Get-EraseMode) : texte de la
+    # ligne de journal, $null sinon. gw erase 1.23 n accepte que --device, --drive, --revs, --tracks, --hfreq et
+    # --fake-index : secteurs durs (gw erase mesure la duree d un tour sur l index, qu un disque a secteurs durs
+    # fausserait) ; TG43 et --densel (revue 12.8.2) : broche 2, que gw erase ne regle pas, l effacement se ferait dans un
+    # autre etat de la broche que l ecriture (5,25 pouces haute densite bivitesse, 8 pouces : non essaye)
+    if ($chkWHard.Checked -or $chkWTG43.Checked) { return (T "Effacement avant l'écriture : secteurs durs ou lecteur 8 pouces (TG43), que gw erase ne prend pas en charge : pré-effacement de chaque piste (--pre-erase), comme avant.") }
+    if ($cmbWDensel.Text -and $cmbWDensel.Text -ne '(non)') { return ((T "Effacement avant l'écriture : broche 2 du lecteur réglée (--densel={0}), que gw erase ne règle pas : pré-effacement de chaque piste (--pre-erase), comme avant.") -f "$($cmbWDensel.Text)") }
+    return $null
+}
+
+function Get-EraseMode([bool]$hd) {
+    # Effacement avant une ecriture : 'hfreq' (double densite) ou 'pre' (haute densite ; options de lecteur que gw erase ne
+    # prend pas en charge, Get-EraseFallbackNote : secteurs durs, TG43, --densel)
+    if ($hd -or (Get-EraseFallbackNote)) { return 'pre' }
+    return 'hfreq'
+}
+
+function Get-CalibEraseEst([bool]$hd) {
+    # Duree estimee de l effacement haute frequence d une passe de calibration, en s par piste (0 sans effacement) :
+    # EraseEstTrack (565, essai E5 : 52 pistes en 19 s), compte dans les durees annoncees et l estimation de la barre
+    if ((Get-EraseMode $hd) -eq 'hfreq') { return [double]$script:EraseEstTrack }
+    return 0.0
+}
+
+function Get-EraseDriveArgs {
+    # Options de lecteur de l ecriture (Get-WriteFormatArgs) que gw erase accepte : --fake-index seul (lecteur sans capteur
+    # d index) ; gw erase n a ni --densel ni --reverse
+    return @(Get-WriteFormatArgs | Where-Object { $_ -match '^--fake-index=' })
+}
+
+function Get-EraseTSpecs($keys) {
+    # Pistes 'cyl.tete' (tetes 0 et 1) -> TSPEC exacts de gw erase, aucune piste en trop : cylindres a deux faces en h=0-1,
+    # puis face 0 seule, puis face 1 seule (memes groupes que Get-TrackGroups), cylindres en plages (Format-CylRanges, 276 :
+    # « 0-39,41-79 »). Tableau protege par la virgule : pas de @() autour de l appel
+    $hs = @{}
+    foreach ($k in @($keys)) {
+        if ("$k" -notmatch '^(\d+)\.([01])$') { continue }
+        $c = [int]$Matches[1]; $h = [int]$Matches[2]
+        if (-not $hs.ContainsKey($c)) { $hs[$c] = @{} }
+        $hs[$c][$h] = $true
+    }
+    $g = [ordered]@{ '0-1' = @(); '0' = @(); '1' = @() }
+    foreach ($c in @($hs.Keys | Sort-Object)) {
+        $n = if ($hs[$c].ContainsKey(0) -and $hs[$c].ContainsKey(1)) { '0-1' } elseif ($hs[$c].ContainsKey(0)) { '0' } else { '1' }
+        $g[$n] += [int]$c
+    }
+    return ,@(foreach ($n in @($g.Keys)) { if (@($g[$n]).Count -gt 0) { "c=$(Format-CylRanges ([int[]]@($g[$n]))):h=$n" } })
+}
+
+function New-HfreqEraseCmds($keys, [string]$extras = '', $driveArgs = $null) {
+    # Commandes gw erase --hfreq des pistes 'cyl.tete' : une par TSPEC de Get-EraseTSpecs (une seule quand toutes les pistes
+    # ont les memes tetes, trois au plus), lecteur et port de l ecriture, --fake-index de l onglet Ecriture ($driveArgs ;
+    # $null : Get-CommonArgs et Get-EraseDriveArgs), elements de lecteur du champ Pistes ($extras, forme de
+    # Get-TSpecExtras : step, hswap, h0.off, h1.off, memes pistes physiques que l ecriture). Tableau de string[], vide sans
+    # piste ; protege par la virgule : pas de @() autour de l appel
+    $da = if ($null -ne $driveArgs) { @($driveArgs) } else { @(@(Get-CommonArgs) + @(Get-EraseDriveArgs)) }
+    $out = New-Object System.Collections.Generic.List[object]
+    foreach ($ts in (Get-EraseTSpecs $keys)) {
+        $out.Add([string[]](@('erase') + $da + @('--hfreq', "--tracks=$ts$extras")))
+    }
+    return ,$out.ToArray()
+}
+
+function Format-EraseTracks($cmds) {
+    # Pistes des commandes de New-HfreqEraseCmds pour le journal : valeurs de --tracks, separees par « ; »
+    return ((@(foreach ($c in @($cmds)) { foreach ($a in @($c)) { if ("$a" -like '--tracks=*') { "$a".Substring(9) } } })) -join ' ; ')
+}
+
+function Get-TSpecKeys([string]$tspec) {
+    # Pistes 'cyl.tete' d un TSPEC a c= lisible (« c=0-4,10:h=0-1 » ; sans h= : tetes 0 et 1, comme Get-TSpecSelection) ;
+    # tableau vide sans c= ou c= illisible. Protege par la virgule : pas de @() autour de l appel
+    $sel = Get-TSpecSelection $tspec
+    if (-not $sel.Ok -or $null -eq $sel.Cyls) { return ,@() }
+    $k = @(foreach ($c in @($sel.Cyls.Keys)) { foreach ($h in @($sel.Heads)) { "$c.$h" } })
+    return ,(Sort-TrackKeys $k)
+}
+
+function Get-ImageDefaultGwFormat([string]$img) {
+    # Format que gw 1.23 prend sans --format pour l extension (default_format des classes d image : adf.py, d64.py,
+    # d81.py) ; $null sinon (SCP, HFE, IPF, MSA, DSK, EDSK... : pistes par defaut c=0-81:h=0-1, tools/write.py)
+    switch ([System.IO.Path]::GetExtension("$img").ToLower()) {
+        '.adf' { return 'amiga.amigados' }
+        '.d64' { return 'commodore.1541' }
+        '.d71' { return 'commodore.1571' }
+        '.d81' { return 'commodore.1581' }
+    }
+    return $null
+}
+
+function Get-ImageGeometryTrackSet([string]$path) {
+    # 12.8.2 (revue) : pistes d une image secteur double densite dont l en-tete donne la geometrie ('cyl.tete' -> $true),
+    # pour l effacement avant l ecriture seulement (Get-WriteEraseKeys ; Get-ImageTrackSet et ses autres usages sont
+    # inchanges) ; $null sinon. Lecture conforme a gw 1.23 (image/msa.py, edsk.py, dsk.py) :
+    #  - MSA (Atari ST) : 10 octets big-endian, signature 0E 0F, secteurs par piste, faces - 1, premier et dernier
+    #    cylindre (inclus) ; plus de 12 secteurs par piste (haute densite, que la taille du fichier compresse ne revele
+    #    pas toujours a Get-HighDensityReason) : $null ;
+    #  - DSK et EDSK (Amstrad CPC) : signature « MV - CPC » ou « EXTENDED CPC DSK », cylindres a 0x30, faces a 0x31 ; EDSK :
+    #    table des tailles de piste a 0x34 (par 256 octets, cylindre x faces + face, 0 = piste absente) ; DSK : taille
+    #    commune a 0x32. Piste de plus de 6 656 octets (plus de 12 secteurs de 512 : haute densite) : $null. DSK sans ces
+    #    signatures (image brute, --format exige) : $null
+    $ext = [System.IO.Path]::GetExtension("$path").ToLower()
+    if (@('.msa', '.dsk', '.edsk') -notcontains $ext) { return $null }
+    $set = @{}
+    try {
+        $fs = [System.IO.File]::OpenRead($path)
+        try { $b = New-Object byte[] 256; $n = $fs.Read($b, 0, 256) } finally { $fs.Dispose() }
+        if ($ext -eq '.msa') {
+            if ($n -lt 10 -or $b[0] -ne 0x0E -or $b[1] -ne 0x0F) { return $null }
+            $spt = [int]$b[2] * 256 + [int]$b[3]; $ns = [int]$b[4] * 256 + [int]$b[5] + 1
+            $st = [int]$b[6] * 256 + [int]$b[7]; $et = [int]$b[8] * 256 + [int]$b[9]
+            if ($spt -lt 1 -or $spt -gt 12 -or $ns -lt 1 -or $ns -gt 2 -or $st -gt $et -or $et -gt 99) { return $null }
+            for ($c = $st; $c -le $et; $c++) { for ($h = 0; $h -lt $ns; $h++) { $set["$c.$h"] = $true } }
+        } else {
+            if ($n -lt 0x34) { return $null }
+            $sig = [System.Text.Encoding]::ASCII.GetString($b, 0, 16)
+            $nc = [int]$b[0x30]; $ns = [int]$b[0x31]
+            if ($nc -lt 1 -or $ns -lt 1 -or $ns -gt 2) { return $null }
+            if ($sig.StartsWith('EXTENDED CPC DSK')) {
+                if (0x34 + $nc * $ns -gt $n) { return $null }
+                for ($i = 0; $i -lt $nc * $ns; $i++) {
+                    $sz = [int]$b[0x34 + $i]
+                    if ($sz -gt 0x1A) { return $null }
+                    if ($sz -gt 0) { $set["$([int][math]::Floor($i / $ns)).$($i % $ns)"] = $true }
+                }
+            } elseif ($sig.StartsWith('MV - CPC')) {
+                if ([int]$b[0x32] + 256 * [int]$b[0x33] -gt 0x1A00) { return $null }
+                for ($c = 0; $c -lt $nc; $c++) { for ($h = 0; $h -lt $ns; $h++) { $set["$c.$h"] = $true } }
+            } else { return $null }
+        }
+    } catch { return $null }
+    if ($set.Count -gt 0) { return $set }
+    return $null
+}
+
+function Get-WriteEraseKeys([string]$img, [string]$fmt, [string]$userTs, [int[]]$heads) {
+    # Pistes 'cyl.tete' qu une ecriture d image ecrit (Start-ImageWrite), d apres gw 1.23 (tools/write.py) : gw parcourt
+    # les pistes du format (explicite, sinon format implicite de l extension, Get-ImageDefaultGwFormat ; sans format :
+    # c=0-81:h=0-1), dont c= et h= du champ Pistes remplacent les cylindres et les tetes, et n ecrit que celles que l image
+    # contient. Pistes de l image : Get-ImageTrackSet, sinon geometrie de l en-tete (Get-ImageGeometryTrackSet : MSA, DSK et
+    # EDSK), sinon toutes les pistes du format explicite ; retenues aussi par les tetes ecrites ($heads : faces de l image
+    # en ecriture lente). Revue 12.8.2 : cylindres de l image au-dela du format (ADF de 84 cylindres en amiga.amigados) ou
+    # au-dela de 81 sans format (SCP, HFE, IPF de 84 cylindres) : jamais effaces, gw ne les ecrit pas. Pistes absentes de
+    # l image : non comptees (--erase-empty les efface en continu, elles ne portent pas de donnees). $null : pistes
+    # inconnues (image sans table de pistes ni geometrie lisible ni format explicite, format absent de la table GwFormats,
+    # c= illisible) ; l ecriture garde alors le pre-effacement. Protege par la virgule
+    $sel = Get-TSpecSelection $userTs
+    if (-not $sel.Ok) { return $null }
+    $explicit = ($fmt -and $fmt -ne '(auto)')
+    $fn = if ($explicit) { $fmt } else { Get-ImageDefaultGwFormat $img }
+    $fe = $null
+    if ($fn) {
+        if (-not $script:GwFormats.Contains($fn)) { return $null }
+        $fe = $script:GwFormats[$fn]
+        if ([int]$fe.Cyls -le 0) { return $null }
+    }
+    $fh = @(if ($fe -and [int]$fe.Heads -eq 1) { 0 } else { 0, 1 })
+    $set = Get-ImageTrackSet $img
+    if ($null -eq $set) { $set = Get-ImageGeometryTrackSet $img }
+    if ($null -eq $set) {
+        if (-not $explicit -or -not $fe) { return $null }
+        $set = @{}
+        for ($c = 0; $c -lt [int]$fe.Cyls; $c++) { foreach ($h in $fh) { $set["$c.$h"] = $true } }
+    }
+    $nc = if ($fe) { [int]$fe.Cyls } else { 82 }
+    $hasH = [regex]::IsMatch(":$userTs", ':\s*h\s*=')
+    $keys = @(@($set.Keys) | Where-Object {
+        $p = ([string]$_ -split '\.'); $c = [int]$p[0]; $h = [int]$p[1]
+        (Test-TSpecKey $sel $_) -and @($heads) -contains $h -and ($null -ne $sel.Cyls -or $c -lt $nc) -and ($hasH -or $fh -contains $h)
+    })
+    return ,(Sort-TrackKeys $keys)
+}

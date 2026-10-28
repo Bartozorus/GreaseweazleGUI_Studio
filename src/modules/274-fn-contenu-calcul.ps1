@@ -317,21 +317,39 @@ function Get-DriveK([string]$drive, [string]$fam, [int]$h) {
     # k* des 3 derniers enregistrements de ce lecteur, de cette famille et de cette tete (date de mesure, ordre d ajout a
     # date egale), de version ContentCalc et de calcul CalibCalc courants ; date de la courbe V non exigee (k garde apres
     # une recalibration du lecteur). Rec : le plus recent ; N : enregistrements retenus (3 au plus), Ks : leurs k*.
-    # Sans enregistrement : K = 1, Src 'defaut' (ecriture de la v12.8)
-    $cand = @(); $i = 0
+    # Sans enregistrement : K = 1, Src 'defaut' (ecriture de la v12.8). Revue 12.8.2 : Old, enregistrements de ce lecteur,
+    # de cette famille et de cette tete ecartes parce qu ils viennent d un autre calcul (CalibCalc ou ContentCalc) : textes
+    # « mesures faites avec un autre calcul, a refaire » au lieu de « aucune mesure »
+    $cand = @(); $i = 0; $old = 0
     foreach ($r in $script:ContentMeasures) {
         $i++
         if ($null -eq $r -or $null -eq $r.Head -or $null -eq $r.K) { continue }
         if ([string]$r.Drive -ne $drive -or [string]$r.Family -ne $fam -or [int]$r.Head -ne $h) { continue }
-        if ([string]$r.ContentCalc -ne [string]$script:ContentCalc -or [string]$r.Calc -ne [string]$script:CalibCalc) { continue }
         $k = [double]$r.K
         if ([double]::IsNaN($k) -or [double]::IsInfinity($k)) { continue }
+        if ([string]$r.ContentCalc -ne [string]$script:ContentCalc -or [string]$r.Calc -ne [string]$script:CalibCalc) { $old++; continue }
         $cand += @{ R = $r; D = (Get-CurveDate $r); I = $i; K = $k }
     }
-    if ($cand.Count -eq 0) { return @{ K = 1.0; Src = 'defaut'; Rec = $null; N = 0; Ks = [double[]]@() } }
+    if ($cand.Count -eq 0) { return @{ K = 1.0; Src = 'defaut'; Rec = $null; N = 0; Ks = [double[]]@(); Old = $old } }
     $last = @($cand | Sort-Object -Property @{ Expression = { $_.D }; Descending = $true }, @{ Expression = { $_.I }; Descending = $true } | Select-Object -First 3)
     $ks = [double[]]@($last | ForEach-Object { $_.K })
-    return @{ K = [double](Get-Median $ks); Src = 'lecteur'; Rec = $last[0].R; N = $last.Count; Ks = $ks }
+    return @{ K = [double](Get-Median $ks); Src = 'lecteur'; Rec = $last[0].R; N = $last.Count; Ks = $ks; Old = $old }
+}
+
+function Get-StaleDriveFactors {
+    # Revue 12.8.2 : lecteurs dont les facteurs mesures ne sont plus appliques (Get-DriveK) : enregistrements d un autre
+    # calcul (CalibCalc ou ContentCalc) pour un lecteur, une famille et une tete sans aucun enregistrement du calcul
+    # actuel. Renvoie @{ N : enregistrements ecartes ; Drives : lecteurs concernes, tries } (ligne de journal de Load-Config)
+    $cur = @{}; $old = @{}
+    foreach ($r in @($script:ContentMeasures)) {
+        if ($null -eq $r -or $null -eq $r.Head -or $null -eq $r.K) { continue }
+        $key = "$($r.Drive)|$($r.Family)|$([int]$r.Head)"
+        if ([string]$r.ContentCalc -eq [string]$script:ContentCalc -and [string]$r.Calc -eq [string]$script:CalibCalc) { $cur[$key] = $true }
+        else { if (-not $old.ContainsKey($key)) { $old[$key] = 0 }; $old[$key]++ }
+    }
+    $n = 0; $drv = @{}
+    foreach ($key in @($old.Keys)) { if (-not $cur.ContainsKey($key)) { $n += [int]$old[$key]; $drv[($key -split '\|')[0]] = $true } }
+    return @{ N = $n; Drives = @($drv.Keys | Sort-Object) }
 }
 
 function Add-ContentMeasure($rec) {

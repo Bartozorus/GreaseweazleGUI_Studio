@@ -372,14 +372,16 @@ function Update-HomeCalibDialog {
         $txt += "`r`n`r`n" + (Get-HomeCurveState $fam)
         $s.Info.Text = $txt
         $s.Curve.Enabled = ((Get-FamilyCurves $fam $heads).Count -gt 0)
-        # Durees : memes estimations que Start-PrecompCalib (passes prevues, 1,4 s par piste et par phase, sans le
+        # Durees : memes estimations que Start-PrecompCalib (passes prevues, 1,4 s par piste et par phase, plus l effacement
+        # haute frequence en double densite (12.8.2, Get-CalibEraseEst), sans le
         # prechauffage, annonce par sa case) et Start-LevelCalib (2 passes)
         $np = $script:CalCoarse.Count + $script:CalMaxVerify
+        $pt = 1.4 + (Get-CalibEraseEst ($fam -eq 'hd'))
         $nStd = @(0..($n - 1) | Where-Object { $_ % 10 -eq 0 }).Count + $(if (($n - 1) % 10 -ne 0) { 1 } else { 0 })
         # 12.8 (D9) : memes noms que la liste « Calibration précomp » de l onglet Ecriture (test standard, fin, rapide)
-        $s.Std.Text = ((T "Test standard (calibration complète, 1 cylindre sur 10) : environ {0} min") -f "$([math]::Max(1, [math]::Round($nStd * 2 * 1.4 * $np / 60, 0)))")
+        $s.Std.Text = ((T "Test standard (calibration complète, 1 cylindre sur 10) : environ {0} min") -f "$([math]::Max(1, [math]::Round($nStd * 2 * $pt * $np / 60, 0)))")
         # Haute densite : pas de calibration rapide (12.7), le test fin n en est pas la reference
-        $fineMin = "$([math]::Max(1, [math]::Round($n * 2 * 1.4 * $np / 60, 0)))"
+        $fineMin = "$([math]::Max(1, [math]::Round($n * 2 * $pt * $np / 60, 0)))"
         $s.Fine.Text = if ($fam -eq 'hd') { (T "Test fin (calibration complète, tous les cylindres) : environ {0} min") -f $fineMin } else { (T "Test fin (calibration complète, tous les cylindres) : environ {0} min ; référence du test rapide") -f $fineMin }
         $lr = Get-LevelRef $fam $heads $cmbDrive.Text '' $false -NCyl $n -Bits ([int]$info.Bits) -ForHome
         if ($lr.Ok) {
@@ -387,9 +389,9 @@ function Update-HomeCalibDialog {
             foreach ($u in @($lr.Units)) { foreach ($c in @(@($u.LCyls) + @($u.Wit) + @($(if ($null -ne $u.Probe) { $u.Probe })))) { $lc[[int]$c] = $true } }
             $s.Quick.Enabled = $true
             # 12.8 (lot 1c) : par tete, 2 passes en general, 3 avec 2 cylindres de controle quand la forme est adaptee
-            $qLo = [math]::Max(1, [math]::Round($lc.Count * 2 * 1.4 * 2 / 60, 0))
+            $qLo = [math]::Max(1, [math]::Round($lc.Count * 2 * $pt * 2 / 60, 0))
             if ($heads) {
-                $qHi = [math]::Max($qLo, [math]::Round(($lc.Count + [int]$script:LevelAdaptCtlCyls) * 2 * 1.4 * 3 / 60, 0))
+                $qHi = [math]::Max($qLo, [math]::Round(($lc.Count + [int]$script:LevelAdaptCtlCyls) * 2 * $pt * 3 / 60, 0))
                 $qd = if ($qHi -gt $qLo) { (T '{0} à {1}') -f "$qLo", "$qHi" } else { "$qLo" }
                 $s.Quick.Text = ((T "Test rapide (niveau et forme de la disquette insérée) : {0} min") -f "$qd")
             } else { $s.Quick.Text = ((T "Test rapide (niveau de la disquette insérée) : environ {0} min") -f "$qLo") }

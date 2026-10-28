@@ -17,6 +17,7 @@ $script:ContentQ = 1e-3; $script:ContentTolM = 1e-6; $script:ContentMaxIt = 50; 
 $script:ContentZMax = 5e-4; $script:ContentCellsTol = 0.02; $script:ContentFluxMin = 0.5
 $script:ContentMinCyl = 20; $script:ContentMinLevelCyl = 6; $script:ContentResumeMax = 1
 $script:ContentEstWrite = 1.25; $script:ContentEstRead = 0.85     # s par piste (balayages du 25/10/2026)
+$script:EraseEstTrack = 0.37         # 12.8.2 : s par piste effacee en haute frequence (essai E5 du 27/10/2026 : 52 pistes en 19 s)
 $script:ContentRecMax = 20; $script:ContentScpName = 'contenu-mesure.scp'   # plafond du facteur ContentFMax : 040
 $script:ContentMeasures = @()        # enregistrements de mesure (C.2), relus par Load-Config
 $script:TargetCorr = @{}             # Dk par lecteur (C.4), relu par Load-Config

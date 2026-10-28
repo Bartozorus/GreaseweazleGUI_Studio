@@ -306,6 +306,9 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
     $script:GwVerifyFail = $null
     if ($script:GwIsWrite) { $script:WriteRetries = @{}; $script:WriteTracks = @{} }
     $script:GwWriteSummary = $false
+    # Revue 12.8.2 : gw erase 1.23 intercepte l erreur du Greaseweazle, imprime « Command Failed: ... » et rend le code 0
+    # (tools/erase.py) : drapeau pose par Read-GwOutput, lu par la regle de fin (Get-GwEndRule : commande incomplete)
+    $script:GwIsErase = ($first -eq 'erase'); $script:GwCmdFailed = $false
     $driveKey = if ($script:Detect) { $null } else { Get-GwDriveKey $gwArgs }
     if ($chkTime.Checked) { $gwArgs = @('--time') + $gwArgs }
     $argLine = $gwArgs -join ' '
@@ -404,7 +407,10 @@ function Read-GwOutput([bool]$flush) {
                 $k = "$($Matches[1]).$($Matches[2])"; $n = [int]$Matches[3]
                 if (-not $script:WriteRetries.ContainsKey($k) -or $n -gt $script:WriteRetries[$k]) { $script:WriteRetries[$k] = $n }
             }
-            if ($l -match '^T(\d+)\.(\d+)\b[^:]*: Writing Track') { $script:WriteTracks["$($Matches[1]).$($Matches[2])"] = $true }
+            if ($l -match '^T(\d+)\.(\d+)\b[^:]*: Writing Track') {
+                $script:WriteTracks["$($Matches[1]).$($Matches[2])"] = $true
+                if ($script:EraseLog) { $script:EraseLog.Written["$($Matches[1]).$($Matches[2])"] = $true }   # 12.8.2 (Start-ImageWrite, 170)
+            }
             if ($l -match '^(All tracks verified|No tracks verified|\d+ tracks verified)') { $script:GwWriteSummary = $true }
         }
         # 12.8.1 (A.7) : gw 1.23 arrete la commande sur une piste refusee a la verification apres les nouveaux essais
@@ -413,17 +419,28 @@ function Read-GwOutput([bool]$flush) {
         $vs = Get-GwVerifyStop $lines
         if ($vs -and -not $script:GwVerifyFail) { $script:GwVerifyFail = $vs }
     }
+    if ($script:GwIsErase) {
+        # Revue 12.8.2 : gw erase imprime « Tc.h: Erasing Track » avant d effacer chaque piste (pistes logiques, comme
+        # « Writing Track ») : pistes touchees par l effacement de l operation en cours (EraseLog) ; « Command Failed » :
+        # echec avec le code 0
+        foreach ($l in $lines) {
+            if ($l -match '^Command Failed') { $script:GwCmdFailed = $true }
+            elseif ($script:EraseLog -and $l -match '^T(\d+)\.(\d+)\b[^:]*: Erasing Track') { $script:EraseLog.Erased["$($Matches[1]).$($Matches[2])"] = $true }
+        }
+    }
     if ($lines.Count -gt 0) { Append-Log ($lines -join [Environment]::NewLine) }
 }
 
-function Get-GwEndRule([int]$code, [bool]$soft, [bool]$isWrite, [bool]$summary, [int]$progTotal, [int]$progSeen, $verifyFail, [string]$calMode) {
+function Get-GwEndRule([int]$code, [bool]$soft, [bool]$isWrite, [bool]$summary, [int]$progTotal, [int]$progSeen, $verifyFail, [string]$calMode, [bool]$cmdFailed = $false) {
     # Regle de fin d une commande gw (minuteur principal, 600), sans etat : arguments releves par le minuteur apres le
     # dernier Read-GwOutput. Soft : lecture de prechauffage ($soft), ou 12.8.1 (spec-1281.md § A.7) ecriture de la mesure
     # sur l image ($calMode 'content') arretee sur une piste refusee a la verification ($verifyFail, Read-GwOutput), quel
     # que soit le code retour (1 en gw 1.23 ; 0 admis : revue 12.8.1, point 1). Incomplete : arret silencieux avec le code 0
     # (ecriture sans ligne de bilan ; autre commande : moins de la moitie des pistes annoncees), sans effet si Soft.
-    # Next : etape suivante de la chaine (code 0 ou Soft)
+    # Next : etape suivante de la chaine (code 0 ou Soft). Revue 12.8.2 : $cmdFailed, gw erase arrete par « Command
+    # Failed » avec le code 0 (Read-GwOutput) : incomplete quel que soit le nombre de pistes vues (effacement d une ou deux
+    # pistes, ou echec sur la derniere) ; l ecriture qui suit n est pas lancee
     if (-not $soft -and $isWrite -and $verifyFail -and $calMode -eq 'content') { $soft = $true }
-    $inc = if ($isWrite) { $code -eq 0 -and -not $summary } else { $code -eq 0 -and $progTotal -gt 0 -and $progSeen * 2 -lt $progTotal }
+    $inc = if ($isWrite) { $code -eq 0 -and -not $summary } else { $code -eq 0 -and (($progTotal -gt 0 -and $progSeen * 2 -lt $progTotal) -or $cmdFailed) }
     return @{ Soft = $soft; Incomplete = [bool]$inc; Next = ($code -eq 0 -or $soft) }
 }
