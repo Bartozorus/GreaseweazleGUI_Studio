@@ -222,12 +222,13 @@ function Restore-CalibState($prev) {
     if (-not $script:Restore) { [void](Save-Config) }
 }
 
-function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string]$okText, [string]$okGlyph, [string]$countFmt, [string]$checkLabel, [string]$stopOn, [string]$stopOff, [int]$Seconds = -1, [switch]$NeedCheck, $Combo = $null, [string]$Heading = '', [string]$Level = 'warn', [string]$Picto = 'warn') {
+function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string]$okText, [string]$okGlyph, [string]$countFmt, [string]$checkLabel, [string]$stopOn, [string]$stopOff, [int]$Seconds = 0, [switch]$NeedCheck, $Combo = $null, [string]$Heading = '', [string]$Level = 'warn', [string]$Picto = 'warn') {
     # Fenetre d avertissement a compte a rebours : $okText / Annuler ; sans reponse, validation automatique au bout de
-    # $script:CalibConfirmSeconds (0 = pas de delai), pour qu une sequence sans surveillance ne reste pas bloquee.
+    # $Seconds, seulement si l appelant passe un delai (> 0 : Get-CalibConfirmSeconds, ecriture sans surveillance ; 0 par
+    # defaut : aucun delai, 12.9 S1), pour qu une sequence sans surveillance ne reste pas bloquee.
     # $countFmt : ligne du decompte ({0} = secondes). $checkLabel : case facultative ; la cocher ou la decocher arrete le
     # decompte (l utilisateur est present), la ligne affiche alors $stopOn ou $stopOff. Renvoie @{ Ok ; Checked ; Auto }.
-    # 12.7 : Seconds : delai propre a cette fenetre (-1 : CalibConfirmSeconds ; 0 : aucun) ; NeedCheck : $okText inactif tant
+    # 12.7 : Seconds : delai propre a cette fenetre (12.9 : 0 par defaut, aucun ; > 0 : delai) ; NeedCheck : $okText inactif tant
     # que la case n est pas cochee (calibration B : la disquette inseree doit etre une autre disquette sacrifiee)
     # 12.8 (lot 5, A4 R1 a R8, modele frmClean) : bandeau ($Heading, niveau $Level, pictogramme $Picto de New-DlgPicto) qui
     # porte le texte (Label de premier niveau lblCalText), case en gras, aucun AcceptButton (focus sur la case, sinon sur
@@ -300,7 +301,7 @@ function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string
     if ($cmb) { $dlg.Controls.Add($lblCmb); $dlg.Controls.Add($cmb) }
     $dlg.ActiveControl = if ($chk) { $chk } else { $btnNo }
     [void](Set-DlgFit $dlg ([System.Windows.Forms.Screen]::FromControl($form).WorkingArea))
-    $sec = if ($Seconds -ge 0) { $Seconds } else { [int]$script:CalibConfirmSeconds }
+    $sec = [math]::Max(0, $Seconds)
     $script:CalConfirm = @{ Left = $sec; Auto = $false; Dlg = $dlg; Count = $lblCount; Tmr = $null; Fmt = $countFmt; StopOn = $stopOn; StopOff = $stopOff }
     if ($NeedCheck -and $chk) {
         $script:CalConfirm.OkBtn = $btnOk; $script:CalConfirm.Glyph = $okGlyph
@@ -350,13 +351,66 @@ function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string
     return $res
 }
 
-function Show-CalibConfirm([string]$text, [string]$swapLabel, $brand = $null) {
+function Get-CalibConfirmSeconds([string]$afterCalib, [bool]$unattended) {
+    # 12.9 (S1) : delai de l avertissement de calibration (Show-CalibConfirm). CalibConfirmSeconds seulement pour la
+    # calibration de la disquette a ecrire ($afterCalib 'write') d une ecriture sans surveillance (case chkWUnattended) ;
+    # 0 sinon : une calibration seule (bouton « Calibrer », carte « Calibrer le lecteur » de l Accueil) n est jamais validee
+    # seule, la disquette inseree est peut-etre un original
+    if ($afterCalib -eq 'write' -and $unattended) { return [int]$script:CalibConfirmSeconds }
+    return 0
+}
+
+function Show-CalibConfirm([string]$text, [string]$swapLabel, $brand = $null, [int]$Seconds = 0) {
     # Avertissement avant une calibration : la disquette inseree recoit le motif de test a chaque passe, ce qui use le
     # support. $swapLabel : case « disquette sacrifiee » (la disquette a ecrire est redemandee apres la calibration),
     # absente pour une calibration seule. 12.8 (lot 1c) : $brand = @{ Label ; Items ; Text ; Tip } : champ de la marque
     # de la disquette (calibration rapide). Renvoie @{ Ok ; Swap ; Auto ; Brand }.
-    $r = Show-TimedConfirm 'frmCalibConfirm' (T 'Calibration precomp') $text (T 'Lancer la calibration') 'Diagnostic' (T "Sans réponse, la calibration démarre automatiquement dans {0} s.") $swapLabel (T "Compte à rebours arrêté : insérez la disquette sacrifiée, puis cliquez sur « Lancer la calibration ».") (T "Compte à rebours arrêté : cliquez sur « Lancer la calibration » pour calibrer avec la disquette insérée.") -Combo $brand -Heading (T 'Calibration : la disquette insérée reçoit le motif de test') -Level 'warn' -Picto 'warn'
+    # 12.9 (S1) : $Seconds (Get-CalibConfirmSeconds) : 0 par defaut, sans decompte ni ligne de decompte (comme frmReinsert) ;
+    # validation automatique seulement avec un delai
+    $cf = ''; $sOn = ''; $sOff = ''
+    if ($Seconds -gt 0) {
+        $cf = (T "Sans réponse, la calibration démarre automatiquement dans {0} s.")
+        $sOn = (T "Compte à rebours arrêté : insérez la disquette sacrifiée, puis cliquez sur « Lancer la calibration ».")
+        $sOff = (T "Compte à rebours arrêté : cliquez sur « Lancer la calibration » pour calibrer avec la disquette insérée.")
+    }
+    $r = Show-TimedConfirm 'frmCalibConfirm' (T 'Calibration precomp') $text (T 'Lancer la calibration') 'Diagnostic' $cf $swapLabel $sOn $sOff -Seconds ([math]::Max(0, $Seconds)) -Combo $brand -Heading (T 'Calibration : la disquette insérée reçoit le motif de test') -Level 'warn' -Picto 'warn'
     return @{ Ok = $r.Ok; Swap = $r.Checked; Auto = $r.Auto; Brand = $r.ComboText }
+}
+
+function Start-UnattendedWrite([switch]$Restore, [switch]$Running) {
+    # 12.9 (S1) : debut d une sequence d ecriture (bouton ECRIRE de l onglet Ecriture, boutons d ecriture de la
+    # Bibliotheque, restauration) : case « Sans surveillance » cochee : ligne de journal et sequence suivie, la case est
+    # decochee a sa fin (Update-CalibUnattended). Sans la case : rien.
+    # Revue de la phase B (mineur 4) : ecriture que son point d entree va refuser (commande gw en cours ; -Restore :
+    # toute operation, Get-AppBusy, comme Start-Restore) : ni ligne ni sequence suivie, la case reste cochee.
+    # Mineur 3 : -Running, case cochee pendant une operation (520) : sequence en cours suivie, sans ce test
+    if (-not $script:CalibUnattended) { return }
+    if (-not $Running) {
+        if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
+        if ($Restore -and (Get-AppBusy)) { return }
+    }
+    if (-not $script:UnattendedRun) {
+        Append-Log ((T "Écriture sans surveillance : l'avertissement de calibration de la disquette à écrire sera validé seul après {0} s ; une calibration seule n'est jamais concernée.") -f "$([int]$script:CalibConfirmSeconds)")
+    }
+    $script:UnattendedRun = $true
+}
+
+function Test-UnattendedEnd([bool]$run, [bool]$idle, [bool]$gwDone, [bool]$canFocus) {
+    # 12.9 (S1) : fin de la sequence d ecriture sans surveillance : sequence suivie et application au repos (Test-OpIdle :
+    # ni gw, ni etape, ni calibration, ni controle, ni prechauffage, ni restauration, aucune fenetre modale), verifiee juste
+    # apres la fin d une commande gw ou quand la fenetre principale peut recevoir le focus (aucune boite de message
+    # ouverte), comme Update-OpOverride. Fin, annulation et erreur passent toutes par ce repos
+    return ($run -and $idle -and ($gwDone -or $canFocus))
+}
+
+function Update-CalibUnattended([bool]$gwDone) {
+    # 12.9 (S1) : minuteur principal : case « Sans surveillance » decochee a la fin de la sequence d ecriture
+    if (-not $script:UnattendedRun) { return }
+    if (-not (Test-UnattendedEnd $true (Test-OpIdle) $gwDone ([bool]$form.CanFocus))) { return }
+    $script:UnattendedRun = $false
+    $script:CalibUnattended = $false
+    if ($chkWUnattended.Checked) { $chkWUnattended.Checked = $false }
+    Append-Log (T "Écriture sans surveillance : option décochée (fin de l'écriture).")
 }
 
 function Show-CalibSurface($opt, [string]$text) {

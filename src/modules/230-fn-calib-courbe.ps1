@@ -15,6 +15,10 @@ function Set-CalibScale([string]$fam) {
     $script:CalSurfShiftMax = $t.CalSurfShiftMax; $script:CalCmpPointNs = $t.CalCmpPointNs; $script:CalCmpZoneNs = $t.CalCmpZoneNs
     $script:CalCmpSpotNs = $t.CalCmpSpotNs; $script:CalCmpPrefNs = $t.CalCmpPrefNs; $script:CalCmpLocalNs = $t.CalCmpLocalNs
     $script:LevelTauOk = $t.LevelTauOk; $script:LevelTauMax = $t.LevelTauMax
+    # 12.9 : corrections 1, 2 et 4 du calcul, et decalage commun de l ecriture de verification retire des residus (CalVOffOn,
+    # Get-VerifyOffset) : vrais en double densite, faux en haute densite (calcul HD inchange)
+    $script:CalCondPass = [bool]$t.CalCondPass; $script:CalLatin = [bool]$t.CalLatin; $script:CalDentOn = [bool]$t.CalDentOn
+    $script:CalVOffOn = [bool]$t.CalVOffOn
     $script:CalHardNs = if ($hd) { [int][math]::Round([double]$script:CalHardNsUser * $script:CalHdK) } else { $script:CalHardNsUser }
     $script:CalScaleFam = if ($hd) { 'hd' } else { 'dd' }
 }
@@ -156,15 +160,124 @@ function Get-IsolatedPoints($cs, $est, $sig) {
     return $out
 }
 
-function Fit-PrecompCurve($est, $sig, [int]$maxCyl, $kinds = $null, [bool]$dense = $false) {
+function Get-FitDents($fit, [switch]$Admitted) {
+    # 12.9 (correction 4) : dents d une courbe (Fit.Dents) sans les $null (courbe ou fixture sans ce champ : @($null) compte
+    # 1) ; -Admitted : sans celles que la verification a retirees (Conf faux)
+    if (-not $fit) { return @() }
+    return @(@($fit.Dents) | Where-Object { $null -ne $_ -and (-not $Admitted -or $_.Conf -ne $false) })
+}
+
+function Get-PavaFit([double[]]$y, [double[]]$w, [int]$from, [int]$to, [bool]$inc) {
+    # PAVA ponderee sur y[from..to), croissante ($inc) ou decroissante : port de CurveFit.Pava (030). Fonction pure
+    $v = New-Object System.Collections.Generic.List[double]
+    $wt = New-Object System.Collections.Generic.List[double]
+    $cnt = New-Object System.Collections.Generic.List[int]
+    for ($i = $from; $i -lt $to; $i++) {
+        if ($inc) { $v.Add($y[$i]) } else { $v.Add(-$y[$i]) }
+        $wt.Add($w[$i]); $cnt.Add(1)
+        while ($v.Count -ge 2 -and $v[$v.Count - 2] -gt $v[$v.Count - 1]) {
+            $a = $v.Count - 2; $b = $v.Count - 1
+            $ww = $wt[$a] + $wt[$b]
+            if ($ww -gt 0) { $v[$a] = ($v[$a] * $wt[$a] + $v[$b] * $wt[$b]) / $ww } else { $v[$a] = ($v[$a] + $v[$b]) / 2 }
+            $wt[$a] = $ww; $cnt[$a] = $cnt[$a] + $cnt[$b]
+            $v.RemoveAt($b); $wt.RemoveAt($b); $cnt.RemoveAt($b)
+        }
+    }
+    $o = New-Object double[] ($to - $from); $k = 0
+    for ($j = 0; $j -lt $v.Count; $j++) {
+        $x = $v[$j]; if (-not $inc) { $x = -$x }
+        for ($c = 0; $c -lt $cnt[$j]; $c++) { $o[$k] = $x; $k++ }
+    }
+    return ,$o
+}
+
+function Split-CurveDents([int[]]$cs, [double[]]$ys, [double[]]$ws, [int]$K, [int]$t1, [int]$t2, [double[]]$fy0, $dents, [int]$maxCyl, [int]$maxN = 2) {
+    # 12.9 (correction 4 ; v129\cal2\donnees\dent.py, make_extra) : apres SegFit, inchange (segments en indices : [0, t1)
+    # croissant, [t1, t2) decroissant, [t2, n) croissant ; K = 0 : [0, n) croissant), chaque dent (@{ C1 ; C2 ; Drop },
+    # cylindres testes consecutifs de $cs, tous deux dans le meme segment croissant ; $maxN au plus, les plus fortes ; une
+    # dent au changement de sens de SegFit est ignoree) coupe ce segment :
+    # croissant jusqu a C1, decroissant d un seul point (C2, sa valeur mesuree), croissant ensuite. Chaque morceau croissant
+    # est refait par PAVA ponderee (Get-PavaFit) ; le segment decroissant de SegFit garde ses valeurs. Segments en
+    # cylindres comme ceux de SegFit (Lo = Hi precedent + 1 ; Hi = dernier cylindre teste du morceau, maxCyl pour le
+    # dernier). Fonction pure. Renvoie @{ Fy ; Segs ; Dents (dents appliquees) } ; aucune dent appliquee : Fy = $fy0, Segs $null
+    $n = $cs.Count
+    $rng = New-Object System.Collections.Generic.List[object]
+    if ($K -eq 0) { $rng.Add(@(0, $n, 1)) }
+    elseif ($K -eq 1) { $rng.Add(@(0, $t1, 1)); $rng.Add(@($t1, $n, -1)) }
+    else { $rng.Add(@(0, $t1, 1)); $rng.Add(@($t1, $t2, -1)); if ($t2 -lt $n) { $rng.Add(@($t2, $n, 1)) } }
+    $at = @{}
+    foreach ($d in @($dents | Where-Object { $null -ne $_ })) {
+        $i = [array]::IndexOf($cs, [int]$d.C1); $j = [array]::IndexOf($cs, [int]$d.C2)
+        if ($i -lt 0 -or $j -ne $i + 1) { continue }
+        $in = $false
+        foreach ($g in $rng) { if ([int]$g[2] -eq 1 -and $i -ge [int]$g[0] -and $i -lt [int]$g[1] - 1) { $in = $true; break } }
+        if ($in) { $at[$i] = $d }
+    }
+    if ($at.Count -gt [math]::Max(0, $maxN)) {
+        $top = @(@($at.Keys | ForEach-Object { [int]$_ }) | Sort-Object @{ Expression = { -[double]$at[$_].Drop } }, @{ Expression = { $_ } } | Select-Object -First ([math]::Max(0, $maxN)))
+        $a2 = @{}; foreach ($i in $top) { $a2[[int]$i] = $at[[int]$i] }; $at = $a2
+    }
+    $pieces = New-Object System.Collections.Generic.List[object]; $ok = @()
+    foreach ($g in $rng) {
+        if ([int]$g[2] -ne 1) { $pieces.Add(@([int]$g[0], [int]$g[1], -1, $true)); continue }
+        $st = [int]$g[0]
+        foreach ($i in @($at.Keys | ForEach-Object { [int]$_ } | Sort-Object)) {
+            if ($i -lt $st -or $i -ge [int]$g[1] - 1) { continue }
+            $pieces.Add(@($st, ($i + 1), 1, $false)); $pieces.Add(@(($i + 1), ($i + 2), -1, $false))
+            $st = $i + 2; $ok += ,$at[$i]
+        }
+        if ($st -lt [int]$g[1]) { $pieces.Add(@($st, [int]$g[1], 1, $false)) }
+    }
+    if ($ok.Count -eq 0) { return @{ Fy = $fy0; Segs = $null; Dents = @() } }
+    $fy = New-Object double[] $n
+    foreach ($pc in $pieces) {
+        $a = [int]$pc[0]; $b = [int]$pc[1]
+        if ([bool]$pc[3]) { for ($i = $a; $i -lt $b; $i++) { $fy[$i] = $fy0[$i] } }
+        elseif ($b - $a -eq 1) { $fy[$a] = $ys[$a] }
+        else { $pv = Get-PavaFit $ys $ws $a $b ([int]$pc[2] -eq 1); for ($i = $a; $i -lt $b; $i++) { $fy[$i] = $pv[$i - $a] } }
+    }
+    $segs = @(); $lo = 0
+    for ($q = 0; $q -lt $pieces.Count; $q++) {
+        $hi = if ($q -lt $pieces.Count - 1) { [int]$cs[[int]$pieces[$q][1] - 1] } else { $maxCyl }
+        $segs += ,@{ Lo = $lo; Hi = $hi; Dir = [int]$pieces[$q][2] }
+        $lo = $hi + 1
+    }
+    return @{ Fy = $fy; Segs = $segs; Dents = $ok }
+}
+
+function Merge-CurveDentSegs($segs, [int]$c1, [int]$c2) {
+    # 12.9 (correction 4) : dent retiree (non confirmee par la verification) : les trois segments qu elle a crees
+    # (croissant jusqu a c1, decroissant c1+1..c2, croissant ensuite) redeviennent un seul segment croissant ; valeurs de la
+    # courbe inchangees. Fonction pure. Renvoie les segments (tels quels si la dent n y est pas)
+    $s = @(@($segs) | Where-Object { $null -ne $_ })
+    for ($i = 1; $i -lt $s.Count; $i++) {
+        if ([int]$s[$i].Dir -ne -1 -or [int]$s[$i].Lo -ne $c1 + 1 -or [int]$s[$i].Hi -ne $c2) { continue }
+        if ([int]$s[$i - 1].Dir -ne 1 -or [int]$s[$i - 1].Hi -ne $c1) { continue }
+        $hi = $c2; $last = $i
+        if ($i + 1 -lt $s.Count -and [int]$s[$i + 1].Dir -eq 1) { $hi = [int]$s[$i + 1].Hi; $last = $i + 1 }
+        $res = @()
+        for ($k = 0; $k -lt $s.Count; $k++) {
+            if ($k -eq $i - 1) { $res += ,@{ Lo = [int]$s[$i - 1].Lo; Hi = $hi; Dir = 1 } }
+            elseif ($k -lt $i - 1 -or $k -gt $last) { $res += ,$s[$k] }
+        }
+        return $res
+    }
+    return $s
+}
+
+function Fit-PrecompCurve($est, $sig, [int]$maxCyl, $kinds = $null, [bool]$dense = $false, $Dents = $null) {
     # Courbe de precompensation par cylindre a partir des estimations des cylindres testes.
     # Moindres carres ponderes (poids = 1 / incertitude^2) de p = A + B.x, B >= 0, pour trois formes
     # physiquement plausibles (densite lineaire croissante vers l interieur) : x = cylindre, 1/rayon,
     # 1/rayon^2 ; la forme de plus faible ecart pondere est retenue. Si elle n explique pas les mesures
     # (chi2 reduit > 4 avec au moins 4 points), interpolation monotone des mesures lissees (PAVA).
     # Donnees denses : points isoles ecartes (poids nul : la courbe passe par l interpolation de leurs voisins)
+    # 12.9 (correction 4) : $Dents, dents locales admises (@{ C1 ; C2 }, Get-CalibDents) : chemin monotone par segments
+    # impose (CurveFit), puis coupure des segments croissants qui les contiennent (Split-CurveDents) ; Breaks reste celui
+    # de SegFit (260 et 265 lisent Breaks[0]) ; Dents : dents appliquees (vide sans dent)
     $csAll = @($est.Keys | ForEach-Object { [int]$_ } | Sort-Object)
     if ($csAll.Count -eq 0) { return $null }
+    $dl = @(@($Dents) | Where-Object { $null -ne $_ })                                     # 12.9
     $outl = @{}
     if ($dense -and $csAll.Count -ge 8) { $outl = Get-IsolatedPoints $csAll $est $sig }
     $cs = @($csAll | Where-Object { -not $outl.ContainsKey($_) })
@@ -186,11 +299,11 @@ function Fit-PrecompCurve($est, $sig, [int]$maxCyl, $kinds = $null, [bool]$dense
     }
     $chi = $best.Ssr / [math]::Max(1, $cs.Count - 2)
     $vals = New-Object int[] ($maxCyl + 1)
-    if ($cs.Count -ge 4 -and $chi -gt 4.0) {
+    if ($cs.Count -ge 4 -and ($chi -gt 4.0 -or ($dl.Count -gt 0 -and $script:CurveFitOk))) {   # 12.9 : dents
         # Monotone par segments (CurveFit) : le besoin peut redescendre une ou deux fois, seulement sur une chute nette
         # (plus de 15 ns et de 3 incertitudes) entre deux mesures encadrees ; sinon croissant (PAVA). Puis lineaire
         # entre cylindres testes.
-        $fyS = $null; $model = 'iso'; $breaks = @(); $segs = $null
+        $fyS = $null; $model = 'iso'; $breaks = @(); $segs = $null; $applied = @()
         if ($script:CurveFitOk) {
             $rel = [bool[]]@($cs | ForEach-Object { -not $kinds -or -not $kinds.ContainsKey($_) -or $kinds[$_] -eq 'interp' })
             $sg = @($cs | ForEach-Object { if ($sig -and $sig.ContainsKey($_)) { [math]::Max(1.0, [double]$sig[$_]) } else { 5.0 } })
@@ -206,6 +319,12 @@ function Fit-PrecompCurve($est, $sig, [int]$maxCyl, $kinds = $null, [bool]$dense
                 $segs = @(@{ Lo = 0; Hi = $pk; Dir = 1 }, @{ Lo = $pk + 1; Hi = $tr; Dir = -1 })
                 if ($K -eq 2 -and $tr -lt $maxCyl) { $segs += @{ Lo = $tr + 1; Hi = $maxCyl; Dir = 1 } }
             }
+            # 12.9 (correction 4) : dents coupees dans les segments croissants de SegFit (Breaks inchange), CalDentMax au plus
+            if ($dl.Count -gt 0) {
+                $dmx = if ($null -ne $script:CalDentMax) { [int]$script:CalDentMax } else { 2 }
+                $sp = Split-CurveDents ([int[]]$cs) ([double[]]$ys) ([double[]]$ws) $K ([int]$r[1]) ([int]$r[2]) ([double[]]$fyS) $dl $maxCyl $dmx
+                if (@($sp.Dents).Count -gt 0) { $fyS = @($sp.Fy); $segs = $sp.Segs; $model = 'seg'; $applied = @($sp.Dents) }
+            }
         }
         if ($null -ne $fyS) {
             $fy = $fyS
@@ -219,7 +338,7 @@ function Fit-PrecompCurve($est, $sig, [int]$maxCyl, $kinds = $null, [bool]$dense
                 }
                 $vals[$c] = [int][math]::Max(0, [math]::Min($script:CalHardNs, [math]::Round($v, 0)))
             }
-            return @{ Model = $model; A = $null; B = $null; Chi = $chi; Values = $vals; Breaks = $breaks; Segs = $segs; Outliers = @($outl.Keys) }
+            return @{ Model = $model; A = $null; B = $null; Chi = $chi; Values = $vals; Breaks = $breaks; Segs = $segs; Outliers = @($outl.Keys); Dents = $applied }
         }
         # Repli sans CurveFit : interpolation monotone croissante (PAVA pondere sur les mesures)
         $blocks = New-Object System.Collections.Generic.List[object]
@@ -243,13 +362,13 @@ function Fit-PrecompCurve($est, $sig, [int]$maxCyl, $kinds = $null, [bool]$dense
             }
             $vals[$c] = [int][math]::Max(0, [math]::Min($script:CalHardNs, [math]::Round($v, 0)))
         }
-        return @{ Model = 'iso'; A = $null; B = $null; Chi = $chi; Values = $vals; Breaks = @(); Segs = $null; Outliers = @($outl.Keys) }
+        return @{ Model = 'iso'; A = $null; B = $null; Chi = $chi; Values = $vals; Breaks = @(); Segs = $null; Outliers = @($outl.Keys); Dents = @() }
     }
     for ($c = 0; $c -le $maxCyl; $c++) {
         $v = $best.A + $best.B * (Get-CurveX $best.Model $c $maxCyl)
         $vals[$c] = [int][math]::Max(0, [math]::Min($script:CalHardNs, [math]::Round($v, 0)))
     }
-    return @{ Model = $best.Model; A = $best.A; B = $best.B; Chi = $chi; Values = $vals; Breaks = @(); Segs = $null; Outliers = @($outl.Keys) }
+    return @{ Model = $best.Model; A = $best.A; B = $best.B; Chi = $chi; Values = $vals; Breaks = @(); Segs = $null; Outliers = @($outl.Keys); Dents = @() }
 }
 
 function Add-CurveCorrection($values, $delta, $segs = $null) {
@@ -476,6 +595,10 @@ function Draw-PrecompCurve($g, $size) {
         $dash = New-Object System.Drawing.Pen($script:Theme.Muted, 1)
         $dash.DashStyle = [System.Drawing.Drawing2D.DashStyle]::Dash
         try { foreach ($cv in $cvs) { foreach ($bc in @($cv.Breaks)) { if ($null -ne $bc -and [int]$bc -le $maxC) { $xb = & $fx ([int]$bc); $g.DrawLine($dash, $xb, $Tp, $xb, $Tp + $ph) } } } } finally { $dash.Dispose() }
+        # 12.9 (correction 4) : dents locales du besoin (DentLo : dernier cylindre avant la baisse) : trait vertical pointille
+        $dot = New-Object System.Drawing.Pen($script:Theme.Muted, 1)
+        $dot.DashStyle = [System.Drawing.Drawing2D.DashStyle]::Dot
+        try { foreach ($cv in $cvs) { foreach ($dc in @(@($cv.DentLo) | Where-Object { $null -ne $_ })) { if ([int]$dc -le $maxC) { $xb = & $fx ([int]$dc); $g.DrawLine($dot, $xb, $Tp, $xb, $Tp + $ph) } } } } finally { $dot.Dispose() }
         for ($k = 0; $k -lt $cvs.Count; $k++) {
             $cv = $cvs[$k]; $vals = @($cv.Values)
             $pts = New-Object 'System.Drawing.PointF[]' $vals.Count
@@ -548,6 +671,8 @@ function Draw-PrecompCurve($g, $size) {
         $g.DrawRectangle($grayPen, $x2, $ly + 3, 7, 7); $s = (T 'plafonnée'); $g.DrawString($s, $font, $txt, $x2 + 11, $ly); $x2 += 24 + $g.MeasureString($s, $font).Width
         if (@($cvs | Where-Object { @($_.Kinds) -contains 'outlier' }).Count -gt 0) { $g.DrawLine($grayPen, $x2, $ly + 3, $x2 + 7, $ly + 10); $g.DrawLine($grayPen, $x2, $ly + 10, $x2 + 7, $ly + 3); $s = (T 'isolée'); $g.DrawString($s, $font, $txt, $x2 + 11, $ly); $x2 += 24 + $g.MeasureString($s, $font).Width }
         if (@($cvs | Where-Object { @($_.Breaks).Count -gt 0 }).Count -gt 0) { $dl = New-Object System.Drawing.Pen($script:Theme.Muted, 1); $dl.DashStyle = [System.Drawing.Drawing2D.DashStyle]::Dash; $g.DrawLine($dl, $x2 + 3, $ly + 1, $x2 + 3, $ly + 12); $dl.Dispose(); $s = (T 'changement de sens'); $g.DrawString($s, $font, $txt, $x2 + 11, $ly); $x2 += 24 + $g.MeasureString($s, $font).Width }
+        # 12.9 (correction 4) : dent locale du besoin (trait pointille), distincte d un changement de sens (tirets)
+        if (@($cvs | Where-Object { @(@($_.DentLo) | Where-Object { $null -ne $_ }).Count -gt 0 }).Count -gt 0) { $dl = New-Object System.Drawing.Pen($script:Theme.Muted, 1); $dl.DashStyle = [System.Drawing.Drawing2D.DashStyle]::Dot; $g.DrawLine($dl, $x2 + 3, $ly + 1, $x2 + 3, $ly + 12); $dl.Dispose(); $s = (T 'baisse locale du besoin'); $g.DrawString($s, $font, $txt, $x2 + 11, $ly); $x2 += 24 + $g.MeasureString($s, $font).Width }
         $g.DrawEllipse($flag, $x2 - 1, $ly + 1, 11, 11); $s = (T 'écart > {0} ns et > 3 incertitudes') -f (Format-UiNum (Get-CurveDevNs $cvs[0])); $g.DrawString($s, $font, $txt, $x2 + 13, $ly); $x2 += 26 + $g.MeasureString($s, $font).Width
         $g.FillRectangle($hatch, $x2, $ly + 2, 16, 10); $g.DrawRectangle($grid, $x2, $ly + 2, 16, 10); $g.DrawString((T 'au-delà des mesures'), $font, $txt, $x2 + 20, $ly)
         $ly = 50; $x2 = $L
@@ -742,6 +867,10 @@ function ConvertTo-CurveConfig($cv) {
     # Zone non reproductible (calcul 12.6) : enregistree seulement si elle existe
     $ct = @(@($cv.Contra) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ })
     if ($ct.Count -gt 0) { $o.contra = $ct }
+    # 12.9 (correction 4) : dents locales du besoin (calcul 12.9), tableaux plats, enregistres seulement s il y en a, comme
+    # la zone non reproductible
+    $dl = @(@($cv.DentLo) | Where-Object { $null -ne $_ })
+    if ($dl.Count -gt 0) { $o.dentLo = @($cv.DentLo | ForEach-Object { [int]$_ }); $o.dentHi = @($cv.DentHi | ForEach-Object { [int]$_ }); $o.dentNs = @($cv.DentNs | ForEach-Object { [double]$_ }) }
     return $o
 }
 
@@ -840,6 +969,11 @@ function ConvertFrom-CurveConfig($o) {
         $cv.MaxNs = $(if ($null -ne $o.maxNs) { [int]$o.maxNs } else { $null })
         # Zone non reproductible, verifications contradictoires (calcul 12.6) : absente d une courbe plus ancienne
         $cv.Contra = [int[]]@(@($o.contra) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ })
+        # Dents locales du besoin (calcul 12.9) : absentes d une courbe plus ancienne ; longueurs differentes : ignorees
+        $cv.DentLo = [int[]]@(@($o.dentLo) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ })
+        $cv.DentHi = [int[]]@(@($o.dentHi) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ })
+        $cv.DentNs = [double[]]@(@($o.dentNs) | Where-Object { $null -ne $_ } | ForEach-Object { [double]$_ })
+        if ($cv.DentLo.Count -ne $cv.DentHi.Count -or $cv.DentLo.Count -ne $cv.DentNs.Count) { $cv.DentLo = [int[]]@(); $cv.DentHi = [int[]]@(); $cv.DentNs = [double[]]@() }
         return $cv
     } catch { return $null }
 }

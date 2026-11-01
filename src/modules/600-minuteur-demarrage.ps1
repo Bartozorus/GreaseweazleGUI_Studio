@@ -99,6 +99,8 @@ $timer.Add_Tick({
     }
     # 12.8 (D4) : ecriture depuis la Bibliotheque terminee : onglet Ecriture retabli (prereglage non enregistre)
     if ($script:OpOverride) { Update-OpOverride $gwDoneTick }
+    # 12.9 (S1) : ecriture sans surveillance terminee (fin, annulation, erreur) : case « Sans surveillance » decochee
+    if ($script:UnattendedRun) { Update-CalibUnattended $gwDoneTick }
     # Calibration precomp : barre globale et temps restant ; prechauffage d une ecriture lente
     if ($script:Cal) { Update-CalibProgress } elseif ($script:WriteWarm) { Update-WriteWarmupProgress }
     if ($script:HomeCalBusy) { Update-HomeCalibCard }     # carte Calibration de l Accueil : progression, puis bilan

@@ -64,6 +64,7 @@ function Get-Setting([string]$k) {
         'jitterWatch'        { return [int]$script:JitterWatch }
         'contentKMid'        { return [double]$script:ContentKMid }     # 12.8.1 : niveaux de la mesure sur l image (276)
         'contentKLow'        { return [double]$script:ContentKLow }
+        'contentKeepMeasures' { return [int]$script:ContentKeepMeasures }   # 12.9 (D6) : relectures gardees (276)
     }
     return $script:Settings[$k]
 }
@@ -78,6 +79,7 @@ function Set-SettingStore([string]$k, $v) {
         'jitterWatch'        { Set-JitterThresholds ([int]$script:JitterOk) ([int]$v); return }
         'contentKMid'        { $script:ContentKMid = [double]$v; return }
         'contentKLow'        { $script:ContentKLow = [double]$v; return }
+        'contentKeepMeasures' { $script:ContentKeepMeasures = [int]$v; return }
     }
     $script:Settings[$k] = $v
 }
@@ -638,7 +640,20 @@ function Load-Config {
     # Revue 12.8.2 : facteurs d un autre calcul qui ne s appliquent plus (aucune mesure du calcul actuel pour ce lecteur,
     # cette famille et cette tete, Get-StaleDriveFactors) : une ligne a chaque demarrage, jusqu a une nouvelle mesure
     $sdf = Get-StaleDriveFactors
-    if ([int]$sdf.N -gt 0) { Append-Log ((T "Facteurs de précompensation mesurés sur l'image : {0} mesure(s) du lecteur {1}, faite(s) avec un autre calcul de calibration, ne sont plus appliquées. Après la recalibration du lecteur, refaites une mesure sur l'image ; d'ici là, une écriture sans mesure utilise le facteur 1, plus la correction « lecteur cible ».") -f "$($sdf.N)", ((@($sdf.Drives)) -join ', ')) }
+    # 12.9 : facteurs d un autre calcul de mesure sur l image (ContentCalc avant la 12.9) : texte de la montee de calcul ;
+    # correction « lecteur cible » reglee avec ce calcul : une ligne, une fois (Update-TargetCorrCalc)
+    if ([int]$sdf.Content -gt 0) { Append-Log (T "Facteurs mesurés sur l'image avant la 12.9 : le calcul a changé (marque, courbure en ns, facteur au-delà de 1), ils ne sont plus appliqués. Refaites une mesure sur l'image pour chaque marque.") }
+    # Synthese C (A2) : mesures du calcul actuel relues sans etat (configuration reecrite par une version anterieure, qui
+    # retire les champs de la 12.9) : Get-DriveK ne les retient plus ; une ligne a chaque demarrage, jusqu a une nouvelle
+    # mesure du calcul actuel pour ce lecteur, cette famille et cette tete (comme Get-StaleDriveFactors)
+    $cmEt = @{}
+    foreach ($cmr in @($script:ContentMeasures)) { if ($cmr -and [string]$cmr.ContentCalc -eq [string]$script:ContentCalc -and [string]$cmr.Etat) { $cmEt["$($cmr.Drive)|$($cmr.Family)|$([int]$cmr.Head)"] = $true } }
+    $nNoEtat = @($script:ContentMeasures | Where-Object { $_ -and [string]$_.ContentCalc -eq [string]$script:ContentCalc -and -not [string]$_.Etat -and -not $cmEt.ContainsKey("$($_.Drive)|$($_.Family)|$([int]$_.Head)") }).Count
+    if ($nNoEtat -gt 0) { Append-Log ((T "Facteurs mesurés sur l'image : {0} mesure(s) du calcul {1} relue(s) sans marque ni état (configuration réécrite par une version antérieure) : elles ne sont plus appliquées. Refaites une mesure sur l'image pour chaque marque.") -f "$nNoEtat", "$($script:ContentCalc)") }
+    foreach ($tcd in @(Update-TargetCorrCalc)) { Append-Log ((T "Correction « lecteur cible » du lecteur {0} réglée avec le calcul 12.8 : le facteur mesuré en 12.9 est plus élevé d'environ 0,05 (tête 0) et 0,10 (tête 1) ; à revalider par une relecture sur le lecteur cible.") -f "$tcd") }
+    # 12.9 (calcul de calibration 12.9) : facteurs d un autre calcul de calibration en plus de ceux d avant la 12.9 (ligne
+    # ci-dessus) : les deux lignes s ecrivent
+    if ([int]$sdf.N -gt [int]$sdf.Content) { Append-Log ((T "Facteurs de précompensation mesurés sur l'image : {0} mesure(s) du lecteur {1}, faite(s) avec un autre calcul de calibration, ne sont plus appliquées. Après la recalibration du lecteur, refaites une mesure sur l'image ; d'ici là, une écriture sans mesure utilise le facteur 1, plus la correction « lecteur cible ».") -f "$([int]$sdf.N - [int]$sdf.Content)", ((@($sdf.Drives)) -join ', ')) }
     $script:OldCalib = $null
     $calPurged = $lostProf
     if ($old.Count -gt 0) {

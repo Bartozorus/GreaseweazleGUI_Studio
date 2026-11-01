@@ -4,7 +4,8 @@
 # et Complete-PrecompCalib). Defaut grossier (arbitrage 1) : fenetre sans compte a rebours pendant la calibration ;
 # disquette douteuse sans defaut grossier : reserve « support » de la fenetre de decision ; bilan par face toujours au journal
 function Get-CalibSurface($tracks, [int[]]$cyls) {
-    # Controle de surface de la disquette de calibration sur la relecture de la passe 1 (motif ecrit a 0 ns, 3 tours) :
+    # Controle de surface de la disquette de calibration sur la relecture de la passe 1 (motif ecrit aux niveaux de la
+    # passe 1, 3 tours) :
     # par face et par cylindre teste, trous de signal (Dropouts), hors classe (OutOfClass, juges seulement sous
     # CalSurfShiftMax ns de decalage), ecart du nombre de flux entre tours (NFlux), piste illisible (absente ou sans tour
     # mesurable). Face douteuse : CalSurfMinBad pistes defectueuses au moins, ou CalSurfFrac des cylindres testes, ou
@@ -139,13 +140,15 @@ function Test-CalibCleanHint($sf, $mc, [bool]$hd) {
     return $true
 }
 
-function Format-CalibSurfaceLog($sf, [bool]$std, [string]$verdict = 'hold') {
+function Format-CalibSurfaceLog($sf, [bool]$std, [string]$verdict = 'hold', [bool]$Mixed = $false) {
     # Lignes du journal : bilan des deux faces (toujours, donnees pour recaler les seuils), puis verdict. $verdict : 'hold'
     # (disquette douteuse : decision demandee), 'reserve' (douteuse sans defaut grossier : reserve au bilan, arbitrage 1 de
-    # la 12.7), 'none' (bilan seul : l appelant ecrit le verdict d un defaut grossier)
+    # la 12.7), 'none' (bilan seul : l appelant ecrit le verdict d un defaut grossier). 12.9 (correction 2) : $Mixed, passe 1
+    # en carre latin (niveaux repartis par cylindre, double densite) : texte sans « sans precompensation »
     $faces = Get-CalibSurfaceFaceLines $sf
     $sfx = if ($std) { (T ' ; contrôle partiel en test standard, cylindres de test seulement') } else { '' }
-    $lines = @((T "Contrôle de surface (passe 1, motif écrit sans précompensation) : {0}{1}.") -f ($faces -join ' ; '), $sfx)
+    $fmt = if ($Mixed) { (T "Contrôle de surface (passe 1, motif de test relu sur 3 tours) : {0}{1}.") } else { (T "Contrôle de surface (passe 1, motif écrit sans précompensation) : {0}{1}.") }
+    $lines = @($fmt -f ($faces -join ' ; '), $sfx)
     if ($verdict -eq 'none') { return ,$lines }
     if ($sf.Defective) {
         if ($verdict -eq 'reserve') { $lines += ((T "Contrôle de surface : disquette de calibration douteuse ({0}) ; la calibration continue, avec une réserve au bilan.") -f (Format-CalibSurfaceShort $sf)) }
@@ -158,7 +161,7 @@ function Format-CalibSurfaceLog($sf, [bool]$std, [string]$verdict = 'hold') {
     return ,$lines
 }
 
-function Get-CalibSurfaceText($sf, $opt, [bool]$std, [bool]$autoStart, [string[]]$Extra = @(), [string[]]$Notes = @(), $Medium = $null, [bool]$Hd = $false) {
+function Get-CalibSurfaceText($sf, $opt, [bool]$std, [bool]$autoStart, [string[]]$Extra = @(), [string[]]$Notes = @(), $Medium = $null, [bool]$Hd = $false, [bool]$Mixed = $false) {
     # Texte de la fenetre du controle de surface (lblSurfText). Extra : lignes de la vitesse du lecteur et de la densite
     # relue (Get-CalibMediumCheck) apres celles des faces ; Notes : paragraphes qui les expliquent. 12.7 : $opt.Speed (defaut
     # de vitesse seul, Test-CalibSpeedOnly) : en-tete qui nomme le lecteur, sans la phrase sur le support ; $opt.Change
@@ -166,7 +169,9 @@ function Get-CalibSurfaceText($sf, $opt, [bool]$std, [bool]$autoStart, [string[]
     # douteuse avec tous ses compteurs (Format-CalibSurfaceFaceDefect) ; conseil de nettoyer les tetes seulement pour des
     # trous de signal sur les deux faces a la bonne densite (Test-CalibCleanHint ; Medium, Hd : famille haute densite)
     $spd = [bool]$opt.Speed
-    $t = if ($spd) { (T 'Le lecteur ne tourne pas à la vitesse de ce type de disquette. Le contrôle de la première passe, où le motif de test est écrit sans précompensation puis relu sur 3 tours, a trouvé :') } else { (T "La disquette de calibration semble défectueuse. Le contrôle de surface de la première passe, où le motif de test est écrit sans précompensation puis relu sur 3 tours, a trouvé :") }
+    # 12.9 (correction 2) : $Mixed, passe 1 en carre latin (niveaux repartis par cylindre) : texte sans « sans precompensation »
+    if ($Mixed) { $t = if ($spd) { (T "Le lecteur ne tourne pas à la vitesse de ce type de disquette. Le contrôle de la première passe, où le motif de test est écrit puis relu sur 3 tours, a trouvé :") } else { (T "La disquette de calibration semble défectueuse. Le contrôle de surface de la première passe, où le motif de test est écrit puis relu sur 3 tours, a trouvé :") } }
+    else { $t = if ($spd) { (T 'Le lecteur ne tourne pas à la vitesse de ce type de disquette. Le contrôle de la première passe, où le motif de test est écrit sans précompensation puis relu sur 3 tours, a trouvé :') } else { (T "La disquette de calibration semble défectueuse. Le contrôle de surface de la première passe, où le motif de test est écrit sans précompensation puis relu sur 3 tours, a trouvé :") } }
     foreach ($h in 0, 1) {
         $f = $sf.Faces[$h]
         if (-not $f.Defective) { continue }

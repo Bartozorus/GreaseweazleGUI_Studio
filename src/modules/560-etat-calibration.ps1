@@ -5,7 +5,8 @@
 # (2T) encadre par deux longs est lu trop long et un 3T encadre par deux courts trop
 # court. ScpStats.Analyze mesure ce decalage residuel signe (Shift, ns) : > 0 = sous-
 # compense, < 0 = sur-compense, 0 = reglage ideal. Il est lineaire en la precomp
-# ecrite : trois passes de mesure (0, 100, 200 ns) suffisent pour ajuster une droite par
+# ecrite : trois passes de mesure (0, 30 et 100 ns en double densite, niveaux repartis par cylindre) suffisent
+# pour ajuster une droite par
 # cylindre et en deduire la valeur qui annule le decalage. Une passe de verification
 # ecrit ensuite le profil obtenu et mesure le residu ; les cylindres hors tolerance
 # sont corriges et une derniere passe verifie. Chaque passe = une commande gw write
@@ -21,7 +22,10 @@
 # qu aux pistes a bits (images secteur ou bitcell), jamais aux flux SCP/RAW.
 $script:Cal = $null
 $script:CalRedo = $null   # calibration B (« Refaire sur une autre disquette ») : courbe A en memoire ; Stage 'confirm', 'running' ou 'interrupted'
-$script:CalCoarse    = @(0, 100, 200)   # passes de mesure : trois points pour la droite
+$script:CalCoarse    = @(0, 30, 100)   # passes de mesure : trois niveaux, repartis par cylindre (12.9, correction 2)
+# 12.9 (correction 3) : 0, 30 et 100 ns au lieu de 0, 100 et 200 : la corde qui donne le zero des besoins courants (5 a
+# 85 ns au lecteur A) est courte et proche du zero (biais de courbure +0,91 -> +0,19 ns, v129\cal2\donnees) ; un besoin
+# au-dela de 100 ns est encadre (CalBracketMargin, CalBracketStep et CalMaxNs inchanges).
 # Plafond des passes de MESURE (encadrement, mesures complementaires, cibles interpolees) : un cylindre encore
 # sous-compense a ce plafond a un zero extrapole de ses mesures, que la verification ecrit et mesure.
 $script:CalMaxNs     = 300
@@ -57,7 +61,7 @@ $script:CalMaxRetest = 1
 # ces nouveaux essais, soit 10 ; la disquette mesuree est celle a ecrire, reecrite ensuite par l image (pas de disquette
 # sacrifiee a epargner)
 $script:CalDiskMaxRetest = 3
-$script:CalBracketMargin = 80          # passe d encadrement : estimation + marge (ns) pour un cylindre encore sous-compense a 200 ns
+$script:CalBracketMargin = 80          # passe d encadrement : estimation + marge (ns) pour un cylindre encore sous-compense au plus fort niveau des passes de mesure (100 ns en double densite)
 # --- Controle de surface de la passe 1 (seuils provisoires (H)) ------------------------------------------------------
 $script:CalSurfDropRevs  = 2      # trous de signal (>= 20 us) dans au moins ce nombre de tours : defaut reproductible (H)
 $script:CalSurfOocFloor  = 20     # hors classe par tour (mediane des tours) : plancher, borne CRITIQUE de Get-HealthLevel (H)
@@ -83,6 +87,57 @@ $script:CalFluxPerCell   = 0.375  # flux par cellule du motif (CalibPattern.Trac
 $script:CalHdShiftCells  = 0.2    # haute densite : decalage a la passe 1 au-dela duquel la mesure sort de sa plage (simulation 18/10/2026)
 $script:AfterCalib = ''                                  # 'write' : ecriture rapide ou lente a lancer apres une calibration reussie
 $script:CalibConfirmSeconds = 120                        # avertissement avant calibration : validation automatique au bout de ce delai (s)
+# 12.9 (S1) : ce delai ne vaut plus que pour la calibration de la disquette a ecrire d une ecriture sans surveillance (case
+# « Sans surveillance pour la prochaine ecriture » de l onglet Ecriture, chkWUnattended, Get-CalibConfirmSeconds) ; une
+# calibration seule n a jamais de delai. CalibUnattended : etat de la case, pour la session, jamais enregistre ;
+# UnattendedRun : sequence d ecriture lancee avec la case cochee (Start-UnattendedWrite), case decochee a sa fin
+# (Update-CalibUnattended, minuteur principal)
+$script:CalibUnattended = $false
+$script:UnattendedRun = $false
+# 12.9 (L2-a) : marche du besoin entre deux cylindres voisins, non suivie par la courbe (Get-CalibNeedSteps) : baisse d au
+# moins max(CalDevNs / CalStepDevDiv ; CalResidual), soit 5 ns en double densite et 4 ns en haute densite, sous le seuil
+# de rupture de la courbe, autour de cylindres non converges contigus (CalStepMaxCyl au plus). Conseil seulement.
+# 12.9 (correction 4) : une baisse mesuree par les passes de mesure et confirmee par la verification devient une dent
+# suivie par la courbe (CalDentOn) ; les autres restent un conseil
+$script:CalStepDevDiv = 3.0
+$script:CalStepMaxCyl = 4
+# 12.9 (corrections 1, 2 et 4 du calcul de calibration, CalibCalc 12.9 ; double densite seulement, bareme CalScaleDd) :
+#  - CalCondPass : conditionnement du lecteur avant la premiere passe de mesure (effacement haute frequence et ecriture
+#    du motif sur tous les cylindres, sans relecture, Start-CalibCondition) ;
+#  - CalLatin : niveaux des passes de mesure repartis par cylindre (carre latin, Get-CalibLatinW) et decalage propre a
+#    chaque passe retire des mesures (Get-CalibPassOffsets, modele M2) ; CalLatinMinCyl cylindres de test au moins
+#    (sinon passes uniformes : image de 40 cylindres en test standard) et autant de cylindres mesures aux n niveaux par face ;
+#  - CalDentOn : dent locale du besoin admise dans la courbe (Get-CalibDents, Split-CurveDents), CalDentMax par unite au
+#    plus (les plus fortes), entre cylindres distants de CalDentGap au plus ; confirmee par la verification si la baisse
+#    de ses zeros atteint CalDentConfNs (moitie du seuil de marche de 5 ns) ;
+#  - CalCondWarnNs : ecart de la premiere passe de mesure aux suivantes (ns de decalage) au-dela duquel le journal le
+#    signale (information seulement ; 4 ns : au-dessus de l ecart que donne le plus souvent le seul decalage propre a
+#    chaque ecriture, 1 a 2 ns d ecart-type aux essais du 31/10/2026)
+$script:CalCondPass    = $true
+$script:CalLatin       = $true
+$script:CalLatinMinCyl = 6
+$script:CalDentOn      = $true
+$script:CalDentMax     = 2
+$script:CalDentGap     = 2
+$script:CalDentConfNs  = 2.5
+$script:CalCondWarnNs  = 4.0
+# 12.9 (decalage propre a l ecriture de verification, journal du 01/11/2026) : a une verification qui ecrit tous les
+# cylindres estimes d une unite par une commande gw (verification complete, VerifyList nul), le decalage commun de cette
+# ecriture, mediane des residus bruts (hors points isoles, hors plafond et plancher), est retire des residus avant le
+# jugement et toute correction (Get-VerifyOffset, Invoke-CalibAnalysis) ; la courbe n est pas deplacee, les residus bruts
+# restent au journal et dans la courbe enregistree (Raw). CalVOffOn : par bareme (double densite seulement, CalScaleDd) ;
+# CalVOffMinCyl : cylindres verifies au moins (test standard de 80 cylindres : 9) ; CalVOffSigK : retire seulement au-dela
+# de ce nombre d erreurs-types (1,2533 x max(1 ; 1,4826 MAD) / racine de n) ; CalVOffMaxNs : borne (ns de decalage,
+# 2 x CalResidual, seuil de la derive forte) au-dela de laquelle il est signale au journal mais non retire (lecteur ou
+# support instable depuis les passes de mesure : chemins d aujourd hui)
+$script:CalVOffOn     = $true
+$script:CalVOffMinCyl = 9
+$script:CalVOffSigK   = 2.0
+$script:CalVOffMaxNs  = 8.0
+# CalVOffHomNs (banc 129-voff2) : ecart maximal, en ns de decalage, entre la mediane des cylindres retenus (besoin interpole)
+# et celle des autres cylindres verifies, et entre les deux moities de la piste parmi les retenus : au-dela, le decalage
+# n est pas commun a toute l ecriture (erreur regionale de la courbe) et n est pas retire (Get-VerifyOffset, 'regional')
+$script:CalVOffHomNs  = 2.5
 # Prechauffage du lecteur avant une calibration complete (Start-CalibWarmup ; 12.8, D6 : case « Prechauffer le lecteur
 # avant la calibration complete », write.calibWarmup, onglet Ecriture et carte « Calibrer le lecteur »), avant une
 # ecriture lente (Start-WriteWarmup, case « Prechauffer le lecteur avant l ecriture lente », write.slowWarmup) et avant la
@@ -204,11 +259,11 @@ $script:CalScaleDd = @{ CalCoarse = $script:CalCoarse; CalMaxNs = $script:CalMax
     CalExtrapSigMin = $script:CalExtrapSigMin; CalSigMax = $script:CalSigMax; CalInterpDefault = $script:CalInterpDefault
     CalSurfShiftMax = $script:CalSurfShiftMax; CalCmpPointNs = $script:CalCmpPointNs; CalCmpZoneNs = $script:CalCmpZoneNs
     CalCmpSpotNs = $script:CalCmpSpotNs; CalCmpPrefNs = $script:CalCmpPrefNs; CalCmpLocalNs = $script:CalCmpLocalNs
-    LevelTauOk = $script:LevelTauOk; LevelTauMax = $script:LevelTauMax }
+    LevelTauOk = $script:LevelTauOk; LevelTauMax = $script:LevelTauMax; CalCondPass = $script:CalCondPass; CalLatin = $script:CalLatin; CalDentOn = $script:CalDentOn; CalVOffOn = $script:CalVOffOn }
 $script:CalScaleHd = @{ CalCoarse = @(0, 50, 100); CalMaxNs = 150; CalBracketMargin = 40; CalBracketStep = 20; CalTrendSig = 6.25
     CalTrendRefSig = 3.0; CalContraMaxNs = 6; CalDevNs = 7.5; CalDenseStep = 8; CalExtrapSigMin = 2.5; CalSigMax = 25.0
     CalInterpDefault = 50; CalSurfShiftMax = 150; CalCmpPointNs = 2.0; CalCmpZoneNs = 4.0; CalCmpSpotNs = 7.5; CalCmpPrefNs = 0.5
-    CalCmpLocalNs = 2.0; LevelTauOk = 2.0; LevelTauMax = 4.0 }
+    CalCmpLocalNs = 2.0; LevelTauOk = 2.0; LevelTauMax = 4.0; CalCondPass = $false; CalLatin = $false; CalDentOn = $false; CalVOffOn = $false }
 $script:CalScaleFam = 'dd'
 $script:WProfileHd = $false           # champs --precomp remplis par la branche haute densite d Update-PrecompForImage (mode Auto)
 $script:LevelFieldsPending = $false   # ecriture apres une calibration rapide (Bibliotheque) : champs remis a la reference a sa fin

@@ -749,27 +749,34 @@ function Confirm-PartialWrite([string]$img, [string]$fmt, [string]$tspec) {
 # recalibration du lecteur, 1 sans mesure (ecriture de la v12.8). Il s applique a la courbe que la v12.8 aurait ecrite :
 # courbe du lecteur, courbe adaptee d une calibration rapide, courbe d une mesure complete ou d une marque. Dk_h :
 # correction « lecteur cible » du lecteur du bandeau ($script:TargetCorr, 274), reglee a la main dans l onglet Ecriture,
-# 0 par defaut. Haute densite, flux, FM, GCR, profil autre qu Auto : jamais de facteur.
+# 0 par defaut. Haute densite, flux, FM, GCR, profil autre qu Auto : jamais de facteur. 12.9 (N13) : k du lecteur par
+# marque (marque de la mesure qui precede, sinon derniere marque choisie), nommee dans les lignes de journal.
 
 function Format-WriteFactorDk([double]$v) {
     # Correction « lecteur cible » signee dans les textes : « +0,10 », « -0,05 », « +0,00 »
     return (Format-UiNum $v '+0.00;-0.00;+0.00')
 }
 
-function Get-WriteFactorSrcText([string]$drive, [string]$fam, [int]$h, [double]$k, [string]$src, [double]$dk) {
+function Get-WriteFactorSrcText([string]$drive, [string]$fam, [int]$h, [double]$k, [string]$src, [double]$dk, $brand = $null) {
     # Origine du facteur d une tete dans les lignes de journal : mesure sur cette disquette ('mesure'), mesures du lecteur
-    # ('lecteur' : derniere, ou mediane des 3 dernieres avec leurs valeurs), aucune mesure ('defaut' : k = 1)
+    # ('lecteur' : derniere, ou mediane des 3 dernieres avec leurs valeurs), aucune mesure ('defaut' : k = 1).
+    # 12.9 (N13) : mesures du lecteur pour la marque $brand ($null : derniere marque choisie, Get-DriveK), nommee ; sans
+    # mesure de la marque, nombre de mesures d autres marques (jamais empruntees)
     $kt = Format-UiNum $k '0.00'; $dt = Format-WriteFactorDk $dk
     if ($src -eq 'mesure') { return ((T 'k {0} mesuré sur cette disquette, correction lecteur cible {1}') -f "$kt", "$dt") }
+    $dr = Get-DriveK $drive $fam $h $brand
+    $bn = [string]$dr.Brand; if (-not $bn.Trim()) { $bn = (T '(non précisée)') } else { $bn = $bn.Trim() }
     if ($src -eq 'lecteur') {
-        $dr = Get-DriveK $drive $fam $h
-        if ([int]$dr.N -ge 2) { return ((T 'k {0}, médiane des {1} dernières mesures du lecteur ({2}), correction lecteur cible {3}') -f "$kt", "$($dr.N)", ((@($dr.Ks) | ForEach-Object { Format-UiNum ([double]$_) '0.00' }) -join ' ; '), "$dt") }
+        if ([int]$dr.N -ge 2) { return ((T 'k {0}, médiane des {1} dernières mesures du lecteur pour la marque « {2} » ({3}), correction lecteur cible {4}') -f "$kt", "$($dr.N)", "$bn", ((@($dr.Ks) | ForEach-Object { Format-UiNum ([double]$_) '0.00' }) -join ' ; '), "$dt") }
         $md = if ($dr.Rec -and $dr.Rec.Date) { [string]$dr.Rec.Date } else { '?' }
-        return ((T 'k {0} de la dernière mesure du lecteur (du {1}), correction lecteur cible {2}') -f "$kt", "$md", "$dt")
+        return ((T 'k {0} de la dernière mesure du lecteur pour la marque « {1} » (du {2}), correction lecteur cible {3}') -f "$kt", "$bn", "$md", "$dt")
     }
-    # Revue 12.8.2 : mesures de ce lecteur ecartees parce qu elles viennent d un autre calcul (Get-DriveK, Old)
-    if ([int](Get-DriveK $drive $fam $h).Old -gt 0) { return ((T 'k 1 (mesures de ce lecteur faites avec un autre calcul de calibration, à refaire), correction lecteur cible {0}') -f "$dt") }
-    return ((T 'k 1 (aucune mesure de ce lecteur), correction lecteur cible {0}') -f "$dt")
+    # Revue 12.8.2 : mesures de ce lecteur ecartees parce qu elles viennent d un autre calcul (Get-DriveK, Old). 12.9
+    # (revue de la phase B, mineur 1) : ecartees seulement par ContentCalc (OldContent) : calcul de la mesure change
+    if ([int]$dr.Old -gt 0 -and [int]$dr.OldContent -ge [int]$dr.Old) { return ((T 'k 1 (mesures de ce lecteur faites avant la {0}, calcul de la mesure changé, à refaire pour la marque « {1} »), correction lecteur cible {2}') -f "$($script:ContentCalc)", "$bn", "$dt") }
+    if ([int]$dr.Old -gt 0) { return ((T 'k 1 (mesures de ce lecteur faites avec un autre calcul de calibration, à refaire), correction lecteur cible {0}') -f "$dt") }
+    $oth = if ([int]$dr.Other -gt 0) { (T ' ; {0} mesure(s) d''autres marques') -f "$($dr.Other)" } else { '' }
+    return ((T 'k 1 (aucune mesure de ce lecteur pour la marque « {0} »{1}), correction lecteur cible {2}') -f "$bn", "$oth", "$dt")
 }
 
 function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $null, [switch]$Peek) {
@@ -822,6 +829,10 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
         return $r
     }
     $useNext = ($null -ne $next -and [string]$next.Drive -eq $drive -and [string]$next.Fam -eq $fam -and [string]$next.Img -eq $img)
+    # 12.9 (N13) : marque de la mesure ou de la fenetre « Mesure de la disquette » qui precede ($next.Brand), sinon derniere
+    # marque choisie (ecritures sans fenetre : rapide, Bibliotheque, restauration, test rapide)
+    $brand = if ($useNext -and $null -ne $next.Brand) { [string]$next.Brand } else { [string]$script:LevelBrand }
+    $bn = if ($brand.Trim()) { $brand.Trim() } else { (T '(non précisée)') }
     $txt = @{}; $lines = @()
     foreach ($h in 0, 1) {
         $k = $null; $src = 'defaut'
@@ -833,19 +844,20 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
                 $src = if ($sv) { [string]$sv } else { 'mesure' }
             }
         }
-        if ($null -eq $k -or [double]::IsNaN($k) -or [double]::IsInfinity($k)) { $dr = Get-DriveK $drive $fam $h; $k = [double]$dr.K; $src = [string]$dr.Src }
+        if ($null -eq $k -or [double]::IsNaN($k) -or [double]::IsInfinity($k)) { $dr = Get-DriveK $drive $fam $h $brand; $k = [double]$dr.K; $src = [string]$dr.Src }
         $raw = $k + [double]$dk[$h]
         $lim = Limit-WriteFactor $raw $fMax
         if ($lim.Clamped) { $lines += (T 'Facteur de la tête {0} ramené de {1} à {2} (il va de 0 à {3}).') -f "$h", (Format-UiNum $raw '0.00'), (Format-UiNum ([double]$lim.F) '0.00'), (Format-UiNum $fMax '0.0#') }
         $r.K[$h] = $k; $r.Src[$h] = $src
         if ($h -eq 0) { $r.F0 = [double]$lim.F } else { $r.F1 = [double]$lim.F }
-        $txt[$h] = Get-WriteFactorSrcText $drive $fam $h $k $src ([double]$dk[$h])
+        $txt[$h] = Get-WriteFactorSrcText $drive $fam $h $k $src ([double]$dk[$h]) $brand
     }
     $r.FMean = [double](Limit-WriteFactor (($r.F0 + $r.F1) / 2) $fMax).F
+    $r.Brand = $brand
     if ($slow) {
-        $r.Line = (T "Facteur de précompensation de cette écriture (lecteur {0}) : tête 0 × {1} ({2}) ; tête 1 × {3} ({4}). Courbe écrite = facteur × courbe, bornée à 0..{5} ns ; une valeur déjà au-dessus n'est jamais augmentée.") -f "$drive", (Format-UiNum $r.F0 '0.00'), "$($txt[0])", (Format-UiNum $r.F1 '0.00'), "$($txt[1])", "$hard"
+        $r.Line = (T "Facteur de précompensation de cette écriture (lecteur {0}, marque « {1} ») : tête 0 × {2} ({3}) ; tête 1 × {4} ({5}). Courbe écrite = facteur × courbe, bornée à 0..{6} ns ; une valeur déjà au-dessus n'est jamais augmentée.") -f "$drive", "$bn", (Format-UiNum $r.F0 '0.00'), "$($txt[0])", (Format-UiNum $r.F1 '0.00'), "$($txt[1])", "$hard"
     } else {
-        $r.Line = (T "Facteur de précompensation de cette écriture rapide (lecteur {0}) : × {1}, moyenne des deux têtes (tête 0 × {2}, {3} ; tête 1 × {4}, {5}). Courbe écrite = facteur × courbe, bornée à 0..{6} ns ; une valeur déjà au-dessus n'est jamais augmentée.") -f "$drive", (Format-UiNum $r.FMean '0.00'), (Format-UiNum $r.F0 '0.00'), "$($txt[0])", (Format-UiNum $r.F1 '0.00'), "$($txt[1])", "$hard"
+        $r.Line = (T "Facteur de précompensation de cette écriture rapide (lecteur {0}, marque « {1} ») : × {2}, moyenne des deux têtes (tête 0 × {3}, {4} ; tête 1 × {5}, {6}). Courbe écrite = facteur × courbe, bornée à 0..{7} ns ; une valeur déjà au-dessus n'est jamais augmentée.") -f "$drive", "$bn", (Format-UiNum $r.FMean '0.00'), (Format-UiNum $r.F0 '0.00'), "$($txt[0])", (Format-UiNum $r.F1 '0.00'), "$($txt[1])", "$hard"
     }
     $r.Lines = @($lines) + @($r.Line)
     return $r

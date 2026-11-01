@@ -18,7 +18,18 @@ $script:ContentZMax = 5e-4; $script:ContentCellsTol = 0.02; $script:ContentFluxM
 $script:ContentMinCyl = 20; $script:ContentMinLevelCyl = 6; $script:ContentResumeMax = 1
 $script:ContentEstWrite = 1.25; $script:ContentEstRead = 0.85     # s par piste (balayages du 25/10/2026)
 $script:EraseEstTrack = 0.37         # 12.8.2 : s par piste effacee en haute frequence (essai E5 du 27/10/2026 : 52 pistes en 19 s)
-$script:ContentRecMax = 20; $script:ContentScpName = 'contenu-mesure.scp'   # plafond du facteur ContentFMax : 040
+$script:ContentScpName = 'contenu-mesure.scp'   # relecture unique quand contentKeepMeasures vaut 0 (plafond du facteur ContentFMax : 040)
+# 12.9 (critique de la phase A, § 3.1) : modele « K-ns » (y = a_passe + g_cylindre - Q (W - k V)^2, 274), facteur k de 0 a
+# ContentKMax ; marge plate si t de la courbure < ContentFlatT, facteur peu determine si son erreur-type > ContentSeKMax ;
+# poids de Huber (constante, iterations), pistes de poids < ContentLowWeight nommees au journal ; 4e passe aux niveaux
+# ContentFourthLevels (alternes par bloc) si une tete a k >= ContentFourthTrigger ou pas de sommet ; enregistrements :
+# ContentRecPerKey par lecteur, famille, tete, marque et calcul, ContentRecMax en tout, ContentRecOldMax d un ancien
+# calcul ; relectures gardees dans TempDir\ContentScpDir (D6, reglage contentKeepMeasures : 040)
+$script:ContentKMax = 2.0; $script:ContentFlatT = 2.0; $script:ContentSeKMax = 0.25
+$script:ContentHuberC = 1.345; $script:ContentHuberIt = 10; $script:ContentLowWeight = 0.5
+$script:ContentFourthLevels = @(1.6, 1.0); $script:ContentFourthTrigger = 0.9
+$script:ContentRecPerKey = 5; $script:ContentRecMax = 80; $script:ContentRecOldMax = 20   # 20 -> 80
+$script:ContentScpDir = 'mesures-image'
 $script:ContentMeasures = @()        # enregistrements de mesure (C.2), relus par Load-Config
 $script:TargetCorr = @{}             # Dk par lecteur (C.4), relu par Load-Config
 $script:TgtCorrEdit = @{}            # saisie en cours d un champ Dk (tete -> lecteur et valeur d avant), 140

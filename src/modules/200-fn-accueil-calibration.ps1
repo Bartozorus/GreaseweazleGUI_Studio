@@ -373,15 +373,17 @@ function Update-HomeCalibDialog {
         $s.Info.Text = $txt
         $s.Curve.Enabled = ((Get-FamilyCurves $fam $heads).Count -gt 0)
         # Durees : memes estimations que Start-PrecompCalib (passes prevues, 1,4 s par piste et par phase, plus l effacement
-        # haute frequence en double densite (12.8.2, Get-CalibEraseEst), sans le
+        # haute frequence en double densite (12.8.2, Get-CalibEraseEst) et le conditionnement du lecteur (12.9), sans le
         # prechauffage, annonce par sa case) et Start-LevelCalib (2 passes)
         $np = $script:CalCoarse.Count + $script:CalMaxVerify
         $pt = 1.4 + (Get-CalibEraseEst ($fam -eq 'hd'))
+        # 12.9 (correction 1) : conditionnement du lecteur en double densite : une ecriture sans relecture de tous les cylindres
+        $cm = if ($fam -ne 'hd' -and [bool]$script:CalScaleDd.CalCondPass) { $n * 2 * (0.7 + (Get-CalibEraseEst $false)) / 60 } else { 0.0 }
         $nStd = @(0..($n - 1) | Where-Object { $_ % 10 -eq 0 }).Count + $(if (($n - 1) % 10 -ne 0) { 1 } else { 0 })
         # 12.8 (D9) : memes noms que la liste « Calibration précomp » de l onglet Ecriture (test standard, fin, rapide)
-        $s.Std.Text = ((T "Test standard (calibration complète, 1 cylindre sur 10) : environ {0} min") -f "$([math]::Max(1, [math]::Round($nStd * 2 * $pt * $np / 60, 0)))")
+        $s.Std.Text = ((T "Test standard (calibration complète, 1 cylindre sur 10) : environ {0} min") -f "$([math]::Max(1, [math]::Round($nStd * 2 * $pt * $np / 60 + $cm, 0)))")
         # Haute densite : pas de calibration rapide (12.7), le test fin n en est pas la reference
-        $fineMin = "$([math]::Max(1, [math]::Round($n * 2 * $pt * $np / 60, 0)))"
+        $fineMin = "$([math]::Max(1, [math]::Round($n * 2 * $pt * $np / 60 + $cm, 0)))"
         $s.Fine.Text = if ($fam -eq 'hd') { (T "Test fin (calibration complète, tous les cylindres) : environ {0} min") -f $fineMin } else { (T "Test fin (calibration complète, tous les cylindres) : environ {0} min ; référence du test rapide") -f $fineMin }
         $lr = Get-LevelRef $fam $heads $cmbDrive.Text '' $false -NCyl $n -Bits ([int]$info.Bits) -ForHome
         if ($lr.Ok) {

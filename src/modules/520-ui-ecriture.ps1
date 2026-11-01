@@ -84,6 +84,22 @@ $numWWarmMin.Name = 'numWWarmMin'; $numWWarmMin.Minimum = 0; $numWWarmMin.Maximu
 $numWWarmMin.Width = 60; $numWWarmMin.Location = '190,443'; $numWWarmMin.Value = 5
 $lblWWarmMinU = New-Label (T 'min au plus (0 : aucun préchauffage)') '256,446'
 $tip.SetToolTip($numWWarmMin, (T "Durée maximale du préchauffage du lecteur avant une écriture lente ou une calibration complète, en minutes : 5 par défaut, de 0 à 30, 0 : aucun préchauffage. Le préchauffage est réduit, ou sauté, si le lecteur vient de servir.`nEnregistrée dans la configuration (calWarmupMinutes)."))
+# 12.9 (S1) : ecriture sans surveillance, case a la suite du champ de la duree du prechauffage (position apres l ajout a
+# l onglet). Etat $script:CalibUnattended, pour la session : ni reglage ni configuration, decochee au demarrage et a la fin
+# de la sequence d ecriture (Update-CalibUnattended). Seul effet : avertissement de calibration de la disquette a ecrire
+# valide seul apres CalibConfirmSeconds (Get-CalibConfirmSeconds) et fenetre « Mesure de la disquette » sautee (276)
+$chkWUnattended = New-Object System.Windows.Forms.CheckBox
+$chkWUnattended.Name = 'chkWUnattended'; $chkWUnattended.Location = '480,445'; $chkWUnattended.AutoSize = $true; $chkWUnattended.Checked = $false
+$chkWUnattended.Text = (T 'Écriture sans surveillance')     # texte court : meme ligne que la duree (pas de defilement, P10)
+$tip.SetToolTip($chkWUnattended, ((T "Prochaine écriture (onglet Écriture, Bibliothèque, restauration) : l'avertissement de calibration de la disquette à écrire est validé seul après {0} s sans réponse, et la mesure sur l'image se fait sans afficher la fenêtre « Mesure de la disquette », avec la dernière marque choisie. La disquette insérée reçoit le motif de test, puis l'image.`nJamais pour une calibration seule (bouton « Calibrer », carte « Calibrer le lecteur » de l'Accueil) : son avertissement attend toujours votre réponse.`nLa case se décoche à la fin de l'écriture, à son annulation ou à une erreur ; elle n'est pas enregistrée.") -f '120'))   # 120 : CalibConfirmSeconds (560, defini apres l interface)
+$chkWUnattended.Add_CheckedChanged({
+    $script:CalibUnattended = [bool]$this.Checked
+    # Revue de la phase B (mineur 3) : case cochee pendant une operation (Test-OpIdle faux), sauf une calibration seule
+    # (AfterCalib vide : jamais de delai, la case vaut pour l ecriture suivante) : la sequence en cours devient sans
+    # surveillance des maintenant, elle est donc suivie et la case se decoche a sa fin
+    if (-not $this.Checked) { $script:UnattendedRun = $false }
+    elseif (-not (Test-OpIdle) -and -not (($script:Cal -or $script:CalRedo) -and -not [string]$script:AfterCalib)) { Start-UnattendedWrite -Running }
+})
 # 12.7 point 5 : mesure de la disquette a ecrire avant une ecriture lente (Start-WriteTabWrite, Start-PresetWrite,
 # restauration) : reglage levelBeforeWrite (write.levelBeforeWrite), case sous les prechauffages, active en ecriture lente.
 # 12.8 (D5) : liste au « Test rapide » : la disquette est toujours mesuree, la case est cochee et verrouillee (Update-SlowUi)
@@ -102,9 +118,9 @@ $lblWLevelMode.Name = 'lblWLevelMode'
 $cmbWLevelMode = New-Object System.Windows.Forms.ComboBox
 # 12.8.1 (spec-1281 § D.1) : trois elements, dans l ordre des codes (content, quick, complete) ; largeur 260
 $cmbWLevelMode.Name = 'cmbWLevelMode'; $cmbWLevelMode.DropDownStyle = 'DropDownList'; $cmbWLevelMode.Width = 260; $cmbWLevelMode.Location = '100,492'
-[void]$cmbWLevelMode.Items.AddRange(@((T "sur l'image à écrire (environ 12 min)"), (T 'rapide, au motif (1 à 2 min)'), (T 'complète, au motif (25 à 30 min)')))
+[void]$cmbWLevelMode.Items.AddRange(@((T "sur l'image à écrire (environ 12 min)"), (T 'rapide, au motif (1 à 2 min)'), (T 'complète, au motif (26 à 31 min)')))
 $cmbWLevelMode.SelectedIndex = 0
-$tip.SetToolTip($cmbWLevelMode, (T "Mesure de la disquette avant une écriture lente.`nSur l'image à écrire : 40 cylindres de l'image sont écrits à 3 niveaux de la courbe du lecteur et relus ; l'image est écrite avec le niveau qui donne la meilleure marge de lecture, pour chaque tête (environ 12 min). Images double densité MFM seulement ; sinon, calibration rapide au motif.`nRapide, au motif : calibration rapide sur le motif de test, 4 à 9 cylindres par tête (1 à 2 min).`nComplète, au motif : mesure complète de cette disquette sur tous ses cylindres (25 à 30 min), puis écriture de l'image ; la courbe obtenue est mémorisée pour la marque de la disquette.`n« Test rapide » et restauration : toujours la calibration rapide au motif."))
+$tip.SetToolTip($cmbWLevelMode, (T "Mesure de la disquette avant une écriture lente.`nSur l'image à écrire : 40 cylindres de l'image sont écrits à 3 niveaux de la courbe du lecteur et relus ; l'image est écrite avec le niveau qui donne la meilleure marge de lecture, pour chaque tête (environ 12 min). Images double densité MFM seulement ; sinon, calibration rapide au motif.`nRapide, au motif : calibration rapide sur le motif de test, 4 à 9 cylindres par tête (1 à 2 min).`nComplète, au motif : mesure complète de cette disquette sur tous ses cylindres (26 à 31 min), puis écriture de l'image ; la courbe obtenue est mémorisée pour la marque de la disquette.`n« Test rapide » et restauration : toujours la calibration rapide au motif."))
 # 12.8.1 (spec-1281 § D.2) : correction « lecteur cible » Dk du lecteur du bandeau, par tete ($script:TargetCorr), sur la
 # ligne de la liste « Mesure : » ; champs toujours actifs (toute ecriture avec facteur, rapide comprise). Libelle,
 # infobulle, valeurs et positions (a la suite de la liste) : Update-TargetCorrUi ; valeur changee : Set-TargetCorrFromUi ;
@@ -167,7 +183,7 @@ $btnWCalib = New-Object System.Windows.Forms.Button
 # libelle de la ligne 3 descendus pour rester centres. FIX5 : rangee descendue de 3 px de plus (3 px d ecart avec les
 # champs du dessus, comme en 12.7), ligne 4 (progression, verdict) de 5 px : 2 px sous les boutons
 $btnWCalib.Text = (T 'Calibrer'); $btnWCalib.Location = '425,106'; $btnWCalib.Size = '120,34'
-$tip.SetToolTip($btnWCalib, (T "Calibre la précompensation pour ce lecteur d'écriture : chaque passe écrit sur les cylindres de test un motif de test pseudo-aléatoire, à la densité de l'image, avec une valeur de precomp puis, en vérification, le profil obtenu ; elle le relit en flux et mesure le décalage de pic. Une courbe donne ensuite une valeur par cylindre ; le profil est enregistré pour la famille de l'image (standard ou long track) et appliqué ensuite par le mode Auto. Le contenu de l'image n'est pas écrit. La disquette insérée est écrasée. Test standard : un cylindre sur 10, quelques minutes. Test fin : tous les cylindres, un quart d'heure environ."))
+$tip.SetToolTip($btnWCalib, (T "Calibre la précompensation pour ce lecteur d'écriture : chaque passe écrit sur les cylindres de test un motif de test pseudo-aléatoire, à la densité de l'image, avec, aux passes de mesure, une valeur de precomp (une par cylindre en double densité) puis, en vérification, le profil obtenu ; elle le relit en flux et mesure le décalage de pic. Une courbe donne ensuite une valeur par cylindre ; le profil est enregistré pour la famille de l'image (standard ou long track) et appliqué ensuite par le mode Auto. Le contenu de l'image n'est pas écrit. La disquette insérée est écrasée. Durées en double densité, sans le préchauffage : test standard (un cylindre sur 10) environ 6 min, test fin (tous les cylindres) environ 26 min."))
 $tip.SetToolTip($btnWCalib, $tip.GetToolTip($btnWCalib) + "`n" + (T 'Écriture lente cochée : une courbe par tête, vérifiée en écrivant la tête 0 puis la tête 1, chacune avec son profil.'))
 $btnWCalib.Add_Click({ $script:AfterCalib = ''; if ($cmbWCalMode.SelectedIndex -eq 2) { Start-LevelCalibButton } else { Start-PrecompCalib } })
 $tip.SetToolTip($btnWCalib, $tip.GetToolTip($btnWCalib) + "`n" + (T 'Test rapide : mesure le niveau de la disquette insérée, et sa forme si elle diffère de la dernière calibration complète du lecteur ; le profil obtenu est placé dans les champs --precomp, pour cette disquette.'))
@@ -227,7 +243,9 @@ $grpWAdv.Controls.AddRange(@((New-Label (T 'Pistes :') '12,23'), $txtWTracks, (N
 $btnWrite = New-Object System.Windows.Forms.Button
 $btnWrite.Text = (T 'ÉCRIRE LA DISQUETTE'); $btnWrite.Location = '10,348'; $btnWrite.Size = '250,40'; $btnWrite.Font = $bold
 
-$btnWrite.Add_Click({ Start-WriteTabWrite })
+# 12.9 (S1, synthese C) : ecriture refusee faute d image (Start-ImageWrite : « Fichier image introuvable. ») : sequence non
+# suivie, la case « Ecriture sans surveillance » reste cochee, sans ligne de journal, comme un refus pendant une commande gw
+$btnWrite.Add_Click({ if ($txtWFile.Text -and (Test-Path -LiteralPath $txtWFile.Text)) { Start-UnattendedWrite }; Start-WriteTabWrite })
 
 $lblWProfileInfo = New-Object System.Windows.Forms.Label
 $lblWProfileInfo.Location = '270,348'; $lblWProfileInfo.Size = '502,40'; $lblWProfileInfo.Anchor = 'Top,Left,Right'
@@ -240,6 +258,9 @@ $tabW.AutoScroll = $true                                  # fenetre basse ou jou
 # Champ de la duree du prechauffage et son unite : a la suite du libelle, mesure dans la police de la fenetre (anglais compris)
 $numWWarmMin.Left = $lblWWarmMin.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblWWarmMin.Text, $form.Font).Width + 8
 $lblWWarmMinU.Left = $numWWarmMin.Right + 6
+# 12.9 (S1) : case « Sans surveillance » a 24 px de l unite de la duree (texte mesure dans la police de la fenetre)
+$tabW.Controls.Add($chkWUnattended)
+$chkWUnattended.Left = $lblWWarmMinU.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblWWarmMinU.Text, $form.Font).Width + 24
 $cmbWLevelMode.Left = $lblWLevelMode.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblWLevelMode.Text, $form.Font).Width + 8
 # 12.8.1 : champs de la correction « lecteur cible », a la suite de la liste (Set-TargetCorrLayout)
 $tabW.Controls.AddRange(@($lblWTgtCorr, $lblWTgt0, $numWTgt0, $lblWTgt1, $numWTgt1))

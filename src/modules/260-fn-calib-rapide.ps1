@@ -495,7 +495,8 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
             $bi.Label = (T 'Marque de la disquette insérée :'); $bi.Text = [string]$script:LevelBrand
             $bi.Tip = (T "Nom libre : marque, année ou lot. Une marque déjà mesurée sert de point de départ : sa forme et son niveau, mémorisés avec la référence actuelle du lecteur. La mesure reste faite sur la disquette insérée.")
         }
-        $ans = Show-CalibConfirm ($intro + $body + "`n`n" + $tail) '' $bi
+        # 12.9 (S1) : delai seulement pour la disquette a ecrire d une ecriture sans surveillance (Get-CalibConfirmSeconds)
+        $ans = Show-CalibConfirm ($intro + $body + "`n`n" + $tail) '' $bi -Seconds (Get-CalibConfirmSeconds ([string]$script:AfterCalib) ([bool]$script:CalibUnattended))
         if (-not $ans.Ok) { return }
         if ($ans.Auto) { Append-Log ((T "Calibration : avertissement validé automatiquement après {0} s sans réponse.") -f "$($script:CalibConfirmSeconds)") }
         if ($bi) { $brand = Get-LevelBrandName ([string]$ans.Brand) $bi.Map; $script:LevelBrand = $brand }

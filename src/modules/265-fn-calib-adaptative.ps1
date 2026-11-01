@@ -1391,7 +1391,7 @@ function Update-LevelBrandCurve($cal, [string]$brand) {
         # leur segment (changements de sens Breaks de la courbe)
         $cur = New-Object int[] $vals.Count
         for ($c = 0; $c -lt $vals.Count; $c++) { $cur[$c] = [int]$vals[$c] }
-        $brk = @(@($u.Fit.Breaks) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Sort-Object)
+        $brk = @(@(@($u.Fit.Breaks) + @(Get-FitDents $u.Fit | ForEach-Object { [int]$_.C2 })) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Sort-Object)
         foreach ($c in $bad) {
             $lo = 0; $hi = $vals.Count - 1
             foreach ($bk in $brk) { if ($bk -le $c -and $bk -gt $lo) { $lo = $bk }; if ($bk -gt $c -and $bk - 1 -lt $hi) { $hi = $bk - 1 } }

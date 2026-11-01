@@ -27,20 +27,24 @@ param(
 )
 
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
-$script:Version = '12.8.2'
+$script:Version = '12.9'
 # Version du calcul de calibration (motif de test, mesure du decalage, ajustement de la courbe, verification), enregistree
 # avec chaque courbe : a changer seulement quand ce calcul change. Une courbe faite avec ce calcul est reprise par les
 # versions suivantes de l application ; une courbe d un autre calcul n est reprise que si l utilisateur la conserve.
 # 12.8.2 : en double densite, chaque passe efface ses pistes en haute frequence (gw erase --hfreq) puis ecrit le motif
 # sans --pre-erase (New-CalibPass) : la mesure change, les courbes du calcul 12.6 sont mises de cote au chargement
-$script:CalibCalc = '12.8.2'
+# 12.9 : en double densite, conditionnement du lecteur avant la premiere passe de mesure, niveaux 0/30/100 repartis par
+# cylindre (carre latin) avec retrait du decalage propre a chaque passe, dent locale du besoin suivie par la courbe : la
+# mesure et la courbe changent, les courbes du calcul 12.8.2 sont mises de cote au chargement
+$script:CalibCalc = '12.9'
 # 12.7 : version du calcul de la famille haute densite (hd), distincte : son bareme provisoire changera apres les premieres
 # mesures reelles sans rouvrir le choix des courbes double densite (Get-CurveCalcRef)
 $script:CalibCalcHd = '12.7'
 # 12.8.1 : version de la mesure de la disquette sur l image (marge comptee sur le contenu de l image, facteur k par tete),
 # enregistree avec chaque mesure (write.driveFactors) : une mesure d une autre version n est plus le facteur du lecteur
-# (Get-DriveK). Distincte de CalibCalc : la calibration du lecteur (courbe V) ne change pas
-$script:ContentCalc = '12.8.1'
+# (Get-DriveK). Distincte de CalibCalc : la calibration du lecteur (courbe V) ne change pas. 12.9 : modele « K-ns », Huber,
+# facteur au-dela de 1, marque : les mesures 12.8.x ne sont plus appliquees
+$script:ContentCalc = '12.9'
 $script:CalibAlgo = 'seg1'       # famille de modele de la courbe (information enregistree avec chaque courbe)
 $script:OldCalib = $null         # calibrations d un autre calcul, mises de cote au chargement en attendant le choix
 

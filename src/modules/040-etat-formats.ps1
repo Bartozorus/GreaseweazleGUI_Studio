@@ -176,6 +176,9 @@ $script:SettingDefs = [ordered]@{
     # dans la configuration seulement ; controles ensemble au chargement (Test-ContentLevelSettings : bas <= moyen - 0,2)
     contentKMid        = @{ Sec = 'write';   Key = 'contentKMid';        Type = 'double'; Def = 0.6;      Min = 0.3; Max = 0.8; Var = 'ContentKMid' }
     contentKLow        = @{ Sec = 'write';   Key = 'contentKLow';        Type = 'double'; Def = 0.25;     Min = 0.0; Max = 0.5; Var = 'ContentKLow' }
+    # 12.9 (D6) : mesures sur l image dont les relectures (SCP par passe) et le fichier compagnon JSON sont gardes dans
+    # TempDir\mesures-image, dans la configuration seulement ; 0 : relecture unique supprimee a chaque passe (12.8.2)
+    contentKeepMeasures = @{ Sec = 'write';  Key = 'contentKeepMeasures'; Type = 'int';   Def = 5;        Min = 0; Max = 20; Var = 'ContentKeepMeasures' }
     precompProfile     = @{ Sec = 'write';   Key = 'precompProfileCode'; Type = 'enum';   Def = 'auto';   Codes = @('auto', 'std', 'long', 'manual'); LegacyKey = 'precompProfile'; Text = $true
                             Legacy = @{ 'Auto (selon image)' = 'auto'; 'Auto (from image)' = 'auto'; 'Standard 2 us' = 'std'; 'Long track 1,89 us' = 'long'; 'Long track 1.89 us' = 'long'; 'Manuel' = 'manual'; 'Manual' = 'manual' } }
     precompThresholdNs = @{ Sec = 'write';   Key = 'precompThresholdNs'; Type = 'int';    Def = $script:PrecompThresholdNs; Min = 0; Max = 100000; Var = 'PrecompThresholdNs' }
@@ -200,6 +203,7 @@ $script:SettingSync = $false                                                # ga
 $script:OpOverride  = $null                                                 # 12.8 (D4) : surcharge d une operation (Enter-OpOverride)
 $script:ContentKMid = [double]$script:SettingDefs['contentKMid'].Def        # 12.8.1 : niveaux de la mesure sur l image (Get-Setting)
 $script:ContentKLow = [double]$script:SettingDefs['contentKLow'].Def
+$script:ContentKeepMeasures = [int]$script:SettingDefs['contentKeepMeasures'].Def   # 12.9 (D6) : relectures gardees
 # 12.8.1 : bornes uniques du facteur de precompensation d une ecriture, definies ici, avant l interface (520).
 #  - TargetCorrMax : correction « lecteur cible » Dk, de -TargetCorrMax a +TargetCorrMax (Set-DriveDk,
 #    ConvertFrom-TargetCorrConfig : 274 ; champs numWTgt0 et numWTgt1 : 520 ; infobulle : 140) ;

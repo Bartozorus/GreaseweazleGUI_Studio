@@ -23,6 +23,8 @@ Dans tous les modules, aucune instruction n'est à cheval sur deux modules, et c
 | `013-i18n-facteur.ps1` | Table I18n, suite (12.8.1, lot C) : facteur de précompensation de l'écriture, correction « lecteur cible », liste « Mesure : » |
 | `014-i18n-effacement.ps1` | Table I18n, suite (12.8.2) : effacement avant l'écriture, case « Effacer avant d'écrire », textes qui remplacent ceux du pré-effacement |
 | `015-i18n-qualite-index.ps1` | Table I18n, suite (12.8.2) : zone de l'index et stabilité sur tours alignés (infobulles de l'onglet Qualité, fenêtre du jitter, journal du contrôle et de la mesure, pistes déjà hors norme dans l'original) |
+| `016-i18n-mesure-129.ps1` | Table I18n, suite (12.9) : mesure de la disquette sur l'image (liste « Marque », 4e passe, relectures gardées, journal du modèle « K-ns », facteur par marque des écritures, lignes du chargement de la configuration) |
+| `017-i18n-calib-129.ps1` | Table I18n, suite (12.9) : écriture sans surveillance (case de l'onglet Écriture, avertissement de calibration sans délai pour une calibration seule) et conseils des non-convergences de la calibration (marche du besoin, même écart sur les deux disquettes, nouvel essai), et corrections du calcul de la calibration 12.9 (conditionnement du lecteur, niveaux de mesure répartis, dent locale du besoin, nouvel essai à valeur inchangée) |
 | `020-amorce.ps1` | Assemblies WinForms, chemins, état de gw, extensions reconnues |
 | `030-csharp.ps1` | Blocs C# compilés au démarrage : comparateur de secteurs, statistiques SCP, motif de calibration, ajustement de courbe, index rapide |
 | `040-etat-formats.ps1` | État de l'application, profils de précompensation, table des réglages (`$script:SettingDefs`), table des formats |

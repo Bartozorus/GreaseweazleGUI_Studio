@@ -4,10 +4,14 @@ function New-CalibUnit($head) {
     # Unite de calibration : les deux tetes ensemble (Head = $null, profil commun) ou une seule tete (ecriture lente).
     # 12.7 : Face (tete -> cylindre -> mesures des passes de mesure, sans effet sur la courbe) ; OneFace ('c|tete' : cylindre
     # de la courbe commune mesure sans cette face a une passe au moins)
+    # 12.9 (correction 2) : Coarse (cylindre -> mesures brutes des passes de mesure par face, carre latin), CoarseZ (cylindre ->
+    # mesures de l unite par passe, decalage de passe retire : Get-CalibDents), PassAlpha (face -> decalages estimes)
+    # 12.9 : VOff (decalage commun de l ecriture de la derniere verification complete, Get-VerifyOffset : @{ V ; M ; E ; N ;
+    # Removed }, pose par Invoke-CalibAnalysis ; $null tant qu aucune verification complete n a ete jugee)
     $prefix = if ($null -eq $head) { '' } else { ((T '[tête {0}] ') -f "$head") }
     return @{ Head = $head; Prefix = $prefix; Results = @{}; Est = @{}; Sig = @{}; Kind = @{}; Bracket = @{}; Warn = $null; Fit = $null; Slope = $null; Profile = ''; Verify = @{}
               Dense = @{}; VerifyList = $null; VerifyP = @{}; Outliers = @(); Own = @{}; Trend = @{}; VerifyPrev = @{}; Witness = @(); ReadLast = @{}; Writes = @{}; WitCand = 0; WitMin = 0
-              EstPass = @{}; Face = @{}; OneFace = @{} }
+              EstPass = @{}; Face = @{}; OneFace = @{}; DriftHold = $null; Coarse = @{}; CoarseZ = @{}; PassAlpha = @{}; VOff = $null }
 }
 
 function Get-PatternBits([string]$family, [string]$img) {
@@ -76,6 +80,8 @@ function Resolve-OldCalibrations {
     $items = @(@($o.Curves.Keys) | ForEach-Object { $cv = $o.Curves[$_]; (T "{0} : calcul {1}, lecteur {2}, {3}") -f (Get-CurveKeyLabel $_), (Get-CurveCalcText $cv -Plain), "$($cv.Drive)", "$($cv.Date)" })
     $txt = ((T "Ces calibrations ont été faites avec un autre calcul de calibration que le calcul actuel (v{0}) :") -f "$($script:CalibCalc)") + "`n" + ((@($items) | ForEach-Object { "  - $_" }) -join "`n") + "`n`n" +
            (T "Recalibrer (conseillé) : ces calibrations sont abandonnées et le lecteur reprend ses profils d'origine. Recalibrez-le depuis la carte « Calibrer le lecteur » de l'Accueil, sur une disquette sacrifiée ; d'ici là, en « Test rapide », l'écriture d'une image calibrable est refusée.`nConserver ces courbes : elles restent utilisées telles quelles ; la fenêtre Courbe et le journal rappellent leur calcul. Le calcul ayant changé, une nouvelle calibration peut donner une courbe plus juste. Une courbe antérieure à la 12.3 ne peut pas servir de référence au test rapide (pente et densité non enregistrées).`nFermer la fenêtre (ou Échap) : décision au prochain démarrage ; d'ici là, ces calibrations ne sont pas utilisées.")
+    # 12.9 : courbes double densite d un calcul anterieur : ce que le calcul 12.9 change (conseil de recalibrer)
+    if (@(@($o.Curves.Keys) | Where-Object { -not (Test-CurveHd $o.Curves[$_]) }).Count -gt 0) { $txt += "`n`n" + (T "Depuis le calcul 12.9, la calibration double densité conditionne le lecteur par une écriture avant de mesurer, répartit ses niveaux de mesure sur les cylindres et suit une baisse locale du besoin propre au lecteur. Les courbes double densité d'un calcul antérieur pouvaient être trop hautes de quelques nanosecondes sur les premiers cylindres, et rester non convergées autour d'une telle baisse : recalibrer est conseillé.") }
     # Courbe a la borne de son calcul : conservee, elle y reste (le calcul actuel admet des valeurs plus hautes)
     $atMax = @(@($o.Curves.Keys) | Where-Object { Test-CurveAtMax $o.Curves[$_] })
     foreach ($mx in @($atMax | ForEach-Object { Get-CurveMaxNs $o.Curves[$_] } | Where-Object { $_ -lt $script:CalHardNs } | Sort-Object -Unique)) {
@@ -262,6 +268,121 @@ function Get-BracketSpec($bracket) {
     return ((@($bracket.Keys | ForEach-Object { [int]$_ } | Sort-Object) | ForEach-Object { "$_=$($bracket[$_])" }) -join ':')
 }
 
+function Get-CalibLatinW([int[]]$cyls, [int[]]$levels, [int]$pass) {
+    # 12.9 (correction 2) : niveau ecrit a chaque cylindre de test a la passe de mesure $pass (0..n-1), carre latin : le
+    # cylindre de rang i (cylindres de test tries) recoit levels[(i + pass) mod n] ; sur les n passes, chaque cylindre recoit
+    # chaque niveau une fois, et deux cylindres de test voisins n ont jamais le meme niveau a une passe (regle de
+    # Get-ContentLevel, 274, appliquee cylindre par cylindre). Meme niveau pour les deux tetes. Fonction pure. Renvoie
+    # cylindre -> niveau (ns)
+    $w = @{}
+    $cs = [int[]]@($cyls | Sort-Object -Unique)
+    $n = @($levels).Count
+    if ($n -eq 0) { return $w }
+    for ($i = 0; $i -lt $cs.Count; $i++) { $w[$cs[$i]] = [int]$levels[($i + $pass) % $n] }
+    return $w
+}
+
+function Get-ProjOrth([double[]]$v, [double[]]$e1, [double[]]$e2) {
+    # Projection de v sur l orthogonal de deux vecteurs orthonormes e1 et e2 : v - (v.e1) e1 - (v.e2) e2. Fonction pure
+    $d1 = 0.0; $d2 = 0.0
+    for ($i = 0; $i -lt $v.Count; $i++) { $d1 += $v[$i] * $e1[$i]; $d2 += $v[$i] * $e2[$i] }
+    $w = New-Object double[] $v.Count
+    for ($i = 0; $i -lt $v.Count; $i++) { $w[$i] = $v[$i] - $d1 * $e1[$i] - $d2 * $e2[$i] }
+    return ,$w
+}
+
+function Get-CalibPassOffsets($obs, [int[]]$levels, [int]$nPass, [int]$minCyl = 6) {
+    # 12.9 (correction 2 ; modele M2 de v129\cal2\donnees\sim.py, estimate_offsets) : decalage propre a chaque passe de
+    # mesure d une face. Par cylindre c et passe p : y = a_c + b_c W + somme_j g_j 1[W = L_j] (j = 2..n-1, niveaux tries)
+    # + alpha_p (alpha_0 = 0). Ordonnee et pente propres retirees par projection, cylindre par cylindre, sur l orthogonal de
+    # (1, W) ; restent n - 2 effets de niveau et n - 1 decalages, moindres carres non ponderes (equations normales,
+    # Solve-ContentLinear, 274). Un cylindre compte s il a n mesures a n niveaux distincts (passes uniformes : systeme
+    # singulier). Decalages rendus centres (somme nulle) : leur moyenne, commune a toutes les mesures, ne s identifie pas.
+    # Fonction pure. $obs : lignes @{ C ; P ; W ; Y } d une face (Y : decalage lu, ns). Renvoie @{ Ok ; Why ('passes',
+    # 'cylindres', 'singulier', 'ddl') ; Alpha (double[n], centres) ; SE (double[n]) ; NCyl ; Df ; S (ecart-type residuel) }
+    $n = [int]$nPass
+    $out = @{ Ok = $false; Why = ''; Alpha = (New-Object double[] ([math]::Max(1, $n))); SE = (New-Object double[] ([math]::Max(1, $n))); NCyl = 0; Df = 0; S = [double]::NaN }
+    $lv = [int[]]@(@($levels) | ForEach-Object { [int]$_ } | Sort-Object -Unique)
+    $ng = [math]::Max(0, $lv.Count - 2)
+    $q = $ng + $n - 1
+    if ($n -lt 2 -or $q -le 0) { $out.Why = 'passes'; return $out }
+    # Tableaux simples (et non List[object]) : @() sur une liste generique de hashtables echoue sous pwsh 7 (.NET 10)
+    $byC = @{}
+    foreach ($o in @($obs | Where-Object { $null -ne $_ })) {
+        $c = [int]$o.C
+        if (-not $byC.ContainsKey($c)) { $byC[$c] = @() }
+        $byC[$c] += ,$o
+    }
+    $Gm = New-Object 'double[][]' $q
+    for ($a = 0; $a -lt $q; $a++) { $Gm[$a] = New-Object double[] $q }
+    $gv = New-Object double[] $q
+    $kept = New-Object System.Collections.Generic.List[object]
+    foreach ($c in @($byC.Keys | Sort-Object)) {
+        $ob = @($byC[$c])
+        $m = $ob.Count
+        if ($m -ne $n) { continue }
+        $wv = [double[]]@($ob | ForEach-Object { [double]$_.W })
+        if (@($wv | Sort-Object -Unique).Count -ne $m) { continue }
+        # Base orthonormee de (1, W)
+        $e1 = New-Object double[] $m; $e2 = New-Object double[] $m
+        $mw = 0.0; foreach ($x in $wv) { $mw += $x }; $mw /= $m
+        $nn = 0.0
+        for ($i = 0; $i -lt $m; $i++) { $e1[$i] = 1.0 / [math]::Sqrt($m); $e2[$i] = $wv[$i] - $mw; $nn += $e2[$i] * $e2[$i] }
+        $nn = [math]::Sqrt($nn)
+        for ($i = 0; $i -lt $m; $i++) { $e2[$i] = $e2[$i] / $nn }
+        # Colonnes projetees : effets de niveau (indicatrices des niveaux 2..n-1), puis passes 1..n-1 (indicatrices)
+        $Zc = New-Object 'double[][]' $q
+        for ($j = 0; $j -lt $q; $j++) {
+            $col = New-Object double[] $m
+            for ($i = 0; $i -lt $m; $i++) {
+                if ($j -lt $ng) { $col[$i] = [double]([int]$ob[$i].W -eq $lv[$j + 2]) }
+                else { $col[$i] = [double]([int]$ob[$i].P -eq ($j - $ng + 1)) }
+            }
+            $Zc[$j] = Get-ProjOrth $col $e1 $e2
+        }
+        $yv = Get-ProjOrth ([double[]]@($ob | ForEach-Object { [double]$_.Y })) $e1 $e2
+        for ($a = 0; $a -lt $q; $a++) {
+            for ($i = 0; $i -lt $m; $i++) { $gv[$a] += $Zc[$a][$i] * $yv[$i] }
+            for ($b = 0; $b -lt $q; $b++) { $s = 0.0; for ($i = 0; $i -lt $m; $i++) { $s += $Zc[$a][$i] * $Zc[$b][$i] }; $Gm[$a][$b] += $s }
+        }
+        $kept.Add(@{ Z = $Zc; Y = $yv })
+    }
+    $out.NCyl = $kept.Count
+    if ($kept.Count -lt [math]::Max($minCyl, $q + 3)) { $out.Why = 'cylindres'; return $out }
+    $sol = Solve-ContentLinear $Gm $gv
+    if ($null -eq $sol) { $out.Why = 'singulier'; return $out }
+    $ssr = 0.0
+    foreach ($k in $kept) {
+        for ($i = 0; $i -lt $k.Y.Count; $i++) { $r = [double]$k.Y[$i]; for ($j = 0; $j -lt $q; $j++) { $r -= $k.Z[$j][$i] * $sol[$j] }; $ssr += $r * $r }
+    }
+    $df = $kept.Count * ($n - 2) - $q
+    if ($df -le 0) { $out.Why = 'ddl'; return $out }
+    $s2 = $ssr / $df
+    # Inverse de G (colonnes), pour l erreur-type des decalages centres : Var(alpha_p - moyenne) = s2 c' G^-1 c,
+    # c_k = 1[k = p] - 1/n sur les decalages k = 1..n-1 (alpha_0 = 0)
+    $inv = New-Object 'double[][]' $q
+    for ($j = 0; $j -lt $q; $j++) {
+        $ej = New-Object double[] $q; $ej[$j] = 1.0
+        $colj = Solve-ContentLinear $Gm $ej
+        if ($null -eq $colj) { $out.Why = 'singulier'; return $out }
+        $inv[$j] = $colj
+    }
+    $al = New-Object double[] $n
+    for ($p = 1; $p -lt $n; $p++) { $al[$p] = [double]$sol[$ng + $p - 1] }
+    $mean = 0.0; foreach ($x in $al) { $mean += $x }; $mean /= $n
+    for ($p = 0; $p -lt $n; $p++) {
+        $v = 0.0
+        for ($k1 = 1; $k1 -lt $n; $k1++) {
+            $f1 = [double]($k1 -eq $p) - 1.0 / $n
+            for ($k2 = 1; $k2 -lt $n; $k2++) { $f2 = [double]($k2 -eq $p) - 1.0 / $n; $v += $f1 * $f2 * $inv[$ng + $k1 - 1][$ng + $k2 - 1] }
+        }
+        $out.SE[$p] = [math]::Sqrt([math]::Max(0.0, $s2 * $v))
+        $out.Alpha[$p] = $al[$p] - $mean
+    }
+    $out.Ok = $true; $out.Df = $df; $out.S = [math]::Sqrt([math]::Max(0.0, $s2))
+    return $out
+}
+
 function Get-InterpEst($u, [int]$c) {
     # Estimation interpolee lineairement entre les cylindres estimes qui encadrent c, cible d une passe de mesure : bornee
     # a 0..CalMaxNs (plafond des passes de mesure)
@@ -359,7 +480,7 @@ function Set-CalibDenseB($cal) {
     }
 }
 
-function Get-TrendEstimates($u, [int]$maxCyl, [bool]$dense) {
+function Get-TrendEstimates($u, [int]$maxCyl, [bool]$dense, $dents = $null) {
     # Zero d un cylindre encore sous-compense au plafond des passes de mesure (CalMaxNs), extrapole de ses mesures : garde
     # tel quel s il est proche (incertitude <= CalTrendSig) avec une pente propre. Sinon combine (moyenne ponderee par
     # l inverse des variances) avec la tendance de la courbe : droite ponderee de pente >= 0 sur les CalTrendN derniers
@@ -369,6 +490,8 @@ function Get-TrendEstimates($u, [int]$maxCyl, [bool]$dense) {
     # le dernier cylindre fiable (meme regle qu une extrapolation propre).
     # Copies : u.Est, u.Sig et u.Kind restent la mesure propre (controle Dev, journal, courbe enregistree) ; type
     # transitoire 'trend' (non fiable pour SegFit), jamais enregistre. Renvoie @{ Est; Sig; Kind; Info (c -> detail) }.
+    # 12.9 (correction 4) : $dents, dents de la courbe (Start-CalibFit) : segments de la courbe provisoire coupes a chaque
+    # dent, la tendance ne traverse pas une dent
     $est = @{}; $sig = @{}; $kind = @{}; $info = @{}
     foreach ($k in @($u.Est.Keys)) { $est[[int]$k] = [double]$u.Est[$k]; $sig[[int]$k] = [double]$u.Sig[$k]; $kind[[int]$k] = [string]$u.Kind[$k] }
     $res = @{ Est = $est; Sig = $sig; Kind = $kind; Info = $info }
@@ -376,7 +499,7 @@ function Get-TrendEstimates($u, [int]$maxCyl, [bool]$dense) {
     # disquette seulement) : zero de la corde de leurs deux ecritures, jamais combine avec la tendance
     $cand = @($est.Keys | ForEach-Object { [int]$_ } | Where-Object { $kind[$_] -eq 'extrap' -and $est[$_] -gt $script:CalMaxNs -and ($sig[$_] -gt $script:CalTrendSig -or ($u.Own -and $u.Own.ContainsKey($_) -and -not $u.Own[$_])) -and -not ($u.Reach -and $u.Reach.ContainsKey($_)) } | Sort-Object)
     if ($cand.Count -eq 0) { return $res }                      # cas courant : aucune combinaison
-    $f0 = Fit-PrecompCurve $u.Est $u.Sig $maxCyl $u.Kind $dense
+    $f0 = Fit-PrecompCurve $u.Est $u.Sig $maxCyl $u.Kind $dense -Dents $dents
     $segs = @(if ($f0 -and $f0.Segs) { @($f0.Segs) } else { @{ Lo = 0; Hi = $maxCyl; Dir = 1 } })
     $outl = @{}; if ($f0) { foreach ($c in @($f0.Outliers)) { if ($null -ne $c) { $outl[[int]$c] = $true } } }
     $cs = @($est.Keys | ForEach-Object { [int]$_ } | Sort-Object)
@@ -419,19 +542,31 @@ function Start-CalibFit($cal) {
         # Estimation des seules passes de mesure (apres encadrement et mesures complementaires, avant toute verification et
         # sans la tendance) : troisieme mesure des verifications contradictoires (Get-VerifyDrift)
         $u.EstPass = @{}; foreach ($k in @($u.Est.Keys)) { $u.EstPass[[int]$k] = [double]$u.Est[$k] }
-        $tr = Get-TrendEstimates $u $cal.MaxCyl $dense
+        # 12.9 (correction 4) : dents locales du besoin, mesurees par les passes de mesure (cylindres testes voisins dont les
+        # passes encadrent le zero : test fin en pratique), appliquees par Fit-PrecompCurve (segments croissants de SegFit,
+        # CalDentMax au plus) ; Get-CalibDents en rend CalDentMax + 2 : la chute de la rupture c43/c44, rendue aussi puis
+        # ecartee par Split-CurveDents, n evince pas une vraie dent
+        $dc = @()
+        if ($cal.Dent -and $u.CoarseZ -and $u.CoarseZ.Count -gt 0) {
+            $stp = [math]::Max([double]$script:CalDevNs / [double]$script:CalStepDevDiv, [double]$script:CalResidual)
+            $zk = @{}; foreach ($k in @($u.CoarseZ.Keys)) { if ([string]$u.Kind[[int]$k] -eq 'interp') { $zk[[int]$k] = $u.CoarseZ[$k] } }
+            $dc = @(Get-CalibDents $zk ([double]$u.Slope) @($cal.Values).Count $stp ([int]$script:CalDentGap) ([int]$script:CalDentMax + 2))
+        }
+        $tr = Get-TrendEstimates $u $cal.MaxCyl $dense $dc
         $u.Trend = $tr.Info
         if ($tr.Info.Count -gt 0) {
             $tt = (@($tr.Info.Keys | Sort-Object | ForEach-Object { $ti = $tr.Info[$_]; (T "c{0} : extrapolation {1} ± {2} ns, tendance {3} ± {4} ns, retenu {5} ns") -f "$_", (Format-LevelNum $ti.Own), (Format-LevelNum $ti.OwnSig), (Format-LevelNum $ti.Trend), (Format-LevelNum $ti.TrendSig), (Format-LevelNum $ti.Est) })) -join ' ; '
             Append-Log ($u.Prefix + ((T "Besoin au-delà de {0} ns, zéro extrapolé incertain (loin des mesures ou sans pente propre) : combiné avec la tendance de la courbe ({1}). La vérification écrit la courbe à ces cylindres et la mesure.") -f "$($script:CalMaxNs)", "$tt"))
-            $u.Fit = Fit-PrecompCurve $tr.Est $tr.Sig $cal.MaxCyl $tr.Kind $dense
-        } else { $u.Fit = Fit-PrecompCurve $u.Est $u.Sig $cal.MaxCyl $u.Kind $dense }
+            $u.Fit = Fit-PrecompCurve $tr.Est $tr.Sig $cal.MaxCyl $tr.Kind $dense -Dents $dc
+        } else { $u.Fit = Fit-PrecompCurve $u.Est $u.Sig $cal.MaxCyl $u.Kind $dense -Dents $dc }
         $u.Outliers = @($u.Fit.Outliers | ForEach-Object { [int]$_ } | Sort-Object)
         foreach ($c in $u.Outliers) { if ($u.Kind.ContainsKey($c)) { $u.Kind[$c] = 'outlier' } }
         $u.Profile = Build-CurveProfile $u.Fit.Values
         Append-Log ($u.Prefix + ((T "Courbe ajustée : {0} (écart réduit {1}), de {2} ns au cylindre 0 à {3} ns au cylindre {4} ; profil : {5}") -f (Get-CurveModelName $u.Fit.Model), "$([math]::Round($u.Fit.Chi, 2))", "$($u.Fit.Values[0])", "$($u.Fit.Values[-1])", "$($cal.MaxCyl)", "$($u.Profile)"))
         if ($u.Outliers.Count -gt 0) { Append-Log ($u.Prefix + ((T "Point(s) isolé(s) écarté(s) de la courbe : {0} : écart avec les cylindres voisins, défaut ponctuel probable de la disquette de calibration, non suivi.") -f (($u.Outliers | ForEach-Object { "c$_" }) -join ', '))) }
-        $u.Verify = @{}; $u.VerifyP = @{}; $u.VerifyList = $null; $u.VerifyPrev = @{}; $u.Witness = @(); $u.ReadLast = @{}; $u.WitCand = 0; $u.WitMin = 0
+        # 12.9 (correction 4) : seules les dents appliquees par la courbe (la chute de la rupture c43/c44, ecartee, ne l est pas)
+        foreach ($d in @(Get-FitDents $u.Fit)) { Append-Log ($u.Prefix + ((T "Dent locale du besoin entre c{0} et c{1} : baisse de {2} ns mesurée par les passes de mesure (au moins {3} ns à chaque passe), qui persiste au cylindre suivant : la courbe la suit ; la vérification la contrôlera.") -f "$($d.C1)", "$($d.C2)", (Format-LevelNum $d.Drop), (Format-LevelNum $d.Min))) }
+        $u.Verify = @{}; $u.VerifyP = @{}; $u.VerifyList = $null; $u.VerifyPrev = @{}; $u.Witness = @(); $u.ReadLast = @{}; $u.WitCand = 0; $u.WitMin = 0; $u.DriftHold = $null; $u.VOff = $null
     }
     $cal.Stage = 'verify'; $cal.VerifyCount = 1
     New-CalibPass
@@ -446,6 +581,73 @@ function Get-ResidualTol($meas) {
     return [math]::Max([double]$script:CalResidual, 3.0 * $se)
 }
 
+function Get-VerifyOffset($u, [int]$minCyl, [double]$sigK, [double]$maxNs, [double]$maxLevel = -1.0, [double]$homNs = -1.0) {
+    # 12.9 : decalage commun de l ecriture d une verification complete (une commande gw par unite : tous les cylindres
+    # estimes ecrits a la suite, comme l image). Chaque commande d ecriture decale de quelques ns tous les cylindres qu elle
+    # ecrit (journal du 01/11/2026 : +3,85 ns en mediane sur 80 cylindres, 76 residus positifs sur 80) : juge cylindre par
+    # cylindre, ce decalage passait pour une erreur de la courbe (24 cylindres retenus, 32 reajustes a tort). Estimateur :
+    # mediane des residus bruts des cylindres verifies hors points isoles et hors limites physiques (plafond encore
+    # sous-compense, plancher encore sur-compense : saturation, pas decalage d ecriture) ; erreur-type E = 1,2533 x
+    # max(1 ; 1,4826 MAD) / racine de n, comme la derive des temoins (Get-VerifyDrift). Retire (Ok) si n >= minCyl, |m| > sigK E
+    # et |m| <= maxNs ; sinon Why : 'cylindres' (trop peu), 'nonsig' (dans le bruit), 'borne' (au-dela de maxNs : lecteur ou
+    # support instable depuis les passes de mesure, residus juges tels quels). Fonction pure : ne modifie pas l unite.
+    # Banc 129-voff (N1, C5) : seuls les cylindres dont le zero est interpole entre deux niveaux mesures comptent (valeur
+    # ecrite <= $maxLevel, niveau maximal des passes de mesure de la famille par defaut, et Kind 'interp' quand l unite le
+    # connait) : au-dela, le residu porte l erreur de modele de l extrapolation ou de l encadrement (reponse non lineaire,
+    # fort besoin), qui passerait pour un decalage d ecriture et ne serait plus corrigee. Le decalage estime vaut pour
+    # toute la commande : il est retire de tous les cylindres de l unite (Invoke-CalibAnalysis).
+    # Banc 129-voff2 (U4-U12, X1) : les cylindres retenus sont groupes sur la piste (besoins les plus faibles) : une erreur
+    # regionale de la courbe a cet endroit passerait pour un decalage commun. Garde d homogeneite : le decalage n est retire
+    # que s il est le meme ailleurs, ecart <= $homNs (CalVOffHomNs par defaut) entre la mediane des retenus et celle des
+    # autres cylindres verifies (5 au moins), et entre les deux moities de la piste parmi les retenus (4 au moins chacune) ;
+    # sinon Why 'regional' (Dz : ecart maximal constate, Mn : mediane des autres cylindres).
+    # Renvoie @{ Ok ; Why ; M ; E ; N ; Mn ; Dz } (N : cylindres retenus pour l estimation)
+    $vals = @($u.Fit.Values)
+    if ($maxLevel -lt 0) { $maxLevel = [double](@($script:CalCoarse) | Measure-Object -Maximum).Maximum }
+    $rn = @(); $rc = @()
+    $r = @(foreach ($k in @($u.Verify.Keys)) {
+        $c = [int]$k
+        if (@($u.Outliers) -contains $c) { continue }
+        $m = $u.Verify[$k]
+        if ($null -eq $m -or $null -eq $m.Shift) { continue }
+        $x = [double]$m.Shift
+        if ([double]::IsNaN($x)) { continue }
+        $p = $null
+        if ($u.VerifyP -and $u.VerifyP.ContainsKey($c)) { $p = [int]$u.VerifyP[$c] } elseif ($c -lt $vals.Count) { $p = [int]$vals[$c] }
+        if ($null -ne $p -and (($x -gt 0 -and $p -ge $script:CalHardNs) -or ($x -lt 0 -and $p -le 0))) { continue }
+        if ($null -eq $p -or [double]$p -gt $maxLevel -or ($u.Kind -and $u.Kind.ContainsKey($c) -and [string]$u.Kind[$c] -ne 'interp')) { $rn += $x; continue }
+        $rc += $c
+        $x
+    })
+    $res = @{ Ok = $false; Why = ''; M = 0.0; E = [double]::NaN; N = $r.Count; Mn = [double]::NaN; Dz = 0.0 }
+    if ($r.Count -lt [math]::Max(1, $minCyl)) { $res.Why = 'cylindres'; return $res }
+    $m = [double](Get-Median $r)
+    $s = [math]::Max(1.0, 1.4826 * [double](Get-Median @($r | ForEach-Object { [math]::Abs([double]$_ - $m) })))
+    $res.M = $m; $res.E = 1.2533 * $s / [math]::Sqrt([double]$r.Count)
+    if ([math]::Abs($m) -gt $maxNs) { $res.Why = 'borne'; return $res }
+    if ([math]::Abs($m) -le $sigK * $res.E) { $res.Why = 'nonsig'; return $res }
+    if ($homNs -lt 0) { $homNs = [double]$script:CalVOffHomNs }
+    $dz = 0.0
+    if ($rn.Count -ge 5) { $res.Mn = [double](Get-Median $rn); $dz = [math]::Abs($m - [double]$res.Mn) }
+    $ord = @($rc | Sort-Object); $half = [int][math]::Floor($ord.Count / 2)
+    if ($half -ge 4) {
+        $lo = @(); $hi = @()
+        for ($i = 0; $i -lt $ord.Count; $i++) { $v = [double]$u.Verify[[int]$ord[$i]].Shift; if ($i -lt $half) { $lo += $v } else { $hi += $v } }
+        $dz = [math]::Max($dz, [math]::Abs([double](Get-Median $lo) - [double](Get-Median $hi)))
+    }
+    $res.Dz = $dz
+    if ($dz -gt $homNs) { $res.Why = 'regional'; return $res }
+    $res.Ok = $true
+    return $res
+}
+
+function Get-VerifyOffsetM($u) {
+    # 12.9 : decalage commun retire des residus de la derniere verification complete de l unite (VOff, Invoke-CalibAnalysis) ;
+    # 0 sans retrait (dans le bruit, au-dela de la borne, trop peu de cylindres, haute densite, aucune verification complete)
+    if ($null -ne $u -and $null -ne $u.VOff -and [bool]$u.VOff.Removed) { return [double]$u.VOff.M }
+    return 0.0
+}
+
 function Add-DriftWitnesses($u) {
     # Verification ciblee : des cylindres non modifies sont reecrits a leur valeur inchangee et relus avec les cylindres
     # modifies. Leur valeur ecrite ne change pas : l ecart de leur residu d une verification a l autre mesure directement la
@@ -457,9 +659,13 @@ function Add-DriftWitnesses($u) {
     $u.WitMin = if ($script:Cal -and $script:Cal.Mode -ne 'fine' -and -not [bool]$script:Cal.Densified) { 4 } else { [int]$script:CalDriftMinWit }
     if (@($u.VerifyList).Count -eq 0) { return }
     $vals = @($u.Fit.Values)
+    # 12.9 (revue RT7, M1) : passe du nouvel essai : cylindres gardes (zone non reproductible, cylindres non reproductibles :
+    # DriftHold.P) exclus des temoins, leur relecture mesure la zone et non la derive du lecteur (Get-VerifyDrift calcule D
+    # avant de les remettre dans Contra ou NonRepro) ; sans nouvel essai, DriftHold vide : aucun effet
+    $hold = if ($u.DriftHold -and $u.DriftHold.P) { $u.DriftHold.P } else { @{} }
     $cand = @($u.Verify.Keys | ForEach-Object { [int]$_ } | Where-Object {
         @($u.VerifyList) -notcontains $_ -and @($u.Outliers) -notcontains $_ -and $u.VerifyP.ContainsKey($_) -and $_ -lt $vals.Count -and
-        [int]$vals[$_] -eq [int]$u.VerifyP[$_] -and [int]$vals[$_] -gt 0 -and [int]$vals[$_] -lt $script:CalHardNs } | Sort-Object)
+        [int]$vals[$_] -eq [int]$u.VerifyP[$_] -and [int]$vals[$_] -gt 0 -and [int]$vals[$_] -lt $script:CalHardNs -and -not $hold.ContainsKey($_) } | Sort-Object)
     # 12.8 (lot 1b) : jamais au-dela du nombre d ecritures par piste annonce par l avertissement (WriteMax), repli compris.
     # Sans effet a la verification 2 (une piste n est ecrite qu une fois par passe) ; passe du nouvel essai : piste deja
     # ecrite WriteMax fois exclue
@@ -509,8 +715,10 @@ function Get-VerifyDrift($u) {
     # systematique, jugee normalement elle aussi. DC / NC : ecart median des cylindres corriges a leur prediction (derive
     # comprise), a comparer a D (les temoins isoles derivent-ils comme les blocs corriges ?). Sys : candidats d une suite
     # systematique ; un temoin qui en fait partie est juge sur sa relecture, derive retiree, et non sur sa mesure precedente.
+    # 12.9 (RT7) : apres un nouvel essai, zone et cylindres non reproductibles de la verification d avant gardes
+    # (DriftHold, Add-VerifyDriftHold) ; sans nouvel essai, aucun effet.
     $res = @{ Use = $false; D = 0.0; S = [double]::NaN; SRaw = [double]::NaN; E = [double]::NaN; NW = 0; NC = 0; DC = [double]::NaN; NonRepro = @{}; Sys = @{}; Contra = @{} }
-    if (-not $u.VerifyPrev -or $u.VerifyPrev.Count -eq 0) { return $res }
+    if (-not $u.VerifyPrev -or $u.VerifyPrev.Count -eq 0) { return (Add-VerifyDriftHold $u $res @('Contra', 'NonRepro')) }
     $sl = if ($null -ne $u.Slope -and [double]$u.Slope -lt -0.2) { [double]$u.Slope } else { -2.0 }
     $wit = @(); $cor = @()
     foreach ($k in @($u.VerifyPrev.Keys)) {
@@ -566,7 +774,9 @@ function Get-VerifyDrift($u) {
         if ($hi) { for ($q = $ia; $q -le $ja; $q++) { $ce = $cnd[$kc[$q]]; $res.Contra[$kc[$q]] = @{ Z = $ce.Z; Z1 = $ce.Z1; Z2 = $ce.Z2; ZP = $ce.ZP; E = $ce.E; P1 = $ce.P1; P2 = $ce.P2 } } }
         $ia = $ja + 1
     }
-    if (-not $res.Use) { return $res }
+    # 12.9 (RT7) : zone gardee avant les cylindres non reproductibles, comme une zone de cette verification
+    [void](Add-VerifyDriftHold $u $res @('Contra'))
+    if (-not $res.Use) { return (Add-VerifyDriftHold $u $res @('NonRepro')) }
     $lim = [math]::Max(3.0 * [double]$script:CalResidual, 4.0 * $s)
     $cand = @{}
     foreach ($o in @($wit + $cor)) {
@@ -595,6 +805,31 @@ function Get-VerifyDrift($u) {
     }
     $kc = @($cor | Where-Object { -not $res.NonRepro.ContainsKey([int]$_.C) } | ForEach-Object { [double]$_.Obs - [double]$_.Exp })
     if ($kc.Count -gt 0) { $res.NC = $kc.Count; $res.DC = [double](Get-Median $kc) }
+    return (Add-VerifyDriftHold $u $res @('NonRepro'))
+}
+
+function Add-VerifyDriftHold($u, $res, [string[]]$fields) {
+    # 12.9 (RT7, L2-b) : un nouvel essai part malgre une zone non reproductible (Contra) ou des cylindres non reproductibles
+    # (NonRepro) loin des cylindres vises ; sa passe ne garde dans VerifyPrev que les cylindres qu elle relit, et
+    # Get-VerifyDrift ne verrait plus ces cylindres. Start-CalibRetest les garde (DriftHold : Contra, NonRepro, et P,
+    # valeur ecrite de chacun a la derniere verification d avant) ; ils sont remis dans le resultat ($res, champs $fields)
+    # tant que leur valeur ecrite n a pas change : cylindre non relu, ou relu a la meme valeur (temoin de derive, voisin
+    # d un cylindre vise : rien de nouveau sur la contradiction). Relu a une autre valeur : juge sur la passe. Un cylindre
+    # deja dans Contra ou NonRepro de $res y reste. Zone gardee trouvee sans derive mesuree (DriftHold.Use faux) :
+    # ContraNoDrift, lu par la reserve de la zone (Complete-PrecompCalib, Get-CalibUnitReserve) a la place de Use, qui ne
+    # vaut que pour la passe du nouvel essai. Sans DriftHold (aucun nouvel essai) : $res inchange. Renvoie $res
+    $h = $u.DriftHold
+    if (-not $h -or -not $h.P) { return $res }
+    foreach ($f in @($fields)) {
+        if (-not $h[$f]) { continue }
+        foreach ($k in @($h[$f].Keys)) {
+            $c = [int]$k
+            if ($res.Contra.ContainsKey($c) -or $res.NonRepro.ContainsKey($c)) { continue }
+            if (-not $h.P.ContainsKey($c) -or -not $u.VerifyP -or -not $u.VerifyP.ContainsKey($c) -or [int]$u.VerifyP[$c] -ne [int]$h.P[$c]) { continue }
+            $res[$f][$c] = $h[$f][$k]
+            if ($f -eq 'Contra' -and -not $h.Use) { $res.ContraNoDrift = $true }
+        }
+    }
     return $res
 }
 
@@ -639,7 +874,7 @@ function Set-VerifyContra($u) {
     $newProfile = Build-CurveProfile $newVals
     if ($newProfile -eq $u.Profile) { return 0 }
     $base = ([string]$u.Fit.Model) -replace '\+c$', ''
-    $u.Fit = @{ Model = "$base+c"; A = $u.Fit.A; B = $u.Fit.B; Chi = $u.Fit.Chi; Values = $newVals; Breaks = $u.Fit.Breaks; Segs = $u.Fit.Segs; Outliers = $u.Fit.Outliers }
+    $u.Fit = @{ Model = "$base+c"; A = $u.Fit.A; B = $u.Fit.B; Chi = $u.Fit.Chi; Values = $newVals; Breaks = $u.Fit.Breaks; Segs = $u.Fit.Segs; Outliers = $u.Fit.Outliers; Dents = @(Get-FitDents $u.Fit) }
     $u.Profile = $newProfile
     $u.ContraMoved = [int[]]@($fix | Where-Object { [int]$newVals[$_] -ne [int]$vals[$_] })
     return $n
@@ -767,10 +1002,15 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
     #  12.8 (FIXVAL01) : cylindre dont la valeur d avant le nouvel essai a ete retablie (RtKept, correction sans effet,
     #            Restore-CalibRetestNoEffect) et encore hors tolerance : NON CONVERGE (decisions128.md, « Lot 1b termine »),
     #            quel que soit le jugement de son voisinage apres la passe (ecart local, bruit) ; ni Spot, ni converge.
+    #  12.9 (banc cal2, RT8, G4-02 ; revue fix2) : idem pour un cylindre exclu du nouvel essai, quel que soit le motif, et
+    #            absent de la relecture de son jugement (RtFull, Start-CalibRetest : piste deja ecrite WriteMax fois, valeur
+    #            visee hors des limites, proximite d une zone ou de cylindres non reproductibles, valeur visee inchangee de
+    #            la mesure complete) : il garde le residu de la derniere verification d avant le nouvel essai.
     $nonConv = @(); $sat = @(); $floor = @(); $dev = @(); $extrap = @(); $cap = @(); $spot = @(); $beyond = @(); $nonRepro = @(); $contra = @()
     $ncC = @(); $ncR = @{}
+    $rAll = @{}                         # 12.9 (L2-a) : residu juge de chaque cylindre verifie (Get-CalibNeedSteps)
     $outl = @{}; foreach ($c in @($u.Outliers)) { $outl[[int]$c] = $true }
-    $kept = @{}; if ($u.RtKept) { foreach ($c in @($u.RtKept)) { if ($null -ne $c) { $kept[[int]$c] = $true } } }
+    $kept = @{}; foreach ($c in @(@($u.RtKept) + @($u.RtFull))) { if ($null -ne $c) { $kept[[int]$c] = $true } }
     $vals = @($u.Fit.Values)
     $fl = Get-ResidualFlags $u
     $dft = Get-VerifyDrift $u
@@ -780,6 +1020,7 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
         if (@($u.Witness) -contains $c -and $u.VerifyPrev -and $u.VerifyPrev.ContainsKey($c) -and -not $dft.Sys.ContainsKey($c)) { $mz = $u.VerifyPrev[$c].Meas; $r = [double]$u.VerifyPrev[$c].Shift }
         elseif ($dft.Use -and $u.ReadLast -and $u.ReadLast.ContainsKey($c)) { $r -= [double]$dft.D }
         $out = [math]::Abs($r) -gt (Get-ResidualTol $mz)
+        $rAll[$c] = $r
         # Limites physiques jugees a la valeur ecrite quand le residu a ete mesure (avant Set-VerifyContra) : une zone
         # non reproductible (besoin entre p1 et p2) n est jamais au plafond ni au plancher. VerifyP est rempli avec Verify ;
         # sans lui (unite sans valeurs ecrites), valeur de la courbe ; jamais de comparaison avec $null ($null -le 0 est vrai)
@@ -807,9 +1048,219 @@ function Get-CalibWarnings($u, [int]$maxCyl) {
     }
     # Cylindres a la borne absolue avec Sat : couverts par le message du plafond, ce ne sont pas des valeurs deduites
     for ($c = 0; $c -lt $vals.Count; $c++) { $x = [int]$vals[$c]; if ($x -gt $script:CalMaxNs -and ($x -lt $script:CalHardNs -or $sat.Count -eq 0)) { $beyond += $c } }
+    # 12.9 (L2-a) : marches du besoin non suivies par la courbe autour des cylindres non converges (conseil seulement) ;
+    # seuil de rupture de la courbe (Get-CalibCurve, 230) : max(CalDevNs ; 3 x racine de 2 x incertitude mediane)
+    $ncS = [int[]]@($ncC | Sort-Object -Unique)
+    $steps = @(); $brk = [double]$script:CalDevNs
+    # 12.9 (correction 4) : dents presentes dans la courbe (confirmees, en attente, ou non confirmees a la derniere
+    # verification et gardees) : suivies par la courbe, ni marche ni conseil L2-a. Toujours un tableau (unite convergee :
+    # vide), jamais $null
+    $dCur = @(Get-FitDents $u.Fit)
+    if ($ncS.Count -gt 0 -and $u.Est) {
+        $estOk = @{}; $sgs = @()
+        foreach ($k in @($u.Est.Keys)) {
+            $c = [int]$k
+            if ($outl.ContainsKey($c)) { continue }
+            $estOk[$c] = [double]$u.Est[$k]
+            $sgs += $(if ($u.Sig -and $u.Sig.ContainsKey($k)) { [math]::Max(1.0, [double]$u.Sig[$k]) } else { 5.0 })
+        }
+        $brk = [math]::Max([double]$script:CalDevNs, 3.0 * [math]::Sqrt(2.0) * (Get-Median $sgs))
+        $steps = @(Get-CalibNeedSteps $estOk $ncS $rAll $brk)
+        if ($dCur.Count -gt 0) { $steps = @($steps | Where-Object { $st = $_; @($dCur | Where-Object { [int]$st.C1 -le [int]$_.C1 -and [int]$st.C2 -ge [int]$_.C2 }).Count -eq 0 }) }
+    }
     return @{ NonConv = $nonConv; Sat = $sat; Floor = $floor; Dev = $dev; Extrap = $extrap; Cap = $cap; Isolated = @($u.Outliers | ForEach-Object { "c$_" }); Breaks = @($u.Fit.Breaks)
               Spot = $spot; Sigma = $fl.Sigma; NDiff = $fl.NDiff; Hard = $fl.Hard; HardPair = $fl.HardPair; Beyond = [int[]]$beyond
-              Drift = $dft; NonRepro = $nonRepro; Contra = [int[]]$contra; NonConvC = [int[]]@($ncC | Sort-Object -Unique); NonConvR = $ncR }
+              Drift = $dft; NonRepro = $nonRepro; Contra = [int[]]$contra; NonConvC = $ncS; NonConvR = $ncR
+              Steps = $steps; StepBreak = $brk; Dents = $dCur }
+}
+
+function Get-CalibNeedSteps($est, [int[]]$nc, $resid, [double]$maxDrop) {
+    # 12.9 (L2-a, journaux du 27 et du 28/10/2026) : « marche non suivie ». Groupe de cylindres non converges contigus
+    # (ecart de 2 au plus entre deux d entre eux, CalStepMaxCyl cylindres au plus d un bout a l autre), contre une baisse du
+    # besoin estime entre deux cylindres voisins (2 au plus) d au moins max(CalDevNs / CalStepDevDiv ; CalResidual), soit
+    # 5 ns en double densite et 4 ns en haute densite (synthese C, D3 : une marche plus petite que la tolerance des
+    # residus n explique pas un residu hors tolerance)
+    # et sous le seuil de rupture de la courbe ($maxDrop) : la courbe croissante garde un palier, les residus changent de
+    # signe de part et d autre (moyenne des 3 cylindres verifies de chaque cote : positive avant, negative apres). Fonction
+    # pure. $est, $resid : cylindre -> besoin estime, residu juge. Renvoie @( @{ C1 ; C2 ; Drop ; Cyls ; Dev } ) : marche
+    # entre C1 et C2, baisse (ns), cylindres non converges du groupe, ecart absolu maximal de leurs residus
+    $out = @()
+    $s = [int[]]@($nc | Sort-Object -Unique)
+    if ($s.Count -eq 0 -or -not $est) { return $out }
+    $minStep = [math]::Max([double]$script:CalDevNs / [double]$script:CalStepDevDiv, [double]$script:CalResidual)
+    $ek = [int[]]@($est.Keys | ForEach-Object { [int]$_ } | Sort-Object)
+    $groups = @(); $g = @($s[0])
+    for ($i = 1; $i -lt $s.Count; $i++) { if ($s[$i] - $s[$i - 1] -le 2) { $g += $s[$i] } else { $groups += , @($g); $g = @($s[$i]) } }
+    $groups += , @($g)
+    foreach ($gr in $groups) {
+        $a = [int]$gr[0]; $b = [int]$gr[-1]
+        if ($b - $a + 1 -gt [int]$script:CalStepMaxCyl) { continue }
+        $best = $null
+        for ($i = 0; $i -lt $ek.Count - 1; $i++) {
+            $c1 = $ek[$i]; $c2 = $ek[$i + 1]
+            if ($c2 - $c1 -gt 2 -or $c1 -lt $a - 1 -or $c1 -gt $b) { continue }
+            $drop = [double]$est[$c1] - [double]$est[$c2]
+            if ($drop -lt $minStep -or $drop -ge $maxDrop) { continue }
+            $bef = @(); $aft = @()
+            for ($q = $c1 - 2; $q -le $c1; $q++) { if ($resid.ContainsKey($q)) { $bef += [double]$resid[$q] } }
+            for ($q = $c2; $q -le $c2 + 2; $q++) { if ($resid.ContainsKey($q)) { $aft += [double]$resid[$q] } }
+            if ($bef.Count -eq 0 -or $aft.Count -eq 0) { continue }
+            if (($bef | Measure-Object -Average).Average -le 0 -or ($aft | Measure-Object -Average).Average -ge 0) { continue }
+            if (-not $best -or $drop -gt $best.Drop) { $best = @{ C1 = $c1; C2 = $c2; Drop = $drop } }
+        }
+        if (-not $best) { continue }
+        $dev = 0.0
+        foreach ($c in $gr) { if ($resid.ContainsKey([int]$c)) { $dev = [math]::Max($dev, [math]::Abs([double]$resid[[int]$c])) } }
+        # Synthese C (D4) : cylindres non relus (sans residu) hors de l explication, ils gardent le conseil « refaire » ;
+        # groupe sans aucun cylindre relu : pas de marche
+        $rc = [int[]]@($gr | Where-Object { $resid.ContainsKey([int]$_) })
+        if ($rc.Count -eq 0) { continue }
+        $best.Cyls = $rc; $best.Dev = $dev
+        $out += , $best
+    }
+    return $out
+}
+
+function Get-CalibDents($coarse, [double]$pooled, [int]$nPass, [double]$step, [int]$gap = 2, [int]$maxN = 4) {
+    # 12.9 (correction 4 ; regle de v129\cal2\donnees\dent.py, find_dents, avec les correctifs de la revue du 31/10/2026) :
+    # dents locales du besoin d une unite, mesurees par ses passes de mesure. $coarse : cylindre -> @( @{ P ; W ; Shift } ),
+    # mesures de chaque passe (decalage de passe retire). Un cylindre compte s il a ses n mesures et si elles encadrent son
+    # zero (au moins un decalage > 0 et un <= 0) : ailleurs le zero ponctuel serait extrapole loin des mesures (lecteur a fort
+    # besoin) et sa chute ne se comparerait plus. Zero ponctuel de chaque passe : W + Shift / |pente propre du cylindre|
+    # (moindres carres sur ses passes ; pente commune $pooled si elle n est pas nettement negative). Deux cylindres comptes
+    # voisins c < c2 (ecart $gap au plus) : chute par passe d_p = z_p(c) - z_p(c2), insensible au decalage commun de la
+    # passe. Dent si la chute moyenne atteint $step (seuil de marche), chaque passe $step / 2, et si la chute de c au
+    # cylindre compte suivant c3 (ecart $gap au plus de c2) atteint encore $step / 2 : un point bas isole n est pas une
+    # dent, et sans c3 (fin de liste) la persistance ne se controle pas : pas de dent. Aucune borne haute : une chute que
+    # SegFit prend a son changement de sens (c43/c44) est rendue aussi, puis ecartee par Split-CurveDents (hors d un segment
+    # croissant). $maxN dents au plus (les plus fortes). Fonction pure. Renvoie les dents @{ C1 ; C2 ; Drop ; Min ;
+    # Conf = $null ; V = 0 ; DV = NaN }, par cylindre croissant
+    $zp = @{}
+    foreach ($k in @($coarse.Keys)) {
+        $c = [int]$k
+        $rs = @(@($coarse[$k]) | Where-Object { $null -ne $_ } | Sort-Object { [int]$_.P })
+        if ($rs.Count -ne $nPass) { continue }
+        $xs = [double[]]@($rs | ForEach-Object { [double]$_.W }); $ys = [double[]]@($rs | ForEach-Object { [double]$_.Shift })
+        # Zero encadre par les passes de mesure elles-memes (un decalage de chaque signe)
+        if (@($ys | Where-Object { $_ -gt 0 }).Count -eq 0 -or @($ys | Where-Object { $_ -le 0 }).Count -eq 0) { continue }
+        $mx = 0.0; $my = 0.0; for ($i = 0; $i -lt $xs.Count; $i++) { $mx += $xs[$i]; $my += $ys[$i] }; $mx /= $xs.Count; $my /= $ys.Count
+        $sxx = 0.0; $sxy = 0.0
+        for ($i = 0; $i -lt $xs.Count; $i++) { $sxx += ($xs[$i] - $mx) * ($xs[$i] - $mx); $sxy += ($xs[$i] - $mx) * ($ys[$i] - $my) }
+        $kc = if ($sxx -gt 0 -and $sxy / $sxx -lt -0.2) { $sxy / $sxx } else { $pooled }
+        if ([math]::Abs($kc) -lt 1e-9) { continue }
+        $zp[$c] = [double[]]@(for ($i = 0; $i -lt $xs.Count; $i++) { $xs[$i] + $ys[$i] / [math]::Abs($kc) })
+    }
+    $cs = [int[]]@($zp.Keys | Sort-Object)
+    $found = @()
+    for ($i = 0; $i -lt $cs.Count - 1; $i++) {
+        $c = $cs[$i]; $c2 = $cs[$i + 1]
+        if ($c2 - $c -gt $gap) { continue }
+        $d = [double[]]@(for ($p = 0; $p -lt $nPass; $p++) { $zp[$c][$p] - $zp[$c2][$p] })
+        $dm = ($d | Measure-Object -Average).Average; $dn = ($d | Measure-Object -Minimum).Minimum
+        if ($dm -lt $step -or $dn -lt $step / 2.0) { continue }
+        if ($i + 2 -ge $cs.Count -or $cs[$i + 2] - $c2 -gt $gap) { continue }
+        $c3 = $cs[$i + 2]
+        $d3 = (@(for ($p = 0; $p -lt $nPass; $p++) { $zp[$c][$p] - $zp[$c3][$p] }) | Measure-Object -Average).Average
+        if ($d3 -lt $step / 2.0) { continue }
+        $found += ,@{ C1 = $c; C2 = $c2; Drop = $dm; Min = $dn; Conf = $null; V = 0; DV = [double]::NaN }
+    }
+    $sel = @($found | Sort-Object @{ Expression = { -[double]$_.Drop } }, @{ Expression = { [int]$_.C1 } } | Select-Object -First ([math]::Max(0, $maxN)))
+    return @($sel | Sort-Object @{ Expression = { [int]$_.C1 } })
+}
+
+function Update-CalibDents($u, [int]$vNum, [bool]$last, [int[]]$readNow) {
+    # 12.9 (correction 4) : confirmation des dents de la courbe par la verification $vNum : dent en attente (Conf $null)
+    # dont les deux cylindres ont ete relus a cette passe ; zeros de la verification (valeur ecrite - residu / pente de
+    # l unite), baisse z(C1) - z(C2) : confirmee a partir de CalDentConfNs, sinon retiree (segments fusionnes,
+    # Merge-CurveDentSegs) ; le decalage commun de la passe s annule dans la difference. Derniere verification : dent non
+    # confirmee gardee dans la courbe (aucune passe pour la corriger), marquee non confirmee. Renvoie $true si une dent a ete
+    # retiree avant la derniere verification (courbe a reajuster)
+    $dl = @(Get-FitDents $u.Fit)
+    if ($dl.Count -eq 0) { return $false }
+    $sl = if ($null -ne $u.Slope -and [double]$u.Slope -lt -0.2) { [double]$u.Slope } else { -2.0 }
+    $thr = [double]$script:CalDentConfNs
+    $keep = @(); $redo = $false
+    foreach ($d in $dl) {
+        if ($null -ne $d.Conf) { $keep += ,$d; continue }
+        $c1 = [int]$d.C1; $c2 = [int]$d.C2
+        if ($readNow -notcontains $c1 -or $readNow -notcontains $c2 -or -not $u.Verify.ContainsKey($c1) -or -not $u.Verify.ContainsKey($c2) -or -not $u.VerifyP.ContainsKey($c1) -or -not $u.VerifyP.ContainsKey($c2)) { $keep += ,$d; continue }
+        $dv = ([double]$u.VerifyP[$c1] - [double]$u.Verify[$c1].Shift / $sl) - ([double]$u.VerifyP[$c2] - [double]$u.Verify[$c2].Shift / $sl)
+        $d.V = $vNum; $d.DV = $dv
+        if ($dv -ge $thr) {
+            $d.Conf = $true; $keep += ,$d
+            Append-Log ($u.Prefix + ((T "Dent entre c{0} et c{1} confirmée par la vérification {2} : baisse de {3} ns entre leurs zéros mesurés (au moins {4} ns exigés).") -f "$c1", "$c2", "$vNum", (Format-LevelNum $dv), (Format-LevelNum $thr)))
+            continue
+        }
+        $d.Conf = $false
+        if ($last) {
+            $keep += ,$d
+            Append-Log ($u.Prefix + ((T "Dent entre c{0} et c{1} non confirmée par la dernière vérification ({2} ns, moins de {3} ns) : la courbe reste telle quelle, ses résidus sont jugés normalement.") -f "$c1", "$c2", (Format-LevelNum $dv), (Format-LevelNum $thr)))
+            continue
+        }
+        Append-Log ($u.Prefix + ((T "Dent entre c{0} et c{1} non confirmée par la vérification {2} : baisse de {3} ns entre leurs zéros mesurés, moins de {4} ns ; elle est retirée et la courbe est réajustée sans elle.") -f "$c1", "$c2", "$vNum", (Format-LevelNum $dv), (Format-LevelNum $thr)))
+        $u.Fit.Segs = @(Merge-CurveDentSegs $u.Fit.Segs $c1 $c2)
+        $redo = $true
+    }
+    $u.Fit.Dents = $keep
+    return $redo
+}
+
+function Get-CalibUnitReserve($w) {
+    # 12.9 (L2-d) : cylindres en reserve d une unite (Get-CalibWarnings) : non converges (NC), et cylindres de la zone non
+    # reproductible (Zone) quand ils figurent aux reserves (Complete-PrecompCalib : ecart entre les verifications au-dela
+    # de CalContraMaxNs, ou derive du lecteur non mesuree). Renvoie @{ NC ; Zone }
+    $res = @{ NC = [int[]]@(); Zone = [int[]]@() }
+    if (-not $w) { return $res }
+    $res.NC = [int[]]@(@($w.NonConvC) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Sort-Object -Unique)
+    $cn = [int[]]@(@($w.Contra) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Sort-Object -Unique)
+    if ($cn.Count -gt 0) {
+        $dft = $w.Drift; $em = 0.0
+        foreach ($c in $cn) { if ($dft -and $dft.Contra -and $dft.Contra.ContainsKey($c)) { $em = [math]::Max($em, [double]$dft.Contra[$c].E) } }
+        # 12.9 (RT7) : zone gardee d avant un nouvel essai, trouvee sans derive mesuree (ContraNoDrift, Add-VerifyDriftHold)
+        if ($em -gt [double]$script:CalContraMaxNs -or -not ($dft -and $dft.Use -and -not $dft.ContraNoDrift)) { $res.Zone = $cn }
+    }
+    return $res
+}
+
+function Get-CalibCommonReserve($ra, $rb) {
+    # 12.9 (L2-d) : reserves des calibrations A et B (Get-CalibUnitReserve, meme unite) aux memes cylindres, a 1 pres : un
+    # cylindre non converge de l une a 1 cylindre au plus d un cylindre en reserve de l autre (non converge, ou zone non
+    # reproductible en reserve ; deux zones seules ne suffisent pas). Les groupes de cylindres non converges touches
+    # (ecart de 2 au plus) sont repris en entier. Fonction pure. Renvoie les cylindres tries (vide : aucun)
+    $mark = @{}
+    foreach ($pair in @(@($ra, $rb), @($rb, $ra))) {
+        $x = $pair[0]; $y = $pair[1]
+        $yAll = @(@($y.NC) + @($y.Zone) | ForEach-Object { [int]$_ })
+        $xs = [int[]]@(@($x.NC) | ForEach-Object { [int]$_ } | Sort-Object -Unique)
+        $hit = @{}
+        foreach ($c in $xs) {
+            foreach ($d in $yAll) {
+                if ([math]::Abs($c - $d) -le 1) { $hit[$c] = $true; $mark[$c] = $true; if (@($y.NC) -contains $d -or @($y.Zone) -contains $d) { $mark[$d] = $true } }
+            }
+        }
+        # Groupes de non converges de $x touches : repris en entier
+        if ($xs.Count -gt 0) {
+            $g = @($xs[0])
+            for ($i = 1; $i -le $xs.Count; $i++) {
+                if ($i -lt $xs.Count -and $xs[$i] - $xs[$i - 1] -le 2) { $g += $xs[$i]; continue }
+                if (@($g | Where-Object { $hit.ContainsKey([int]$_) }).Count -gt 0) { foreach ($c in $g) { $mark[[int]$c] = $true } }
+                if ($i -lt $xs.Count) { $g = @($xs[$i]) }
+            }
+        }
+    }
+    return [int[]]@($mark.Keys | ForEach-Object { [int]$_ } | Sort-Object)
+}
+
+function Split-CalibRetestZone([int[]]$nc, [int[]]$zone, [int]$reach = 2) {
+    # 12.9 (L2-b) : nouvel essai d une unite qui a une zone non reproductible (ou des cylindres non reproductibles) : seuls
+    # les cylindres non converges a $reach cylindres au plus d un cylindre de la zone en sont exclus, et non plus toute
+    # l unite. Fonction pure. Renvoie @{ Keep ; Excl ; Near (cylindres de la zone qui excluent) }
+    $keep = @(); $excl = @(); $near = @{}
+    foreach ($c in @($nc)) {
+        $z = @(@($zone) | Where-Object { [math]::Abs([int]$_ - [int]$c) -le $reach })
+        if ($z.Count -gt 0) { $excl += [int]$c; foreach ($d in $z) { $near[[int]$d] = $true } } else { $keep += [int]$c }
+    }
+    return @{ Keep = [int[]]$keep; Excl = [int[]]$excl; Near = [int[]]@($near.Keys | ForEach-Object { [int]$_ } | Sort-Object) }
 }
 
 function Get-KindName([string]$k) {
@@ -1063,7 +1514,17 @@ function Get-CalibRedoReport($r, $cal, [string[]]$issues, [string[]]$kinds) {
         else { $L.Add(((T "Niveau très différent d'une disquette à l'autre (jusqu'à {0} ns) : la calibration rapide mesure ce niveau sur chaque disquette à écrire.") -f "$([math]::Round($maxLvl))")) }
     }
     $supA = @(@($r.AKinds) | Where-Object { $sup -contains $_ }).Count; $supB = @(@($kinds) | Where-Object { $sup -contains $_ }).Count
-    if ($supA -gt 0 -and $supB -gt 0) { $L.Add((T 'Les deux calibrations ont des réserves liées au support : deux disquettes défectueuses, ou un lecteur instable (préchauffage, têtes à nettoyer).')) }
+    # 12.9 (L2-d) : reserves de A et de B aux memes cylindres (a 1 pres, Get-CalibCommonReserve) : l ecart vient du lecteur ;
+    # plus de conseil « deux disquettes defectueuses » dans ce cas (verdict et courbe conseillee inchanges)
+    $cmnTxt = @()
+    for ($i = 0; $i -lt [math]::Min(@($A.Units).Count, @($cal.Units).Count); $i++) {
+        $ua = $A.Units[$i]; $ub = $cal.Units[$i]
+        if (-not $ua.Warn -or -not $ub.Warn) { continue }
+        $cm = [int[]]@(Get-CalibCommonReserve (Get-CalibUnitReserve $ua.Warn) (Get-CalibUnitReserve $ub.Warn))
+        if ($cm.Count -gt 0) { $cmnTxt += "$(Format-CylList $cm)$(if ($ub.Prefix) { ' ' + ([string]$ub.Prefix).Trim() })" }
+    }
+    if ($cmnTxt.Count -gt 0) { $L.Add(((T "Même écart aux cylindres {0} sur les deux disquettes : il vient du lecteur, pas du support.") -f ($cmnTxt -join ' ; '))) }
+    elseif ($supA -gt 0 -and $supB -gt 0) { $L.Add((T 'Les deux calibrations ont des réserves liées au support : deux disquettes défectueuses, ou un lecteur instable (préchauffage, têtes à nettoyer).')) }
     if (@(@($r.AKinds) + @($kinds)) -contains 'drift') { $L.Add(((T "Une des deux calibrations a une dérive du lecteur de plus de {0} ns : la comparaison est peu concluante.") -f "$(2 * $script:CalResidual)")) }
     $ncA = [int](@($A.Units | ForEach-Object { @($_.Warn.NonConv).Count }) | Measure-Object -Sum).Sum
     $ncB = [int](@($cal.Units | ForEach-Object { @($_.Warn.NonConv).Count }) | Measure-Object -Sum).Sum
