@@ -1220,7 +1220,12 @@ function Complete-LevelCalib {
     $fieldsPrev = @{ Prof = $cmbWProfile.SelectedIndex; On = $chkWPrecomp.Checked; P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Lbl = (Get-WProfileText) }
     # Carte Calibration de l Accueil : profil place dans les champs --precomp seulement si l image de l onglet Ecriture est
     # de la famille calibree (sinon il reste affiche dans la fenetre Courbe, derniere calibration rapide)
-    $toFields = (-not $cal.Home) -or ((Get-WriteTabFamily) -eq $cal.Family)
+    # 12.10 (relecture de la RC) : carte de l Accueil, lecteur cible avec effet sur l image de l onglet (Get-TargetWriteInfo,
+    # celui de Start-ImageWrite, qui remettrait la courbe croisee dans les champs, ou refuserait l ecriture) : profil de
+    # cette disquette non place dans les champs, ligne de journal qui le dit (le bouton « Calibrer » refuse ce cas :
+    # Start-LevelCalibButton)
+    $tgtL = if ($cal.Home) { Get-TargetWriteInfo $txtWFile.Text $cmbWFmt.Text ([bool]$chkWSlow.Checked) } else { $null }
+    $toFields = (-not $cal.Home) -or ((Get-WriteTabFamily) -eq $cal.Family -and -not $tgtL.Applies)
     if ($toFields) {
         if ($cmbWProfile.SelectedIndex -ne 0) { $cmbWProfile.SelectedIndex = 0 }   # Auto : profil decale remplace au prochain changement d image
         Set-LevelFields $recs $cal.Slow
@@ -1236,6 +1241,7 @@ function Complete-LevelCalib {
         if ($adCurve) { $lblWProfileInfo.Text = ((T "Profil {0} de cette disquette (calibration rapide du {1}, lecteur {2}) : référence du {3} adaptée à cette disquette ({4}){5}. À n'utiliser que pour cette disquette (bouton Courbe).") -f "$famTxt", "$date", "$($cal.Drive)", "$($recs[0].RefDate)", "$lvlTxt", $(if ($cal.Brand) { (T ', marque « {0} »') -f "$($cal.Brand)" } else { '' })) }
         else { $lblWProfileInfo.Text = ((T "Profil {0} de cette disquette (calibration rapide du {1}, lecteur {2}) : référence du {3} décalée de {4}. À n'utiliser que pour cette disquette (bouton Courbe).") -f "$famTxt", "$date", "$($cal.Drive)", "$($recs[0].RefDate)", "$lvlTxt") }
     }
+    elseif ($tgtL -and $tgtL.Applies -and (Get-WriteTabFamily) -eq $cal.Family) { Append-Log ((T "Calibration rapide depuis l'Accueil : lecteur cible {0} choisi pour le lecteur {1}, dont l'écriture n'utilise pas cette mesure (courbe croisée {1} → {0} telle quelle, ou refus sans elle) : le profil de cette disquette n'est pas placé dans les champs --precomp ; il reste affiché dans la fenêtre Courbe (dernière calibration rapide).") -f "$($tgtL.Tgt)", "$($tgtL.Src)") }
     else { Append-Log ((T "Calibration rapide depuis l'Accueil : l'image de l'onglet Écriture n'est pas de la famille {0}, le profil de cette disquette n'est pas placé dans ses champs --precomp ; il reste affiché dans la fenêtre Courbe (dernière calibration rapide).") -f "$famTxt") }
     Append-Log ((T "Calibration rapide terminée en {0} : {1} passe(s), {2} écritures de piste sur {3} cylindres (2 faces), aucune ailleurs.") -f (Format-CalDuration $elapsed), "$($cal.PassesDone)", "$($cal.TrackWrites)", "$(@($cal.Cyls).Count)")
     Append-Log ((T "Niveau retenu : {0}.") -f "$lvlTxt")
@@ -1404,6 +1410,21 @@ function Stop-LevelBrandCurve($cal, $gd) {
     Stop-PrecompCalib
 }
 
+function Get-LevelBeforeWriteKind([string]$mode, [bool]$restore, [bool]$measure) {
+    # 12.10 (relecture de la RC) : mesure de la disquette que fait Start-LevelBeforeWrite ($mode 'slow' ou 'fast' ;
+    # $restore : restauration ; $measure : case « Mesurer la disquette » au test standard ou fin), decision commune a son
+    # code et aux textes qui l annoncent (regles et ligne « Regles » du rapport de la restauration, 300 ; case de la mesure
+    # au « Test rapide », 140) : 'content' (liste « Mesure » sur l image a ecrire, ecriture lente demandee par la case, hors
+    # restauration ; repli au motif si l image ne s y prete pas, Test-ContentMeasurable), 'complete' (liste « Mesure »
+    # complete, ecriture lente : « Test rapide » et restauration compris, case cochee ou non en restauration), sinon
+    # 'quick' (calibration rapide au motif). Avant : regles et infobulles annoncaient la calibration rapide au « Test
+    # rapide » et en restauration, ou la mesure complete est faite
+    $lm = [string](Get-Setting 'levelBeforeWriteMode')
+    if ($lm -eq 'content' -and $measure -and $mode -eq 'slow' -and -not $restore) { return 'content' }
+    if ($lm -eq 'complete' -and $mode -eq 'slow') { return 'complete' }
+    return 'quick'
+}
+
 function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measure) {
     # Ecriture depuis la Bibliotheque, le bouton ECRIRE (12.8, D5) ou la restauration avec « Test rapide » : niveau mesure
     # sur la disquette a ecrire. 12.8 (validation du 19/10) : sans reference utilisable, ecriture refusee (Bibliotheque et
@@ -1420,7 +1441,10 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
     # de la 12.8 (calibration rapide au motif, ou courbe du lecteur sans reference). Test rapide et restauration : mesure
     # au motif, ligne de journal plus bas
     $content = ((Get-Setting 'levelBeforeWriteMode') -eq 'content')
-    if ($content -and $Measure -and $mode -eq 'slow' -and -not $Restore -and -not $script:Restore) {
+    # 12.10 (relecture de la RC) : mesure choisie par Get-LevelBeforeWriteKind, decision dont sont tires les textes qui
+    # l annoncent (regles et rapport de la restauration, case de la mesure au « Test rapide »)
+    $lk = Get-LevelBeforeWriteKind $mode ([bool]$Restore -or [bool]$script:Restore) ([bool]$Measure)
+    if ($lk -eq 'content') {
         $cm = Test-ContentMeasurable $img $cmbWFmt.Text
         if ($cm.Ok) { Start-ContentMeasure $cm; return }
         Append-Log ((T "Mesure sur l'image non faite ({0}) : calibration rapide au motif avant cette écriture.") -f "$($cm.Why)")
@@ -1431,13 +1455,11 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
         # complete de cette disquette avant une ecriture lente (une courbe par tete) ; ecriture rapide : calibration rapide,
         # avec une ligne de journal. 12.8 (S3-FLUX, decision 2) : aussi en restauration, copie secteur (Restore : seul appel,
         # Start-PresetWrite -LevelOnly ; une copie de flux n est jamais mesuree), ecriture lente toujours
-        if ((Get-Setting 'levelBeforeWriteMode') -eq 'complete') {
-            if ($mode -eq 'slow') {
-                if ($Restore) { Append-Log (T "Restauration : disquette de destination mesurée sur tous ses cylindres (mesure complète de cette disquette, liste « Mesure » de l'onglet Écriture), la calibration du lecteur n'est pas refaite.") }
-                Start-DiskMeasure $lr ([string]$script:LevelBrand); return
-            }
-            Append-Log (T "Mesure complète de cette disquette réservée à l'écriture lente (une courbe par tête) : calibration rapide avant cette écriture rapide.")
+        if ($lk -eq 'complete') {
+            if ($Restore) { Append-Log (T "Restauration : disquette de destination mesurée sur tous ses cylindres (mesure complète de cette disquette, liste « Mesure » de l'onglet Écriture), la calibration du lecteur n'est pas refaite.") }
+            Start-DiskMeasure $lr ([string]$script:LevelBrand); return
         }
+        if ((Get-Setting 'levelBeforeWriteMode') -eq 'complete') { Append-Log (T "Mesure complète de cette disquette réservée à l'écriture lente (une courbe par tête) : calibration rapide avant cette écriture rapide.") }
         # 12.8.1 (decision 5) : avec « sur l image a ecrire », le Test rapide et la restauration gardent la mesure au motif
         if ($content -and -not $Measure) {
             if ($Restore) { Append-Log (T "Restauration : destination mesurée au motif (calibration rapide) ; la mesure sur l'image ne se fait pas en restauration.") }
@@ -1484,6 +1506,12 @@ function Start-LevelCalibButton {
     # Bouton « Calibrer » avec « Test rapide » : niveau de la disquette inseree, sans ecriture d image
     $chk = Test-CalibImage
     if (-not $chk) { return }
+    # 12.10 (relecture de la RC) : lecteur cible avec effet sur l ecriture de l onglet (Get-TargetWriteInfo, celui de
+    # Start-ImageWrite) : calibration rapide refusee, comme la mesure avant l ecriture (Start-WriteTabWrite) : elle relirait
+    # avec le lecteur du bandeau, et l ecriture remet la courbe croisee dans les champs --precomp (ou est refusee sans
+    # elle). Avant : faite, et annoncee « a n utiliser que pour cette disquette »
+    $tw = Get-TargetWriteInfo $chk.Img $cmbWFmt.Text ([bool]$chkWSlow.Checked)
+    if ($tw.Applies) { [void](Show-AppMessage ((T "Calibration rapide non faite pour le lecteur cible {0} : elle relirait avec le lecteur {1}, et l'écriture pour le lecteur cible n'utilise pas sa mesure (courbe croisée telle quelle, ou refus sans elle). Pour mesurer cette disquette avec le lecteur {1}, choisissez « (même lecteur) » dans la liste « Lecteur cible ».") -f "$($tw.Tgt)", "$($tw.Src)") (T 'Calibration precomp') 'OK' 'Information'); return }
     $lr = Get-LevelRef $chk.Family ([bool]$chkWSlow.Checked) $cmbDrive.Text $chk.Img $false -NCyl ([int]$chk.NCyl)
     if ($lr.Ok) { $script:AfterCalib = ''; Start-LevelCalib $lr; return }
     if ($lr.Class -eq 'domain' -and -not $lr.Short) {
@@ -1518,15 +1546,16 @@ function Get-CalibCylinders([string]$img, [string]$fmt) {
     # Cylindres d une image pour la calibration : lus dans l image (ADF, IPF, HFE) ; image secteur sans geometrie (IMG, ST,
     # DSK...) avec un format gw explicite de la table : cylindres de sa definition, 35 au moins comme la carte Calibration
     # de l Accueil (Get-FormatCalibInfo : une courbe de famille de 15 cylindres serait appliquee a toutes les images de 80) ;
-    # sinon NCyl = $null (80 par defaut)
+    # sinon NCyl = $null (80 par defaut). Origine (Src) sans parentheses : la ligne de journal Cylindres de test (270) la met
+    # deja entre parentheses (relecture du banc 1210, comme CylSrc de Start-CrossCalib)
     $n = Get-ImageCylinders $img
     if ($null -ne $n) { return @{ NCyl = [int]$n; Src = ((T "{0} cylindres d'après l'image") -f "$n") } }
     if ($fmt -and $fmt -ne '(auto)' -and $script:GwFormats.Contains($fmt)) {
         $d = [int]$script:GwFormats[$fmt].Cyls; $c = [math]::Max(35, $d)
-        if ($c -ne $d) { return @{ NCyl = $c; Src = ((T "{0} cylindres pour le format {1} ({2} dans la définition de gw, {0} au moins pour la calibration)") -f "$c", "$fmt", "$d") } }
+        if ($c -ne $d) { return @{ NCyl = $c; Src = ((T "{0} cylindres pour le format {1} : {2} dans la définition de gw, {0} au moins pour la calibration") -f "$c", "$fmt", "$d") } }
         return @{ NCyl = $c; Src = ((T "{0} cylindres d'après le format {1}") -f "$c", "$fmt") }
     }
-    return @{ NCyl = $null; Src = (T '80 cylindres par défaut (nombre non lisible dans l''image)') }
+    return @{ NCyl = $null; Src = (T "80 cylindres par défaut, nombre non lisible dans l'image") }
 }
 
 function Test-CalibImage($Geom = $null) {
@@ -1535,38 +1564,85 @@ function Test-CalibImage($Geom = $null) {
     # place de l image et du format de l onglet Ecriture. Format gw explicite de la table non calibrable (FM, GCR, codage
     # propre, secteurs durs, ED, 360 tr/min, cellule hors plage : Get-FormatCalibInfo) : refus. 12.7 : image haute densite
     # admise si elle est calibrable (famille hd, Get-HdCalibFamily).
-    if (-not $script:ScpStatsOk) {
-        [void](Show-AppMessage (T 'Calibration : module d''analyse SCP indisponible (Add-Type).') (T 'Calibration precomp') 'OK' 'Warning'); return $null
-    }
-    if (-not (Test-Path -LiteralPath $script:GwExe)) {
-        [void](Show-AppMessage ((T "gw.exe introuvable : {0}`n`nPlacez ce script dans le même répertoire que gw.exe.") -f "$($script:GwExe)") (T 'Erreur') 'OK' 'Error'); return $null
-    }
+    # 12.10 (relecture de la RC) : controles de l image et des reglages dans Get-CalibImageCheck (sans fenetre), dont
+    # Start-CrossCalib (270) tire aussi l image annoncee par sa fenetre de choix ; message du refus affiche ici, comme avant
+    # 12.10 (verification finale de la RC) : module d analyse SCP et gw.exe controles par Get-CalibEnvBlock, lu aussi par
+    # Start-CrossCalib (270) avant sa fenetre de choix ; messages et icones du refus inchanges
+    $eb = Get-CalibEnvBlock
+    if ($eb) { [void](Show-AppMessage ([string]$eb.Why) ([string]$eb.Title) 'OK' ([string]$eb.Icon)); return $null }
+    $c = Get-CalibImageCheck $Geom
+    if (-not $c.Ok) { [void](Show-AppMessage ([string]$c.Why) (T 'Calibration precomp') 'OK' 'Warning'); return $null }
+    return @{ Img = $c.Img; Family = $c.Family; NCyl = $c.NCyl; MaxCyl = $c.MaxCyl; CylSrc = $c.CylSrc; Label = $c.Label }
+}
+
+function Get-CalibEnvBlock {
+    # 12.10 (verification finale de la RC) : installation qui refuse toute calibration : module d analyse SCP indisponible
+    # (Add-Type) ou gw.exe introuvable. @{ Why ; Title ; Icon } du refus, $null sinon. Decision commune a Test-CalibImage
+    # (memes messages qu avant) et a Start-CrossCalib (270 : refus avant la fenetre de choix ; avant, la fenetre s ouvrait
+    # et le refus n arrivait qu apres « Continuer »)
+    if (-not $script:ScpStatsOk) { return @{ Why = (T 'Calibration : module d''analyse SCP indisponible (Add-Type).'); Title = (T 'Calibration precomp'); Icon = 'Warning' } }
+    if (-not (Test-Path -LiteralPath $script:GwExe)) { return @{ Why = ((T "gw.exe introuvable : {0}`n`nPlacez ce script dans le même répertoire que gw.exe.") -f "$($script:GwExe)"); Title = (T 'Erreur'); Icon = 'Error' } }
+    return $null
+}
+
+function Get-CalibSettingBlock {
+    # 12.10 (relecture de la RC, fix1) : reglages de l onglet Ecriture qui refusent toute calibration, quelle que soit
+    # l image : « Secteurs durs » ou « TG43 » coches (l analyse de flux est calibree pour le MFM double densite). Message du
+    # refus, '' sinon. Decision commune a Get-CalibImageCheck (refus de Test-CalibImage, a sa place dans l ordre des
+    # controles) et a Start-CrossCalib (270 : refus avant la fenetre de choix, image de l onglet absente ou refusee
+    # comprise ; avant, la fenetre s ouvrait et le refus n arrivait qu apres « Continuer »)
+    if ($chkWHard.Checked -or $chkWTG43.Checked) { return (T 'Calibration non prise en charge avec secteurs durs ou lecteur 8 pouces (TG43) : l''analyse de flux est calibrée pour le MFM double densité.') }
+    return ''
+}
+
+function Get-CalibImageCheck($Geom = $null) {
+    # 12.10 (relecture de la RC) : controles de l image (ou du type de la carte de l Accueil, Geom) et des reglages de
+    # Test-CalibImage, dans le meme ordre, sans fenetre (testable) : @{ Ok ; Why (message du refus, celui que
+    # Test-CalibImage affiche) ; Scope ('image', ou 'setting' : secteurs durs ou lecteur 8 pouces, refus de toute
+    # calibration quelle que soit l image) ; Img ; Family ; NCyl ; MaxCyl ; CylSrc ; Label }. Lu aussi par Start-CrossCalib
+    # (270) : image de l onglet Ecriture annoncee et reprise par la calibration croisee seulement si elle est acceptee ici.
+    # Avant : famille de Get-WriteTabFamily, une image FM, GCR, a codage propre ou hors des plages mesurables etait
+    # annoncee, puis la calibration refusee apres « Continuer »
     $img = if ($Geom) { [string]$Geom.Img } else { $txtWFile.Text }
     $fmt = if ($Geom) { '' } else { $cmbWFmt.Text }
     if (-not $img -or -not (Test-Path -LiteralPath $img)) {
-        [void](Show-AppMessage (T 'Choisissez d''abord l''image à écrire : elle fixe la famille (cellule) et le nombre de cylindres de la calibration.') (T 'Calibration precomp') 'OK' 'Warning'); return $null
+        return @{ Ok = $false; Why = (T 'Choisissez d''abord l''image à écrire : elle fixe la famille (cellule) et le nombre de cylindres de la calibration.'); Scope = 'image' }
     }
     $ext = [System.IO.Path]::GetExtension($img).ToLower()
     if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) {
-        [void](Show-AppMessage ((T "Calibration impossible sur un flux ({0}) : la calibration ne détermine la densité que d'une image à bits ou secteurs (ADF, IPF, HFE, IMG...).") -f "$ext") (T 'Calibration precomp') 'OK' 'Warning'); return $null
+        return @{ Ok = $false; Why = ((T "Calibration impossible sur un flux ({0}) : la calibration ne détermine la densité que d'une image à bits ou secteurs (ADF, IPF, HFE, IMG...).") -f "$ext"); Scope = 'image' }
     }
-    $fci = if ($fmt -and $fmt -ne '(auto)' -and $script:GwFormats.Contains($fmt)) { Get-FormatCalibInfo $fmt } else { $null }
+    # 12.10 (lot 1, revue2, R-6) : profil Manuel avec --precomp coche (Test-ManualPrecomp) : raison sans « l image est
+    # ecrite sans precompensation »
+    $fci = if ($fmt -and $fmt -ne '(auto)' -and $script:GwFormats.Contains($fmt)) { Get-FormatCalibInfo $fmt (Test-ManualPrecomp) } else { $null }
+    # 12.10 (lot 1, B1) : image FM, GCR ou a codage propre sans format explicite de la table (format implicite de
+    # l extension, en-tete HFE, IMD ou D88 : Get-ImageEncoding) : refus, comme un format explicite non calibrable
+    if (-not $Geom -and -not $fci) {
+        $ie = Get-ImageEncoding $img $fmt
+        if ($ie.NonMfm) {
+            # 12.10 (lot 1, revue2, R-6) : profil Manuel avec --precomp coche (Test-ManualPrecomp) : champ transmis tel quel a
+            # l ecriture, texte sans « ecriture sans precompensation »
+            $nm = if (Test-ManualPrecomp) { (T "Image {0} en codage {1} : pas de calibration (elle ne mesure que le MFM).") } else { (T "Image {0} en codage {1} : pas de calibration (elle ne mesure que le MFM), écriture sans précompensation.") }
+            return @{ Ok = $false; Why = ($nm -f "$([System.IO.Path]::GetFileName($img))", "$($ie.Name)"); Scope = 'image' }
+        }
+    }
     $hd = Get-HighDensityReason $img $fmt
     # 12.7 : haute densite calibrable (famille hd) admise ; sinon refus, avec la raison du format s il est explicite
     if ($hd -and -not (Get-HdCalibFamily $img $fmt)) {
         $msg = if ($fci -and -not $fci.Cal) { (T "Calibration non prise en charge pour le format {0} : {1}.") -f "$fmt", "$($fci.Why)" }
                else { (T "Calibration non prise en charge pour cette image haute densité ({0}) : seule la haute densité MFM à 1 us par cellule et à 300 tr/min se calibre ; la très haute densité (ED), les codages propres et la haute densité à 360 tr/min ne se calibrent pas.") -f "$hd" }
-        [void](Show-AppMessage $msg (T 'Calibration precomp') 'OK' 'Warning'); return $null
+        return @{ Ok = $false; Why = $msg; Scope = 'image' }
     }
-    if ($chkWHard.Checked -or $chkWTG43.Checked) {
-        [void](Show-AppMessage (T 'Calibration non prise en charge avec secteurs durs ou lecteur 8 pouces (TG43) : l''analyse de flux est calibrée pour le MFM double densité.') (T 'Calibration precomp') 'OK' 'Warning'); return $null
-    }
+    # 12.10 (relecture de la RC, fix1) : reglages qui refusent toute calibration : Get-CalibSettingBlock, decision commune
+    # avec Start-CrossCalib (270, refus avant sa fenetre de choix quelle que soit l image)
+    $sb = Get-CalibSettingBlock
+    if ($sb) { return @{ Ok = $false; Why = $sb; Scope = 'setting' } }
     $oor = Get-CellOutOfRange $img
     if ($null -ne $oor) {
-        [void](Show-AppMessage ((T "Calibration non prise en charge : cellule de l'image de {0} ns, hors des plages mesurables (900 à 1 100 ns en haute densité, 1 700 à 2 300 ns en double densité).") -f "$oor") (T 'Calibration precomp') 'OK' 'Warning'); return $null
+        return @{ Ok = $false; Why = ((T "Calibration non prise en charge : cellule de l'image de {0} ns, hors des plages mesurables (900 à 1 100 ns en haute densité, 1 700 à 2 300 ns en double densité).") -f "$oor"); Scope = 'image' }
     }
     if ($fci -and -not $fci.Cal) {
-        [void](Show-AppMessage ((T "Calibration non prise en charge pour le format {0} : {1}.") -f "$fmt", "$($fci.Why)") (T 'Calibration precomp') 'OK' 'Warning'); return $null
+        return @{ Ok = $false; Why = ((T "Calibration non prise en charge pour le format {0} : {1}.") -f "$fmt", "$($fci.Why)"); Scope = 'image' }
     }
     $family = Get-ImageFamily $img $fmt
     $cc = Get-CalibCylinders $img $fmt
@@ -1576,5 +1652,5 @@ function Test-CalibImage($Geom = $null) {
     $nCyl = [math]::Max(2, [math]::Min(84, [int]$nCyl))
     $maxCyl = $nCyl - 1
     $label = if ($Geom) { [string]$Geom.Label } else { [System.IO.Path]::GetFileName($img) }
-    return @{ Img = $img; Family = $family; NCyl = $nCyl; MaxCyl = $maxCyl; CylSrc = $cylSrc; Label = $label }
+    return @{ Ok = $true; Why = ''; Scope = ''; Img = $img; Family = $family; NCyl = $nCyl; MaxCyl = $maxCyl; CylSrc = $cylSrc; Label = $label }
 }

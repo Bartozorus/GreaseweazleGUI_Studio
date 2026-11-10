@@ -86,25 +86,150 @@ function Get-RsCalibText {
         if (@($cvs | Where-Object { $_.Converged -eq $false }).Count -gt 0) { $d += (T 'non convergée') }
         $parts += ((T "{0} : {1}.") -f $fd[1], ($d -join ', '))
     }
+    # 12.10 : lecteur cible choisi pour le lecteur du bandeau (Get-TargetDrive) : courbes croisees qu appliquerait l ecriture
+    # d une copie secteur double densite (famille std, par tete si elles sont a jour : Get-TargetCurves). 12.10 (relecture
+    # de la RC) : phrase en tete du cadre (libelle a points de suspension, 540 : apres les phrases des familles, elle etait
+    # cachee : refus annonce ou courbe croisee nommee visibles seulement au survol)
+    # 12.10 (relecture de la RC) : phrase d apres la decision de la restauration (Get-RestorePlan, celle de Start-Restore et
+    # de Start-RestoreWrite) : format haute densite choisi : refus au lancement ; copie secteur pour le lecteur cible : refus
+    # faute de courbe croisee standard (Get-RestoreTargetInfo), sinon courbe croisee nommee ; copie de flux, ecrite telle
+    # quelle (lecteur cible sans effet) : aucune phrase. Avant : courbe croisee annoncee quel que soit le format
+    $src = [string]$cmbDrive.Text; $tg = Get-TargetDrive $src
+    # 12.10 (relecture de la RC, fix1) : les deux refus tires de Kind 'refused' et de sa nature (Ti.BlockKind : 'hd' format
+    # haute densite choisi, 'none' aucune courbe croisee standard), comme les regles de la copie (Update-RsRules) et le
+    # bouton « Courbe » (Get-RsCurveSet) ; 'target' : copie ecrite avec la courbe croisee, toujours presente
+    # 12.10 (relecture de la RC, fix2) : refus faute de courbe croisee standard (BlockKind 'none') : refus de toute la
+    # restauration au lancement (Start-Restore, avant la lecture, detection automatique comprise), comme le disent les
+    # regles de la copie ; avant : « l ecriture d une copie secteur sera refusee »
+    $pl = if ($tg) { Get-RestorePlan $src $tg (Get-RestoreFormat) } else { $null }
+    if ($pl -and $pl.Kind -eq 'refused' -and $pl.Ti.BlockKind -eq 'hd') { $parts = @(((T "Lecteur cible {0} : aucune calibration croisée en haute densité, la restauration au format {1} sera refusée.") -f "$tg", "$($pl.Fmt)")) + $parts }
+    elseif ($pl -and $pl.Kind -eq 'refused') { $parts = @(((T "Lecteur cible {0} : aucune courbe croisée standard {1} → {0}, la restauration sera refusée au lancement.") -f "$tg", "$src")) + $parts }
+    elseif ($pl -and $pl.Kind -eq 'target') {
+        $cc = @(Get-TargetCurves 'std' $true $src $tg)
+        if ($cc.Count -gt 0) {
+            # 12.10 (relecture de la RC) : phrase raccourcie (« commune », « a la place de celle du lecteur ») : entiere dans
+            # les trois lignes du cadre (262 x 54 px) ; avec « commune aux deux tetes » et « ecrite a la place de la courbe du
+            # lecteur », 139 caracteres en francais, fin « sans calibration. » cachee par les points de suspension
+            $dt = Get-CurveDate $cc[0]
+            $kd = if ($cc.Count -gt 1) { (T 'par tête') } else { (T 'commune') }
+            if ($dt -gt [datetime]::MinValue) { $kd += ', ' + $dt.ToString('dd/MM/yyyy') }
+            $parts = @(((T "Lecteur cible {0} : courbe croisée {1} → {0} ({2}), à la place de celle du lecteur {1}, sans calibration.") -f "$tg", "$src", "$kd")) + $parts
+        }
+    }
     return ($parts -join ' ')
+}
+
+function Get-RestoreTargetInfo([string]$drv, [string]$tgt, [string]$fmt) {
+    # 12.10 (relecture de l etape 3) : lecteur cible $tgt d une restauration du lecteur $drv au format $fmt (Get-RestoreFormat :
+    # auto, vide pour la copie de flux, ou le nom du format), avant la lecture de l original (Start-Restore) : @{ Applies
+    # (courbe croisee ecrite : ligne de journal) ; Block (raison du refus, vide sinon) }. Sans effet : pas de lecteur cible,
+    # copie de flux (ecrite sans precompensation), format explicite non MFM (FM, GCR : Get-ImageEncoding). Refus : format
+    # haute densite explicite (Test-HdFormat : pas de calibration croisee en haute densite) ; copie secteur double densite
+    # (famille standard, ecrite tete par tete) sans courbe croisee standard « source>cible » par tete a jour ni commune
+    # (Get-TargetCurves, comme Start-RestoreWrite et Get-RsCalibText). Avant : une courbe croisee de n importe quelle
+    # famille suffisait (long track seule comprise), et l original etait lu pour un echec a l etape 4. Format detecte a la
+    # lecture (auto) : regle de la double densite ; une haute densite detectee echoue a l etape 4 (Start-RestoreWrite).
+    # 12.10 (relecture de la RC) : BlockKind, nature du refus ('hd' : format haute densite, 'none' : aucune courbe croisee
+    # standard ; '' sans refus), lue par Get-RestorePlan
+    $r = @{ Applies = $false; Block = ''; BlockKind = '' }
+    if (-not $tgt -or -not $fmt) { return $r }
+    if ($fmt -ne 'auto' -and (Get-ImageEncoding '' $fmt).NonMfm) { return $r }
+    $r.Applies = $true
+    if ($fmt -ne 'auto' -and (Test-HdFormat $fmt)) {
+        $r.Block = (T "Restauration refusée : lecteur cible {1} choisi pour le lecteur {0} dans l'onglet Écriture, et format haute densité {2} : la calibration croisée n'existe qu'en double densité. Choisissez « (même lecteur) » dans la liste « Lecteur cible » de l'onglet Écriture.") -f "$drv", "$tgt", "$fmt"; $r.BlockKind = 'hd'
+        return $r
+    }
+    if (@(Get-TargetCurves 'std' $true $drv $tgt).Count -eq 0) {
+        $r.Block = (T "Restauration refusée : lecteur cible {1} choisi pour le lecteur {0} dans l'onglet Écriture, sans courbe croisée {0} → {1} pour la famille {2} (copie secteur double densité). Lancez « Calibrer pour un lecteur cible… » (onglet Écriture, lecteur {0} dans le bandeau, lecteur cible {1}, famille {2}), ou choisissez « (même lecteur) » dans la liste « Lecteur cible ».") -f "$drv", "$tgt", (Get-CalibFamilyName 'std'); $r.BlockKind = 'none'
+    }
+    return $r
+}
+
+function Get-RestorePlan([string]$drv, [string]$tgt, [string]$fmt) {
+    # 12.10 (relecture de la RC) : ce que fera la restauration du lecteur $drv au format $fmt (Get-RestoreFormat : auto, vide
+    # pour la copie de flux, ou le nom du format) avec le lecteur cible $tgt, d apres les decisions de Start-Restore (refus :
+    # Get-RestoreTargetInfo) et de Start-RestoreWrite : @{ Kind ; Ti (Get-RestoreTargetInfo) ; Fmt }. Kind : 'flux' (copie
+    # exacte du flux, Set-RestoreFormat '' : ecrite telle quelle par gw, sans precompensation ni verification gw, ni
+    # calibration ni mesure, ni comparaison secteur par secteur ; lecteur cible sans effet) ; 'refused' (refus au lancement
+    # pour un lecteur cible, Ti.Block : format haute densite choisi ou aucune courbe croisee standard, Ti.BlockKind ; aucune
+    # copie possible) ; 'target' (copie secteur avec la courbe croisee, ni calibration ni mesure) ; 'hd' (format haute
+    # densite sans lecteur cible : courbe haute densite existante, jamais de calibration ni de mesure, controle des pistes
+    # non applicable : Start-PresetWrite, Get-WriteCheckBlocker) ; 'sector' (copie secteur double densite, ou format detecte
+    # a la lecture : calibration existante, sinon par tete, mesure de la destination quand c est possible). En derivent : la
+    # phrase du lecteur cible du cadre 2 (Get-RsCalibText), la note de son infobulle (Update-RsCalib), les regles de la copie
+    # (Update-RsRules) et, avant l ecriture, la ligne « Regles » du rapport (Write-RestoreReport ; apres : $r.Plan, decision
+    # de Start-RestoreWrite)
+    $ti = Get-RestoreTargetInfo $drv $tgt $fmt
+    # 12.10 (relecture de la RC, fix1) : 'refused' pour tout refus de Start-Restore (Ti.Block), nature dans Ti.BlockKind ;
+    # avant : refus faute de courbe croisee range sous 'target', regles de la copie qui annoncaient l ecriture avec la
+    # courbe croisee a cote du refus annonce par le cadre
+    $k = if (-not $fmt) { 'flux' } elseif ($ti.Block) { 'refused' } elseif ($ti.Applies) { 'target' } elseif ($fmt -ne 'auto' -and (Test-HdFormat $fmt)) { 'hd' } else { 'sector' }
+    return @{ Kind = $k; Ti = $ti; Fmt = $fmt }
 }
 
 function Update-RsCalib {
     # Cadre 2 : resume des courbes et bouton « Courbe » (actif avec au moins une courbe) ; a l entree dans l onglet, a la
     # fin d une restauration et a chaque mise a jour du bouton « Courbe » de l onglet Ecriture (Update-CurveButton : fin
-    # de calibration, effacement des calibrations, configuration chargee)
+    # de calibration, effacement des calibrations, configuration chargee). 12.10 (relecture de la RC) : aussi au changement
+    # du format de la restauration (Update-SettingDependents) ; infobulle et regles de la copie (Update-RsRules) selon le
+    # lecteur cible : avec effet sur la restauration (Get-RestoreTargetInfo : copie secteur ecrite avec la courbe croisee
+    # telle quelle, Start-RestoreWrite), l infobulle ne dit plus que le lecteur sans courbe est calibre, ce qui n a pas lieu
+    # (avant : annonce a cote de « sans calibration », infobulle refaite seulement au changement du texte du cadre)
     if (-not $lblRsCal) { return }
     $t = Get-RsCalibText
-    if ($lblRsCal.Text -ne $t) { $lblRsCal.Text = $t; $tip.SetToolTip($lblRsCal, $t + "`n`n" + (T "Une calibration existante n'est jamais refaite par la restauration. Sans courbe, le lecteur est calibré tête par tête en test fin, éventuellement sur une disquette sacrifiée, avant l'écriture de la copie.")) }
-    $btnRsCurve.Enabled = ((Get-FamilyCurves 'std' $true).Count + (Get-FamilyCurves 'hd' $true).Count) -gt 0
+    $src = [string]$cmbDrive.Text
+    $tt = $t
+    # 12.10 (relecture de la RC) : note d apres la decision de la restauration (Get-RestorePlan) : copie secteur double
+    # densite ou format detecte, sans lecteur cible : calibration existante, sinon par tete ; format haute densite : jamais
+    # de calibration ; copie de flux : ecrite telle quelle, sans ces courbes ; lecteur cible avec effet ou refus : aucune
+    # note. Avant : note de la calibration d un lecteur sans courbe pour une copie de flux ou haute densite aussi
+    $pk = (Get-RestorePlan $src (Get-TargetDrive $src) (Get-RestoreFormat)).Kind
+    $note = if ($pk -eq 'sector') { (T "Une calibration existante n'est jamais refaite par la restauration. Sans courbe, le lecteur est calibré tête par tête en test fin, éventuellement sur une disquette sacrifiée, avant l'écriture de la copie.") }
+            elseif ($pk -eq 'hd') { (T "La restauration ne calibre jamais le lecteur en haute densité : la copie est écrite avec la courbe haute densité existante, sinon avec le profil d'origine.") }
+            elseif ($pk -eq 'flux') { (T "Une copie exacte du flux est écrite telle quelle par gw, sans précompensation : aucune de ces courbes ne s'y applique, et la restauration ne calibre pas le lecteur ni ne mesure la destination.") }
+            else { '' }
+    if ($note) { $tt += "`n`n" + $note }
+    if ($lblRsCal.Text -ne $t) { $lblRsCal.Text = $t }
+    if ([string]$tip.GetToolTip($lblRsCal) -ne $tt) { $tip.SetToolTip($lblRsCal, $tt) }
+    # 12.10 (relecture de la RC) : courbes du bouton (Get-RsCurveSet, celles du clic) : courbe croisee ecrite pour un
+    # lecteur cible avec effet ; avant : courbes du lecteur seulement, bouton grise sans elles
+    $btnRsCurve.Enabled = (Get-RsCurveSet).Count -gt 0
+    Update-RsRules
+}
+
+function Get-RsCurveSet {
+    # 12.10 (relecture de la RC) : courbes du bouton « Courbe » du cadre 2 (etat actif : Update-RsCalib ; clic : Show-RsCurve) :
+    # courbes croisees standard « source>cible » que la restauration ecrit pour un lecteur cible avec effet (Get-RestorePlan
+    # 'target' sans refus : Start-RestoreWrite, Get-TargetWriteInfo), sinon courbes du lecteur (par tete si elles sont a
+    # jour) de la famille de la copie (voir plus bas). Tableau protege par la virgule (pas de @() autour de l appel). Avant :
+    # courbes du lecteur seulement
+    $src = [string]$cmbDrive.Text; $tg = Get-TargetDrive $src
+    # 12.10 (relecture de la RC, fix2) : decision de la restauration avec ou sans lecteur cible (Get-RestorePlan ; sans
+    # lecteur cible : 'flux', 'hd' ou 'sector')
+    $pl = Get-RestorePlan $src $tg (Get-RestoreFormat)
+    # 12.10 (relecture de la RC, fix1) : aucune courbe quand la restauration n en ecrit aucune : refus pour le lecteur cible
+    # (Get-RestorePlan 'refused' : haute densite, aucune courbe croisee) et copie exacte du flux (ecrite telle quelle, sans
+    # precompensation) : bouton grise ; avant : courbes du lecteur, que rien n ecrirait
+    $pk = [string]$pl.Kind
+    if ($pk -eq 'refused' -or $pk -eq 'flux') { return ,@() }
+    if ($pk -eq 'target') { return ,@(Get-TargetCurves 'std' $true $src $tg) }
+    # 12.10 (relecture de la RC, fix2) : familles de la copie d apres la meme decision : 'hd' (format haute densite choisi) :
+    # famille haute densite du format seule (Get-HdCalibFamily ; Start-RestoreWrite : courbe haute densite existante, sinon
+    # le profil d origine) ; 'sector' au format double densite choisi : double densite seule (sans courbe, la copie calibre
+    # d abord chaque tete) ; format detecte a la lecture ('auto') : double densite, a defaut haute densite. Avant : repli
+    # sur l autre famille pour tout format (courbe double densite montree pour une copie haute densite, haute densite pour
+    # une copie double densite)
+    $hf = Get-HdCalibFamily '' ([string]$pl.Fmt)
+    $fams = if ($pk -eq 'hd') { @($hf) } elseif ([string]$pl.Fmt -eq 'auto') { @('std', 'hd') } else { @('std') }
+    foreach ($f in $fams) { if (-not $f) { continue }; $c = Get-FamilyCurves $f $true; if ($c.Count -gt 0) { return ,$c } }
+    return ,@()
 }
 
 function Show-RsCurve {
-    # Bouton « Courbe » du cadre 2 : courbes appliquees par la restauration (par tete si elles sont a jour) ; famille du
-    # format choisi s il est haute densite (Get-HdCalibFamily), sinon double densite ; a defaut, l autre famille
-    $hf = Get-HdCalibFamily '' (Get-RestoreFormat)
-    $fams = if ($hf) { @('hd', 'std') } else { @('std', 'hd') }
-    foreach ($f in $fams) { if ((Get-FamilyCurves $f $true).Count -gt 0) { Show-PrecompCurve $f $true; return } }
+    # Bouton « Courbe » du cadre 2 : courbes appliquees par la restauration (Get-RsCurveSet ; 12.10, relecture de la RC :
+    # courbe croisee pour un lecteur cible avec effet, fenetre commune Show-CurvesWindow, titre « croisee »)
+    $c = Get-RsCurveSet
+    if ($c.Count -gt 0) { Show-CurvesWindow $c }
 }
 
 function Get-SafeFileName([string]$s) {
@@ -114,8 +239,42 @@ function Get-SafeFileName([string]$s) {
 }
 
 function Update-RsRules {
+    # Texte gris des regles de la copie : Set-Defaults ; 12.10 (relecture de la RC) : aussi Update-RsCalib (entree dans
+    # l onglet, lecteur du bandeau, lecteur cible ou format de la restauration changes). Lecteur cible avec effet sur la
+    # restauration (Get-RestoreTargetInfo, format detecte a la lecture compris) : regles de Start-RestoreWrite pour lui,
+    # courbe croisee telle quelle, ni calibration du lecteur ni mesure de la destination ; avant, le texte annoncait la
+    # mesure et la calibration du lecteur, que la restauration ne fait pas dans ce cas
+    if (-not $lblRsRules) { return }
     $r = $script:RestoreRules
-    $lblRsRules.Text = ((T "Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (calibration rapide), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), effacement avant l'écriture, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)")
+    $src = [string]$cmbDrive.Text; $tg = Get-TargetDrive $src
+    # 12.10 (relecture de la RC) : regles d apres la decision de la restauration (Get-RestorePlan, celle de Start-Restore et
+    # de Start-RestoreWrite) : lecteur cible avec effet ; copie de flux (ecrite telle quelle par gw, sans precompensation ni
+    # verification gw, ni calibration ni mesure, sans comparaison secteur par secteur) ; format haute densite refuse pour un
+    # lecteur cible ; format haute densite (jamais de calibration ni de mesure, pre-effacement, controle des pistes non
+    # applicable) ; sinon copie secteur double densite. Avant : regles de la copie secteur double densite pour une copie de
+    # flux ou haute densite, et ecriture avec la courbe croisee pour un format haute densite refuse
+    $pl = Get-RestorePlan $src $tg (Get-RestoreFormat)
+    if ($pl.Kind -eq 'target') {
+        $t = (T "Règles appliquées à la copie : écriture tête par tête par le lecteur {0} avec la courbe croisée {0} → {1}, telle quelle, sans calibration ni mesure de la destination, effacement avant l'écriture, vérification par gw, {2} essais par piste, contrôle de toutes les pistes ({3} passes de réécriture au plus), puis relecture par le lecteur {0} et comparaison avec l'original.") -f "$src", "$tg", "$($r.WriteRetries)", "$($r.RepairPasses)"
+    } elseif ($pl.Kind -eq 'flux') {
+        $t = (T "Règles appliquées à la copie : copie exacte du flux, écrite telle quelle par gw (ni précompensation, ni vérification par gw), sans calibration du lecteur ni mesure de la destination, écriture tête par tête, effacement avant l'écriture, contrôle de toutes les pistes ({0} passes de réécriture au plus), sans comparaison secteur par secteur avec l'original.") -f "$($r.RepairPasses)"
+    } elseif ($pl.Kind -eq 'refused' -and $pl.Ti.BlockKind -eq 'hd') {
+        $t = (T "Règles appliquées à la copie : aucune avec le lecteur cible {0}, la restauration au format haute densité {1} sera refusée au lancement (la calibration croisée n'existe qu'en double densité). Choisissez « (même lecteur) » dans la liste « Lecteur cible » de l'onglet Écriture.") -f "$tg", "$($pl.Fmt)"
+    } elseif ($pl.Kind -eq 'refused') {
+        # 12.10 (relecture de la RC, fix1) : refus faute de courbe croisee standard (Ti.BlockKind 'none', Start-Restore) ;
+        # avant : range sous 'target', ecriture avec la courbe croisee annoncee a cote du refus annonce par le cadre
+        $t = (T "Règles appliquées à la copie : aucune avec le lecteur cible {0} : sans courbe croisée standard {1} → {0}, la restauration sera refusée au lancement. Lancez « Calibrer pour un lecteur cible… », ou choisissez « (même lecteur) » dans la liste « Lecteur cible » de l'onglet Écriture.") -f "$tg", "$src"
+    } elseif ($pl.Kind -eq 'hd') {
+        $t = (T "Règles appliquées à la copie : écriture tête par tête avec la courbe haute densité existante du lecteur, sinon le profil d'origine, sans calibration ni mesure de la destination (jamais en haute densité), pré-effacement de chaque piste, vérification par gw, {0} essais par piste, sans contrôle des pistes (non applicable à la haute densité), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)"
+    } elseif ((Get-LevelBeforeWriteKind 'slow' $true $false) -eq 'complete') {
+        # 12.10 (relecture de la RC) : liste « Mesure » de l onglet Ecriture a « complete, au motif » : mesure complete de la
+        # destination (Get-LevelBeforeWriteKind, decision de Start-LevelBeforeWrite -Restore : ecriture lente), case « Mesurer
+        # la disquette » cochee ou non. Avant : « calibration rapide » annoncee dans ce cas aussi
+        $t = (T "Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (mesure complète de cette disquette, liste « Mesure » de l'onglet Écriture), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), effacement avant l'écriture, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)"
+    } else {
+        $t = (T "Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (calibration rapide), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), effacement avant l'écriture, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)"
+    }
+    if ($lblRsRules.Text -ne $t) { $lblRsRules.Text = $t }
 }
 
 function Set-RsStep([int]$i, [string]$state, [string]$detail = '') {
@@ -160,7 +319,12 @@ function Save-WriteTabState {
 function Restore-WriteTabState($s) {
     # Onglet Ecriture et lecteur remis tels qu avant la restauration (les calibrations obtenues restent enregistrees)
     if (-not $s) { return }
-    $txtWFile.Text = $s.File; Set-Combo $cmbWFmt $s.Fmt; if ($cmbWFmt.Text -ne $s.Fmt) { $cmbWFmt.Text = $s.Fmt }
+    # 12.10 (relecture de la RC) : format remis sous la garde des liaisons (gestionnaires de la liste, 520, sans effet) :
+    # Update-PrecompForImage, plus bas, recalcule avec tous les reglages remis, sans calcul du au format ; la case « Ecriture
+    # lente » et le profil, remis apres la garde, gardent leurs liaisons (un calcul chacun quand ils changent, comme en 12.9)
+    $txtWFile.Text = $s.File
+    $sv = $script:SettingSync; $script:SettingSync = $true
+    try { Set-Combo $cmbWFmt $s.Fmt; if ($cmbWFmt.Text -ne $s.Fmt) { $cmbWFmt.Text = $s.Fmt } } finally { $script:SettingSync = $sv }
     $chkWSlow.Checked = $s.Slow; $chkWPreErase.Checked = $s.Pre; $chkWEraseEmpty.Checked = $s.Empty; $chkWNoVerify.Checked = $s.NoVer
     Set-Num $numWRetries $s.Retries; $chkWPrecomp.Checked = $s.Precomp; $chkWPostCheck.Checked = $s.Post; Set-Num $numWRepair $s.Repair
     $txtWTracks.Text = $s.Tracks; $cmbWCalMode.SelectedIndex = $s.CalMode; $cmbWProfile.SelectedIndex = $s.Profile
@@ -199,6 +363,12 @@ function Start-Restore {
     if (-not $name) { $name = (T 'disquette') + ' ' + (Get-Date -Format "yyyy-MM-dd HH'h'mm") }
     # 12.8 (D10) : un seul lecteur, celui du bandeau, fige pour toute la restauration (Set-RsLock verrouille le bandeau)
     $drv = [string]$cmbDrive.Text
+    # 12.10 : lecteur cible choisi pour ce lecteur (liste « Lecteur cible » de l onglet Ecriture) : une copie secteur est
+    # ecrite avec la courbe croisee de sa famille (Start-RestoreWrite) ; refus avant la lecture de l original quand
+    # l ecriture serait refusee (Get-RestoreTargetInfo : haute densite, aucune courbe croisee standard du couple)
+    $rtg = Get-TargetDrive $drv
+    $rti = Get-RestoreTargetInfo $drv $rtg $fmt
+    if ($rti.Block) { [void](Show-AppMessage $rti.Block (T 'Restauration') 'OK' 'Warning'); return }
     $modeTxt = if ($fmt -eq 'auto') { (T 'format détecté à la lecture') } elseif ($fmt) { (T "secteur par secteur, format {0}") -f "$fmt" } else { (T 'copie exacte du flux, sans précompensation ni comparaison par secteur') }
     $swap = (T "Le lecteur {0} lit l'original, puis vous changez de disquette quand l'application vous le demande.") -f "$drv"
     $msg = ((T "Restauration ({0}).`n`n{1}`n`n1. Insérez maintenant la disquette d'ORIGINE dans le lecteur {2}, de préférence protégée en écriture.`n2. Sa lecture est enregistrée dans :`n   {3}`n3. La disquette de destination sera entièrement effacée puis écrite.`n`nCommencer la lecture ?") -f "$modeTxt", "$swap", "$drv", "$dir")
@@ -223,6 +393,8 @@ function Start-Restore {
         Stage = 'read'; Waiting = $false; Override = $false; InCall = $false; Idle = (Get-Date); Start = (Get-Date); Cur = 0
         Steps = @{}; Saved = $script:OpOverride.Saved; Read = $null; Cmp = $null; Calib = ''; HD = ''
         CalibUsed = $null; CalibDone = $false; CalSwap = $false; SwapBack = $false
+        Target = ''                                       # 12.10 : lecteur cible de l ecriture (Start-RestoreWrite)
+        Plan = ''; TgtChoice = $rtg                       # 12.10 (relecture de la RC) : decision de l ecriture (Start-RestoreWrite) et lecteur cible du lancement : ligne « Regles » du rapport
         Finger = $null; OnOriginal = $false; Preserved = @()   # flux : empreinte de l original, ecriture sur l original, cylindres preserves
         Extras = (Get-TSpecExtras $txtWTracks.Text)       # step, hswap, h0.off, h1.off : geometrie du lecteur
     }
@@ -231,6 +403,7 @@ function Start-Restore {
     if (-not (Test-Path -LiteralPath $script:TempDir)) { New-Item -ItemType Directory -Force -Path $script:TempDir | Out-Null }
     Append-Log ''
     Append-Log ((T "=== RESTAURATION : {0} ({1}) ===") -f "$name", "$modeTxt")
+    if ($rti.Applies) { Append-Log ((T "Restauration pour le lecteur cible {0} : une copie secteur sera écrite par le lecteur {1} avec la courbe croisée {1} → {0} de sa famille, sans calibration ni mesure de la destination ; le contrôle après écriture relit avec le lecteur {1}.") -f "$rtg", "$drv") }
     if ($fmt -eq 'auto') { $lblRsFmtFound.Text = (T 'Format détecté à la lecture'); $tip.SetToolTip($lblRsFmtFound, $lblRsFmtFound.Text); Start-RestoreDetect; return }
     Set-RestoreFormat $fmt
     Append-Log ((T "Original : lecteur {0} -> {1}") -f "$drv", "$($script:Restore.Orig)")
@@ -489,7 +662,11 @@ function Enter-RestoreWait([string]$extra) {
     $lblRsNow.Text = ''
     Show-Tab $tabRs
     $tabRs.ScrollControlIntoView($pnlRsWait)                 # fenetre basse : l encadre et son bouton Continuer restent visibles
-    $stOp.Text = (T 'Restauration : changez de disquette, puis cliquez sur « Continuer » dans l''onglet Restauration.')
+    # 12.10 (verification finale de la RC) : compteur de pistes et barre de progression de la lecture terminee effaces,
+    # consigne plus courte (l onglet Restauration est affiche) : a la largeur de la fenetre, le compteur la coupait ;
+    # (relecture de la RC9) icone neutre a cote de la consigne, au lieu de la coche de la lecture terminee
+    $stTrack.Text = ''; $stBar.Visible = $false; $stOp.Image = $script:StIcons.idle
+    $stOp.Text = (T 'Restauration : changez de disquette, puis cliquez sur « Continuer ».')
     Append-Log ((T "Restauration : en attente de la disquette de destination dans le lecteur {0}.") -f "$($r.Drive)")
     try { [System.Media.SystemSounds]::Exclamation.Play() } catch { }
 }
@@ -677,7 +854,8 @@ function Start-RestoreWrite {
     try {
         # Regles strictes dans l onglet Ecriture (etat d origine remis en fin de restauration)
         Set-WritePreset 'slow' $r.Orig ("restore|" + $r.Orig)
-        if ($r.Mode -eq 'sector') { Set-Combo $cmbWFmt $r.Fmt }
+        # 12.10 (relecture de la RC) : format sous la garde des liaisons, profil recalcule plus bas (Update-PrecompForImage)
+        if ($r.Mode -eq 'sector') { $sv = $script:SettingSync; $script:SettingSync = $true; try { Set-Combo $cmbWFmt $r.Fmt } finally { $script:SettingSync = $sv } }
         if ($r.Mode -eq 'flux' -and $r.OnOriginal -and $r.Read) {
             # Ecriture sur une disquette identique a l original (« Ecraser quand meme ») : cylindres non reproductibles exclus
             $keep = @(Get-RestoreKeepCyls)
@@ -717,10 +895,30 @@ function Start-RestoreWrite {
         Update-PrecompForImage $r.Orig
         $r.SwapBack = $false
         $noCalib = $false
+        # 12.10 : lecteur cible avec effet sur cette ecriture (Get-TargetWriteInfo : copie secteur MFM) : courbe croisee
+        # telle quelle, ni calibration du lecteur ni mesure de la destination (elles reliraient avec le lecteur de la
+        # restauration) ; sans courbe croisee de la famille, ou en haute densite : echec avant toute ecriture
+        $tw = Get-TargetWriteInfo $r.Orig $cmbWFmt.Text $true
+        $r.Target = if ($tw.Applies) { [string]$tw.Tgt } else { '' }
+        if ($r.Target -and $tw.Block) {
+            $r.InCall = $false; $r.Plan = 'refused'          # 12.10 (relecture de la RC) : ligne « Regles » du rapport
+            # Haute densite (reconnue a la lecture de l original : un format haute densite explicite est refuse des le
+            # lancement, Get-RestoreTargetInfo ; famille vide, profil Auto impose par Set-WritePreset) : raison propre a la
+            # restauration, sans le profil Manuel que propose celle de l onglet Ecriture et que la restauration n offre pas
+            $why = [string]$tw.Block
+            $hdT = Get-HighDensityReason $r.Orig $cmbWFmt.Text
+            if ($hdT -and -not $tw.Fam) { $why = (T "l'original lu est en haute densité ({0}), et la calibration croisée n'existe qu'en double densité (standard, long track). Choisissez « (même lecteur) » dans la liste « Lecteur cible » de l'onglet Écriture, puis relancez la restauration.") -f "$hdT" }
+            Fail-Restore 4 ((T "écriture pour le lecteur cible {0} refusée, rien n'a été écrit : {1}") -f "$($r.Target)", "$why")
+            return
+        }
         if ($r.Mode -eq 'sector') {
             $r.HD = [string](Get-HighDensityReason $r.Orig $r.Fmt)
             if ($r.HD) {
                 if ($measure) { $r.LevelNote = (T "haute densité ({0}), sans calibration rapide") -f "$($r.HD)"; Append-Log ($skipFmt -f $r.LevelNote) }
+            } elseif ($r.Target) {
+                $noCalib = $true
+                if ($measure) { $measure = $false; $r.LevelNote = (T "écriture pour le lecteur cible {0}, la mesure relirait avec le lecteur {1}") -f "$($r.Target)", "$($r.Drive)"; Append-Log ($skipFmt -f $r.LevelNote) }
+                Append-Log ((T "Restauration : écriture pour le lecteur cible {0} avec la courbe croisée, le lecteur {1} n'est pas calibré.") -f "$($r.Target)", "$($r.Drive)")
             } else {
                 if ($r.CalibDone) { $noCalib = $true }          # calibration faite sur une disquette sacrifiee, destination remise
                 else {
@@ -738,7 +936,14 @@ function Start-RestoreWrite {
                 }
             }
         }
-        Append-Log ((T "Restauration : écriture tête par tête, {0} essais par piste, contrôle de toutes les pistes ({1} passes au plus).") -f "$($script:RestoreRules.WriteRetries)", "$($script:RestoreRules.RepairPasses)")
+        # 12.10 (relecture de la RC) : decision de cette ecriture (ligne « Regles » du rapport, Write-RestoreReport ; ligne de
+        # journal ci-dessous) : copie de flux, haute densite, lecteur cible avec effet, sinon copie secteur ordinaire. Avant :
+        # ligne de la copie secteur double densite pour une copie de flux (sans verification gw, donc sans essais) ou haute
+        # densite (sans controle des pistes)
+        $r.Plan = if ($r.Mode -ne 'sector') { 'flux' } elseif ($r.HD) { 'hd' } elseif ($r.Target) { 'target' } else { 'sector' }
+        if ($r.Plan -eq 'flux') { Append-Log ((T "Restauration : copie exacte du flux écrite tête par tête, telle quelle, contrôle de toutes les pistes ({0} passes au plus).") -f "$($script:RestoreRules.RepairPasses)") }
+        elseif ($r.Plan -eq 'hd') { Append-Log ((T "Restauration : écriture tête par tête, {0} essais par piste, sans contrôle des pistes (non applicable à la haute densité).") -f "$($script:RestoreRules.WriteRetries)") }
+        else { Append-Log ((T "Restauration : écriture tête par tête, {0} essais par piste, contrôle de toutes les pistes ({1} passes au plus).") -f "$($script:RestoreRules.WriteRetries)", "$($script:RestoreRules.RepairPasses)") }
         Start-PresetWrite 'slow' -NoCalib:$noCalib -LevelOnly:($measure -and $noCalib -and $r.Mode -eq 'sector' -and -not $r.HD)
         Set-RestoreRepRules
     } finally { $r.InCall = $false; $r.Idle = Get-Date }
@@ -747,6 +952,7 @@ function Start-RestoreWrite {
     elseif ($script:GwProc -and -not $script:GwProc.HasExited) {
         if ($r.Mode -ne 'sector') { Set-RsStep 4 'skip' $(if ($r.LevelNote) { (T "niveau non mesuré : {0}") -f "$($r.LevelNote)" } else { (T 'non applicable à une copie de flux') }) }
         elseif ($r.HD) { Set-RsStep 4 'skip' ((T "non applicable : {0}") -f "$($r.HD)") }
+        elseif ($r.Target) { Set-RsStep 4 'skip' ((T "écriture pour le lecteur cible {0} : courbe croisée {1} → {0}, ni calibration ni mesure de la destination") -f "$($r.Target)", "$($r.Drive)") }
         elseif ($r.CalibUsed) {
             $d = (T "calibration existante ({0}), pas de recalibration") -f "$($r.CalibUsed.Text)"
             if ($r.CalibUsed.Notes.Count -gt 0) { $d += ' ; ' + ($r.CalibUsed.Notes -join ' ; ') }
@@ -890,7 +1096,31 @@ function Write-RestoreReport([bool]$ok, [string]$verdict) {
     if ($r.Level) { $L.Add(((T "Niveau      : {0}") -f "$($r.Level.Report)")) }
     if ($r.Preserved -and @($r.Preserved).Count -gt 0) { $L.Add(((T "Préservés   : cylindres {0}, non réécrits sur la disquette identique à l'original") -f "$(Format-CylList @($r.Preserved))")) }
     $rr = $script:RestoreRules
-    $L.Add(((T "Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (calibration rapide) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)"))
+    # 12.10 (relecture de la RC) : ligne « Regles » d apres la decision de cette restauration : celle de l ecriture
+    # (Start-RestoreWrite : $r.Plan), sinon, avant l ecriture, celle du lancement refaite avec le format connu a cet instant
+    # (Get-RestorePlan, lecteur cible du lancement : detection faite ou relance en copie de flux comprises). Copie de flux :
+    # lecture sans nouvel essai, ni precompensation, ni verification gw, ni calibration, ni mesure, ni relecture finale ;
+    # lecteur cible : courbe croisee telle quelle, relecture par le lecteur de la restauration ; refus de l ecriture pour le
+    # lecteur cible ; haute densite : ni calibration, ni mesure, ni controle des pistes. Avant : regles de la copie secteur
+    # double densite sans lecteur cible pour toute restauration
+    $pk = [string]$r.Plan
+    # 12.10 (relecture de la RC, fix1) : decision refaite avant l ecriture ($pp) : un refus n a pas eu lieu, ligne
+    # conditionnelle (« non atteinte », elle serait refusee) d apres sa nature (Ti.BlockKind) ; avant : « refusee, rien n a
+    # ete ecrit » pour une restauration arretee plus tot (lecture, changement de disquette)
+    $pp = $null
+    if (-not $pk) { $pp = Get-RestorePlan ([string]$r.Drive) ([string]$r.TgtChoice) $(if ($r.Mode -eq 'flux') { '' } elseif ($r.Mode -eq 'sector') { [string]$r.Fmt } else { 'auto' }); $pk = [string]$pp.Kind }
+    $rtg = if ($r.Target) { [string]$r.Target } else { [string]$r.TgtChoice }
+    if ($pk -eq 'flux') { $rl = (T "Règles      : lecture {0} tours ; copie exacte du flux, écrite telle quelle par gw (ni précompensation, ni vérification gw), sans calibration du lecteur ni mesure de la destination ; écriture tête par tête, effacement avant l'écriture ; contrôle de toutes les pistes, {1} passes de réécriture au plus ; pas de comparaison secteur par secteur.") -f "$($rr.ReadRevs)", "$($rr.RepairPasses)" }
+    elseif ($pk -eq 'target') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête par le lecteur {5} avec la courbe croisée {5} → {6}, telle quelle, sans calibration ni mesure de la destination, effacement avant l'écriture, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale par le lecteur {5} sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)", "$($r.Drive)", "$rtg" }
+    elseif ($pk -eq 'refused' -and $pp -and $pp.Ti.BlockKind -eq 'hd') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture pour le lecteur cible {3} non atteinte (elle serait refusée en haute densité : la calibration croisée n'existe qu'en double densité).") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$rtg" }
+    elseif ($pk -eq 'refused' -and $pp) { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture pour le lecteur cible {3} non atteinte (elle serait refusée sans courbe croisée standard {4} → {3}).") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$rtg", "$($r.Drive)" }
+    elseif ($pk -eq 'refused') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture pour le lecteur cible {3} refusée, rien n'a été écrit.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$rtg" }
+    elseif ($pk -eq 'hd') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête avec la courbe haute densité existante du lecteur, sinon le profil d'origine, sans calibration ni mesure de la destination (jamais en haute densité), pré-effacement de chaque piste, vérification gw, {3} essais par piste ; pas de contrôle des pistes (non applicable à la haute densité) ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)" }
+    # 12.10 (relecture de la RC) : copie secteur, liste « Mesure » a « complete, au motif » : mesure complete de la
+    # destination (Get-LevelBeforeWriteKind ; liste figee pendant la restauration, onglets verrouilles : Set-RsLock)
+    elseif ((Get-LevelBeforeWriteKind 'slow' $true $false) -eq 'complete') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (mesure complète de cette disquette, liste « Mesure » de l'onglet Écriture) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)" }
+    else { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (calibration rapide) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)" }
+    $L.Add($rl)
     $L.Add('')
     $L.Add((T 'Étapes :'))
     $marks = @{ pending = '[ ]'; run = '[>]'; ok = '[OK]'; fail = '[ECHEC]'; skip = '[-]'; warn = '[!]' }
@@ -1001,5 +1231,10 @@ function Close-Restore {
     }
     Set-RsLock $false
     $pnlRsWait.Visible = $false
+    # 12.10 (relecture de la RC8 et de la RC9) : restauration close sans commande gw depuis l attente de la disquette de
+    # destination (« Annuler » pendant l attente, « Arreter » y etant inactif ; « Ecraser quand meme » puis echec avant
+    # toute commande gw, par exemple fenetre « Calibration precomp » annulee) : la consigne d Enter-RestoreWait, que seule
+    # une commande gw remplace (Start-Progress), ne reste pas dans la barre d etat ; etat neutre du demarrage
+    if ($r -and ($r.Waiting -or [string]$stOp.Text -eq (T 'Restauration : changez de disquette, puis cliquez sur « Continuer ».'))) { $stOp.Text = (T 'Prêt.'); $stOp.Image = $script:StIcons.idle }
     Update-RsCalib
 }

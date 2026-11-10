@@ -18,11 +18,14 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
     # verifiee : en-tete propre, « Ecrire l image » principal) ; champ de marque cmbRevBrand (« Memoriser cette forme pour
     # la marque »), lu dans $script:CalReviewBrand a la fermeture. 12.8 (S3) : lvl2.OfferDisk, DiskMin : bouton
     # btnRevDisk, « Mesure complete de cette disquette » ('disk', W-M1) ; $cal.DiskOnly : textes de la mesure complete de
-    # cette disquette (reference du lecteur inchangee)
+    # cette disquette (reference du lecteur inchangee). 12.10 (etape 2, relecture) : calibration croisee ($cal.Cross) : texte
+    # « Conserver la courbe » propre au croise (courbe « source>cible » enregistree pour les ecritures destinees a la cible,
+    # courbe propre de la source inchangee), les autres textes sont ceux d une calibration complete ordinaire
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }   # elle dessine ces memes donnees
     if ($compare) { $script:CurveData = @($compare.Curves); $script:CurveLevel = @{}; $script:CurveZones = @($compare.Zones) }
     else {
         $script:CurveData = Get-FamilyCurves $cal.Family $cal.Slow
+        if ($cal.Cross) { $script:CurveData = Get-DriveFamilyCurves (Get-CalibStoreDrive $cal) $cal.Family $cal.Slow }   # 12.10 : courbes croisees « source>cible »
         Set-CurveLevelData $script:CurveData
         $script:CurveZones = @()
     }
@@ -41,6 +44,12 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
     $infoWin = [bool]($lvl2 -and $lvl2.Info -and $lvl -and -not $compare)
     # 12.8 (FIX1C, constat 7) : « verifiee » seulement si le niveau de chaque tete adaptee a ete verifie (Verified) ; sinon
     # la reserve « niveau de la courbe adaptee non verifie » de la meme fenetre est rappelee
+    # 12.10 (relecture de la RC) : lecteur cible choisi pour le lecteur calibre (Get-TargetDrive) : « Conserver la courbe »
+    # dit que ses ecritures appliquent la courbe croisee, et non la courbe propre (avant : « appliquee aux prochaines
+    # ecritures »)
+    # 12.10 (relecture de la RC, fix1) : famille haute densite : ecritures haute densite en profil Auto refusees pour le
+    # lecteur cible (Get-TargetWriteInfo, BlockKind 'hd'), et non « courbe croisee appliquee (refusees sans elle) »
+    $tgtR = if ($cal.Cross -or $lvl) { '' } else { [string](Get-TargetDrive ([string]$cal.Drive)) }
     $head = if ($toWrite -and $lvl -and $infoWin -and $lvl2.Verified -ne $false) { (T "Écrire l'image : l'image est écrite avec la courbe adaptée à cette disquette, vérifiée par une écriture du motif.`nArrêter : l'image n'est pas écrite ; le niveau n'est pas conservé et les profils de la référence sont rétablis.") }
             elseif ($toWrite -and $lvl -and $infoWin) { (T "Écrire l'image : l'image est écrite avec la courbe adaptée à cette disquette ; son niveau a été décalé sans nouvelle écriture du motif (voir ci-dessus).`nArrêter : l'image n'est pas écrite ; le niveau n'est pas conservé et les profils de la référence sont rétablis.") }
             elseif ($toWrite -and $lvl) { (T "Écrire l'image : l'image est écrite avec le niveau mesuré.`nArrêter : l'image n'est pas écrite ; le niveau n'est pas conservé et les profils de la référence sont rétablis.") }
@@ -48,6 +57,9 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
             elseif ($toWrite) { (T "Écrire l'image : la courbe est conservée et l'image est écrite avec elle.`nArrêter : l'image n'est pas écrite et cette calibration n'est pas conservée (la calibration précédente est rétablie).") }
             elseif ($lvl -and $noFields) { (T "Conserver le niveau : il est enregistré pour cette disquette et reste affiché dans la fenêtre Courbe ; les champs --precomp ne sont pas modifiés.`nAbandonner le niveau : il n'est pas enregistré.") }
             elseif ($lvl) { (T "Conserver le niveau : le profil décalé reste dans les champs --precomp, pour cette disquette seulement.`nAbandonner le niveau : les champs --precomp reprennent leurs valeurs d'avant la calibration rapide.") }
+            elseif ($cal.Cross) { ((T "Conserver la courbe : elle est enregistrée pour les écritures du lecteur {0} destinées au lecteur {1} (courbe croisée « {0} → {1} »), sans modifier la courbe propre du lecteur {0}.`nAbandonner la courbe : la courbe croisée précédente, s'il y en avait une, est rétablie.") -f "$($cal.Cross.Src)", "$($cal.Cross.Tgt)") }
+            elseif ($tgtR -and [string]$cal.Family -eq 'hd') { ((T "Conserver la courbe : elle est enregistrée comme courbe propre du lecteur {0}, appliquée à ses écritures haute densité sans lecteur cible ; avec le lecteur cible {1} choisi, ses écritures haute densité en profil Auto sont refusées (la calibration croisée n'existe qu'en double densité).`nAbandonner la courbe : la calibration précédente est rétablie.") -f "$($cal.Drive)", "$tgtR") }
+            elseif ($tgtR) { ((T "Conserver la courbe : elle est enregistrée comme courbe propre du lecteur {0}, appliquée à ses écritures sans lecteur cible ; avec le lecteur cible {1} choisi, ses écritures appliquent la courbe croisée {0} → {1} (refusées sans elle).`nAbandonner la courbe : la calibration précédente est rétablie.") -f "$($cal.Drive)", "$tgtR") }
             else { (T "Conserver la courbe : elle est enregistrée et appliquée aux prochaines écritures.`nAbandonner la courbe : la calibration précédente est rétablie.") }
     if ($offerFull) { $head += "`n" + (T "Calibration complète : la courbe du lecteur est mesurée de nouveau en test fin, après un avertissement ; elle devient la nouvelle référence de forme.") }
     # 12.8 (S3, W-M1) : mesure complete de cette disquette proposee par la calibration rapide avant une ecriture lente
@@ -201,16 +213,22 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
 
 function Get-CalibSnapshot([string[]]$keys) {
     # Etat des courbes et profils (retabli par Restore-CalibState) : courbes des cles donnees, niveaux, profil, champs --precomp
-    $s = @{ Std = $script:PrecompStd; Long = $script:PrecompLong; Curves = @{}; Levels = $script:LevelShifts.Clone()
+    # 12.10 : cles de magasin « lecteur|cle » (fin de calibration : lecteur de la calibration) ou cles de courbe (lecteur du
+    # bandeau) ; courbes du magasin rangees par cle de courbe, lecteur garde (Drive) pour Set-DriveCurve au retablissement
+    $s = @{ Std = $script:PrecompStd; Long = $script:PrecompLong; Curves = @{}; Drive = [string]$cmbDrive.Text; Levels = $script:LevelShifts.Clone()
             Prof = $cmbWProfile.SelectedIndex; On = $chkWPrecomp.Checked; P0 = $txtWPrecomp.Text; P1 = $txtWPrecomp1.Text; Lbl = (Get-WProfileText) }
-    foreach ($k in @($keys)) { $s.Curves[$k] = $script:PrecompCurves[$k] }
+    foreach ($k in @($keys)) { $p = Split-DriveCurveKey $k; $s.Drive = [string]$p.Drive; $s.Curves[$p.Key] = Get-DriveCurve $p.Drive $p.Key }
     return $s
 }
 
 function Restore-CalibState($prev) {
     # Retablit les courbes et profils d avant une calibration refusee par l utilisateur
-    $script:PrecompStd = $prev.Std; $script:PrecompLong = $prev.Long
-    foreach ($k in @($prev.Curves.Keys)) { $script:PrecompCurves[$k] = $prev.Curves[$k] }
+    # 12.10 : courbes retablies dans le magasin du lecteur de la copie (Drive, sinon lecteur du bandeau), vue mise a jour
+    $pd = if ($prev.Drive) { [string]$prev.Drive } else { [string]$cmbDrive.Text }
+    # Profils de famille : ceux de la vue du lecteur du bandeau ; une copie d un autre lecteur (lecteur change dans le bandeau
+    # pendant la calibration) ne les touche pas, Sync-PrecompCurves les tire de ses courbes au retour sur ce lecteur
+    if ($pd -eq [string]$cmbDrive.Text) { $script:PrecompStd = $prev.Std; $script:PrecompLong = $prev.Long }
+    foreach ($k in @($prev.Curves.Keys)) { Set-DriveCurve $pd $k $prev.Curves[$k] }
     if ($prev.Levels) { $script:LevelShifts = $prev.Levels }      # niveaux mesures avec la reference retablie
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
     # Choix du profil et champs --precomp d avant la calibration (profil Manuel compris)
@@ -504,4 +522,69 @@ function Show-CalibSurface($opt, [string]$text) {
     if ($dr -eq [System.Windows.Forms.DialogResult]::Retry) { return @{ Choice = 'change'; Swap = $swap } }
     if ($dr -eq [System.Windows.Forms.DialogResult]::OK) { return @{ Choice = 'continue'; Swap = $false } }
     return @{ Choice = 'stop'; Swap = $false }
+}
+
+function Show-CrossCalibDialog([string]$src, [string[]]$targets, [string]$family, [bool]$fine, [string]$imgInfo, [bool]$slow, [int]$minSwaps, [int]$maxSwaps) {
+    # 12.10 : fenetre de choix d une calibration croisee (bouton de l onglet Ecriture, Start-CrossCalib, 270) : lecteur cible
+    # (lecteurs du bandeau sauf la source $src), famille (standard ou long track, preselectionnee d apres l image de
+    # l onglet Ecriture), test (standard ou fin, preselectionne d apres la liste « Calibration precomp »). Bandeau au
+    # modele de frmClean (New-DlgBanner), trois listes, « Continuer » (principal) et « Annuler » (CancelButton : Echap et
+    # la croix refusent ; aucun AcceptButton). L avertissement de la calibration (usure du support, case « disquette
+    # sacrifiee dans la source » obligatoire) suit dans Start-PrecompCalib. Renvoie @{ Ok ; Target ; Family ('std' ou
+    # 'long') ; Fine }. Banc : Name frmCrossCalib, cmbCrossTarget, cmbCrossFamily, cmbCrossTest, btnCrossOk, btnCrossCancel
+    $W = 680
+    $gdi = New-Object System.Collections.Generic.List[object]
+    $dlg = New-Object System.Windows.Forms.Form
+    $dlg.Name = 'frmCrossCalib'; $dlg.Text = (T 'Calibration precomp')
+    $dlg.FormBorderStyle = 'FixedDialog'; $dlg.MaximizeBox = $false; $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false
+    $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font; $dlg.BackColor = [System.Drawing.Color]::White
+    $txt = ((T "Le lecteur {0}, choisi dans le bandeau, écrit le motif de test sur une disquette sacrifiée ; le lecteur cible relit chaque passe. À chaque demande de l'application, vous déplacez la disquette d'un lecteur à l'autre : {1} échanges au moins, {2} au plus si la courbe demande des passes supplémentaires. La courbe obtenue est enregistrée pour les écritures du lecteur {0} destinées au lecteur cible ; la courbe propre du lecteur {0} n'est pas modifiée.") -f "$src", "$minSwaps", "$maxSwaps")
+    $txt += "`n" + $imgInfo
+    $txt += "`n" + ((T "Courbes : {0} (case « Écriture lente » de l'onglet).") -f $(if ($slow) { (T 'une courbe par tête') } else { (T 'courbe commune') }))
+    $ban = New-DlgBanner $dlg 16 $W (T 'Calibration croisée : écrire avec ce lecteur pour un autre lecteur') $txt 'info' (New-DlgPicto 'drive') $gdi 'lblCrossText'
+    $y = $ban.Bottom + 14
+    $rows = @(@{ Name = 'cmbCrossTarget'; Label = (T 'Lecteur cible :'); Items = @($targets); Index = 0 },
+              @{ Name = 'cmbCrossFamily'; Label = (T 'Famille :'); Items = @((Get-CalibFamilyName 'std'), (Get-CalibFamilyName 'long')); Index = $(if ($family -eq 'long') { 1 } else { 0 }) },
+              @{ Name = 'cmbCrossTest'; Label = (T 'Test :'); Items = @((T 'Test standard : 1 cylindre sur 10'), (T 'Test fin : tous les cylindres')); Index = $(if ($fine) { 1 } else { 0 }) })
+    $lw = 0
+    foreach ($r in $rows) { $lw = [math]::Max($lw, [System.Windows.Forms.TextRenderer]::MeasureText([string]$r.Label, $dlg.Font).Width) }
+    $cmbs = @{}
+    foreach ($r in $rows) {
+        $lbl = New-Object System.Windows.Forms.Label
+        $lbl.AutoSize = $true; $lbl.UseMnemonic = $false; $lbl.Text = [string]$r.Label; $lbl.Font = $dlg.Font
+        $lbl.Location = New-Object System.Drawing.Point(16, ($y + 4))
+        $cmb = New-Object System.Windows.Forms.ComboBox
+        $cmb.Name = [string]$r.Name; $cmb.DropDownStyle = 'DropDownList'; $cmb.Width = 300
+        foreach ($it in @($r.Items)) { if ($null -ne $it) { [void]$cmb.Items.Add([string]$it) } }
+        if ($cmb.Items.Count -gt 0) { $cmb.SelectedIndex = [math]::Min([int]$r.Index, $cmb.Items.Count - 1) }
+        $cmb.Location = New-Object System.Drawing.Point((16 + $lw + 12), $y)
+        $dlg.Controls.Add($lbl); $dlg.Controls.Add($cmb)
+        $cmbs[[string]$r.Name] = $cmb
+        $y = $cmb.Bottom + 10
+    }
+    $y += 4
+    $btnOk = New-Object System.Windows.Forms.Button
+    $btnOk.Name = 'btnCrossOk'; $btnOk.Text = (T 'Continuer'); $btnOk.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth (T 'Continuer') 'Diagnostic' 170), 34)
+    $btnOk.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $btnNo = New-Object System.Windows.Forms.Button
+    $btnNo.Name = 'btnCrossCancel'; $btnNo.Text = (T 'Annuler'); $btnNo.Size = New-Object System.Drawing.Size(110, 34)
+    $btnNo.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    Set-Btn $btnOk 'Diagnostic' 'primary'; Set-Btn $btnNo '' 'normal'
+    $btnNo.Location = New-Object System.Drawing.Point((16 + $W - $btnNo.Width), $y)
+    $btnOk.Location = New-Object System.Drawing.Point(($btnNo.Left - 8 - $btnOk.Width), $y)
+    $dlg.ClientSize = New-Object System.Drawing.Size(($W + 32), ($y + $btnOk.Height + 16))
+    $dlg.CancelButton = $btnNo                        # pas d AcceptButton : Entree ne lance rien
+    $dlg.Controls.AddRange(@($btnOk, $btnNo))
+    $dlg.ActiveControl = $cmbs['cmbCrossTarget']
+    [void](Set-DlgFit $dlg ([System.Windows.Forms.Screen]::FromControl($form).WorkingArea))
+    $dlg.Add_Shown({ $this.Activate() })
+    $res = @{ Ok = $false; Target = ''; Family = 'std'; Fine = $false }
+    try {
+        $dr = $dlg.ShowDialog($form)
+        $res.Ok = ($dr -eq [System.Windows.Forms.DialogResult]::OK -and $cmbs['cmbCrossTarget'].SelectedIndex -ge 0)
+        $res.Target = [string]$cmbs['cmbCrossTarget'].Text
+        $res.Family = $(if ($cmbs['cmbCrossFamily'].SelectedIndex -eq 1) { 'long' } else { 'std' })
+        $res.Fine = ($cmbs['cmbCrossTest'].SelectedIndex -eq 1)
+    } finally { Clear-DlgGdi $dlg $gdi }
+    return $res
 }

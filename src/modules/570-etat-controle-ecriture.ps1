@@ -13,4 +13,5 @@
 # Les commandes gw d une etape sont dans une file ($script:Rep.Pending) et la chaine
 # n enfile que des appels generiques : pas de closure (cf. Start-Compare).
 $script:Rep = $null
+$script:CheckTabReturn = $null   # 12.10 (lot 1, E11) : onglet affiche avant la relecture du controle (Enter-CheckTab)
 

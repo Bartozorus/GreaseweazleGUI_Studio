@@ -23,6 +23,16 @@
 $script:Cal = $null
 $script:CalRedo = $null   # calibration B (« Refaire sur une autre disquette ») : courbe A en memoire ; Stage 'confirm', 'running' ou 'interrupted'
 $script:CalCoarse    = @(0, 30, 100)   # passes de mesure : trois niveaux, repartis par cylindre (12.9, correction 2)
+# 12.10 : niveaux proportionnes a la famille (Get-CalLevels) : en long track (cellule 1,89 us) le besoin vaut 1,4 a 1,7 fois
+# celui du standard (TEAC du 02/11/2026 : 105 a 439 ns) et tous les cylindres depassaient 100 ns : plus aucun zero interpole,
+# decalage commun de l ecriture non evaluable, toute la courbe extrapolee ou encadree. Facteur sur CalCoarse : 0/60/200 ns
+$script:CalLevelKLong = 2.0
+# 12.10 : correction de l asymetrie de l onglet Qualite par la reference du motif (Set-TrackAsymRef, 190). Desactivee par
+# defaut : le 02/11/2026 au soir, la meme image ecrite au facteur mesure sur la disquette (0,7) a donne des ecarts 3T/4T
+# bruts nuls et une asymetrie « corrigee » plus forte (0,04 a 0,11) : la reference du motif (zero de la calibration) et
+# la mesure sur l image ne s accordent pas en long track ; a instruire au banc et sur materiel avant d activer. Le releve
+# (AsymCyl, AsymD3, AsymD4) reste enregistre avec chaque courbe
+$script:QualAsymRefOn = $false
 # 12.9 (correction 3) : 0, 30 et 100 ns au lieu de 0, 100 et 200 : la corde qui donne le zero des besoins courants (5 a
 # 85 ns au lecteur A) est courte et proche du zero (biais de courbure +0,91 -> +0,19 ns, v129\cal2\donnees) ; un besoin
 # au-dela de 100 ns est encadre (CalBracketMargin, CalBracketStep et CalMaxNs inchanges).
@@ -138,6 +148,18 @@ $script:CalVOffMaxNs  = 8.0
 # et celle des autres cylindres verifies, et entre les deux moities de la piste parmi les retenus : au-dela, le decalage
 # n est pas commun a toute l ecriture (erreur regionale de la courbe) et n est pas retire (Get-VerifyOffset, 'regional')
 $script:CalVOffHomNs  = 2.5
+# 12.10 : erreur de modele aux forts besoins (Get-VerifySlope, Invoke-CalibAnalysis ; calibration TEAC du 01/11/2026 et
+# essai 5 du 02/11/2026 : -0,045 ns/ns de 100 a 215 ns ecrits, 3 ns de surcompensation aux cylindres interieurs, dans
+# la tolerance cylindre par cylindre). CalSlopeOn : par bareme (double densite seulement, CalScaleDd) ; CalSlopeMinCyl :
+# cylindres verifies ecrits au-dela du niveau mesure, au moins ; CalSlopeMinNsNs : pente minimale (ns de residu par ns
+# ecrit) ; CalSlopeSigK : erreurs-types de la pente exigees ; CalSlopeMinNs : residu de la droite au-dela duquel un
+# cylindre est corrige a son zero mesure meme dans la tolerance (moitie de CalResidual)
+$script:CalSlopeOn      = $true
+$script:CalSlopeMinCyl  = 10
+$script:CalSlopeMinNsNs = 0.02
+$script:CalSlopeSigK    = 2.5   # banc 1210-a (N1) : a 2, une reponse lineaire bruitee passait ~5 % du temps (2,0 a 2,4) ; banc 1210-b : a 3, le
+                                 # scenario C5 (besoin 245 + 2,5 c, extrapole au-dela de 300 ns) perdait sa correction (2,7) ; cas reels TEAC 3,8 a 7
+$script:CalSlopeMinNs   = 2.0
 # Prechauffage du lecteur avant une calibration complete (Start-CalibWarmup ; 12.8, D6 : case « Prechauffer le lecteur
 # avant la calibration complete », write.calibWarmup, onglet Ecriture et carte « Calibrer le lecteur »), avant une
 # ecriture lente (Start-WriteWarmup, case « Prechauffer le lecteur avant l ecriture lente », write.slowWarmup) et avant la
@@ -160,7 +182,13 @@ $script:WarmSkipShown = $false   # bouton « Passer le prechauffage » affiche (
 $script:DriveActivity = @{}      # 'peripherique|lecteur' -> @{ Start; End } : derniere serie d activite continue du lecteur
                                  # (commandes qui ont fait tourner le moteur : code 0, ou au moins une piste lue ou ecrite)
 $script:CalConfirm = $null
-$script:PrecompCurves = @{ std = $null; long = $null; std_h0 = $null; std_h1 = $null; long_h0 = $null; long_h1 = $null; hd = $null; hd_h0 = $null; hd_h1 = $null }   # derniere courbe calibree par famille d image (et par tete : ecriture lente)
+# 12.10 : courbes par lecteur. Magasin DriveCurves : « lecteur|cle » -> courbe (cle : std, long, hd, std_h0... ; champs Drive =
+# lecteur qui ecrit, Target = lecteur qui relit, vide pour une courbe ordinaire), ecrit par Set-DriveCurve seulement, lu par
+# Get-DriveCurve (240), enregistre en bloc write.driveCurves (120). PrecompCurves reste la vue du lecteur courant (bandeau),
+# reconstruite par Sync-PrecompCurves au chargement, au changement de lecteur et apres chaque ecriture dans le magasin :
+# tout le code qui lit PrecompCurves lit les courbes du lecteur courant, sans changement
+$script:DriveCurves = @{}
+$script:PrecompCurves = @{ std = $null; long = $null; std_h0 = $null; std_h1 = $null; long_h0 = $null; long_h1 = $null; hd = $null; hd_h0 = $null; hd_h1 = $null }   # vue du lecteur courant : derniere courbe calibree par famille d image (et par tete : ecriture lente)
 # 12.7 : cles de la haute densite (hd) apres les six cles double densite, dans le meme ordre qu avant
 $script:CurveKeys = @('std', 'long', 'std_h0', 'std_h1', 'long_h0', 'long_h1', 'hd', 'hd_h0', 'hd_h1')
 # Calibration rapide (niveau par disquette) : la forme vient d une calibration complete (reference), seul le niveau est
@@ -233,6 +261,13 @@ $script:ConfigRefBackupKeep = 10
 # 12.8 (lot 1c, point 3) : repli « Calibration complete » demande par Start-LevelFallback (@{ Swap }) : confirmation sans
 # compte a rebours, case « disquette sacrifiee » obligatoire ; lu et remis a $null au debut de Start-PrecompCalib
 $script:CalFallbackAsk = $null
+# 12.10 : calibration croisee demandee par Start-CrossCalib (@{ Src ; Tgt } : le lecteur qui ecrit, celui qui relit) : lue
+# et remise a $null au debut de Start-PrecompCalib (signature inchangee : enveloppes de make-test), comme CalFallbackAsk
+$script:CalCrossAsk = $null
+# 12.10 : lecteur cible des ecritures, par lecteur source (liste « Lecteur cible » de l onglet Ecriture, 520 ; Get-TargetDrive,
+# Set-TargetDrive, 140) : « source » -> « cible » ; relu par Load-Config (write.targetDrive, Import-TargetDrives), garde par
+# Set-Defaults et « Effacer les calibrations » (les courbes croisees, elles, sont effacees)
+$script:TargetDrives = @{}
 # 12.8 (S3, decision du 21/10/2026) : mesure complete de cette disquette demandee par Start-DiskMeasure (@{ Brand ; HardNs ;
 # Ref }) : lue et remise a $null au debut de Start-PrecompCalib (signature inchangee : enveloppes de make-test) ;
 # calibration rapide relancee sans marque apres la garde de la passe 1 (W-M2) : lu et remis a $false par Start-LevelCalib
@@ -269,4 +304,8 @@ $script:WProfileHd = $false           # champs --precomp remplis par la branche 
 $script:LevelFieldsPending = $false   # ecriture apres une calibration rapide (Bibliotheque) : champs remis a la reference a sa fin
 $script:CurveData = $null; $script:CurveForm = $null; $script:CurveFamily = 'std'
 $script:CurveZones = @()   # 12.7 : zones de desaccord entre les calibrations A et B (fenetre de comparaison, Draw-PrecompCurve)
+# 12.10 (lot 1, A1-tendance) : tendance lissee de la fenetre Courbe (affichage seul, hors du calcul de calibration) : marche
+# franche d au moins 6 ns (haute densite : x CalHdK), courbe dessinee a partir de 20 cylindres mesures
+$script:CurveTrendStepNs = 6.0
+$script:CurveTrendMinCyls = 20
 $script:UiReady = $false                                 # vrai une fois la fenetre principale affichee

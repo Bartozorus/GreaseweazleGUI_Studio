@@ -21,7 +21,9 @@ function Show-HomeCurve {
 # une image de geometrie (HFE du generateur du motif, New-CalibGeometry) tient lieu d image pour Test-CalibImage,
 # Get-LevelRef et New-CalibPattern, qui en tirent famille, cylindres et densite comme d une image de l onglet Ecriture.
 
-function Get-FormatCalibInfo([string]$name) {
+function Get-FormatCalibInfo([string]$name, [bool]$manual = $false) {
+    # 12.10 (lot 1, revue2, R-6) : manual : profil Manuel avec --precomp coche dans l onglet Ecriture (Test-ManualPrecomp,
+    # passe par Test-CalibImage ; parametre et non lecture des controles : fonction de niveau logique, sans interface)
     # Calibration d un format gw (table GwFormats). Cal = 'std' ou 'hd' (12.7 : haute densite MFM, 1 us par cellule a
     # 300 tr/min) avec Bits (cellules par piste du motif, celles que Get-PatternBits retient pour une image de ce format :
     # ADF 101 344, ADF HD 202 688, autres haute densite 200 000, autres 100 000), Rpm, NCyl (35 au moins) et Notes ;
@@ -44,13 +46,22 @@ function Get-FormatCalibInfo([string]$name) {
     elseif ($e.Enc -eq 'fm') { $grp = 'fm' }
     elseif ($hd) { $grp = 'hd' }
     elseif ($e.Enc -eq 'mfm' -and $name -match '^(ibm|atarist)\.') { $grp = 'pc_dd' }
+    # 12.10 (lot 1, B1, decision B-D15) : GCR Macintosh distinct du GCR Commodore ou Apple II ; raisons FM, GCR et codage
+    # propre completees par la consequence a l ecriture (Start-ImageWrite ne transmet pas --precomp, Get-ImageEncoding)
+    # 12.10 (lot 1, revue2, R-6) : consequence a l ecriture omise si manual est vrai (champ du profil Manuel transmis tel
+    # quel, comme Write-NonMfmSkip) ; carte de l Accueil et Bibliotheque (profil Auto) : texte complet. R-5 : secteurs durs
+    # northstar.fm.* ecrits en FM (Get-ImageEncoding), sans precompensation comme les autres raisons FM ; micropolis.* et
+    # northstar.mfm.* en MFM, --precomp transmis
+    $np = if ($manual) { '' } else { (T " ; l'image est écrite sans précompensation") }
     if ($e.Enc -eq 'scan') { $r.Why = (T "format de balayage : gw n'écrit pas une image secteur avec ibm.scan, densité inconnue à l'avance") }
-    elseif ($gcr) { $r.Why = (T 'codage GCR : la calibration ne mesure que le codage MFM') }
-    elseif ($e.Enc -eq 'fm') { $r.Why = (T 'codage FM (simple densité) : la calibration ne mesure que le codage MFM') }
-    elseif (@('m2fm', 'dg') -contains $e.Enc) { $r.Why = (T 'codage propre au système (M2FM, Data General) : la calibration ne mesure que le codage MFM') }
+    elseif ($gcr -and $e.Enc -eq 'mac') { $r.Why = (T 'codage GCR Macintosh à zones de vitesse : la calibration ne mesure que le codage MFM') + $np }
+    elseif ($gcr) { $r.Why = (T 'codage GCR Commodore ou Apple II (lecteur 5,25 pouces) : la calibration ne mesure que le codage MFM') + $np }
+    elseif ($e.Enc -eq 'fm') { $r.Why = (T 'codage FM : la calibration ne mesure que le codage MFM, et la précompensation de gw n''agit pas de la même façon en FM') + $np }
+    elseif (@('m2fm', 'dg') -contains $e.Enc) { $r.Why = (T 'codage propre au système (M2FM, Data General) : la calibration ne mesure que le codage MFM') + $np }
+    elseif ($e.Enc -eq 'hard' -and $name -match '^northstar\.fm\.') { $r.Why = (T 'disquette à secteurs durs en codage FM : calibration non prise en charge') + $np }
     elseif ($e.Enc -eq 'hard') { $r.Why = (T 'disquette à secteurs durs : calibration non prise en charge') }
     elseif ($ed) { $r.Why = (T "très haute densité (ED) : cellule de 500 ns, trop courte pour l'analyse de la calibration (900 à 1 100 ns en haute densité)") }
-    elseif ($hd -and [int]$e.Rpm -eq 360) { $r.Why = (T 'disquette 5,25 pouces haute densité à 360 tr/min : calibration pas encore validée sur un lecteur réel') }
+    elseif ($hd -and [int]$e.Rpm -eq 360) { $r.Why = (T 'disquette 5,25 pouces haute densité à 360 tr/min : calibration pas encore validée sur un lecteur réel (lecteur 5,25 pouces haute densité nécessaire)') }
     elseif ($hd -and [int]$e.Rpm -ne 300) { $r.Why = ((T "format haute densité à {0} tr/min : la calibration haute densité suppose un lecteur à 300 tr/min") -f "$($e.Rpm)") }
     elseif ($hd) {
         $r.Cal = 'hd'
@@ -80,7 +91,9 @@ function Get-FormatCalibInfo([string]$name) {
 }
 
 function Get-HomeCalibInfo([string]$name) {
-    # Type de disquette de la carte : format gw (Get-FormatCalibInfo) ou type d image de l application sans format gw
+    # Type de disquette de la carte : format gw (Get-FormatCalibInfo) ou type d image de l application sans format gw.
+    # 12.10 (relecture de la RC) : raisons d apres l ecriture (Start-ImageWrite, Test-RawFluxWrite, Get-ImageEncoding) : flux
+    # decode avec la precompensation quand un format est choisi, IMD et D88 en FM ecrits sans precompensation
     $r = @{ Name = $name; Label = ''; Group = 'long'; Cal = $null; Why = ''; Notes = @(); NCyl = 0; Heads = 0; Bits = 0; BitsSrc = ''; Rate = 0 }
     switch ($name) {
         'app.long' {
@@ -90,10 +103,10 @@ function Get-HomeCalibInfo([string]$name) {
             $r.Notes = @((T "Pistes longues d'une protection contre la copie : la cellule réelle et le nombre de cylindres (jusqu'à 84) se lisent dans l'image ; « Calibrer » dans l'onglet Écriture, avec l'image, les reprend exactement."))
             return $r
         }
-        'app.flux' { $r.Label = (T 'Flux : SCP, RAW, KF, A2R, CTR'); $r.Why = (T "flux écrit tel quel, sans précompensation (gw ne l'applique qu'aux images à secteurs ou à bits) : pas de calibration"); return $r }
+        'app.flux' { $r.Label = (T 'Flux : SCP, RAW, KF, A2R, CTR'); $r.Why = (T "flux écrit tel quel sans format choisi (gw ne lui applique pas la précompensation) ; avec un format choisi, gw le décode et l'écrit avec la précompensation de sa famille ; pas de calibration sur un flux"); return $r }
         'app.free' {
             $r.Label = (T 'Géométrie libre : IMD, TD0, D88, MSA, DSK CPC'); $r.Group = 'other'
-            $r.Why = ((T "densité non établie par l'application : l'écriture ne calibre pas, elle applique la courbe {0} ; pour la calibrer, choisissez le format gw de la disquette (atarist.720 pour un MSA de 720 Ko, par exemple)") -f (Get-CalibFamilyName 'std'))
+            $r.Why = ((T "densité non établie par l'application : l'écriture ne calibre pas, elle applique la courbe {0} (MFM), ou aucune précompensation pour un IMD ou un D88 en FM (codage lu dans l'en-tête) ; pour la calibrer, choisissez le format gw de la disquette (atarist.720 pour un MSA de 720 Ko, par exemple)") -f (Get-CalibFamilyName 'std'))
             return $r
         }
     }
@@ -198,6 +211,16 @@ function Update-HomeCalibCard {
     $d.Text = $lblWCal.Text; $d.ForeColor = $script:Theme.Muted
 }
 
+function Update-HomeCalDescTip {
+    # 12.10 (relecture de la RC) : texte complet de la description de la carte « Calibrer le lecteur » (306 x 44, deux
+    # lignes, points de suspension : 540) en infobulle quand il depasse ses deux lignes (bilan d une calibration avec un
+    # avertissement, recopie de l onglet Ecriture), aucune infobulle sinon ; appelee au changement de texte (540). Hauteur
+    # mesuree a la largeur du libelle, sans borne, comme Update-WProfileTip (140)
+    $d = $cardCalib.Controls[3]
+    $h = $d.GetPreferredSize((New-Object System.Drawing.Size($d.Width, 0))).Height
+    $tip.SetToolTip($d, $(if ($h -gt $d.Height) { [string]$d.Text } else { '' }))
+}
+
 # ============================== ACCUEIL : PROGRESSION ==========================
 # Zone de l Accueil a la place du titre et du sous-titre (12.7) : toute calibration en cours ($script:Cal, rapide et
 # prechauffage compris, quel que soit le point de depart) et tout prechauffage d une ecriture lente ($script:WriteWarm) ;
@@ -246,6 +269,8 @@ function Get-HomeProgTitle($cal, $ww) {
         if ($cal.Mode -eq 'content') { return ((T 'Mesure de la disquette en cours : lecteur {0}, {1}') -f "$($cal.Drive)", "$([System.IO.Path]::GetFileName([string]$cal.Image)), $what") }
         if ($cal.Mode -eq 'level') { return ((T 'Calibration rapide en cours : lecteur {0}, {1}') -f "$($cal.Drive)", "$what, $kt") }
         $tt = if ($cal.Mode -eq 'fine') { (T 'test fin') } else { (T 'test standard') }
+        # 12.10 : calibration croisee : les deux lecteurs
+        if ($cal.Cross) { return ((T 'Calibration croisée en cours : écriture par le lecteur {0}, relecture par le lecteur {1}, {2}, {3}') -f "$($cal.Cross.Src)", "$($cal.Cross.Tgt)", "$what", "$tt, $kt") }
         return ((T 'Calibration en cours : lecteur {0}, {1}, {2}') -f "$($cal.Drive)", "$what", "$tt, $kt")
     }
     return ((T "Préchauffage avant l'écriture lente : lecteur {0}") -f "$($ww.Drive)")
@@ -410,8 +435,8 @@ function Update-HomeCalibDialog {
             # Courbe remplacee : tete 0 par tete, sinon la courbe commune (cle calculee directement : affecter le resultat
             # d un if deroulerait un tableau d un seul element en chaine, et $keys[0] serait son premier caractere)
             $cv = $script:PrecompCurves[$(if ($heads) { "${fam}_h0" } else { $fam })]
+            # 12.10 : courbes par lecteur : la courbe en place est celle du lecteur du bandeau, plus d avertissement d un autre lecteur
             $w = @()
-            if ($cv -and [string]$cv.Drive -ne $cmbDrive.Text) { $w += ((T "La courbe actuelle vient du lecteur {0} : elle sera remplacée, et la nouvelle s'appliquera à tous les lecteurs (une courbe par famille).") -f "$($cv.Drive)") }
             if ($cv -and [math]::Abs(@($cv.Values).Count - $n) -gt 4) { $w += ((T "La courbe actuelle couvre {0} cylindres : elle sera remplacée par une courbe de {1} cylindres, appliquée à toutes les images de la famille {2}.") -f "$(@($cv.Values).Count)", "$n", (Get-CalibFamilyName $fam)) }
             $s.Warn.Text = ($w -join "`r`n")
         }

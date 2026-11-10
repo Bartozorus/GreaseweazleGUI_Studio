@@ -5,13 +5,15 @@
 # (A.2) ; donnees minimales et facteur k* de chaque tete (effets fixes passe + cylindre, quadratique en k, comme
 # revue_sony.Jeu et motif_analyse.py) ; facteur applique a un profil --precomp (A.10, C.3) ; k du lecteur, mediane des
 # 3 derniers k* mesures du lecteur, de la famille et de la tete (decision de l utilisateur du 25/10/2026, au lieu du
-# dernier de la spec) ; correction « lecteur cible » Dk (C.4) ; conversions de la configuration (C.5) ; arret « Failed to
-# verify Track » de gw (A.7). Constantes en parametres, defauts de 565 (B.4). References executables :
-# v1281\verif_spec1281.py (plan, ajustement) et v1281\verif_scaled.py (profils mis a l echelle).
+# dernier de la spec) ; conversions de la configuration (C.5) ; arret « Failed to verify Track » de gw (A.7).
+# Constantes en parametres, defauts de 565 (B.4). References executables : v1281\verif_spec1281.py (plan, ajustement)
+# et v1281\verif_scaled.py (profils mis a l echelle).
 # 12.9 (critique de la phase A, § 3.2) : ajustement « K-ns » (courbure commune en ns, sommet k = besoin / courbe, borne a
 # [0 ; 2]) pondere par Huber, optimums par zone de 5 cylindres (idee de l utilisateur), etats de la tete, 4e passe
 # adaptative (niveaux 1,6 et 1), memoire par marque (etat 'mesure' seulement, jamais d emprunt), plafonds 5 / 80 / 20,
 # relectures gardees (D6). Reference executable : v129\calib\modeles\modele_mesure.py.
+# 12.10 : la correction « lecteur cible » Dk (C.4 : valeur par tete et par lecteur, bloc targetCorrection de la
+# configuration) est retiree ; une ecriture pour un autre lecteur applique la courbe croisee (140, 220).
 
 function Get-ContentBlocks([int]$nCyl, [int]$nBlocks = 8, [int]$len = 5, [int]$maxCyl = 80, [int]$minBlocks = 4) {
     # Blocs de len cylindres mesures (A.3) : B = floor(min(nCyl, maxCyl) / len) ; B >= nBlocks : blocs
@@ -506,7 +508,7 @@ function Solve-ContentLinear([double[][]]$a, [double[]]$b) {
 }
 
 function Limit-WriteFactor([double]$f, [double]$fMax = 0) {
-    # Facteur d une ecriture (k + Dk) ramene a [0 ; fMax] ; fMax absent ou nul : ContentFMax (plafond unique, 040) ; NaN :
+    # Facteur d une ecriture (k) ramene a [0 ; fMax] ; fMax absent ou nul : ContentFMax (plafond unique, 040) ; NaN :
     # 1 (courbe telle quelle). Clamped : valeur changee
     if (-not ($fMax -gt 0)) { $fMax = [double]$script:ContentFMax }
     if ([double]::IsNaN($f)) { return @{ F = 1.0; Clamped = $true } }
@@ -628,48 +630,6 @@ function Add-ContentMeasure($rec) {
     $script:ContentMeasures = @($ix | Where-Object { $ki.ContainsKey([int]$_.I) } | ForEach-Object { $_.R })
 }
 
-function Get-DriveDk([string]$drive, [int]$h) {
-    # Correction « lecteur cible » Dk d une tete du lecteur (C.4) : 0 par defaut (lecteur ou tete inconnus)
-    if ($h -lt 0 -or $h -gt 1 -or -not $drive -or $null -eq $script:TargetCorr -or -not $script:TargetCorr.ContainsKey($drive)) { return 0.0 }
-    $v = if ($h -eq 0) { $script:TargetCorr[$drive].Dk0 } else { $script:TargetCorr[$drive].Dk1 }
-    if ($null -eq $v) { return 0.0 }
-    return [double]$v
-}
-
-function Set-DriveDk([string]$drive, [int]$h, [double]$v) {
-    # Regle Dk d une tete du lecteur : bornee a [-TargetCorrMax ; TargetCorrMax] (borne unique, 040), arrondie a 0,01
-    # (NaN : 0) ; rend l ancienne valeur. Date de la correction mise a jour quand la valeur change
-    $old = Get-DriveDk $drive $h
-    if (-not $drive -or $h -lt 0 -or $h -gt 1) { return $old }
-    if ([double]::IsNaN($v)) { $v = 0.0 }
-    $m = [double]$script:TargetCorrMax
-    $v = [math]::Round([math]::Min($m, [math]::Max(-$m, $v)), 2)
-    if ($v -eq 0) { $v = 0.0 }                                          # -0 ecrit 0
-    if ($null -eq $script:TargetCorr) { $script:TargetCorr = @{} }
-    if (-not $script:TargetCorr.ContainsKey($drive)) { $script:TargetCorr[$drive] = @{ Dk0 = 0.0; Dk1 = 0.0; Date = ''; Note = ''; ContentCalc = '' } }
-    $e = $script:TargetCorr[$drive]
-    if ($h -eq 0) { $e.Dk0 = $v } else { $e.Dk1 = $v }
-    # 12.9 : calcul de mesure sur l image avec lequel la correction a ete reglee (Update-TargetCorrCalc)
-    if ($v -ne $old) { $e.Date = Get-Date -Format 'dd/MM/yyyy HH:mm'; $e.ContentCalc = [string]$script:ContentCalc }
-    return $old
-}
-
-function Update-TargetCorrCalc {
-    # 12.9 (code-et-calibration § 2.8) : lecteurs dont la correction « lecteur cible » non nulle a ete reglee avec un autre
-    # calcul de mesure sur l image (ContentCalc de l entree different, absent avant la 12.9), tries ; leur ContentCalc
-    # passe au calcul actuel, pour que la ligne de Load-Config ne soit ecrite qu une fois (enregistree au Save-Config
-    # suivant). Valeurs Dk inchangees. Rendu dans le pipeline, un lecteur par element (l appelant l enveloppe dans @())
-    $drv = @()
-    if ($null -eq $script:TargetCorr) { return }
-    foreach ($d in @($script:TargetCorr.Keys | Sort-Object)) {
-        $e = $script:TargetCorr[$d]
-        if ($null -eq $e -or [string]$e.ContentCalc -eq [string]$script:ContentCalc) { continue }
-        if ((Get-DriveDk ([string]$d) 0) -eq 0 -and (Get-DriveDk ([string]$d) 1) -eq 0) { continue }
-        $drv += [string]$d; $e.ContentCalc = [string]$script:ContentCalc
-    }
-    return $drv
-}
-
 function ConvertTo-FiniteOrNull($x) {
     # Nombre fini (double), sinon $null (absent, texte illisible, NaN, infini : le JSON n admet ni NaN ni l infini)
     if ($null -eq $x -or $x -is [bool]) { return $null }
@@ -707,7 +667,7 @@ function ConvertTo-ContentConfig($rec) {
                        b2 = (ConvertTo-FiniteOrNull $rec.B2); gain = (ConvertTo-FiniteOrNull $rec.Gain); s = (ConvertTo-FiniteOrNull $rec.S)
                        nCyl = [int]$rec.NCyl; nObs = [int]$rec.NObs; nExcl = [int]$rec.NExcl
                        levels = @($rec.Levels | Where-Object { $null -ne $_ } | ForEach-Object { [double]$_ })
-                       dk = (ConvertTo-FiniteOrNull $rec.Dk); f = (ConvertTo-FiniteOrNull $rec.F)
+                       f = (ConvertTo-FiniteOrNull $rec.F)   # 12.10 : plus de champ dk (correction Dk retiree)
                        values = @(Get-RecValues $rec | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ }); spec = [string]$rec.Spec
                        refKey = [string]$rec.RefKey; refDate = [string]$rec.RefDate; calc = [string]$rec.Calc; contentCalc = [string]$rec.ContentCalc
                        version = [string]$rec.Version
@@ -720,9 +680,9 @@ function ConvertTo-ContentConfig($rec) {
 function ConvertFrom-ContentConfig($o) {
     # Entree de write.driveFactors -> enregistrement de mesure (C.2) ; $null (ignoree par Load-Config, ligne T-C14) sans
     # drive ou family, avec head autre que 0 ou 1, ou avec k non fini ou hors de [0 ; 1]. KVertex : $null sans sommet ;
-    # autres nombres absents : NaN (Dk : 0, F : k). 12.9 : k de 0 a ContentKMax (2) pour les etats 'mesure', 'haute',
-    # 'basse' et les enregistrements sans etat (avant la 12.9) ; autre etat (marge plate, peu determine) : k absent admis
-    # (NaN). Marque absente : '' (« non precisee ») ; Zones : @{ Z ; K }
+    # autres nombres absents : NaN (F : k ; 12.10 : le champ dk n est plus lu). 12.9 : k de 0 a ContentKMax (2) pour les
+    # etats 'mesure', 'haute', 'basse' et les enregistrements sans etat (avant la 12.9) ; autre etat (marge plate, peu
+    # determine) : k absent admis (NaN). Marque absente : '' (« non precisee ») ; Zones : @{ Z ; K }
     if ($null -eq $o) { return $null }
     try {
         $k = ConvertTo-FiniteOrNull $o.k; $hd = ConvertTo-FiniteOrNull $o.head
@@ -736,7 +696,7 @@ function ConvertFrom-ContentConfig($o) {
                   Date = [string]$o.date; Image = [string]$o.image; K = $kd; KVertex = (ConvertTo-FiniteOrNull $o.kVertex); Bound = [string]$o.bound
                   Flat = ($o.flat -eq $true); SeK = (Get-ConfigDouble $o.seK $nan); B1 = (Get-ConfigDouble $o.b1 $nan); B2 = (Get-ConfigDouble $o.b2 $nan)
                   Gain = (Get-ConfigDouble $o.gain $nan); S = (Get-ConfigDouble $o.s $nan); NCyl = [int]$o.nCyl; NObs = [int]$o.nObs; NExcl = [int]$o.nExcl
-                  Levels = [double[]]@($o.levels | Where-Object { $null -ne $_ } | ForEach-Object { [double]$_ }); Dk = (Get-ConfigDouble $o.dk 0.0)
+                  Levels = [double[]]@($o.levels | Where-Object { $null -ne $_ } | ForEach-Object { [double]$_ })
                   F = (Get-ConfigDouble $o.f $kd); Values = [int[]]@(Get-RecValues $o | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ })
                   Spec = [string]$o.spec; RefKey = [string]$o.refKey; RefDate = [string]$o.refDate; Calc = [string]$o.calc
                   ContentCalc = [string]$o.contentCalc; Version = [string]$o.version
@@ -744,39 +704,6 @@ function ConvertFrom-ContentConfig($o) {
                   Chi2Ddl = (Get-ConfigDouble $o.chi2Ddl $nan); NPass = [int]$o.nPass
                   Zones = @(@($o.zones) | Where-Object { $null -ne $_ } | ForEach-Object { @{ Z = [int]$_.z; K = (Get-ConfigDouble $_.k $nan) } }) }
     } catch { return $null }
-}
-
-function ConvertTo-TargetCorrConfig {
-    # Dk de chaque lecteur -> write.targetCorrection (C.5), trie par lecteur ; l appelant l enveloppe dans @(), comme
-    # levelBrands (une seule entree serait sinon rendue seule)
-    if ($null -eq $script:TargetCorr) { return @() }
-    return @(@($script:TargetCorr.Keys | Sort-Object) | ForEach-Object {
-        [ordered]@{ drive = [string]$_; dk0 = (Get-DriveDk ([string]$_) 0); dk1 = (Get-DriveDk ([string]$_) 1); date = [string]$script:TargetCorr[$_].Date; note = [string]$script:TargetCorr[$_].Note
-                    contentCalc = [string]$script:TargetCorr[$_].ContentCalc }
-    })
-}
-
-function ConvertFrom-TargetCorrConfig($arr) {
-    # write.targetCorrection -> @{ Map (lecteur -> @{ Dk0 ; Dk1 ; Date ; Note }) ; Bad (entrees illisibles : sans lecteur,
-    # ou avec une valeur qui n est pas un nombre, comptee 0) } ; valeur hors bornes ramenee a [-TargetCorrMax ;
-    # TargetCorrMax] (borne unique, 040), arrondie a 0,01
-    $map = @{}; $bad = 0; $m = [double]$script:TargetCorrMax
-    foreach ($o in $arr) {
-        if ($null -eq $o) { continue }
-        $d = ([string]$o.drive).Trim()
-        if (-not $d) { $bad++; continue }
-        $ok = $true; $e = @{ Dk0 = 0.0; Dk1 = 0.0; Date = [string]$o.date; Note = [string]$o.note; ContentCalc = [string]$o.contentCalc }
-        foreach ($pr in @(@('Dk0', $o.dk0), @('Dk1', $o.dk1))) {
-            if ($null -eq $pr[1]) { continue }
-            $v = ConvertTo-FiniteOrNull $pr[1]
-            if ($null -eq $v) { $ok = $false; continue }
-            $v = [math]::Round([math]::Min($m, [math]::Max(-$m, $v)), 2); if ($v -eq 0) { $v = 0.0 }
-            $e[$pr[0]] = $v
-        }
-        if (-not $ok) { $bad++ }
-        $map[$d] = $e
-    }
-    return @{ Map = $map; Bad = $bad }
 }
 
 function Get-ContentBrandItems([string]$drive, [string]$fam) {

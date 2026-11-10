@@ -288,7 +288,6 @@ $btnAlRef.Add_Click({
     $lblAlRef.Text = ((T "Référence : {0} ({1} piste(s))") -f "$($script:AlignRefLabel)", "$($script:AlignRef.Count)")
     Append-Log ((T "Mesure : référence fixée ({0}).") -f "$($script:AlignRefLabel)")
     [void](Save-Config)
-    Render-AlignBars
 })
 
 $btnAlReset = New-Object System.Windows.Forms.Button
@@ -299,7 +298,7 @@ $btnAlReset.Add_Click({
     $script:AlPos = $null; $script:AlLastMove = 0; $script:AlPosScores = @{}; $script:AlignRefLabel = ''
     $lblAlRef.Text = (T 'Aucune référence')
     $lblAlPos.Text = ''; $lblAlReco.Text = ''
-    $lvAl.Items.Clear(); $pnlAlBars.Invalidate()
+    $lvAl.Items.Clear()
     Reset-QualityView                                     # 12.8 (lot 3a) : carte vide, plus aucun resultat
 })
 
@@ -314,6 +313,23 @@ $chkAlGuide.Add_CheckedChanged({
 
 $lblAlRef = New-Object System.Windows.Forms.Label
 $lblAlRef.Location = '10,78'; $lblAlRef.AutoSize = $true; $lblAlRef.Text = (T 'Aucune référence'); $lblAlRef.ForeColor = 'Gray'
+
+# 12.10 : export du tableau des pistes (Export-AlignTable, 190) : bouton de 26 px a droite de la ligne de la reference, seule
+# place libre (ligne des boutons pleine jusqu a x = 776, carte de resultat des y = 126), a la hauteur des boutons du guide
+# (26 px, meme exception a la regle des deux hauteurs) ; menu contextuel et Ctrl+C du tableau plus bas (Copy-AlignTable)
+$btnAlExport = New-Object System.Windows.Forms.Button
+$btnAlExport.Text = (T 'Exporter le tableau'); $btnAlExport.Location = '648,74'; $btnAlExport.Size = '130,26'; $btnAlExport.Anchor = 'Top,Right'
+$tip.SetToolTip($btnAlExport, (T "Enregistre le tableau des pistes dans un fichier CSV (séparateur de la langue du poste) ou texte tabulé, précédé de l'en-tête du résultat. Clic droit sur le tableau ou Ctrl+C : copie dans le presse-papiers."))
+$btnAlExport.Add_Click({
+    if ($lvAl.Items.Count -eq 0) { Append-Log (T 'Qualité : aucun tableau à exporter (lancez une mesure ou un contrôle).'); return }
+    $d = New-Object System.Windows.Forms.SaveFileDialog
+    $d.Filter = (T 'CSV|*.csv|Texte tabulé|*.txt'); $d.InitialDirectory = $script:AppDir
+    $d.FileName = "gw-qualite-$(Get-Date -Format 'yyyyMMdd-HHmmss').csv"
+    if ($d.ShowDialog() -eq 'OK') {
+        try { [void](Export-AlignTable $d.FileName) }
+        catch { Append-Log ((T "Qualité : export impossible : {0}") -f "$($_.Exception.Message)") }
+    }
+})
 
 # --- Guide (visible en mode reglage). 12.8 (lot 5) : exception ecrite a la regle des deux hauteurs (34 et 40 px) : 26 px,
 # seule hauteur qui tient entre la reference (y = 78) et la carte de qualite (y = 126, maquette D14 verifiee par la
@@ -349,15 +365,10 @@ $lblAlReco.Location = '10,188'; $lblAlReco.Size = '768,20'; $lblAlReco.Anchor = 
 $lblAlReco.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Bold)
 $lblAlReco.TextAlign = 'MiddleCenter'; $lblAlReco.Text = ''; $lblAlReco.ForeColor = 'DimGray'; $lblAlReco.Visible = $false
 
-$pnlAlBars = New-Object System.Windows.Forms.Panel
-$pnlAlBars.Location = '10,210'; $pnlAlBars.Size = '768,50'; $pnlAlBars.Anchor = 'Top,Left,Right'
-$pnlAlBars.BackColor = 'White'; $pnlAlBars.BorderStyle = 'FixedSingle'
-$pnlAlBars.Add_Paint({ Draw-AlignBars $_.Graphics $pnlAlBars.ClientSize })
-$pnlAlBars.Add_Resize({ $pnlAlBars.Invalidate() })
-$tip.SetToolTip($pnlAlBars, (T 'Score par cylindre : barre courte = bon. Trait noir = référence, trait bleu = meilleur vu.'))
-
+# 12.10 (lot 1, D8) : graphique des scores par cylindre retire (D-Q5) : le tableau prend sa place (y = 210, 56 px de
+# plus) ; bas inchange (326), donc meme marge au bas de l onglet par l ancrage
 $lvAl = New-Object System.Windows.Forms.ListView
-$lvAl.Location = '10,266'; $lvAl.Size = '768,60'; $lvAl.Anchor = 'Top,Bottom,Left,Right'
+$lvAl.Location = '10,210'; $lvAl.Size = '768,116'; $lvAl.Anchor = 'Top,Bottom,Left,Right'
 $lvAl.View = 'Details'; $lvAl.FullRowSelect = $true; $lvAl.GridLines = $false; $lvAl.Font = $monoBig
 $lvAl.OwnerDraw = $true; $lvAl.HeaderStyle = 'Nonclickable'
 $lvAl.BackColor = [System.Drawing.Color]::White
@@ -379,10 +390,25 @@ foreach ($c in @(@((T 'Piste'),60),@((T 'État'),162),@((T 'Erreurs'),70),@((T '
     [void]$lvAl.Columns.Add($c[0], $c[1])
 }
 
+# 12.10 : clic droit et Ctrl+C sur le tableau : copie en tabulations (Copy-AlignTable, 190) ; export aussi au menu
+$mnuAl = New-Object System.Windows.Forms.ContextMenuStrip
+$mnuAlCopy = $mnuAl.Items.Add((T 'Copier le tableau (tabulations)'))
+$mnuAlCopy.Add_Click({ try { [void](Copy-AlignTable) } catch { Append-Log ((T "Qualité : copie impossible : {0}") -f "$($_.Exception.Message)") } })
+$mnuAlExport = $mnuAl.Items.Add((T 'Exporter le tableau…'))
+$mnuAlExport.Add_Click({ $btnAlExport.PerformClick() })
+$lvAl.ContextMenuStrip = $mnuAl
+$lvAl.Add_KeyDown({
+    param($s0, $e)
+    if ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::C) {
+        try { [void](Copy-AlignTable) } catch { Append-Log ((T "Qualité : copie impossible : {0}") -f "$($_.Exception.Message)") }
+        $e.Handled = $true; $e.SuppressKeyPress = $true
+    }
+})
+
 $tabAl.Controls.AddRange(@((New-Label (T 'Mesure :') '10,14'), $cmbAlPreset, (New-Label (T 'Cylindres :') '238,14'), $txtAlCyls,
     (New-Label (T 'Têtes :') '488,14'), $cmbAlHead, (New-Label (T 'Tours :') '598,14'), $numAlRevs, $chkAlLoop, $numAlPause,
-    $btnAlStart, $btnAlRef, $btnAlReset, $chkAlGuide, $lblAlRef,
-    $btnAlPos0, $btnAlPlus, $btnAlMinus, $lblAlPos, $pnlQualCard, $lblAlReco, $pnlAlBars, $lvAl))
+    $btnAlStart, $btnAlRef, $btnAlReset, $chkAlGuide, $lblAlRef, $btnAlExport,
+    $btnAlPos0, $btnAlPlus, $btnAlMinus, $lblAlPos, $pnlQualCard, $lblAlReco, $lvAl))
 Update-QualityView                                        # 12.8 (lot 3) : carte vide (« Aucune mesure »)
 
 # ============================== OUTILS =========================================

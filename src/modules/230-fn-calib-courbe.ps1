@@ -422,6 +422,75 @@ function Add-CurveCorrection($values, $delta, $segs = $null) {
     return ,$out
 }
 
+function Get-CurveSteps($values, $breaks, [double]$stepNs) {
+    # 12.10 (lot 1, A1-tendance) : marches franches d une courbe (affichage seul) : cylindres c d une marche entre c et c+1,
+    # dans un segment des changements de sens (Breaks : coupure entre b et b+1). Marche : ecart d au moins max(stepNs ;
+    # 4 ecarts robustes des differences premieres, 1,4826 x MAD), et ecart des medianes des 3 cylindres de part et d autre
+    # (c-2 a c, c+1 a c+3, bornes du segment) d au moins le meme seuil : un pic isole n est pas une marche
+    $v = @($values); $n = $v.Count
+    if ($n -lt 2) { return ,@() }
+    $cut = @(@($breaks) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Where-Object { $_ -ge 0 -and $_ -lt $n - 1 } | Sort-Object -Unique)
+    $d = @(); for ($c = 0; $c -lt $n - 1; $c++) { if ($cut -notcontains $c) { $d += [double]$v[$c + 1] - [double]$v[$c] } }
+    $rs = 0.0
+    if ($d.Count -gt 0) { $md = Get-Median $d; $rs = 1.4826 * (Get-Median @($d | ForEach-Object { [math]::Abs($_ - $md) })) }
+    $thr = [math]::Max($stepNs, 4.0 * $rs)
+    $out = @(); $lo = 0
+    foreach ($hi in @(@($cut) + @($n - 1))) {
+        for ($c = $lo; $c -lt $hi; $c++) {
+            if ([math]::Abs([double]$v[$c + 1] - [double]$v[$c]) -lt $thr) { continue }
+            $left = @($v[([math]::Max($lo, $c - 2))..$c]); $right = @($v[($c + 1)..([math]::Min($hi, $c + 3))])
+            if ([math]::Abs((Get-Median $right) - (Get-Median $left)) -ge $thr) { $out += $c }
+        }
+        $lo = $hi + 1
+    }
+    return ,@($out)
+}
+
+function Get-CurveTrend($values, $breaks, [double]$stepNs) {
+    # 12.10 (lot 1, A1-tendance, D1) : tendance lissee de la courbe retenue, pour l affichage seul (fenetre Courbe) : aucun
+    # effet sur l ecriture, les courbes enregistrees ni le calcul de calibration. Segments coupes aux changements de sens
+    # (Breaks) et aux marches franches (Get-CurveSteps) ; dans chaque segment, moindres carres quadratiques locaux
+    # (Savitzky-Golay, +-4 cylindres), fenetre tronquee aux bords du segment, sans contrainte de monotonie ; segment de
+    # moins de 3 cylindres : valeurs recopiees. Valeurs negatives ramenees a 0. Renvoie un double[] de la taille de la courbe
+    $v = @($values); $n = $v.Count
+    $out = New-Object double[] $n
+    for ($c = 0; $c -lt $n; $c++) { $out[$c] = [double]$v[$c] }
+    if ($n -lt 3) { return ,$out }
+    $cut = @(@($breaks) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Where-Object { $_ -ge 0 -and $_ -lt $n - 1 })
+    $steps = Get-CurveSteps $v $breaks $stepNs       # tableau protege (operateur virgule) : pas de @() autour de l appel
+    $cut = @(@($cut) + @($steps) | Sort-Object -Unique)
+    $lo = 0
+    foreach ($hi in @(@($cut) + @($n - 1))) {
+        if ($hi - $lo + 1 -ge 3) {
+            for ($c = $lo; $c -le $hi; $c++) {
+                # Valeur en c de la parabole des moindres carres sur [c-4 ; c+4] borne au segment (x = j - c) : regle de Cramer
+                $s0 = 0.0; $s1 = 0.0; $s2 = 0.0; $s3 = 0.0; $s4 = 0.0; $t0 = 0.0; $t1 = 0.0; $t2 = 0.0
+                for ($j = [math]::Max($lo, $c - 4); $j -le [math]::Min($hi, $c + 4); $j++) {
+                    $x = [double]($j - $c); $x2 = $x * $x; $y = [double]$v[$j]
+                    $s0 += 1.0; $s1 += $x; $s2 += $x2; $s3 += $x2 * $x; $s4 += $x2 * $x2; $t0 += $y; $t1 += $x * $y; $t2 += $x2 * $y
+                }
+                $dm = $s0 * ($s2 * $s4 - $s3 * $s3) - $s1 * ($s1 * $s4 - $s3 * $s2) + $s2 * ($s1 * $s3 - $s2 * $s2)
+                if ([math]::Abs($dm) -lt 1e-9) { continue }
+                $p0 = ($t0 * ($s2 * $s4 - $s3 * $s3) - $s1 * ($t1 * $s4 - $s3 * $t2) + $s2 * ($t1 * $s3 - $s2 * $t2)) / $dm
+                $out[$c] = [math]::Max(0.0, $p0)
+            }
+        }
+        $lo = $hi + 1
+    }
+    return ,$out
+}
+
+function Get-CurveTrendFor($cv) {
+    # 12.10 (lot 1, A1-tendance) : tendance d une courbe a donnees denses (au moins CurveTrendMinCyls cylindres mesures :
+    # test fin ou mesures complementaires) : @{ Trend ; Steps }, $null sinon. Seuil de marche CurveTrendStepNs, haute
+    # densite : x CalHdK (bareme de la famille de la courbe)
+    if (-not $cv -or @(@($cv.Cyls) | Where-Object { $null -ne $_ }).Count -lt $script:CurveTrendMinCyls) { return $null }
+    $v = @($cv.Values)
+    if ($v.Count -lt 3) { return $null }
+    $st = if (Test-CurveHd $cv) { $script:CurveTrendStepNs * $script:CalHdK } else { $script:CurveTrendStepNs }
+    return @{ Trend = (Get-CurveTrend $v $cv.Breaks $st); Steps = (Get-CurveSteps $v $cv.Breaks $st) }
+}
+
 function Build-CurveProfile($values) {
     # Valeurs par cylindre -> profil --precomp : une entree c=ns a chaque changement (gw : valeur pour c et au-dela)
     $v = @($values)
@@ -443,9 +512,10 @@ function Get-CurveModelName([string]$model) {
     }
 }
 
-function Format-CurveTable($cvs) {
+function Format-CurveTable($cvs, [bool]$trend = $false) {
     # Tableau texte des valeurs par cylindre (10 par ligne), profil --precomp, puis mesures avec leur origine, l ecart
-    # de la courbe et le residu de la derniere verification, pour chaque courbe
+    # de la courbe et le residu de la derniere verification, pour chaque courbe. 12.10 (lot 1, A1-tendance) : trend (case
+    # « Tendance lissee » de la fenetre Courbe) : ligne de la tendance sous les valeurs d une courbe a donnees denses
     $lines = @()
     $kn = @{ witness = (T 'témoin de marche'); probe = (T 'témoin du plafond') }
     foreach ($cv in @($cvs)) {
@@ -476,6 +546,16 @@ function Format-CurveTable($cvs) {
             $lines += ('{0,3}  ' -f $c0) + ($row -join '')
         }
         $lines += ''
+        # 12.10 (lot 1, A1-tendance) : ecart de la tendance lissee a la courbe retenue (min, max, moyenne quadratique) et
+        # marches gardees (marche entre c et c+1)
+        $tr = if ($trend) { Get-CurveTrendFor $cv } else { $null }
+        if ($tr) {
+            $dv = @(for ($c = 0; $c -lt $v.Count; $c++) { [double]$tr.Trend[$c] - [double]$v[$c] })
+            $rms = [math]::Sqrt((@($dv | ForEach-Object { $_ * $_ }) | Measure-Object -Sum).Sum / [math]::Max(1, $dv.Count))
+            $stx = if (@($tr.Steps).Count) { (@($tr.Steps) | ForEach-Object { "c$_/c$([int]$_ + 1)" }) -join ', ' } else { (T 'aucune') }
+            $lines += ((T "Tendance lissée (affichage seul, sans effet sur l'écriture) : écart à la courbe retenue de {0} à {1} ns, {2} ns en moyenne quadratique ; marches gardées : {3}.") -f (Format-UiNum (($dv | Measure-Object -Minimum).Minimum) '+0.0;-0.0;0.0'), (Format-UiNum (($dv | Measure-Object -Maximum).Maximum) '+0.0;-0.0;0.0'), (Format-UiNum $rms '0.0'), "$stx")
+            $lines += ''
+        }
         $lines += (T "Mesures (cylindre : estimation ± incertitude en ns, origine, courbe retenue et écart, résidu de vérification) :")
         for ($i = 0; $i -lt @($cv.Cyls).Count; $i++) {
             $c = [int]$cv.Cyls[$i]
@@ -491,7 +571,7 @@ function Format-CurveTable($cvs) {
     return ($lines -join "`r`n")
 }
 
-function Draw-PrecompCurve($g, $size) {
+function Draw-PrecompCurve($g, $size, [bool]$trend = $false) {
     # Une courbe (profil commun) ou une par tete (ecriture lente). Mesures selon leur origine : point plein = encadree
     # par deux mesures, cercle creux = extrapolee, carre creux = plafonnee ; anneau rouge = ecart a la courbe > max(15 ns ; 3 incertitudes).
     # Zone hachuree : au-dessus de la plus forte precomp mesuree (extrapolation).
@@ -501,6 +581,11 @@ function Draw-PrecompCurve($g, $size) {
     # 12.7 point 2 : comparaison des calibrations A et B (copies marquees Series 'A' ou 'B', Show-CalibReview) : couleur par
     # tete, B en tirets, zones de desaccord ($script:CurveZones) en bandes verticales. Sans Series : dessin inchange
     $cmp = (@($cvs | Where-Object { $_.Series }).Count -gt 0)
+    # 12.10 (lot 1, A1-tendance) : trend (fenetre Courbe, case « Tendance lissee ») : tendance lissee des courbes a donnees
+    # denses (Get-CurveTrendFor), pointille fin de la couleur de la courbe ; ni en comparaison A/B, ni sur les courbes
+    # decalees de la derniere disquette. Sans trend (fenetre de decision, fins de test) : dessin inchange
+    $trends = @{}
+    if ($trend -and -not $cmp) { for ($k = 0; $k -lt $cvs.Count; $k++) { $tv = Get-CurveTrendFor $cvs[$k]; if ($tv) { $trends[$k] = $tv } } }
     # Niveaux de la derniere calibration rapide, superposes a chaque courbe (Set-CurveLevelData)
     $lvls = @{}; $hasLevel = $false
     for ($k = 0; $k -lt $cvs.Count; $k++) {
@@ -514,6 +599,10 @@ function Draw-PrecompCurve($g, $size) {
     $W = $size.Width; $H = $size.Height
     $nRec = @(@($lvls.Values) | ForEach-Object { $_ }).Count       # un enregistrement de niveau par ligne de legende
     $L = 56; $R = 20; $Tp = $(if ($hasLevel) { 92 + 20 * [math]::Max(0, $nRec - 1) } else { 72 }); $Bm = 40
+    # 12.10 (captures du wiki) : tendance de plusieurs courbes (une par tete) : sa legende a sa propre ligne, sous les
+    # libelles des courbes (a la suite, elle sortait de la fenetre a sa largeur par defaut) ; niveaux une ligne plus bas
+    $trRow = ($trends.Count -gt 0 -and $multi)
+    if ($trRow) { $Tp += 20 }
     $zones = @(@($script:CurveZones) | Where-Object { $_ })
     if ($cmp) {
         # Legende : une ligne par tete (A puis B), plus une ligne pour les zones de desaccord
@@ -530,6 +619,7 @@ function Draw-PrecompCurve($g, $size) {
         for ($i = 0; $i -lt @($cv.Cyls).Count; $i++) { $t = [double]$cv.Ys[$i] + [double]$cv.Sig[$i]; if ($t -gt $top) { $top = $t } }
         if ($cv.MaxX -and [int]$cv.MaxX -gt $maxX) { $maxX = [int]$cv.MaxX }
     }
+    foreach ($k in @($trends.Keys)) { foreach ($x in @($trends[$k].Trend)) { if ($x -gt $top) { $top = $x } } }
     foreach ($k in @($lvls.Keys)) { foreach ($rec in $lvls[$k]) {
         foreach ($x in @($rec.Values)) { if ($x -gt $top) { $top = $x } }
         for ($i = 0; $i -lt @($rec.Zs).Count; $i++) { $tz = [double]$rec.Zs[$i] + [double]$rec.Sigs[$i]; if ($tz -gt $top) { $top = $tz } }
@@ -618,6 +708,18 @@ function Draw-PrecompCurve($g, $size) {
                 }
                 if (Test-CurvePointFlag $cv $i) { $g.DrawEllipse($flag, $x - 7, $y - 7, 14, 14) }
             }
+            if ($trends.ContainsKey($k)) {
+                # 12.10 (lot 1, A1-tendance) : tendance lissee par-dessus la courbe et les mesures (donnees denses : un point
+                # par cylindre la cacherait), couleur de la courbe assombrie pour rester visible sur son trait
+                $tvs = @($trends[$k].Trend); $pc = $pens[$k].Color
+                $tpn = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb([int]($pc.R * 0.6), [int]($pc.G * 0.6), [int]($pc.B * 0.6)), 1.4)
+                $tpn.DashStyle = [System.Drawing.Drawing2D.DashStyle]::Dot
+                try {
+                    $tps = New-Object 'System.Drawing.PointF[]' $tvs.Count
+                    for ($c = 0; $c -lt $tvs.Count; $c++) { $tps[$c] = New-Object System.Drawing.PointF([float](& $fx $c), [float](& $fy $tvs[$c])) }
+                    if ($tps.Count -ge 2) { $g.DrawLines($tpn, $tps) }
+                } finally { $tpn.Dispose() }
+            }
             # Courbe decalee de la derniere disquette (tirets) et mesures du niveau (losanges)
             foreach ($rec in $lvls[$k]) {
                 $col = if ($null -ne $rec.Head -and -not $multi) { $colors[[math]::Min([int]$rec.Head, 1)] } else { $colors[[math]::Min($k, 1)] }
@@ -674,6 +776,18 @@ function Draw-PrecompCurve($g, $size) {
         # 12.9 (correction 4) : dent locale du besoin (trait pointille), distincte d un changement de sens (tirets)
         if (@($cvs | Where-Object { @(@($_.DentLo) | Where-Object { $null -ne $_ }).Count -gt 0 }).Count -gt 0) { $dl = New-Object System.Drawing.Pen($script:Theme.Muted, 1); $dl.DashStyle = [System.Drawing.Drawing2D.DashStyle]::Dot; $g.DrawLine($dl, $x2 + 3, $ly + 1, $x2 + 3, $ly + 12); $dl.Dispose(); $s = (T 'baisse locale du besoin'); $g.DrawString($s, $font, $txt, $x2 + 11, $ly); $x2 += 24 + $g.MeasureString($s, $font).Width }
         $g.DrawEllipse($flag, $x2 - 1, $ly + 1, 11, 11); $s = (T 'écart > {0} ns et > 3 incertitudes') -f (Format-UiNum (Get-CurveDevNs $cvs[0])); $g.DrawString($s, $font, $txt, $x2 + 13, $ly); $x2 += 26 + $g.MeasureString($s, $font).Width
+        # 12.10 (lot 1, A1-tendance) : tendance lissee avant « au-dela des mesures » ; ligne trop longue (largeur de la
+        # fenetre) : en fin de deuxieme ligne, apres les courbes
+        $trLeg = ''; $trL1 = $false
+        if ($trends.Count -gt 0) {
+            $trLeg = (T 'tendance lissée (affichage seul)')
+            $trL1 = (-not $trRow) -and ($x2 + 33 + $g.MeasureString($trLeg, $font).Width + 20 + $g.MeasureString((T 'au-delà des mesures'), $font).Width -le $W - $R)
+            if ($trL1) {
+                $dl = New-Object System.Drawing.Pen($script:Theme.Muted, 1.4); $dl.DashStyle = [System.Drawing.Drawing2D.DashStyle]::Dot
+                try { $g.DrawLine($dl, $x2, $ly + 7, $x2 + 16, $ly + 7) } finally { $dl.Dispose() }
+                $g.DrawString($trLeg, $font, $txt, $x2 + 20, $ly); $x2 += 33 + $g.MeasureString($trLeg, $font).Width
+            }
+        }
         $g.FillRectangle($hatch, $x2, $ly + 2, 16, 10); $g.DrawRectangle($grid, $x2, $ly + 2, 16, 10); $g.DrawString((T 'au-delà des mesures'), $font, $txt, $x2 + 20, $ly)
         $ly = 50; $x2 = $L
         if ($cmp) {
@@ -709,10 +823,16 @@ function Draw-PrecompCurve($g, $size) {
                 $g.DrawString($s, $font, $txt, $x2 + 28, $ly)
                 $x2 += 28 + $g.MeasureString($s, $font).Width + 24
             }
+            if ($trLeg -and -not $trL1) {
+                if ($trRow) { $ly += 20; $x2 = $L }
+                $dl = New-Object System.Drawing.Pen($script:Theme.Muted, 1.4); $dl.DashStyle = [System.Drawing.Drawing2D.DashStyle]::Dot
+                try { $g.DrawLine($dl, $x2, $ly + 7, $x2 + 22, $ly + 7) } finally { $dl.Dispose() }
+                $g.DrawString($trLeg, $font, $txt, $x2 + 28, $ly)
+            }
         }
         if ($hasLevel) {
             # Troisieme ligne : courbe decalee, mesure du niveau, niveau par enregistrement
-            $ly = 70; $x2 = $L
+            $ly = $(if ($trRow) { 90 } else { 70 }); $x2 = $L
             $dl = New-Object System.Drawing.Pen($script:Theme.Muted, 1.6); $dl.DashStyle = [System.Drawing.Drawing2D.DashStyle]::Dash
             $g.DrawLine($dl, $x2, $ly + 7, $x2 + 22, $ly + 7); $dl.Dispose()
             # 12.8 (S3) : courbe d une mesure complete de cette disquette (enregistrements 'mesure' seulement)
@@ -743,7 +863,16 @@ function Draw-PrecompCurve($g, $size) {
 
 function Show-PrecompCurve([string]$family, [bool]$preferHeads, $Owner = $null) {
     # Owner : fenetre proprietaire (carte Calibration de l Accueil : sa fenetre modale ; sinon la fenetre principale)
+    # 12.10 : courbes de la famille du lecteur courant (vue), fenetre commune Show-CurvesWindow
     $cvs = Get-FamilyCurves $family $preferHeads
+    Show-CurvesWindow $cvs $Owner
+}
+
+function Show-CurvesWindow($cvs, $Owner = $null) {
+    # 12.10 : fenetre Courbe des courbes donnees (Get-FamilyCurves : courbes du lecteur courant ; Get-DriveFamilyCurves :
+    # courbes croisees « source>cible » a la fin d une calibration croisee, 270) ; rien sans courbe. Titre complete par
+    # les deux lecteurs d une courbe croisee (champ Target)
+    $cvs = @($cvs | Where-Object { $_ })
     if ($cvs.Count -eq 0) { return }
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
     $script:CurveData = $cvs
@@ -754,6 +883,7 @@ function Show-PrecompCurve([string]$family, [bool]$preferHeads, $Owner = $null) 
     $f = New-Object System.Windows.Forms.Form
     $f.Name = 'frmCurve'
     $f.Text = if ($cvs.Count -gt 1) { ((T "Courbe de précompensation - {0}, une courbe par tête") -f "$($cvs[0].Family)") } else { ((T "Courbe de précompensation - {0}") -f "$($cvs[0].Family)") }
+    if ($cvs[0].Target) { $f.Text += ((T " (croisée : écriture par le lecteur {0}, relecture par le lecteur {1})") -f "$($cvs[0].Drive)", "$($cvs[0].Target)") }   # 12.10
     $f.Size = New-Object System.Drawing.Size(920, 610); $f.MinimumSize = New-Object System.Drawing.Size(520, 410)
     # 12.8 (FIX5) : hauteur ramenee a celle de la zone de travail (1366 x 768 a 125 % : environ 566 px) ; la courbe (Fill)
     # se reduit, la rangee du bouton Fermer reste visible
@@ -764,10 +894,12 @@ function Show-PrecompCurve([string]$family, [bool]$preferHeads, $Owner = $null) 
     $tb.Multiline = $true; $tb.ReadOnly = $true; $tb.ScrollBars = 'Vertical'; $tb.Dock = 'Bottom'; $tb.Height = 170
     $tb.TabStop = $false; $tb.HideSelection = $true          # pas de texte tout selectionne a l ouverture
     $tb.Font = New-Object System.Drawing.Font('Consolas', 9.75); $tb.BackColor = $script:Theme.Page
-    $tb.Text = Format-CurveTable $cvs
+    # 12.10 (lot 1, A1-tendance) : tableau et courbe nommes (case « Tendance lissee »), tendance selon le reglage curveTrend
+    $tb.Name = 'txtCurveTable'
+    $tb.Text = Format-CurveTable $cvs ([bool](Get-Setting 'curveTrend'))
     $pb = New-Object System.Windows.Forms.PictureBox
-    $pb.Dock = 'Fill'; $pb.BackColor = [System.Drawing.Color]::White
-    $pb.Add_Paint({ Draw-PrecompCurve $_.Graphics $this.ClientSize })
+    $pb.Name = 'picCurve'; $pb.Dock = 'Fill'; $pb.BackColor = [System.Drawing.Color]::White
+    $pb.Add_Paint({ Draw-PrecompCurve $_.Graphics $this.ClientSize ([bool](Get-Setting 'curveTrend')) })
     $pb.Add_Resize({ $this.Invalidate() })
     $pnlBtn = New-Object System.Windows.Forms.Panel
     $pnlBtn.Dock = 'Bottom'; $pnlBtn.Height = 50; $pnlBtn.BackColor = [System.Drawing.Color]::White
@@ -777,6 +909,24 @@ function Show-PrecompCurve([string]$family, [bool]$preferHeads, $Owner = $null) 
     Set-Btn $btnClose '' 'normal'
     $btnClose.Add_Click({ $this.FindForm().Close() })     # fenetre non modale : DialogResult ne la fermerait pas
     $pnlBtn.Controls.Add($btnClose)
+    # 12.10 (lot 1, A1-tendance, D1) : case « Tendance lissee » a gauche de la rangee du bouton : etat lu dans le reglage
+    # curveTrend a l ouverture (avant le gestionnaire), ecrit par Set-Setting au clic, puis courbe et tableau refaits.
+    # Info-bulle propre a la fenetre, liberee avec elle (Tag)
+    $chkTrend = New-Object System.Windows.Forms.CheckBox
+    $chkTrend.Name = 'chkCurveTrend'; $chkTrend.Text = (T 'Tendance lissée'); $chkTrend.AutoSize = $true
+    $chkTrend.Location = New-Object System.Drawing.Point(12, 14); $chkTrend.Checked = [bool](Get-Setting 'curveTrend')
+    $chkTrend.Add_CheckedChanged({
+        Set-Setting 'curveTrend' $this.Checked
+        $fc = $this.FindForm(); if (-not $fc) { return }
+        $fc.Controls['txtCurveTable'].Text = Format-CurveTable $script:CurveData $this.Checked
+        $fc.Controls['picCurve'].Invalidate()
+    })
+    $ctip = New-Object System.Windows.Forms.ToolTip
+    $ctip.AutoPopDelay = 30000; $ctip.InitialDelay = 400; $ctip.ReshowDelay = 100
+    $ctip.SetToolTip($chkTrend, (T "Courbe lissée sur ±4 cylindres, marches et changements de sens gardés. Affichage seul : l'écriture utilise toujours la courbe retenue."))
+    $pnlBtn.Controls.Add($chkTrend)
+    $f.Tag = $ctip
+    $f.Add_FormClosed({ if ($this.Tag -is [System.Windows.Forms.ToolTip]) { $this.Tag.Dispose(); $this.Tag = $null } })
     $f.CancelButton = $btnClose
     # Ancrage dans l ordre inverse de la pile : rangee du bouton tout en bas, puis tableau, puis courbe (Fill)
     $f.Controls.Add($tb); $f.Controls.Add($pb); $f.Controls.Add($pnlBtn); $pb.BringToFront()
@@ -793,11 +943,60 @@ function Update-CurveButton([string]$path) {
     Update-RsCalib
     if (-not $script:UiReady) { $path = '' }
     $fam = 'std'
-    $ext = if ($path) { [System.IO.Path]::GetExtension($path).ToLower() } else { '' }
-    if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) { $script:CurveFamily = 'std'; $btnWCurve.Enabled = $false; return }
-    if ($path -and (Test-Path -LiteralPath $path)) { try { $fam = Get-ImageFamily $path $cmbWFmt.Text } catch { $fam = 'std' } }
+    # 12.10 (relecture de la RC, fix2) : image flux ecrite telle quelle (Test-RawFluxWrite : sans format, gw n y applique pas
+    # la precompensation) : bouton grise ; flux decode par un format : famille de l ecriture (Get-WriteImageFamily, celle de
+    # Get-TargetWriteInfo : cellule mesuree d un SCP). Avant : bouton grise pour toute extension de flux, format choisi
+    # compris, alors que l ecriture applique la courbe du lecteur ou la courbe croisee
+    # 12.10 (relecture de la RC, r12) : image FM, GCR ou a codage propre (Test-NonMfmWrite) hors profil Manuel : --precomp
+    # n est pas transmis non plus (Start-ImageWrite, 140) : bouton grise aussi (un flux decode par commodore.1541 ou
+    # mac.800 ouvrait la courbe standard du lecteur, que l ecriture n applique pas)
+    $wf = [string]$cmbWFmt.Text
+    if ($path -and ((Test-RawFluxWrite $path $wf) -or ($cmbWProfile.SelectedIndex -ne 3 -and (Test-Path -LiteralPath $path) -and (Test-NonMfmWrite $path $wf)))) { $script:CurveFamily = 'std'; $btnWCurve.Enabled = $false; return }
+    # 12.10 (relecture de la RC) : case « Precompensation (--precomp) » decochee : Start-ImageWrite ne transmet aucun
+    # --precomp, profil Manuel compris : bouton grise ; avant : courbe propre du lecteur, lecteur cible choisi compris. Avec
+    # une image seulement (sans image : courbe du lecteur pour la famille du profil force, sinon standard)
+    if ($path -and -not $chkWPrecomp.Checked) { $script:CurveFamily = 'std'; $btnWCurve.Enabled = $false; return }
+    # 12.10 (relecture de la RC) : famille de la decision d ecriture, comme Get-TargetWriteInfo (140) : profil force
+    # « Standard 2 us » ou « Long track 1,89 us » : famille du profil (Set-PrecompFields, 220) ; Auto et Manuel : famille de
+    # l image (Get-WriteImageFamily) ; Auto sur une image haute densite non calibrable : profil d origine de sa famille double
+    # densite, aucune courbe calibree (Update-PrecompForImage, Start-ImageWrite) : bouton grise. Avant : famille de l image
+    # dans tous les cas (profil Long track sur un ADF : courbe standard montree, courbe long track ecrite)
+    $p = [int]$cmbWProfile.SelectedIndex
+    if ($path -and (Test-Path -LiteralPath $path)) {
+        $hdo = $false
+        if ($p -eq 0) { try { $hdo = [bool]((Get-HighDensityReason $path $wf) -and -not (Get-HdCalibFamily $path $wf)) } catch { $hdo = $false } }
+        if ($hdo) { $script:CurveFamily = 'std'; $btnWCurve.Enabled = $false; return }
+        if ($p -ne 1 -and $p -ne 2) { try { $fam = Get-WriteImageFamily $path $wf } catch { $fam = 'std' } }
+    }
+    if ($p -eq 1) { $fam = 'std' } elseif ($p -eq 2) { $fam = 'long' }
     $script:CurveFamily = $fam
-    $btnWCurve.Enabled = (Get-FamilyCurves $fam ([bool]$chkWSlow.Checked)).Count -gt 0
+    # 12.10 (relecture de la RC) : courbes du bouton (Get-WCurveSet, celles du clic) : courbes croisees ecrites pour un
+    # lecteur cible avec effet, sinon celles du lecteur ; avant : courbes du lecteur seulement, bouton grise sans elles
+    $btnWCurve.Enabled = (Get-WCurveSet $path $fam).Count -gt 0
+}
+
+function Get-WCurveSet([string]$path, [string]$fam) {
+    # 12.10 (relecture de la RC) : courbes du bouton « Courbe » de l onglet Ecriture (etat actif : Update-CurveButton ; clic :
+    # Show-WCurve) : courbes croisees « source>cible » que l ecriture applique pour un lecteur cible avec effet
+    # (Get-TargetWriteInfo, celles de Start-ImageWrite), sinon courbes du lecteur pour la famille de l image
+    # (Get-FamilyCurves). Tableau protege par la virgule (pas de @() autour de l appel)
+    # 12.10 (relecture de la RC) : $fam : famille de la decision d ecriture (Update-CurveButton : profil force, sinon image)
+    $slow = [bool]$chkWSlow.Checked
+    $tw = Get-TargetWriteInfo $path ([string]$cmbWFmt.Text) $slow
+    # 12.10 (relecture de la RC, fix1) : ecriture pour le lecteur cible refusee (Block : aucune courbe croisee, haute
+    # densite, courbes par tete seules en ecriture rapide) : aucune courbe, bouton grise ; avant : courbes propres du
+    # lecteur, que l ecriture n applique pas
+    if ($tw.Applies -and $tw.Block) { return ,@() }
+    if ($tw.Applies -and @($tw.Curves).Count -gt 0) { return ,@($tw.Curves) }
+    $c = Get-FamilyCurves $fam $slow
+    return ,$c
+}
+
+function Show-WCurve {
+    # 12.10 (relecture de la RC) : clic sur « Courbe » de l onglet Ecriture : courbes de Get-WCurveSet (fenetre commune
+    # Show-CurvesWindow : titre « croisee » pour une courbe croisee) ; avant : Show-PrecompCurve, courbes du lecteur
+    $p = if ($script:UiReady) { [string]$txtWFile.Text } else { '' }
+    Show-CurvesWindow (Get-WCurveSet $p ([string]$script:CurveFamily))
 }
 
 function Get-CurveCalc($cv) {
@@ -806,6 +1005,16 @@ function Get-CurveCalc($cv) {
     if (-not $cv) { return '' }
     if ($cv.Calc) { return [string]$cv.Calc }
     return [string]$cv.Version
+}
+
+function Test-CurveCalcBefore($cv, [string]$calc) {
+    # 12.10 : courbe faite avec un calcul anterieur a $calc (« 12.9 », « 12.10 »), versions comparees par [version] (12.10
+    # vient apres 12.9) ; courbe sans version (anterieure a 12.1) : anterieure ; version illisible : non
+    $c = Get-CurveCalc $cv
+    if (-not $c) { return $true }
+    $v = $null; $r = $null
+    if (-not [version]::TryParse($c, [ref]$v) -or -not [version]::TryParse($calc, [ref]$r)) { return $false }
+    return ($v -lt $r)
 }
 
 function Get-CurveCalcRef($cv) {
@@ -863,7 +1072,8 @@ function ConvertTo-CurveConfig($cv) {
                        kinds = @($cv.Kinds); res = @(@($cv.Res) | ForEach-Object { if ($null -eq $_ -or [double]::IsNaN([double]$_)) { $null } else { [double]$_ } })
                        converged = $(if ($null -eq $cv.Converged) { $null } else { [bool]$cv.Converged }); maxx = $cv.MaxX; version = $cv.Version
                        algo = $cv.Algo; calc = $cv.Calc; keptFor = $cv.KeptFor; breaks = @($cv.Breaks); slope = $cv.Slope; bits = $cv.Bits; test = $cv.Test
-                       maxNs = $(if ($null -ne $cv.MaxNs) { [int]$cv.MaxNs } else { $null }) }
+                       maxNs = $(if ($null -ne $cv.MaxNs) { [int]$cv.MaxNs } else { $null })
+                       target = [string]$cv.Target }   # 12.10 : lecteur qui relit (courbe croisee), vide pour une courbe ordinaire
     # Zone non reproductible (calcul 12.6) : enregistree seulement si elle existe
     $ct = @(@($cv.Contra) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ })
     if ($ct.Count -gt 0) { $o.contra = $ct }
@@ -953,7 +1163,7 @@ function ConvertFrom-CurveConfig($o) {
                  Model = [string]$o.model; Spec = [string]$o.spec; Method = $(if ($o.method) { [string]$o.method } else { 'image' })
                  Values = [int[]]@($o.values); Cyls = [int[]]@($o.cyls); Ys = [double[]]@($o.ys); Sig = [double[]]@($o.sig)
                  Kinds = $null; Res = $null; Converged = $null; MaxX = 0; Version = [string]$o.version; Algo = [string]$o.algo
-                 Calc = [string]$o.calc; KeptFor = [string]$o.keptFor
+                 Calc = [string]$o.calc; KeptFor = [string]$o.keptFor; Target = [string]$o.target   # 12.10 : vide avant la 12.10
                  Breaks = [int[]]@(@($o.breaks) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ }) }
         if ($cv.Values.Count -lt 2 -or $cv.Cyls.Count -ne $cv.Ys.Count -or $cv.Cyls.Count -ne $cv.Sig.Count) { return $null }
         # Champs ajoutes en v11.9 : absents d une courbe plus ancienne

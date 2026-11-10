@@ -6,13 +6,18 @@ function Get-WriteCheckBlocker([string]$path, [string]$fmt) {
     if ($chkWTG43.Checked) { return (T 'lecteur 8 pouces (TG43)') }
     $hd = Get-HighDensityReason $path $fmt
     if ($hd) { return $hd }
-    if ($fmt -match '^(commodore\.15[47]1|mac\.|apple2\.)') { return ((T "format GCR {0}") -f "$fmt") }
-    # Format FM de la table (simple densite, groupe 'fm' de Get-FormatCalibInfo) : les criteres sont ceux du MFM
-    if ($fmt -and $fmt -ne '(auto)' -and $script:GwFormats.Contains($fmt) -and (Get-FormatCalibInfo $fmt).Group -eq 'fm') { return ((T "format FM {0}") -f "$fmt") }
-    # Piste 0 en FM, les autres en MFM (codage fm0 de la table : tsc.flex.*, olivetti.m20...) : la piste 0 serait jugee
-    # avec les criteres du MFM et pourrait etre reecrite a tort ; controle bloque pour tout le format
-    if ($fmt -and $fmt -ne '(auto)' -and $script:GwFormats.Contains($fmt) -and [string]$script:GwFormats[$fmt].Enc -eq 'fm0') { return ((T "piste 0 en FM, format {0}") -f "$fmt") }
+    # 12.10 (lot 1, B1) : codage de l image par Get-ImageEncoding (format explicite de la table, sinon format implicite de
+    # l extension, sinon en-tete HFE, IMD ou D88) ; textes inchanges, l image FM (SSD, DSD, HFE, IMD, D88) s y ajoute.
+    # GCR et FM : les criteres sont ceux du MFM. Piste 0 en FM, les autres en MFM (codage fm0 de la table : tsc.flex.*,
+    # olivetti.m20...) : la piste 0 serait jugee avec les criteres du MFM et pourrait etre reecrite a tort ; controle bloque
+    # pour tout le format
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
+    $ie = Get-ImageEncoding $path $fmt
+    $fx = ($fmt -and $fmt -ne '(auto)')
+    if ($ie.Enc -eq 'gcr') { if ($fx) { return ((T "format GCR {0}") -f "$fmt") }; return ((T "image GCR {0}") -f "$ext") }
+    if ($ie.Enc -eq 'fm') { if ($fx) { return ((T "format FM {0}") -f "$fmt") }; return ((T "image FM {0}") -f "$ext") }
+    if ($ie.Enc -eq 'fm0' -and $fx) { return ((T "piste 0 en FM, format {0}") -f "$fmt") }
+    # Images GCR sans format implicite de gw (G64, NIB, WOZ), et extension GCR avec un format MFM explicite, comme en 12.8
     if (@('.d64', '.d71', '.g64', '.nib', '.woz', '.do', '.po') -contains $ext) { return ((T "image GCR {0}") -f "$ext") }
     try {
         if ($ext -eq '.scp' -and $script:ScpStatsOk -and (Test-ScpHighDensity $path)) { return (T 'flux SCP haute densité') }
@@ -78,7 +83,7 @@ function Test-SrcOverErr($m) {
 function Set-CopyUnstable($rep, [string]$k, $m) {
     # gw ecrit un tour fige de la source : une zone instable d un tour a l autre relue sur la copie ne vient pas de la
     # source quand celle-ci n en contient pas a cette piste (image secteur, HFE v1/v2, piste stable d un SCP analyse).
-    # Elle signale alors un defaut de la copie (support fatigue, defaut localise) : la piste est faible et reecrite.
+    # Elle signale alors un defaut de la copie (usure ou defaut localise) : la piste est faible et reecrite.
     # Pistes instables, critiques ou (12.8.2) deja hors norme de la source (Rep.Ignore) : traitees a part. Non jugees
     # (Unjudged : ni reecrites ni comptees saines) : source qui peut porter des zones faibles (Test-SourceMayHaveWeak), SCP
     # non analysable, piste que la source porte avec une courte zone instable ou que l analyse n a pas pu mesurer
@@ -136,6 +141,23 @@ function Invoke-RepNextCmd {
     Start-Gw $cmd
 }
 
+function Enter-CheckTab {
+    # 12.10 (lot 1, E11) : onglet Qualite & alignement affiche pendant la relecture du controle apres ecriture, pour tout
+    # controle hors restauration (ECRIRE, Bibliotheque, controle impose : E11-2) ; onglet d avant memorise pour le retour
+    # (Exit-CheckTab). Restauration exclue (E11-3) : pages verrouillees par Set-RsLock, etape « Controler toutes les
+    # pistes » de l onglet Restauration
+    if ($script:Restore -or $script:CheckTabReturn) { return }
+    $script:CheckTabReturn = $tabs.SelectedTab
+    if ($tabs.SelectedTab -ne $tabAl) { Show-Tab $tabAl }
+}
+
+function Exit-CheckTab {
+    # 12.10 (lot 1, E11) : fin, arret ou erreur du controle : retour a l onglet d avant (E11-1), sauf si l utilisateur en a
+    # choisi un autre entre-temps (onglets actifs entre deux commandes gw ; Set-Busy inchange)
+    $t = $script:CheckTabReturn; $script:CheckTabReturn = $null
+    if ($t -and $t -ne $tabAl -and $tabs.SelectedTab -eq $tabAl -and $tabs.TabPages.Contains($t)) { $tabs.SelectedTab = $t }
+}
+
 function Start-WriteCheck {
     # Etape de chaine apres l ecriture initiale (code retour 0) : relecture de toutes les pistes ecrites
     $rep = $script:Rep
@@ -183,6 +205,7 @@ function Start-WriteCheck {
     if ($cut -gt 0) { Append-Log ((T "Contrôle après écriture : relecture en flux de {0} piste(s) de l'image, celles du champ Pistes (« {1} ») (3 tours).") -f "$($set.Count)", "$($rep.UserTSpec.Trim())") }
     else { Append-Log ((T "Contrôle après écriture : relecture en flux de {0} piste(s) de l'image (3 tours).") -f "$($set.Count)") }
     $rep.Pending.Clear()
+    Enter-CheckTab                                        # 12.10 (lot 1, E11) : seulement si une relecture commence
     Add-RepReads $groups (Get-TSpecExtras $rep.UserTSpec)
     Start-RepPending
 }
@@ -206,9 +229,10 @@ function Invoke-WriteCheckAnalysis {
     if ($rep.Round -eq 0) { $expected = @($rep.Scope.Keys) } else { $expected = @($rep.Weak) }
     $expected = Sort-TrackKeys $expected
     $watch = @(); $crit = @(); $healthy = 0
+    $arefs = Get-AsymRefs ([string]$cmbDrive.Text)       # 12.10 : asymetrie corrigee du biais de lecture (Set-TrackAsymRef)
     foreach ($k in $expected) {
         $tn = Get-TrackKeyOrder $k
-        if ($tracks.ContainsKey($tn)) { $m = Get-TrackMetrics $tracks[$tn] }
+        if ($tracks.ContainsKey($tn)) { $m = Get-TrackMetrics $tracks[$tn]; [void](Set-TrackAsymRef $m ([int][math]::Floor([int]$tn / 2)) ([int]$tn % 2) $arefs) }
         else { $m = Get-TrackMetrics @(); $m.Missing = $true }
         Set-CopyUnstable $rep $k $m
         $rep.State[$k] = $m
@@ -222,13 +246,20 @@ function Invoke-WriteCheckAnalysis {
     # 12.8.2 (S11, S12) : hors classe de la zone de l index (jonction d ecriture de gw) ecartes du comptage, avec la
     # distance a l index la plus grande, et pistes dont la stabilite n a pas pu etre mesuree sur tours alignes : une
     # ligne par analyse ; index simule : une ligne au premier controle
-    $zo = 0; $zt = 0; $zf = 0; $fb = @()
+    # 12.10 (S13) : so / sot, hors classe reproductibles retires ; sov, pistes au-dela du plafond ScpStructMax par tour (tout
+    # compte), sauf celles que le controle ne compte pas (Rep.Ignore : deja critiques, non reproductibles ou hors norme dans
+    # la source, ligne a part)
+    $zo = 0; $zt = 0; $zf = 0; $fb = @(); $so = 0; $sot = 0; $sov = @()
     foreach ($k in $expected) {
         $ms = $rep.State[$k]; $z = [int]$ms.ZoneOoc
+        if ([int]$ms.StructOoc -gt 0) { $so += [int]$ms.StructOoc; $sot++ }
+        if ([int]$ms.StructOver -gt 0 -and -not ($rep.Ignore -and $rep.Ignore.ContainsKey($k))) { $sov += $k }
         if ($z -gt 0) { $zo += $z; $zt++; if ([int]$ms.ZoneFarNs -gt $zf) { $zf = [int]$ms.ZoneFarNs } }
         if ($ms.StabFallback) { $fb += $k }
     }
     if ($zo -gt 0) { Append-Log ((T "Contrôle après écriture : {0} intervalle(s) hors classe du raccord d'écriture de gw, dans la zone de ± 1 ms autour de l'index (jusqu'à {2} ms), non compté(s), sur {1} piste(s) relue(s) en 3 tours.") -f "$zo", "$zt", (Format-UiNum ($zf / 1e6) '0.00')) }
+    if ($so -gt 0) { Append-Log ((T "Contrôle après écriture : {0} intervalle(s) hors classe reproductibles d'un tour à l'autre à la même position, sur {1} piste(s), non compté(s) : raccord d'écriture d'une longue piste ou protection.") -f "$so", "$sot") }   # 12.10 (S13)
+    if ($sov.Count -gt 0) { Append-Log ((T "Contrôle après écriture : {0} piste(s) avec plus de {1} intervalles hors classe reproductibles par tour, tous comptés comme erreurs (au-delà d'un raccord d'écriture ou d'une protection : défaut du support ou écriture à revoir) : {2}.") -f "$($sov.Count)", "$($script:ScpStructMax)", "$(Format-TrackList $sov)") }
     if ($fb.Count -gt 0) { Append-Log ((T "Contrôle après écriture : stabilité de {0} piste(s) jugée sur l'écart du nombre de flux entre les tours, faute de repère commun pour les aligner : {1}.") -f "$($fb.Count)", "$(Format-TrackList $fb)") }
     if ($fake -and $rep.Round -eq 0) { Append-Log (T "Contrôle après écriture : index simulé (--fake-index), la zone de l'index est comptée comme le reste de la piste.") }
     if ($rep.Ignore) {
@@ -348,7 +379,6 @@ function Show-WriteCheckTable($rep) {
     } else {
         $res.ScoreText = (T 'Aucune piste analysable')
     }
-    Render-AlignBars
     Set-QualityResult $res
 }
 
@@ -369,7 +399,8 @@ function Complete-WriteCheck([switch]$GwError) {
     $ignC = @($ignK | Where-Object { -not ($rep.SrcOver -and $rep.SrcOver.ContainsKey($_)) })
     if ($GwError) {
         # gw a echoue pendant une passe de reecriture : les pistes de la passe restent faibles
-        $txt = ((T "CONTRÔLE APRÈS ÉCRITURE interrompu par une erreur gw à la passe {0}/{1} : {2} piste(s) faible(s) ou non remesurée(s) : {3}  ->  support fatigué ou lecteur en défaut") -f "$($rep.Round)", "$($rep.Max)", "$($weak.Count)", "$(Format-TrackList $weak)"); $lvl = 3
+        # 12.10 (lot 1, I-5) : verdict neutre, l usure du support n est pas presumee
+        $txt = ((T "CONTRÔLE APRÈS ÉCRITURE interrompu par une erreur gw à la passe {0}/{1} : {2} piste(s) faible(s) ou non remesurée(s) : {3}  ->  disquette ou lecteur en défaut, non distingués") -f "$($rep.Round)", "$($rep.Max)", "$($weak.Count)", "$(Format-TrackList $weak)"); $lvl = 3
     } elseif ($n -eq 0) {
         $txt = (T 'CONTRÔLE APRÈS ÉCRITURE : aucune piste mesurée.'); $lvl = 3
     } elseif ($weak.Count -eq 0) {
@@ -384,8 +415,13 @@ function Complete-WriteCheck([switch]$GwError) {
     } elseif ($rep.Max -eq 0) {
         $txt = ((T "CONTRÔLE APRÈS ÉCRITURE : {0}/{1} piste(s) faible(s) : {2}  (réécriture automatique désactivée)") -f "$($weak.Count)", "$n", "$(Format-TrackList $weak)"); $lvl = 2
     } else {
-        $txt = ((T "CONTRÔLE APRÈS ÉCRITURE : {0} piste(s) encore faible(s) après {1} passe(s) de réécriture : {2}  ->  support fatigué, réécrire sur une autre disquette") -f "$($weak.Count)", "$($rep.Round)", "$(Format-TrackList $weak)"); $lvl = 3
+        # 12.10 (lot 1, I-5) : verdict neutre (esprit du libelle 12.8 de la calibration) : l usure n est pas presumee, une
+        # autre disquette reste conseillee
+        $txt = ((T "CONTRÔLE APRÈS ÉCRITURE : {0} piste(s) encore faible(s) après {1} passe(s) de réécriture : {2}  ->  autre type de disquette ou usure, non distingués ; essayez une autre disquette") -f "$($weak.Count)", "$($rep.Round)", "$(Format-TrackList $weak)"); $lvl = 3
     }
+    # 12.10 : ecriture pour un lecteur cible (Rep.Target, Rep.TargetSrc : Start-ImageWrite) : le verdict rappelle que la
+    # relecture est celle du lecteur qui a ecrit, pas celle du lecteur cible
+    if ($rep.Target) { $txt += ((T " (relu par le lecteur {0}, pas par le lecteur cible {1})") -f "$($rep.TargetSrc)", "$($rep.Target)") }
     Append-Log $txt
     # Bilan exploitable par la restauration (accroche : le controle vide la chaine d etapes, rien ne le suit)
     $short = if ($GwError) { (T 'contrôle interrompu par une erreur gw') } elseif ($lvl -eq 0) { (T "{0}/{1} pistes saines") -f "$nOk", "$n" }
@@ -399,7 +435,9 @@ function Complete-WriteCheck([switch]$GwError) {
         if ($GwError) { Stop-Restore (T 'erreur gw pendant le contrôle des pistes') } else { Invoke-RestoreNext }
         return
     }
-    Show-Tab $tabAl
+    # 12.10 (lot 1, E11) : retour a l onglet d avant le controle (verdict dans l onglet Ecriture, detail dans l onglet
+    # Qualite) ; en 12.8, l onglet Qualite restait affiche a la fin
+    Exit-CheckTab
 }
 
 function Update-RepPartial {
@@ -414,7 +452,7 @@ function Update-RepPartial {
         foreach ($tn in @($t.Keys)) {
             $k = "$([math]::Floor([int]$tn / 2)).$([int]$tn % 2)"
             if (@($rep.Weak) -notcontains $k) { continue }
-            $mm = Get-TrackMetrics $t[$tn]; Set-CopyUnstable $rep $k $mm
+            $mm = Get-TrackMetrics $t[$tn]; [void](Set-TrackAsymRef $mm ([int][math]::Floor([int]$tn / 2)) ([int]$tn % 2) (Get-AsymRefs ([string]$cmbDrive.Text))); Set-CopyUnstable $rep $k $mm
             $rep.State[$k] = $mm
             $rep.Rewrites[$k] = 1 + $(if ($rep.Rewrites.ContainsKey($k)) { [int]$rep.Rewrites[$k] } else { 0 })
             $remeasured[$k] = $true
@@ -438,6 +476,7 @@ function Stop-WriteCheck([switch]$GwError) {
     if (-not $script:Rep) { return }
     if ($GwError -and $script:Rep.Round -gt 0 -and $script:Rep.State.Count -gt 0) { Update-RepPartial; Complete-WriteCheck -GwError; return }
     $script:Rep = $null
+    Exit-CheckTab                                         # 12.10 (lot 1, E11) : sans effet si la relecture n a pas commence
     Set-WCalVerdict (T 'Contrôle après écriture interrompu.') 'h1'     # 12.8 (lot 3) : icone d etat dans l onglet Ecriture
     Append-Log (T 'Contrôle après écriture interrompu.')
     Set-QualityStale 'checkabort'                         # 12.8 (lot 3a) : resultat de l onglet Qualite perime

@@ -13,10 +13,11 @@ function Start-CalibRedo($cal, [string[]]$issues, [string[]]$kinds, $prevCal, [b
     # une confirmation sans compte a rebours ; aucune fusion des mesures. Ecriture qui suivait A : annulee si B est lancee.
     # $true : B lancee ; $false : B non lancee, courbe A retablie (la fenetre de A se rouvre).
     $keys = @($cal.Units | ForEach-Object { Get-CalibUnitKey $cal $_ })
-    $aCurves = @{}; foreach ($k in $keys) { if ($script:PrecompCurves[$k]) { $aCurves[$k] = $script:PrecompCurves[$k].Clone() } }
-    $aDate = if ($script:PrecompCurves[$keys[0]]) { [string]$script:PrecompCurves[$keys[0]].Date } else { '' }
+    # 12.10 : courbe A lue dans le magasin du lecteur de la calibration (courbes par lecteur), copie d etat sur ses cles de magasin
+    $aCurves = @{}; foreach ($k in $keys) { $acv = Get-DriveCurve ([string]$cal.Drive) $k; if ($acv) { $aCurves[$k] = $acv.Clone() } }
+    $aDate = if ($aCurves.ContainsKey($keys[0])) { [string]$aCurves[$keys[0]].Date } else { '' }
     $script:CalRedo = @{ Stage = 'confirm'; ACal = $cal; AIssues = @($issues); AKinds = @($kinds); AKeys = $keys; ACurves = $aCurves
-                         AState = (Get-CalibSnapshot $keys); PrevA = $prevCal; ADate = $aDate; Why = '' }
+                         AState = (Get-CalibSnapshot @($keys | ForEach-Object { Get-DriveCurveKey ([string]$cal.Drive) $_ })); PrevA = $prevCal; ADate = $aDate; Why = '' }
     Restore-CalibState $prevCal
     Append-Log ((T "Calibration : « Refaire sur une autre disquette » : courbe A du {0} mise de côté, calibration précédente rétablie pendant la calibration B.") -f "$aDate")
     $svAfter = $script:AfterCalib; $script:AfterCalib = ''

@@ -450,7 +450,7 @@ function Get-QualityCardModel($v) {
 
 # --- Rendu ------------------------------------------------------------------------------------------------------------
 function Update-QualityView {
-    # Rendu de $script:QualView : carte de resultat, infobulle, tableau et barres (grises hors resultat, D16)
+    # Rendu de $script:QualView : carte de resultat, infobulle et tableau (gris hors resultat, D16)
     $script:QualCard = Get-QualityCardModel $script:QualView
     # 12.8 (FIX3) : bandeau orange des zones instables de la derniere mesure (Set-UnstableBanner) grise comme la carte tant
     # que ce resultat n est pas le resultat courant (mesure en cours, perime) ; le guide d alignement, qui utilise la meme
@@ -463,7 +463,6 @@ function Update-QualityView {
     $tip.SetToolTip($pnlQualCard, $script:QualCard.Tip)
     $pnlQualCard.AccessibleName = $script:QualCard.Access
     if ($lvAl) { $lvAl.Invalidate() }
-    if ($pnlAlBars) { $pnlAlBars.Invalidate() }
 }
 
 function Get-QualFitText([string]$long, [string]$short, $font, [int]$w, [string[]]$more = @()) {

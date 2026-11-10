@@ -55,6 +55,11 @@ $cardHelp    = New-HomeCard 'Help' (T 'Guide pas à pas') (T 'Ouvrir l''aide en 
 $cardClean   = New-HomeCard 'Repair' (T 'Nettoyer les têtes du lecteur') (T 'Procédure en images. Disquette de nettoyage uniquement, jamais une vraie disquette.') '397,248' { Show-CleanDialog }
 $cardJitter  = New-HomeCard 'Setting' (T 'Régler le jitter') (T "Choisir le jitter maximal d'une piste saine : plus il est strict, plus l'écriture lente réécrit de pistes.") '14,432' { Show-JitterSettings }
 $script:HomeCalDesc = $cardCalib.Controls[3].Text      # description d origine, remplacee par la progression (Update-HomeCalibCard)
+# 12.10 (relecture de la RC) : description de la carte « Calibrer le lecteur » : points de suspension, texte complet en
+# infobulle quand il depasse ses deux lignes (Update-HomeCalDescTip, 200) : le bilan d une calibration avec un
+# avertissement (« Limite de precompensation atteinte... ») tenait sur trois lignes, la 3e coupee a mi-hauteur
+$cardCalib.Controls[3].AutoEllipsis = $true
+$cardCalib.Controls[3].Add_TextChanged({ Update-HomeCalDescTip })
 $tabH.Controls.AddRange(@($lblHTitle, $lblHSub, $pnlHomeProg, $cardRestore, $cardWrite, $cardRead, $cardCheck, $cardCalib, $cardClean, $cardTest, $cardHelp, $cardJitter))
 
 # ============================== RESTAURATION : INTERFACE =======================
@@ -92,7 +97,7 @@ $lblRsCal = New-Object System.Windows.Forms.Label
 $lblRsCal.Location = '12,20'; $lblRsCal.Size = '262,54'; $lblRsCal.AutoEllipsis = $true
 $btnRsCurve = New-Object System.Windows.Forms.Button
 $btnRsCurve.Text = (T 'Courbe'); $btnRsCurve.Location = '280,20'; $btnRsCurve.Size = '90,34'; $btnRsCurve.Anchor = 'Top,Right'; $btnRsCurve.Enabled = $false
-$tip.SetToolTip($btnRsCurve, (T "Affiche la courbe de précompensation appliquée par la restauration, une courbe par tête si elle existe : haute densité pour un format haute densité choisi, sinon double densité."))
+$tip.SetToolTip($btnRsCurve, (T "Affiche la courbe de précompensation appliquée par la restauration, une courbe par tête si elle existe : haute densité pour un format haute densité choisi, double densité pour un format double densité ; en détection automatique, où le format n'est connu qu'à la lecture, double densité, à défaut haute densité ; avec un lecteur cible choisi dans l'onglet Écriture, la courbe croisée double densité que la restauration écrit. Inactif quand aucune courbe ne s'applique : aucune courbe de la famille du format choisi, copie exacte du flux (écrite sans précompensation), restauration refusée pour le lecteur cible (le cadre le dit)."))   # 12.10 (relecture de la RC) : courbe croisee (Get-RsCurveSet, 300) ; fix1 : inactif sans courbe ecrite ; fix2 : familles de la copie (Get-RestorePlan)
 $btnRsCurve.Add_Click({ Show-RsCurve })
 $grpRsCal.Controls.AddRange(@($lblRsCal, $btnRsCurve))
 
@@ -119,7 +124,9 @@ $btnRsStart = New-Object System.Windows.Forms.Button
 $btnRsStart.Text = (T 'RESTAURER LA DISQUETTE'); $btnRsStart.Location = '10,300'; $btnRsStart.Size = '250,40'; $btnRsStart.Font = $bold
 $btnRsStart.Add_Click({ try { Start-UnattendedWrite -Restore; Start-Restore } catch { Append-Log ((T "ERREUR restauration : {0}") -f "$($_.Exception.Message)") } })
 $lblRsRules = New-Object System.Windows.Forms.Label
-$lblRsRules.Location = '404,232'; $lblRsRules.Size = '372,100'; $lblRsRules.ForeColor = $script:Theme.Muted
+# 12.10 (captures du wiki) : largeur fixe de 372 px, hauteur a la mesure du texte (Update-RsRules, 300) : a 100 px de
+# haut, la fin des regles (« puis relecture et comparaison avec l'original ») etait coupee
+$lblRsRules.Location = '404,232'; $lblRsRules.AutoSize = $true; $lblRsRules.MinimumSize = New-Object System.Drawing.Size(372, 0); $lblRsRules.MaximumSize = New-Object System.Drawing.Size(372, 0); $lblRsRules.ForeColor = $script:Theme.Muted
 $tip.SetToolTip($btnRsStart, (T "Lit l'original, vous demande de changer de disquette, puis écrit et contrôle la copie avec les règles les plus strictes.`nDurée : de quelques minutes à plus d'une demi-heure selon la calibration et l'état des disquettes."))
 
 $lblRsStepsTitle = New-Object System.Windows.Forms.Label

@@ -222,13 +222,20 @@ $btnLibFast = New-Object System.Windows.Forms.Button
 $btnLibFast.Text = (T 'Écriture rapide'); $btnLibFast.Location = '466,262'; $btnLibFast.Size = '154,34'; $btnLibFast.Font = $bold
 $btnLibFast.Anchor = 'Bottom,Right'; $btnLibFast.Enabled = $false
 $tip.SetToolTip($btnLibFast, (T "Écrit l'image sélectionnée en une passe, les deux têtes ensemble : image entière, profil de précompensation Auto,`neffacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, vérification gw, 10 essais, sans contrôle complet des pistes.`nSans calibration commune pour la famille de l'image, le lecteur est d'abord calibré : la disquette reçoit le motif de test, puis l'image."))
+# 12.10 (relecture de la RC) : cas sans calibration automatique (Start-PresetWrite : lecteur cible, Test rapide, haute
+# densite, image que la calibration ne mesure pas)
+$tip.SetToolTip($btnLibFast, $tip.GetToolTip($btnLibFast) + "`n" + (T "Pas de calibration automatique avec un lecteur cible choisi dans l'onglet Écriture (écriture avec la courbe croisée, ou refus sans elle), au « Test rapide » (mesure de la disquette à la place, écriture refusée sans référence), en haute densité, ni pour une image que la calibration ne mesure pas (flux, FM, GCR, densité non établie)."))
 $tip.SetToolTip($btnLibFast, $tip.GetToolTip($btnLibFast) + "`n" + (T 'Test rapide choisi dans l''onglet Écriture : avant l''écriture, le niveau de la courbe est mesuré sur la disquette à écrire (4 à 9 cylindres par tête, 1 à 3 écritures du motif par piste).'))
 $btnLibFast.Add_Click({ Start-UnattendedWrite; Start-LibWrite 'fast' })   # 12.9 (S1) : ecriture sans surveillance
 $btnLibSlow = New-Object System.Windows.Forms.Button
 $btnLibSlow.Text = (T 'Écriture lente'); $btnLibSlow.Location = '624,262'; $btnLibSlow.Size = '154,34'; $btnLibSlow.Font = $bold
 $btnLibSlow.Anchor = 'Bottom,Right'; $btnLibSlow.Enabled = $false
 $tip.SetToolTip($btnLibSlow, (T "Écrit la tête 0 puis la tête 1, chacune avec sa précompensation, puis contrôle toutes les pistes`net réécrit les pistes faibles, 3 passes au plus. Mêmes paramètres que l'écriture rapide.`nSans calibration par tête pour la famille de l'image, chaque tête est d'abord calibrée : la disquette reçoit le motif de test, puis l'image."))
+$tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T "Pas de calibration automatique avec un lecteur cible choisi dans l'onglet Écriture (écriture avec la courbe croisée, ou refus sans elle), au « Test rapide » (mesure de la disquette à la place, écriture refusée sans référence), en haute densité, ni pour une image que la calibration ne mesure pas (flux, FM, GCR, densité non établie)."))   # 12.10 (relecture de la RC) : comme btnLibFast
 $tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T 'Test rapide choisi dans l''onglet Écriture : avant l''écriture, le niveau de la courbe est mesuré sur la disquette à écrire (4 à 9 cylindres par tête, 1 à 3 écritures du motif par piste).'))
+# 12.10 (relecture de la RC) : ecriture lente, liste « Mesure » a « complete, au motif » : mesure complete de cette disquette
+# (Get-LevelBeforeWriteKind, Start-LevelBeforeWrite)
+$tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T "Avec « complète, au motif » dans la liste « Mesure : » de l'onglet Écriture, cette mesure est une mesure complète de cette disquette, sur tous ses cylindres (26 à 31 min)."))
 $tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T "Écriture lente : le lecteur est d'abord préchauffé par des lectures sans écriture (case « Préchauffer le lecteur avant l'écriture lente » de l'onglet Écriture ; bouton « Passer le préchauffage » pendant l'attente)."))
 $btnLibSlow.Add_Click({ Start-UnattendedWrite; Start-LibWrite 'slow' })   # 12.9 (S1) : ecriture sans surveillance
 

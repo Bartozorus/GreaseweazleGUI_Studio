@@ -73,6 +73,19 @@ function Get-ImageTrackSet([string]$path) {
     return $null
 }
 
+function Get-ImageFaces([string]$path) {
+    # 12.10 (lot 1, E9-image, constat I-3) : faces de l image d apres Get-ImageTrackSet, pour Get-FaceSafeWrite (Set-WritePreset
+    # et image gardee apres la Bibliotheque). @{ Unknown : pistes de l image non determinables ; OneHead : tete de l unique
+    # face, $null si deux faces ou faces inconnues }
+    $set = Get-ImageTrackSet $path
+    $r = @{ Unknown = ($null -eq $set); OneHead = $null }
+    if (-not $r.Unknown) {
+        $hs = @(@($set.Keys) | ForEach-Object { [int](([string]$_ -split '\.')[1]) } | Sort-Object -Unique)
+        if ($hs.Count -eq 1) { $r.OneHead = $hs[0] }
+    }
+    return $r
+}
+
 function Get-TSpecExtras([string]$tspec) {
     # Elements du TSPEC utilisateur autres que c= et h= (step, h0.off, h1.off, hswap...) : conserves
     # tels quels dans les reecritures et relectures ciblees, pour viser les memes pistes physiques.
@@ -80,6 +93,12 @@ function Get-TSpecExtras([string]$tspec) {
     $x = @($tspec -split ':' | Where-Object { $_.Trim() -and $_ -notmatch '^\s*[ch]\s*=' })
     if ($x.Count -eq 0) { return '' }
     return ':' + ($x -join ':')
+}
+
+function Get-TSpecCH([string]$tspec) {
+    # 12.10 (lot 1, E9-image) : elements c= et h= du TSPEC utilisateur (complement de Get-TSpecExtras), joints par ':' ;
+    # chaine vide s il n y en a pas
+    return (@("$tspec" -split ':' | Where-Object { $_ -match '^\s*[ch]\s*=' } | ForEach-Object { $_.Trim() }) -join ':')
 }
 
 function Get-TSpecHeads([string]$tspec) {
@@ -152,7 +171,7 @@ function Get-WritePartial([string]$img, [string]$fmt, [string]$tspec) {
     $step = if ($ms.Success -and [int]$ms.Groups[1].Value -ne 1) { [int]$ms.Groups[1].Value } else { 0 }
     $p = $null
     if ($sel.Restricts) {
-        $spec = (@("$tspec" -split ':' | Where-Object { $_ -match '^\s*[ch]\s*=' } | ForEach-Object { $_.Trim() }) -join ':')
+        $spec = Get-TSpecCH $tspec
         $set = Get-ImageTrackSet $img
         if ($null -eq $set) {
             $n = Get-ImageCylinders $img
@@ -255,12 +274,10 @@ function Get-HighDensityReason([string]$path, [string]$fmt) {
     # Get-HdCalibFamily), distincte des familles double densite (standard 2 us, long track 1,89 us).
     # Sans format explicite : format implicite de gw pour l extension (HDM, XDF, FDI, DIM, DCP : pc98.2hd ou 2hs ;
     # D2M, D4M : CMD FD2000 HD, FD4000 ED), image secteur brute de 1 200 000 octets ou plus, mode de la premiere
-    # piste d un IMD.
+    # piste d un IMD. 12.10 (lot 1, B1) : formats implicites lus dans la table unique $script:ExtDefaultFmt (040)
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
     if (-not $fmt -or $fmt -eq '(auto)') {
-        $def = @{ '.hdm' = 'pc98.2hd'; '.xdf' = 'pc98.2hd'; '.fdi' = 'pc98.2hd'; '.dim' = 'pc98.2hd'; '.dcp' = 'pc98.2hd'
-                  '.d2m' = 'commodore.cmd.fd2000.hd'; '.d4m' = 'commodore.cmd.fd4000.ed' }
-        if ($def.ContainsKey($ext)) { $fmt = $def[$ext] }
+        if ($script:ExtDefaultFmt.ContainsKey($ext)) { $fmt = $script:ExtDefaultFmt[$ext] }
     }
     if (Test-HdFormat $fmt) { return ((T "format haute densité {0}") -f "$fmt") }
     try {
@@ -288,13 +305,12 @@ function Get-HdCalibFamily([string]$path, [string]$fmt) {
     # densite, ou haute densite non calibrable : ED, codages propres, 360 tr/min). Format explicite de la table, ou
     # implicite de l extension (meme table que Get-HighDensityReason) : sa famille (Get-FormatCalibInfo), le format
     # l emporte ; sinon ADF HD ; sinon IPF ou HFE de cellule 900 a 1 100 ns (cellule lue pour un tour de 200 ms : un HFE
-    # haute densite a 360 tr/min se lit a 1 200 ns, hors plage, comme en 12.6).
+    # haute densite a 360 tr/min se lit a 1 200 ns, hors plage, comme en 12.6). 12.10 (lot 1, B1) : formats implicites de
+    # la table unique $script:ExtDefaultFmt (040) ; cellule physique des HFE FM et Apple II (Get-HfeCellInfo)
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
     $f = $fmt
     if (-not $f -or $f -eq '(auto)') {
-        $def = @{ '.hdm' = 'pc98.2hd'; '.xdf' = 'pc98.2hd'; '.fdi' = 'pc98.2hd'; '.dim' = 'pc98.2hd'; '.dcp' = 'pc98.2hd'
-                  '.d2m' = 'commodore.cmd.fd2000.hd'; '.d4m' = 'commodore.cmd.fd4000.ed' }
-        $f = if ($def.ContainsKey($ext)) { $def[$ext] } else { '' }
+        $f = if ($script:ExtDefaultFmt.ContainsKey($ext)) { $script:ExtDefaultFmt[$ext] } else { '' }
     }
     if ($f -and $script:GwFormats.Contains($f)) {
         if ([string](Get-FormatCalibInfo $f).Cal -eq 'hd') { return 'hd' }
@@ -307,6 +323,65 @@ function Get-HdCalibFamily([string]$path, [string]$fmt) {
         if ($null -ne $info -and [double]$info.CellNs -ge 900 -and [double]$info.CellNs -le 1100) { return 'hd' }
     } catch { }
     return $null
+}
+
+function Get-ImageEncoding([string]$path, [string]$fmt) {
+    # 12.10 (lot 1, B1) : codage d une image a ecrire. Enc : 'mfm', 'fm', 'fm0' (piste 0 en FM, les autres en MFM), 'gcr',
+    # 'other' (codage propre au systeme : M2FM, Data General) ou '' (inconnu : MFM suppose, comme en 12.8) ;
+    # Src : origine, pour le journal ; Name : nom du codage dans les textes ; NonMfm : FM, GCR ou codage propre, ecrits sans
+    # --precomp (Start-ImageWrite : la precompensation de gw, regle du MFM par defaut, et la courbe du lecteur ne valent
+    # que pour le MFM). Ordre : format explicite de la table GwFormats (amiga et bit : MFM ; c64, a2 et mac : GCR ; scan :
+    # inconnu) ; sans format explicite, format implicite de gw pour l extension ($script:ExtDefaultFmt) ; sinon en-tete :
+    # HFE (octet 11, Get-HfeCellInfo ; 0xFF, valeur par defaut de gw : inconnu, decision B-D2), IMD (mode de la premiere
+    # piste : 0 a 2 en FM) ou D88 (drapeau 0x40 du premier secteur : FM, d88.py). Format explicite absent de la table (gw
+    # plus recent, fichier diskdefs) : en-tete seul. 12.10 (lot 1, R1-corrections-revue, constat a) : secteurs durs ('hard')
+    # au codage de leur famille, comme les codecs de gw 1.23 (micropolis.py : mfm_encode ; northstar.py : mode fm ou mfm
+    # du format) : northstar.fm.* en FM, micropolis.* et northstar.mfm.* en MFM (--precomp transmis, comme en 12.8)
+    $r = @{ Enc = ''; Src = ''; Name = ''; NonMfm = $false }
+    $ext = [System.IO.Path]::GetExtension("$path").ToLower()
+    $f = ''; $src = ''
+    if ($fmt -and $fmt -ne '(auto)') { if ($script:GwFormats.Contains($fmt)) { $f = $fmt; $src = (T "format {0}") -f "$fmt" } }
+    elseif ($script:ExtDefaultFmt.ContainsKey($ext)) { $f = $script:ExtDefaultFmt[$ext]; $src = (T "format {0} déduit de l'extension {1}") -f "$f", "$ext" }
+    if ($f) {
+        $e = [string]$script:GwFormats[$f].Enc
+        $r.Enc = switch ($e) { 'amiga' { 'mfm' } 'bit' { 'mfm' } 'c64' { 'gcr' } 'a2' { 'gcr' } 'mac' { 'gcr' } 'm2fm' { 'other' } 'dg' { 'other' } 'hard' { if ($f -match '^northstar\.fm\.') { 'fm' } elseif ($f -match '^(micropolis|northstar\.mfm)\.') { 'mfm' } else { 'other' } } 'scan' { '' } default { $e } }
+        if ($r.Enc) { $r.Src = $src }
+    } elseif ($path -and (Test-Path -LiteralPath $path)) {
+        try {
+            if ($ext -eq '.hfe') { $r.Enc = [string](Get-HfeCellInfo $path).Enc; $src = (T 'en-tête HFE') }
+            elseif ($ext -eq '.imd') {
+                # En-tete texte termine par 0x1A, puis mode de la premiere piste (imd.py : 0 a 2 en FM, 3 a 5 en MFM)
+                $fs = [System.IO.File]::OpenRead($path)
+                try { $b = New-Object byte[] 65536; $n = $fs.Read($b, 0, $b.Length) } finally { $fs.Dispose() }
+                $i = [Array]::IndexOf($b, [byte]0x1A, 0, $n)
+                if ($i -ge 0 -and $i + 1 -lt $n -and $b[$i + 1] -le 5) { $r.Enc = $(if ($b[$i + 1] -le 2) { 'fm' } else { 'mfm' }) }
+                $src = (T 'en-tête IMD')
+            } elseif ($ext -eq '.d88') {
+                # En-tete de 32 octets, table des pistes (decalages sur 4 octets) a l offset 0x20 ; premiere piste presente :
+                # en-tete de son premier secteur (16 octets), drapeau de densite a l offset 6
+                $fs = [System.IO.File]::OpenRead($path)
+                try {
+                    $b = New-Object byte[] 688; $n = $fs.Read($b, 0, $b.Length); $o = [int64]0
+                    for ($t = 0; $t -lt 164 -and 36 + 4 * $t -le $n; $t++) { $o = [int64][BitConverter]::ToUInt32($b, 32 + 4 * $t); if ($o -ne 0) { break } }
+                    if ($o -ge 32 -and $o + 16 -le $fs.Length) {
+                        $sh = New-Object byte[] 16; [void]$fs.Seek($o, [System.IO.SeekOrigin]::Begin)
+                        if ($fs.Read($sh, 0, 16) -eq 16) { $r.Enc = $(if ($sh[6] -eq 0x40) { 'fm' } else { 'mfm' }) }
+                    }
+                } finally { $fs.Dispose() }
+                $src = (T 'en-tête D88')
+            }
+        } catch { $r.Enc = '' }
+        if ($r.Enc) { $r.Src = $src }
+    }
+    $r.NonMfm = (@('fm', 'gcr', 'other') -contains $r.Enc)
+    $r.Name = switch ($r.Enc) { 'fm' { (T 'FM') } 'gcr' { (T 'GCR') } 'other' { (T 'propre au système') } default { '' } }
+    return $r
+}
+
+function Test-NonMfmWrite([string]$img, [string]$fmt) {
+    # 12.10 (lot 1, B1) : image FM, GCR ou a codage propre (Get-ImageEncoding) : ecrite sans --precomp en profil Auto ou
+    # force (decision B-D1), sans calibration ni mesure de la disquette avant l ecriture
+    return [bool](Get-ImageEncoding $img $fmt).NonMfm
 }
 
 function Test-ScpHighDensity([string]$path) {

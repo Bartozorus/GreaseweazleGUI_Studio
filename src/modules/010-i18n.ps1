@@ -135,7 +135,6 @@ $script:I18n["J'ai tourné -1 cran"] = "I turned -1 notch"
 $script:I18n["À cliquer APRÈS avoir tourné le stepper d'un petit cran dans le sens '-'. Lance la mesure."] = "Click AFTER turning the stepper one small notch in the '-' direction. Runs the measurement."
 $script:I18n["État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter.`nIndépendant du contenu : comparable d'une disquette à l'autre."] = "Media condition: based only on errors, signal dropouts, revolution-to-revolution stability and jitter.`nContent-independent: comparable from one disk to another."
 $script:I18n["Score de qualité de lecture (plus bas = mieux). Dépend du contenu : à comparer uniquement sur une même image`n(deux lecteurs, deux précompensations, deux réglages)."] = "Read quality score (lower = better). Content-dependent: only compare on the same image`n(two drives, two precompensations, two adjustments)."
-$script:I18n['Score par cylindre : barre courte = bon. Trait noir = référence, trait bleu = meilleur vu.'] = 'Score per cylinder: short bar = good. Black line = reference, blue line = best seen.'
 $script:I18n['vs réf'] = 'vs ref'
 $script:I18n['Mesure :'] = 'Measure:'
 $script:I18n['Cylindres :'] = 'Cylinders:'
@@ -253,7 +252,6 @@ $script:I18n["ERREUR pendant la comparaison : {0}"] = "ERROR during comparison: 
 $script:I18n["Comparaison : erreur {0}"] = "Compare: error {0}"
 $script:I18n['Fichier SCP invalide'] = 'Invalid SCP file'
 $script:I18n['Indiquez au moins un cylindre valide (0-83).'] = 'Specify at least one valid cylinder (0-83).'
-$script:I18n['Barres de score par cylindre : apparaissent après la première mesure.'] = 'Score bars per cylinder: shown after the first measurement.'
 $script:I18n["Position {0}  |  meilleure position : {1} (score {2})"] = "Position {0}  |  best position: {1} (score {2})"
 $script:I18n["Position 0 mesurée (score {0}). Tournez le stepper d'UN PETIT cran dans un sens, puis cliquez sur le bouton correspondant."] = "Position 0 measured (score {0}). Turn the stepper ONE SMALL notch in one direction, then click the matching button."
 $script:I18n["Position {0} re-mesurée. Meilleure position connue : {1}."] = "Position {0} measured again. Best known position: {1}."
@@ -356,7 +354,6 @@ $script:I18n['Choisissez d''abord l''image à écrire : elle fixe la famille (ce
 $script:I18n["Calibration impossible sur un flux ({0}) : la calibration ne détermine la densité que d'une image à bits ou secteurs (ADF, IPF, HFE, IMG...)."] = "Cannot calibrate with a flux image ({0}): the calibration only determines the density of a bit-cell or sector image (ADF, IPF, HFE, IMG...)."
 $script:I18n['Calibration precomp'] = 'Precomp calibration'
 $script:I18n["{0} cylindres d'après l'image"] = "{0} cylinders from the image"
-$script:I18n['80 cylindres par défaut (nombre non lisible dans l''image)'] = '80 cylinders by default (count not readable from the image)'
 $script:I18n['test fin, tous les cylindres'] = 'fine test, every cylinder'
 $script:I18n['test standard, un cylindre sur 10'] = 'standard test, one cylinder in 10'
 $script:I18n["Calibration de la précompensation sur le lecteur {0} ({1}).`n`nImage : {2}, famille {3}, {4}.`nMotif de test : données pseudo-aléatoires générées à la densité de l'image, son contenu n'est pas écrit.`nCylindres de test : {5} (2 faces), ÉCRASÉS à chaque passe. Durée estimée : {6} min pour {7} passes."] = "Precompensation calibration on drive {0} ({1}).`n`nImage: {2}, family {3}, {4}.`nTest pattern: pseudo-random data generated at the image's density, its content is not written.`nTest cylinders: {5} (both sides), OVERWRITTEN on every pass. Estimated time: {6} min for {7} passes."
@@ -406,6 +403,8 @@ $script:I18n["changement de sens déplacé de {0} à {1}"] = 'change of directio
 $script:I18n["changements de sens {0}"] = 'changes of direction {0}'
 $script:I18n["{0} cylindre(s) corrigé(s), résidu hors tolérance, nouveau profil : {1}"] = "{0} cylinder(s) corrected, residual out of tolerance, new profile: {1}"
 $script:I18n["Plafond de {0} ns atteint aux cylindres {1} : le besoin dépasse la précompensation maximale, la courbe reste au plafond et une nouvelle calibration n'y changera rien. Si une disquette en bon état sature aussi, c'est le lecteur ; sinon, c'est le support, probablement fatigué."] = "{0} ns ceiling reached at cylinders {1}: the need exceeds the maximum precompensation, the curve stays at the ceiling and a new calibration will not change it. If a disk in good condition saturates too, it is the drive; otherwise it is the media, probably worn."
+# 12.10 (lot 1, A13a) : mesure de la disquette seule : libelle neutre du plafond
+$script:I18n["Plafond de {0} ns atteint aux cylindres {1} : le besoin de cette disquette dépasse la précompensation maximale, la courbe reste au plafond et une nouvelle mesure n'y changera rien. Autre type de disquette ou usure, non distingués ; si d'autres disquettes saturent aussi, c'est le lecteur."] = "{0} ns ceiling reached at cylinders {1}: this disk's need exceeds the maximum precompensation, the curve stays at the ceiling and a new measurement will not change it. Another type of disk or wear, not distinguished; if other disks saturate too, it is the drive."
 $script:I18n[' Limite de précompensation atteinte (0 ou {0} ns) : voir le journal.'] = ' Precompensation limit reached (0 or {0} ns): see the log.'
 $script:I18n["Précompensation nulle encore excessive aux cylindres {0} : la courbe reste à 0 ns et une nouvelle calibration n'y changera rien. La même mesure sur une autre disquette désigne le lecteur, sinon le support."] = 'Zero precompensation still excessive at cylinders {0}: the curve stays at 0 ns and a new calibration will not change it. The same measurement on another disk points to the drive, otherwise to the media.'
 $script:I18n["Résidu après vérification (ns, tolérance {0}, élargie à 3 erreurs-types si la mesure est plus bruitée) : {1}"] = "Residual after verification (ns, tolerance {0}, widened to 3 standard errors when the measurement is noisier): {1}"
@@ -441,7 +440,8 @@ $script:I18n['CONTRÔLE APRÈS ÉCRITURE : aucune piste mesurée.'] = 'POST-WRIT
 $script:I18n[", après réécriture de {0} piste(s) en {1} passe(s)"] = ", after rewriting {0} track(s) in {1} pass(es)"
 $script:I18n["CONTRÔLE APRÈS ÉCRITURE : {0}/{1} pistes faibles, réécriture automatique non lancée (plus de la moitié des pistes)  ->  vérifier le format, la disquette et le lecteur"] = "POST-WRITE CHECK: {0}/{1} weak tracks, automatic rewrite not started (more than half of the tracks)  ->  check the format, the disk and the drive"
 $script:I18n["CONTRÔLE APRÈS ÉCRITURE : {0}/{1} piste(s) faible(s) : {2}  (réécriture automatique désactivée)"] = "POST-WRITE CHECK: {0}/{1} weak track(s): {2}  (automatic rewrite disabled)"
-$script:I18n["CONTRÔLE APRÈS ÉCRITURE : {0} piste(s) encore faible(s) après {1} passe(s) de réécriture : {2}  ->  support fatigué, réécrire sur une autre disquette"] = "POST-WRITE CHECK: {0} track(s) still weak after {1} rewrite pass(es): {2}  ->  worn media, rewrite on another disk"
+# 12.10 (lot 1, I-5) : verdict neutre du controle apres ecriture, l usure n est pas presumee
+$script:I18n["CONTRÔLE APRÈS ÉCRITURE : {0} piste(s) encore faible(s) après {1} passe(s) de réécriture : {2}  ->  autre type de disquette ou usure, non distingués ; essayez une autre disquette"] = "POST-WRITE CHECK: {0} track(s) still weak after {1} rewrite pass(es): {2}  ->  another type of disk or wear, not distinguished; try another disk"
 $script:I18n['Contrôle après écriture interrompu.'] = 'Post-write check aborted.'
 $script:I18n[" ... (+{0})"] = " ... (+{0})"
 $script:I18n['gw n''a pas pu être lancé.'] = 'gw could not be started.'
@@ -452,13 +452,14 @@ $script:I18n["format GCR {0}"] = "GCR format {0}"
 $script:I18n["image GCR {0}"] = "GCR image {0}"
 $script:I18n['ADF haute densité'] = 'high-density ADF'
 $script:I18n["image haute densité, cellule {0} ns"] = "high-density image, cell {0} ns"
-$script:I18n["CONTRÔLE APRÈS ÉCRITURE interrompu par une erreur gw à la passe {0}/{1} : {2} piste(s) faible(s) ou non remesurée(s) : {3}  ->  support fatigué ou lecteur en défaut"] = "POST-WRITE CHECK aborted by a gw error in pass {0}/{1}: {2} weak or unmeasured track(s): {3}  ->  worn media or faulty drive"
+# 12.10 (lot 1, I-5) : verdict neutre du controle interrompu par gw
+$script:I18n["CONTRÔLE APRÈS ÉCRITURE interrompu par une erreur gw à la passe {0}/{1} : {2} piste(s) faible(s) ou non remesurée(s) : {3}  ->  disquette ou lecteur en défaut, non distingués"] = "POST-WRITE CHECK aborted by a gw error in pass {0}/{1}: {2} weak or unmeasured track(s): {3}  ->  faulty disk or drive, not distinguished"
 $script:I18n["Débit HFE invalide ({0} kbit/s)"] = "Invalid HFE bitrate ({0} kbit/s)"
 $script:I18n["gw déjà en cours : commande ignorée ({0})."] = "gw already running: command ignored ({0})."
 $script:I18n['lecteur 8 pouces (TG43)'] = '8-inch drive (TG43)'
 $script:I18n['flux SCP haute densité'] = 'high-density SCP flux'
 $script:I18n['Courbe'] = 'Curve'
-$script:I18n['Affiche la courbe de précompensation calibrée pour la famille de l''image (standard ou long track) : mesures, courbe ajustée et valeur retenue pour chaque cylindre.'] = 'Shows the calibrated precompensation curve for the image family (standard or long track): measurements, fitted curve and the value used for every cylinder.'
+$script:I18n['Affiche la courbe de précompensation calibrée que l''écriture applique, pour la famille du profil forcé, sinon de l''image (standard, long track ou haute densité) : mesures, courbe ajustée et valeur retenue pour chaque cylindre.'] = 'Shows the calibrated precompensation curve that the write applies, for the family of the forced profile, otherwise of the image (standard, long track or high density): measurements, fitted curve and the value used for every cylinder.'
 $script:I18n['linéaire'] = 'linear'
 $script:I18n['1/rayon'] = '1/radius'
 $script:I18n['1/rayon²'] = '1/radius²'
@@ -516,7 +517,7 @@ $script:I18n["Écriture lente : nombre de faces de l'image inconnu ({0}).`nIndiq
 $script:I18n["Calibration : motif de test impossible à créer : {0}"] = "Calibration: unable to create the test pattern: {0}"
 $script:I18n['format à secteurs, 2 us par cellule'] = 'sector format, 2 us per cell'
 $script:I18n['Effacer les calibrations'] = 'Clear calibrations'
-$script:I18n["Efface toutes les calibrations de précompensation : courbes communes et par tête des familles standard et long track.`nLes profils de famille reprennent leurs valeurs d'origine. Une écriture rapide ou lente recalibre ensuite automatiquement."] = "Clears every precompensation calibration: common and per-head curves of the standard and long-track families.`nThe family profiles return to their original values. A fast or slow write then recalibrates automatically."
+$script:I18n["Efface toutes les calibrations de précompensation, de tous les lecteurs : courbes communes et par tête de toutes les familles (standard, long track, haute densité) et courbes croisées, avec les niveaux de la calibration rapide, la mémoire par marque et les facteurs mesurés."] = 'Clears every precompensation calibration, for all drives: common and per-head curves of all families (standard, long track, high density) and cross curves, with the quick-calibration levels, the per-brand memory and the measured factors.'
 $script:I18n["tête {0}"] = "head {0}"
 $script:I18n['Opération en cours : attendre la fin de la calibration ou de l''écriture.'] = 'Operation in progress: wait for the calibration or the write to finish.'
 $script:I18n['Aucune calibration enregistrée : les profils sont déjà ceux d''origine.'] = 'No calibration saved: the profiles are already the original ones.'
@@ -691,7 +692,7 @@ $script:I18n["{0} : aucune courbe."] = '{0}: no curve.'
 $script:I18n["{0} : {1}."] = '{0}: {1}.'
 $script:I18n['lecteur {0}'] = 'drive {0}'
 $script:I18n["Une calibration existante n'est jamais refaite par la restauration. Sans courbe, le lecteur est calibré tête par tête en test fin, éventuellement sur une disquette sacrifiée, avant l'écriture de la copie."] = 'The restore never redoes an existing calibration. Without a curve, the drive is calibrated head by head with the fine test, possibly on a sacrificial disk, before the copy is written.'
-$script:I18n["Affiche la courbe de précompensation appliquée par la restauration, une courbe par tête si elle existe : haute densité pour un format haute densité choisi, sinon double densité."] = 'Shows the precompensation curve applied by the restore, one curve per head if it exists: high density for a chosen high-density format, otherwise double density.'
+$script:I18n["Affiche la courbe de précompensation appliquée par la restauration, une courbe par tête si elle existe : haute densité pour un format haute densité choisi, double densité pour un format double densité ; en détection automatique, où le format n'est connu qu'à la lecture, double densité, à défaut haute densité ; avec un lecteur cible choisi dans l'onglet Écriture, la courbe croisée double densité que la restauration écrit. Inactif quand aucune courbe ne s'applique : aucune courbe de la famille du format choisi, copie exacte du flux (écrite sans précompensation), restauration refusée pour le lecteur cible (le cadre le dit)."] = 'Shows the precompensation curve applied by the restore, one curve per head if it exists: high density for a chosen high-density format, double density for a double-density format; with automatic detection, where the format is known only when the original is read, double density, otherwise high density; with a target drive chosen in the Write tab, the double-density cross curve that the restore writes. Inactive when no curve applies: no curve of the chosen format''s family, exact flux copy (written without precompensation), restore refused for the target drive (the frame says so).'
 $script:I18n['3. Sauvegarde (original lu, copie relue, rapport)'] = '3. Backup (original read, copy read back, report)'
 $script:I18n["Détection   : {0}"] = 'Detection   : {0}'
 $script:I18n["Lecteur     : {0}"] = 'Drive       : {0}'
@@ -942,7 +943,7 @@ $script:I18n['calibration'] = 'calibration'
 $script:I18n['contrôle après écriture'] = 'post-write check'
 $script:I18n['séquence d''étapes'] = 'step sequence'
 $script:I18n["Restauration refusée : opération en cours ({0})."] = 'Restore refused: operation in progress ({0}).'
-$script:I18n['Restauration : changez de disquette, puis cliquez sur « Continuer » dans l''onglet Restauration.'] = 'Restore: swap disks, then click "Continue" in the Restore tab.'
+$script:I18n['Restauration : changez de disquette, puis cliquez sur « Continuer ».'] = 'Restore: swap disks, then click "Continue".'
 $script:I18n['Lecture : flux avec un format, sans « Flux brut » : gw enregistre un flux reconstitué à partir des secteurs décodés ; les pistes protégées ou illisibles ne sont pas conservées telles quelles. Cochez « Flux brut (--raw) » pour garder le flux réel.'] = 'Read: flux with a format, without "Raw flux": gw saves a flux rebuilt from the decoded sectors; protected or unreadable tracks are not kept as they are. Check "Raw flux (--raw)" to keep the real flux.'
 $script:I18n["Enregistre le flux réel du disque ; avec un format, celui-ci sert alors au contrôle des secteurs et aux relectures.`nSans cette case, un .scp lu avec un format contient un flux reconstitué à partir des secteurs décodés.`nAvec des essais, les tours relus sont ajoutés après les premiers, mais la plupart des logiciels ne lisent que les premiers tours."] = "Saves the real flux of the disk; with a format, the format is then used to check the sectors and for re-reads.`nWithout this box, a .scp read with a format holds a flux rebuilt from the decoded sectors.`nWith retries, the re-read revolutions are appended after the first ones, but most software only reads the first revolutions."
 $script:I18n['flux haute densité : une copie de flux ne pourrait pas être contrôlée. Choisissez un format haute densité (amiga.amigados_hd, ibm.1440) pour une copie vérifiée secteur par secteur.'] = 'high-density flux: a flux copy could not be checked. Choose a high-density format (amiga.amigados_hd, ibm.1440) for a copy verified sector by sector.'
@@ -1081,7 +1082,7 @@ $script:I18n['Calibrations d''un autre calcul'] = 'Calibrations from another cal
 $script:I18n['Recalibrer (conseillé)'] = 'Recalibrate (recommended)'
 $script:I18n['Conserver ces courbes'] = 'Keep these curves'
 $script:I18n['Calibrations d''un autre calcul conservées à votre demande : {0}. Elles sont utilisées telles quelles (calcul actuel v{1}).'] = 'Calibrations from another calculation kept at your request: {0}. They are used as they are (current calculation v{1}).'
-$script:I18n["Calibrations d'un autre calcul abandonnées : {0}. Courbes et profils calibrés remis aux valeurs d'origine ; recalibrez le lecteur depuis la carte « Calibrer le lecteur » de l'Accueil (en « Test rapide », l'écriture d'une image calibrable est refusée d'ici là)."] = 'Calibrations from another calculation discarded: {0}. Curves and calibrated profiles reset to the original values; recalibrate the drive from the "Calibrate the drive" card on the Home tab (with the "Quick test", writing an image that can be calibrated is refused until then).'
+$script:I18n["Calibrations d'un autre calcul abandonnées : {0}. Ces courbes sont retirées et leurs profils reviennent aux valeurs d'origine ; recalibrez chaque lecteur concerné depuis la carte « Calibrer le lecteur » de l'Accueil (en « Test rapide », l'écriture d'une image calibrable est refusée d'ici là)."] = 'Calibrations from another calculation discarded: {0}. These curves are removed and their profiles go back to the original values; recalibrate each drive concerned from the "Calibrate the drive" card on the Home tab (with the "Quick test", writing an image that can be calibrated is refused until then).'
 $script:I18n['Calibrations d''un autre calcul : décision remise au prochain démarrage ; elles ne sont pas utilisées d''ici là.'] = 'Calibrations from another calculation: decision postponed to the next start; they are not used until then.'
 $script:I18n['calcul {0}'] = 'calculation {0}'
 $script:I18n['Calcul de calibration : {0}'] = 'Calibration calculation: {0}'
@@ -1091,7 +1092,11 @@ $script:I18n['Référence faite avec le calcul de calibration {0}.'] = 'Referenc
 $script:I18n['{0}, calcul {1}'] = '{0}, calculation {1}'
 $script:I18n['Ces calibrations ont été faites avec un autre calcul de calibration que le calcul actuel (v{0}) :'] = 'These calibrations were made with a calibration calculation other than the current one (v{0}):'
 $script:I18n["Calibrations faites avec un autre calcul de calibration que le calcul actuel (v{0}) : {1}. Elles sont mises de côté jusqu'à votre choix."] = 'Calibrations made with a calibration calculation other than the current one (v{0}): {1}. They are set aside until you choose.'
-$script:I18n["Recalibrer (conseillé) : ces calibrations sont abandonnées et le lecteur reprend ses profils d'origine. Recalibrez-le depuis la carte « Calibrer le lecteur » de l'Accueil, sur une disquette sacrifiée ; d'ici là, en « Test rapide », l'écriture d'une image calibrable est refusée.`nConserver ces courbes : elles restent utilisées telles quelles ; la fenêtre Courbe et le journal rappellent leur calcul. Le calcul ayant changé, une nouvelle calibration peut donner une courbe plus juste. Une courbe antérieure à la 12.3 ne peut pas servir de référence au test rapide (pente et densité non enregistrées).`nFermer la fenêtre (ou Échap) : décision au prochain démarrage ; d'ici là, ces calibrations ne sont pas utilisées."] = "Recalibrate (recommended): these calibrations are discarded and the drive returns to its original profiles. Recalibrate it from the `"Calibrate the drive`" card on the Home tab, on a sacrificial disk; until then, with the `"Quick test`", writing an image that can be calibrated is refused.`nKeep these curves: they remain in use as they are; the Curve window and the log recall their calculation. As the calculation has changed, a new calibration may give a more accurate curve. A curve older than 12.3 cannot be the reference of the quick test (slope and density not recorded).`nClose the window (or Esc): decision at the next start; until then, these calibrations are not used."
+$script:I18n["Recalibrer (conseillé) : ces calibrations sont abandonnées et leurs profils reviennent aux valeurs d'origine. Recalibrez chaque lecteur concerné depuis la carte « Calibrer le lecteur » de l'Accueil, sur une disquette sacrifiée ; d'ici là, en « Test rapide », l'écriture d'une image calibrable est refusée.`nConserver ces courbes : elles restent utilisées telles quelles ; la fenêtre Courbe et le journal rappellent leur calcul. Le calcul ayant changé, une nouvelle calibration peut donner une courbe plus juste."] = "Recalibrate (recommended): these calibrations are discarded and their profiles go back to the original values. Recalibrate each drive concerned from the `"Calibrate the drive`" card on the Home tab, on a sacrificial disk; until then, with the `"Quick test`", writing an image that can be calibrated is refused.`nKeep these curves: they remain in use as they are; the Curve window and the log recall their calculation. As the calculation has changed, a new calibration may give a more accurate curve."
+# 12.10 (relecture des captures) : phrase de la 12.3 sortie du texte fixe de la fenetre « Calibrations d'un autre calcul »
+# (240 Resolve-OldCalibrations : seulement pour une courbe d un calcul anterieur a 12.3), fin du texte a part
+$script:I18n["Une courbe antérieure à la 12.3 ne peut pas servir de référence au test rapide (pente et densité non enregistrées)."] = 'A curve older than 12.3 cannot be the reference of the quick test (slope and density not recorded).'
+$script:I18n["Fermer la fenêtre (ou Échap) : décision au prochain démarrage ; d'ici là, ces calibrations ne sont pas utilisées."] = 'Close the window (or Esc): decision at the next start; until then, these calibrations are not used.'
 $script:I18n["Copie de la configuration d'avant ce choix : {0}"] = 'Copy of the configuration from before this choice: {0}'
 $script:I18n['Courbes de la version 12.2 relues dans la copie faite par la première version 12.3 : {0}'] = 'Curves of version 12.2 read back from the copy made by the first 12.3 version: {0}'
 $script:I18n["Bruit de mesure estimé : {0} ns, sur {1} écarts entre cylindres vérifiés distants de 2 au plus. Un écart est retenu si la moyenne des résidus voisins (2 cylindres au plus) dépasse {2} ns, si un résidu dépasse {3} ns, s'il s'étend sur 3 cylindres ou plus, ou 2 en bord de piste ou de segment, au-delà de {2} ns, ou s'il couvre 2 cylindres au-delà de {4} ns. Seuils relevés quand le bruit est fort. Un écart dont un cylindre a moins de 2 autres cylindres vérifiés à 2 cylindres au plus est retenu sur sa seule tolérance ; les points isolés et les cylindres au plafond ou au plancher ne comptent ni dans le bruit ni dans le voisinage, les cylindres non reproductibles ni dans le bruit ni dans les moyennes."] = 'Estimated measurement noise: {0} ns, from {1} differences between verified cylinders at most 2 apart. A deviation is kept if the mean of the neighbouring residuals (within 2 cylinders) exceeds {2} ns, if a residual exceeds {3} ns, if it spans 3 or more cylinders, or 2 at the edge of the track or of a segment, beyond {2} ns, or if it covers 2 cylinders beyond {4} ns. Thresholds are raised when the noise is high. A deviation one of whose cylinders has fewer than 2 other verified cylinders within 2 cylinders is kept on its tolerance alone; isolated points and cylinders at the ceiling or floor count neither in the noise nor in the neighbourhood, non-reproducible cylinders neither in the noise nor in the means.'
@@ -1169,9 +1174,9 @@ $script:I18n["{0} cylindres dans la définition de gw."] = '{0} cylinders in the
 $script:I18n['Amiga longues pistes (IPF, HFE)'] = 'Amiga long tracks (IPF, HFE)'
 $script:I18n["Pistes longues d'une protection contre la copie : la cellule réelle et le nombre de cylindres (jusqu'à 84) se lisent dans l'image ; « Calibrer » dans l'onglet Écriture, avec l'image, les reprend exactement."] = 'Long tracks of a copy protection: the actual cell and the number of cylinders (up to 84) are read from the image; "Calibrate" in the Write tab, with the image, uses them exactly.'
 $script:I18n['Flux : SCP, RAW, KF, A2R, CTR'] = 'Flux: SCP, RAW, KF, A2R, CTR'
-$script:I18n["flux écrit tel quel, sans précompensation (gw ne l'applique qu'aux images à secteurs ou à bits) : pas de calibration"] = 'flux written as is, without precompensation (gw only applies it to sector or bitcell images): no calibration'
+$script:I18n["flux écrit tel quel sans format choisi (gw ne lui applique pas la précompensation) ; avec un format choisi, gw le décode et l'écrit avec la précompensation de sa famille ; pas de calibration sur un flux"] = 'flux written as is without a chosen format (gw does not apply precompensation to it); with a chosen format, gw decodes it and writes it with the precompensation of its family; no calibration on a flux'
 $script:I18n['Géométrie libre : IMD, TD0, D88, MSA, DSK CPC'] = 'Free geometry: IMD, TD0, D88, MSA, CPC DSK'
-$script:I18n["densité non établie par l'application : l'écriture ne calibre pas, elle applique la courbe {0} ; pour la calibrer, choisissez le format gw de la disquette (atarist.720 pour un MSA de 720 Ko, par exemple)"] = "density not established by the application: writing does not calibrate, it applies the {0} curve; to calibrate it, choose the disk's gw format (atarist.720 for a 720 KB MSA, for example)"
+$script:I18n["densité non établie par l'application : l'écriture ne calibre pas, elle applique la courbe {0} (MFM), ou aucune précompensation pour un IMD ou un D88 en FM (codage lu dans l'en-tête) ; pour la calibrer, choisissez le format gw de la disquette (atarist.720 pour un MSA de 720 Ko, par exemple)"] = 'density not established by the application: writing does not calibrate, it applies the {0} curve (MFM), or no precompensation for an IMD or D88 in FM (encoding read from the header); to calibrate it, choose the disk''s gw format (atarist.720 for a 720 KB MSA, for example)'
 $script:I18n["{0} : aucune courbe"] = '{0}: no curve'
 $script:I18n['test non enregistré'] = 'test not recorded'
 $script:I18n["{0} : {1}, lecteur {2}, {3}, {4} cylindres, calcul {5}"] = '{0}: {1}, drive {2}, {3}, {4} cylinders, calculation {5}'
@@ -1194,7 +1199,6 @@ $script:I18n["Test rapide (niveau de la disquette insérée) : environ {0} min"]
 $script:I18n["Forme reprise de la calibration complète du {0}. Insérez la disquette que vous allez écrire : le profil obtenu ne vaut que pour elle."] = 'Shape taken from the full calibration of {0}. Insert the disk you are going to write: the resulting profile is only valid for it.'
 $script:I18n['Test rapide (niveau de la disquette insérée)'] = 'Quick test (level of the inserted disk)'
 $script:I18n["Indisponible : {0}."] = 'Unavailable: {0}.'
-$script:I18n["La courbe actuelle vient du lecteur {0} : elle sera remplacée, et la nouvelle s'appliquera à tous les lecteurs (une courbe par famille)."] = 'The current curve comes from drive {0}: it will be replaced, and the new one will apply to all drives (one curve per family).'
 $script:I18n["La courbe actuelle couvre {0} cylindres : elle sera remplacée par une courbe de {1} cylindres, appliquée à toutes les images de la famille {2}."] = 'The current curve covers {0} cylinders: it will be replaced by a {1}-cylinder curve, applied to all images of the {2} family.'
 $script:I18n["Opération en cours : ouvrez la calibration une fois l'opération terminée."] = 'Operation in progress: open the calibration once the operation is finished.'
 $script:I18n['Calibrer le lecteur'] = 'Calibrate the drive'
@@ -1283,7 +1287,6 @@ $script:I18n['Nettoyage en cours sur le lecteur {0}...'] = 'Cleaning drive {0}..
 $script:I18n['Nettoyage en cours sur le lecteur {0} : passe {1} sur {2}, reste environ {3}.'] = 'Cleaning drive {0}: pass {1} of {2}, about {3} left.'
 $script:I18n["Opération en cours : lancez le nettoyage une fois l'opération terminée ou arrêtée."] = 'Operation in progress: start the cleaning once the operation has finished or been stopped.'
 # 12.6 corrections apres test et revue : courbe plus courte que l image, carte Calibration de l Accueil
-$script:I18n["{0} cylindres pour le format {1} ({2} dans la définition de gw, {0} au moins pour la calibration)"] = '{0} cylinders for format {1} ({2} in the gw definition, at least {0} for the calibration)'
 $script:I18n["Calibration {0} de la famille {1} mesurée sur {2} cylindres seulement, image de {3} cylindres : elle est refaite."] = 'The {0} calibration of the {1} family was measured on {2} cylinders only, the image has {3} cylinders: it is redone.'
 $script:I18n["courbe de {0} cylindres pour une image de {1}"] = '{0}-cylinder curve for a {1}-cylinder image'
 $script:I18n["type de {0} cylindres, référence de {1}"] = 'type of {0} cylinders, reference of {1}'
@@ -1324,7 +1327,7 @@ $script:I18n['Contrôle de surface : défaut ponctuel de la disquette de calibra
 $script:I18n['Contrôle de surface : calibration poursuivie sur cette disquette à votre demande.'] = 'Surface check: calibration continued on this disk at your request.'
 $script:I18n["Contrôle de surface : calibration arrêtée à votre demande, rien de plus n'est écrit."] = 'Surface check: calibration stopped at your request, nothing more is written.'
 $script:I18n['=== Calibration precomp reprise sur une autre disquette (disquette {0}) : mêmes réglages, cylindres {1} ==='] = '=== Precomp calibration restarted on another disk (disk {0}): same settings, cylinders {1} ==='
-$script:I18n['Calibration en attente : contrôle de surface, décision demandée (lecteur {0}).'] = 'Calibration on hold: surface check, decision requested (drive {0}).'
+$script:I18n['Calibration en attente : décision sur le contrôle de surface (lecteur {0}).'] = 'Calibration on hold: surface check, decision requested (drive {0}).'
 $script:I18n['Contrôle de surface de la première passe : disquette jugée douteuse ({0}), calibration poursuivie à votre demande : la courbe peut refléter ce support plutôt que le lecteur.'] = 'Surface check of the first pass: disk judged doubtful ({0}), calibration continued at your request: the curve may reflect this medium rather than the drive.'
 $script:I18n['contrôle de surface : disquette de calibration douteuse ({0}), calibration poursuivie à votre demande'] = 'surface check: doubtful calibration disk ({0}), calibration continued at your request'
 $script:I18n['support : {0} piste(s) défectueuse(s) à la première passe ({1})'] = 'medium: {0} defective track(s) at the first pass ({1})'
@@ -1444,11 +1447,17 @@ $script:I18n['Calibration B arrêtée : la courbe A est conservée.'] = 'Calibra
 $script:I18n['Courbe A conservée à votre demande.'] = 'Curve A kept at your request.'
 # 12.7 : calibration haute densite (famille hd ; la famille a 360 tr/min n est pas livree)
 $script:I18n['Haute densité 1 us'] = 'High density 1 us'
-$script:I18n['codage GCR : la calibration ne mesure que le codage MFM'] = 'GCR encoding: calibration only measures MFM encoding'
-$script:I18n['codage FM (simple densité) : la calibration ne mesure que le codage MFM'] = 'FM encoding (single density): calibration only measures MFM encoding'
+# 12.10 (lot 1, B1, decision B-D15) : raisons FM, GCR et codage propre completees par la consequence a l ecriture
+# 12.10 (lot 1, revue2, R-5 et R-6) : consequence en texte a part, omise en profil Manuel avec --precomp coche ; secteurs
+# durs en FM (northstar.fm.*)
+$script:I18n['codage GCR Macintosh à zones de vitesse : la calibration ne mesure que le codage MFM'] = 'Macintosh zoned-speed GCR encoding: calibration only measures MFM encoding'
+$script:I18n['codage GCR Commodore ou Apple II (lecteur 5,25 pouces) : la calibration ne mesure que le codage MFM'] = 'Commodore or Apple II GCR encoding (5.25-inch drive): calibration only measures MFM encoding'
+$script:I18n['codage FM : la calibration ne mesure que le codage MFM, et la précompensation de gw n''agit pas de la même façon en FM'] = 'FM encoding: calibration only measures MFM encoding, and gw precompensation does not act the same way in FM'
 $script:I18n['codage propre au système (M2FM, Data General) : la calibration ne mesure que le codage MFM'] = 'system-specific encoding (M2FM, Data General): calibration only measures MFM encoding'
+$script:I18n['disquette à secteurs durs en codage FM : calibration non prise en charge'] = 'hard-sectored disk in FM encoding: calibration not supported'
+$script:I18n[" ; l'image est écrite sans précompensation"] = '; the image is written without precompensation'
 $script:I18n["très haute densité (ED) : cellule de 500 ns, trop courte pour l'analyse de la calibration (900 à 1 100 ns en haute densité)"] = 'extra-high density (ED): 500 ns bit cell, too short for the calibration analysis (900 to 1,100 ns in high density)'
-$script:I18n['disquette 5,25 pouces haute densité à 360 tr/min : calibration pas encore validée sur un lecteur réel'] = '5.25-inch high-density disk at 360 rpm: calibration not yet validated on a real drive'
+$script:I18n['disquette 5,25 pouces haute densité à 360 tr/min : calibration pas encore validée sur un lecteur réel (lecteur 5,25 pouces haute densité nécessaire)'] = '5.25-inch high-density disk at 360 rpm: calibration not yet validated on a real drive (5.25-inch high-density drive required)'
 $script:I18n["format haute densité à {0} tr/min : la calibration haute densité suppose un lecteur à 300 tr/min"] = '{0} rpm high-density format: high-density calibration assumes a 300 rpm drive'
 $script:I18n["format à {0} tr/min en double densité : aucune famille de calibration à cette vitesse"] = '{0} rpm double-density format: no calibration family at this speed'
 $script:I18n["cellule de {0} ns, hors des plages mesurables (900 à 1 100 ns en haute densité, 1 700 à 2 300 ns en double densité)"] = '{0} ns cell, outside the measurable ranges (900 to 1,100 ns in high density, 1,700 to 2,300 ns in double density)'
@@ -1550,6 +1559,24 @@ $script:I18n["Bibliothèque : opération arrêtée, réglages de l'onglet Écrit
 $script:I18n["Bibliothèque terminée. Onglet Écriture rétabli : {0}{1}."] = 'Library finished. Write tab restored: {0}{1}.'
 $script:I18n["Bibliothèque arrêtée : pour reprendre, relancez l'écriture depuis la Bibliothèque. Onglet Écriture rétabli : {0}{1}."] = 'Library stopped: to resume, start the write again from the Library. Write tab restored: {0}{1}.'
 $script:I18n[', champ Pistes « {0} »'] = ', Tracks field "{0}"'
+# 12.10 (lot 1, E9-image) : l onglet Ecriture garde l image d une operation lancee depuis la Bibliotheque (securite des faces, constat I-3)
+$script:I18n["Bibliothèque : opération terminée. L'onglet Écriture garde l'image de l'opération, {0} ; ses autres réglages sont rétablis ({1}) et le préréglage de la Bibliothèque n'est pas enregistré."] = 'Library: operation finished. The Write tab keeps the image of the operation, {0}; its other settings are restored ({1}) and the Library preset is not saved.'
+$script:I18n["Bibliothèque : opération arrêtée. L'onglet Écriture garde l'image de l'opération, {0} ; ses autres réglages sont rétablis ({1}) et le préréglage de la Bibliothèque n'est pas enregistré. L'écriture de {0} n'est peut-être pas complète : pour la reprendre avec le préréglage de la Bibliothèque, relancez-la depuis la Bibliothèque ; le bouton ÉCRIRE LA DISQUETTE l'écrirait avec les réglages de l'onglet Écriture."] = 'Library: operation stopped. The Write tab keeps the image of the operation, {0}; its other settings are restored ({1}) and the Library preset is not saved. Writing {0} may be incomplete: to resume it with the Library preset, start it again from the Library; the WRITE THE DISK button would write it with the Write tab settings.'
+$script:I18n["Champ Pistes : « {0} » retiré, il visait l'image précédente ({1})."] = 'Tracks field: "{0}" removed, it targeted the previous image ({1}).'
+$script:I18n["Champ Pistes : « {0} » retiré, il visait l'image précédente."] = 'Tracks field: "{0}" removed, it targeted the previous image.'
+$script:I18n["Image {0} à une seule face : h={1} placé dans le champ Pistes, le bouton ÉCRIRE LA DISQUETTE n'écrit que la tête {1}."] = 'Single-sided image {0}: h={1} placed in the Tracks field, the WRITE THE DISK button writes head {1} only.'
+$script:I18n["Nombre de faces de {0} inconnu : effacement des pistes vides désactivé dans l'onglet Écriture (il effacerait la face 1 d'une image à une seule face)."] = 'Number of sides of {0} unknown: erasing empty tracks disabled in the Write tab (it would erase side 1 of a single-sided image).'
+$script:I18n["Bibliothèque terminée : l'image {0} reste dans l'onglet Écriture, avec vos réglages d'écriture ({1}){2}."] = 'Library finished: the image {0} stays in the Write tab, with your write settings ({1}){2}.'
+$script:I18n["Bibliothèque arrêtée : l'image {0} n'est peut-être pas entièrement écrite ; pour reprendre, relancez l'écriture depuis la Bibliothèque. Onglet Écriture : vos réglages d'écriture ({1}){2}."] = 'Library stopped: the image {0} may not be fully written; to resume, start the write again from the Library. Write tab: your write settings ({1}){2}.'
+$script:I18n[' ; h={0} dans le champ Pistes (image à une seule face)'] = '; h={0} in the Tracks field (single-sided image)'
+$script:I18n[" ; effacement des pistes vides désactivé (faces de l'image inconnues)"] = '; erasing empty tracks disabled (image sides unknown)'
+$script:I18n['écriture rapide'] = 'fast write'
+$script:I18n['écriture lente'] = 'slow write'
+$script:I18n[', contrôle de toutes les pistes'] = ', full track check'
+# 12.10 (lot 1, R1-corrections-revue, constat b) : image ecrite d une archive ZIP, non gardee dans l onglet Ecriture
+$script:I18n["Image {0} extraite d'une archive ZIP : l'onglet Écriture ne la garde pas, son fichier extrait est temporaire et une autre archive peut le remplacer. Pour l'écrire de nouveau, relancez-la depuis la Bibliothèque."] = 'Image {0} extracted from a ZIP archive: the Write tab does not keep it, its extracted file is temporary and another archive may replace it. To write it again, start it again from the Library.'
+$script:I18n["Bibliothèque terminée : l'image {0}, extraite d'une archive ZIP, n'est pas gardée dans l'onglet Écriture. Onglet Écriture rétabli : {1}{2}."] = 'Library finished: the image {0}, extracted from a ZIP archive, is not kept in the Write tab. Write tab restored: {1}{2}.'
+$script:I18n["Bibliothèque arrêtée : l'image {0}, extraite d'une archive ZIP, n'est pas gardée dans l'onglet Écriture ; pour reprendre, relancez l'écriture depuis la Bibliothèque. Onglet Écriture rétabli : {1}{2}."] = 'Library stopped: the image {0}, extracted from a ZIP archive, is not kept in the Write tab; to resume, start the write again from the Library. Write tab restored: {1}{2}.'
 $script:I18n['Écriture partielle'] = 'Partial write'
 $script:I18n[" ({0} piste(s) sur les {1} de l'image)"] = " ({0} track(s) out of the image's {1})"
 $script:I18n["Écriture partielle : seules les pistes {0} de {1} seront écrites{2} (champ Pistes de l'onglet Écriture)."] = 'Partial write: only tracks {0} of {1} will be written{2} (Tracks field of the Write tab).'
@@ -2038,6 +2065,28 @@ $script:I18n["Mesure complète : nouvel essai automatique {0}/{1} des cylindres 
 $script:I18n['correction sans effet au nouvel essai précédent : aucun progrès'] = 'correction without effect at the previous retest: no progress'
 $script:I18n['valeur visée inchangée, bornée par les cylindres vérifiés voisins : aucun progrès'] = 'target value unchanged, bounded by the neighbouring verified cylinders: no progress'
 $script:I18n["Besoin au-delà de {0} ns, plafond des passes de mesure, aux cylindres {1} : courbe de cette disquette jusqu'à {2} ns, mesurée directement autour du besoin aux cylindres {3} (mesure directe), puis contrôlée par la vérification."] = "Need above {0} ns, the ceiling of the measurement passes, at cylinders {1}: this disk's curve up to {2} ns, measured directly around the need at cylinders {3} (direct measurement), then checked by the verification."
+# 12.9, lot 1 (B1) : images FM, GCR ou a codage propre ecrites sans --precomp, codage de l image (Get-ImageEncoding)
+$script:I18n['FM'] = 'FM'
+$script:I18n['GCR'] = 'GCR'
+$script:I18n['propre au système'] = 'system-specific'
+$script:I18n["format {0}"] = 'format {0}'
+$script:I18n["format {0} déduit de l'extension {1}"] = 'format {0} inferred from the extension {1}'
+$script:I18n['en-tête HFE'] = 'HFE header'
+$script:I18n['en-tête IMD'] = 'IMD header'
+$script:I18n['en-tête D88'] = 'D88 header'
+$script:I18n["Image {0} en codage {1} ({2}) : écrite sans précompensation, --precomp n'est pas transmis. La précompensation de gw et la courbe du lecteur ne valent que pour le MFM."] = 'Image {0} in {1} encoding ({2}): written without precompensation, --precomp is not passed. gw precompensation and the drive curve only apply to MFM.'
+$script:I18n["Auto : image en codage {0} ({1}) -> sans précompensation (--precomp n'est pas transmis)"] = 'Auto: image in {0} encoding ({1}) -> without precompensation (--precomp is not passed)'
+$script:I18n[" ; image en codage {0} ({1}) : --precomp n'est pas transmis"] = '; image in {0} encoding ({1}): --precomp is not passed'
+$script:I18n["Profil manuel sur une image en codage {0} : --precomp {1} est transmis tel quel ; sans type=fm ou type=gcr, gw y applique la règle du MFM."] = 'Manual profile on an image in {0} encoding: --precomp {1} is passed as is; without type=fm or type=gcr, gw applies the MFM rule to it.'
+$script:I18n["Image {0} en codage {1} : pas de calibration (elle ne mesure que le MFM), écriture sans précompensation."] = 'Image {0} in {1} encoding: no calibration (it only measures MFM), writing without precompensation.'
+# 12.10 (lot 1, revue2, R-6) : refus de Test-CalibImage en profil Manuel avec --precomp coche (champ transmis tel quel)
+$script:I18n["Image {0} en codage {1} : pas de calibration (elle ne mesure que le MFM)."] = 'Image {0} in {1} encoding: no calibration (it only measures MFM).'
+$script:I18n["image FM {0}"] = 'FM image {0}'
+# 12.10 (lot 1, A1-tendance, D1) : tendance lissee de la fenetre Courbe (affichage seul)
+$script:I18n['Tendance lissée'] = 'Smoothed trend'
+$script:I18n["Courbe lissée sur ±4 cylindres, marches et changements de sens gardés. Affichage seul : l'écriture utilise toujours la courbe retenue."] = 'Curve smoothed over ±4 cylinders, steps and changes of direction kept. Display only: writing always uses the selected curve.'
+$script:I18n['tendance lissée (affichage seul)'] = 'smoothed trend (display only)'
+$script:I18n["Tendance lissée (affichage seul, sans effet sur l'écriture) : écart à la courbe retenue de {0} à {1} ns, {2} ns en moyenne quadratique ; marches gardées : {3}."] = 'Smoothed trend (display only, no effect on writing): deviation from the selected curve from {0} to {1} ns, {2} ns RMS; steps kept: {3}.'
 function T([string]$s) {
     if ($script:Lang -eq 'fr') { return $s }
     $t = $script:I18n[$s]

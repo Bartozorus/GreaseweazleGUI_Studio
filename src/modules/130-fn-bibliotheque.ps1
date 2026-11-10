@@ -2,8 +2,18 @@
 
 function Start-LibWrite([string]$mode) {
     # Ecriture rapide ou lente de l image selectionnee : parametres de l onglet Ecriture appliques, calibration
-    # automatique si elle manque pour la famille de l image, puis ecriture (onglet Ecriture affiche pour le suivi)
+    # automatique si elle manque pour la famille de l image, puis ecriture (onglet Ecriture affiche pour le suivi).
+    # 12.10 : ecriture pour un lecteur cible (liste « Lecteur cible » de l onglet Ecriture) : courbe croisee telle quelle,
+    # refusee sans courbe croisee (Test-TargetWriteAllowed, Start-ImageWrite : fenetre et journal), comme le bouton ECRIRE
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
+    # 12.10 (lot 1, R1-corrections-revue, constat e) : surcharge encore active (operation de la Bibliotheque, restauration) :
+    # Enter-OpOverride la reprendrait sans remettre son etat (Started, Written, image gardee) et la sequence de la seconde
+    # operation couperait la premiere. Operation de la Bibliotheque finie, surcharge pas encore levee par le minuteur
+    # (Update-OpOverride) : levee ici ; sinon refus, avant toute extraction d archive
+    if ($script:OpOverride) {
+        if ($script:OpOverride.Kind -eq 'library' -and $script:OpOverride.Started -and (Test-OpIdle)) { Exit-OpOverride }
+        else { Show-LibNotice (T 'Une opération est déjà en cours : attendez sa fin ou cliquez sur « Arrêter ».'); return }
+    }
     $sel = Resolve-LibSelection
     if (-not $sel) { return }
     if (-not $sel.IsImage) {
@@ -14,6 +24,7 @@ function Start-LibWrite([string]$mode) {
     # 12.8 (D4) : prereglage en surcharge temporaire de l onglet Ecriture, retabli a la fin de l operation
     Enter-OpOverride 'library'
     Set-WritePreset $mode $sel.Path $sel.Source
+    Save-LibKeepImg                                 # 12.10 (lot 1, E9-image) : image gardee si elle est ecrite (R1, constat d)
     Update-PrecompForImage $sel.Path
     Show-Tab $tabW
     Start-PresetWrite $mode

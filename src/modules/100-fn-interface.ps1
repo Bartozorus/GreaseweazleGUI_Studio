@@ -403,8 +403,11 @@ function Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [strin
     $hH = [System.Windows.Forms.TextRenderer]::MeasureText($Heading, $fH, (New-Object System.Drawing.Size($tw, 10000)), $tf).Height
     $lblH.Location = New-Object System.Drawing.Point(118, 10); $lblH.Size = New-Object System.Drawing.Size($tw, ($hH + 2))
     $lblT = New-Object System.Windows.Forms.Label
-    $lblT.Name = 'lblConfirmText'; $lblT.Text = $Text; $lblT.UseMnemonic = $false; $lblT.ForeColor = $pal.Body
-    $hT = [System.Windows.Forms.TextRenderer]::MeasureText($Text, $dlg.Font, (New-Object System.Drawing.Size($tw, 10000)), $tf).Height
+    $lblT.Name = 'lblConfirmText'; $lblT.Text = $Text; $lblT.UseMnemonic = $false; $lblT.ForeColor = $pal.Body; $lblT.Font = $dlg.Font
+    # 12.10 (captures du wiki) : hauteur, la plus grande de la mesure du texte et de celle du Label (son propre decoupage
+    # des lignes, qui peut en compter une de plus sur un texte long), comme New-DlgBanner : la derniere ligne d un texte
+    # long (« Calibration complete sur une disquette sacrifiee ») etait coupee
+    $hT = [math]::Max([System.Windows.Forms.TextRenderer]::MeasureText($Text, $dlg.Font, (New-Object System.Drawing.Size($tw, 10000)), $tf).Height, $lblT.GetPreferredSize((New-Object System.Drawing.Size($tw, 0))).Height)
     $lblT.Location = New-Object System.Drawing.Point(118, ($lblH.Bottom + 4)); $lblT.Size = New-Object System.Drawing.Size($tw, ($hT + 4))
     $pnl.Size = New-Object System.Drawing.Size($W, [math]::Max(90, $lblT.Bottom + 10))
     $pnl.Controls.AddRange(@($pic, $lblH, $lblT))

@@ -145,6 +145,20 @@ $script:ScpIdxMinRevNs = 100000000
 # Tries positions essayees et Cand candidats au plus par bout du tour 0. Donnees dans la zone de l index (meme critere de
 # bloc, moities uniques aussi) : pas de ZoneStep intervalles apres un bloc trop uniforme, de Len / 2 apres un motif
 # periodique, ZoneTries blocs au plus par bout.
+# 12.10 (S13, Get-ScpStructOoc) : intervalles hors classe reproductibles d un tour a l autre a la meme position (indice
+# d intervalle a ScpStructTol pres, plus l ecart des comptes de flux), dans tous les tours : non comptes comme erreurs
+# (raccord d ecriture d une longue piste, protection a intervalles fixes, petit defaut fixe du support)
+# Plafond ScpStructMax (decision du 09/11/2026, mesure sur 1 920 pistes reelles, v1210\struct-cap) : une piste dont un tour
+# compte plus de ScpStructMax intervalles reproductibles n en voit aucun retire (tout compte, comme en 12.9) et est
+# signalee (Post.StructOver). Par tour : disquette long track ecrite au TEAC et passe p1 de la mesure sur l image, 1 a 4
+# (raccord d ecriture, marqueurs de protection) ; originaux proteges : Manchester United 1 a 4, Lemmings 0.1 (Copylock)
+# 17, Sensible Soccer 4,67 a 8,33 sur 4 pistes et 35 a 121 sur ses pistes abimees ; disquette abimee lue au TEAC (goldstar,
+# lecture-teac4) 7,33 a 237,67 sur 75.0 a 79.1 ; ecriture ratee d une passe extreme de la mesure (p4, 65.1 a 69.1) 129 a
+# 259, soit 70 % de leurs erreurs : une erreur d ecriture systematique se reproduit a la meme position. Tout ou rien par
+# piste : jamais de retrait partiel jusqu au plafond.
+$script:ScpStructOn  = $true
+$script:ScpStructTol = 3
+$script:ScpStructMax = 6
 $script:ScpPostWin = 4096
 $script:ScpRevWin = 2048
 $script:ScpZoneWin = 512
@@ -184,6 +198,9 @@ $script:SettingDefs = [ordered]@{
     precompThresholdNs = @{ Sec = 'write';   Key = 'precompThresholdNs'; Type = 'int';    Def = $script:PrecompThresholdNs; Min = 0; Max = 100000; Var = 'PrecompThresholdNs' }
     homeCalHeads       = @{ Sec = 'ui';      Key = 'homeCalHeads';       Type = 'bool';   Def = $true }
     homeCalCyls        = @{ Sec = 'ui';      Key = 'homeCalCyls';        Type = 'int';    Def = 0;        Min = 0; Max = 84 }
+    # 12.10 (lot 1, A1-tendance, D1) : tendance lissee de la fenetre Courbe (case chkCurveTrend, affichage seul), cochee par
+    # defaut ; cle neuve ui.curveTrend, ignoree par une 12.8
+    curveTrend         = @{ Sec = 'ui';      Key = 'curveTrend';         Type = 'bool';   Def = $true }
     alignPreset        = @{ Sec = 'align';   Key = 'presetCode';         Type = 'enum';   Def = 'std';    Codes = @('quick', 'std', 'full', 'custom'); LegacyKey = 'preset'; Text = $true
                             Legacy = @{ 'Rapide (5 cylindres)' = 'quick'; 'Quick (5 cylinders)' = 'quick'; 'Standard (0-70 pas 10)' = 'std'; 'Standard (0-70 by 10)' = 'std'; 'Complet (0-79)' = 'full'; 'Full (0-79)' = 'full'; 'Personnalisé' = 'custom'; 'Custom' = 'custom' } }
     jitterOk           = @{ Sec = 'quality'; Key = 'jitterOk';           Type = 'int';    Def = $script:JitterStdOk;    Min = 30; Max = 300; Var = 'JitterOk' }
@@ -204,17 +221,17 @@ $script:OpOverride  = $null                                                 # 12
 $script:ContentKMid = [double]$script:SettingDefs['contentKMid'].Def        # 12.8.1 : niveaux de la mesure sur l image (Get-Setting)
 $script:ContentKLow = [double]$script:SettingDefs['contentKLow'].Def
 $script:ContentKeepMeasures = [int]$script:SettingDefs['contentKeepMeasures'].Def   # 12.9 (D6) : relectures gardees
-# 12.8.1 : bornes uniques du facteur de precompensation d une ecriture, definies ici, avant l interface (520).
-#  - TargetCorrMax : correction « lecteur cible » Dk, de -TargetCorrMax a +TargetCorrMax (Set-DriveDk,
-#    ConvertFrom-TargetCorrConfig : 274 ; champs numWTgt0 et numWTgt1 : 520 ; infobulle : 140) ;
-#  - ContentFMax : plafond du facteur ecrit k + Dk, ramene a 0..ContentFMax (Limit-WriteFactor : 274 ; Get-WriteFactorPlan :
-#    140 ; 276). La courbe ecrite reste bornee a 0..CalHardNs (ConvertTo-ScaledSpec, 274).
-# Portees le 26/10/2026 de 0,5 a 3,0 et de 1,5 a 4,0 : mesures reelles du couple Sony -> TEAC (courbe du Sony tres basse),
-# Dk d environ +1,75 et facteur total k + Dk d environ 2,6 ; marge au-dessus. La protection en ns reste la borne absolue
-# des valeurs ecrites, 0..CalHardNs
-$script:TargetCorrMax = 3.0
+# 12.8.1 : plafond unique du facteur de precompensation d une ecriture, defini ici, avant l interface (520) : ContentFMax,
+# facteur ecrit k ramene a 0..ContentFMax (Limit-WriteFactor : 274 ; Get-WriteFactorPlan : 140 ; 276). La courbe ecrite
+# reste bornee a 0..CalHardNs (ConvertTo-ScaledSpec, 274). Porte le 26/10/2026 de 1,5 a 4,0 (mesures reelles du couple
+# Sony -> TEAC, facteur total d environ 2,6 ; marge au-dessus). 12.10 : la correction « lecteur cible » Dk de la 12.8.1
+# (champs par tete et sa borne) est retiree, remplacee par la liste « Lecteur cible » et les courbes croisees (140, 220)
 $script:ContentFMax = 4.0
 $script:WFactorNote = $null                                                 # 12.8.1 : complement « facteur » du libelle du profil (Update-WriteFactorNote)
+$script:WTargetHead = ''                                                    # 12.10 (relecture de la RC) : refus du lecteur cible en tete du libelle du profil (Sync-WTargetHead)
+$script:WProfilePath = ''                                                   # 12.10 (relecture de la RC) : image du libelle du profil (Update-PrecompForImage, Sync-WTargetHead)
+$script:WProfileLabel = $null                                               # 12.10 (relecture de la RC) : dernier libelle du profil pose par Sync-WTargetHead
+$script:WProfileBuilding = $false                                           # 12.10 (relecture de la RC) : Update-PrecompForImage en cours (gestionnaire de $chkWPrecomp, 520)
 
 $Formats = @('(auto)','amiga.amigados','amiga.amigados_hd','atarist.720','atarist.800','atarist.880',
              'ibm.360','ibm.720','ibm.1440','ibm.scan','commodore.1541','mac.800','raw.250','raw.500')
@@ -265,6 +282,15 @@ foreach ($fe in ($script:GwFormatTable -split '[;\r\n]+')) {
     $fp = @($fe.Trim() -split '\s+')
     if ($fp.Count -eq 6) { $script:GwFormats[$fp[0]] = @{ Cyls = [int]$fp[1]; Heads = [int]$fp[2]; Enc = $fp[3]; Rate = [int]$fp[4]; Rpm = [int]$fp[5] } }
 }
+# 12.10 (lot 1, B1) : format implicite de gw pour l extension d une image ecrite sans format explicite (default_format des
+# classes de src\greaseweazle\image\ au tag v1.23 : hdm, xdf, fdi, d81, d64, apple2, acorn, fd, sf7, mgt ; .dim et .dcp :
+# pc98.2hd, comme en 12.7). Table unique de Get-HighDensityReason, Get-HdCalibFamily et Get-ImageEncoding. Ni .adf
+# (haute densite lue par la taille, Test-AdfHd), ni .d81 (commodore.1581, hors de la table d avant la 12.9).
+$script:ExtDefaultFmt = @{ '.hdm' = 'pc98.2hd'; '.xdf' = 'pc98.2hd'; '.fdi' = 'pc98.2hd'; '.dim' = 'pc98.2hd'; '.dcp' = 'pc98.2hd'
+    '.d2m' = 'commodore.cmd.fd2000.hd'; '.d4m' = 'commodore.cmd.fd4000.ed'
+    '.d64' = 'commodore.1541'; '.d71' = 'commodore.1571'; '.do' = 'apple2.appledos.140'; '.po' = 'apple2.prodos.140'
+    '.ssd' = 'acorn.dfs.ss'; '.dsd' = 'acorn.dfs.ds'; '.ads' = 'acorn.adfs.160'; '.adm' = 'acorn.adfs.320'; '.adl' = 'acorn.adfs.640'
+    '.fd' = 'thomson.1s320'; '.sf7' = 'sega.sf7000'; '.mgt' = 'ibm.800' }
 # 12.8 (lot 2, D13) : format de la comparaison, liste cmbCmpFmt : detection automatique, puis les formats de la liste
 # ($Formats), dans son ordre ; codes suivants : les autres formats de gw, saisis dans la liste modifiable (Update-CmpFmtFound
 # les affiche). Cle neuve : compare.format (12.7) n est pas relu, son defaut amiga.amigados n etant pas un choix

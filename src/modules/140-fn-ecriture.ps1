@@ -31,15 +31,46 @@ function Update-SlowUi {
         $show = if ($quick) { $true } else { [bool](Get-Setting 'levelBeforeWrite') }
         if ($chkWLevel.Checked -ne $show) { $chkWLevel.Checked = $show }
     } finally { $script:SettingSync = $sv }
+    # 12.10 (relecture de la RC) : texte, etat actif et infobulle de la case de la mesure, etat de la liste « Mesure : » :
+    # Update-WLevelUi, d apres l effet du lecteur cible sur l ecriture et la mesure que ferait Start-LevelBeforeWrite
+    Update-WLevelUi
+}
+
+function Update-WLevelUi {
+    # 12.10 (relecture de la RC) : case « Mesurer la disquette » (texte, etat actif, infobulle) et liste « Mesure : » (etat
+    # actif), d apres les decisions de l ecriture : effet du lecteur cible sur l ecriture de l onglet (Get-TargetWriteInfo,
+    # celui de Start-WriteTabWrite et de Start-PresetWrite, qui ne mesurent pas une ecriture pour un lecteur cible) et
+    # mesure que ferait Start-LevelBeforeWrite (Get-LevelBeforeWriteKind : mesure complete d une ecriture lente au « Test
+    # rapide »). Appels : Update-SlowUi, sortie d Update-PrecompForImage (image, format, profil, lecteur cible), case
+    # --precomp (520). Lecteur cible sans effet (profil Manuel, --precomp decoche, flux ecrit tel quel, FM, GCR) : case
+    # ordinaire, infobulle qui le dit (texte du journal de Start-ImageWrite) ; ecriture refusee pour le lecteur cible :
+    # infobulle qui le dit. Avant : d apres le seul choix (Get-TargetDrive) : case verrouillee et courbe croisee annoncee
+    # dans ces cas, texte du « Test rapide » sans exception pour le lecteur cible, rien de refait au changement de
+    # profil, de case --precomp ou d image. Avant l affichage de la fenetre : aucun acces au fichier (racine reseau
+    # possible), comme Update-CurveButton ; WLevelTip : infobulle d origine, gardee par 520
+    if (-not $chkWLevel -or -not $chkWSlow -or -not $cmbWCalMode) { return }
+    $on = [bool]$chkWSlow.Checked
+    $quick = ($cmbWCalMode.SelectedIndex -eq 2)
+    $p = if ($script:UiReady) { [string]$txtWFile.Text } else { '' }
+    $tw = Get-TargetWriteInfo $p ([string]$cmbWFmt.Text) $on
+    $ta = [bool]$tw.Applies
     # 12.8 (S3) : mesure complete choisie : duree de la case retiree (celle de la liste fait foi). 12.8.1 (spec-1281 § D.1) :
     # mesure sur l image a ecrire (defaut) : texte propre
     $lm = [string](Get-Setting 'levelBeforeWriteMode')
     $full = ($lm -eq 'complete')
-    $chkWLevel.Text = if ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } elseif ($lm -eq 'content') { (T "Mesurer la disquette avant l'écriture lente : précompensation mesurée sur l'image (environ 12 min)") } elseif ($full) { (T "Mesurer la disquette avant l'écriture lente : précompensation et état de la surface") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
-    $chkWLevel.Enabled = ($on -and -not $quick)
+    $lk = Get-LevelBeforeWriteKind $(if ($on) { 'slow' } else { 'fast' }) $false $false
+    $chkWLevel.Text = if ($quick -and $ta) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide », sauf pour le lecteur cible {0} (elle relirait avec le lecteur {1})") -f "$($tw.Tgt)", "$($tw.Src)" } elseif ($quick -and $lk -eq 'complete') { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (mesure complète de cette disquette en écriture lente)") } elseif ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } elseif ($lm -eq 'content') { (T "Mesurer la disquette avant l'écriture lente : précompensation mesurée sur l'image (environ 12 min)") } elseif ($full) { (T "Mesurer la disquette avant l'écriture lente : précompensation et état de la surface") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
+    $chkWLevel.Enabled = ($on -and -not $quick -and -not $ta)
     # 12.8 (S3) : liste du mode de la mesure (rapide ou complete) : active en ecriture lente quand la disquette est mesuree
     # (case cochee, ou verrouillee au « Test rapide »)
-    if ($cmbWLevelMode) { $cmbWLevelMode.Enabled = ($on -and $chkWLevel.Checked); $lblWLevelMode.Enabled = $cmbWLevelMode.Enabled }
+    if ($cmbWLevelMode) { $cmbWLevelMode.Enabled = ($on -and $chkWLevel.Checked -and -not $ta); $lblWLevelMode.Enabled = $cmbWLevelMode.Enabled }
+    if ($script:WLevelTip) {
+        $tt = if ($ta -and $tw.Block) { (T "Mesure de la disquette non disponible pour un lecteur cible : elle relirait avec le lecteur {0}, pas avec le lecteur cible {1}. Écriture refusée : {2}") -f "$($tw.Src)", "$($tw.Tgt)", "$($tw.Block)" }
+              elseif ($ta) { (T "Mesure de la disquette non disponible pour un lecteur cible : elle relirait avec le lecteur {0}, pas avec le lecteur cible {1}. L'image est écrite avec la courbe croisée telle quelle.") -f "$($tw.Src)", "$($tw.Tgt)" }
+              elseif ($tw.Tgt -and $tw.Why) { ((T "Lecteur cible {0} sans effet sur cette écriture : {1}.") -f "$($tw.Tgt)", "$($tw.Why)") + "`n" + [string]$script:WLevelTip }
+              else { [string]$script:WLevelTip }
+        $tip.SetToolTip($chkWLevel, $tt)
+    }
 }
 
 # Options "comment ecrire" de l ecriture ; la calibration les reprend sans --format ni --diskdefs (Get-CalibDriveArgs, motif HFE)
@@ -69,6 +100,13 @@ function Start-ImageWrite([switch]$NoWarmup) {
         [void](Show-AppMessage (T 'Fichier image introuvable.') (T 'Erreur') 'OK' 'Warning'); return
     }
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
+    # 12.10 : ecriture pour un lecteur cible (liste « Lecteur cible » de l onglet) refusee sans courbe croisee de la famille
+    # (Test-TargetWriteAllowed : journal et fenetre) ; $tgtDrive : lecteur cible dont les courbes croisees sont ecrites ('' :
+    # meme lecteur, ou lecteur cible sans effet sur cette ecriture, Get-TargetWriteInfo : ligne de journal)
+    if (-not (Test-TargetWriteAllowed $txtWFile.Text $cmbWFmt.Text ([bool]$chkWSlow.Checked))) { return }
+    $tw = Get-TargetWriteInfo $txtWFile.Text $cmbWFmt.Text ([bool]$chkWSlow.Checked)
+    $tgtDrive = if ($tw.Applies) { [string]$tw.Tgt } else { '' }
+    if ($tw.Tgt -and -not $tw.Applies -and $tw.Why) { Append-Log ((T "Lecteur cible {0} sans effet sur cette écriture : {1}.") -f "$($tw.Tgt)", "$($tw.Why)") }
     # Image flux a plusieurs tours : pistes dont le contenu change d un tour a l autre (bits faibles d une protection),
     # que gw ne reproduit pas (il n ecrit que le premier tour) : avertissement, confirmation, pas de reecriture au controle
     $script:ImageUnstable = $null; $script:ImageSrcWeak = $null; $script:ImageNoJudge = $null; $script:ImageScpFailed = $false; $script:ImageSrcOver = $null
@@ -173,14 +211,23 @@ function Start-ImageWrite([switch]$NoWarmup) {
     # Mode Auto, image haute densite (format choisi apres l image, par exemple) : champs attendus de la branche haute densite
     # d Update-PrecompForImage (12.7 : famille hd calibrable : sa courbe, sinon le profil d origine haute densite ; haute
     # densite non calibrable : profil d origine de sa famille, jamais une courbe double densite) ; format revenu en double
-    # densite apres coup : profil calibre de nouveau
-    if ($cmbWProfile.SelectedIndex -eq 0 -and $chkWPrecomp.Checked) {
+    # densite apres coup : profil calibre de nouveau. 12.10 (lot 1, B1) : sauf image FM, GCR ou a codage propre
+    # (Get-ImageEncoding), ecrite sans --precomp ci-dessous
+    $ie = Get-ImageEncoding $txtWFile.Text $cmbWFmt.Text
+    if ($cmbWProfile.SelectedIndex -eq 0 -and $chkWPrecomp.Checked -and -not $ie.NonMfm) {
         if (Get-HighDensityReason $txtWFile.Text $cmbWFmt.Text) {
             $hf = Get-HdCalibFamily $txtWFile.Text $cmbWFmt.Text
             if ($hf) { $af = Get-HdAutoFields $hf ([bool]$chkWSlow.Checked); $e0 = $af.P0; $e1 = $af.P1 }
             else { $e0 = if ((Get-ImageFamily $txtWFile.Text $cmbWFmt.Text) -eq 'long') { $script:PrecompLongDefault } else { $script:PrecompStdDefault }; $e1 = $e0 }
             if ($txtWPrecomp.Text.Trim() -ne $e0 -or $txtWPrecomp1.Text.Trim() -ne $e1) { Update-PrecompForImage $txtWFile.Text }
         } elseif ($script:WProfileHd) { Update-PrecompForImage $txtWFile.Text }
+    }
+    # 12.10 : ecriture pour un lecteur cible : champs --precomp attendus, ceux des courbes croisees (Set-PrecompFields : par
+    # tete en ecriture lente si elles sont a jour, sinon la commune pour les deux tetes) ; champs differents (courbe adaptee
+    # d une calibration rapide, champ modifie a la main, case « Ecriture lente » changee depuis) : profil de l image recalcule
+    $tc = @($tw.Curves)
+    if ($tgtDrive -and $tc.Count -gt 0) {
+        if ($txtWPrecomp.Text.Trim() -ne [string]$tc[0].Spec -or ($slow -and $txtWPrecomp1.Text.Trim() -ne [string]$tc[$tc.Count - 1].Spec)) { Update-PrecompForImage $txtWFile.Text }
     }
     $pc0 = if ($chkWPrecomp.Checked -and $txtWPrecomp.Text.Trim()) { $txtWPrecomp.Text.Trim() } else { $null }
     $pc1 = if ($chkWPrecomp.Checked -and $txtWPrecomp1.Text.Trim()) { $txtWPrecomp1.Text.Trim() } else { $null }
@@ -191,8 +238,20 @@ function Start-ImageWrite([switch]$NoWarmup) {
         Append-Log ((T "Image flux {0} écrite telle quelle (sans --format) : gw n'applique pas la précompensation à un flux, --precomp n'est pas transmis.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))")
         $pc0 = $null; $pc1 = $null
     }
+    # 12.10 (lot 1, B1) : image FM, GCR ou a codage propre (Get-ImageEncoding) : la precompensation de gw (regle du MFM sans
+    # type=) et la courbe du lecteur ne valent que pour le MFM : --precomp n est plus transmis en profil Auto ou force
+    # (decision B-D1), ligne de journal ; profil Manuel : champ transmis tel quel, avertissement s il ne precise pas type=
+    if (($pc0 -or $pc1) -and $ie.NonMfm) {
+        if ($cmbWProfile.SelectedIndex -eq 3) {
+            $nt = @(@($(if ($slow) { @($pc0, $pc1) } else { @($pc0) })) | Where-Object { $_ -and $_ -notmatch '(^|:)\s*type\s*=' } | Select-Object -Unique)
+            if ($nt.Count -gt 0) { Append-Log ((T "Profil manuel sur une image en codage {0} : --precomp {1} est transmis tel quel ; sans type=fm ou type=gcr, gw y applique la règle du MFM.") -f "$($ie.Name)", "$($nt -join ' / ')") }
+        } else {
+            Append-Log ((T "Image {0} en codage {1} ({2}) : écrite sans précompensation, --precomp n'est pas transmis. La précompensation de gw et la courbe du lecteur ne valent que pour le MFM.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))", "$($ie.Name)", "$($ie.Src)")
+            $pc0 = $null; $pc1 = $null
+        }
+    }
     # 12.8.1 (spec-1281 § A.10, decisions du 25/10/2026) : facteur de precompensation de cette ecriture
-    # (Get-WriteFactorPlan : k mesure sur l image, sinon k du lecteur, plus la correction « lecteur cible »), applique aux
+    # (Get-WriteFactorPlan : k mesure sur l image, sinon k du lecteur ; 12.10 : facteur 1 pour un lecteur cible), applique aux
     # profils des champs --precomp par ConvertTo-ScaledSpec (facteur 1 : profils identiques a l octet a ceux de la v12.8) ;
     # ecriture lente : champs des tetes physiques, donc avant le hswap ; rapide : facteur moyen des deux tetes sur le profil
     # commun. Lignes de journal avant « Ecriture lente : ... » (format inchange, profils mis a l echelle). Profils non mis a
@@ -258,6 +317,10 @@ function Start-ImageWrite([switch]$NoWarmup) {
         # Options de lecteur reprises par les relectures de controle (gw read les accepte toutes)
         $readOpts = @(Get-DriveReadArgs)
         New-WriteCheck $base $txtWFile.Text $userTs ([int]$numWRepair.Value) $readOpts $headPc $emCheck
+        # 12.10 : ecriture pour un lecteur cible : le controle relit avec le lecteur qui a ecrit (pas de relecture par la
+        # cible) ; reecritures gardees (les pistes faibles pour la source le sont tres probablement pour la cible) ; verdict
+        # complete par Complete-WriteCheck (170)
+        if ($tgtDrive) { $script:Rep.Target = $tgtDrive; $script:Rep.TargetSrc = [string]$cmbDrive.Text; Append-Log ((T "Contrôle après écriture pour le lecteur cible {0} : relecture par le lecteur {1}, pas par le lecteur cible ; les pistes faibles pour le lecteur {1} sont réécrites (elles le sont très probablement aussi pour le lecteur {0}).") -f "$tgtDrive", "$($cmbDrive.Text)") }
         if ($script:ImageUnstable) { $script:Rep.Ignore = $script:ImageUnstable }
         $script:Rep.SrcWeak = $script:ImageSrcWeak; $script:Rep.NoJudge = $script:ImageNoJudge; $script:Rep.SrcOver = $script:ImageSrcOver
         # SCP non analyse (module absent, restauration : voir Start-RestoreWrite) ou analyse en echec : rien n est juge
@@ -330,23 +393,26 @@ function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
     if (-not $source) { $source = $path }
     $same = ($txtWFile.Text -eq $path -and $script:PresetSource -eq $source)
     $txtWFile.Text = $path; $script:PresetSource = $source
-    if ($path -match '\.adf$') { $cmbWFmt.SelectedItem = $(if (Test-AdfHd $path) { 'amiga.amigados_hd' } else { 'amiga.amigados' }) }
-    elseif (-not ($same -and (Test-NeedsFormat $path))) { $cmbWFmt.SelectedIndex = 0 }
+    # 12.10 (relecture de la RC) : format pose sous la garde des liaisons : gestionnaires de la liste (520) sans effet,
+    # l appelant recalcule le profil (Start-LibWrite, Start-RestoreWrite : Update-PrecompForImage) : plus de calcul du au
+    # format (avant, la meme image reprise avec un autre format etait calculee une fois de plus : ligne « Profil precomp » en
+    # double au journal) ; le profil et la case « Ecriture lente », poses plus bas hors de la garde, gardent leurs liaisons
+    # (un calcul chacun quand ils changent, comme en 12.9)
+    $sv = $script:SettingSync; $script:SettingSync = $true
+    try {
+        if ($path -match '\.adf$') { $cmbWFmt.SelectedItem = $(if (Test-AdfHd $path) { 'amiga.amigados_hd' } else { 'amiga.amigados' }) }
+        elseif (-not ($same -and (Test-NeedsFormat $path))) { $cmbWFmt.SelectedIndex = 0 }
+    } finally { $script:SettingSync = $sv }
     $cmbWProfile.SelectedIndex = 0
-    # Faces de l image (Get-ImageTrackSet) : inconnues -> pas d effacement des pistes vides, qui effacerait la face 1
-    # d une image simple face (gw n ecrit alors que les pistes presentes) ; une seule face en ecriture rapide -> h= de
-    # cette face dans Pistes (en lente, Start-ImageWrite n ecrit deja que les faces de l image).
+    # Faces de l image : effacement des pistes vides et h= d une image a une face (Get-FaceSafeWrite). 12.10 (lot 1,
+    # E9-image, constat I-3) : calcul sorti dans Get-ImageFaces et Get-FaceSafeWrite, repris pour l image gardee a la fin
+    # d une operation de la Bibliotheque (Merge-LibKeepState)
     $extras = Get-TSpecExtras $txtWTracks.Text
-    $set = Get-ImageTrackSet $path
-    $facesUnknown = ($null -eq $set)
-    $oneHead = $null
-    if (-not $facesUnknown) {
-        $hs = @(@($set.Keys) | ForEach-Object { [int](([string]$_ -split '\.')[1]) } | Sort-Object -Unique)
-        if ($hs.Count -eq 1) { $oneHead = $hs[0] }
-    }
-    $chkWPreErase.Checked = $true; $chkWEraseEmpty.Checked = (-not $facesUnknown); $chkWNoVerify.Checked = $false
+    $fc = Get-ImageFaces $path
+    $fw = Get-FaceSafeWrite $fc ($mode -eq 'slow') $extras $true
+    $chkWPreErase.Checked = $true; $chkWEraseEmpty.Checked = $fw.Empty; $chkWNoVerify.Checked = $false
     $numWRetries.Value = 10; $chkWPrecomp.Checked = $true
-    $txtWTracks.Text = $(if ($mode -ne 'slow' -and $null -ne $oneHead) { "h=$oneHead" + $extras } else { $extras.TrimStart(':') })
+    $txtWTracks.Text = $fw.Tracks
     $chkWSlow.Checked = ($mode -eq 'slow')
     if ($mode -eq 'slow') {
         $chkWPostCheck.Checked = $true; $numWRepair.Value = 3
@@ -354,10 +420,22 @@ function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
     } else {
         $chkWPostCheck.Checked = $false
         Append-Log (T "Écriture rapide : image entière, profil Auto, effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, vérification gw, 10 essais, les deux têtes ensemble, sans contrôle complet des pistes.")
-        if ($null -ne $oneHead) { Append-Log ((T "Image à une seule face : seule la tête {0} est écrite (h={0} dans Pistes).") -f "$oneHead") }
+        if ($null -ne $fw.Head) { Append-Log ((T "Image à une seule face : seule la tête {0} est écrite (h={0} dans Pistes).") -f "$($fw.Head)") }
     }
-    if ($facesUnknown) { Append-Log (T "Nombre de faces de l'image inconnu : effacement des pistes vides désactivé (seules les pistes présentes dans l'image sont écrites).") }
+    if ($fc.Unknown) { Append-Log (T "Nombre de faces de l'image inconnu : effacement des pistes vides désactivé (seules les pistes présentes dans l'image sont écrites).") }
     if ($extras) { Append-Log ((T "Champ Pistes : éléments de lecteur conservés ({0}).") -f $extras.TrimStart(':')) }
+}
+
+function Get-FaceSafeWrite($faces, [bool]$slow, [string]$extras, [bool]$empty) {
+    # 12.10 (lot 1, E9-image, constat I-3) : reglages de securite des faces d une image (faces : Get-ImageFaces), communs a
+    # Set-WritePreset et a l image gardee apres la Bibliotheque (Merge-LibKeepState). Faces inconnues -> pas d effacement
+    # des pistes vides, qui effacerait la face 1 d une image simple face (gw n ecrit alors que les pistes presentes) ; une
+    # seule face en ecriture rapide -> h= de cette face dans Pistes (en lente, Start-ImageWrite n ecrit deja que les faces
+    # de l image). extras : elements de lecteur du champ Pistes (Get-TSpecExtras) ; empty : effacement voulu sinon.
+    # Renvoie @{ Tracks : champ Pistes ; Empty : effacement des pistes vides ; Head : tete de h= pose, $null sinon }
+    $r = @{ Tracks = "$extras".TrimStart(':'); Empty = ($empty -and -not $faces.Unknown); Head = $null }
+    if (-not $slow -and $null -ne $faces.OneHead) { $r.Head = $faces.OneHead; $r.Tracks = "h=$($faces.OneHead)" + "$extras" }
+    return $r
 }
 
 # --- Surcharge d operation (12.8, D4) -------------------------------------------
@@ -365,12 +443,19 @@ function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
 # temps de l operation seulement : l etat d avant (Save-WriteTabState) est ecrit a sa place dans la configuration
 # (Save-Config, Set-OpOverrideConfig), puis retabli quand plus rien ne tourne (Update-OpOverride, minuteur principal).
 # 12.7 : le prereglage devenait la configuration de l onglet Ecriture. 12.8, lot 2 : la restauration passe aussi par
-# cette surcharge (Kind 'restore', Started jamais pose : seule Close-Restore la termine).
+# cette surcharge (Kind 'restore', Started jamais pose : seule Close-Restore la termine). 12.10 (lot 1, E9-image,
+# decisions E9-1 a E9-3) : operation de la Bibliotheque lancee : l onglet garde l image de l operation (Save-LibKeepImg,
+# Merge-LibKeepState), dans l onglet comme dans la configuration ; le reste du prereglage reste temporaire.
+# 12.10 (lot 1, R1-corrections-revue, constat d) : image gardee seulement si elle a ete ecrite (Written, pose par Start-Gw
+# au premier gw write de l image, Set-LibImageWritten) : un arret pendant la calibration, la mesure ou le prechauffage
+# retablit tout (E9-2). Constat e : Start-LibWrite refuse une seconde operation tant que la surcharge est active.
 
 function Enter-OpOverride([string]$kind) {
     # Surcharge deja active (operation precedente non terminee) : l etat d origine est garde
-    if ($script:OpOverride) { $script:OpOverride.Stopped = $false; return }
-    $script:OpOverride = @{ Kind = $kind; Saved = (Save-WriteTabState); Started = $false; Stopped = $false }
+    # Finalisation 12.10 : Refused, ecriture pour un lecteur cible refusee pendant l operation (Test-TargetWriteAllowed),
+    # pour l avis de fin de la Bibliotheque (Show-LibEndNotice)
+    if ($script:OpOverride) { $script:OpOverride.Stopped = $false; $script:OpOverride.Refused = $false; return }
+    $script:OpOverride = @{ Kind = $kind; Saved = (Save-WriteTabState); Started = $false; Written = $false; Stopped = $false; Refused = $false }
 }
 
 function Exit-OpOverride([switch]$Keep) {
@@ -381,27 +466,148 @@ function Exit-OpOverride([switch]$Keep) {
     $script:OpOverride = $null
     if ($Keep) { return }
     $opImg = $txtWFile.Text                                   # image de l operation, avant le retour de celle de l onglet
-    Restore-WriteTabState $o.Saved
+    # 12.10 (lot 1, E9-image) : Bibliotheque : image de l operation gardee si elle a ete ecrite (Merge-LibKeepState ;
+    # R1, constat d : Written, et non plus Started)
+    $m = if ($o.Kind -eq 'library') { Merge-LibKeepState $o.Saved $o.KeepImg ([bool]$o.Written) } else { $null }
+    Restore-WriteTabState $(if ($m) { $m.State } else { $o.Saved })
     # Restauration (12.8, lot 2) : reglages retablis sans ligne de journal, comme en 12.7
-    if ($o.Kind -eq 'library') { Show-LibEndNotice $o $opImg }
+    if ($o.Kind -eq 'library') { Show-LibEndNotice $o $opImg $m }
     [void](Save-Config)
 }
 
-function Show-LibEndNotice($o, [string]$opImg) {
+function Save-LibKeepImg {
+    # 12.10 (lot 1, E9-image) : apres Set-WritePreset (Start-LibWrite) : image de l operation de la Bibliotheque, son format,
+    # sa source et ses faces (Get-ImageFaces), memorises dans la surcharge pour Merge-LibKeepState
+    $o = $script:OpOverride
+    if (-not $o -or $o.Kind -ne 'library') { return }
+    # 12.10 (lot 1, R1-corrections-revue, constat b) : entree d une archive ZIP (source « archive|entree ») : fichier extrait
+    # dans TempDir sous le nom de l entree, qu une autre archive peut remplacer : Archive, image jamais gardee (tout
+    # retabli, comme en 12.8), dit par l avis de fin (Show-LibEndNotice)
+    $o.KeepImg = @{ File = $txtWFile.Text; Fmt = $cmbWFmt.Text; Source = $script:PresetSource; Faces = (Get-ImageFaces $txtWFile.Text)
+                    Archive = "$($script:PresetSource)".Contains('|') }
+}
+
+function Set-LibImageWritten([string[]]$gwArgs) {
+    # 12.10 (lot 1, R1-corrections-revue, constat d) : Start-Gw, avant le lancement : commande gw write de l image memorisee
+    # de l operation de la Bibliotheque (Save-LibKeepImg ; le motif de calibration et la mesure s ecrivent depuis TempDir)
+    # -> Written. Renvoie vrai si cette commande l a pose, pour le retirer si gw ne demarre pas
+    $o = $script:OpOverride
+    if (-not $o -or $o.Kind -ne 'library' -or $o.Written -or -not $o.KeepImg) { return $false }
+    if ($gwArgs.Count -eq 0 -or $gwArgs[0] -ne 'write' -or $gwArgs -notcontains "`"$($o.KeepImg.File)`"") { return $false }
+    $o.Written = $true
+    return $true
+}
+
+function Merge-LibKeepState($saved, $keep, [bool]$written) {
+    # 12.10 (lot 1, E9-image, decisions E9-1 (a) et E9-2) : etat de l onglet Ecriture a la fin d une operation de la
+    # Bibliotheque (Restore-WriteTabState), et a sa place dans la configuration pendant l operation (E9-3). Image ecrite
+    # (written : R1, constat d) et memorisee (keep, Save-LibKeepImg) : image, format et source de l operation gardes ; champ
+    # Pistes de l onglet d avant sans c= ni h=, qui visaient l image precedente ; le reste retabli de l onglet d avant (saved).
+    # Constat I-3 : effacement des pistes vides et h= d une image a une face recalcules pour l image gardee, dans le mode
+    # de l onglet d avant (Get-FaceSafeWrite, comme Set-WritePreset) : sinon ECRIRE pourrait effacer la face 1. Non ecrite
+    # (refus, calibration annulee ou arretee) : tout retabli. R1, constat b : entree d archive ZIP (keep.Archive) : tout
+    # retabli, Archive vrai si l image a ete ecrite. R1, constat c : l onglet d avant avait deja cette image et cette source :
+    # son champ Pistes est garde (c= et h= visent la meme image), securite des faces seule (h= ajoute s il n en a pas).
+    # Renvoie @{ State : etat a retablir ; Kept : image gardee ; Cut : c= et h= retires du champ d avant ; Head : tete de
+    # h= pose, $null sinon ; EmptyOff : effacement des pistes vides de l onglet d avant desactive (faces inconnues) ;
+    # Archive : image ecrite d une archive ZIP, non gardee }
+    $r = @{ State = $saved; Kept = $false; Cut = ''; Head = $null; EmptyOff = $false; Archive = $false }
+    if (-not $written -or -not $keep -or -not $saved) { return $r }
+    if ($keep.Archive) { $r.Archive = $true; return $r }
+    $s = $saved.Clone()
+    $s.File = $keep.File; $s.Fmt = $keep.Fmt; $s.Source = $keep.Source
+    # Meme image : meme fichier et meme source (source vide : onglet relu de la configuration, qui ne garde pas la source ;
+    # une entree d archive est deja ecartee ci-dessus)
+    # 12.10 (lot 1, revue2, R-4) : source comparee seulement si celle de l onglet d avant designe une entree d archive ou
+    # une restauration (« | ») : hors archive, la source est le chemin du fichier (Resolve-LibSelection, Parcourir), et
+    # une saisie a la main du chemin ne la met pas a jour. Entree d archive ou restauration dans l onglet d avant : pas la
+    # meme image (keep.Source n a pas de « | » ici)
+    $same = ("$($saved.File)" -eq "$($keep.File)" -and -not "$($saved.Source)".Contains('|'))
+    if ($same) {
+        $t = "$($saved.Tracks)"
+        $hasH = [regex]::IsMatch(":$t", ':\s*h\s*=')
+        $fw = Get-FaceSafeWrite $keep.Faces ([bool]$saved.Slow) '' ([bool]$saved.Empty)
+        if ($null -ne $fw.Head -and -not $hasH) { $t = if ($t.Trim()) { "h=$($fw.Head):$($t.Trim())" } else { "h=$($fw.Head)" } }
+        else { $fw.Head = $null }
+        # 12.10 (lot 1, revue2, R-3) : h= explicite garde dans le champ Pistes : gw n ecrit et n efface que les pistes des
+        # faces choisies, l effacement des pistes vides de l onglet d avant est garde meme si les faces sont inconnues
+        if ($hasH) { $fw.Empty = [bool]$saved.Empty }
+        $s.Tracks = $t; $s.Empty = $fw.Empty
+    } else {
+        $fw = Get-FaceSafeWrite $keep.Faces ([bool]$saved.Slow) (Get-TSpecExtras "$($saved.Tracks)") ([bool]$saved.Empty)
+        $s.Tracks = $fw.Tracks; $s.Empty = $fw.Empty
+        $r.Cut = Get-TSpecCH "$($saved.Tracks)"
+    }
+    $r.State = $s; $r.Kept = $true; $r.Head = $fw.Head
+    $r.EmptyOff = ([bool]$saved.Empty -and -not $fw.Empty)
+    return $r
+}
+
+function Get-WriteModeText($s) {
+    # 12.10 (lot 1, E9-image) : mode d ecriture d un etat de l onglet Ecriture (Save-WriteTabState), pour l avis de fin de
+    # la Bibliotheque
+    $t = if ($s.Slow) { (T 'écriture lente') } else { (T 'écriture rapide') }
+    if ($s.Post) { $t += (T ', contrôle de toutes les pistes') }
+    return $t
+}
+
+function Show-LibEndNotice($o, [string]$opImg, $m = $null) {
     # 12.8 (FIX-PISTES, essai du 21/10/2026) : fin d une operation de la Bibliotheque, terminee ou arretee (Stopped : bouton
     # Arreter) : l onglet Ecriture a repris SON image et SON champ Pistes (D4). Ligne de journal et avis a cote du bouton
     # ECRIRE (Set-WTabNotice), qui nomment l image retablie ; apres un arret, comment reprendre : depuis la Bibliotheque,
     # le bouton ECRIRE ecrivant l image de l onglet
+    # 12.10 (lot 1, E9-image) : operation lancee (m.Kept, Merge-LibKeepState) : l onglet garde l image de l operation, avec
+    # ses autres reglages ; lignes de journal du retrait de c= et h= et de la securite des faces (constat I-3), reprises
+    # dans l avis. Non lancee : textes de la 12.8 (tout retabli)
+    if ($m -and $m.Kept) {
+        $k = $m.State
+        $img = if ("$($k.File)".Trim()) { [System.IO.Path]::GetFileName("$($k.File)") } else { (T '(aucune image)') }
+        $md = Get-WriteModeText $k
+        $fx = ''
+        if ($null -ne $m.Head) { $fx += (T " ; h={0} dans le champ Pistes (image à une seule face)") -f "$($m.Head)" }
+        if ($m.EmptyOff) { $fx += (T " ; effacement des pistes vides désactivé (faces de l'image inconnues)") }
+        if ($o.Stopped) {
+            Append-Log ((T "Bibliothèque : opération arrêtée. L'onglet Écriture garde l'image de l'opération, {0} ; ses autres réglages sont rétablis ({1}) et le préréglage de la Bibliothèque n'est pas enregistré. L'écriture de {0} n'est peut-être pas complète : pour la reprendre avec le préréglage de la Bibliothèque, relancez-la depuis la Bibliothèque ; le bouton ÉCRIRE LA DISQUETTE l'écrirait avec les réglages de l'onglet Écriture.") -f "$img", "$md")
+        } else {
+            Append-Log ((T "Bibliothèque : opération terminée. L'onglet Écriture garde l'image de l'opération, {0} ; ses autres réglages sont rétablis ({1}) et le préréglage de la Bibliothèque n'est pas enregistré.") -f "$img", "$md")
+        }
+        if ($m.Cut) {
+            # Image precedente nommee si l onglet en avait une
+            if ("$($o.Saved.File)".Trim()) { Append-Log ((T "Champ Pistes : « {0} » retiré, il visait l'image précédente ({1}).") -f "$($m.Cut)", "$([System.IO.Path]::GetFileName("$($o.Saved.File)"))") }
+            else { Append-Log ((T "Champ Pistes : « {0} » retiré, il visait l'image précédente.") -f "$($m.Cut)") }
+        }
+        if ($null -ne $m.Head) { Append-Log ((T "Image {0} à une seule face : h={1} placé dans le champ Pistes, le bouton ÉCRIRE LA DISQUETTE n'écrit que la tête {1}.") -f "$img", "$($m.Head)") }
+        if ($m.EmptyOff) { Append-Log ((T "Nombre de faces de {0} inconnu : effacement des pistes vides désactivé dans l'onglet Écriture (il effacerait la face 1 d'une image à une seule face).") -f "$img") }
+        if ($o.Stopped) {
+            Set-WTabNotice ((T "Bibliothèque arrêtée : l'image {0} n'est peut-être pas entièrement écrite ; pour reprendre, relancez l'écriture depuis la Bibliothèque. Onglet Écriture : vos réglages d'écriture ({1}){2}.") -f "$img", "$md", "$fx")
+        } else {
+            Set-WTabNotice ((T "Bibliothèque terminée : l'image {0} reste dans l'onglet Écriture, avec vos réglages d'écriture ({1}){2}.") -f "$img", "$md", "$fx")
+        }
+        return
+    }
     $s = $o.Saved
     $tab = if ("$($s.File)".Trim()) { [System.IO.Path]::GetFileName("$($s.File)") } else { (T '(aucune image)') }
     $trk = if ("$($s.Tracks)".Trim()) { (T ", champ Pistes « {0} »") -f "$("$($s.Tracks)".Trim())" } else { '' }
     $op = if ("$opImg".Trim()) { [System.IO.Path]::GetFileName("$opImg") } else { (T '(aucune image)') }
-    if ($o.Stopped) {
+    # 12.10 (lot 1, R1-corrections-revue, constat b) : image ecrite d une archive ZIP, non gardee (Merge-LibKeepState) :
+    # ligne de journal en plus, avis qui le dit. Finalisation 12.10 : ecriture pour un lecteur cible refusee (Refused, pose par
+    # Test-TargetWriteAllowed) : rien n a ete lance, journal et avis le disent (avant : operation terminee)
+    $arc = ($m -and $m.Archive)
+    if ($o.Refused) {
+        Append-Log ((T "Bibliothèque : écriture refusée, réglages de l'onglet Écriture rétablis (le préréglage de la Bibliothèque n'est pas enregistré) : {0}{1}.") -f "$tab", "$trk")
+    } elseif ($o.Stopped) {
         Append-Log ((T "Bibliothèque : opération arrêtée, réglages de l'onglet Écriture rétablis (le préréglage de la Bibliothèque n'est pas enregistré) : {0}{1}. Pour reprendre l'écriture de {2}, relancez-la depuis la Bibliothèque : le bouton ÉCRIRE LA DISQUETTE écrit l'image de l'onglet Écriture.") -f "$tab", "$trk", "$op")
-        Set-WTabNotice ((T "Bibliothèque arrêtée : pour reprendre, relancez l'écriture depuis la Bibliothèque. Onglet Écriture rétabli : {0}{1}.") -f "$tab", "$trk")
     } else {
         Append-Log ((T "Bibliothèque : opération terminée, réglages de l'onglet Écriture rétablis (le préréglage de la Bibliothèque n'est pas enregistré) : {0}{1}.") -f "$tab", "$trk")
-        Set-WTabNotice ((T "Bibliothèque terminée. Onglet Écriture rétabli : {0}{1}.") -f "$tab", "$trk")
+    }
+    if ($arc) { Append-Log ((T "Image {0} extraite d'une archive ZIP : l'onglet Écriture ne la garde pas, son fichier extrait est temporaire et une autre archive peut le remplacer. Pour l'écrire de nouveau, relancez-la depuis la Bibliothèque.") -f "$op") }
+    if ($o.Refused) { Set-WTabNotice ((T "Bibliothèque : écriture refusée. Onglet Écriture rétabli : {0}{1}.") -f "$tab", "$trk") }
+    elseif ($o.Stopped) {
+        if ($arc) { Set-WTabNotice ((T "Bibliothèque arrêtée : l'image {0}, extraite d'une archive ZIP, n'est pas gardée dans l'onglet Écriture ; pour reprendre, relancez l'écriture depuis la Bibliothèque. Onglet Écriture rétabli : {1}{2}.") -f "$op", "$tab", "$trk") }
+        else { Set-WTabNotice ((T "Bibliothèque arrêtée : pour reprendre, relancez l'écriture depuis la Bibliothèque. Onglet Écriture rétabli : {0}{1}.") -f "$tab", "$trk") }
+    } else {
+        if ($arc) { Set-WTabNotice ((T "Bibliothèque terminée : l'image {0}, extraite d'une archive ZIP, n'est pas gardée dans l'onglet Écriture. Onglet Écriture rétabli : {1}{2}.") -f "$op", "$tab", "$trk") }
+        else { Set-WTabNotice ((T "Bibliothèque terminée. Onglet Écriture rétabli : {0}{1}.") -f "$tab", "$trk") }
     }
 }
 
@@ -418,8 +624,24 @@ function Set-WTabNotice([string]$text) {
 function Clear-WTabNotice {
     if (-not $script:WTabNotice -or $lblWProfileInfo.Text -eq $script:WTabNotice) { return }
     $script:WTabNotice = $null
-    $lblWProfileInfo.AutoEllipsis = $false
+    # 12.10 (relecture des captures) : points de suspension gardes (520 : tout texte de plus de deux lignes), encre grise
     $lblWProfileInfo.ForeColor = [System.Drawing.Color]::DimGray
+}
+
+function Update-WProfileTip {
+    # 12.10 (relecture des captures) : texte complet du libelle du profil en infobulle quand il depasse ses deux lignes,
+    # aucune infobulle sinon (texte, avis de la Bibliotheque ou largeur changes : 520). L infobulle propre d un Label a
+    # points de suspension ne vient pas ici : sa mesure est bornee a la taille du libelle (40 px de haut au plus) ; hauteur
+    # mesuree ici a la largeur du libelle, sans borne
+    $h = $lblWProfileInfo.GetPreferredSize((New-Object System.Drawing.Size($lblWProfileInfo.Width, 0))).Height
+    $tip.SetToolTip($lblWProfileInfo, $(if ($h -gt $lblWProfileInfo.Height) { [string]$lblWProfileInfo.Text } else { '' }))
+}
+
+function Update-WCalTip {
+    # 12.10 (relecture de la RC) : texte complet du libelle de calibration de l onglet Ecriture ($lblWCal, 520 : une ligne a
+    # largeur fixe, points de suspension) en infobulle quand il depasse la largeur du libelle (marge de l icone du verdict
+    # comprise), aucune infobulle sinon ; appelee au changement de texte, de taille, de police et de marge (520)
+    $tip.SetToolTip($lblWCal, $(if ($lblWCal.PreferredWidth -gt $lblWCal.Width) { [string]$lblWCal.Text } else { '' }))
 }
 
 function Get-WProfileText {
@@ -449,8 +671,11 @@ function Update-OpOverride([bool]$gwDone) {
 }
 
 function Set-OpOverrideConfig($cfg) {
-    # Save-Config pendant une operation surchargee : reglages de l onglet Ecriture d avant l operation
-    $s = $script:OpOverride.Saved; $w = $cfg['write']
+    # Save-Config pendant une operation surchargee : reglages de l onglet Ecriture d avant l operation. 12.10 (lot 1,
+    # E9-image, decision E9-3) : operation de la Bibliotheque lancee : image de l operation, comme a sa fin (Merge-LibKeepState ;
+    # R1, constat d : des le premier gw write de l image, Written pose par Start-Gw avant son Save-Config)
+    $o = $script:OpOverride; $s = $o.Saved; $w = $cfg['write']
+    if ($o.Kind -eq 'library') { $s = (Merge-LibKeepState $s $o.KeepImg ([bool]$o.Written)).State }
     $w['file'] = [string]$s.File; $w['format'] = [string]$s.Fmt; $w['preErase'] = [bool]$s.Pre; $w['eraseEmpty'] = [bool]$s.Empty
     $w['noVerify'] = [bool]$s.NoVer; $w['retries'] = [int]$s.Retries; $w['precompOn'] = [bool]$s.Precomp; $w['precomp'] = [string]$s.P0
     $w['precomp1'] = [string]$s.P1; $w['tracks'] = [string]$s.Tracks; $w['postCheck'] = [bool]$s.Post; $w['repairMax'] = [int]$s.Repair
@@ -479,6 +704,12 @@ function Start-PresetWrite([string]$mode, [switch]$NoCalib, [switch]$LevelOnly) 
         # Avant toute calibration : gw refuserait l ecriture apres coup (« Sector image requires a disk format »)
         [void](Show-AppMessage ((T "Image secteur sans géométrie ({0}) : gw exige le format.`nChoisir le format dans l'onglet Écriture, puis relancer l'écriture.") -f "$ext") (T 'Format requis') 'OK' 'Warning'); return
     }
+    # 12.10 (relecture de l etape 3) : lecteur cible choisi (Get-TargetWriteInfo) ; ecriture refusee (haute densite, aucune
+    # courbe croisee de la famille, courbes croisees par tete en ecriture rapide) : refus de Start-ImageWrite
+    # (Test-TargetWriteAllowed) avant toute ligne de calibration ou de mesure (avant : la branche haute densite disait la
+    # calibration appliquee, puis l ecriture etait refusee)
+    $tw = Get-TargetWriteInfo $img $fmt ($mode -eq 'slow')
+    if ($tw.Block) { Start-ImageWrite; return }
     if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) {
         # 12.8 (S3-FLUX, decision 2) : aucune mesure avant l ecriture d une image flux ; ligne de journal quand une mesure
         # aurait ete faite pour une image calibrable (test rapide, ou case « Mesurer la disquette » en ecriture lente) ;
@@ -486,6 +717,9 @@ function Start-PresetWrite([string]$mode, [switch]$NoCalib, [switch]$LevelOnly) 
         if (-not $script:Restore -and ($cmbWCalMode.SelectedIndex -eq 2 -or (Test-WriteLevelWanted $mode))) { Write-FluxLevelSkip $img $fmt }
         Start-ImageWrite; return
     }
+    # 12.10 (lot 1, B1) : image FM, GCR ou a codage propre (Get-ImageEncoding : format, extension ou en-tete, HFE FM
+    # compris) : ni calibration ni mesure, elles ne mesurent que le MFM ; Start-ImageWrite ne transmet pas --precomp
+    if (Test-NonMfmWrite $img $fmt) { Write-NonMfmSkip $img $fmt; Start-ImageWrite; return }
     $hd = Get-HighDensityReason $img $fmt
     if ($hd) {
         # 12.7 : haute densite calibrable (hd) : courbe de la famille appliquee par le mode Auto si elle existe, profil
@@ -522,6 +756,10 @@ function Start-PresetWrite([string]$mode, [switch]$NoCalib, [switch]$LevelOnly) 
     $oor = Get-CellOutOfRange $img
     if ($null -ne $oor) { Append-Log ((T "Cellule de l'image hors des plages mesurables ({0} ns ; 900 à 1 100 ns en haute densité, 1 700 à 2 300 ns en double densité) : pas de calibration automatique, écriture avec le profil courant.") -f "$oor"); Start-ImageWrite; return }
     if (-not $script:ScpStatsOk) { Append-Log (T "Module d'analyse SCP indisponible : pas de calibration automatique, écriture avec le profil courant."); Start-ImageWrite; return }
+    # 12.10 : lecteur cible choisi, avec effet sur cette ecriture (Get-TargetWriteInfo) : ni calibration automatique, ni test
+    # rapide, ni mesure de la disquette (ils reliraient avec le lecteur du bandeau) : ecriture avec la courbe croisee telle
+    # quelle (refus : plus haut, $tw)
+    if ($tw.Applies) { Append-Log ((T "Écriture pour le lecteur cible {0} : ni calibration automatique ni mesure de la disquette (elles reliraient avec le lecteur {1}) ; écriture avec la courbe croisée telle quelle.") -f "$($tw.Tgt)", "$($cmbDrive.Text)"); Start-ImageWrite; return }
     if ($NoCalib) {
         if ($LevelOnly) {
             # 12.7 point 5 (arbitrage 15) : mesure exclue quand l image ne recouvrirait pas tout le motif. 12.8 (D5) : avec la
@@ -594,6 +832,7 @@ function Get-WriteLevelKind([string]$img, [string]$fmt) {
     $explicit = ($fmt -and $fmt -ne '(auto)')
     if (@('.scp', '.raw', '.kf', '.a2r', '.ctr') -contains $ext) { return '' }
     if ((Test-NeedsFormat $img) -and -not $explicit) { return '' }
+    if (Test-NonMfmWrite $img $fmt) { return '' }    # 12.10 (lot 1, B1) : FM, GCR ou codage propre (HFE FM compris)
     if (Get-HighDensityReason $img $fmt) { if (Get-HdCalibFamily $img $fmt) { return 'hd' }; return '' }
     if ($chkWHard.Checked -or $chkWTG43.Checked) { return '' }
     $fci = if ($explicit -and $script:GwFormats.Contains($fmt)) { Get-FormatCalibInfo $fmt } else { $null }
@@ -634,6 +873,22 @@ function Write-FluxLevelSkip([string]$img, [string]$fmt) {
     else { Append-Log ((T "Mesure de la disquette avant l'écriture non faite : image flux {0}, décodée par --format={1} ; la disquette n'est pas mesurée avant l'écriture d'une image flux. Écriture sans mesure.") -f "$n", "$fmt") }
 }
 
+function Write-NonMfmSkip([string]$img, [string]$fmt) {
+    # 12.10 (lot 1, B1) : ni calibration ni mesure de la disquette avant l ecriture d une image FM, GCR ou a codage propre
+    # (Start-PresetWrite, bouton ECRIRE) : ligne de journal. Profil Manuel avec --precomp coche : la ligne de Start-ImageWrite
+    # (champ transmis tel quel) la remplace, l ecriture n etant pas sans precompensation
+    if (Test-ManualPrecomp) { return }
+    $ie = Get-ImageEncoding $img $fmt
+    Append-Log ((T "Image {0} en codage {1} : pas de calibration (elle ne mesure que le MFM), écriture sans précompensation.") -f "$([System.IO.Path]::GetFileName("$img"))", "$($ie.Name)")
+}
+
+function Test-ManualPrecomp {
+    # 12.10 (lot 1, revue2, R-6) : profil Manuel avec --precomp coche : Start-ImageWrite transmet le champ tel quel, meme sur
+    # une image FM, GCR ou a codage propre. Textes « ecrite sans precompensation » omis dans ce cas (Write-NonMfmSkip,
+    # refus de Test-CalibImage, et raisons de Get-FormatCalibInfo qu il demande, parametre manual)
+    return ($cmbWProfile.SelectedIndex -eq 3 -and $chkWPrecomp.Checked)
+}
+
 function Get-LevelWriteSkip([string]$img, [string]$fmt, [string]$ts) {
     # 12.7 point 5 (arbitrage 15) : mesure de la disquette avant l ecriture lente exclue quand l image ne recouvrirait pas
     # tout le motif. La mesure ecrit le motif sur 4 a 9 cylindres par tete, sur tout le disque et les deux tetes
@@ -670,16 +925,29 @@ function Start-WriteTabWrite {
     # 12.8 (FIX-PISTES, essai du 21/10/2026) : champ Pistes qui retire des pistes de l image (c=, h=) : confirmation qui
     # nomme l image et les pistes (Confirm-PartialWrite), avant toute mesure ou ecriture ; le champ reste enregistre dans
     # la configuration, comme en 12.7. FIX-PISTES-2 : aussi pour step= autre que 1 (pas du lecteur par cylindre)
+    # 12.10 : lecteur cible choisi (Get-TargetDrive) : ni mesure de la disquette ni calibration rapide (elles reliraient avec
+    # le lecteur du bandeau) : ecriture avec la courbe croisee telle quelle ; refusee sans courbe croisee de la famille
+    # (Test-TargetWriteAllowed), avant la confirmation d une ecriture partielle
     $img = $txtWFile.Text
     $mode = if ($chkWSlow.Checked) { 'slow' } else { 'fast' }
+    $tgt = Get-TargetDrive
     if ($img -and (Test-Path -LiteralPath $img) -and -not ($script:GwProc -and -not $script:GwProc.HasExited)) {
+        if ($tgt -and -not (Test-TargetWriteAllowed $img $cmbWFmt.Text ($mode -eq 'slow'))) { return }
         if (-not (Confirm-PartialWrite $img $cmbWFmt.Text $txtWTracks.Text)) { return }
     }
     $quick = ((Get-Setting 'calMode') -eq 'level')
+    # Lecteur cible sans effet sur cette ecriture (profil Manuel, --precomp decoche, flux, FM, GCR : Get-TargetWriteInfo) :
+    # deroule ordinaire, qui ne mesure pas ces ecritures (Start-ImageWrite le dit au journal)
+    if ($tgt -and (Get-TargetWriteInfo $img $cmbWFmt.Text ($mode -eq 'slow')).Applies) {
+        if ($quick -or (Test-WriteLevelWanted $mode)) { Append-Log ((T "Mesure de la disquette avant l'écriture non faite : écriture pour le lecteur cible {0} (la mesure relirait avec le lecteur {1}). Écriture avec la courbe croisée telle quelle.") -f "$tgt", "$($cmbDrive.Text)") }
+        Start-ImageWrite; return
+    }
     if (-not ($quick -or (Test-WriteLevelWanted $mode)) -or -not $img -or -not (Test-Path -LiteralPath $img)) { Start-ImageWrite; return }
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     # 12.8 (S3-FLUX, decision 2 du 21/10/2026) : image flux : jamais de mesure avant l ecriture, ligne de journal
     if (Test-FluxImage $img) { Write-FluxLevelSkip $img $cmbWFmt.Text; Start-ImageWrite; return }
+    # 12.10 (lot 1, B1) : image FM, GCR ou a codage propre : jamais de mesure avant l ecriture, ligne de journal
+    if (Test-NonMfmWrite $img $cmbWFmt.Text) { Write-NonMfmSkip $img $cmbWFmt.Text; Start-ImageWrite; return }
     $k = Get-WriteLevelKind $img $cmbWFmt.Text
     if (-not $k) { Start-ImageWrite; return }
     $auto = ($cmbWProfile.SelectedIndex -eq 0)
@@ -742,60 +1010,75 @@ function Confirm-PartialWrite([string]$img, [string]$fmt, [string]$tspec) {
     return $false
 }
 
-# --- Facteur de precompensation et correction « lecteur cible » (12.8.1) ------
-# Courbe ecrite = (k_h + Dk_h) x courbe, par tete (spec-1281 § A.10, C.3, C.4, D.2 ; decisions de l utilisateur du
-# 25/10/2026). k_h : mesure sur l image qui precede l ecriture (276, $script:WriteFactorNext), sinon k du lecteur :
-# mediane des 3 derniers k* mesures pour ce lecteur, cette famille et cette tete (Get-DriveK, 274), garde apres une
-# recalibration du lecteur, 1 sans mesure (ecriture de la v12.8). Il s applique a la courbe que la v12.8 aurait ecrite :
-# courbe du lecteur, courbe adaptee d une calibration rapide, courbe d une mesure complete ou d une marque. Dk_h :
-# correction « lecteur cible » du lecteur du bandeau ($script:TargetCorr, 274), reglee a la main dans l onglet Ecriture,
-# 0 par defaut. Haute densite, flux, FM, GCR, profil autre qu Auto : jamais de facteur. 12.9 (N13) : k du lecteur par
-# marque (marque de la mesure qui precede, sinon derniere marque choisie), nommee dans les lignes de journal.
+# --- Facteur de precompensation et lecteur cible (12.8.1, 12.10) ------
+# Courbe ecrite = k_h x courbe, par tete (spec-1281 § A.10, C.3 ; decisions de l utilisateur du 25/10/2026). k_h : mesure
+# sur l image qui precede l ecriture (276, $script:WriteFactorNext), sinon k du lecteur : mediane des 3 derniers k* mesures
+# pour ce lecteur, cette famille et cette tete (Get-DriveK, 274), garde apres une recalibration du lecteur, 1 sans mesure
+# (ecriture de la v12.8). Il s applique a la courbe que la v12.8 aurait ecrite : courbe du lecteur, courbe adaptee d une
+# calibration rapide, courbe d une mesure complete ou d une marque. Haute densite, flux, FM, GCR, profil autre qu Auto :
+# jamais de facteur. 12.9 (N13) : k du lecteur par marque (marque de la mesure qui precede, sinon derniere marque choisie),
+# nommee dans les lignes de journal.
+# 12.10 : la correction « lecteur cible » Dk de la 12.8.1 (valeur par tete ajoutee au facteur, champs de l onglet Ecriture,
+# bloc targetCorrection de la configuration) est retiree : a sa place, la liste « Lecteur cible » (cmbWTarget, 520) choisit
+# le lecteur qui relira la disquette ecrite par le lecteur du bandeau (la source) ; les courbes croisees « source>cible » de
+# la calibration croisee (270) sont alors appliquees telles quelles (Set-PrecompFields, 220), sans facteur
+# (Get-WriteFactorPlan : le facteur de marque, mesure par la relecture de la source, ne vaut pas pour la cible) ; sans
+# courbe croisee pour la famille de l image, l ecriture est refusee (Test-TargetWriteAllowed). Choix memorise par lecteur
+# source ($script:TargetDrives, 560 ; write.targetDrive, 120).
 
-function Format-WriteFactorDk([double]$v) {
-    # Correction « lecteur cible » signee dans les textes : « +0,10 », « -0,05 », « +0,00 »
-    return (Format-UiNum $v '+0.00;-0.00;+0.00')
-}
-
-function Get-WriteFactorSrcText([string]$drive, [string]$fam, [int]$h, [double]$k, [string]$src, [double]$dk, $brand = $null) {
+function Get-WriteFactorSrcText([string]$drive, [string]$fam, [int]$h, [double]$k, [string]$src, $brand = $null) {
     # Origine du facteur d une tete dans les lignes de journal : mesure sur cette disquette ('mesure'), mesures du lecteur
     # ('lecteur' : derniere, ou mediane des 3 dernieres avec leurs valeurs), aucune mesure ('defaut' : k = 1).
     # 12.9 (N13) : mesures du lecteur pour la marque $brand ($null : derniere marque choisie, Get-DriveK), nommee ; sans
-    # mesure de la marque, nombre de mesures d autres marques (jamais empruntees)
-    $kt = Format-UiNum $k '0.00'; $dt = Format-WriteFactorDk $dk
-    if ($src -eq 'mesure') { return ((T 'k {0} mesuré sur cette disquette, correction lecteur cible {1}') -f "$kt", "$dt") }
+    # mesure de la marque, nombre de mesures d autres marques (jamais empruntees). 12.10 : sans la correction Dk
+    $kt = Format-UiNum $k '0.00'
+    if ($src -eq 'mesure') { return ((T 'k {0} mesuré sur cette disquette') -f "$kt") }
     $dr = Get-DriveK $drive $fam $h $brand
     $bn = [string]$dr.Brand; if (-not $bn.Trim()) { $bn = (T '(non précisée)') } else { $bn = $bn.Trim() }
     if ($src -eq 'lecteur') {
-        if ([int]$dr.N -ge 2) { return ((T 'k {0}, médiane des {1} dernières mesures du lecteur pour la marque « {2} » ({3}), correction lecteur cible {4}') -f "$kt", "$($dr.N)", "$bn", ((@($dr.Ks) | ForEach-Object { Format-UiNum ([double]$_) '0.00' }) -join ' ; '), "$dt") }
+        if ([int]$dr.N -ge 2) { return ((T 'k {0}, médiane des {1} dernières mesures du lecteur pour la marque « {2} » ({3})') -f "$kt", "$($dr.N)", "$bn", ((@($dr.Ks) | ForEach-Object { Format-UiNum ([double]$_) '0.00' }) -join ' ; ')) }
         $md = if ($dr.Rec -and $dr.Rec.Date) { [string]$dr.Rec.Date } else { '?' }
-        return ((T 'k {0} de la dernière mesure du lecteur pour la marque « {1} » (du {2}), correction lecteur cible {3}') -f "$kt", "$bn", "$md", "$dt")
+        return ((T 'k {0} de la dernière mesure du lecteur pour la marque « {1} » (du {2})') -f "$kt", "$bn", "$md")
     }
     # Revue 12.8.2 : mesures de ce lecteur ecartees parce qu elles viennent d un autre calcul (Get-DriveK, Old). 12.9
     # (revue de la phase B, mineur 1) : ecartees seulement par ContentCalc (OldContent) : calcul de la mesure change
-    if ([int]$dr.Old -gt 0 -and [int]$dr.OldContent -ge [int]$dr.Old) { return ((T 'k 1 (mesures de ce lecteur faites avant la {0}, calcul de la mesure changé, à refaire pour la marque « {1} »), correction lecteur cible {2}') -f "$($script:ContentCalc)", "$bn", "$dt") }
-    if ([int]$dr.Old -gt 0) { return ((T 'k 1 (mesures de ce lecteur faites avec un autre calcul de calibration, à refaire), correction lecteur cible {0}') -f "$dt") }
+    if ([int]$dr.Old -gt 0 -and [int]$dr.OldContent -ge [int]$dr.Old) { return ((T 'k 1 (mesures de ce lecteur faites avant la {0}, calcul de la mesure changé, à refaire pour la marque « {1} »)') -f "$($script:ContentCalc)", "$bn") }
+    if ([int]$dr.Old -gt 0) { return (T 'k 1 (mesures de ce lecteur faites avec un autre calcul de calibration, à refaire)') }
     $oth = if ([int]$dr.Other -gt 0) { (T ' ; {0} mesure(s) d''autres marques') -f "$($dr.Other)" } else { '' }
-    return ((T 'k 1 (aucune mesure de ce lecteur pour la marque « {0} »{1}), correction lecteur cible {2}') -f "$bn", "$oth", "$dt")
+    return ((T 'k 1 (aucune mesure de ce lecteur pour la marque « {0} »{1})') -f "$bn", "$oth")
 }
 
 function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $null, [switch]$Peek) {
-    # Facteur de precompensation d une ecriture de l onglet Ecriture (Start-ImageWrite), par tete : f_h = k_h + Dk_h,
-    # ramene a [0 ; ContentFMax] (Limit-WriteFactor, plafond : 040) ; ecriture rapide : FMean, moyenne des facteurs des
-    # deux tetes (decision du 25/10/2026). $next : facteur mesure sur l image ($script:WriteFactorNext), retenu pour le
-    # meme lecteur, la meme famille et la meme image seulement. Apply faux, raison Why : fichier absent, profil autre
-    # qu Auto, --precomp decoche, image non calibrable en double densite (haute densite, flux, FM, GCR...), famille sans
-    # courbe, courbe d un autre lecteur. Lines : lignes de journal, dans l ordre (T-C10 par tete bornee, puis T-C8 ou T-C9 ;
-    # sans facteur : correction non appliquee si Dk != 0, facteur du lecteur non applique si k != 1). Hard : borne des
-    # profils mis a l echelle (ConvertTo-ScaledSpec : une valeur deja au-dessus, venue d une mesure complete, n est
-    # jamais augmentee). Peek : calcul seul, sans les lignes d un facteur non applique (libelle du profil, texte
-    # « Ecrire sans mesure » de la confirmation de la mesure sur l image, 276)
+    # Facteur de precompensation d une ecriture de l onglet Ecriture (Start-ImageWrite), par tete : f_h = k_h, ramene a
+    # [0 ; ContentFMax] (Limit-WriteFactor, plafond : 040) ; ecriture rapide : FMean, moyenne des facteurs des deux tetes
+    # (decision du 25/10/2026). $next : facteur mesure sur l image ($script:WriteFactorNext), retenu pour le meme lecteur,
+    # la meme famille et la meme image seulement. Apply faux, raison Why : fichier absent, profil autre qu Auto, --precomp
+    # decoche, image non calibrable en double densite (haute densite, flux, FM, GCR...), famille sans courbe, courbe d un
+    # autre lecteur. Lines : lignes de journal, dans l ordre (T-C10 par tete bornee, puis T-C8 ou T-C9 ; sans facteur :
+    # facteur du lecteur non applique si k != 1). Hard : borne des profils mis a l echelle (ConvertTo-ScaledSpec : une
+    # valeur deja au-dessus, venue d une mesure complete, n est jamais augmentee). Peek : calcul seul, sans les lignes d un
+    # facteur non applique (libelle du profil, texte « Ecrire sans mesure » de la confirmation de la mesure sur l image, 276).
+    # 12.10 : lecteur cible avec effet sur cette ecriture (Get-TargetWriteInfo : profil Auto ou force, --precomp coche, image
+    # MFM a laquelle --precomp est transmis) : facteur 1, jamais applique (Apply faux, Target = cible, Fam, Curves = courbes
+    # croisees ecrites) ; lignes « Ecriture pour le lecteur cible ... : courbe croisee ..., facteur 1,00 » et « Facteur de
+    # marque non applique » ; sans courbe croisee (ou haute densite) : Why « aucune courbe croisee », Target vide (l ecriture
+    # est refusee par Test-TargetWriteAllowed). Lecteur cible sans effet : facteur comme pour le meme lecteur
     $drive = [string]$cmbDrive.Text
     $hard = [int]$script:CalHardNsUser; if ($hard -le 0) { $hard = [int]$script:CalHardNs }
     $fMax = [double]$script:ContentFMax
-    $dk = @{ 0 = [double](Get-DriveDk $drive 0); 1 = [double](Get-DriveDk $drive 1) }
-    $r = @{ Apply = $false; Why = ''; F0 = 1.0; F1 = 1.0; FMean = 1.0; K = @{ 0 = 1.0; 1 = 1.0 }; Dk = $dk; Src = @{ 0 = 'defaut'; 1 = 'defaut' }
-            Hard = $hard; Fam = ''; Line = ''; Lines = @() }
+    $r = @{ Apply = $false; Why = ''; F0 = 1.0; F1 = 1.0; FMean = 1.0; K = @{ 0 = 1.0; 1 = 1.0 }; Src = @{ 0 = 'defaut'; 1 = 'defaut' }
+            Hard = $hard; Fam = ''; Line = ''; Lines = @(); Target = ''; Curves = @() }
+    $tw = Get-TargetWriteInfo $img $fmt $slow
+    if ($tw.Applies) {
+        $r.Fam = [string]$tw.Fam
+        $tc = @($tw.Curves)
+        if ($tc.Count -eq 0) { $r.Why = (T 'aucune courbe croisée {0} → {1}') -f "$drive", "$($tw.Tgt)"; return $r }
+        $r.Target = [string]$tw.Tgt; $r.Curves = $tc
+        if ($Peek) { return $r }
+        $r.Line = (T "Écriture pour le lecteur cible {0} : {1}, facteur 1,00.") -f "$($tw.Tgt)", (Get-TargetCurvesText $drive ([string]$tw.Tgt) ([string]$tw.Fam) $tc)
+        $r.Lines = @($r.Line, ((T "Facteur de marque non appliqué : écriture pour le lecteur cible {0} (le facteur est mesuré par la relecture du lecteur {1}, il ne vaut pas pour le lecteur cible).") -f "$($tw.Tgt)", "$drive"))
+        return $r
+    }
     $fam = ''
     if (-not $img -or -not (Test-Path -LiteralPath $img)) { $r.Why = (T 'Fichier image introuvable.') }
     elseif ($cmbWProfile.SelectedIndex -ne 0) { $r.Why = (T 'profil précomp. « {0} »') -f "$($cmbWProfile.Text)" }
@@ -817,8 +1100,7 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
     }
     if (-not $r.Apply) {
         if ($Peek) { return $r }
-        if ($dk[0] -ne 0 -or $dk[1] -ne 0) { $r.Line = (T 'Correction lecteur cible du lecteur {0} non appliquée à cette écriture : {1}.') -f "$drive", "$($r.Why)" }
-        elseif ($img -and (Test-Path -LiteralPath $img)) {
+        if ($img -and (Test-Path -LiteralPath $img)) {
             $fk = Get-ImageFamily $img $fmt
             if (@('std', 'long') -contains $fk) {
                 $k0 = [double](Get-DriveK $drive $fk 0).K; $k1 = [double](Get-DriveK $drive $fk 1).K
@@ -845,12 +1127,11 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
             }
         }
         if ($null -eq $k -or [double]::IsNaN($k) -or [double]::IsInfinity($k)) { $dr = Get-DriveK $drive $fam $h $brand; $k = [double]$dr.K; $src = [string]$dr.Src }
-        $raw = $k + [double]$dk[$h]
-        $lim = Limit-WriteFactor $raw $fMax
-        if ($lim.Clamped) { $lines += (T 'Facteur de la tête {0} ramené de {1} à {2} (il va de 0 à {3}).') -f "$h", (Format-UiNum $raw '0.00'), (Format-UiNum ([double]$lim.F) '0.00'), (Format-UiNum $fMax '0.0#') }
+        $lim = Limit-WriteFactor $k $fMax
+        if ($lim.Clamped) { $lines += (T 'Facteur de la tête {0} ramené de {1} à {2} (il va de 0 à {3}).') -f "$h", (Format-UiNum $k '0.00'), (Format-UiNum ([double]$lim.F) '0.00'), (Format-UiNum $fMax '0.0#') }
         $r.K[$h] = $k; $r.Src[$h] = $src
         if ($h -eq 0) { $r.F0 = [double]$lim.F } else { $r.F1 = [double]$lim.F }
-        $txt[$h] = Get-WriteFactorSrcText $drive $fam $h $k $src ([double]$dk[$h]) $brand
+        $txt[$h] = Get-WriteFactorSrcText $drive $fam $h $k $src $brand
     }
     $r.FMean = [double](Limit-WriteFactor (($r.F0 + $r.F1) / 2) $fMax).F
     $r.Brand = $brand
@@ -860,13 +1141,59 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
         $r.Line = (T "Facteur de précompensation de cette écriture rapide (lecteur {0}, marque « {1} ») : × {2}, moyenne des deux têtes (tête 0 × {3}, {4} ; tête 1 × {5}, {6}). Courbe écrite = facteur × courbe, bornée à 0..{7} ns ; une valeur déjà au-dessus n'est jamais augmentée.") -f "$drive", "$bn", (Format-UiNum $r.FMean '0.00'), (Format-UiNum $r.F0 '0.00'), "$($txt[0])", (Format-UiNum $r.F1 '0.00'), "$($txt[1])", "$hard"
     }
     $r.Lines = @($lines) + @($r.Line)
+    # Finalisation 12.10 : conseil de mesure de la disquette apres la ligne du facteur (Get-WriteFactorHint) ; jamais pour
+    # -Peek (libelle du profil, confirmation de la mesure : ni ligne, ni test de la mesure possible)
+    if (-not $Peek) {
+        $hint = Get-WriteFactorHint $img $fmt $slow $drive $fam $brand $r.Src
+        if ($hint) { $r.Lines = @($r.Lines) + @($hint) }
+    }
     return $r
+}
+
+function Get-WriteFactorHint([string]$img, [string]$fmt, [bool]$slow, [string]$drive, [string]$fam, [string]$brand, $src) {
+    # Finalisation 12.10 (analyse long track du 08/11/2026 : le meilleur facteur varie de +/- 0,2 d une disquette a l autre
+    # d une meme marque) : ligne de journal qui conseille de mesurer la disquette, rendue a Get-WriteFactorPlan quand le
+    # facteur s applique (profil Auto, --precomp coche, double densite, courbe du lecteur, sans lecteur cible), chaine vide
+    # sinon :
+    #  - facteur tire de la memoire de la marque (Src lecteur : aucune mesure de cette disquette dans cette ecriture), et
+    #    mesures listees au journal pour une tete (Get-DriveK : 2 ou 3, arrondies a 0,01 comme au journal) ecartees de 0,2
+    #    ou plus ;
+    #  - image long track ecrite avec k 1 faute de toute mesure de la marque sur ce lecteur (Src defaut aux deux tetes).
+    # Seulement si la mesure sur l image est possible pour cette ecriture et n y est pas deja demandee : ni restauration, ni
+    # liste Calibration precomp au Test rapide (mesure au motif, ligne de Start-LevelBeforeWrite), case Mesurer la disquette
+    # non cochee pour cette ecriture (Test-WriteLevelWanted), image qui recouvre tout le motif (Get-LevelWriteSkip) et
+    # mesurable sur son contenu (Test-ContentMeasurable : MFM double densite, champ Pistes vide, courbe du lecteur assez
+    # longue, 20 cylindres)
+    if ($script:Restore -or $cmbWCalMode.SelectedIndex -eq 2) { return '' }
+    if (Test-WriteLevelWanted $(if ($slow) { 'slow' } else { 'fast' })) { return '' }
+    $spread = -1.0
+    foreach ($h in 0, 1) {
+        if ([string]$src[$h] -ne 'lecteur') { continue }
+        $dr = Get-DriveK $drive $fam $h $brand
+        if ([int]$dr.N -lt 2) { continue }
+        $ks = @(@($dr.Ks) | ForEach-Object { [math]::Round([double]$_, 2) })
+        $sp = [math]::Round([double]($ks | Measure-Object -Maximum).Maximum - [double]($ks | Measure-Object -Minimum).Minimum, 2)
+        if ($sp -gt $spread) { $spread = $sp }
+    }
+    $bn = if ($brand.Trim()) { $brand.Trim() } else { (T '(non précisée)') }
+    # Relecture de la finalisation : consigne selon l ecriture. Ecriture lente : case Mesurer la disquette decochee (sinon
+    # Test-WriteLevelWanted ci-dessus) : la cocher. Ecriture rapide : jamais mesuree, case cochee ou non (Test-WriteLevelWanted
+    # rend faux hors ecriture lente) : ecrire en ecriture lente, sans demander de cocher une case peut-etre deja cochee
+    $how = if ($slow) { (T "cochez « Mesurer la disquette avant l'écriture lente », avec la mesure « sur l'image à écrire »") } else { (T "écrivez l'image en écriture lente, avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »") }
+    $line = ''
+    if ($spread -ge 0.2) { $line = (T "Les mesures de la marque « {0} » sur ce lecteur varient de {1} d'une disquette à l'autre : pour mesurer celle-ci avant l'écriture, {2}.") -f "$bn", (Format-UiNum $spread '0.00'), "$how" }
+    elseif ($fam -eq 'long' -and [string]$src[0] -eq 'defaut' -and [string]$src[1] -eq 'defaut') { $line = (T "Aucun facteur mesuré pour la marque « {0} » sur ce lecteur : en long track, le meilleur facteur s'écarte souvent de 1 ; pour le mesurer, {1}.") -f "$bn", "$how" }
+    if (-not $line) { return '' }
+    if (Get-LevelWriteSkip $img $fmt $txtWTracks.Text) { return '' }
+    try { if (-not (Test-ContentMeasurable $img $fmt).Ok) { return '' } } catch { return '' }
+    return $line
 }
 
 function Get-WriteFactorNote([string]$path) {
     # Complement du libelle du profil Auto double densite (Update-PrecompForImage, T-C12) : facteur different de 1 que
     # recevrait une ecriture de l onglet (Get-WriteFactorPlan -Peek, ecriture lente ou rapide selon la case) ; vide avec un
-    # facteur 1 (libelle de la v12.8)
+    # facteur 1 (libelle de la v12.8) ; 12.10 : vide pour un lecteur cible (facteur 1, la courbe croisee est nommee entre les
+    # parentheses du libelle : Get-WProfileSpec, 220)
     $wf = Get-WriteFactorPlan $path $cmbWFmt.Text ([bool]$chkWSlow.Checked) $null -Peek
     if (-not $wf.Apply) { return '' }
     if ($chkWSlow.Checked) {
@@ -878,8 +1205,8 @@ function Get-WriteFactorNote([string]$path) {
 }
 
 function Update-WriteFactorNote {
-    # Complement du libelle refait apres un changement du facteur (correction « lecteur cible », lecteur du bandeau), sans
-    # refaire le profil ni les champs --precomp : seulement si le libelle est encore celui qu a pose Update-PrecompForImage
+    # Complement du libelle refait apres un changement du facteur (lecteur du bandeau), sans refaire le profil ni les champs
+    # --precomp : seulement si le libelle est encore celui qu a pose Update-PrecompForImage
     $n = $script:WFactorNote
     if (-not $n -or [string]$lblWProfileInfo.Text -ne ([string]$n.Base + [string]$n.Note)) { return }
     $x = Get-WriteFactorNote $txtWFile.Text
@@ -887,73 +1214,192 @@ function Update-WriteFactorNote {
     $n.Note = $x; $lblWProfileInfo.Text = [string]$n.Base + $x
 }
 
-function Set-TargetCorrLayout {
-    # Positions des champs de la correction « lecteur cible » sur la ligne de la liste « Mesure : » : libelle 14 px apres
-    # la liste, puis « tete 0 » et son champ, « tete 1 » et son champ, largeurs mesurees dans la police de la fenetre
-    # (anglais compris) ; bas des champs a celui de la liste (517 px : pas de defilement, P10 de write-level)
-    $f = $form.Font; $y = $cmbWLevelMode.Top; $ly = $lblWLevelMode.Top
-    $x = $cmbWLevelMode.Right + 14
-    $lblWTgtCorr.Location = New-Object System.Drawing.Point($x, $ly)
-    $x += [System.Windows.Forms.TextRenderer]::MeasureText($lblWTgtCorr.Text, $f).Width + 4
-    $lblWTgt0.Location = New-Object System.Drawing.Point($x, $ly)
-    $x += [System.Windows.Forms.TextRenderer]::MeasureText($lblWTgt0.Text, $f).Width + 2
-    $numWTgt0.Location = New-Object System.Drawing.Point($x, $y)
-    $x = $numWTgt0.Right + 10
-    $lblWTgt1.Location = New-Object System.Drawing.Point($x, $ly)
-    $x += [System.Windows.Forms.TextRenderer]::MeasureText($lblWTgt1.Text, $f).Width + 2
-    $numWTgt1.Location = New-Object System.Drawing.Point($x, $y)
+# --- Lecteur cible des ecritures (12.10, conception-croisee § 4) ------
+
+function Get-DriveIds {
+    # 12.10 : lecteurs de la liste du bandeau (codes du reglage drive, 040 : A, B, 0 a 3), source unique des lecteurs cibles ;
+    # tableau protege par la virgule
+    return ,@([string[]]$script:SettingDefs['drive'].Codes)
 }
 
-function Update-TargetCorrUi {
-    # 12.8.1 (spec-1281 § D.2) : libelle (lecteur du bandeau), infobulle et valeurs des champs de la correction « lecteur
-    # cible », sous la garde des liaisons (gestionnaires sans effet), puis positions et complement du libelle du profil.
-    # Load-Config, Set-Defaults, changement de lecteur du bandeau
-    if (-not $numWTgt0 -or -not $numWTgt1 -or -not $lblWTgtCorr) { return }
-    $d = [string]$cmbDrive.Text
+function Get-TargetDrive([string]$src = '') {
+    # 12.10 : lecteur cible des ecritures du lecteur source $src (vide : lecteur du bandeau) : '' sans lecteur cible (meme
+    # lecteur), ou si le choix memorise est la source elle-meme ou un lecteur inconnu de la liste du bandeau (Get-DriveIds) ;
+    # avant la creation de l etat (520 s execute avant 560) : ''
+    if (-not $src) { $src = [string]$cmbDrive.Text }
+    if (-not $src -or $null -eq $script:TargetDrives -or -not $script:TargetDrives.ContainsKey($src)) { return '' }
+    $t = [string]$script:TargetDrives[$src]
+    if (-not $t -or $t -eq $src -or (Get-DriveIds) -notcontains $t) { return '' }
+    return $t
+}
+
+function Set-TargetDrive([string]$src, [string]$tgt) {
+    # 12.10 : lecteur cible des ecritures du lecteur source : $tgt vide, egal a la source ou inconnu : entree retiree (meme
+    # lecteur). Rend l ancien choix ('' : meme lecteur). Enregistre par Save-Config (write.targetDrive), comme les reglages
+    $old = Get-TargetDrive $src
+    if (-not $src) { return $old }
+    if ($null -eq $script:TargetDrives) { $script:TargetDrives = @{} }
+    if (-not $tgt -or $tgt -eq $src -or (Get-DriveIds) -notcontains $tgt) { [void]$script:TargetDrives.Remove($src) } else { $script:TargetDrives[$src] = $tgt }
+    return $old
+}
+
+function Get-TargetDriveItems([string]$src) {
+    # 12.10 : elements de la liste « Lecteur cible » : « (meme lecteur) », puis les lecteurs du bandeau sauf la source
+    # (Get-CrossCalibTargets, 240, tableau protege par la virgule : entre parentheses, pas dans @()) ; tableau protege par
+    # la virgule
+    return ,@(@((T '(même lecteur)')) + (Get-CrossCalibTargets (Get-DriveIds) $src))
+}
+
+function Get-TargetCurves([string]$fam, [bool]$slow, [string]$src = '', [string]$tgt = '') {
+    # 12.10 : courbes croisees « source>cible » de la famille appliquees a une ecriture pour le lecteur cible : par tete en
+    # ecriture lente si elles sont presentes et au moins aussi recentes que la courbe commune, sinon la courbe commune
+    # (Get-DriveFamilyCurves, 220). Courbes rendues une par une dans le pipeline : l appelant les recueille par @() (aucune
+    # sans lecteur cible ou sans courbe croisee : tableau vide)
+    if (-not $src) { $src = [string]$cmbDrive.Text }
+    if (-not $tgt) { $tgt = Get-TargetDrive $src }
+    if (-not $tgt) { return }
+    $cv = Get-DriveFamilyCurves "$src>$tgt" $fam $slow
+    foreach ($c in @($cv)) { if ($c) { $c } }
+}
+
+function Get-TargetCurvesText([string]$src, [string]$tgt, [string]$fam, $cvs) {
+    # 12.10 : courbes croisees appliquees a une ecriture, dans les lignes de journal : « courbe croisee A → 0 (Standard 2 us,
+    # test fin, 01/11/2026 17:49, calcul v12.10) », ou « courbes croisees A → 0 par tete (Standard 2 us, test fin, tete 0 du ...,
+    # tete 1 du ..., calcul v12.10) » ; test (champ Test de la courbe) et calcul de la premiere courbe
+    $l = @($cvs | Where-Object { $_ })
+    if ($l.Count -eq 0) { return ((T 'aucune courbe croisée {0} → {1}') -f "$src", "$tgt") }
+    $c0 = $l[0]
+    $test = if ([string]$c0.Test -eq 'fine') { (T 'test fin') } else { (T 'test standard') }
+    $calc = Get-CurveCalcText $c0 -Plain
+    if ($l.Count -ge 2) { return ((T "courbes croisées {0} → {1} par tête ({2}, {3}, tête 0 du {4}, tête 1 du {5}, calcul {6})") -f "$src", "$tgt", (Get-CalibFamilyName $fam), "$test", "$($c0.Date)", "$($l[1].Date)", "$calc") }
+    return ((T "courbe croisée {0} → {1} ({2}, {3}, {4}, calcul {5})") -f "$src", "$tgt", (Get-CalibFamilyName $fam), "$test", "$($c0.Date)", "$calc")
+}
+
+function Get-WriteImageFamily([string]$img, [string]$fmt) {
+    # 12.10 (relecture de la RC, fix2) : famille de calibration d une image ecrite en profil Auto, commune a l ecriture pour
+    # un lecteur cible (Get-TargetWriteInfo : courbes croisees ecrites) et au bouton « Courbe » de l onglet Ecriture
+    # (Update-CurveButton) : Get-ImageFamily (haute densite calibrable, cellule d un IPF ou d un HFE), puis pour un flux SCP
+    # decode par un format, cellule mesuree par Get-ScpCellInfo (module d analyse present) sous le seuil des long tracks,
+    # comme Update-PrecompForImage. Lit le fichier (appelants : fichier present, fenetre affichee)
+    $f = Get-ImageFamily $img $fmt
+    if ($f -eq 'std' -and $script:ScpStatsOk -and [System.IO.Path]::GetExtension($img).ToLower() -eq '.scp') {
+        try { $ci = Get-ScpCellInfo $img; if ($ci -and [double]$ci.CellNs -lt $script:PrecompThresholdNs) { $f = 'long' } } catch { }
+    }
+    return $f
+}
+
+function Get-TargetWriteInfo([string]$img, [string]$fmt, [bool]$slow) {
+    # 12.10 : lecteur cible d une ecriture de l onglet Ecriture (Start-ImageWrite, Get-WriteFactorPlan, Start-WriteTabWrite,
+    # Start-PresetWrite, Get-TargetWriteBlock) : @{ Src (lecteur du bandeau, qui ecrit) ; Tgt (lecteur cible, '' : meme
+    # lecteur) ; Applies (courbes croisees ecrites) ; Why (raison d un lecteur cible sans effet) ; Fam ; Curves (courbes
+    # croisees appliquees, Get-TargetCurves) ; Block (raison du refus de l ecriture, '' sinon) }. Sans effet : profil Manuel
+    # (champ de l utilisateur transmis tel quel), --precomp decoche, fichier absent, image a laquelle --precomp n est pas
+    # transmis (flux ecrit tel quel, FM, GCR, codage propre : Start-ImageWrite). Famille : celle du profil force (standard,
+    # long track), sinon celle de l image comme le mode Auto (Get-ImageFamily ; flux SCP : cellule mesuree par
+    # Get-ScpCellInfo, comme Update-PrecompForImage). Refus : image haute densite en Auto (la calibration croisee n existe
+    # qu en double densite), aucune courbe croisee « source>cible » de la famille (par tete a jour en ecriture lente, sinon
+    # commune, comme Set-PrecompFields). Relecture de l etape 3 : ecriture rapide avec des courbes croisees par tete
+    # seulement (calibration croisee faite avec « Ecriture lente » cochee) : refus qui le dit (avant : « aucune courbe
+    # croisee... lancez Calibrer pour un lecteur cible », qu une calibration faite de meme n aurait pas leve). 12.10
+    # (relecture de la RC) : BlockKind, nature du refus ('hd', 'head' : courbes par tete seulement, 'none' : aucune courbe
+    # croisee ; '' sans refus) : refus annonce en tete du libelle du profil (Get-WTargetHead, 220)
+    $src = [string]$cmbDrive.Text
+    $r = @{ Src = $src; Tgt = (Get-TargetDrive $src); Applies = $false; Why = ''; Fam = ''; Curves = @(); Block = ''; BlockKind = '' }
+    if (-not $r.Tgt) { return $r }
+    if ($cmbWProfile.SelectedIndex -eq 3) { $r.Why = (T 'profil Manuel, champ --precomp transmis tel quel'); return $r }
+    if (-not $chkWPrecomp.Checked) { $r.Why = (T 'précompensation désactivée'); return $r }
+    if (-not $img -or -not (Test-Path -LiteralPath $img)) { return $r }
+    if (Test-RawFluxWrite $img $fmt) { $r.Why = (T 'image flux écrite telle quelle, sans précompensation'); return $r }
+    $ie = Get-ImageEncoding $img $fmt
+    if ($ie.NonMfm) { $r.Why = (T 'image en codage {0}, écrite sans précompensation') -f "$($ie.Name)"; return $r }
+    $r.Applies = $true
+    $p = [int]$cmbWProfile.SelectedIndex
+    if ($p -eq 1) { $r.Fam = 'std' }
+    elseif ($p -eq 2) { $r.Fam = 'long' }
+    elseif (Get-HighDensityReason $img $fmt) {
+        $r.Block = (T "Écriture pour le lecteur cible {0} impossible en haute densité : la calibration croisée n'existe qu'en double densité (standard, long track). Choisissez « (même lecteur) » dans la liste « Lecteur cible » de l'onglet Écriture, ou le profil Manuel.") -f "$($r.Tgt)"; $r.BlockKind = 'hd'
+        return $r
+    } else {
+        # 12.10 (relecture de la RC, fix2) : famille commune avec le bouton « Courbe » (Update-CurveButton)
+        $r.Fam = Get-WriteImageFamily $img $fmt
+    }
+    $r.Curves = @(Get-TargetCurves $r.Fam $slow $src $r.Tgt)
+    if ($r.Curves.Count -eq 0 -and -not $slow -and @(Get-TargetCurves $r.Fam $true $src $r.Tgt).Count -ge 2) { $r.Block = (T "Les courbes croisées {0} → {1} de la famille {2} sont par tête (calibration croisée faite avec « Écriture lente » cochée) : elles ne servent qu'à une écriture lente. Cochez « Écriture lente » dans l'onglet Écriture, ou choisissez « Écriture lente » dans la Bibliothèque ; pour une écriture rapide, relancez « Calibrer pour un lecteur cible… » avec « Écriture lente » décochée (courbe commune).") -f "$src", "$($r.Tgt)", (Get-CalibFamilyName $r.Fam); $r.BlockKind = 'head' }
+    elseif ($r.Curves.Count -eq 0) { $r.Block = (T "Aucune courbe croisée {0} → {1} pour la famille {2} : lancez « Calibrer pour un lecteur cible… » (onglet Écriture, lecteur {0} dans le bandeau, lecteur cible {1}), ou choisissez « (même lecteur) » dans la liste « Lecteur cible ».") -f "$src", "$($r.Tgt)", (Get-CalibFamilyName $r.Fam); $r.BlockKind = 'none' }
+    return $r
+}
+
+function Get-TargetWriteBlock([string]$img, [string]$fmt, [bool]$slow) {
+    # 12.10 : raison du refus d une ecriture pour un lecteur cible (Test-TargetWriteAllowed, Start-RestoreWrite), '' quand
+    # l ecriture est possible ou que le lecteur cible est sans effet sur elle (Get-TargetWriteInfo)
+    return [string](Get-TargetWriteInfo $img $fmt $slow).Block
+}
+
+function Test-TargetWriteAllowed([string]$img, [string]$fmt, [bool]$slow) {
+    # 12.10 : debut de Start-ImageWrite (bouton ECRIRE, Bibliotheque, restauration, fin d une calibration automatique) :
+    # ecriture pour un lecteur cible refusee sans courbe croisee de la famille (Get-TargetWriteBlock) : fenetre
+    # (Show-AppMessage, qui ecrit aussi le texte au journal, repondue par le banc), rien n est ecrit. Vrai quand l ecriture
+    # continue
+    $why = Get-TargetWriteBlock $img $fmt $slow
+    if (-not $why) { return $true }
+    # Finalisation 12.10 : refus note dans la surcharge d une operation de la Bibliotheque (avis de fin : Show-LibEndNotice)
+    if ($script:OpOverride) { $script:OpOverride.Refused = $true }
+    [void](Show-AppMessage ((T "Écriture refusée : {0}") -f "$why") (T 'Écriture refusée') 'OK' 'Warning')
+    return $false
+}
+
+function Set-TargetDriveLayout {
+    # 12.10 : positions de la liste « Lecteur cible » sur la ligne de la liste « Mesure : » : libelle 14 px apres la liste,
+    # puis la liste, largeur du libelle mesuree dans la police de la fenetre (anglais compris) ; bas de la liste a celui de
+    # la liste « Mesure : ». 12.10 (relecture des captures) : bas a 513 px, 3 px au-dessus du bas de l onglet (516 px a la
+    # taille par defaut, journal replie) : pas de defilement ; a 517 px, la barre de defilement apparaissait
+    if (-not $cmbWTarget -or -not $lblWTarget) { return }
+    $x = $cmbWLevelMode.Right + 14
+    $lblWTarget.Location = New-Object System.Drawing.Point($x, $lblWLevelMode.Top)
+    $x += [System.Windows.Forms.TextRenderer]::MeasureText($lblWTarget.Text, $form.Font).Width + 6
+    $cmbWTarget.Location = New-Object System.Drawing.Point($x, $cmbWLevelMode.Top)
+}
+
+function Update-TargetDriveUi {
+    # 12.10 : liste « Lecteur cible » de l onglet Ecriture : elements (« (meme lecteur) », puis les lecteurs du bandeau sauf
+    # celui du bandeau, la source : Get-TargetDriveItems) et choix memorise pour cette source (Get-TargetDrive), sous la
+    # garde des liaisons (gestionnaire sans effet), infobulle, positions. Creation de l onglet (520), Load-Config,
+    # Set-Defaults, changement de lecteur du bandeau (520, suivi d Update-SlowUi pour la case de la mesure)
+    if (-not $cmbWTarget -or -not $lblWTarget) { return }
+    $src = [string]$cmbDrive.Text
+    $tgt = Get-TargetDrive $src
     $sv = $script:SettingSync; $script:SettingSync = $true
     try {
-        $lblWTgtCorr.Text = (T 'Correction lecteur cible ({0}) :') -f "$d"
-        $lblWTgt0.Text = (T "tête {0}") -f '0'; $lblWTgt1.Text = (T "tête {0}") -f '1'
-        foreach ($p in @(@($numWTgt0, 0), @($numWTgt1, 1))) {
-            $x = [decimal](Get-DriveDk $d ([int]$p[1]))
-            if ($x -lt $p[0].Minimum) { $x = $p[0].Minimum } elseif ($x -gt $p[0].Maximum) { $x = $p[0].Maximum }
-            if ($p[0].Value -ne $x) { $p[0].Value = $x }
-        }
+        $items = [string[]](Get-TargetDriveItems $src)   # tableau protege par la virgule : pas de @() autour de l appel
+        $cur = @($cmbWTarget.Items | ForEach-Object { [string]$_ })
+        if (($cur -join "`n") -ne ($items -join "`n")) { $cmbWTarget.Items.Clear(); foreach ($it in $items) { [void]$cmbWTarget.Items.Add([string]$it) } }
+        $i = 0
+        if ($tgt) { $j = [array]::IndexOf([string[]]$items, $tgt); if ($j -gt 0) { $i = $j } }
+        if ($cmbWTarget.SelectedIndex -ne $i) { $cmbWTarget.SelectedIndex = $i }
     } finally { $script:SettingSync = $sv }
-    $tt = (T "Correction « lecteur cible » du lecteur {0}, par tête : elle s'ajoute au facteur de précompensation de chaque écriture, 0 par défaut.`nElle sert quand la disquette écrite ici sera lue par un autre lecteur (par exemple celui d'un Amiga) qui préfère une autre précompensation que ce lecteur.`nPour la régler : écrivez une disquette avec la mesure sur l'image, relisez-la sur ce lecteur puis sur le lecteur cible, et saisissez l'écart des facteurs optimaux (lecteur cible moins ce lecteur), de {1} à {2}. Laissez 0 si vous ne le connaissez pas.`nLe journal donne, à chaque écriture, le facteur appliqué à chaque tête.") -f "$d", (Format-WriteFactorDk (-[double]$script:TargetCorrMax)), (Format-WriteFactorDk ([double]$script:TargetCorrMax))
-    foreach ($c in @($lblWTgtCorr, $lblWTgt0, $numWTgt0, $lblWTgt1, $numWTgt1)) { $tip.SetToolTip($c, $tt) }
-    Set-TargetCorrLayout
-    Update-WriteFactorNote
+    # 12.10 (relecture de la RC) : cas sans effet et refus (Get-TargetWriteInfo) dits dans l infobulle ; fix1 : refus de la
+    # haute densite en profil Auto seulement (un profil force ecrit avec la courbe croisee de sa famille), codage propre
+    # (M2FM, Data General) parmi les cas sans effet, famille du profil force
+    $tt = (T "Lecteur qui relira la disquette écrite par le lecteur {0}, celui du bandeau.`n« (même lecteur) » : écriture ordinaire, avec la courbe du lecteur {0} et le facteur de marque.`nUn autre lecteur : l'image est écrite avec la courbe croisée « {0} → lecteur cible » mesurée par « Calibrer pour un lecteur cible… », telle quelle (facteur 1) ; sans courbe croisée pour la famille de l'image (ou du profil forcé), l'écriture est refusée. La mesure de la disquette avant l'écriture et la calibration automatique ne sont pas proposées (elles reliraient avec le lecteur {0}) ; le contrôle après écriture relit avec le lecteur {0}.`nSans effet sur l'écriture (le journal le dit) avec le profil Manuel, la case --precomp décochée, une image flux écrite telle quelle ou une image FM, GCR ou à codage propre ; écriture refusée en haute densité avec le profil Auto, et en écriture rapide quand les courbes croisées sont par tête seulement.`nLe choix est mémorisé pour le lecteur {0}.") -f "$src"
+    $tip.SetToolTip($lblWTarget, $tt); $tip.SetToolTip($cmbWTarget, $tt)
+    Set-TargetDriveLayout
 }
 
-function Set-TargetCorrFromUi([int]$h) {
-    # Gestionnaire ValueChanged des champs de la correction « lecteur cible » : valeur du lecteur du bandeau (Set-DriveDk :
-    # bornee a -TargetCorrMax..TargetCorrMax (040), arrondie a 0,01), complement du libelle du profil ; rien sous la garde
-    # des liaisons (Update-TargetCorrUi). Enregistree par Save-Config, comme les reglages. Ligne de journal T-C7 a la fin de
-    # la saisie (Complete-TargetCorrEdit, Leave du champ), une par saisie et non une par pas de 0,01 (revue 12.8.1, point
-    # 5) : la valeur d avant la saisie est gardee ici, au premier changement
-    if ($script:SettingSync) { return }
-    $c = if ($h -eq 0) { $numWTgt0 } else { $numWTgt1 }
-    $d = [string]$cmbDrive.Text
-    if (-not $c -or -not $d) { return }
-    $old = Set-DriveDk $d $h ([double]$c.Value)
-    if ($null -eq $script:TgtCorrEdit) { $script:TgtCorrEdit = @{} }
-    $p = $script:TgtCorrEdit[$h]
-    if ($p -and [string]$p.Drive -ne $d) { Complete-TargetCorrEdit $h; $p = $null }
-    if (-not $p -and (Get-DriveDk $d $h) -ne $old) { $script:TgtCorrEdit[$h] = @{ Drive = $d; Old = [double]$old } }
-    Update-WriteFactorNote
-}
-
-function Complete-TargetCorrEdit([int]$h = -1) {
-    # Fin d une saisie de la correction « lecteur cible » (Leave du champ de la tete $h ; -1 : les deux tetes, au
-    # changement de lecteur du bandeau, 520) : ligne de journal T-C7 (valeur retenue et valeur d avant la saisie), si elles
-    # different ; saisie oubliee ensuite
-    if ($null -eq $script:TgtCorrEdit) { return }
-    foreach ($k in @(if ($h -lt 0) { 0, 1 } else { $h })) {
-        $p = $script:TgtCorrEdit[$k]
-        if (-not $p) { continue }
-        [void]$script:TgtCorrEdit.Remove($k)
-        $d = [string]$p.Drive; $old = [double]$p.Old; $new = Get-DriveDk $d $k
-        if ($new -ne $old) { Append-Log ((T 'Correction lecteur cible du lecteur {0}, tête {1} : {2} (avant : {3}).') -f "$d", "$k", (Format-WriteFactorDk $new), (Format-WriteFactorDk $old)) }
+function Set-TargetDriveFromUi {
+    # 12.10 : gestionnaire SelectedIndexChanged de la liste « Lecteur cible » : choix memorise pour le lecteur du bandeau
+    # (Set-TargetDrive ; element 0 : meme lecteur), ligne de journal quand il change, case de la mesure (Update-SlowUi) et
+    # profil de l image recalcule (Update-PrecompForImage : courbes croisees, ou courbes du lecteur). Rien sous la garde des
+    # liaisons (Update-TargetDriveUi)
+    if ($script:SettingSync -or -not $cmbWTarget) { return }
+    $src = [string]$cmbDrive.Text
+    if (-not $src) { return }
+    $tgt = if ($cmbWTarget.SelectedIndex -gt 0) { [string]$cmbWTarget.SelectedItem } else { '' }
+    $old = Set-TargetDrive $src $tgt
+    $new = Get-TargetDrive $src
+    if ($new -ne $old) {
+        $same = (T '(même lecteur)')
+        Append-Log ((T 'Lecteur cible des écritures du lecteur {0} : {1} (avant : {2}).') -f "$src", $(if ($new) { $new } else { $same }), $(if ($old) { $old } else { $same }))
     }
+    Update-SlowUi
+    Update-PrecompForImage $txtWFile.Text
 }

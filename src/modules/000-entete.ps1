@@ -27,7 +27,7 @@ param(
 )
 
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
-$script:Version = '12.9'
+$script:Version = '12.10'
 # Version du calcul de calibration (motif de test, mesure du decalage, ajustement de la courbe, verification), enregistree
 # avec chaque courbe : a changer seulement quand ce calcul change. Une courbe faite avec ce calcul est reprise par les
 # versions suivantes de l application ; une courbe d un autre calcul n est reprise que si l utilisateur la conserve.
@@ -36,7 +36,9 @@ $script:Version = '12.9'
 # 12.9 : en double densite, conditionnement du lecteur avant la premiere passe de mesure, niveaux 0/30/100 repartis par
 # cylindre (carre latin) avec retrait du decalage propre a chaque passe, dent locale du besoin suivie par la courbe : la
 # mesure et la courbe changent, les courbes du calcul 12.8.2 sont mises de cote au chargement
-$script:CalibCalc = '12.9'
+# 12.10 : erreur de modele aux forts besoins corrigee a la verification complete (Get-VerifySlope) : la courbe change aux
+# cylindres extrapoles des lecteurs a fort besoin, les courbes du calcul 12.9 sont mises de cote au chargement
+$script:CalibCalc = '12.10'
 # 12.7 : version du calcul de la famille haute densite (hd), distincte : son bareme provisoire changera apres les premieres
 # mesures reelles sans rouvrir le choix des courbes double densite (Get-CurveCalcRef)
 $script:CalibCalcHd = '12.7'

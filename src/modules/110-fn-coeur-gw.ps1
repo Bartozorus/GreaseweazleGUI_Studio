@@ -83,11 +83,14 @@ function Get-LogColor([string]$line) {
     # « critique(s) non comptee(s) » d un controle sans piste faible ne les font plus passer en rouge (motifs generaux
     # ci-dessous) : etat du support SAIN / A SURVEILLER / CRITIQUE ; score moyen EXCELLENT ou BON / MOYEN / MAUVAIS ;
     # bilan du controle apres ecriture sans piste faible
+    # 12.10 (lot 1, I-5) : verdict neutre du controle (pistes encore faibles apres reecriture) rouge par son propre motif,
+    # sans « support fatigue » ; libelles neutres « non distingues » (plafond, besoin, courbe adaptee) en orange, comme
+    # les libelles « probablement fatigue » qu ils remplacent
     if ($line -match '^(Mesure : SUPPORT SAIN|Measurement: MEDIA HEALTHY)\b|^(Mesure : score moyen|Measurement: average score) \d+ \((EXCELLENT|BON|GOOD)\)|^(CONTRÔLE APRÈS ÉCRITURE : \d+/\d+ pistes saines|POST-WRITE CHECK: \d+/\d+ healthy tracks)') { return $script:LogColors.ok }
     if ($line -match '^(Mesure : SUPPORT À SURVEILLER|Measurement: MEDIA TO WATCH)\b|^(Mesure : score moyen|Measurement: average score) \d+ \((MOYEN|AVERAGE)\)') { return $script:LogColors.warn }
     if ($line -match '^(Mesure : SUPPORT CRITIQUE|Measurement: MEDIA CRITICAL)\b|^(Mesure : score moyen|Measurement: average score) \d+ \((MAUVAIS|POOR)\)') { return $script:LogColors.err }
-    if ($line -match 'FATAL|ERREUR|ERROR|ECHEC|ÉCHEC|FAILED|Command Failed|Write ?Protect|CRITIQUE|CRITICAL|ILLISIBLE|UNREADABLE|introuvable|not found|code retour : [1-9]|exit code: [1-9]|support fatigué|worn media|réécriture automatique non lancée|automatic rewrite not started|RESTAURATION ÉCHOUÉE|RESTORE FAILED') { return $script:LogColors.err }
-    if ($line -match 'Verify Failure|Retry #|nécessité de nouveaux essais|needed retries|À SURVEILLER|TO WATCH|marginal|DIFF[EÉ]RENT|Interrompu|Interrupted|aborted|non applicable|not applicable|réécriture automatique désactivée|automatic rewrite disabled|Aucune réécriture automatique|No automatic rewrite|non convergée|not converged|NON CONVERGÉE|NOT CONVERGED|Valeurs peu fiables|Unreliable values|Écart à la courbe|Deviation from the curve|Giving up|zone instable|unstable zone|non jugée|not judged|probablement fatigué|probably worn') { return $script:LogColors.warn }
+    if ($line -match 'FATAL|ERREUR|ERROR|ECHEC|ÉCHEC|FAILED|Command Failed|Write ?Protect|CRITIQUE|CRITICAL|ILLISIBLE|UNREADABLE|introuvable|not found|code retour : [1-9]|exit code: [1-9]|support fatigué|worn media|encore faible\(s\) après|still weak after|réécriture automatique non lancée|automatic rewrite not started|RESTAURATION ÉCHOUÉE|RESTORE FAILED') { return $script:LogColors.err }
+    if ($line -match 'Verify Failure|Retry #|nécessité de nouveaux essais|needed retries|À SURVEILLER|TO WATCH|marginal|DIFF[EÉ]RENT|Interrompu|Interrupted|aborted|non applicable|not applicable|réécriture automatique désactivée|automatic rewrite disabled|Aucune réécriture automatique|No automatic rewrite|non convergée|not converged|NON CONVERGÉE|NOT CONVERGED|Valeurs peu fiables|Unreliable values|Écart à la courbe|Deviation from the curve|Giving up|zone instable|unstable zone|non jugée|not judged|probablement fatigué|probably worn|non distingués|not distinguished') { return $script:LogColors.warn }
     if ($line -match 'All tracks verified|code retour : 0|exit code: 0|SAIN|HEALTHY|IDENTIQUE|IDENTICAL|EXCELLENT|aucune piste n|no track needed|RESTAURATION RÉUSSIE|RESTORE SUCCEEDED') { return $script:LogColors.ok }
     if ($line -match '^T\d+\.\d+\b[^:]*:') { return $script:LogColors.dim }
     return $script:LogColors.std
@@ -292,6 +295,9 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
         return
     }
 
+    # 12.10 (lot 1, R1-corrections-revue, constat d) : premier gw write de l image d une operation de la Bibliotheque
+    # (Set-LibImageWritten) : pose avant Save-Config (configuration de la fin de l operation, E9-3), retire si gw ne demarre pas
+    $libWr = Set-LibImageWritten $gwArgs
     if (-not $script:Restore -and -not $script:Detect) { [void](Save-Config) }      # restauration : reglages temporaires ; detection : pas d ecriture a chaque sonde
 
     $script:GwIsWrite = ($gwArgs.Count -gt 0 -and $gwArgs[0] -eq 'write')
@@ -354,10 +360,20 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
         if (($first -eq 'write' -or $first -eq 'erase') -and -not $script:Rep) { Set-QualityStale 'written'; Hide-WCalVerdict }
     } catch {
         Append-Log ((T "ERREUR lancement : {0}") -f "$($_.Exception.Message)")
+        if ($libWr -and $script:OpOverride) { $script:OpOverride.Written = $false }
         $script:GwProc = $null; $script:GwSoft = $false; $script:GwDriveKey = $null
         Reset-GwSequence
+        Set-GwLaunchFailedStatus
         Set-Busy $false
     }
+}
+
+function Set-GwLaunchFailedStatus {
+    # 12.10 (relecture de la RC10) : gw.exe n a pas pu etre lance (Process.Start en echec, apres Start-Progress) : barre
+    # d etat de l echec, comme Stop-Progress pour un code non nul, au lieu de « … en cours... » avec l icone run et la barre
+    # animee. Appelee apres Reset-GwSequence (fin de la sequence, dont Close-Restore) : la cause est au journal
+    $stOp.Text = ((T "{0} : gw n'a pas pu être lancé, voir le journal  -  {1}") -f "$($script:ProgOp)", "$(Get-Date -Format 'HH:mm:ss')"); $stOp.Image = $script:StIcons.err
+    $stTrack.Text = ''; $stBar.Style = 'Continuous'; $stBar.Visible = $false
 }
 
 function Drain-GwReader($reader, [ref]$task) {

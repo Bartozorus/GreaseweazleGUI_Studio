@@ -8,10 +8,12 @@ function New-CalibUnit($head) {
     # mesures de l unite par passe, decalage de passe retire : Get-CalibDents), PassAlpha (face -> decalages estimes)
     # 12.9 : VOff (decalage commun de l ecriture de la derniere verification complete, Get-VerifyOffset : @{ V ; M ; E ; N ;
     # Removed }, pose par Invoke-CalibAnalysis ; $null tant qu aucune verification complete n a ete jugee)
+    # 12.10 : VSlope (erreur de modele aux forts besoins de la derniere verification complete, Get-VerifySlope : @{ V ; B ;
+    # SB ; A ; N ; Ok ; Why }) ; SlopeBad : cylindres de la tendance a corriger a cette verification (consomme par le jugement)
     $prefix = if ($null -eq $head) { '' } else { ((T '[tête {0}] ') -f "$head") }
     return @{ Head = $head; Prefix = $prefix; Results = @{}; Est = @{}; Sig = @{}; Kind = @{}; Bracket = @{}; Warn = $null; Fit = $null; Slope = $null; Profile = ''; Verify = @{}
               Dense = @{}; VerifyList = $null; VerifyP = @{}; Outliers = @(); Own = @{}; Trend = @{}; VerifyPrev = @{}; Witness = @(); ReadLast = @{}; Writes = @{}; WitCand = 0; WitMin = 0
-              EstPass = @{}; Face = @{}; OneFace = @{}; DriftHold = $null; Coarse = @{}; CoarseZ = @{}; PassAlpha = @{}; VOff = $null }
+              EstPass = @{}; Face = @{}; OneFace = @{}; DriftHold = $null; Coarse = @{}; CoarseZ = @{}; PassAlpha = @{}; VOff = $null; VSlope = $null; SlopeBad = $null }
 }
 
 function Get-PatternBits([string]$family, [string]$img) {
@@ -65,11 +67,119 @@ function Get-CalibDriveArgs {
     return @(Get-WriteFormatArgs | Where-Object { $_ -notmatch '^--(format|diskdefs)=' })
 }
 
+# --- Calibration croisee (12.10) ---------------------------------------------------
+# La source (lecteur du bandeau, $cal.Drive) ecrit le motif, la cible le relit ; la disquette passe de l un a l autre a la
+# main (Invoke-CalibSwap, 270). Courbe enregistree sous « source>cible|cle » (Get-CalibStoreDrive), champ Target = cible.
+
+function Get-CalibDriveArgsFor([string]$verb) {
+    # 12.10 : arguments de lecteur (--drive, --device) des commandes gw d une calibration. Calibration croisee
+    # ($script:Cal.Cross = @{ Src ; Tgt }) : erase, write et prechauffage sur la source, le lecteur qui ecrit ; read sur
+    # la cible, le lecteur qui relit ; port du bandeau. Sinon Get-CommonArgs (lecteur du bandeau), comme avant
+    $cal = $script:Cal
+    if (-not $cal -or -not $cal.Cross) { return @(Get-CommonArgs) }
+    $d = if ($verb -eq 'read') { [string]$cal.Cross.Tgt } else { [string]$cal.Cross.Src }
+    $a = @("--drive=$d")
+    if ($txtDev.Text.Trim()) { $a += "--device=$($txtDev.Text.Trim())" }
+    return $a
+}
+
+function Get-CalibStoreDrive($cal) {
+    # 12.10 : lecteur de magasin des courbes d une calibration (Set-DriveCurve, Get-CalibSnapshot, Backup-ConfigBeforeRef) :
+    # « source>cible » pour une calibration croisee, sinon le lecteur de la calibration
+    if ($cal -and $cal.Cross) { return "$($cal.Cross.Src)>$($cal.Cross.Tgt)" }
+    return [string]$cal.Drive
+}
+
+function Split-CrossDrive([string]$drive) {
+    # 12.10 : lecteur de magasin « source>cible » d une courbe croisee -> @{ Src ; Tgt } ; $null pour un lecteur ordinaire
+    if ($drive -match '^([^>|]+)>([^>|]+)$') { return @{ Src = [string]$Matches[1]; Tgt = [string]$Matches[2] } }
+    return $null
+}
+
+function Get-CrossCalibTargets([string[]]$ids, [string]$src) {
+    # 12.10 : lecteurs cibles possibles d une calibration croisee : ceux de la liste du bandeau, sauf la source ; tableau
+    # protege par la virgule (pas de @() autour de l appel)
+    return ,@(@($ids) | ForEach-Object { [string]$_ } | Where-Object { $_ -and $_ -ne $src })
+}
+
+function Get-CrossSwapEstimate([int]$nPassEst, [bool]$fine, [int]$maxRetest) {
+    # 12.10 : echanges de disquette d une calibration croisee (E) : deux par passe (vers la cible avant la relecture, retour
+    # vers la source avant l ecriture suivante), sauf apres la derniere relecture ; au plus, avec l encadrement, les
+    # mesures complementaires du test standard (2) et le nouvel essai
+    $n = [math]::Max(1, $nPassEst)
+    $extra = 1 + $(if ($fine) { 0 } else { 2 }) + [math]::Max(0, $maxRetest)
+    return @{ Min = (2 * $n - 1); Max = (2 * ($n + $extra) - 1) }
+}
+
 function Get-CurveKeyLabel([string]$key) {
-    # 'std' -> « Standard 2 us (commune) », 'long_h1' -> « Long track 1,89 us (tête 1) »
-    $fam = if ($key -like 'hd*') { 'hd' } elseif ($key -like 'long*') { 'long' } else { 'std' }
-    $kind = if ($key -match '_h(\d)$') { (T "tête {0}") -f "$($Matches[1])" } else { (T 'commune') }
+    # 'std' -> « Standard 2 us (commune) », 'long_h1' -> « Long track 1,89 us (tete 1) » ; 12.10 : une cle de magasin
+    # (« lecteur|cle ») donne le libelle de sa cle de courbe, sans le lecteur (Get-DriveCurveLabel l ajoute)
+    $k = (Split-DriveCurveKey $key).Key
+    $fam = if ($k -like 'hd*') { 'hd' } elseif ($k -like 'long*') { 'long' } else { 'std' }
+    $kind = if ($k -match '_h(\d)$') { (T "tête {0}") -f "$($Matches[1])" } else { (T 'commune') }
     return ("{0} ({1})" -f (Get-CalibFamilyName $fam), $kind)
+}
+
+# --- Courbes par lecteur (12.10) ----------------------------------------------------
+# Magasin $script:DriveCurves (560) : « lecteur|cle » -> courbe ; $script:PrecompCurves : vue du lecteur courant (bandeau),
+# que tout le code existant continue de lire. Toute ecriture d une courbe passe par Set-DriveCurve ; la vue est reconstruite
+# par Sync-PrecompCurves au chargement (Load-Config), au changement de lecteur du bandeau (520) et a la remise a zero.
+
+function Get-DriveCurveKey([string]$drive, [string]$key) {
+    # Cle de magasin d une courbe : « lecteur|cle » (lecteur qui ecrit ; courbe croisee : « source>cible|cle »)
+    return "$drive|$key"
+}
+
+function Split-DriveCurveKey([string]$storeKey) {
+    # Cle de magasin -> @{ Drive ; Key } ; une cle de courbe seule (sans « | ») est celle du lecteur courant
+    $i = $storeKey.LastIndexOf('|')
+    if ($i -lt 0) { return @{ Drive = [string]$cmbDrive.Text; Key = $storeKey } }
+    return @{ Drive = $storeKey.Substring(0, $i); Key = $storeKey.Substring($i + 1) }
+}
+
+function Get-DriveCurve([string]$drive, [string]$key) {
+    # Courbe du magasin pour un lecteur et une cle de courbe ; $null sans courbe
+    if ($null -eq $script:DriveCurves) { return $null }
+    return $script:DriveCurves[(Get-DriveCurveKey $drive $key)]
+}
+
+function Set-DriveCurve([string]$drive, [string]$key, $cv) {
+    # Seule ecriture d une courbe : magasin (entree retiree quand $cv est $null), puis vue du lecteur courant quand $drive
+    # est celui du bandeau. Appelee a la fin d une calibration (270), a la conservation des courbes d un autre calcul
+    # (Resolve-OldCalibrations), au retablissement (Restore-CalibState) et au chargement (Import-DriveCurves)
+    if ($null -eq $script:DriveCurves) { $script:DriveCurves = @{} }
+    $sk = Get-DriveCurveKey $drive $key
+    if ($null -eq $cv) { $script:DriveCurves.Remove($sk) } else { $script:DriveCurves[$sk] = $cv }
+    if ($drive -eq [string]$cmbDrive.Text) { $script:PrecompCurves[$key] = $cv }
+}
+
+function Sync-PrecompCurves([string]$drive = '') {
+    # Vue du lecteur courant (ou de $drive) reconstruite pour les neuf cles : PrecompCurves[k] = DriveCurves["lecteur|k"],
+    # sinon $null. Profils de famille standard et long track : Spec de la courbe commune de ce lecteur, sinon profil
+    # d origine (un lecteur sans calibration ecrit avec le profil d origine, jamais avec la courbe d un autre lecteur ;
+    # la haute densite tire deja son profil de sa courbe, Get-HdProfile)
+    if (-not $drive) { $drive = [string]$cmbDrive.Text }
+    foreach ($k in $script:CurveKeys) { $script:PrecompCurves[$k] = Get-DriveCurve $drive $k }
+    $cs = $script:PrecompCurves['std']; $cl = $script:PrecompCurves['long']
+    $script:PrecompStd = $(if ($cs -and $cs.Spec) { [string]$cs.Spec } else { $script:PrecompStdDefault })
+    $script:PrecompLong = $(if ($cl -and $cl.Spec) { [string]$cl.Spec } else { $script:PrecompLongDefault })
+}
+
+function Get-DriveCurveKeys([string]$drive = '') {
+    # Cles de magasin des courbes presentes, triees ; $drive : celles de ce lecteur seulement
+    if ($null -eq $script:DriveCurves) { return @() }
+    $ks = @($script:DriveCurves.Keys | Where-Object { $script:DriveCurves[$_] })
+    if ($drive) { $ks = @($ks | Where-Object { (Split-DriveCurveKey $_).Drive -eq $drive }) }
+    return @($ks | Sort-Object)
+}
+
+function Get-DriveCurveLabel([string]$storeKey) {
+    # « Standard 2 us (commune), lecteur A » : libelle d une cle de magasin (listes de Load-Config, Resolve-OldCalibrations,
+    # Reset-CalibProfiles) ; cle croisee « source>cible » (12.10) : « ..., ecriture par le lecteur A pour le lecteur 0 »
+    $p = Split-DriveCurveKey $storeKey
+    $x = Split-CrossDrive ([string]$p.Drive)
+    if ($x) { return ((T "{0}, écriture par le lecteur {1} pour le lecteur {2}") -f (Get-CurveKeyLabel $p.Key), "$($x.Src)", "$($x.Tgt)") }
+    return ((T "{0}, lecteur {1}") -f (Get-CurveKeyLabel $p.Key), "$($p.Drive)")
 }
 
 function Resolve-OldCalibrations {
@@ -79,13 +189,23 @@ function Resolve-OldCalibrations {
     if (-not $o) { return }
     $items = @(@($o.Curves.Keys) | ForEach-Object { $cv = $o.Curves[$_]; (T "{0} : calcul {1}, lecteur {2}, {3}") -f (Get-CurveKeyLabel $_), (Get-CurveCalcText $cv -Plain), "$($cv.Drive)", "$($cv.Date)" })
     $txt = ((T "Ces calibrations ont été faites avec un autre calcul de calibration que le calcul actuel (v{0}) :") -f "$($script:CalibCalc)") + "`n" + ((@($items) | ForEach-Object { "  - $_" }) -join "`n") + "`n`n" +
-           (T "Recalibrer (conseillé) : ces calibrations sont abandonnées et le lecteur reprend ses profils d'origine. Recalibrez-le depuis la carte « Calibrer le lecteur » de l'Accueil, sur une disquette sacrifiée ; d'ici là, en « Test rapide », l'écriture d'une image calibrable est refusée.`nConserver ces courbes : elles restent utilisées telles quelles ; la fenêtre Courbe et le journal rappellent leur calcul. Le calcul ayant changé, une nouvelle calibration peut donner une courbe plus juste. Une courbe antérieure à la 12.3 ne peut pas servir de référence au test rapide (pente et densité non enregistrées).`nFermer la fenêtre (ou Échap) : décision au prochain démarrage ; d'ici là, ces calibrations ne sont pas utilisées.")
-    # 12.9 : courbes double densite d un calcul anterieur : ce que le calcul 12.9 change (conseil de recalibrer)
-    if (@(@($o.Curves.Keys) | Where-Object { -not (Test-CurveHd $o.Curves[$_]) }).Count -gt 0) { $txt += "`n`n" + (T "Depuis le calcul 12.9, la calibration double densité conditionne le lecteur par une écriture avant de mesurer, répartit ses niveaux de mesure sur les cylindres et suit une baisse locale du besoin propre au lecteur. Les courbes double densité d'un calcul antérieur pouvaient être trop hautes de quelques nanosecondes sur les premiers cylindres, et rester non convergées autour d'une telle baisse : recalibrer est conseillé.") }
+           (T "Recalibrer (conseillé) : ces calibrations sont abandonnées et leurs profils reviennent aux valeurs d'origine. Recalibrez chaque lecteur concerné depuis la carte « Calibrer le lecteur » de l'Accueil, sur une disquette sacrifiée ; d'ici là, en « Test rapide », l'écriture d'une image calibrable est refusée.`nConserver ces courbes : elles restent utilisées telles quelles ; la fenêtre Courbe et le journal rappellent leur calcul. Le calcul ayant changé, une nouvelle calibration peut donner une courbe plus juste.")
+    # 12.10 (relecture des captures) : phrase de la 12.3 (reference du test rapide) seulement pour une courbe d un calcul
+    # anterieur a 12.3 (Test-CurveCalcBefore, 230) ; elle s affichait pour toute courbe, celles du calcul 12.9 comprises
+    if (@(@($o.Curves.Keys) | Where-Object { Test-CurveCalcBefore $o.Curves[$_] '12.3' }).Count -gt 0) { $txt += ' ' + (T "Une courbe antérieure à la 12.3 ne peut pas servir de référence au test rapide (pente et densité non enregistrées).") }
+    $txt += "`n" + (T "Fermer la fenêtre (ou Échap) : décision au prochain démarrage ; d'ici là, ces calibrations ne sont pas utilisées.")
+    # 12.9 : courbes double densite d un calcul anterieur : ce que le calcul 12.9 change (conseil de recalibrer).
+    # 12.10 (captures du wiki) : paragraphe reserve aux courbes d un calcul anterieur a 12.9 (il s affichait aussi pour
+    # des courbes du calcul 12.9, celles de tout utilisateur de la 12.9) ; paragraphe du calcul 12.10 pour les courbes
+    # d un calcul anterieur a 12.10 ; courbe d un calcul posterieur (configuration d une version plus recente) : aucun
+    if (@(@($o.Curves.Keys) | Where-Object { -not (Test-CurveHd $o.Curves[$_]) -and (Test-CurveCalcBefore $o.Curves[$_] '12.9') }).Count -gt 0) { $txt += "`n`n" + (T "Depuis le calcul 12.9, la calibration double densité conditionne le lecteur par une écriture avant de mesurer, répartit ses niveaux de mesure sur les cylindres et suit une baisse locale du besoin propre au lecteur. Les courbes double densité d'un calcul antérieur pouvaient être trop hautes de quelques nanosecondes sur les premiers cylindres, et rester non convergées autour d'une telle baisse : recalibrer est conseillé.") }
+    # 12.10 (relecture des captures) : paragraphe du calcul 12.10 juste aussi pour une courbe anterieure a 12.9 (mesuree a
+    # 0, 100 et 200 ns) : niveaux 0, 30 et 100 ns attribues au calcul 12.9, extrapolations du long track au calcul 12.9
+    if (@(@($o.Curves.Keys) | Where-Object { -not (Test-CurveHd $o.Curves[$_]) -and (Test-CurveCalcBefore $o.Curves[$_] '12.10') }).Count -gt 0) { $txt += "`n`n" + (T "Depuis le calcul 12.10, la vérification corrige l'erreur de modèle d'un lecteur à fort besoin au-delà du plus fort niveau mesuré, et les passes de mesure du long track écrivent 0, 60 et 200 ns (0, 30 et 100 ns avec le calcul 12.9). Une courbe long track du calcul 12.9 reposait surtout sur des extrapolations ; sur un lecteur à fort besoin, une courbe double densité d'un calcul antérieur pouvait rester trop haute d'environ 3 ns aux cylindres intérieurs : recalibrer est conseillé.") }
     # Courbe a la borne de son calcul : conservee, elle y reste (le calcul actuel admet des valeurs plus hautes)
     $atMax = @(@($o.Curves.Keys) | Where-Object { Test-CurveAtMax $o.Curves[$_] })
     foreach ($mx in @($atMax | ForEach-Object { Get-CurveMaxNs $o.Curves[$_] } | Where-Object { $_ -lt $script:CalHardNs } | Sort-Object -Unique)) {
-        $kl = @($atMax | Where-Object { (Get-CurveMaxNs $o.Curves[$_]) -eq $mx } | ForEach-Object { Get-CurveKeyLabel $_ })
+        $kl = @($atMax | Where-Object { (Get-CurveMaxNs $o.Curves[$_]) -eq $mx } | ForEach-Object { Get-DriveCurveLabel $_ })   # 12.10 : cle de magasin, lecteur nomme
         $ct = if ($kl.Count -gt 1) { (T "Courbes au plafond de {0} ns de leur calcul : {1}. Conservées, elles y restent ; le calcul actuel va jusqu'à {2} ns.") } else { (T "Courbe au plafond de {0} ns de son calcul : {1}. Conservée, elle y reste ; le calcul actuel va jusqu'à {2} ns.") }
         $txt += "`n`n" + ($ct -f "$mx", ($kl -join ', '), "$($script:CalHardNs)")
     }
@@ -118,10 +238,11 @@ function Resolve-OldCalibrations {
     [void](Set-DlgFit $dlg ([System.Windows.Forms.Screen]::FromControl($form).WorkingArea))
     $dlg.Add_Shown({ $this.Activate(); try { [System.Media.SystemSounds]::Exclamation.Play() } catch { } })
     try { $dr = $dlg.ShowDialog($form) } finally { Clear-DlgGdi $dlg $gdi }
-    $list = (@($o.Curves.Keys | ForEach-Object { (T "{0}, calcul {1}") -f (Get-CurveKeyLabel $_), (Get-CurveCalcText $o.Curves[$_] -Plain) })) -join ' ; '
+    $list = (@($o.Curves.Keys | ForEach-Object { (T "{0}, calcul {1}") -f (Get-DriveCurveLabel $_), (Get-CurveCalcText $o.Curves[$_] -Plain) })) -join ' ; '   # 12.10 : lecteur nomme
     if ($dr -eq [System.Windows.Forms.DialogResult]::OK) {
         # Conservees pour le calcul actuel : reprises sans question aux demarrages suivants, calcul rappele a l usage
-        foreach ($k in @($o.Curves.Keys)) { $cv = $o.Curves[$k]; $cv.KeptFor = (Get-CurveCalcRef $cv); $script:PrecompCurves[$k] = $cv }
+        # 12.10 : cles de magasin « lecteur|cle » : chaque courbe retourne sous son lecteur (vue du lecteur courant mise a jour)
+        foreach ($k in @($o.Curves.Keys)) { $cv = $o.Curves[$k]; $cv.KeptFor = (Get-CurveCalcRef $cv); $p = Split-DriveCurveKey $k; Set-DriveCurve $p.Drive $p.Key $cv }
         if ($o.Std) { $script:PrecompStd = $o.Std }
         if ($o.Long) { $script:PrecompLong = $o.Long }
         foreach ($k in @($o.Levels.Keys)) { $script:LevelShifts[$k] = $o.Levels[$k] }
@@ -134,13 +255,23 @@ function Resolve-OldCalibrations {
         Append-Log ((T "Calibrations d'un autre calcul conservées à votre demande : {0}. Elles sont utilisées telles quelles (calcul actuel v{1}).") -f "$list", "$($script:CalibCalc)")
     } elseif ($dr -eq [System.Windows.Forms.DialogResult]::Abort) {
         $script:OldCalib = $null
-        Append-Log ((T "Calibrations d'un autre calcul abandonnées : {0}. Courbes et profils calibrés remis aux valeurs d'origine ; recalibrez le lecteur depuis la carte « Calibrer le lecteur » de l'Accueil (en « Test rapide », l'écriture d'une image calibrable est refusée d'ici là).") -f "$list")
+        Append-Log ((T "Calibrations d'un autre calcul abandonnées : {0}. Ces courbes sont retirées et leurs profils reviennent aux valeurs d'origine ; recalibrez chaque lecteur concerné depuis la carte « Calibrer le lecteur » de l'Accueil (en « Test rapide », l'écriture d'une image calibrable est refusée d'ici là).") -f "$list")
+        # 12.10 : les courbes du calcul actuel (haute densite du calcul 12.7, courbes deja recalibrees) restent : les nommer
+        $kept = @(Get-DriveCurveKeys)
+        if ($kept.Count -gt 0) { Append-Log ((T "Calibrations du calcul actuel gardées : {0}.") -f ((@($kept | ForEach-Object { Get-DriveCurveLabel $_ })) -join ' ; ')) }
     } else {
         Append-Log (T 'Calibrations d''un autre calcul : décision remise au prochain démarrage ; elles ne sont pas utilisées d''ici là.')
         return
     }
     Update-CurveButton $txtWFile.Text
     [void](Save-Config)
+}
+
+function Get-CalibResetAfterText {
+    # 12.10 (relecture de la RC, fix1) : suite de l effacement des calibrations (calibrations automatiques et refus qui
+    # suivent : Start-PresetWrite, Start-WriteTabWrite, Start-LevelBeforeWrite, Start-RestoreWrite), texte commun au message
+    # de Reset-CalibProfiles et a l infobulle du bouton (520) ; avant : infobulle a part, sans la restauration
+    return (T "Ensuite, le mode Auto applique les profils d'origine :`n- « Test standard » ou « Test fin » : « Écriture rapide » et « Écriture lente » de la Bibliothèque calibrent d'abord le lecteur ; « ÉCRIRE LA DISQUETTE » écrit sans calibrer ;`n- « Test rapide » : l'écriture d'une image calibrable en double densité est refusée sans nouvelle calibration complète du lecteur, à faire sur une disquette sacrifiée depuis la carte « Calibrer le lecteur » de l'Accueil ;`n- restauration d'une copie secteur par secteur en double densité : chaque tête est d'abord calibrée en test fin.")
 }
 
 function Reset-CalibProfiles {
@@ -150,44 +281,52 @@ function Reset-CalibProfiles {
     if (Get-AppBusy) {
         [void](Show-AppMessage (T 'Opération en cours : attendre la fin de la calibration ou de l''écriture.') (T 'Effacer les calibrations') 'OK' 'Warning'); return
     }
-    $curves = @($script:CurveKeys | Where-Object { $script:PrecompCurves[$_] })
+    # 12.10 : courbes de tous les lecteurs (magasin), cles « lecteur|cle »
+    $curves = @(Get-DriveCurveKeys)
     # Calibrations d un autre calcul en attente du choix : effacees aussi
-    $pend = @(if ($script:OldCalib) { @($script:OldCalib.Curves.Keys | Where-Object { -not $script:PrecompCurves[$_] }) })
+    $pend = @(if ($script:OldCalib) { @($script:OldCalib.Curves.Keys | Where-Object { -not $script:DriveCurves.ContainsKey($_) }) })
     $curves = @(@($curves) + $pend | Sort-Object -Unique)
     $changed = ($script:PrecompStd -ne $script:PrecompStdDefault) -or ($script:PrecompLong -ne $script:PrecompLongDefault)
     # 12.8.1 (spec-1281 § B.5, decision du 25/10/2026) : facteurs mesures des lecteurs (mesure de la disquette sur l image)
-    # effaces avec les calibrations ; la correction « lecteur cible » ($script:TargetCorr), reglee a la main, est gardee
+    # effaces avec les calibrations ; 12.10 : les courbes croisees sont effacees avec les autres, le lecteur cible choisi
+    # ($script:TargetDrives) est garde
     $nCm = @(@($script:ContentMeasures) | Where-Object { $_ }).Count
     if ($curves.Count -eq 0 -and -not $changed -and $nCm -eq 0) {
         [void](Show-AppMessage (T 'Aucune calibration enregistrée : les profils sont déjà ceux d''origine.') (T 'Effacer les calibrations') 'OK' 'Information'); return
     }
-    $list = if ($curves.Count -gt 0) { (@($curves | ForEach-Object { Get-CurveKeyLabel $_ }) -join ', ') } else { (T 'aucune') }
+    $list = if ($curves.Count -gt 0) { (@($curves | ForEach-Object { Get-DriveCurveLabel $_ }) -join ' ; ') } else { (T 'aucune') }   # 12.10 : lecteur nomme
     # 12.8 (L6-TEXTES) : texte aligne sur le comportement reel. Copie de la configuration (Backup-ConfigBeforeRef, seulement
     # s il y a une courbe) ; ensuite : Bibliotheque au test standard ou fin, calibration automatique (Start-PresetWrite) ;
     # bouton ECRIRE, jamais de calibration (Start-WriteTabWrite) ; test rapide, ecriture refusee sans reference
     # (Start-LevelBeforeWrite) ; restauration secteur en double densite, calibration par tete en test fin (Start-RestoreWrite)
     $msg = (T "Effacer toutes les calibrations de précompensation ?`n`nCourbes : {0}.`nProfils de famille remis aux valeurs d'origine : standard {1}, long track {2}.`nLes niveaux de la calibration rapide et la mémoire par marque sont effacés aussi.") -f "$list", "$($script:PrecompStdDefault)", "$($script:PrecompLongDefault)"
     if ($curves.Count -gt 0) { $msg += "`n`n" + ((T "L'application ne peut pas annuler cet effacement. Elle copie d'abord la configuration dans « {0}.ref-….bak », dans le même dossier : pour revenir en arrière, fermez l'application, puis remettez cette copie à la place de « {0} ».") -f [System.IO.Path]::GetFileName([string]$script:ConfigFile)) }
-    $msg += "`n`n" + (T "Ensuite, le mode Auto applique les profils d'origine :`n- « Test standard » ou « Test fin » : « Écriture rapide » et « Écriture lente » de la Bibliothèque calibrent d'abord le lecteur ; « ÉCRIRE LA DISQUETTE » écrit sans calibrer ;`n- « Test rapide » : l'écriture d'une image calibrable en double densité est refusée sans nouvelle calibration complète du lecteur, à faire sur une disquette sacrifiée depuis la carte « Calibrer le lecteur » de l'Accueil ;`n- restauration d'une copie secteur par secteur en double densité : chaque tête est d'abord calibrée en test fin.")
+    $msg += "`n`n" + (Get-CalibResetAfterText)
+    # 12.10 (relecture de la RC) : lecteurs cibles gardes (Get-TargetDrive de chaque lecteur du bandeau) : leurs courbes
+    # croisees sont effacees, les ecritures et restaurations pour eux refusees (Get-TargetWriteInfo, Get-RestoreTargetInfo) ;
+    # avant : non dit, a cote des calibrations automatiques annoncees. 12.10 (relecture de la RC, fix1) : refus limites aux
+    # ecritures precompensees hors profil Manuel et aux restaurations en copie secteur (cas sans effet de ces fonctions)
+    $kept = @((Get-DriveIds) | ForEach-Object { $tk = Get-TargetDrive ([string]$_); if ($tk) { "$_ → $tk" } })
+    if ($kept.Count -gt 0) { $msg += "`n" + ((T "- lecteur cible gardé ({0}) : les écritures précompensées pour ce lecteur cible (hors profil Manuel) et les restaurations en copie secteur pour lui sont refusées jusqu'à une nouvelle calibration croisée (« Calibrer pour un lecteur cible… »), ou choisissez « (même lecteur) » dans la liste « Lecteur cible ».") -f ($kept -join ', ')) }
     # 12.7 : courbe haute densite effacee : profil d origine haute densite, jamais de calibration automatique
-    if (@($curves | Where-Object { "$_" -like 'hd*' }).Count -gt 0) { $msg += "`n" + ((T "Haute densité : profil d'origine {0}, sans calibration automatique ; recalibrez depuis la carte « Calibrer le lecteur » de l'Accueil.") -f "$($script:PrecompHdDefault)") }
-    if ($nCm -gt 0) { $msg += "`n" + ((T "Les {0} facteur(s) mesuré(s) des lecteurs (mesure de la disquette sur l'image) sont effacés aussi : les écritures suivantes reprennent le facteur 1 jusqu'à une nouvelle mesure. La correction « lecteur cible » est gardée.") -f "$nCm") }
+    if (@($curves | Where-Object { (Split-DriveCurveKey "$_").Key -like 'hd*' }).Count -gt 0) { $msg += "`n" + ((T "Haute densité : profil d'origine {0}, sans calibration automatique ; recalibrez depuis la carte « Calibrer le lecteur » de l'Accueil.") -f "$($script:PrecompHdDefault)") }
+    if ($nCm -gt 0) { $msg += "`n" + ((T "Les {0} facteur(s) mesuré(s) des lecteurs (mesure de la disquette sur l'image) sont effacés aussi : les écritures suivantes reprennent le facteur 1 jusqu'à une nouvelle mesure.") -f "$nCm") }
     # 12.7 : boite par Show-AppMessage (code modifie), comme les autres messages de la 12.7
     $r = Show-AppMessage $msg (T 'Effacer les calibrations') 'YesNo' 'Warning'
     if ($r -ne 'Yes') { return }
     # 12.8 (lot 1c, point 4) : copie du fichier de configuration avant l effacement des courbes (sans courbe : rien)
     [void](Backup-ConfigBeforeRef @($curves) 'reset')
-    foreach ($k in $script:CurveKeys) { $script:PrecompCurves[$k] = $null }
+    $script:DriveCurves = @{}; Sync-PrecompCurves          # 12.10 : magasin vide, vue du lecteur courant vide, profils d origine
     $script:LevelShifts = @{}; $script:OldCalib = $null
     # 12.8 (lot 1c, § 10.5) : memoires par marque effacees avec les calibrations (apres la copie ci-dessus)
     $script:LevelBrands = @()
-    $script:ContentMeasures = @()                                     # 12.8.1 : facteurs mesures ; Dk garde
+    $script:ContentMeasures = @()                                     # 12.8.1 : facteurs mesures
     $script:PrecompStd = $script:PrecompStdDefault; $script:PrecompLong = $script:PrecompLongDefault
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
     Update-PrecompForImage $txtWFile.Text
     $pbWCal.Visible = $false; $lblWCal.Visible = $true; $lblWCal.Text = (T 'Calibrations effacées.')
     Append-Log ((T "Calibrations effacées : {0} courbe(s) ({1}) ; profils standard et long track remis aux valeurs d'origine ({2} ; {3}).") -f "$($curves.Count)", "$list", "$($script:PrecompStdDefault)", "$($script:PrecompLongDefault)")
-    if ($nCm -gt 0) { Append-Log ((T "Facteurs mesurés des lecteurs effacés avec les calibrations ({0}) ; la correction « lecteur cible » est gardée.") -f "$nCm") }
+    if ($nCm -gt 0) { Append-Log ((T "Facteurs mesurés des lecteurs effacés avec les calibrations ({0}).") -f "$nCm") }
     [void](Save-Config)
 }
 
@@ -646,6 +785,106 @@ function Get-VerifyOffsetM($u) {
     # 0 sans retrait (dans le bruit, au-dela de la borne, trop peu de cylindres, haute densite, aucune verification complete)
     if ($null -ne $u -and $null -ne $u.VOff -and [bool]$u.VOff.Removed) { return [double]$u.VOff.M }
     return 0.0
+}
+
+function Get-CalLevels([string]$family) {
+    # 12.10 : niveaux des passes de mesure de la famille : CalCoarse (bareme pose par Set-CalibScale), multiplies par
+    # CalLevelKLong en long track, arrondis a l entier ; standard et haute densite : CalCoarse tel quel
+    $k = if ($family -eq 'long') { [double]$script:CalLevelKLong } else { 1.0 }
+    return [int[]]@(@($script:CalCoarse) | ForEach-Object { [int][math]::Round([double]$_ * $k) })
+}
+
+function Get-TracksAsym($tracks) {
+    # 12.10 : asymetrie de reference : par piste (numero gw : 2 x cylindre + tete), moyenne sur les tours des rapports
+    # 3T/2T - 1,5 et 4T/2T - 2 du motif relu (ScpStats), tours sans valeur ignores ; piste sans valeur : absente
+    $out = @{}
+    foreach ($tn in @($tracks.Keys)) {
+        $d3 = @(); $d4 = @()
+        foreach ($x in @($tracks[$tn])) {
+            if ($null -eq $x -or [double]::IsNaN([double]$x.R3) -or [double]::IsNaN([double]$x.R4)) { continue }
+            $d3 += ([double]$x.R3 - 1.5); $d4 += ([double]$x.R4 - 2.0)
+        }
+        if ($d3.Count -eq 0) { continue }
+        $out[[int]$tn] = @((($d3 | Measure-Object -Average).Average), (($d4 | Measure-Object -Average).Average))
+    }
+    return $out
+}
+
+function Get-UnitAsymRef($cal, $u) {
+    # 12.10 : asymetrie de reference de l unite pour la courbe enregistree : cylindres mesures (ordre croissant), ecarts
+    # arrondis a 4 decimales ; tete de l unite, ou moyenne des deux tetes pour l unite commune ; sans releve : tableaux vides
+    $res = @{ Cyl = [int[]]@(); D3 = [double[]]@(); D4 = [double[]]@() }
+    if ($null -eq $cal.AsymRef -or $cal.AsymRef.Count -eq 0) { return $res }
+    $heads = if ($null -eq $u.Head) { @(0, 1) } else { @([int]$u.Head) }
+    $cyl = @(); $d3 = @(); $d4 = @()
+    foreach ($c in @($cal.AsymRef.Keys | ForEach-Object { [int]([math]::Floor([int]$_ / 2)) } | Sort-Object -Unique)) {
+        $a3 = @(); $a4 = @()
+        foreach ($h in $heads) { $tn = 2 * $c + $h; if ($cal.AsymRef.ContainsKey($tn)) { $a3 += [double]$cal.AsymRef[$tn][0]; $a4 += [double]$cal.AsymRef[$tn][1] } }
+        if ($a3.Count -eq 0) { continue }
+        $cyl += $c; $d3 += [math]::Round((($a3 | Measure-Object -Average).Average), 4); $d4 += [math]::Round((($a4 | Measure-Object -Average).Average), 4)
+    }
+    $res.Cyl = [int[]]$cyl; $res.D3 = [double[]]$d3; $res.D4 = [double[]]$d4
+    return $res
+}
+
+function Get-VerifySlope($u, [double]$maxLevel, [int]$minCyl, [double]$sigK, [double]$minSlope, [double]$minNs) {
+    # 12.10 : erreur de modele aux forts besoins. Au-dela du niveau maximal des passes de mesure (CalCoarse, 100 ns), le zero
+    # d un cylindre est extrapole ou encadre. Calibration TEAC du 01/11/2026 et essai 5 du 02/11/2026 (4 ecritures aux
+    # profils calibres) : le residu suit la valeur ecrite, -0,045 ns/ns de 100 a 215 ns sur la tete 0 (rien sur la tete 1),
+    # soit 3 ns de surcompensation aux cylindres interieurs, sous la tolerance cylindre par cylindre (CalResidual) et
+    # classes ecarts locaux isoles par Get-ResidualFlags, donc jamais corriges. Estimateur : pente de Theil-Sen (mediane des
+    # pentes par paires) du residu juge (Shift, centre du decalage commun) en fonction de la valeur ecrite, sur les cylindres
+    # verifies ecrits au-dela de $maxLevel, hors points isoles et limites physiques (memes exclusions que Get-VerifyOffset) ;
+    # niveau A = mediane de (residu - B (p - maxLevel)) ; incertitude SB = 1,2533 x max(1 ; 1,4826 MAD des residus a la
+    # droite) / racine de la somme des carres des ecarts en p. Ok si n >= minCyl, |B| >= minSlope et |B| > sigK SB ; sinon
+    # Why : 'cylindres' (trop peu), 'faible' (pente negligeable), 'nonsig' (dans le bruit). Fit : residu de la droite par
+    # cylindre ; Bad : cylindres dont |Fit| > minNs, a corriger a leur zero mesure meme dans la tolerance
+    # (Invoke-CalibAnalysis, avec les residus retenus de Get-ResidualFlags). PMin, PMax, FMin, FMax : valeurs ecrites
+    # extremes et residus de la droite a ces valeurs (journal). Fonction pure : ne modifie pas l unite.
+    $vals = @($u.Fit.Values)
+    if ($maxLevel -lt 0) { $maxLevel = [double](@($script:CalCoarse) | Measure-Object -Maximum).Maximum }
+    $pts = @()
+    foreach ($k in @($u.Verify.Keys)) {
+        $c = [int]$k
+        if (@($u.Outliers) -contains $c) { continue }
+        $m = $u.Verify[$k]
+        if ($null -eq $m -or $null -eq $m.Shift) { continue }
+        $x = [double]$m.Shift
+        if ([double]::IsNaN($x)) { continue }
+        $p = $null
+        if ($u.VerifyP -and $u.VerifyP.ContainsKey($c)) { $p = [int]$u.VerifyP[$c] } elseif ($c -lt $vals.Count) { $p = [int]$vals[$c] }
+        if ($null -eq $p -or [double]$p -le $maxLevel) { continue }
+        if (($x -gt 0 -and $p -ge $script:CalHardNs) -or ($x -lt 0 -and $p -le 0)) { continue }
+        $pts += ,@($c, [double]$p, $x)
+    }
+    $res = @{ Ok = $false; Why = ''; B = 0.0; SB = [double]::NaN; A = 0.0; X0 = $maxLevel; N = $pts.Count; Fit = @{}; Bad = @{}; PMin = 0.0; PMax = 0.0; FMin = 0.0; FMax = 0.0 }
+    if ($pts.Count -lt [math]::Max(3, $minCyl)) { $res.Why = 'cylindres'; return $res }
+    $sl = @()
+    for ($i = 0; $i -lt $pts.Count; $i++) {
+        for ($j = $i + 1; $j -lt $pts.Count; $j++) {
+            $dx = [double]$pts[$j][1] - [double]$pts[$i][1]
+            if ([math]::Abs($dx) -gt 1e-9) { $sl += (([double]$pts[$j][2] - [double]$pts[$i][2]) / $dx) }
+        }
+    }
+    if ($sl.Count -eq 0) { $res.Why = 'cylindres'; return $res }
+    $b = [double](Get-Median $sl)
+    $a = [double](Get-Median @($pts | ForEach-Object { [double]$_[2] - $b * ([double]$_[1] - $maxLevel) }))
+    $xm = ($pts | ForEach-Object { [double]$_[1] } | Measure-Object -Average).Average
+    $sxx = 0.0; foreach ($q in $pts) { $sxx += ([double]$q[1] - $xm) * ([double]$q[1] - $xm) }
+    $rr = @($pts | ForEach-Object { [double]$_[2] - ($a + $b * ([double]$_[1] - $maxLevel)) })
+    $mr = [double](Get-Median $rr)
+    $mad = [double](Get-Median @($rr | ForEach-Object { [math]::Abs([double]$_ - $mr) }))
+    $res.B = $b; $res.A = $a
+    $res.SB = if ($sxx -gt 0) { 1.2533 * [math]::Max(1.0, 1.4826 * $mad) / [math]::Sqrt($sxx) } else { [double]::NaN }
+    $res.PMin = ($pts | ForEach-Object { [double]$_[1] } | Measure-Object -Minimum).Minimum
+    $res.PMax = ($pts | ForEach-Object { [double]$_[1] } | Measure-Object -Maximum).Maximum
+    $res.FMin = $a + $b * ([double]$res.PMin - $maxLevel); $res.FMax = $a + $b * ([double]$res.PMax - $maxLevel)
+    foreach ($q in $pts) { $res.Fit[[int]$q[0]] = $a + $b * ([double]$q[1] - $maxLevel) }
+    if ([math]::Abs($b) -lt $minSlope) { $res.Why = 'faible'; return $res }
+    if ([double]::IsNaN($res.SB) -or [math]::Abs($b) -le $sigK * $res.SB) { $res.Why = 'nonsig'; return $res }
+    foreach ($q in $pts) { if ([math]::Abs([double]$res.Fit[[int]$q[0]]) -gt $minNs) { $res.Bad[[int]$q[0]] = $true } }
+    $res.Ok = $true
+    return $res
 }
 
 function Add-DriftWitnesses($u) {

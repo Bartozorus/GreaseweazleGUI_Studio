@@ -205,7 +205,7 @@ function Start-ContentMeasure($chk) {
     if (-not $go) {
         $script:AfterCalib = ''
         if ([string]$script:ConfirmChoice -eq 'alt') {
-            # Ecriture sans mesure : facteur memorise du lecteur pour la marque choisie (Start-ImageWrite, Get-DriveK + Dk)
+            # Ecriture sans mesure : facteur memorise du lecteur pour la marque choisie (Start-ImageWrite, Get-DriveK)
             $script:WriteFactorNext = @{ Drive = $drive; Fam = $fam; Img = $img; Brand = [string]$script:LevelBrand; K = $null }
             Append-Log (T "Mesure sur l'image non faite à votre demande : écriture avec le facteur du lecteur.")
             Start-ImageWrite
@@ -595,8 +595,7 @@ function Complete-ContentMeasure($cal) {
             }
             # Enregistrement de mesure (C.2) avec la marque et l etat : k mesure (borne a [0 ; kMax] sauf marge plate ou peu
             # determinee), courbe ecrite W_h = facteur applique x V_h, bornee a 0..max(borne, v) (Get-ContentScaledValues)
-            $dk = [double](Get-DriveDk $drive $h)
-            $f = [double](Limit-WriteFactor ([double]$ap.K + $dk) ([double]$script:ContentFMax)).F
+            $f = [double](Limit-WriteFactor ([double]$ap.K) ([double]$script:ContentFMax)).F   # 12.10 : sans la correction Dk
             $vals = Get-ContentScaledValues @($ct.V[$h]) $f ([int]$ct.Hard)
             $nEx = @(@(@($ct.PreSkip.Keys) + @($ex.Keys)) | Where-Object { (([string]$_) -split '\.')[1] -eq "$h" }).Count
             $kr = [double]$fit.K
@@ -605,7 +604,7 @@ function Complete-ContentMeasure($cal) {
                          K = $(if ([double]::IsNaN($kr)) { $kr } else { [math]::Round($kr, 3) }); KVertex = $(if ([double]::IsNaN([double]$fit.K)) { $null } else { [math]::Round([double]$fit.K, 3) })
                          Bound = $(switch ($etat) { 'haute' { 'high' } 'basse' { 'low' } default { '' } }); Flat = ($etat -eq 'plate')
                          SeK = [double]$fit.SeK; B1 = [double]::NaN; B2 = [double]::NaN; Gain = [double]::NaN; S = [double]$fit.S
-                         NCyl = [int]$fit.NCyl; NObs = [int]$fit.N; NExcl = [int]$nEx; Levels = [double[]]@($ct.Levels); Dk = $dk; F = $f
+                         NCyl = [int]$fit.NCyl; NObs = [int]$fit.N; NExcl = [int]$nEx; Levels = [double[]]@($ct.Levels); F = $f
                          Values = $vals; Spec = (Build-CurveProfile $vals); RefKey = [string]$ct.RefKeys[$h]; RefDate = [string]$ct.RefDates[$h]
                          Calc = [string]$script:CalibCalc; ContentCalc = [string]$script:ContentCalc; Version = [string]$script:Version
                          Brand = $brand; Etat = $etat; Q = [double]$fit.Q; TQ = [double]$fit.TQ; Chi2Ddl = [double]$fit.Chi2Ddl; NPass = @($ct.Plan.Pass).Count

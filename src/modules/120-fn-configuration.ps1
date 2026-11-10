@@ -138,9 +138,9 @@ function Update-SettingDependents([string]$k) {
     switch ($k) {
         'warmMinutes'      { Update-SlowUi }
         'levelBeforeWrite' { Update-SlowUi }
-        'levelBeforeWriteMode' { Update-SlowUi }      # 12.8 (S3) : liste active, texte de la case de la mesure
+        'levelBeforeWriteMode' { Update-SlowUi; Update-RsRules }      # 12.8 (S3) : liste active, texte de la case de la mesure ; 12.10 (relecture de la RC) : regles de la restauration (mesure complete)
         'drive'            { Update-RsDrive }
-        'restoreFormat'    { Update-RsFmtFound }
+        'restoreFormat'    { Update-RsFmtFound; Update-RsCalib }   # 12.10 (relecture de la RC) : regles et infobulle selon le lecteur cible
         'compareFormat'    { Update-CmpFmtFound }
         'libDat'           { Reset-LibDat }
     }
@@ -354,9 +354,9 @@ function Set-Defaults {
     $cmbHelpAct.SelectedItem = 'write'
     $txtC.Text = 'write --erase-empty --retries=10 --precomp 40=140 "jeu.ipf"'   # 12.8.2 : sans --pre-erase (disquette double densite)
     Update-CurveButton $txtWFile.Text
-    # 12.8.1 (spec-1281 § D.2) : champs de la correction « lecteur cible » du lecteur du bandeau (valeurs par lecteur,
-    # gardees comme les calibrations : $script:TargetCorr n est pas remis)
-    Update-TargetCorrUi
+    # 12.10 : liste « Lecteur cible » du lecteur du bandeau (choix par lecteur source, gardes comme les calibrations :
+    # $script:TargetDrives n est pas remis)
+    Update-TargetDriveUi
 }
 
 function Backup-ConfigBeforeRef([string[]]$keys, [string]$why = 'replace') {
@@ -373,9 +373,11 @@ function Backup-ConfigBeforeRef([string[]]$keys, [string]$why = 'replace') {
     $oc = $script:OldCalib
     $cvs = @{}
     foreach ($k in @($keys | Where-Object { $_ } | Sort-Object -Unique)) {
-        $cv = $script:PrecompCurves[$k]
-        if (-not $cv -and $oc -and $oc.Curves -and $oc.Curves.Contains($k)) { $cv = $oc.Curves[$k] }
-        if ($cv) { $cvs[$k] = $cv }
+        # 12.10 : cle de magasin « lecteur|cle », ou cle de courbe du lecteur courant ; courbes du magasin
+        $p = Split-DriveCurveKey $k; $sk = Get-DriveCurveKey $p.Drive $p.Key
+        $cv = Get-DriveCurve $p.Drive $p.Key
+        if (-not $cv -and $oc -and $oc.Curves -and $oc.Curves.Contains($sk)) { $cv = $oc.Curves[$sk] }
+        if ($cv) { $cvs[$sk] = $cv }
     }
     if ($cvs.Count -eq 0) { return $null }
     $cfg = [string]$script:ConfigFile
@@ -383,7 +385,7 @@ function Backup-ConfigBeforeRef([string[]]$keys, [string]$why = 'replace') {
     $newest = @($cvs.Keys | Sort-Object { Get-CurveDate $cvs[$_] } -Descending)[0]
     $dt = Get-CurveDate $cvs[$newest]
     $stamp = if ($dt -ne [datetime]::MinValue) { $dt.ToString('yyyyMMdd-HHmm', [System.Globalization.CultureInfo]::InvariantCulture) } else { 'sans-date' }
-    $fams = @($cvs.Keys | ForEach-Object { if ($_ -like 'hd*') { 'hd' } elseif ($_ -like 'long*') { 'long' } else { 'std' } } | Sort-Object -Unique)
+    $fams = @($cvs.Keys | ForEach-Object { $ck = (Split-DriveCurveKey $_).Key; if ($ck -like 'hd*') { 'hd' } elseif ($ck -like 'long*') { 'long' } else { 'std' } } | Sort-Object -Unique)
     $leaf = [System.IO.Path]::GetFileName($cfg); $dir = Split-Path -Parent $cfg
     $bak = Join-Path $dir ($leaf + '.ref-' + ($fams -join '+') + '-' + $stamp + '.bak')
     $famTxt = (@($fams | ForEach-Object { Get-CalibFamilyName $_ })) -join ', '
@@ -411,28 +413,122 @@ function Backup-ConfigBeforeRef([string[]]$keys, [string]$why = 'replace') {
     return $bak
 }
 
+function Export-CurveView($oc) {
+    # 12.10 : bloc write.precompCurves : vue du lecteur courant (les neuf cles, haute densite seulement avec une courbe),
+    # courbe d un autre calcul en attente du choix comprise ; format de la 12.9, qu elle relit tel quel
+    $drv = [string]$cmbDrive.Text
+    $curvesCfg = [ordered]@{}
+    foreach ($k in $script:CurveKeys) {
+        $cv = $script:PrecompCurves[$k]
+        $sk = Get-DriveCurveKey $drv $k
+        if (-not $cv -and $oc -and $oc.Curves.Contains($sk)) { $cv = $oc.Curves[$sk] }
+        if (-not $cv -and $k -like 'hd*') { continue }   # 12.7 : cles haute densite ecrites seulement avec une courbe (configuration DD inchangee)
+        $curvesCfg[$k] = ConvertTo-CurveConfig $cv
+    }
+    return $curvesCfg
+}
+
+function Export-DriveCurves($oc) {
+    # 12.10 : bloc write.driveCurves : magasin de tous les lecteurs, « lecteur|cle » -> courbe, cles triees ; courbes d un
+    # autre calcul en attente du choix gardees telles quelles ; une 12.9 ignore ce bloc (et le perd si elle enregistre)
+    $o = [ordered]@{}
+    $keys = @(@(Get-DriveCurveKeys) + @($(if ($oc -and $oc.Curves) { @($oc.Curves.Keys) })) | Where-Object { $_ } | Sort-Object -Unique)
+    foreach ($sk in $keys) {
+        $cv = $script:DriveCurves[$sk]
+        if (-not $cv -and $oc -and $oc.Curves.Contains($sk)) { $cv = $oc.Curves[$sk] }
+        if ($cv) { $o[$sk] = ConvertTo-CurveConfig $cv }
+    }
+    return $o
+}
+
+function Import-DriveCurves($pcv, $dcv, [string]$drive) {
+    # 12.10 : courbes de la configuration -> magasin $script:DriveCurves (vide d abord). Bloc driveCurves ($dcv, 12.10) s il
+    # existe ; sinon (configuration 12.9) chaque courbe du bloc precompCurves ($pcv) est rangee sous son lecteur (champ drive),
+    # une courbe sans lecteur sous $drive (lecteur de la configuration, global.drive). Courbe d un autre calcul
+    # (Test-CurveCalcOk) mise de cote. Rend @{ Old (cle de magasin -> courbe, dans l ordre lu) ; N (courbes reprises) ;
+    # Migrated (bloc 12.9 lu) ; Drives (lecteurs des courbes lues, tries) }
+    $script:DriveCurves = @{}
+    $old = [ordered]@{}; $n = 0; $migrated = $false; $drives = @{}
+    if ($dcv) {
+        foreach ($p in @($dcv.PSObject.Properties)) {
+            $sk = [string]$p.Name
+            if ($sk.LastIndexOf('|') -le 0) { continue }
+            $cv = ConvertFrom-CurveConfig $p.Value
+            if (-not $cv) { continue }
+            $kd = [string](Split-DriveCurveKey $sk).Drive
+            # Courbe sans lecteur (champ drive vide) sous une cle ordinaire : lecteur de la cle (la calibration rapide et le
+            # facteur de marque controlent le lecteur de la courbe) ; cle croisee source>cible (12.10, etape 2) : source (Drive,
+            # le lecteur qui ecrit) et cible (Target, le lecteur qui relit) de la cle quand les champs sont vides, sinon gardes
+            $kx = Split-CrossDrive $kd
+            if ($kx) { if (-not [string]$cv.Drive) { $cv.Drive = [string]$kx.Src }; if (-not [string]$cv.Target) { $cv.Target = [string]$kx.Tgt } }
+            elseif (-not [string]$cv.Drive) { $cv.Drive = $kd }
+            $drives[$kd] = $true
+            if (Test-CurveCalcOk $cv) { $script:DriveCurves[$sk] = $cv; $n++ } else { $old[$sk] = $cv }
+        }
+    } elseif ($pcv) {
+        foreach ($k in $script:CurveKeys) {
+            $cv = ConvertFrom-CurveConfig (Get-Cfg $pcv $k $null)
+            if (-not $cv) { continue }
+            $migrated = $true
+            if (-not [string]$cv.Drive) { $cv.Drive = $drive }
+            $sk = Get-DriveCurveKey ([string]$cv.Drive) $k
+            $drives[[string]$cv.Drive] = $true
+            if (Test-CurveCalcOk $cv) { $script:DriveCurves[$sk] = $cv; $n++ } else { $old[$sk] = $cv }
+        }
+    }
+    return @{ Old = $old; N = $n; Migrated = $migrated; Drives = @($drives.Keys | Sort-Object) }
+}
+
+function Export-TargetDrives {
+    # 12.10 : bloc write.targetDrive : lecteur cible des ecritures par lecteur source (Set-TargetDrive, 140), « source » ->
+    # « cible », sources triees ; entrees sans effet (cible vide, egale a la source ou inconnue : Get-TargetDrive) omises ;
+    # une 12.9 ignore ce bloc
+    $o = [ordered]@{}
+    if ($null -eq $script:TargetDrives) { return $o }
+    foreach ($s in @($script:TargetDrives.Keys | Sort-Object)) { $t = Get-TargetDrive ([string]$s); if ($t) { $o[[string]$s] = $t } }
+    return $o
+}
+
+function Import-TargetDrives($o) {
+    # 12.10 : bloc write.targetDrive -> $script:TargetDrives (vide d abord) ; objet de la configuration (ConvertFrom-Json) ou
+    # table ; entree illisible (source ou cible vide, cible egale a la source, lecteur inconnu de la liste du bandeau :
+    # Get-DriveIds) ignoree et comptee. Rend @{ N ; Bad }
+    $script:TargetDrives = @{}
+    $n = 0; $bad = 0
+    if ($null -eq $o -or $o -is [array] -or $o -is [string] -or $o -is [ValueType]) { return @{ N = 0; Bad = 0 } }
+    $pairs = @()
+    if ($o -is [System.Collections.IDictionary]) { foreach ($k in @($o.Keys)) { $pairs += ,@([string]$k, $o[$k]) } }
+    else { foreach ($p in @($o.PSObject.Properties)) { $pairs += ,@([string]$p.Name, $p.Value) } }
+    $ids = Get-DriveIds                    # tableau protege par la virgule : pas de @() autour de l appel
+    foreach ($pr in $pairs) {
+        $s = ([string]$pr[0]).Trim(); $t = ([string]$pr[1]).Trim()
+        if (-not $s -or -not $t -or $s -eq $t -or $ids -notcontains $s -or $ids -notcontains $t) { $bad++; continue }
+        $script:TargetDrives[$s] = $t; $n++
+    }
+    return @{ N = $n; Bad = $bad }
+}
+
 function Save-Config {
     $delays = @{}
     foreach ($k in $script:DelayCtrls.Keys) {
         $c = $script:DelayCtrls[$k]
         $delays[$k] = @{ on = [bool]$c.Chk.Checked; val = [int]$c.Num.Value }
     }
-    $curvesCfg = [ordered]@{}
     $oc = $script:OldCalib          # calibrations d un autre calcul en attente du choix : gardees telles quelles
-    foreach ($k in $script:CurveKeys) {
-        $cv = $script:PrecompCurves[$k]
-        if (-not $cv -and $oc -and $oc.Curves.Contains($k)) { $cv = $oc.Curves[$k] }
-        if (-not $cv -and $k -like 'hd*') { continue }   # 12.7 : cles haute densite ecrites seulement avec une courbe (configuration DD inchangee)
-        $curvesCfg[$k] = ConvertTo-CurveConfig $cv
-    }
+    # 12.10 : bloc precompCurves = vue du lecteur courant (lisible par une 12.9) ; bloc driveCurves = magasin de tous les
+    # lecteurs, cles « lecteur|cle » (Export-DriveCurves) ; niveaux d une reference mise de cote : reference cherchee dans
+    # le magasin de leur lecteur
+    $curvesCfg = Export-CurveView $oc
+    $dcCfg = Export-DriveCurves $oc
     $lvCfg = @(@($script:LevelShifts.Values) | Where-Object { $_ } | ForEach-Object { ConvertTo-LevelConfig $_ })
-    if ($oc) { $lvCfg += @(@($oc.Levels.Values) | Where-Object { $_ -and -not $script:PrecompCurves[$_.RefKey] } | ForEach-Object { ConvertTo-LevelConfig $_ }) }
+    if ($oc) { $lvCfg += @(@($oc.Levels.Values) | Where-Object { $_ -and -not (Get-DriveCurve ([string]$_.Drive) ([string]$_.RefKey)) } | ForEach-Object { ConvertTo-LevelConfig $_ }) }
     # 12.8 (lot 1c, § 10.2) : memoire par marque de disquette (une 12.7 l ignore)
     $brCfg = @(@($script:LevelBrands) | Where-Object { $_ } | ForEach-Object { ConvertTo-LevelBrandConfig $_ })
     # 12.8.1 (spec-1281 § C.5) : facteurs mesures des lecteurs (mesure de la disquette sur l image, un enregistrement par
-    # tete mesuree) et correction « lecteur cible » par lecteur ; une 12.8 les ignore
+    # tete mesuree) ; une 12.8 les ignore. 12.10 : lecteur cible des ecritures par lecteur source (Export-TargetDrives) ;
+    # le bloc targetCorrection de la correction « lecteur cible » Dk n est plus ecrit (une 12.9 relit sa configuration sans lui)
     $cmCfg = @(@($script:ContentMeasures) | Where-Object { $_ } | ForEach-Object { ConvertTo-ContentConfig $_ })
-    $tcCfg = @(ConvertTo-TargetCorrConfig)
+    $tdCfg = Export-TargetDrives
     $cfg = [ordered]@{
         _comment = (T 'Configuration GreaseweazleGUI - régénérée automatiquement. Supprimable sans risque.')
         _saved   = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
@@ -460,9 +556,11 @@ function Save-Config {
             calibCalc = $script:CalibCalc      # calcul de calibration courant ; chaque courbe porte le sien (calc)
             calibAlgo = $script:CalibAlgo
             precompCurves = $curvesCfg
+            driveCurves = $dcCfg               # 12.10 : courbes de tous les lecteurs (« lecteur|cle ») ; une 12.9 ignore ce bloc
             levelAlgo = $script:LevelFormat; levelShifts = $lvCfg   # 12.8 (G2) : format 'lvl1', relu par une 12.7
             levelBrand = [string]$script:LevelBrand; levelBrands = $brCfg
-            contentCalc = $script:ContentCalc; driveFactors = $cmCfg; targetCorrection = $tcCfg   # 12.8.1 (marqueur de migration : Update-LegacyLevelMode)
+            contentCalc = $script:ContentCalc; driveFactors = $cmCfg   # 12.8.1 (marqueur de migration : Update-LegacyLevelMode)
+            targetDrive = $tdCfg               # 12.10 : lecteur cible des ecritures, par lecteur source (Export-TargetDrives)
             tracks = $txtWTracks.Text; densel = $cmbWDensel.Text
             fakeIndex = $txtWFakeIdx.Text; diskdefs = $txtWDiskdefs.Text
         }
@@ -492,8 +590,8 @@ function Save-Config {
         restore  = @{ folder = $txtRsDir.Text }
     }
     # 12.8 (point 7) : reglages de la table (global.drive ; write.calMode, slowWrite, slowWarmup, calibWarmup,
-    # calWarmupMinutes, levelBeforeWrite, levelBeforeWriteMode, contentKMid et contentKLow (12.8.1), precompProfileCode et precompProfile, precompThresholdNs ; ui.homeCalHeads et
-    # homeCalCyls ; align.presetCode et preset ; quality ; tools.passes et linger ; restore.formatChoice ;
+    # calWarmupMinutes, levelBeforeWrite, levelBeforeWriteMode, contentKMid et contentKLow (12.8.1), precompProfileCode et precompProfile, precompThresholdNs ; ui.homeCalHeads,
+    # homeCalCyls et curveTrend (12.9, lot 1, A1-tendance) ; align.presetCode et preset ; quality ; tools.passes et linger ; restore.formatChoice ;
     # compare.formatChoice ; library.dat, lot 4b), puis, pendant
     # une operation surchargee (D4 : ecriture depuis la Bibliotheque ; lot 2 : restauration), reglages de l onglet
     # Ecriture d avant l operation
@@ -593,19 +691,25 @@ function Load-Config {
             }
         } catch { }
     }
-    $old = [ordered]@{}
-    foreach ($fam in $script:CurveKeys) {
-        $cv = if ($pcv) { ConvertFrom-CurveConfig (Get-Cfg $pcv $fam $null) } else { $null }
-        if ($cv -and -not (Test-CurveCalcOk $cv)) { $old[$fam] = $cv; $cv = $null }
-        $script:PrecompCurves[$fam] = $cv
-    }
-    # Profil de famille : celui de la configuration s il accompagne une courbe reprise ; mis de cote avec sa courbe ;
-    # profil calibre sans courbe (anterieur a 12.1) : abandonne
+    # 12.10 : courbes par lecteur (Import-DriveCurves : bloc driveCurves, sinon courbes 12.9 rangees sous leur lecteur, une
+    # courbe sans lecteur sous le lecteur de la configuration, lu ici avant Import-Settings) ; vue du lecteur de la
+    # configuration (Sync-PrecompCurves, qui pose aussi les profils de famille d apres les courbes communes) ; le changement
+    # de lecteur par Import-Settings, plus bas, la reconstruit a l identique (gestionnaire du bandeau, 520)
+    $ldDrive = [string](ConvertTo-SettingValue 'drive' (Get-Cfg (Get-Cfg $cfg 'global' $null) 'drive' $null))
+    $imp = Import-DriveCurves $pcv $(if ($fromBak) { $null } else { Get-Cfg $w 'driveCurves' $null }) $ldDrive
+    $old = $imp.Old
+    Sync-PrecompCurves $ldDrive
+    if ($imp.Migrated) { Append-Log ((T "Configuration d'une version antérieure : {0} courbe(s) de calibration rangée(s) par lecteur ({1}).") -f "$($imp.N + $old.Count)", ((@($imp.Drives)) -join ', ')) }
+    # Profil de famille : celui de la courbe commune reprise du lecteur (Sync-PrecompCurves) ; mis de cote avec sa courbe ;
+    # profil calibre sans courbe d aucun lecteur (anterieur a 12.1) : abandonne
     $oldStd = $null; $oldLong = $null; $lostProf = $false
-    if ($script:PrecompCurves['std']) { $script:PrecompStd = $cfgStd }
-    else { $script:PrecompStd = $script:PrecompStdDefault; if ($old.Contains('std')) { $oldStd = $cfgStd } elseif ($cfgStd -ne $script:PrecompStdDefault) { $lostProf = $true } }
-    if ($script:PrecompCurves['long']) { $script:PrecompLong = $cfgLong }
-    else { $script:PrecompLong = $script:PrecompLongDefault; if ($old.Contains('long')) { $oldLong = $cfgLong } elseif ($cfgLong -ne $script:PrecompLongDefault) { $lostProf = $true } }
+    # Courbe commune de la famille sous un lecteur quelconque, reprise (magasin) ou mise de cote ($old) : le profil de la
+    # configuration est le sien (une 12.9 enregistrait le profil de sa seule courbe, quel que soit le lecteur du bandeau au
+    # dernier enregistrement) ; cle croisee « source>cible » non comptee, sa courbe n entre pas dans la vue
+    $anyStd = (@(@(Get-DriveCurveKeys) + @($old.Keys) | Where-Object { (Split-DriveCurveKey $_).Key -eq 'std' -and (Split-DriveCurveKey $_).Drive -notlike '*>*' }).Count -gt 0)
+    $anyLong = (@(@(Get-DriveCurveKeys) + @($old.Keys) | Where-Object { (Split-DriveCurveKey $_).Key -eq 'long' -and (Split-DriveCurveKey $_).Drive -notlike '*>*' }).Count -gt 0)
+    if (-not $script:PrecompCurves['std']) { if ($old.Contains((Get-DriveCurveKey $ldDrive 'std'))) { $oldStd = $cfgStd } elseif ($cfgStd -ne $script:PrecompStdDefault -and -not $anyStd) { $lostProf = $true } }
+    if (-not $script:PrecompCurves['long']) { if ($old.Contains((Get-DriveCurveKey $ldDrive 'long'))) { $oldLong = $cfgLong } elseif ($cfgLong -ne $script:PrecompLongDefault -and -not $anyLong) { $lostProf = $true } }
     # Niveaux de la calibration rapide : gardes avec leur reference (meme courbe, meme lecteur, meme algorithme de niveau) ;
     # ceux d une reference mise de cote le sont avec elle
     # 12.8 (lot 1c, § 12.1) : format 'lvl1' (12.7 et 12.8) ou 'lvl2' ; enregistrement 'lvl1' (relu avec s = b = 0) ou
@@ -615,8 +719,10 @@ function Load-Config {
         foreach ($o in @(Get-Cfg $w 'levelShifts' @())) {
             $lr = ConvertFrom-LevelConfig $o
             if (-not $lr -or @('lvl1', 'lvl2') -notcontains [string]$lr.LevelAlgo) { continue }
-            $rc = $script:PrecompCurves[$lr.RefKey]; $tgt = $script:LevelShifts
-            if (-not $rc -and $old.Contains($lr.RefKey)) { $rc = $old[$lr.RefKey]; $tgt = $oldLv }
+            # 12.10 : reference dans le magasin du lecteur du niveau (une courbe d un autre lecteur ne reprend pas ses niveaux)
+            $rc = Get-DriveCurve ([string]$lr.Drive) ([string]$lr.RefKey); $tgt = $script:LevelShifts
+            $osk = Get-DriveCurveKey ([string]$lr.Drive) ([string]$lr.RefKey)
+            if (-not $rc -and $old.Contains($osk)) { $rc = $old[$osk]; $tgt = $oldLv }
             if (-not $rc -or [string]$rc.Date -ne [string]$lr.RefDate -or [string]$rc.Drive -ne [string]$lr.Drive) { continue }
             $tgt["$($lr.RefKey)|$($lr.Tag)"] = $lr
         }
@@ -627,21 +733,20 @@ function Load-Config {
     $script:LevelBrands = @(); $brBad = 0
     foreach ($o in @(Get-Cfg $w 'levelBrands' @())) { $en = ConvertFrom-LevelBrandConfig $o; if ($en) { $script:LevelBrands += ,$en } else { $brBad++ } }
     if ($brBad -gt 0) { Append-Log ((T 'Mémoire par marque de disquette : {0} entrée(s) illisible(s) ignorée(s).') -f "$brBad") }
-    # 12.8.1 (spec-1281 § C.5) : facteurs mesures des lecteurs (enregistrement illisible : ignore) et correction « lecteur
-    # cible » par lecteur (valeur illisible : 0, hors bornes : ramenee a -TargetCorrMax..TargetCorrMax, 040) ; une ligne
-    # de journal pour les deux.
+    # 12.8.1 (spec-1281 § C.5) : facteurs mesures des lecteurs (enregistrement illisible : ignore, une ligne de journal).
+    # 12.10 : lecteur cible des ecritures par lecteur source (Import-TargetDrives, entree illisible ignoree, une ligne) ;
+    # le bloc targetCorrection de la correction « lecteur cible » Dk n est plus lu.
     # Enregistrements d un autre calcul gardes : Get-DriveK ne les retient pas (decision du 25/10/2026 : facteurs gardes
     # apres une recalibration du lecteur, date de la courbe non exigee)
     $script:ContentMeasures = @(); $cmBad = 0
     foreach ($o in @(Get-Cfg $w 'driveFactors' @())) { $rec = ConvertFrom-ContentConfig $o; if ($rec) { $script:ContentMeasures += ,$rec } else { $cmBad++ } }
-    $tcr = ConvertFrom-TargetCorrConfig @(Get-Cfg $w 'targetCorrection' @())
-    $script:TargetCorr = $tcr.Map
-    if ($cmBad -gt 0 -or [int]$tcr.Bad -gt 0) { Append-Log ((T 'Configuration : {0} facteur(s) mesuré(s) illisible(s), ignoré(s) ; {1} correction(s) lecteur cible illisible(s), ignorée(s) ou comptée(s) 0.') -f "$cmBad", "$($tcr.Bad)") }
+    if ($cmBad -gt 0) { Append-Log ((T 'Configuration : {0} facteur(s) mesuré(s) illisible(s), ignoré(s).') -f "$cmBad") }
+    $tdi = Import-TargetDrives (Get-Cfg $w 'targetDrive' $null)
+    if ([int]$tdi.Bad -gt 0) { Append-Log ((T 'Configuration : {0} lecteur(s) cible illisible(s) ou inconnu(s), ignoré(s).') -f "$($tdi.Bad)") }
     # Revue 12.8.2 : facteurs d un autre calcul qui ne s appliquent plus (aucune mesure du calcul actuel pour ce lecteur,
     # cette famille et cette tete, Get-StaleDriveFactors) : une ligne a chaque demarrage, jusqu a une nouvelle mesure
     $sdf = Get-StaleDriveFactors
-    # 12.9 : facteurs d un autre calcul de mesure sur l image (ContentCalc avant la 12.9) : texte de la montee de calcul ;
-    # correction « lecteur cible » reglee avec ce calcul : une ligne, une fois (Update-TargetCorrCalc)
+    # 12.9 : facteurs d un autre calcul de mesure sur l image (ContentCalc avant la 12.9) : texte de la montee de calcul
     if ([int]$sdf.Content -gt 0) { Append-Log (T "Facteurs mesurés sur l'image avant la 12.9 : le calcul a changé (marque, courbure en ns, facteur au-delà de 1), ils ne sont plus appliqués. Refaites une mesure sur l'image pour chaque marque.") }
     # Synthese C (A2) : mesures du calcul actuel relues sans etat (configuration reecrite par une version anterieure, qui
     # retire les champs de la 12.9) : Get-DriveK ne les retient plus ; une ligne a chaque demarrage, jusqu a une nouvelle
@@ -650,10 +755,9 @@ function Load-Config {
     foreach ($cmr in @($script:ContentMeasures)) { if ($cmr -and [string]$cmr.ContentCalc -eq [string]$script:ContentCalc -and [string]$cmr.Etat) { $cmEt["$($cmr.Drive)|$($cmr.Family)|$([int]$cmr.Head)"] = $true } }
     $nNoEtat = @($script:ContentMeasures | Where-Object { $_ -and [string]$_.ContentCalc -eq [string]$script:ContentCalc -and -not [string]$_.Etat -and -not $cmEt.ContainsKey("$($_.Drive)|$($_.Family)|$([int]$_.Head)") }).Count
     if ($nNoEtat -gt 0) { Append-Log ((T "Facteurs mesurés sur l'image : {0} mesure(s) du calcul {1} relue(s) sans marque ni état (configuration réécrite par une version antérieure) : elles ne sont plus appliquées. Refaites une mesure sur l'image pour chaque marque.") -f "$nNoEtat", "$($script:ContentCalc)") }
-    foreach ($tcd in @(Update-TargetCorrCalc)) { Append-Log ((T "Correction « lecteur cible » du lecteur {0} réglée avec le calcul 12.8 : le facteur mesuré en 12.9 est plus élevé d'environ 0,05 (tête 0) et 0,10 (tête 1) ; à revalider par une relecture sur le lecteur cible.") -f "$tcd") }
     # 12.9 (calcul de calibration 12.9) : facteurs d un autre calcul de calibration en plus de ceux d avant la 12.9 (ligne
     # ci-dessus) : les deux lignes s ecrivent
-    if ([int]$sdf.N -gt [int]$sdf.Content) { Append-Log ((T "Facteurs de précompensation mesurés sur l'image : {0} mesure(s) du lecteur {1}, faite(s) avec un autre calcul de calibration, ne sont plus appliquées. Après la recalibration du lecteur, refaites une mesure sur l'image ; d'ici là, une écriture sans mesure utilise le facteur 1, plus la correction « lecteur cible ».") -f "$([int]$sdf.N - [int]$sdf.Content)", ((@($sdf.Drives)) -join ', ')) }
+    if ([int]$sdf.N -gt [int]$sdf.Content) { Append-Log ((T "Facteurs de précompensation mesurés sur l'image : {0} mesure(s) du lecteur {1}, faite(s) avec un autre calcul de calibration, ne sont plus appliquées. Après la recalibration du lecteur, refaites une mesure sur l'image ; d'ici là, une écriture sans mesure utilise le facteur 1.") -f "$([int]$sdf.N - [int]$sdf.Content)", ((@($sdf.Drives)) -join ', ')) }
     $script:OldCalib = $null
     $calPurged = $lostProf
     if ($old.Count -gt 0) {
@@ -668,7 +772,7 @@ function Load-Config {
             if (-not (Test-Path -LiteralPath $bak)) { try { Copy-Item -LiteralPath $script:ConfigFile -Destination $bak -ErrorAction Stop; Append-Log ((T "Configuration sauvegardée avant le choix sur les anciennes calibrations : {0}") -f "$bak") } catch { $bak = $null } }
         }
         $script:OldCalib = @{ Curves = $old; Std = $oldStd; Long = $oldLong; Levels = $oldLv; Bak = $bak; P0 = $null; P1 = $null }
-        Append-Log ((T "Calibrations faites avec un autre calcul de calibration que le calcul actuel (v{0}) : {1}. Elles sont mises de côté jusqu'à votre choix.") -f "$($script:CalibCalc)", ((@($old.Keys | ForEach-Object { (T "{0}, calcul {1}") -f (Get-CurveKeyLabel $_), (Get-CurveCalcText $old[$_] -Plain) })) -join ' ; '))
+        Append-Log ((T "Calibrations faites avec un autre calcul de calibration que le calcul actuel (v{0}) : {1}. Elles sont mises de côté jusqu'à votre choix.") -f "$($script:CalibCalc)", ((@($old.Keys | ForEach-Object { (T "{0}, calcul {1}") -f (Get-DriveCurveLabel $_), (Get-CurveCalcText $old[$_] -Plain) })) -join ' ; '))   # 12.10 : lecteur nomme
     }
     if ($lostProf) { Append-Log (T 'Profil de famille calibré sans courbe (version antérieure à 12.1) : profil d''origine rétabli.') }
     # Borne des valeurs calibrees : reglage de la configuration, ramene a 300..470 ns ; valeur illisible : defaut, signale
@@ -702,7 +806,7 @@ function Load-Config {
     Import-Settings $cfg -Only $lateKeys       # ecriture lente, prechauffages (D6), mesure de la disquette et son mode (S3)
     Update-LegacyLevelMode $cfg                # 12.8.1 : liste « Mesure : » d une configuration 12.8, rapide -> sur l image
     Update-SlowUi
-    Update-TargetCorrUi                        # 12.8.1 : correction « lecteur cible » du lecteur du bandeau
+    Update-TargetDriveUi                       # 12.10 : liste « Lecteur cible » du lecteur du bandeau
     $txtWTracks.Text   = [string](Get-Cfg $w 'tracks' '')
     Set-Combo $cmbWDensel (Get-Cfg $w 'densel' '(non)')
     $txtWFakeIdx.Text  = [string](Get-Cfg $w 'fakeIndex' '')

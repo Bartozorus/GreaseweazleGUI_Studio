@@ -315,6 +315,81 @@ function Find-ScpAnchor($fl, $list, $edges, [string]$s, [int]$to, [bool]$head, [
     return $null
 }
 
+function Get-ScpEdgeOoc($f, $e, [int]$skip) {
+    # 12.10 (S13, cout) : hors classe (trous exclus) d un tour aux indices que Get-ScpStructOoc ignore, [0, skip) et
+    # [max(skip, n - skip), n), comptes sur les classes des bouts deja calculees par Set-ScpTrackPost (Get-ScpEdgeClasses :
+    # debut, fin, indice du premier intervalle de la fin, tour entier), sans reclasser le tour. -1 si ces classes ne couvrent
+    # pas les deux bouts (aucune deduction possible)
+    $n = $f.Length; $hs = [string]$e[0]; $ts = [string]$e[1]; $to = [int]$e[2]
+    $a = [math]::Max($skip, $n - $skip); $h = [math]::Min($skip, $n)
+    if (-not [bool]$e[3] -and ($hs.Length -lt $h -or $to -gt $a)) { return -1 }
+    $k = 0
+    $p = $hs.IndexOf([char]'x', 0, $h)
+    while ($p -ge 0) { if ($f[$p] -lt 20000) { $k++ }; $p = if ($p + 1 -lt $h) { $hs.IndexOf([char]'x', $p + 1, $h - $p - 1) } else { -1 } }
+    if ($a -lt $n) {
+        $p = $ts.IndexOf([char]'x', $a - $to)
+        while ($p -ge 0) { if ($f[$to + $p] -lt 20000) { $k++ }; $p = $ts.IndexOf([char]'x', $p + 1) }
+    }
+    return $k
+}
+
+function Get-ScpStructOoc($fl, $list, [int]$skip, [int]$cap = -1, $edges = $null) {
+    # 12.10 (S13) : par tour, nombre d intervalles hors classe (classe 'x' de ScpStats.Classes, trous de 20 us ou plus
+    # exclus : ils sont comptes a part) presents dans TOUS les autres tours a un indice voisin : ScpStructTol intervalles,
+    # plus l ecart des comptes de flux entre les deux tours (les tours sont cales sur l index par gw). Indices sous $skip
+    # ou au-dela de n - $skip ignores (bouts du tour deja traites par la zone de l index, S11). Constat du 02/11/2026
+    # (AlienBreed, long track, TEAC) : le raccord d ecriture d une longue piste tombe la ou l image le place, loin de
+    # l index, et laisse 1 a 2 intervalles hors classe par tour, identiques sur les 3 tours : comptes comme erreurs, ils
+    # faisaient reecrire 20 a 30 pistes par disquette pour rien. Un petit defaut fixe du support y passe aussi : une
+    # reecriture ne le corrigerait pas davantage (au-dela de ScpStructMax par tour : Set-ScpTrackPost). Rend un int[] par tour.
+    # Cout (banc scp-real : +38,9 % de calcul) : sortie immediate quand un tour n a aucun hors classe hors des bouts
+    # ignores : OutOfClass brut d Analyze (030), pas encore corrige par Set-ScpTrackPost, compte exactement les x de
+    # Classes hors trous (meme cellule, memes bornes 0,35 et 2 a 5), moins ceux des bouts ($edges : classes des bouts de
+    # Set-ScpTrackPost, Get-ScpEdgeOoc) ; un hors classe retenu devant etre present dans tous les tours, aucun ne l est.
+    # Voisin cherche par recherche dichotomique dans les indices croissants de l autre tour (Array.BinarySearch). $cap >= 0 :
+    # sortie des que le compte d un tour depasse $cap ; comptes rendus alors partiels (tour en cause a $cap + 1, tours
+    # suivants a 0) : ils ne servent plus qu a signaler la piste (Post.StructOver, minorant du total).
+    # Relecture de la finalisation 12.10 : premier intervalle du tour 0 jamais compte (S10, Set-ScpTrackPost : meme critere,
+    # classe x hors trou, deja retire) ; il reste un voisin pour les autres tours. Avant : avec $skip 0, il pouvait etre
+    # retire deux fois et masquer un autre hors classe du tour 0 (aucun cas sur les 1 920 pistes de v1210\struct-cap).
+    $nr = $list.Count; $out = [int[]]::new($nr)
+    if ($nr -lt 2) { return $out }
+    for ($r = 0; $r -lt $nr; $r++) {
+        $nx = [int]$list[$r].OutOfClass
+        if ($nx -gt 0 -and $skip -gt 0 -and $null -ne $edges) { $eo = Get-ScpEdgeOoc $fl[$r] $edges[$r] $skip; if ($eo -ge 0) { $nx -= $eo } }
+        if ($nx -le 0) { return $out }
+    }
+    $tol = [int]$script:ScpStructTol
+    $xs = New-Object object[] $nr
+    for ($r = 0; $r -lt $nr; $r++) {
+        $f = $fl[$r]; $n = $f.Length
+        $s = [ScpStats]::Classes($f, [double]$list[$r].Cell)
+        $ix = [System.Collections.Generic.List[int]]::new()
+        $p = if ($skip -lt $n) { $s.IndexOf([char]'x', [math]::Max(0, $skip)) } else { -1 }
+        while ($p -ge 0 -and $p -lt $n - $skip) {
+            if ($f[$p] -lt 20000) { $ix.Add($p) }
+            $p = $s.IndexOf([char]'x', $p + 1)
+        }
+        $xs[$r] = $ix.ToArray()
+    }
+    for ($r = 0; $r -lt $nr; $r++) {
+        foreach ($p in $xs[$r]) {
+            if ($r -eq 0 -and $p -eq 0) { continue }
+            $all = $true
+            for ($q = 0; $q -lt $nr; $q++) {
+                if ($q -eq $r) { continue }
+                $t = $tol + [math]::Abs($fl[$r].Length - $fl[$q].Length)
+                # Premier indice >= p - t de l autre tour (complement du point d insertion si absent) : voisin s il est <= p + t
+                $a = $xs[$q]; $i = [System.Array]::BinarySearch($a, [int]($p - $t))
+                if ($i -lt 0) { $i = -$i - 1 }
+                if ($i -ge $a.Length -or $a[$i] -gt $p + $t) { $all = $false; break }
+            }
+            if ($all) { $out[$r]++; if ($cap -ge 0 -and $out[$r] -gt $cap) { return $out } }
+        }
+    }
+    return $out
+}
+
 function Set-ScpTrackPost($fl, $list, [bool]$zone) {
     # Post-traitement d une piste lue par Read-ScpFile hors calibration. $fl : flux de chaque tour ; $list : ScpRev de
     # chaque tour (Analyze) ; $zone : index reel, cale par gw (S11 permise). Pistes illisibles (jitter non mesure) : rien.
@@ -336,11 +411,11 @@ function Set-ScpTrackPost($fl, $list, [bool]$zone) {
     # Ecrit OutOfClass des tours et ajoute au tour 0 la propriete Post = @{ ZoneOoc (hors classe ecartes, tous tours) ;
     # ZoneFarNs (distance a l index de la grappe ecartee la plus lointaine) ; First ('ooc' ou '') ;
     # StabAl ; Tried ; Zone (S11 appliquee) ; ZoneData (zone avec des donnees : S11 non appliquee) ; PA ; PB (positions
-    # des ancres) }. Toute erreur : piste laissee au comptage d avant, comptee dans ScpPostFail (journal : Read-ScpFile).
+    # des ancres) ; 12.10 : StructOoc (S13, retires, tous tours) ; StructOver (S13 non appliquee, plafond depasse) }. Toute erreur : piste laissee au comptage d avant, comptee dans ScpPostFail (journal : Read-ScpFile).
     $nr = $list.Count
     if ($nr -eq 0 -or $fl.Count -ne $nr -or $fl[0].Length -eq 0) { return }
     foreach ($x in $list) { if ([double]::IsNaN([double]$x.Jitter)) { return } }
-    $post = @{ ZoneOoc = 0; ZoneFarNs = 0; First = ''; StabAl = -1; Tried = $false; Zone = $false; ZoneData = $false; PA = $null; PB = $null }
+    $post = @{ ZoneOoc = 0; ZoneFarNs = 0; First = ''; StabAl = -1; Tried = $false; Zone = $false; ZoneData = $false; PA = $null; PB = $null; StructOoc = 0; StructOver = 0 }
     $dOoc = [int[]]::new($nr)
     try {
         $c0 = [double]$list[0].Cell; $v = $fl[0][0]
@@ -369,6 +444,19 @@ function Set-ScpTrackPost($fl, $list, [bool]$zone) {
                         if ([int]$z[1] -gt $post.ZoneFarNs) { $post.ZoneFarNs = [int]$z[1] }
                     }
                 }
+            }
+            # 12.10 (S13) : hors classe reproductibles d un tour a l autre a la meme position, dans tous les tours : non
+            # comptes (StructOoc, Get-ScpStructOoc) ; bouts deja traites par la zone de l index non revisites. Plafond
+            # (ScpStructMax, 040) : un tour qui en compte davantage -> aucun retire sur la piste, tout compte comme en
+            # 12.9 ; StructOver = reproductibles trouves (tous tours, comptes partiels de Get-ScpStructOoc : au moins
+            # ScpStructMax + 1), piste signalee au journal par l appelant
+            if ([bool]$script:ScpStructOn -and $nr -ge 2) {
+                $smax = [int]$script:ScpStructMax
+                $st = if ($post.Zone) { Get-ScpStructOoc $fl $list ([int]$script:ScpRevWin) $smax $edges } else { Get-ScpStructOoc $fl $list 0 $smax }
+                $sHi = 0; $sSum = 0
+                for ($r = 0; $r -lt $nr; $r++) { $sSum += [int]$st[$r]; if ([int]$st[$r] -gt $sHi) { $sHi = [int]$st[$r] } }
+                if ($sHi -gt $smax) { $post.StructOver = $sSum }
+                else { for ($r = 0; $r -lt $nr; $r++) { $dOoc[$r] += [int]$st[$r]; $post.StructOoc += [int]$st[$r] } }
             }
             if ($nr -ge 3 -and $oneIdx) {
                 $post.Tried = $true
@@ -401,7 +489,7 @@ function Set-ScpTrackPost($fl, $list, [bool]$zone) {
         if ($script:ScpPostFail) { $script:ScpPostFail.N++; if (-not $script:ScpPostFail.Msg) { $script:ScpPostFail.Msg = [string]$_.Exception.Message } }
         return
     }
-    for ($r = 0; $r -lt $nr; $r++) { if ($dOoc[$r] -ne 0) { $list[$r].OutOfClass = [int]$list[$r].OutOfClass - $dOoc[$r] } }
+    for ($r = 0; $r -lt $nr; $r++) { if ($dOoc[$r] -ne 0) { $list[$r].OutOfClass = [math]::Max(0, [int]$list[$r].OutOfClass - $dOoc[$r]) } }   # 12.10 : jamais negatif
 }
 
 function Get-AlignCyls {
@@ -442,56 +530,6 @@ function Get-AlLevel([string]$kind, [double]$v) {
         'stab'   { if ($v -le 2)   { 0 } elseif ($v -le 5)   { 1 } elseif ($v -le 10)  { 2 } else { 3 } }
         'delta'  { if ($v -le 10)  { 0 } elseif ($v -le 30)  { 1 } elseif ($v -le 100) { 2 } else { 3 } }   # ecart % vs reference
         default  { 3 }
-    }
-}
-
-function Draw-AlignBars($g, $size) {
-    # 12.8 (lot 3) : police, stylo et pinceaux en cache (Get-QualFont, Get-QualPen, Get-QualBrush) ; barres grises tant
-    # que le resultat affiche n est pas le resultat courant (mesure en cours, perime : D16)
-    $g.Clear([System.Drawing.Color]::White)
-    $font = Get-QualFont 'Segoe UI' 8
-    $grey = ($script:QualView.State -ne 'result')
-    if (-not $script:AlignLast -or $script:AlignLast.Count -eq 0) {
-        $g.DrawString((T 'Barres de score par cylindre : apparaissent après la première mesure.'), $font, [System.Drawing.Brushes]::Gray, 8, 26); return
-    }
-    $keys = @($script:AlignLast.Keys | Sort-Object { [double]$_ })
-    $n = $keys.Count; $left = 44; $w = [math]::Max(10, ($size.Width - $left - 10) / $n); $h = $size.Height
-    # echelle auto : la plus grande valeur affichee (mesure, reference, meilleur) + 15 %, arrondie a 50, minimum 100
-    $peak = 0.0
-    foreach ($v in $script:AlignLast.Values) { if ($v.Score -lt 2000 -and $v.Score -gt $peak) { $peak = $v.Score } }
-    if ($script:AlignRef) { foreach ($v in $script:AlignRef.Values) { if ($v.Score -lt 2000 -and $v.Score -gt $peak) { $peak = $v.Score } } }
-    foreach ($k in $script:AlignBest.Keys) { if ($k -ne '_global' -and $script:AlignBest[$k] -lt 2000 -and $script:AlignBest[$k] -gt $peak) { $peak = $script:AlignBest[$k] } }
-    $maxScore = [math]::Max(100.0, [math]::Ceiling($peak * 1.15 / 50) * 50)
-    # axe
-    $pen = Get-QualPen ([System.Drawing.Color]::Gainsboro) 1
-    foreach ($frac in 0.25,0.5,0.75) { $y = [int]($h - 14 - ($h - 24) * $frac); $g.DrawLine($pen, $left, $y, $size.Width - 6, $y) }
-    $g.DrawString('0', $font, [System.Drawing.Brushes]::Gray, 2, $h - 22)
-    $g.DrawString([string][int]$maxScore, $font, [System.Drawing.Brushes]::Gray, 2, 2)
-    $i = 0
-    foreach ($k in $keys) {
-        $st = $script:AlignLast[$k]
-        $x = [int]($left + $i * $w + 4); $bw = [int]($w - 8)
-        $sc = [math]::Min($st.Score, $maxScore)
-        $bh = [int](($h - 24) * ($sc / $maxScore)); if ($bh -lt 2) { $bh = 2 }
-        $lvl = Get-AlLevel 'score' $st.Score
-        $brush = Get-QualBrush $(if ($grey) { [System.Drawing.Color]::FromArgb(196, 201, 210) } else { $script:AlColors[$lvl] })
-        $g.FillRectangle($brush, $x, $h - 14 - $bh, $bw, $bh)
-        $g.DrawRectangle([System.Drawing.Pens]::DimGray, $x, $h - 14 - $bh, $bw, $bh)
-        # repere reference (trait noir) et meilleur (trait bleu)
-        if ($script:AlignRef -and $script:AlignRef.ContainsKey($k)) {
-            $ry = [int]($h - 14 - ($h - 24) * ([math]::Min($script:AlignRef[$k].Score, $maxScore) / $maxScore))
-            $g.DrawLine([System.Drawing.Pens]::Black, $x - 2, $ry, $x + $bw + 2, $ry)
-            $g.DrawLine([System.Drawing.Pens]::Black, $x - 2, $ry + 1, $x + $bw + 2, $ry + 1)
-        }
-        if ($script:AlignBest.ContainsKey($k)) {
-            $by = [int]($h - 14 - ($h - 24) * ([math]::Min($script:AlignBest[$k], $maxScore) / $maxScore))
-            $g.DrawLine([System.Drawing.Pens]::RoyalBlue, $x - 2, $by, $x + $bw + 2, $by)
-        }
-        $label = if ($cmbAlHead.Text -eq '0+1') { "c$k" } else { "c$($k -replace '\.\d+$','')" }
-        $ink = if ($grey) { Get-QualBrush $script:Theme.Muted } else { [System.Drawing.Brushes]::Black }
-        $g.DrawString($label, $font, $ink, $x, $h - 14)
-        $g.DrawString(('{0:N0}' -f $st.Score), $font, $ink, $x, [math]::Max(0, $h - 14 - $bh - 14))
-        $i++
     }
 }
 
@@ -543,8 +581,6 @@ function Update-AlignGuide([double]$avg) {
     $lblAlReco.Text = $txt; $lblAlReco.ForeColor = $color
     Append-Log ((T "Guide alignement : {0}") -f "$txt")
 }
-
-function Render-AlignBars { $pnlAlBars.Invalidate() }
 
 function Get-HealthLevel([double]$err, [double]$drop, [double]$stab, [double]$jit, [double]$okT = $script:JitterOk, [double]$watchT = $script:JitterWatch) {
     # Seuils de jitter reglables (Accueil, « Regler le jitter ») ; l asymetrie n entre pas dans l etat. Seuils explicites
@@ -711,9 +747,10 @@ function Get-TrackMetrics($st) {
     # alignes (Read-ScpFile, Set-ScpTrackPost : propriete Post du tour 0) ; ZoneOoc : hors classe ecartes (tous tours) ;
     # ZoneFarNs : distance a l index de la grappe ecartee la plus lointaine ; StabAligned : faux = ecart du nombre de flux
     # (moins de 3 tours, haute densite, secteurs durs, piste sans post-traitement : calibration) ; StabFallback :
-    # alignement tente mais sans ancres communes (repli sur l ecart du nombre de flux, signale au journal)
+    # alignement tente mais sans ancres communes (repli sur l ecart du nombre de flux, signale au journal). 12.10 (S13) :
+    # StructOoc : hors classe reproductibles retires (tous tours) ; StructOver : plafond ScpStructMax depasse, aucun retire
     $m = @{ Bad = $false; Missing = $false; J = 0.0; R3 = 0.0; R4 = 0.0; Ooc = 0.0; Dr = 0.0; Cell = 0.0; Stab = 0.0; Asym = 0.0; Score = 9999; Level = 2
-            Weak = $false; ShortUnstable = $false; Blocks = 0; Unstable = 0; MaxRun = 0; RunPos = -1; ZoneOoc = 0; ZoneFarNs = 0; StabAligned = $false; StabFallback = $false }
+            Weak = $false; ShortUnstable = $false; Blocks = 0; Unstable = 0; MaxRun = 0; RunPos = -1; ZoneOoc = 0; ZoneFarNs = 0; StabAligned = $false; StabFallback = $false; StructOoc = 0; StructOver = 0 }
     $list = @($st)
     if ($list.Count -eq 0) { $m.Bad = $true; return $m }
     foreach ($x in $list) { if ([double]::IsNaN($x.Jitter)) { $m.Bad = $true } }
@@ -729,11 +766,13 @@ function Get-TrackMetrics($st) {
     $pp = $list[0].PSObject.Properties['Post']
     if ($pp -and $pp.Value) {
         $m.ZoneOoc = [int]$pp.Value.ZoneOoc; $m.ZoneFarNs = [int]$pp.Value.ZoneFarNs
+        if ($pp.Value.ContainsKey('StructOoc')) { $m.StructOoc = [int]$pp.Value.StructOoc }   # 12.10 (S13)
+        if ($pp.Value.ContainsKey('StructOver')) { $m.StructOver = [int]$pp.Value.StructOver }
         if ([int]$pp.Value.StabAl -ge 0) { $m.Stab = [int]$pp.Value.StabAl; $m.StabAligned = $true }
         elseif ($pp.Value.Tried) { $m.StabFallback = $true }
     }
     $m.Asym = [math]::Abs($m.R3 - 1.5) + [math]::Abs($m.R4 - 2.0)
-    $m.Score = [math]::Round($m.J + 2000 * $m.Asym + 5 * $m.Ooc + 50 * $m.Dr + $m.Stab, 0)
+    $m.Score = Get-TrackScore $m                          # 12.10 : meme formule apres correction de l asymetrie (Set-TrackAsymRef)
     $m.Level = Get-HealthLevel $m.Ooc $m.Dr $m.Stab $m.J
     # Stabilite d un tour a l autre (Read-ScpFile, premier tour) : blocs de 32 intervalles absents d au moins deux autres
     # tours. Weak : au moins 3 blocs consecutifs (une dizaine d octets), au plus le quart de la piste = bits faibles d une
@@ -749,6 +788,56 @@ function Get-TrackMetrics($st) {
     return $m
 }
 
+function Get-TrackScore($m) {
+    # Note de lecture d une piste (plus basse = mieux) : jitter, asymetrie (x 2000), erreurs, trous, stabilite
+    return [math]::Round([double]$m.J + 2000 * [double]$m.Asym + 5 * [double]$m.Ooc + 50 * [double]$m.Dr + [double]$m.Stab, 0)
+}
+
+function Get-AsymRefTable([string]$fam, [int]$head, [string]$drive) {
+    # 12.10 : asymetrie de reference d une famille pour une tete et un lecteur : courbe par tete de la famille si elle existe,
+    # sinon courbe commune, a condition qu elle vienne du meme lecteur (le biais de lecture est celui du lecteur) et qu elle
+    # porte le releve (AsymCyl, calibration 12.10) ; cylindre -> (3T/2T - 1,5 ; 4T/2T - 2) ; $null sans reference
+    foreach ($k in @("${fam}_h$head", $fam)) {
+        $cv = $script:PrecompCurves[$k]
+        if (-not $cv -or [string]$cv.Drive -ne $drive) { continue }
+        if (-not $cv.AsymCyl -or @($cv.AsymCyl).Count -eq 0) { continue }
+        $t = @{}
+        $cs = @($cv.AsymCyl); $d3 = @($cv.AsymD3); $d4 = @($cv.AsymD4)
+        for ($i = 0; $i -lt $cs.Count -and $i -lt $d3.Count -and $i -lt $d4.Count; $i++) { $t[[int]$cs[$i]] = @([double]$d3[$i], [double]$d4[$i]) }
+        if ($t.Count -gt 0) { return $t }
+    }
+    return $null
+}
+
+function Get-AsymRefs([string]$drive) {
+    # 12.10 : references d asymetrie du lecteur, par famille (std, long) et par tete : cle « famille + tete »
+    $r = @{}
+    foreach ($fam in 'std', 'long') { foreach ($h in 0, 1) { $r["$fam$h"] = Get-AsymRefTable $fam $h $drive } }
+    return $r
+}
+
+function Set-TrackAsymRef($m, [int]$cyl, [int]$hd, $refs) {
+    # 12.10 : asymetrie corrigee du biais de lecture du lecteur. Constat du 02/11/2026 (TEAC, long track) : les rapports
+    # 3T/2T et 4T/2T sont positifs sur toutes les pistes, autant sur le motif de calibration relu a decalage nul que sur
+    # l image ecrite : biais de lecture a cette densite, pas une precompensation fausse ; le score (x 2000) en etait gonfle
+    # et incomparable d une famille a l autre. Famille d apres la cellule mesuree (long track sous 1 950 ns, standard
+    # au-dela ; haute densite sous 1 500 ns : sans reference) ; AsymRaw : valeur mesuree gardee, AsymRef : reference
+    # appliquee ; score recalcule. L etat de la piste ne depend pas de l asymetrie : inchange. Vrai si une reference a
+    # ete appliquee
+    if (-not [bool]$script:QualAsymRefOn) { return $false }   # desactivee par defaut (560 : constat du 02/11/2026 au soir)
+    if ($null -eq $refs -or $null -eq $m -or $m.Bad) { return $false }
+    $cell = [double]$m.Cell
+    if ($cell -lt 1500) { return $false }
+    $fam = if ($cell -lt 1950) { 'long' } else { 'std' }
+    $t = $refs["$fam$hd"]
+    if ($null -eq $t -or -not $t.ContainsKey($cyl)) { return $false }
+    $d = $t[$cyl]
+    $m.AsymRaw = [double]$m.Asym; $m.AsymRef = @([double]$d[0], [double]$d[1])
+    $m.Asym = [math]::Abs([double]$m.R3 - 1.5 - [double]$d[0]) + [math]::Abs([double]$m.R4 - 2.0 - [double]$d[1])
+    $m.Score = Get-TrackScore $m
+    return $true
+}
+
 # Ligne du tableau de l onglet Qualite pour une piste ; $mark complete l etat (ex. « (reecrite x2) »)
 function New-AlignRow([string]$lab, $m, [string]$mark, [string]$delta, [int]$deltaLvl) {
     $healthNames = @{ 0=(T 'SAIN'); 1=(T 'À SURVEILLER'); 2=(T 'CRITIQUE') }
@@ -759,7 +848,7 @@ function New-AlignRow([string]$lab, $m, [string]$mark, [string]$delta, [int]$del
         $state = if ($m.Missing) { (T 'ABSENTE') } else { (T 'ILLISIBLE') }
         foreach ($v in @(($state + $mark),'-','-','-','-','-','-','-','-')) { [void]$it.SubItems.Add([string]$v) }
         $it.SubItems[1].BackColor = $script:AlColors[3]; $it.SubItems[1].ForeColor = [System.Drawing.Color]::White; $it.SubItems[1].Font = $bold
-        $it.Tag = @{ State = $(if ($m.Missing) { 'h2a' } else { 'h2' }); Score = '' }   # 12.8 (lot 3b) : icones 16 px (DrawSubItem)
+        $it.Tag = @{ State = $(if ($m.Missing) { 'h2a' } else { 'h2' }); Score = ''; M = $m }   # 12.8 (lot 3b) : icones 16 px (DrawSubItem) ; 12.10 : M, metriques (export)
         return $it
     }
     $hl = [int]$m.Level
@@ -778,8 +867,98 @@ function New-AlignRow([string]$lab, $m, [string]$mark, [string]$delta, [int]$del
     if ($deltaLvl -ge 0) { $it.SubItems[7].BackColor = $script:AlColors[$deltaLvl]; $it.SubItems[7].ForeColor = $script:AlFg[$deltaLvl] }
     $lvAs  = Get-AlLevel 'asym' $m.Asym;  $it.SubItems[8].BackColor = $script:AlColors[$lvAs];   $it.SubItems[8].ForeColor = $script:AlFg[$lvAs]
     # 12.8 (lot 3b, D15) : icone d etat (colonne Etat) et icone de score (colonne Score), 16 px, dessinees par DrawSubItem
-    $it.Tag = @{ State = $(if ($m.Unjudged -and $hl -eq 0) { 'hq' } else { "h$hl" }); Score = "q$lvSc" }
+    $it.Tag = @{ State = $(if ($m.Unjudged -and $hl -eq 0) { 'hq' } else { "h$hl" }); Score = "q$lvSc"; M = $m }   # 12.10 : M, metriques de la piste (export du tableau)
     return $it
+}
+
+# 12.10 : export du tableau de l onglet Qualite (demande du 01/11/2026 : relever les resultats par piste sans capture
+# d ecran). En-tete (libelle, valeur) d apres $script:QualView, puis les colonnes de l ecran et deux de plus : les ecarts
+# signes des rapports moyens 3T/2T et 4T/2T a leurs valeurs nominales (1,5 et 2), dont « Asym. » est la somme des valeurs
+# absolues ; le signe dit si les intervalles longs sont relus trop longs (+) ou trop courts (-). Valeurs relues dans
+# Item.Tag.M (metriques de la piste gardees par New-AlignRow) et ecrites sans separateur de milliers, avec le separateur
+# decimal de la langue du poste ; sans Tag.M, texte affiche tel quel
+function Get-AlignTableExport {
+    $v = $script:QualView
+    $r = $v.Res
+    $head = New-Object System.Collections.Generic.List[object]
+    $head.Add(@((T 'Application'), "Greaseweazle Studio $($script:Version)"))
+    $head.Add(@((T 'Export'), (Get-Date -Format 'dd/MM/yyyy HH:mm:ss')))
+    $at = if ($v.At) { ([datetime]$v.At).ToString('dd/MM/yyyy HH:mm:ss') } else { '' }
+    $kind = switch ([string]$v.Kind) { 'measure' { (T 'Mesure de la disquette') } 'check' { (T 'Contrôle après écriture') } default { '' } }
+    if ($v.State -eq 'stale') {
+        $kind = (($kind + ' ' + (T '(périmé)')).Trim())
+        $why = Get-QualStaleText ([string]$v.Reason) $at
+        if ($why) { $kind += " : $why" }
+    }
+    $head.Add(@((T 'Résultat'), $kind))
+    $head.Add(@((T 'Heure du résultat'), $at))
+    $ctx = if ($r -and $r.Ctx) { $r.Ctx } else { $null }
+    $drive = if ($ctx -and $ctx.Drive) { [string]$ctx.Drive } else { [string]$cmbDrive.Text }
+    $head.Add(@((T 'Lecteur'), $drive))
+    if ($ctx) { $head.Add(@((T 'Têtes'), [string]$ctx.Heads)); $head.Add(@((T 'Tours'), [string]$ctx.Revs)) }
+    if ($r -and $r.HealthText) { $head.Add(@((T 'État du support'), [string]$r.HealthText)) }
+    if ($r -and $r.ScoreText) { $head.Add(@((T 'Score'), [string]$r.ScoreText)) }
+    if ($script:AlignRefLabel) { $head.Add(@((T 'Référence'), [string]$script:AlignRefLabel)) }
+    $cols = @((T 'Piste'), (T 'État'), (T 'Erreurs/tour'), (T 'Trous/tour'), (T 'Stabilité'), (T 'Jitter ns'), 'Score', (T 'vs réf'), 'Asym.', (T 'Écart 3T'), (T 'Écart 4T'), (T 'Cellule ns'))
+    $rows = New-Object System.Collections.Generic.List[object]
+    foreach ($it in @($lvAl.Items)) {
+        $m = if ($it.Tag -is [hashtable] -and $it.Tag.ContainsKey('M')) { $it.Tag.M } else { $null }
+        $sub = @(0..9 | ForEach-Object { if ($_ -lt $it.SubItems.Count) { [string]$it.SubItems[$_].Text } else { '' } })
+        if ($m -and -not $m.Bad) {
+            $rows.Add(@($sub[0], $sub[1], ('{0:0.0}' -f [double]$m.Ooc), ('{0:0.0}' -f [double]$m.Dr), ('{0:0}' -f [double]$m.Stab), ('{0:0}' -f [double]$m.J),
+                       ('{0:0}' -f [double]$m.Score), $sub[7], ('{0:0.000}' -f [double]$m.Asym), ('{0:+0.000;-0.000;0.000}' -f ([double]$m.R3 - 1.5)),
+                       ('{0:+0.000;-0.000;0.000}' -f ([double]$m.R4 - 2.0)), ('{0:0}' -f [double]$m.Cell)))
+        } else {
+            $rows.Add(@($sub[0], $sub[1], $sub[2], $sub[3], $sub[4], $sub[5], $sub[6], $sub[7], $sub[8], '-', '-', $sub[9]))
+        }
+    }
+    $nAr = @(@($lvAl.Items) | Where-Object { $_.Tag -is [hashtable] -and $_.Tag.ContainsKey('M') -and $_.Tag.M -and $null -ne $_.Tag.M.AsymRef }).Count
+    if ($nAr -gt 0) { $head.Add(@((T 'Asymétrie'), ((T "corrigée du biais de lecture du lecteur sur {0} piste(s), d'après le motif de sa calibration") -f "$nAr"))) }
+    $head.Add(@((T 'Pistes'), [string]$rows.Count))
+    # .ToArray() et non @() : sous PowerShell 7, @() sur une List[object] d elements tableaux echoue (liaison dynamique)
+    return @{ Head = $head.ToArray(); Cols = $cols; Rows = $rows.ToArray() }
+}
+
+function Format-CsvField([string]$s, [string]$sep) {
+    # Champ entre guillemets (guillemets doubles) s il contient le separateur, un guillemet ou un saut de ligne (RFC 4180)
+    if ($s.IndexOf($sep) -ge 0 -or $s.IndexOf('"') -ge 0 -or $s.IndexOf("`n") -ge 0 -or $s.IndexOf("`r") -ge 0) { return '"' + $s.Replace('"', '""') + '"' }
+    return $s
+}
+
+function ConvertTo-AlignTableText($x, [string]$sep) {
+    # Une ligne par entree de l en-tete (libelle, valeur), puis la ligne des colonnes, puis une ligne par piste ; CRLF
+    $lines = New-Object System.Collections.Generic.List[string]
+    foreach ($h in $x.Head) { $lines.Add((@($h | ForEach-Object { Format-CsvField ([string]$_) $sep }) -join $sep)) }
+    $lines.Add((@($x.Cols | ForEach-Object { Format-CsvField ([string]$_) $sep }) -join $sep))
+    foreach ($r in $x.Rows) { $lines.Add((@($r | ForEach-Object { Format-CsvField ([string]$_) $sep }) -join $sep)) }
+    return (($lines -join "`r`n") + "`r`n")
+}
+
+function Get-AlignTableSep([string]$path) {
+    # Tabulation pour un fichier .txt ; sinon le separateur de liste de la langue du poste (« ; » en francais, « , » en
+    # anglais), celui que le tableur du poste attend dans un .csv
+    if ($path -and $path -match '\.txt$') { return "`t" }
+    $s = [System.Globalization.CultureInfo]::CurrentCulture.TextInfo.ListSeparator
+    if (-not $s) { $s = ';' }
+    return $s
+}
+
+function Export-AlignTable([string]$path) {
+    # Fichier UTF-8 avec BOM (accents lus par le tableur) ; rend le nombre de pistes ecrites, 0 sans tableau
+    $x = Get-AlignTableExport
+    if ($x.Rows.Count -eq 0) { Append-Log (T 'Qualité : aucun tableau à exporter (lancez une mesure ou un contrôle).'); return 0 }
+    [System.IO.File]::WriteAllText($path, (ConvertTo-AlignTableText $x (Get-AlignTableSep $path)), (New-Object System.Text.UTF8Encoding($true)))
+    Append-Log ((T "Qualité : tableau de {0} piste(s) exporté dans {1}.") -f "$($x.Rows.Count)", "$path")
+    return $x.Rows.Count
+}
+
+function Copy-AlignTable {
+    # Presse-papiers, champs separes par des tabulations : se colle tel quel dans un tableur ou un message
+    $x = Get-AlignTableExport
+    if ($x.Rows.Count -eq 0) { Append-Log (T 'Qualité : aucun tableau à copier (lancez une mesure ou un contrôle).'); return 0 }
+    [System.Windows.Forms.Clipboard]::SetText((ConvertTo-AlignTableText $x "`t"))
+    Append-Log ((T "Qualité : tableau de {0} piste(s) copié dans le presse-papiers.") -f "$($x.Rows.Count)")
+    return $x.Rows.Count
 }
 
 function Set-UnstableBanner([string[]]$parts) {
@@ -824,12 +1003,16 @@ function Invoke-AlignAnalysis {
     $lvAl.BeginUpdate()
     try {
         $lvAl.Items.Clear()
-        $total = 0.0; $count = 0; $zo = 0; $zt = 0; $zf = 0; $fb = @()
+        $total = 0.0; $count = 0; $zo = 0; $zt = 0; $zf = 0; $fb = @(); $so = 0; $sot = 0; $sov = @()   # 12.10 (S13) : so / sot / sov
+        $arefs = Get-AsymRefs ([string]$cmbDrive.Text); $nRef = 0     # 12.10 : asymetrie corrigee du biais de lecture
         foreach ($tn in ($tracks.Keys | Sort-Object)) {
             $st = $tracks[$tn]; $cyl = [math]::Floor($tn / 2); $hd = $tn % 2; $key = "$cyl.$hd"
             $lab = "$cyl.$hd"
             $m = Get-TrackMetrics $st
+            if (Set-TrackAsymRef $m $cyl $hd $arefs) { $nRef++ }
             if ($m.ZoneOoc -gt 0) { $zo += $m.ZoneOoc; $zt++; if ($m.ZoneFarNs -gt $zf) { $zf = $m.ZoneFarNs } }
+            if ($m.StructOoc -gt 0) { $so += $m.StructOoc; $sot++ }
+            if ($m.StructOver -gt 0) { $sov += $lab }
             if ($m.StabFallback) { $fb += $lab }
             if ($m.Bad) {
                 [void]$lvAl.Items.Add((New-AlignRow $lab $m '' '-' -1))
@@ -840,7 +1023,7 @@ function Invoke-AlignAnalysis {
             # defaut du support, l application ne peut pas trancher sur une disquette inconnue) : au moins A SURVEILLER
             if ($m.Weak -and $m.Level -lt 1) { $m.Level = 1 }
             $sc = $m.Score
-            if (-not $script:AlignBest.ContainsKey($key) -or $sc -lt $script:AlignBest[$key]) { $script:AlignBest[$key] = $sc }
+            # 12.10 (lot 1, D8) : meilleur score par piste retire avec le graphique, seul a le lire ; meilleur global garde
             $last[$key] = @{ Score = $sc; Jitter = $m.J; Asym = $m.Asym; Err = $m.Ooc; Stab = $m.Stab; Cell = $m.Cell }
             $hl = $m.Level
             if ($m.Weak) { $weakL += $lab }
@@ -855,6 +1038,7 @@ function Invoke-AlignAnalysis {
             $total += $sc; $count++
         }
         $script:AlignLast = $last
+        if ($nRef -gt 0) { Append-Log ((T "Mesure : asymétrie et score corrigés du biais de lecture du lecteur {0} sur {1} piste(s), d'après le motif de sa calibration (famille d'après la cellule mesurée).") -f "$($cmbDrive.Text)", "$nRef") }
         $nTracks = $tracks.Count
 
         # --- Verdict 1 : etat du support (12.8, lot 3b : carte de resultat ; texte complet dans l infobulle et le journal)
@@ -872,6 +1056,10 @@ function Invoke-AlignAnalysis {
         if (-not $script:AlignLoop -or [int]$script:QualView.Pass -le 1) {
             if ($zo -gt 0) { Append-Log ((T "Mesure : {0} intervalle(s) hors classe du raccord d'écriture, dans la zone de ± 1 ms autour de l'index (jusqu'à {2} ms), non compté(s), sur {1} piste(s).") -f "$zo", "$zt", (Format-UiNum ($zf / 1e6) '0.00')) }
             if ($fb.Count -gt 0) { Append-Log ((T "Mesure : stabilité de {0} piste(s) jugée sur l'écart du nombre de flux entre les tours, faute de repère commun pour les aligner : {1}.") -f "$($fb.Count)", "$($fb -join ', ')") }
+            # 12.10 (S13) : raccord d ecriture d une longue piste, protection a intervalles fixes, petit defaut fixe du
+            # support ; pistes au-dela du plafond ScpStructMax par tour : tout compte, liste a part
+            if ($so -gt 0) { Append-Log ((T "Mesure : {0} intervalle(s) hors classe reproductibles d'un tour à l'autre à la même position, sur {1} piste(s), non compté(s) : raccord d'écriture d'une longue piste ou protection ; un petit défaut fixe du support (jusqu'à {2} intervalles par tour) y passerait aussi.") -f "$so", "$sot", "$($script:ScpStructMax)") }
+            if ($sov.Count -gt 0) { Append-Log ((T "Mesure : {0} piste(s) avec plus de {1} intervalles hors classe reproductibles par tour, tous comptés comme erreurs (au-delà d'un raccord d'écriture ou d'une protection : défaut du support ou écriture à revoir) : {2}.") -f "$($sov.Count)", "$($script:ScpStructMax)", "$(Format-TrackList $sov)") }
         }
         if ($weakL.Count -gt 0) { Append-Log ((T "Mesure : zone instable d'un tour à l'autre sur {0} piste(s) : {1}. Bits faibles d'une protection contre la copie probable, ou défaut localisé du support : une copie faite depuis un flux n'en écrit qu'un tour et ne les reproduit pas fidèlement.") -f "$($weakL.Count)", "$($weakL -join ', ')") }
         $clu = @(Get-UnstableClusters $weakL)
@@ -904,8 +1092,7 @@ function Invoke-AlignAnalysis {
             Set-UnstableBanner @('')                      # 12.8 (FIX3) : bandeau d une mesure precedente retire
         }
     } finally { $lvAl.EndUpdate() }
-    Render-AlignBars
-    Set-QualityResult $res                                # 12.8 (lot 3a) : carte, tableau et barres en couleurs
+    Set-QualityResult $res                                # 12.8 (lot 3a) : carte et tableau en couleurs (12.9 : sans graphique)
 
     if ($script:AlignLoop) { $script:AlignNextAt = (Get-Date).AddSeconds([int]$numAlPause.Value) }
 }

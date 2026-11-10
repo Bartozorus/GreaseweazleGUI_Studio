@@ -6,9 +6,9 @@
 # latin (chaque bloc recoit chaque niveau une fois). Apres chaque passe, ces pistes sont relues sur 3 tours et leur marge
 # fixe (Mfix : quantile 1e-3 de l ecart de chaque intervalle a ses limites de decodage, horloge fixe) est comptee
 # (192). Par tete, la marge est ajustee par effets fixes passe + cylindre et une quadratique en k ; son sommet, borne a
-# [k_min ; 1], est le facteur k* de la tete (274). La courbe ecrite vaut (k* + Dk) x V, bornee a 0..CalHardNs (Dk :
-# correction « lecteur cible » du lecteur). Sans mesure, le facteur du lecteur (mediane des 3 derniers k* du lecteur, de
-# la famille et de la tete, 1 sans mesure) s applique. Pistes exclues : absentes, longues ou protegees de l image (IPF),
+# [k_min ; 1], est le facteur k* de la tete (274). La courbe ecrite vaut k* x V, bornee a 0..CalHardNs (12.10 : la
+# correction « lecteur cible » Dk de la 12.8.1 est retiree). Sans mesure, le facteur du lecteur (mediane des 3 derniers
+# k* du lecteur, de la famille et de la tete, 1 sans mesure) s applique. Pistes exclues : absentes, longues ou protegees de l image (IPF),
 # avant l ecriture ; vides, de longueur hors norme ou non MFM a tous les niveaux, apres la relecture. Arret de gw sur une
 # piste refusee a la verification : piste gardee, reprise de la tete une fois par passe.
 $script:ContentLevelsDefault = @(1.0, 0.6, 0.25)   # niveaux k x V par defaut (contentKMid, contentKLow : 040)
@@ -31,7 +31,5 @@ $script:ContentFourthLevels = @(1.6, 1.0); $script:ContentFourthTrigger = 0.9
 $script:ContentRecPerKey = 5; $script:ContentRecMax = 80; $script:ContentRecOldMax = 20   # 20 -> 80
 $script:ContentScpDir = 'mesures-image'
 $script:ContentMeasures = @()        # enregistrements de mesure (C.2), relus par Load-Config
-$script:TargetCorr = @{}             # Dk par lecteur (C.4), relu par Load-Config
-$script:TgtCorrEdit = @{}            # saisie en cours d un champ Dk (tete -> lecteur et valeur d avant), 140
 $script:WriteFactorNext = $null      # facteur mesure pour l ecriture qui suit (A.10), lu une fois par Start-ImageWrite
 $script:GwVerifyFail = $null         # arret « Failed to verify Track C.H » de la derniere commande gw write (110)
