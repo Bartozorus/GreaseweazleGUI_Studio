@@ -113,6 +113,18 @@ Règle du projet : tout exécutable livré est signé. `Build-Exe.ps1` signe l'e
 
 Un certificat auto-signé n'est reconnu que sur les machines qui lui font confiance. Ailleurs, la signature montre seulement que le fichier n'a pas été modifié depuis sa signature par ce certificat, sans prouver son auteur, puisque n'importe qui peut créer un certificat auto-signé au même nom, et SmartScreen avertit quand même. Sur un poste d'entreprise géré, déclarer de confiance un certificat auto-signé contourne sa politique de sécurité : compilez-y avec `-Sign:$false` ou faites signer l'exécutable avec le certificat interne.
 
+## Tests
+
+Le dossier `tests/` contient les contrôles de la source et les tests logiques hors ligne. Ils ne demandent ni Greaseweazle, ni `gw.exe`, ni lecteur, et n'ouvrent aucune fenêtre :
+
+```powershell
+pwsh -NoProfile -File tests\Run-Tests.ps1
+```
+
+Le lanceur vérifie que `src/GreaseweazleGUI.ps1` correspond aux modules (`tools/Assemble-Source.ps1 -Check`), contrôle la source sans l'exécuter (`tests/check-source.ps1` : encodage, analyse syntaxique, constructions propres à PowerShell 7, fonctions en double, blocs C#, textes sans traduction anglaise), puis lance chaque test `tests/logic-*.ps1`. Il rend un code de sortie non nul dès qu'une étape échoue ; ses sorties vont dans `tests/out/`, ignoré par git. `-Filter 'calib-*'` ne lance qu'une partie des tests.
+
+Les tests chargent les fonctions réelles des modules et simulent le reste (gw, fenêtres, configuration). Ils couvrent les calculs et les décisions : calibration, lecteur cible, restauration, qualité, textes de l'interface. Ils ne couvrent ni le matériel ni l'affichage, qui restent éprouvés sur un lecteur réel et par le banc de test de l'interface, hors du dépôt. [tests/README.md](tests/README.md) décrit les paramètres du lanceur, les contrôles de la source et la façon d'écrire un test.
+
 ## Publication d'une version
 
 Le workflow GitHub Actions [release.yml](.github/workflows/release.yml) compile l'exécutable sur un runner Windows et l'attache à une release GitHub à chaque tag `vX.Y`, avec pour notes la section correspondante du CHANGELOG.
@@ -155,6 +167,7 @@ La page [Compilation et publication](https://github.com/Bartozorus/GreaseweazleG
 ├── tools/
 │   ├── Assemble-Source.ps1         Assemblage des modules et contrôle (-Check)
 │   └── Resolve-ModuleLine.ps1      Ligne du script assemblé vers module:ligne, et l'inverse
+├── tests/                          Contrôles de la source et tests logiques hors ligne (README.md : lancer, écrire un test)
 ├── dist/                           Sortie de Build-Exe.ps1 (ignoré par git)
 ├── .editorconfig, .gitattributes   Encodage et fins de ligne (CRLF pour .ps1, LF pour .md)
 ├── Build-Exe.ps1                   Assemblage, compilation PS2EXE et signature auto-signée

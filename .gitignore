@@ -22,3 +22,6 @@ desktop.ini
 .vs/
 .vscode/
 *.swp
+
+# Sorties et fichiers de travail des tests (tests/Run-Tests.ps1)
+tests/out/
