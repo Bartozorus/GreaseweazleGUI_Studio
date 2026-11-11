@@ -13,7 +13,7 @@
 # terme de centre hc ((c - 60)+ / 19)^2 ajuste sur les controles a la passe de verification (Get-LevelCenterEval) ou
 # repris d un refus de la passe de mesure (e3, Get-LevelCenterRescue) ; controle juge par la corde de ses deux ecritures
 # (e1) ; courbe adaptee gardee avec reserve apres un refus par un controle (e2) ; derive corrigee avant le plafond (e4),
-# gardee et niveau dit verifie dans la tolerance par cylindre (Bk) ; plafond par disquette jusqu a CalHardMaxNs
+# gardee et niveau dit verifie dans la tolerance par cylindre (Bk) ; plafond par disquette, 12.11 : Get-DiskCapNs
 # (Get-LevelAdaptHard) ; libelle neutre de la fatigue pour une forme non conforme ; reserve de controle ou de centre
 # jamais memorisee pour la marque. Au plus 3 passes et 3 ecritures par piste ; disquettes habituelles inchangees.
 # F3R-FIX (21/10/2026, reference alignee v128\c3\final2\v3f.py, oracle impl128\f3rfix\oracle\calib-f3r.ps1) : cylindres
@@ -495,15 +495,15 @@ function Write-LevelAdaptFitLog($u, $an) {
 
 function Get-LevelAdaptHard($u, [string]$model, $raw, [double]$delta = 0.0, $clip = @()) {
     # 12.8 (F3R, decision 2 du 21/10/2026) : plafond de la courbe adaptee d une tete. CalHardNs (write.precompMaxNs) par
-    # defaut ; porte a CalHardMaxNs (470 ns, borne haute de precompMaxNs) quand le besoin modelise de cette disquette (Raw
-    # + delta, arrondi) depasse CalHardNs sur un cylindre de reference non nulle hors Clip, pour une forme adaptee (modele
-    # autre que M0, M0+c compris) seulement. Une borne precompMaxNs deja egale a CalHardMaxNs reste telle quelle ; la
-    # reference, le niveau seul (M0), la courbe de refus et toute calibration complete restent bornes a CalHardNs.
+    # defaut ; porte au plafond de la disquette (12.11 : Get-UnitCapNs, quart de la cellule de l image ; 470 ns jusqu a la
+    # 12.10) quand le besoin modelise de cette disquette (Raw + delta, arrondi) depasse CalHardNs sur un cylindre de
+    # reference non nulle hors Clip, pour une forme adaptee (modele autre que M0, M0+c compris) seulement. Une borne
+    # precompMaxNs au moins egale a ce plafond reste telle quelle ; la reference, le niveau seul (M0), la courbe de refus
+    # et toute calibration complete restent bornes a CalHardNs.
     # 12.8 (F3R-FIX, constat 4) : seuil de declenchement max(CalHardNsDefault, CalHardNs) : besoin au-dela de 400 ns, ou de
     # la borne reglee si elle est plus haute. 12.8 (S3-FLUX, decision 3 du 21/10/2026) : borne precompMaxNs reglee sous
-    # CalHardNsDefault (400 ns) : respectee, sans relevement par disquette (F3R-FIX : plafond porte a 470 ns pour un besoin
-    # au-dela de 400 ns), comme Get-DiskHardNs
-    $base = [int]$script:CalHardNs; $ext = [int]$script:CalHardMaxNs
+    # CalHardNsDefault (400 ns) : respectee, sans relevement par disquette, comme Get-DiskHardNs
+    $base = [int]$script:CalHardNs; $ext = Get-UnitCapNs $u
     if ($ext -le $base -or $base -lt [int]$script:CalHardNsDefault -or -not $model -or $model -eq 'M0') { return $base }
     $thr = [math]::Max([int]$script:CalHardNsDefault, $base)
     $V = $u.ShapeV.V; $need = $null
@@ -942,7 +942,7 @@ function Get-LevelAdaptOutcome($cal, $u) {
     # verdict, forme, reserves (Info : reserve « information » de la fenetre de decision), lignes du journal.
     # 12.8 (F3R, v3f.py complete) : tete adaptee :
     #  - e4 : correction de derive appliquee AVANT le plafond (cylindre plafonne a la verification : besoin + delta) ;
-    #  - plafond par disquette (decision 2) : courbe adaptee jusqu a CalHardMaxNs quand son besoin depasse CalHardNs
+    #  - plafond par disquette (decision 2 ; 12.11 : Get-UnitCapNs) : courbe adaptee portee au-dela de CalHardNs par son besoin
     #    (Get-LevelAdaptHard) : reserve d information « au-dela de la borne », controle apres ecriture (G1, modele) ;
     #  - Bk : niveau corrige de la derive et dit verifie (J2) ;
     #  - reserve de centre (terme de centre non verifie par une ecriture du motif) et de controle (e2) : J3, R1 ;
@@ -1034,6 +1034,7 @@ function Get-LevelAdaptOutcome($cal, $u) {
                 # Plafond par disquette : reserve d information (comme le plafond atteint), controle apres ecriture deja impose
                 $top = ($vals | Measure-Object -Maximum).Maximum
                 Append-Log ($pfx + ((T "Courbe adaptée au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns) : le besoin de cette disquette dépasse la borne precompMaxNs ; plafond porté à {3} ns pour cette disquette seulement ; contrôle après écriture imposé.") -f "$mx", (Format-CylList ([int[]]$r.Over)), "$top", "$hh"))
+                Append-Log ($pfx + (Get-DiskOverAdviceText $mx))   # 12.11 : conseil d essai sur la machine cible
                 $iss.Add(@{ Text = $pfx + ((T "courbe adaptée au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns, plafond porté à {3} ns pour cette disquette seulement) : contrôle après écriture imposé") -f "$mx", (Format-CylList ([int[]]$r.Over)), "$top", "$hh"); Info = $true })
             }
             if (@($an.Reserve).Count -gt 0) {
@@ -1052,9 +1053,9 @@ function Get-LevelAdaptOutcome($cal, $u) {
                 $iss.Add(@{ Text = $pfx + ($it -f (Format-LevelSigned $dEnd), "$last"); Info = $true })
             }
         }
-        if ($r.Sat.Count -gt 0 -and $hh -ge [int]$script:CalHardMaxNs) {
-            # Plafond de la disquette (CalHardMaxNs) atteint : borne haute, plus reglable (12.8, F3R-FIX, constat 9 : aussi
-            # quand precompMaxNs vaut deja CalHardMaxNs)
+        if ($r.Sat.Count -gt 0 -and ($hh -gt $mx -or $hh -ge [int]$script:CalHardMaxNs)) {
+            # 12.11 : plafond de la disquette applique ($hh au-dela de la borne : Get-UnitCapNs), ou reglage precompMaxNs deja
+            # a son maximum CalHardMaxNs (12.8, F3R-FIX, constat 9) : plus de conseil de relever la borne
             Append-Log ($pfx + ((T 'Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés.') -f "$hh", (Format-CylList ([int[]]$r.Sat))))
             $iss.Add(@{ Text = $pfx + ((T 'plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés') -f "$hh", (Format-CylList ([int[]]$r.Sat))); Info = $true })
         } elseif ($r.Sat.Count -gt 0) {
@@ -1149,7 +1150,7 @@ function Set-LevelBrandStart($cal, $u, [string]$brand) {
     # forme d adaptation, Clip, cylindres de niveau et de controle : ceux de la reference (V0, FIX1C) ; niveau de depart :
     # mediane des niveaux mesures depuis avec cette courbe (0 a la mesure). Garde de la passe 1 : Get-LevelBrandCurveGuard
     if (Test-LevelBrandCurve $en @($u.V).Count) {
-        $u.V = Get-LevelBrandCurveValues $en $u.V
+        $u.V = Get-LevelBrandCurveValues $en $u.V ([int]$u.ImgBits)   # 12.11 : plafond de l image (0 sans densite)
         $u.D0 = [int][math]::Round([double]$en.A); $u.D = $u.D0
         $ld = @(@($en.Levels) | Where-Object { $_ } | Sort-Object { Get-CurveDate $_ })
         $u.Memo = @{ Brand = [string]$en.Brand; A = [double]$en.A; S = 0.0; B = 0.0; N = [int]$en.N; Model = 'Mc'; Curve = $true; CurveDate = [string]$en.CurveDate
@@ -1271,13 +1272,47 @@ function Test-LevelAdaptedSpec([string[]]$specs) {
     return $false
 }
 
-function Get-DiskHardNs {
+function Get-DiskCellNs([int]$bits) {
+    # 12.11 : cellule (ns) d une piste de $bits cellules a 300 tr/min (un tour de 200 ms) : celle du plafond par disquette
+    # (Get-DiskCapNs) et de la ligne de journal qui l annonce (Start-PrecompCalib)
+    return 200000000.0 / $bits
+}
+
+function Get-DiskCapNs([int]$bits = 0) {
+    # 12.11 : plafond de precompensation d une disquette, seule decision : quart (CalDiskCapCell) de la cellule de l image
+    # ecrite, arrondi au ns inferieur, CalDiskCapMaxNs (500 ns) au plus. $bits : cellules par piste du motif de la
+    # calibration en cours (PatternBits : densite de l image). Au quart de la cellule, un intervalle ecrit atteint sa
+    # frontiere de decision : 500 ns pour 2 us, 493 ns pour un ADF AmigaDOS (101 344 cellules), 472 a 474 ns en long track
+    # (105 808 a 105 312 cellules), au lieu de CalHardMaxNs (470 ns) pour toutes jusqu a la 12.10. Sans densite ($bits a
+    # 0 : unite d une suite sans interface) : CalHardMaxNs. Aucun cas particulier pour la haute densite, qui n emprunte
+    # aucun chemin du plafond par disquette (Get-LevelRef la refuse). Aucune mesure sur materiel au-dela de 470 ns : la
+    # regle repose sur la simulation du decodage (560)
+    if ($bits -le 0) { return [int]$script:CalHardMaxNs }
+    return [int][math]::Min([double]$script:CalDiskCapMaxNs, [math]::Floor([double]$script:CalDiskCapCell * (Get-DiskCellNs $bits)))
+}
+
+function Get-UnitCapNs($u) {
+    # 12.11 : plafond par disquette d une unite de la calibration rapide : densite de l image gardee par New-LevelCalUnits
+    # (ImgBits) ; unite sans ce champ : repli de Get-DiskCapNs (CalHardMaxNs)
+    $b = 0
+    if ($u -and $null -ne $u.ImgBits) { $b = [int]$u.ImgBits }
+    return (Get-DiskCapNs $b)
+}
+
+function Get-DiskOverAdviceText([int]$thr) {
+    # 12.11 : conseil « machine cible », ecrit au journal apres chaque ligne « ... au-dela de {0} ns ... » d une courbe
+    # portee au-dela de la borne pour une disquette (forme adaptee, forme d une marque, mesure complete de cette disquette)
+    return ((T "Au-delà de {0} ns, la calibration ne compense que la chaîne d'écriture et de relecture de ce lecteur : essayez la disquette écrite sur la machine à laquelle elle est destinée (un vrai Amiga, par exemple) avant de vous y fier.") -f "$thr")
+}
+
+function Get-DiskHardNs([int]$bits = 0) {
     # 12.8 (S3, decisions du 21/10/2026) : borne de la courbe d une seule disquette (mesure complete de cette disquette,
-    # courbe complete d une marque) : plafond par disquette CalHardMaxNs (470 ns) ; borne precompMaxNs reglee sous
-    # CalHardNsDefault (400 ns) : celle de l utilisateur, sans relevement par disquette (decision 3)
+    # courbe complete d une marque) : plafond par disquette (12.11 : Get-DiskCapNs de la densite $bits ; 470 ns jusqu a la
+    # 12.10), ou la borne precompMaxNs si elle est plus haute ; borne reglee sous CalHardNsDefault (400 ns) : celle de l
+    # utilisateur, sans relevement par disquette (decision 3)
     $user = [int]$script:CalHardNsUser
     if ($user -lt [int]$script:CalHardNsDefault) { return $user }
-    return [int][math]::Max($user, [int]$script:CalHardMaxNs)
+    return [int][math]::Max($user, (Get-DiskCapNs $bits))
 }
 
 function Get-DiskOverNs {
@@ -1304,10 +1339,11 @@ function Test-LevelBrandCurve($en, [int]$nRef) {
     return [bool]($n -ge 2 -and [string]$en.CurveCalc -eq [string]$script:CalibCalc -and [math]::Abs($n - $nRef) -le 4)
 }
 
-function Get-LevelBrandCurveValues($en, $vref) {
+function Get-LevelBrandCurveValues($en, $vref, [int]$bits = 0) {
     # 12.8 (S3) : courbe de la marque ramenee aux cylindres de la reference : valeurs en trop retirees ; cylindres manquants
     # (reference plus longue) : reference decalee de l ecart du dernier cylindre de la courbe ; bornee a 0..Get-DiskHardNs
-    $cap = Get-DiskHardNs
+    # (12.11 : de la densite $bits de l image a ecrire)
+    $cap = Get-DiskHardNs $bits
     $cv = @($en.Curve); $rv = @($vref); $n = $rv.Count; $m = $cv.Count
     $off = [double]$cv[$m - 1] - [double]$rv[[math]::Min($m, $n) - 1]
     $out = New-Object int[] $n

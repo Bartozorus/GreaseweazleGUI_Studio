@@ -340,7 +340,7 @@ function Build-LevelValues($u, [int]$d, $e, [int]$Hard = 0) {
     # Noms distincts de la reference ($ref) et de sa valeur ($rv) : PowerShell ignore la casse ($V et $v seraient une
     # seule variable)
     # 12.8 (F3R, decision 2) : Hard (> 0) : plafond des valeurs et de Sat (courbe de la forme d une marque dont le besoin
-    # depasse CalHardNs : jusqu a CalHardMaxNs) ; Clip reste decide contre CalHardNs (un reglage, pas un besoin), et la zone
+    # depasse CalHardNs : jusqu au plafond de la disquette) ; Clip reste decide contre CalHardNs (un reglage), et la zone
     # du temoin du plafond reste a CalHardNs (G6). RawMax : besoin le plus fort hors Clip (reference ou V' + niveau)
     $base = [int]$script:CalHardNs; $max = if ($Hard -gt 0) { $Hard } else { $base }
     $rmax = Get-CurveMaxNs $u.Cv; $ref = @($u.V); $n = $ref.Count
@@ -402,7 +402,7 @@ function Build-LevelValues($u, [int]$d, $e, [int]$Hard = 0) {
     return @{ Values = $out; Sat = $sat; Floor = $floor; ProbeNote = $note; Clip = $clip; RawMax = $rawMax; Hard = $max }
 }
 
-function New-LevelCalUnits($lr, [string]$brand, [string]$drive) {
+function New-LevelCalUnits($lr, [string]$brand, [string]$drive, [int]$Bits = 0) {
     # Unites de la calibration rapide (Start-LevelCalib ; suite calib-lvl2, sans interface) : une par tete ou une pour la
     # courbe commune, cibles de la premiere passe. 12.8 (lot 1c) : etat de la calibration rapide adaptative ; V0 :
     # reference du lecteur (ShapeV), V : reference ou point de depart de la marque (V', Set-LevelBrandStart) ; cylindres
@@ -417,7 +417,7 @@ function New-LevelCalUnits($lr, [string]$brand, [string]$drive) {
         $u.Mode = 'lvl1'; $u.Raw = @{}; $u.V0 = [int[]]@($lu.V); $u.Memo = $null; $u.BrandEntry = $null; $u.AN = $null; $u.AV = $null; $u.VR = $null
         $u.Named = @{}; $u.Refus = ''; $u.Trig = $null; $u.Note = ''; $u.AdaptNote = ''; $u.AdaptLog = $null; $u.Ctl = [int[]]@()
         # 12.8 (F3R) : controles integres a l ajustement par une reprise e3 (CtlFit), reserve de controle e2 (motif, controles)
-        $u.CtlFit = [int[]]@(); $u.CtlReserve = ''; $u.CtlBad = @()
+        $u.CtlFit = [int[]]@(); $u.CtlReserve = ''; $u.CtlBad = @(); $u.ImgBits = $Bits   # 12.11 : ImgBits, cellules par piste du motif (densite de l image ; 0 sans elle) : plafond par disquette (Get-UnitCapNs)
         Set-LevelBrandStart @{ Drive = $drive; Family = [string]$lr.Family } $u $brand
         $u.ShapeV = New-LevelShape $u.V0
         foreach ($c in @(@($u.LCyls) + @($u.Wit) + @($(if ($null -ne $u.Probe) { $u.Probe })))) { $u.Results[[int]$c] = @{} }
@@ -509,7 +509,7 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     try { $pat = New-CalibPattern $fam $img $lr.NCyl }
     catch { [void](Show-AppMessage ((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)") (T 'Calibration precomp') 'OK' 'Error'); return }
     Set-CalibScale $fam     # 12.7 : bareme double densite (pas de calibration rapide en haute densite, Get-LevelRef)
-    $units = New-LevelCalUnits $lr $brand ([string]$cmbDrive.Text)
+    $units = New-LevelCalUnits $lr $brand ([string]$cmbDrive.Text) ([int]$pat.Bits)
     $cylList = Format-CylList $cyls
     $script:Cal = @{
         Mode = 'level'; Stage = 'level'; LPass = 1; Cyls = $cyls; MaxCyl = $lr.MaxCyl; Family = $fam; Slow = $slow
@@ -976,14 +976,14 @@ function Get-LevelUnitResults($cal, [string]$date) {
             $shape = Test-LevelShape $e $u 1.0; $u.Shape = $shape
             $bv = Build-LevelValues $u ([int]$u.Level) $e
             # 12.8 (F3R, decision 2) : courbe de la forme d une marque (V' + niveau, courbe adaptee, G1) dont le besoin depasse
-            # CalHardNs : plafond porte a CalHardMaxNs pour cette disquette ; la reference seule reste a CalHardNs. 12.8
-            # (F3R-FIX, constat 4) : seuil max(CalHardNsDefault, CalHardNs), comme Get-LevelAdaptHard. 12.8 (S3-FLUX,
-            # decision 3) : borne precompMaxNs reglee sous CalHardNsDefault : respectee, sans relevement par disquette
-            $memoExt = $false
+            # CalHardNs : plafond porte a celui de cette disquette (12.11 : Get-UnitCapNs, quart de la cellule de l image ; 470 ns
+            # avant) ; la reference seule reste a CalHardNs. 12.8 (F3R-FIX, constat 4) : seuil max(CalHardNsDefault, CalHardNs),
+            # comme Get-LevelAdaptHard. 12.8 (S3-FLUX, decision 3) : borne precompMaxNs reglee sous CalHardNsDefault : respectee
+            $memoExt = $false; $capD = Get-UnitCapNs $u
             $memoThr = [math]::Max([int]$script:CalHardNsDefault, [int]$script:CalHardNs)
-            if ($u.Memo -and [int]$script:CalHardMaxNs -gt [int]$script:CalHardNs -and [int]$script:CalHardNs -ge [int]$script:CalHardNsDefault -and $null -ne $bv.RawMax -and [double]$bv.RawMax -gt $memoThr) {
-                $bv = Build-LevelValues $u ([int]$u.Level) $e -Hard ([int]$script:CalHardMaxNs)
-                $memoExt = $true; $hard = [int]$script:CalHardMaxNs
+            if ($u.Memo -and $capD -gt [int]$script:CalHardNs -and [int]$script:CalHardNs -ge [int]$script:CalHardNsDefault -and $null -ne $bv.RawMax -and [double]$bv.RawMax -gt $memoThr) {
+                $bv = Build-LevelValues $u ([int]$u.Level) $e -Hard $capD
+                $memoExt = $true; $hard = $capD
                 $over = @(0..(@($bv.Values).Count - 1) | Where-Object { [int]$bv.Values[$_] -gt [int]$script:CalHardNs })
             }
             foreach ($c in @($e.Outliers)) { Append-Log ($pfx + ((T "Écart isolé à c{0} ({1} ns par rapport à la forme) : défaut ponctuel probable de cette disquette, écarté du niveau.") -f "$c", ('{0:+0;-0;0}' -f [math]::Round($e.Ds[[int]$c] - $e.Delta, 0)))) }
@@ -1034,7 +1034,7 @@ function Get-LevelUnitResults($cal, [string]$date) {
             }
             elseif ($bv.ProbeNote -eq 'cap') { Append-Log ($pfx + ((T "Zone plafonnée de la référence (c{0} à c{1}) : le besoin dépasse encore {2} ns au témoin c{1} ; zone portée jusqu'à {2} ns.") -f "$($u.CapLo)", "$($u.Probe)", "$($script:CalHardNs)")) }
             if ($memoExt) {
-                # Plafond par disquette (forme d une marque) : plafond de CalHardMaxNs atteint, courbe au-dela de CalHardNs
+                # Plafond par disquette (forme d une marque) : plafond de la disquette ($hard) atteint, courbe au-dela de CalHardNs
                 if ($bv.Sat.Count -gt 0) {
                     Append-Log ($pfx + ((T 'Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés.') -f "$hard", (Format-CylList ([int[]]$bv.Sat))))
                     $issues.Add($pfx + ((T 'plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés') -f "$hard", (Format-CylList ([int[]]$bv.Sat)))); $info.Add($true)
@@ -1042,6 +1042,7 @@ function Get-LevelUnitResults($cal, [string]$date) {
                 if ($over.Count -gt 0) {
                     $top = (@($bv.Values) | Measure-Object -Maximum).Maximum
                     Append-Log ($pfx + ((T "Courbe adaptée au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns) : le besoin de cette disquette dépasse la borne precompMaxNs ; plafond porté à {3} ns pour cette disquette seulement ; contrôle après écriture imposé.") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$over)), "$top", "$hard"))
+                    Append-Log ($pfx + (Get-DiskOverAdviceText ([int]$script:CalHardNs)))   # 12.11 : conseil d essai sur la machine cible
                     $issues.Add($pfx + ((T "courbe adaptée au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns, plafond porté à {3} ns pour cette disquette seulement) : contrôle après écriture imposé") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$over)), "$top", "$hard")); $info.Add($true)
                 }
             }

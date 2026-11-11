@@ -174,8 +174,8 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     # @() autour du if : une seule unite resterait sinon une hashtable nue ($cal.Units[0] = $null)
     Set-CalibScale $family     # 12.7 : bareme de la famille (amplitudes haute densite), apres les sorties anticipees
     # 12.8 (S3) : borne de la courbe de cette disquette (Get-DiskHardNs : plafond par disquette, ou precompMaxNs reglee sous
-    # 400 ns) pendant la mesure complete, retablie a sa fin (Reset-DiskHardNs)
-    if ($do) { Set-DiskHardNs @{ DiskOnly = $true; HardNs = [int]$do.HardNs } }
+    # 400 ns) pendant la mesure complete, retablie a sa fin (Reset-DiskHardNs). 12.11 : calculee ici, la densite du motif connue
+    if ($do) { $do.HardNs = Get-DiskHardNs ([int]$pat.Bits); Set-DiskHardNs @{ DiskOnly = $true; HardNs = [int]$do.HardNs } }
     $units = @(if ($slow) { (New-CalibUnit 0), (New-CalibUnit 1) } else { New-CalibUnit $null })
     foreach ($u in $units) { foreach ($c in $cyls) { $u.Results[[int]$c] = @{} } }
     $script:Cal = @{
@@ -227,12 +227,12 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         Append-Log ((T "Calibration croisée : la courbe mesure le besoin du lecteur {1} à la relecture des écritures du lecteur {0} ; elle est enregistrée sous la clé « {0}>{1} », pour les écritures du lecteur {0} destinées au lecteur {1}. Pour ces écritures, le contrôle après écriture relit avec le lecteur {0} (pas avec le lecteur cible) ; la mesure de la disquette et la calibration rapide ne sont pas faites.") -f "$($cx.Src)", "$($cx.Tgt)")
     }
     elseif ($do) {
-        # 12.8 (S3) : mesure complete de cette disquette : marque, borne de la courbe, reference en place (Get-LevelRef)
+        # 12.8 (S3) : mesure complete de cette disquette : marque, borne (12.11 : au-dela du seuil, quart de la cellule de l image, Get-DiskCapNs), reference en place (Get-LevelRef)
         $script:Cal.DiskOnly = $true; $script:Cal.Brand = [string]$do.Brand; $script:Cal.HardNs = [int]$do.HardNs; $script:Cal.DiskRef = $do.Ref
         Append-Log ((T "=== Mesure complète de cette disquette : lecteur {0}, image {1} ({2}, {3}) ; référence du lecteur inchangée ===") -f "$($cmbDrive.Text)", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$modeTxt")
         if ($do.Brand) { Append-Log ((T 'Marque de la disquette insérée : « {0} ».') -f "$($do.Brand)") }
         $thr = Get-DiskOverNs
-        if ([int]$do.HardNs -gt $thr) { Append-Log ((T "Borne de la courbe de cette disquette : {0} ns ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$($do.HardNs)", "$thr") }
+        if ([int]$do.HardNs -gt $thr) { Append-Log ((T "Borne de la courbe de cette disquette : {0} ns, le quart de la cellule de l'image ({2} ns), {3} ns au plus ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$($do.HardNs)", "$thr", "$([int][math]::Round((Get-DiskCellNs ([int]$pat.Bits))))", "$($script:CalDiskCapMaxNs)") }
         else { Append-Log ((T "Borne de la courbe de cette disquette : {0} ns (precompMaxNs).") -f "$($do.HardNs)") }
         # 12.8 (S3-HIGH) : duree estimee et ecritures par piste au plus (avertissement M1)
         Append-Log ((T "Durée estimée de la mesure : environ {0} min ; {1} min au plus avec la mesure directe des cylindres dont le besoin dépasse {2} ns et {3} nouveaux essais au plus des cylindres non convergés.") -f "$minutes", "$minDisk", "$mxDisk", "$($script:CalDiskMaxRetest)")
@@ -332,7 +332,7 @@ function Start-DiskMeasure($lr, [string]$brand) {
         Append-Log (T "Mesure complète de cette disquette impossible : elle demande la référence du lecteur par tête (écriture lente). Écriture annulée.")
         return
     }
-    $script:CalDiskOnly = @{ Brand = [string]$brand; HardNs = (Get-DiskHardNs); Ref = $lr }
+    $script:CalDiskOnly = @{ Brand = [string]$brand; HardNs = 0; Ref = $lr }   # 12.11 : HardNs pose par Start-PrecompCalib (Get-DiskHardNs de la densite du motif)
     $script:AfterCalib = 'write'
     Start-PrecompCalib -ForceFine -Heads $true
     $script:CalDiskOnly = $null      # deja remis a $null par Start-PrecompCalib (premiere instruction)
@@ -2216,6 +2216,7 @@ function Complete-PrecompCalib {
             if ($ov.Count -gt 0) {
                 $top = [int](@($u.Fit.Values) | Measure-Object -Maximum).Maximum
                 Append-Log ($u.Prefix + ((T "Courbe de cette disquette au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns) : plafond porté à {3} ns pour cette disquette seulement ; contrôle après écriture imposé.") -f "$thr", (Format-CylList $ov), "$top", "$($cal.HardNs)"))
+                Append-Log ($u.Prefix + (Get-DiskOverAdviceText $thr))   # 12.11 : conseil d essai sur la machine cible
                 $issues.Add($u.Prefix + ((T "courbe de cette disquette au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns, plafond porté à {3} ns pour cette disquette seulement) : contrôle après écriture imposé") -f "$thr", (Format-CylList $ov), "$top", "$($cal.HardNs)")); $kinds.Add('over')
             }
         }

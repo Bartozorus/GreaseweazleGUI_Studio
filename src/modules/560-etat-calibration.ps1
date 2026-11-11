@@ -42,12 +42,12 @@ $script:CalMaxNs     = 300
 # Borne absolue d une valeur de precomp (zero estime, courbe, verification, plafond Sat/plancher des residus) : gw 1.23
 # n impose aucune borne (PrecompSpec int(v), Precomp.apply sans clamp) ; en MFM 2 us, un intervalle court ecrit vaut
 # 4 us - 2t, 400 ns = 0,2 cellule ; simulation du PLL de gw : premier echec vers 540 ns (2 us), 507 ns (long track
-# 1,89 us). Reglable dans la configuration (write.precompMaxNs), de 300 ns (plafond des mesures) a 470 ns (un quart de
-# cellule long track : chaque intervalle ecrit atteint alors sa frontiere de decision) ; chaque courbe enregistre la borne
-# de son calcul (maxNs).
+# 1,89 us). Reglage write.precompMaxNs : de 300 ns (plafond des mesures) a CalHardMaxNs, 470 ns (un quart de cellule long
+# track : chaque intervalle ecrit y atteint sa frontiere de decision) ; chaque courbe enregistre la borne de son calcul (maxNs).
 $script:CalHardNsDefault = 400
 $script:CalHardMinNs = 300
-$script:CalHardMaxNs = 470
+$script:CalHardMaxNs = 470   # 12.11 : borne haute du reglage precompMaxNs, et repli sans densite du plafond par disquette ci-dessous
+$script:CalDiskCapCell = 0.25; $script:CalDiskCapMaxNs = 500   # 12.11 : plafond par disquette (Get-DiskCapNs, 265) : part de la cellule de l image, et ns au plus
 $script:CalHardNs    = $script:CalHardNsDefault
 # Zero extrapole au-dela de CalMaxNs incertain (plus de CalTrendSig ns, 25 % de 50 ns) ou sans pente propre : combine avec
 # la tendance de la courbe, droite sur les CalTrendN derniers cylindres fiables, a CalTrendSpan cylindres au plus en test
@@ -240,8 +240,8 @@ $script:LevelNwcDelta       = 24     # base de confirmation d une pente nulle (n
 $script:LevelAdaptTrigF1    = $false # declenchement des la passe 1 sur une forme non conforme a f = 1 (non retenu, § 2.3)
 # 12.8 (F3R, decisions du 21/10/2026, v128\c3\final\v3f.py) : terme de centre hc ((c - C0)+ / (n - 1 - C0))^2 de la forme
 # adaptee, ajuste sur les controles (passe 3) ou repris d un refus de la passe de mesure (e3) ; reglages (H) de
-# c3-variantes.md § 2.1. Plafond par disquette : CalHardMaxNs (470 ns), borne haute de write.precompMaxNs, pour la seule
-# courbe adaptee dont le besoin depasse CalHardNs (la reference et toute calibration complete restent a CalHardNs)
+# c3-variantes.md § 2.1. Plafond par disquette (12.11 : Get-DiskCapNs, quart de la cellule de l image, et non plus
+# CalHardMaxNs) pour la seule courbe adaptee dont le besoin depasse CalHardNs (reference et calibration complete : CalHardNs)
 $script:LevelCenterC0       = 60     # debut du terme de centre (= LevelAdaptCtlLo)
 $script:LevelCenterMinOther = 3.0    # appui : un autre cylindre du centre, meme sens, au moins max(3 ns ; 1 et.)
 $script:LevelCenterOpp      = 8.0    # aucun cylindre du centre en sens contraire au-dela de max(8 ns ; 2 et.)
@@ -269,8 +269,8 @@ $script:CalCrossAsk = $null
 # Set-Defaults et « Effacer les calibrations » (les courbes croisees, elles, sont effacees)
 $script:TargetDrives = @{}
 # 12.8 (S3, decision du 21/10/2026) : mesure complete de cette disquette demandee par Start-DiskMeasure (@{ Brand ; HardNs ;
-# Ref }) : lue et remise a $null au debut de Start-PrecompCalib (signature inchangee : enveloppes de make-test) ;
-# calibration rapide relancee sans marque apres la garde de la passe 1 (W-M2) : lu et remis a $false par Start-LevelCalib
+# Ref } ; 12.11 : HardNs pose par Start-PrecompCalib, la densite du motif connue) : lue et remise a $null au debut de
+# Start-PrecompCalib (signature inchangee : make-test) ; relance sans marque (W-M2) : lu et remis a $false par Start-LevelCalib
 $script:CalDiskOnly = $null
 $script:LevelNoBrand = $false
 # 12.7 : bareme de la calibration par famille. Les amplitudes ci-dessus (ns de precompensation, ou de decalage rapporte a

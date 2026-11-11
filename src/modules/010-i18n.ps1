@@ -2008,7 +2008,6 @@ $script:I18n["Cette disquette sera effacée, puis l'image y sera écrite."] = 'T
 $script:I18n['Lancer la mesure complète'] = 'Start the full measurement'
 $script:I18n["Nom libre : marque, année ou lot. La courbe mesurée est mémorisée pour cette marque : les disquettes suivantes de cette marque en partent, avec une calibration rapide. Sans marque, elle ne sert qu'à cette écriture."] = 'Free name: brand, year or batch. The measured curve is stored for this brand: the next disks of this brand start from it, with a quick calibration. Without a brand, it is used for this write only.'
 $script:I18n["=== Mesure complète de cette disquette : lecteur {0}, image {1} ({2}, {3}) ; référence du lecteur inchangée ==="] = '=== Full measurement of this disk: drive {0}, image {1} ({2}, {3}); drive reference unchanged ==='
-$script:I18n["Borne de la courbe de cette disquette : {0} ns ; au-delà de {1} ns, contrôle après écriture imposé."] = 'Curve bound for this disk: {0} ns; above {1} ns, post-write check enforced.'
 $script:I18n["Borne de la courbe de cette disquette : {0} ns (precompMaxNs)."] = 'Curve bound for this disk: {0} ns (precompMaxNs).'
 $script:I18n["Mesure complète de cette disquette impossible : elle demande la référence du lecteur par tête (écriture lente). Écriture annulée."] = 'Full measurement of this disk not possible: it needs the per-head drive reference (slow write). Write cancelled.'
 $script:I18n["Écriture annulée : la mesure complète de cette disquette n'a pas été lancée."] = 'Write cancelled: the full measurement of this disk was not started.'
