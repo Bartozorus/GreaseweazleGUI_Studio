@@ -70,7 +70,7 @@ Vingt tests viennent de la campagne hors dépôt des versions 12.9 et 12.10 ; le
 | `logic-barre-etat-restauration` | `logic-1210-rc11` | Barre d'état de la restauration, échec du lancement de gw |
 | `logic-calib-bout-en-bout` | `logic-129-cal2-e2e` | Calibration simulée de bout en bout, graine fixe (scénario HD avec `-Base` seulement) |
 | `logic-calib-croisee` | `logic-1210-cross-k` | Calibration croisée simulée de bout en bout |
-| `logic-calib-niveaux-asymetrie` | `logic-1210-asym-d` | Niveaux de mesure par famille, asymétrie de référence |
+| `logic-calib-niveaux-asymetrie` | `logic-1210-asym-d` | Niveaux de mesure par famille, relevé de l'asymétrie du motif à la calibration (12.11 : cas de la correction retirée supprimés) |
 | `logic-calib-nouvel-essai` | `logic-129-cal2-retest-1210` | Nouvel essai, cylindre non convergé |
 | `logic-calib-pente-modele` | `logic-1210-slope` | Erreur de modèle aux forts besoins (profil synthétique ; `-Prof` pour un profil réel) |
 | `logic-cible-refus` | `logic-1210-fix1-rc5-d` | Lecteur cible : refus (secteurs durs, courbe croisée absente), rapport |
@@ -96,6 +96,7 @@ Les tests écrits depuis la 12.11 portent dès l'origine le nom de leur thème :
 |---|---|
 | `logic-ecriture-onglet` | Textes indicatifs des champs vides entiers dans leur champ, en français et en anglais ; entrées anglaises de la table I18n (aucune clé de `T()` sans entrée, aucune clé redéfinie par `019-i18n-1211.ps1`) |
 | `logic-gw-lancement` | Lancement de gw en trois temps (`Start-Gw`) : démarrage seul dans le premier `try`, suivi du processus posé aussitôt hors de tout `try`, suite du démarrage dans un second `try` ; texte réel de ce second `try` exécuté avec un faux processus : une exception n'écrit qu'une ligne au journal, sans abandonner le suivi ni la séquence en cours |
+| `logic-qualite-asymetrie` | Asymétrie signée : signe d'une piste et texte de la case « Asym. », résumé d'un résultat et sa phrase (seuil de 80 %, médiane hors classe verte, anglais), ligne « Asymétrie » de l'export, journal de la mesure réelle (`Invoke-AlignAnalysis`) et du contrôle (`Show-WriteCheckTable`), infobulles du tableau et de la carte, largeur de la case ; score d'une piste inchangé (valeurs de la 12.10 pour 32 pistes factices) ; avec `-Before`, équivalence avec la 12.10 : mêmes scores, mêmes états, mêmes commandes de réécriture |
 
 ## Intégration continue
 
@@ -108,4 +109,4 @@ Les résultats sous 5.1 peuvent différer de ceux du poste de développement sou
 ## Ce qui reste hors du dépôt
 
 - Les essais sur matériel et le banc de test de l'interface, qui pilote les fenêtres réelles de l'application.
-- Les tests qui rejouent des données réelles (journaux de calibration, relevés, lectures `.scp`) ou qui comparent la source à une copie d'une version antérieure. `logic-qualite-hors-classe -Reads <dossier> -Before <copie de la source d'avant>`, `logic-calib-bout-en-bout -Base <copie>` et `logic-calib-pente-modele -Prof <fichier>` rejouent ces cas sur le poste qui a ces données.
+- Les tests qui rejouent des données réelles (journaux de calibration, relevés, lectures `.scp`) ou qui comparent la source à une copie d'une version antérieure. `logic-qualite-hors-classe -Reads <dossier> -Before <copie de la source d'avant>`, `logic-calib-bout-en-bout -Base <copie>`, `logic-calib-pente-modele -Prof <fichier>` et `logic-qualite-asymetrie -Before <copie de la source de la 12.10>` rejouent ces cas sur le poste qui a ces données.

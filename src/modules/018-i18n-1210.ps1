@@ -35,10 +35,9 @@ $script:I18n['Jitter ns'] = 'Jitter ns'
 $script:I18n['Écart 3T'] = '3T deviation'
 $script:I18n['Écart 4T'] = '4T deviation'
 $script:I18n['Cellule ns'] = 'Cell ns'
-# Asymetrie corrigee du biais de lecture (190, Set-TrackAsymRef, export)
-$script:I18n["Mesure : asymétrie et score corrigés du biais de lecture du lecteur {0} sur {1} piste(s), d'après le motif de sa calibration (famille d'après la cellule mesurée)."] = 'Measure: asymmetry and score corrected for the read bias of drive {0} on {1} track(s), from the pattern of its calibration (family from the measured cell).'
+# Libelle de la ligne « Asymetrie » de l en-tete de l export (190) ; 12.11 : les deux textes de la correction retiree
+# (ligne du journal, valeur de cette ligne) sont supprimes, le resume de l asymetrie est dans 019
 $script:I18n['Asymétrie'] = 'Asymmetry'
-$script:I18n["corrigée du biais de lecture du lecteur sur {0} piste(s), d'après le motif de sa calibration"] = 'corrected for the read bias of the drive on {0} track(s), from the pattern of its calibration'
 # Hors classe reproductibles d un tour a l autre (190 S13, 170)
 $script:I18n["Mesure : {0} intervalle(s) hors classe reproductibles d'un tour à l'autre à la même position, sur {1} piste(s), non compté(s) : raccord d'écriture d'une longue piste ou protection ; un petit défaut fixe du support (jusqu'à {2} intervalles par tour) y passerait aussi."] = 'Measure: {0} out-of-class interval(s) repeating at the same position from one revolution to the next, on {1} track(s), not counted: write splice of a long track or protection; a small fixed media defect (up to {2} intervals per revolution) would pass too.'
 $script:I18n["Contrôle après écriture : {0} intervalle(s) hors classe reproductibles d'un tour à l'autre à la même position, sur {1} piste(s), non compté(s) : raccord d'écriture d'une longue piste ou protection."] = 'Post-write check: {0} out-of-class interval(s) repeating at the same position from one revolution to the next, on {1} track(s), not counted: write splice of a long track or protection.'

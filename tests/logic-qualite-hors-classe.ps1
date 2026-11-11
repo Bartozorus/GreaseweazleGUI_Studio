@@ -54,7 +54,8 @@ foreach ($fd in (Get-StAst (Join-Path $mods '190-fn-qualite-alignement.ps1')).Fi
 }
 if (-not $found.ContainsKey('Get-ScpStructOoc')) { throw 'Get-ScpStructOoc introuvable' }
 foreach ($st in (Get-StAst (Join-Path $mods '040-etat-formats.ps1')).EndBlock.Statements) {
-    if ($st -is [System.Management.Automation.Language.AssignmentStatementAst] -and $st.Left.Extent.Text -like '$script:Scp*') { [void]$sb.AppendLine($st.Extent.Text) }
+    # 12.11 : $script:ScoreAsymK aussi, poids de l asymetrie que lit Get-TrackScore (2000 en dur jusqu a la 12.10)
+    if ($st -is [System.Management.Automation.Language.AssignmentStatementAst] -and ($st.Left.Extent.Text -like '$script:Scp*' -or $st.Left.Extent.Text -eq '$script:ScoreAsymK')) { [void]$sb.AppendLine($st.Extent.Text) }
 }
 # Reference : boucle lineaire de Get-ScpStructOoc avant la finalisation (HEAD 9249293), renommee. 12.11 : -Before donne
 # la racine d une copie de la source d avant (aucune dans le depot)

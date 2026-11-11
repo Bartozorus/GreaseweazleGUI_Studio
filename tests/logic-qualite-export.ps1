@@ -11,6 +11,11 @@ $Wt = Get-TestRoot $Wt
 # aucune fenetre affichee (System.Windows.Forms charge par Import-TestWinForms, aucun Add-Type). Copy-AlignTable (presse-papiers)
 # n est pas appelee. Culture fr-FR par defaut (virgule decimale, separateur de liste « ; »), en-US pour un cas.
 # Aucun gw, aucune application, aucune fenetre.
+# 12.11 (lot L3) : New-AlignRow appelle Format-AsymCell et l en-tete de l export porte toujours une ligne « Asymetrie »,
+# avant « Pistes » (Get-AsymSummary, Get-AsymSummaryText). Charges en plus : Get-AsymSign, Format-AsymCell,
+# Get-AsymSummary, Get-AsymSummaryText (190), Get-Median (230), Format-UiNum (010), $script:ScoreAsymK et
+# $script:AsymSignPct (040). Adaptes : A2 (libelles de l en-tete), B1 a B7, C1, D1 et F2 (une ligne d en-tete de plus) ;
+# ajoutes : A6 (valeur de la ligne « Asymetrie »), G2 (« - » sans piste lisible).
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 Set-TestCulture 'fr-FR'
@@ -40,8 +45,10 @@ function Get-ExAssign([string]$path, [string]$left) {
 $parts = New-Object System.Collections.Generic.List[string]; $found = @{}
 $d190 = Get-ExFnDefs (Join-Path $mods '190-fn-qualite-alignement.ps1')
 $d195 = Get-ExFnDefs (Join-Path $mods '195-fn-qualite-affichage.ps1')
-foreach ($p in @(@($d190, '190', @('New-AlignRow', 'Get-AlLevel', 'Get-AlignTableExport', 'Format-CsvField', 'ConvertTo-AlignTableText', 'Get-AlignTableSep', 'Export-AlignTable')),
-                 @($d195, '195', @('Get-QualStaleText')))) {
+$d230 = Get-ExFnDefs (Join-Path $mods '230-fn-calib-courbe.ps1')
+$d010 = Get-ExFnDefs (Join-Path $mods '010-i18n.ps1')
+foreach ($p in @(@($d190, '190', @('New-AlignRow', 'Get-AlLevel', 'Get-AlignTableExport', 'Format-CsvField', 'ConvertTo-AlignTableText', 'Get-AlignTableSep', 'Export-AlignTable', 'Get-AsymSign', 'Format-AsymCell', 'Get-AsymSummary', 'Get-AsymSummaryText')),
+                 @($d195, '195', @('Get-QualStaleText')), @($d230, '230', @('Get-Median')), @($d010, '010', @('Format-UiNum')))) {
     foreach ($n in $p[2]) {
         if (-not $p[0].ContainsKey($n)) { throw "fonction $n introuvable dans $($p[1]) (correctif pas encore applique ?)" }
         $parts.Add($p[0][$n].Extent.Text); $found[$n] = "$($p[1]):$($p[0][$n].Extent.StartLineNumber)"
@@ -49,6 +56,7 @@ foreach ($p in @(@($d190, '190', @('New-AlignRow', 'Get-AlLevel', 'Get-AlignTabl
 }
 $parts.Add((Get-ExAssign (Join-Path $mods '000-entete.ps1') '$script:Version'))
 $parts.Add((Get-ExAssign (Join-Path $mods '040-etat-formats.ps1') '$script:QualView'))
+foreach ($k in '$script:ScoreAsymK', '$script:AsymSignPct') { $parts.Add((Get-ExAssign (Join-Path $mods '040-etat-formats.ps1') $k)) }   # 12.11
 $gen = Join-Path $here 'gen-1210-export.ps1'
 [System.IO.File]::WriteAllText($gen, ((@($parts) -join "`r`n`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($true)))
 . $gen
@@ -59,6 +67,7 @@ $script:RLog = New-Object System.Collections.Generic.List[string]
 function Append-Log([string]$text) { $script:RLog.Add($text) }
 function Get-JitterRedBound { return 120.0 }
 $script:JitterOk = 50.0; $script:HealthErrOk = 2
+$script:Lang = 'fr'                                   # 12.11 : lu par Format-UiNum (separateur decimal de la culture)
 $cmbDrive = [pscustomobject]@{ Text = 'Sony (A)' }
 Import-TestWinForms
 try { $bold = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Bold) }
@@ -107,23 +116,25 @@ $x = Get-AlignTableExport
 $labels = @($x.Head | ForEach-Object { [string]$_[0] })
 $vals = @{}; foreach ($h in $x.Head) { $vals[[string]$h[0]] = [string]$h[1] }
 Chk 'A1' (@($x.Rows).Count -eq 4 -and @($x.Cols).Count -eq 12 -and @($x.Rows | Where-Object { @($_).Count -ne 12 }).Count -eq 0) "$(@($x.Rows).Count) ligne(s) de $(@($x.Cols).Count) colonnes"
-Chk 'A2' (($labels -join '|') -eq 'Application|Export|Résultat|Heure du résultat|Lecteur|Têtes|Tours|État du support|Score|Référence|Pistes') "en-tete : $($labels -join ' | ')"
+Chk 'A2' (($labels -join '|') -eq 'Application|Export|Résultat|Heure du résultat|Lecteur|Têtes|Tours|État du support|Score|Référence|Asymétrie|Pistes') "en-tete : $($labels -join ' | ')"
 Chk 'A3' ($vals['Application'] -eq "Greaseweazle Studio $($script:Version)" -and $vals['Résultat'] -eq 'Mesure de la disquette' -and $vals['Heure du résultat'] -eq '01/11/2026 17:49:00' -and $vals['Lecteur'] -eq 'Sony MPF920; A' -and $vals['Têtes'] -eq '0+1' -and $vals['Tours'] -eq '3' -and $vals['Pistes'] -eq '4' -and $vals['Référence'] -eq 'lecteur A, tête 0, 01/11 17:49') "valeurs : $($vals['Application']) ; $($vals['Résultat']) ; $($vals['Heure du résultat']) ; $($vals['Lecteur']) ; $($vals['Têtes']) ; $($vals['Tours']) ; $($vals['Pistes'])"
 Chk 'A4' ($vals['Export'] -match '^\d\d/\d\d/\d{4} \d\d:\d\d:\d\d$') "date d export : $($vals['Export'])"
 Chk 'A5' ($lvAl.Items[0].Tag.M.Score -eq 74 -and $lvAl.Items[1].Tag.M.Weak -and $lvAl.Items[2].Tag.M.Bad) "Tag.M present sur les lignes (score piste 1 : $($lvAl.Items[0].Tag.M.Score))"
+# 12.11 : asymetries 0,025, 0,150 et 0 (ecarts de sens opposes ou nuls) : pas de signe commun, forme courte
+Chk 'A6' ($vals['Asymétrie'] -eq 'médiane 0,025, sans signe commun ; 117 point(s) du score moyen') "ligne « Asymétrie » : $($vals['Asymétrie'])"
 
 # ---------------------------------------------------------------- B : CSV francais
 "--- B : CSV fr-FR (« ; », virgule decimale)"
 $sep = Get-AlignTableSep 'C:\x\gw-qualite.csv'
 $txt = ConvertTo-AlignTableText $x $sep
 $L = Get-Lines $txt
-Chk 'B1' ($sep -eq ';' -and $L.Count -eq 17 -and $L[16] -eq '' -and -not ($txt -replace "`r`n", '').Contains("`n")) "separateur « $sep », $($L.Count - 1) lignes, CRLF seules"
+Chk 'B1' ($sep -eq ';' -and $L.Count -eq 18 -and $L[17] -eq '' -and -not ($txt -replace "`r`n", '').Contains("`n")) "separateur « $sep », $($L.Count - 1) lignes, CRLF seules"
 Chk 'B2' ($L[4] -eq 'Lecteur;"Sony MPF920; A"') "champ avec « ; » entre guillemets : $($L[4])"
-Chk 'B3' ($L[11] -eq 'Piste;État;Erreurs/tour;Trous/tour;Stabilité;Jitter ns;Score;vs réf;Asym.;Écart 3T;Écart 4T;Cellule ns') "colonnes : $($L[11])"
-Chk 'B4' ($L[12] -eq '0.0;SAIN;0,0;0,0;1;23;74;-;0,025;+0,012;-0,013;2000') "piste saine : $($L[12])"
-Chk 'B5' ($L[13] -eq '1.1;À SURVEILLER (zone instable);2,5;0,5;3;1180;1521;+5 %;0,150;-0,060;+0,090;1990') "piste a surveiller, score sans separateur de milliers : $($L[13])"
-Chk 'B6' ($L[14] -eq '3.1;ABSENTE (réécrite x2);-;-;-;-;-;-;-;-;-;-') "piste absente : $($L[14])"
-Chk 'B7' ($L[15] -eq '40.0;NON JUGÉE;0,0;0,0;0;30;30;-;0,000;0,000;0,000;2000') "piste non jugee, ecarts nuls : $($L[15])"
+Chk 'B3' ($L[12] -eq 'Piste;État;Erreurs/tour;Trous/tour;Stabilité;Jitter ns;Score;vs réf;Asym.;Écart 3T;Écart 4T;Cellule ns') "colonnes : $($L[12])"
+Chk 'B4' ($L[13] -eq '0.0;SAIN;0,0;0,0;1;23;74;-;0,025;+0,012;-0,013;2000') "piste saine : $($L[13])"
+Chk 'B5' ($L[14] -eq '1.1;À SURVEILLER (zone instable);2,5;0,5;3;1180;1521;+5 %;0,150;-0,060;+0,090;1990') "piste a surveiller, score sans separateur de milliers : $($L[14])"
+Chk 'B6' ($L[15] -eq '3.1;ABSENTE (réécrite x2);-;-;-;-;-;-;-;-;-;-') "piste absente : $($L[15])"
+Chk 'B7' ($L[16] -eq '40.0;NON JUGÉE;0,0;0,0;0;30;30;-;0,000;0,000;0,000;2000') "piste non jugee, ecarts nuls : $($L[16])"
 $shown = [string]$lvAl.Items[1].SubItems[6].Text
 Chk 'B8' ($shown -ne '1521' -and $shown -match '^1.521$') "score affiche a l ecran avec separateur de milliers (« $shown »), exporte « 1521 »"
 
@@ -134,14 +145,14 @@ $sepE = Get-AlignTableSep 'C:\x\gw-qualite.csv'
 $xe = Get-AlignTableExport
 $LE = Get-Lines (ConvertTo-AlignTableText $xe $sepE)
 Set-TestCulture 'fr-FR'
-Chk 'C1' ($sepE -eq ',' -and $LE[12] -eq '0.0,SAIN,0.0,0.0,1,23,74,-,0.025,+0.012,-0.013,2000') "separateur « $sepE » : $($LE[12])"
+Chk 'C1' ($sepE -eq ',' -and $LE[13] -eq '0.0,SAIN,0.0,0.0,1,23,74,-,0.025,+0.012,-0.013,2000') "separateur « $sepE » : $($LE[13])"
 Chk 'C2' ($LE[8] -eq 'Score,"Qualité de lecture : score 100 - BON, stable"') "texte du score avec virgule entre guillemets : $($LE[8])"
 
 # ---------------------------------------------------------------- D : texte tabule
 "--- D : texte tabule (.txt)"
 $sepT = Get-AlignTableSep 'C:\x\gw-qualite.txt'
 $LT = Get-Lines (ConvertTo-AlignTableText $x $sepT)
-Chk 'D1' ($sepT -eq "`t" -and $LT[4] -eq "Lecteur`tSony MPF920; A" -and $LT[12] -eq "0.0`tSAIN`t0,0`t0,0`t1`t23`t74`t-`t0,025`t+0,012`t-0,013`t2000") "tabulations, « ; » non protege : $($LT[4])"
+Chk 'D1' ($sepT -eq "`t" -and $LT[4] -eq "Lecteur`tSony MPF920; A" -and $LT[13] -eq "0.0`tSAIN`t0,0`t0,0`t1`t23`t74`t-`t0,025`t+0,012`t-0,013`t2000") "tabulations, « ; » non protege : $($LT[4])"
 
 # ---------------------------------------------------------------- E : etats du resultat
 "--- E : resultat perime, controle apres ecriture"
@@ -166,7 +177,7 @@ $bytes = [System.IO.File]::ReadAllBytes($out)
 $body = [System.Text.Encoding]::UTF8.GetString($bytes, 3, $bytes.Length - 3)
 $new = @($script:RLog | Select-Object -Skip $n0)
 Chk 'F1' ($n -eq 4 -and $bytes.Length -gt 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) "4 pistes, BOM UTF-8 ($($bytes.Length) octets)"
-Chk 'F2' ($body -eq (ConvertTo-AlignTableText (Get-AlignTableExport) ';') -or ($body -split "`r`n")[12] -eq '0.0;SAIN;0,0;0,0;1;23;74;-;0,025;+0,012;-0,013;2000') "contenu du fichier = texte « ; »"
+Chk 'F2' ($body -eq (ConvertTo-AlignTableText (Get-AlignTableExport) ';') -or ($body -split "`r`n")[13] -eq '0.0;SAIN;0,0;0,0;1;23;74;-;0,025;+0,012;-0,013;2000') "contenu du fichier = texte « ; »"
 Chk 'F3' ($new.Count -eq 1 -and $new[0] -eq "Qualité : tableau de 4 piste(s) exporté dans $out.") "journal : $($new -join ' / ')"
 Remove-Item -LiteralPath $out -Force
 $lvAl.Items.Clear()
@@ -182,6 +193,8 @@ foreach ($s in @('SAIN', '0,0', '0,0', '1', '23', '1 521', '-', '0,025', '2000')
 [void]$lvAl.Items.Add($it)
 $xg = Get-AlignTableExport
 Chk 'G1' ((@($xg.Rows[0]) -join ';') -eq '5.0;SAIN;0,0;0,0;1;23;1 521;-;0,025;-;-;2000') "repli : $(@($xg.Rows[0]) -join ';')"
+$vg = @{}; foreach ($h in $xg.Head) { $vg[[string]$h[0]] = [string]$h[1] }
+Chk 'G2' ($vg['Asymétrie'] -eq '-') "12.11 : aucune piste lisible avec ses metriques : ligne « Asymétrie » : $($vg['Asymétrie'])"
 
 # ---------------------------------------------------------------- H : cablage (530) et textes anglais (018)
 "--- H : cablage de l onglet et traductions"

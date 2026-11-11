@@ -10,6 +10,11 @@ $Wt = Get-TestRoot $Wt
 # Relecture du CHANGELOG (09/11/2026) : copie adaptee de v1210\asym\logic-1210-asym.ps1, qui la remplace dans la campagne.
 # Adapte : S6 (l asymetrie de reference, correction livree desactivee, passe des Ameliorations a « A savoir » sous
 # « Asymetrie en long track »).
+# 12.11 (lot L3) : correction de l asymetrie par la reference du motif retiree (Get-AsymRefTable, Get-AsymRefs,
+# Set-TrackAsymRef, drapeau QualAsymRefOn). Cas retires avec ces fonctions : R1 a R4 (reference par famille, tete et
+# lecteur) et C0 a C4 (correction d une piste). Cas adaptes : S4 (plus aucun appel de la correction dans 190 et 170)
+# et S5 (cles de la correction absentes de la table, « Asymetrie » gardee). Inchanges : L1, L2, A1 a A4, S1 a S3 et S6,
+# car le releve du motif reste enregistre avec chaque courbe. Asymetrie signee et score : logic-qualite-asymetrie.
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 $here = Get-TestWorkDir $MyInvocation.MyCommand.Path $Work
@@ -32,8 +37,7 @@ function Get-AsAssign([string]$path, [string]$left) {
 }
 $parts = New-Object System.Collections.Generic.List[string]
 foreach ($n in 'Get-CalLevels', 'Get-TracksAsym', 'Get-UnitAsymRef') { $parts.Add((Get-AsFn (Join-Path $mods '240-fn-calib-mesure.ps1') $n)) }
-foreach ($n in 'Get-TrackScore', 'Get-AsymRefTable', 'Get-AsymRefs', 'Set-TrackAsymRef') { $parts.Add((Get-AsFn (Join-Path $mods '190-fn-qualite-alignement.ps1') $n)) }
-foreach ($k in 'CalCoarse', 'CalLevelKLong', 'QualAsymRefOn') { $parts.Add((Get-AsAssign (Join-Path $mods '560-etat-calibration.ps1') "`$script:$k")) }
+foreach ($k in 'CalCoarse', 'CalLevelKLong') { $parts.Add((Get-AsAssign (Join-Path $mods '560-etat-calibration.ps1') "`$script:$k")) }
 $gen = Join-Path $here 'gen-1210-asym.ps1'
 [System.IO.File]::WriteAllText($gen, ((@($parts) -join "`r`n`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($true)))
 . $gen
@@ -67,44 +71,6 @@ Chk 'A3' (($uc.Cyl -join ',') -eq '0,79' -and [math]::Abs($uc.D3[0] - 0.01) -lt 
 $ue = Get-UnitAsymRef @{ AsymRef = $null } @{ Head = 0 }
 Chk 'A4' ($ue.Cyl.Count -eq 0 -and $ue.D3.Count -eq 0) 'sans releve : tableaux vides'
 
-"--- R : reference par famille, tete et lecteur"
-$script:PrecompCurves = @{
-    'long_h0' = @{ Drive = '0'; AsymCyl = [int[]]@(0, 40, 79); AsymD3 = [double[]]@(0.02, 0.025, 0.04); AsymD4 = [double[]]@(0.03, 0.03, 0.045) }
-    'long_h1' = @{ Drive = 'A'; AsymCyl = [int[]]@(0); AsymD3 = [double[]]@(0.01); AsymD4 = [double[]]@(0.01) }   # autre lecteur
-    'long'    = @{ Drive = '0'; AsymCyl = [int[]]@(0, 79); AsymD3 = [double[]]@(0.015, 0.045); AsymD4 = [double[]]@(0.02, 0.05) }
-    'std'     = @{ Drive = '0'; Values = [int[]]@(60) }                                                          # courbe 12.9 sans releve
-}
-$t0 = Get-AsymRefTable 'long' 0 '0'; $t1 = Get-AsymRefTable 'long' 1 '0'; $ts = Get-AsymRefTable 'std' 0 '0'; $tx = Get-AsymRefTable 'long' 0 'A'
-Chk 'R1' ($null -ne $t0 -and $t0.Count -eq 3 -and [math]::Abs($t0[40][0] - 0.025) -lt 1e-9) "courbe par tete : $($t0.Count) cylindres, c40 $($t0[40][0]) / $($t0[40][1])"
-Chk 'R2' ($null -ne $t1 -and $t1.Count -eq 2 -and [math]::Abs($t1[79][1] - 0.05) -lt 1e-9) "tete 1 : courbe par tete d un autre lecteur ignoree, courbe commune du lecteur 0 : $($t1.Count) cylindres"
-Chk 'R3' ($null -eq $ts -and $null -eq $tx) 'courbe sans releve (12.9) et lecteur sans courbe : aucune reference'
-$refs = Get-AsymRefs '0'
-Chk 'R4' ($refs.Count -eq 4 -and $null -ne $refs['long0'] -and $null -ne $refs['long1'] -and $null -eq $refs['std0'] -and $null -eq $refs['std1']) "references du lecteur 0 : $(($refs.Keys | Sort-Object) -join ' ') ; long0 $(if ($refs['long0']) { 'oui' } else { 'non' }), std0 $(if ($refs['std0']) { 'oui' } else { 'non' })"
-
-"--- C : correction d une piste"
-function New-M([double]$r3, [double]$r4, [double]$cell, [double]$j = 70.0) {
-    $m = @{ Bad = $false; Missing = $false; J = $j; R3 = $r3; R4 = $r4; Ooc = 1.0; Dr = 0.0; Cell = $cell; Stab = 0.0; Asym = 0.0; Score = 9999; Level = 0 }
-    $m.Asym = [math]::Abs($r3 - 1.5) + [math]::Abs($r4 - 2.0); $m.Score = Get-TrackScore $m
-    return $m
-}
-$m = New-M 1.539 2.041 1875.0 91.0            # c79 tete 1 de l export du 02/11 : +0,039 / +0,041, jitter 91, score 252
-$s0 = $m.Score
-# C0 : livree desactivee (QualAsymRefOn faux, 560 : constat du 02/11/2026 au soir) : aucune correction, piste inchangee
-$ok0 = Set-TrackAsymRef $m 79 1 $refs
-Chk 'C0' ($script:QualAsymRefOn -eq $false -and -not $ok0 -and $m.Score -eq $s0 -and -not $m.ContainsKey('AsymRef')) "desactivee par defaut (QualAsymRefOn $($script:QualAsymRefOn)) : rien ne change, score $($m.Score)"
-$script:QualAsymRefOn = $true                   # cas suivants : correction activee
-$ok = Set-TrackAsymRef $m 79 1 $refs
-Chk 'C1' ($ok -and $s0 -eq 256 -and [math]::Abs($m.AsymRaw - 0.080) -lt 1e-9 -and [math]::Abs($m.Asym - 0.015) -lt 1e-9 -and $m.Score -eq 126 -and $m.AsymRef[0] -eq 0.045) "long track c79.1 : asymetrie 0,080 -> $($m.Asym) (reference commune 0,045 / 0,05), score $s0 -> $($m.Score)"
-$m2 = New-M 1.52 2.03 1888.0
-$ok2 = Set-TrackAsymRef $m2 0 0 $refs
-Chk 'C2' ($ok2 -and [math]::Abs($m2.Asym) -lt 1e-9 -and $m2.Score -eq [math]::Round(70 + 5, 0)) "c0.0 egal a sa reference : asymetrie 0, score $($m2.Score)"
-$m3 = New-M 1.52 2.03 2000.0; $ok3 = Set-TrackAsymRef $m3 0 0 $refs
-Chk 'C3' (-not $ok3 -and [math]::Abs($m3.Asym - 0.05) -lt 1e-9 -and -not $m3.ContainsKey('AsymRef')) "standard (cellule 2000) sans reference 12.10 : inchangee $($m3.Asym)"
-$m4 = New-M 1.52 2.03 1000.0; $ok4 = Set-TrackAsymRef $m4 0 0 $refs
-$m5 = New-M 1.52 2.03 1888.0; $ok5 = Set-TrackAsymRef $m5 50 0 $refs
-$m6 = New-M 1.52 2.03 1888.0; $m6.Bad = $true; $ok6 = Set-TrackAsymRef $m6 0 0 $refs
-Chk 'C4' (-not $ok4 -and -not $ok5 -and -not $ok6 -and -not (Set-TrackAsymRef $m5 0 0 $null)) 'haute densite, cylindre sans reference, piste illisible, sans references : rien'
-
 "--- S : cablage"
 $s270 = [System.IO.File]::ReadAllText((Join-Path $mods '270-fn-calib-complete.ps1'))
 Chk 'S1' (-not $s270.Contains('$lv = Get-CalLevels') -and $s270.Contains('MaxCoarse = [int](@(Get-CalLevels $family) | Measure-Object -Maximum).Maximum;') -and $s270.Contains("Values = @(Get-CalLevels `$family); Index = 0;") -and $s270.Contains('$cal.MaxCoarse = [int](@($cal.Values) | Measure-Object -Maximum).Maximum') -and -not $s270.Contains('Values = @($script:CalCoarse)')) 'niveaux de la famille dans le litteral de la creation (sans variable locale : bancs) et a l encadrement'
@@ -112,14 +78,14 @@ Chk 'S2' ($s270.Contains('([double]$script:CalVOffMaxNs) ([double]$cal.MaxCoarse
 Chk 'S3' ($s270.Contains('$null -eq $cal.AsymRef) { $cal.AsymRef = Get-TracksAsym $tracks }') -and $s270.Contains('$asym = Get-UnitAsymRef $cal $u') -and $s270.Contains('AsymCyl = [int[]]@($asym.Cyl); AsymD3 = [double[]]@($asym.D3); AsymD4 = [double[]]@($asym.D4)')) 'releve a la verification 1, champs de la courbe'
 $s190 = [System.IO.File]::ReadAllText((Join-Path $mods '190-fn-qualite-alignement.ps1'))
 $s170 = [System.IO.File]::ReadAllText((Join-Path $mods '170-fn-controle-ecriture.ps1'))
-Chk 'S4' ($s190.Contains('if (Set-TrackAsymRef $m $cyl $hd $arefs) { $nRef++ }') -and $s190.Contains('$m.Score = Get-TrackScore $m') -and $s190.Contains("(T 'Asymétrie'), ((T ") -and ([regex]::Matches($s170, '\[void\]\(Set-TrackAsymRef')).Count -eq 2) 'onglet Qualite, export et controle (2 appels, hors commentaire)'
+Chk 'S4' (-not $s190.Contains('Set-TrackAsymRef') -and -not $s190.Contains('Get-AsymRefs') -and -not $s170.Contains('Set-TrackAsymRef') -and -not $s170.Contains('Get-AsymRefs') -and $s190.Contains('$m.Score = Get-TrackScore $m') -and $s190.Contains("`$head.Add(@((T 'Asymétrie'), ")) '12.11 : onglet Qualite et controle sans appel de la correction retiree ; score et ligne « Asymetrie » de l export gardes'
 $keys = New-Object System.Collections.Generic.HashSet[string]
 foreach ($f in (Get-ChildItem -LiteralPath $mods -Filter '01*-i18n*.ps1')) {
     $t = [System.IO.File]::ReadAllText($f.FullName)
     foreach ($mm in [regex]::Matches($t, "\`$script:I18n\[`"([^`"]*)`"\]")) { [void]$keys.Add($mm.Groups[1].Value) }
     foreach ($mm in [regex]::Matches($t, "\`$script:I18n\['((?:[^']|'')*)'\]")) { [void]$keys.Add($mm.Groups[1].Value.Replace("''", "'")) }
 }
-Chk 'S5' ($keys.Contains("Mesure : asymétrie et score corrigés du biais de lecture du lecteur {0} sur {1} piste(s), d'après le motif de sa calibration (famille d'après la cellule mesurée).") -and $keys.Contains('Asymétrie') -and $keys.Contains("corrigée du biais de lecture du lecteur sur {0} piste(s), d'après le motif de sa calibration")) 'textes anglais des trois cles'
+Chk 'S5' (-not $keys.Contains("Mesure : asymétrie et score corrigés du biais de lecture du lecteur {0} sur {1} piste(s), d'après le motif de sa calibration (famille d'après la cellule mesurée).") -and $keys.Contains('Asymétrie') -and -not $keys.Contains("corrigée du biais de lecture du lecteur sur {0} piste(s), d'après le motif de sa calibration")) '12.11 : cles de la correction retirees de la table, « Asymétrie » gardee'
 $ch = [System.IO.File]::ReadAllText((Join-Path $Wt 'CHANGELOG.md'))
 # 12.11 : positions cherchees a partir de la section 12.10 (la section 12.11, ouverte au-dessus, a ses propres rubriques)
 $i10 = $ch.IndexOf('## [12.10]'); $has10 = ($i10 -ge 0); if (-not $has10) { $i10 = 0 }

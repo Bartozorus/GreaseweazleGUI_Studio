@@ -439,7 +439,7 @@ function Get-QualityCardModel($v) {
     if ($m.Chip) { $tips += ($m.Chip + ' : ' + $m.Line2) } elseif ($v.State -eq 'empty' -and $m.Line2) { $tips += $m.Line2 }
     if ($prevTip) { $tips += $prevTip }
     if ($show -eq $true -and $fullL2) { $tips += $fullL2 }
-    if ($r -and $null -ne $show) { if ($r.HealthText) { $tips += [string]$r.HealthText }; if ($r.ScoreText) { $tips += [string]$r.ScoreText } }
+    if ($r -and $null -ne $show) { if ($r.HealthText) { $tips += [string]$r.HealthText }; if ($r.ScoreText) { $tips += [string]$r.ScoreText }; if ($r.AsymText) { $tips += [string]$r.AsymText } }   # 12.11 : AsymText, resume de l asymetrie (Get-AsymSummaryText, 190)
     $tips += ''
     $tips += (T "État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter. Erreurs comptées sans le premier intervalle de la lecture ni, en double densité, le raccord d'écriture dans la zone de ± 1 ms autour de l'index ; stabilité mesurée sur des tours alignés (double densité, 3 tours ou plus).`nIndépendant du contenu : comparable d'une disquette à l'autre.")
     $tips += (T "Score de qualité de lecture (plus bas = mieux). Dépend du contenu : à comparer uniquement sur une même image`n(deux lecteurs, deux précompensations, deux réglages).")

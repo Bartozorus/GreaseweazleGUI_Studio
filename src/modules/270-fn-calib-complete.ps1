@@ -1225,7 +1225,7 @@ function Invoke-CalibAnalysis {
     try { $tracks = Read-ScpFile $cal.Scp ([int]$cal.PatternBits) } catch { Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)"); Stop-PrecompCalib -GwError; return }
     $cal.ReadDurs += ((Get-Date) - $cal.PhaseStart).TotalSeconds
     $cal.PassesDone++
-    # 12.10 : asymetrie de reference de la famille sur ce lecteur (onglet Qualite, Set-TrackAsymRef) : rapports 3T/2T et
+    # 12.10 : releve de l asymetrie du motif (12.11 : garde pour l etude, plus lu par l onglet Qualite) : rapports 3T/2T et
     # 4T/2T du motif relu a la premiere verification complete (tous les cylindres ecrits a la courbe), par piste
     if ($cal.Stage -eq 'verify' -and [int]$cal.VerifyCount -eq 1 -and [int]$cal.Retests -eq 0 -and $null -eq $cal.AsymRef) { $cal.AsymRef = Get-TracksAsym $tracks }
     foreach ($u in $cal.Units) {
@@ -2357,7 +2357,7 @@ function Complete-PrecompCalib {
             Res = [double[]]@($cs | ForEach-Object { if (@($u.Warn.Contra) -contains $_ -or @($u.ContraMoved) -contains $_) { [double]::NaN } elseif (@($u.Witness) -contains $_ -and $u.VerifyPrev.ContainsKey($_) -and -not $u.Warn.Drift.Sys.ContainsKey($_)) { [math]::Round($(if ([bool]$cal.VOff) { [double]$u.VerifyPrev[$_].Shift } elseif ($u.VerifyPrev[$_].Meas -and $null -ne $u.VerifyPrev[$_].Meas.Raw) { [double]$u.VerifyPrev[$_].Meas.Raw } else { [double]$u.VerifyPrev[$_].Shift }), 1) } elseif ($u.Verify.ContainsKey($_)) { [math]::Round($(if ([bool]$cal.VOff -or $null -eq $u.Verify[$_].Raw) { [double]$u.Verify[$_].Shift } else { [double]$u.Verify[$_].Raw }), 1) } else { [double]::NaN } })
             Converged = ($u.Warn.NonConv.Count -eq 0); MaxX = $maxX; MaxNs = [int]$script:CalHardNs
             # 12.10 : asymetrie de reference de la famille sur ce lecteur (Get-UnitAsymRef) : cylindres, ecarts 3T/2T - 1,5 et
-            # 4T/2T - 2 du motif relu a la verification 1 ; lus par l onglet Qualite et le controle (Get-AsymRefTable, 190)
+            # 4T/2T - 2 du motif relu a la verification 1 ; 12.11 : gardes pour l etude, plus lus par l onglet Qualite
             AsymCyl = [int[]]@($asym.Cyl); AsymD3 = [double[]]@($asym.D3); AsymD4 = [double[]]@($asym.D4)
             Contra = [int[]]@(@($u.Warn.Contra) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Sort-Object)
             # 12.9 (correction 4) : toutes les dents de la courbe (confirmees, en attente, ou non confirmees a la derniere

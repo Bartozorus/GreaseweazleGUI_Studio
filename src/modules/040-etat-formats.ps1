@@ -96,6 +96,12 @@ $script:JitterWatch = $script:JitterStdWatch        # jitter (ns) sous lequel un
 # controle de la copie (Test-SrcOverErr). Ni la calibration, ni le controle de surface, ni les courbes n utilisent
 # Get-HealthLevel (CalSurfOocFloor, 560 : borne CRITIQUE de 20, inchangee).
 $script:HealthErrOk = 2
+# 12.11 : poids de l asymetrie dans le score de lecture d une piste (Get-TrackScore, 190 : valeur de toujours, lue aussi
+# par Get-AsymSummary pour la part de l asymetrie dans le score moyen) et part des pistes lisibles, en pourcentage, qui
+# doivent porter le meme signe pour que le resume de l asymetrie le dise (Get-AsymSummary ; lectures gardees du
+# 02/11/2026, un lecteur en long track : toutes les pistes ou presque portaient le signe de l ecriture)
+$script:ScoreAsymK = 2000
+$script:AsymSignPct = 80
 $script:AlignRefLabel = ''
 # 12.8.2 (S11) : zone de l index (Read-ScpFile, Set-ScpTrackPost). gw ecrit les images ADF et a secteurs d index a index
 # (« Terminate at index ») : la jonction d ecriture tombe sur l index, dans l espace entre le dernier et le premier

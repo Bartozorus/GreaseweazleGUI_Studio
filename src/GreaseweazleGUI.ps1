@@ -2467,10 +2467,9 @@ $script:I18n['Jitter ns'] = 'Jitter ns'
 $script:I18n['Écart 3T'] = '3T deviation'
 $script:I18n['Écart 4T'] = '4T deviation'
 $script:I18n['Cellule ns'] = 'Cell ns'
-# Asymetrie corrigee du biais de lecture (190, Set-TrackAsymRef, export)
-$script:I18n["Mesure : asymétrie et score corrigés du biais de lecture du lecteur {0} sur {1} piste(s), d'après le motif de sa calibration (famille d'après la cellule mesurée)."] = 'Measure: asymmetry and score corrected for the read bias of drive {0} on {1} track(s), from the pattern of its calibration (family from the measured cell).'
+# Libelle de la ligne « Asymetrie » de l en-tete de l export (190) ; 12.11 : les deux textes de la correction retiree
+# (ligne du journal, valeur de cette ligne) sont supprimes, le resume de l asymetrie est dans 019
 $script:I18n['Asymétrie'] = 'Asymmetry'
-$script:I18n["corrigée du biais de lecture du lecteur sur {0} piste(s), d'après le motif de sa calibration"] = 'corrected for the read bias of the drive on {0} track(s), from the pattern of its calibration'
 # Hors classe reproductibles d un tour a l autre (190 S13, 170)
 $script:I18n["Mesure : {0} intervalle(s) hors classe reproductibles d'un tour à l'autre à la même position, sur {1} piste(s), non compté(s) : raccord d'écriture d'une longue piste ou protection ; un petit défaut fixe du support (jusqu'à {2} intervalles par tour) y passerait aussi."] = 'Measure: {0} out-of-class interval(s) repeating at the same position from one revolution to the next, on {1} track(s), not counted: write splice of a long track or protection; a small fixed media defect (up to {2} intervals per revolution) would pass too.'
 $script:I18n["Contrôle après écriture : {0} intervalle(s) hors classe reproductibles d'un tour à l'autre à la même position, sur {1} piste(s), non compté(s) : raccord d'écriture d'une longue piste ou protection."] = 'Post-write check: {0} out-of-class interval(s) repeating at the same position from one revolution to the next, on {1} track(s), not counted: write splice of a long track or protection.'
@@ -2716,6 +2715,15 @@ $script:I18n['…\Greaseweazle Studio\Restaurations'] = '…\Greaseweazle Studio
 $script:I18n["gw est lancé, mais une erreur a suivi son démarrage : {0}. La commande reste suivie jusqu'à sa fin ; « Arrêter » l'interrompt."] = 'gw has started, but an error followed its start: {0}. The command is still tracked until it ends; "Stop" interrupts it.'
 
 # --- L3 : asymetrie signee de l onglet « Qualite & alignement » et du controle apres ecriture (190, 170, 195) ----------
+# Resume de l asymetrie d un resultat (Get-AsymSummaryText, 190) : journal de la mesure et du controle apres ecriture,
+# infobulle de la carte, en-tete de l export. Phrases conditionnelles (« comme apres une ecriture... ») : la regle du
+# signe est etablie sur les lectures d un seul lecteur
+$script:I18n["Asymétrie positive sur {0} piste(s) sur {1} (médiane {2}) : les intervalles longs sont relus trop longs, comme après une écriture au-dessus du niveau de précompensation qui centre les intervalles pour ce lecteur. Elle compte pour {3} point(s) du score moyen et ne change pas l'état des pistes."] = 'Positive asymmetry on {0} of {1} track(s) (median {2}): long intervals are read back too long, as after a write above the precompensation level that centres the intervals for this drive. It accounts for {3} point(s) of the mean score and does not change the track status.'
+$script:I18n["Asymétrie négative sur {0} piste(s) sur {1} (médiane {2}) : les intervalles longs sont relus trop courts, comme après une écriture au-dessous du niveau de précompensation qui centre les intervalles pour ce lecteur. Elle compte pour {3} point(s) du score moyen et ne change pas l'état des pistes."] = 'Negative asymmetry on {0} of {1} track(s) (median {2}): long intervals are read back too short, as after a write below the precompensation level that centres the intervals for this drive. It accounts for {3} point(s) of the mean score and does not change the track status.'
+# Sans signe commun : forme courte, dans l en-tete de l export seulement
+$script:I18n['médiane {0}, sans signe commun ; {1} point(s) du score moyen'] = 'median {0}, no common sign; {1} point(s) of the mean score'
+# Infobulle du tableau (Update-QualityTip, 190) : ligne du signe de la colonne « Asym. »
+$script:I18n["Signe de l'asymétrie : + intervalles longs relus trop longs (comme après une écriture au-dessus de la précompensation qui les centre pour ce lecteur) ; - trop courts (comme après une écriture au-dessous) ; sans signe : écarts de sens opposés."] = 'Asymmetry sign: + long intervals read back too long (as after a write above the precompensation that centres them for this drive); - too short (as after a write below it); no sign: deviations in opposite directions.'
 
 # --- L4 : plafond de precompensation d une disquette lie a la cellule de son image (260, 265, 270) ---------------------
 
@@ -3359,6 +3367,12 @@ $script:JitterWatch = $script:JitterStdWatch        # jitter (ns) sous lequel un
 # controle de la copie (Test-SrcOverErr). Ni la calibration, ni le controle de surface, ni les courbes n utilisent
 # Get-HealthLevel (CalSurfOocFloor, 560 : borne CRITIQUE de 20, inchangee).
 $script:HealthErrOk = 2
+# 12.11 : poids de l asymetrie dans le score de lecture d une piste (Get-TrackScore, 190 : valeur de toujours, lue aussi
+# par Get-AsymSummary pour la part de l asymetrie dans le score moyen) et part des pistes lisibles, en pourcentage, qui
+# doivent porter le meme signe pour que le resume de l asymetrie le dise (Get-AsymSummary ; lectures gardees du
+# 02/11/2026, un lecteur en long track : toutes les pistes ou presque portaient le signe de l ecriture)
+$script:ScoreAsymK = 2000
+$script:AsymSignPct = 80
 $script:AlignRefLabel = ''
 # 12.8.2 (S11) : zone de l index (Read-ScpFile, Set-ScpTrackPost). gw ecrit les images ADF et a secteurs d index a index
 # (« Terminate at index ») : la jonction d ecriture tombe sur l index, dans l espace entre le dernier et le premier
@@ -10572,10 +10586,9 @@ function Invoke-WriteCheckAnalysis {
     if ($rep.Round -eq 0) { $expected = @($rep.Scope.Keys) } else { $expected = @($rep.Weak) }
     $expected = Sort-TrackKeys $expected
     $watch = @(); $crit = @(); $healthy = 0
-    $arefs = Get-AsymRefs ([string]$cmbDrive.Text)       # 12.10 : asymetrie corrigee du biais de lecture (Set-TrackAsymRef)
     foreach ($k in $expected) {
         $tn = Get-TrackKeyOrder $k
-        if ($tracks.ContainsKey($tn)) { $m = Get-TrackMetrics $tracks[$tn]; [void](Set-TrackAsymRef $m ([int][math]::Floor([int]$tn / 2)) ([int]$tn % 2) $arefs) }
+        if ($tracks.ContainsKey($tn)) { $m = Get-TrackMetrics $tracks[$tn] }
         else { $m = Get-TrackMetrics @(); $m.Missing = $true }
         Set-CopyUnstable $rep $k $m
         $rep.State[$k] = $m
@@ -10722,6 +10735,10 @@ function Show-WriteCheckTable($rep) {
     } else {
         $res.ScoreText = (T 'Aucune piste analysable')
     }
+    # 12.11 : resume de l asymetrie des pistes lisibles (Get-AsymSummary : signe commun, part du score moyen) : infobulle
+    # de la carte et journal ; l en-tete de l export le recalcule sur les lignes du tableau, meme fonction
+    $res.AsymText = Get-AsymSummaryText (Get-AsymSummary @($keys | ForEach-Object { $rep.State[$_] }))
+    if ($res.AsymText) { Append-Log ((T "Contrôle après écriture : {0}") -f $res.AsymText) }
     Set-QualityResult $res
 }
 
@@ -10795,7 +10812,7 @@ function Update-RepPartial {
         foreach ($tn in @($t.Keys)) {
             $k = "$([math]::Floor([int]$tn / 2)).$([int]$tn % 2)"
             if (@($rep.Weak) -notcontains $k) { continue }
-            $mm = Get-TrackMetrics $t[$tn]; [void](Set-TrackAsymRef $mm ([int][math]::Floor([int]$tn / 2)) ([int]$tn % 2) (Get-AsymRefs ([string]$cmbDrive.Text))); Set-CopyUnstable $rep $k $mm
+            $mm = Get-TrackMetrics $t[$tn]; Set-CopyUnstable $rep $k $mm
             $rep.State[$k] = $mm
             $rep.Rewrites[$k] = 1 + $(if ($rep.Rewrites.ContainsKey($k)) { [int]$rep.Rewrites[$k] } else { 0 })
             $remeasured[$k] = $true
@@ -12316,8 +12333,8 @@ function Get-JitterRedBound {
 
 function Update-QualityTip {
     # 12.8.2 : definition des erreurs (premier intervalle et zone de l index non comptes) et de la stabilite (tours alignes),
-    # en derniere ligne
-    $tip.SetToolTip($lvAl, ((T "État par piste : SAIN / À SURVEILLER / CRITIQUE, d'après les erreurs, les trous, la stabilité et le jitter.`nJitter : SAIN sous {0} ns, À SURVEILLER sous {1} ns (onglet Accueil, « Régler le jitter »).`nCouleurs de la colonne Jitter : <{2} / <{0} / <{3} ns. Asymétrie : <0,02 / <0,05 / <0,10 (couleur et score seulement, sans effet sur l'état).`nErreurs : intervalles hors classe par tour, sans le premier intervalle de la lecture ; en double densité, sans le raccord d'écriture de gw quand il tient dans la zone de ± 1 ms autour de l'index (sauf index simulé ou données dans cette zone) ; les trous sont comptés partout. Stabilité : écart du nombre de flux entre les tours ; en double densité et à partir de 3 tours, comparés alignés sur les mêmes données.") -f "$($script:JitterOk)", "$($script:JitterWatch)", "$([math]::Round($script:JitterOk * 0.5))", "$([math]::Round((Get-JitterRedBound)))"))
+    # en avant-derniere ligne ; 12.11 : signe de la colonne « Asym. » (Format-AsymCell) en derniere ligne, cle a part
+    $tip.SetToolTip($lvAl, (((T "État par piste : SAIN / À SURVEILLER / CRITIQUE, d'après les erreurs, les trous, la stabilité et le jitter.`nJitter : SAIN sous {0} ns, À SURVEILLER sous {1} ns (onglet Accueil, « Régler le jitter »).`nCouleurs de la colonne Jitter : <{2} / <{0} / <{3} ns. Asymétrie : <0,02 / <0,05 / <0,10 (couleur et score seulement, sans effet sur l'état).`nErreurs : intervalles hors classe par tour, sans le premier intervalle de la lecture ; en double densité, sans le raccord d'écriture de gw quand il tient dans la zone de ± 1 ms autour de l'index (sauf index simulé ou données dans cette zone) ; les trous sont comptés partout. Stabilité : écart du nombre de flux entre les tours ; en double densité et à partir de 3 tours, comparés alignés sur les mêmes données.") -f "$($script:JitterOk)", "$($script:JitterWatch)", "$([math]::Round($script:JitterOk * 0.5))", "$([math]::Round((Get-JitterRedBound)))") + "`n" + (T "Signe de l'asymétrie : + intervalles longs relus trop longs (comme après une écriture au-dessus de la précompensation qui les centre pour ce lecteur) ; - trop courts (comme après une écriture au-dessous) ; sans signe : écarts de sens opposés.")))
 }
 
 function Set-JitterThresholds([int]$ok, [int]$watch) {
@@ -12489,7 +12506,7 @@ function Get-TrackMetrics($st) {
         elseif ($pp.Value.Tried) { $m.StabFallback = $true }
     }
     $m.Asym = [math]::Abs($m.R3 - 1.5) + [math]::Abs($m.R4 - 2.0)
-    $m.Score = Get-TrackScore $m                          # 12.10 : meme formule apres correction de l asymetrie (Set-TrackAsymRef)
+    $m.Score = Get-TrackScore $m
     $m.Level = Get-HealthLevel $m.Ooc $m.Dr $m.Stab $m.J
     # Stabilite d un tour a l autre (Read-ScpFile, premier tour) : blocs de 32 intervalles absents d au moins deux autres
     # tours. Weak : au moins 3 blocs consecutifs (une dizaine d octets), au plus le quart de la piste = bits faibles d une
@@ -12507,52 +12524,71 @@ function Get-TrackMetrics($st) {
 
 function Get-TrackScore($m) {
     # Note de lecture d une piste (plus basse = mieux) : jitter, asymetrie (x 2000), erreurs, trous, stabilite
-    return [math]::Round([double]$m.J + 2000 * [double]$m.Asym + 5 * [double]$m.Ooc + 50 * [double]$m.Dr + [double]$m.Stab, 0)
+    # 12.11 : poids de l asymetrie lu dans $script:ScoreAsymK (040, valeur inchangee), que Get-AsymSummary lit aussi
+    return [math]::Round([double]$m.J + [double]$script:ScoreAsymK * [double]$m.Asym + 5 * [double]$m.Ooc + 50 * [double]$m.Dr + [double]$m.Stab, 0)
 }
 
-function Get-AsymRefTable([string]$fam, [int]$head, [string]$drive) {
-    # 12.10 : asymetrie de reference d une famille pour une tete et un lecteur : courbe par tete de la famille si elle existe,
-    # sinon courbe commune, a condition qu elle vienne du meme lecteur (le biais de lecture est celui du lecteur) et qu elle
-    # porte le releve (AsymCyl, calibration 12.10) ; cylindre -> (3T/2T - 1,5 ; 4T/2T - 2) ; $null sans reference
-    foreach ($k in @("${fam}_h$head", $fam)) {
-        $cv = $script:PrecompCurves[$k]
-        if (-not $cv -or [string]$cv.Drive -ne $drive) { continue }
-        if (-not $cv.AsymCyl -or @($cv.AsymCyl).Count -eq 0) { continue }
-        $t = @{}
-        $cs = @($cv.AsymCyl); $d3 = @($cv.AsymD3); $d4 = @($cv.AsymD4)
-        for ($i = 0; $i -lt $cs.Count -and $i -lt $d3.Count -and $i -lt $d4.Count; $i++) { $t[[int]$cs[$i]] = @([double]$d3[$i], [double]$d4[$i]) }
-        if ($t.Count -gt 0) { return $t }
+function Get-AsymSign($m) {
+    # 12.11 : signe de l asymetrie d une piste, d apres les ecarts des rapports moyens 3T/2T et 4T/2T a leurs valeurs
+    # nominales (1,5 et 2) : +1 si les deux sont positifs (intervalles longs relus trop longs), -1 si les deux sont
+    # negatifs (trop courts), 0 s ils sont de sens opposes ou nuls, ou si la piste est illisible
+    if ($null -eq $m -or $m.Bad) { return 0 }
+    $d3 = [double]$m.R3 - 1.5; $d4 = [double]$m.R4 - 2.0
+    if ($d3 -gt 0 -and $d4 -gt 0) { return 1 }
+    if ($d3 -lt 0 -and $d4 -lt 0) { return -1 }
+    return 0
+}
+
+function Format-AsymCell($m) {
+    # 12.11 : texte de la case « Asym. » du tableau : valeur au format de toujours, precedee du signe de Get-AsymSign
+    # quand la case n est pas verte (Get-AlLevel 'asym' au moins 1) et que les deux ecarts vont dans le meme sens ;
+    # l export garde la valeur sans signe, a cote de ses colonnes « Ecart 3T » et « Ecart 4T »
+    $t = '{0:N3}' -f $m.Asym
+    if ((Get-AlLevel 'asym' $m.Asym) -lt 1) { return $t }
+    $s = Get-AsymSign $m
+    if ($s -gt 0) { return '+' + $t }
+    if ($s -lt 0) { return '-' + $t }
+    return $t
+}
+
+function Get-AsymSummary($ms) {
+    # 12.11 : resume de l asymetrie d un resultat, sur ses pistes lisibles : N pistes, Pos et Neg pistes de signe + et -
+    # (Get-AsymSign), Med asymetrie mediane, Points part de l asymetrie dans le score moyen (ScoreAsymK x moyenne, le
+    # poids de Get-TrackScore), Kind '+' ou '-' quand la mediane sort de la classe verte (Get-AlLevel) et qu au moins
+    # AsymSignPct % des pistes portent ce signe (arithmetique entiere), '' sinon. Source unique de la phrase du journal,
+    # de l infobulle de la carte et de l en-tete de l export (Get-AsymSummaryText). Lectures gardees du 02/11/2026 (un
+    # lecteur, long track) : signe + a la courbe entiere, - au quart de la courbe, aucun resume au facteur mesure
+    # $ms : tableau, liste ou table seule ; foreach et non @() : sous PowerShell 7, @() sur une List[object] echoue
+    $ok = New-Object System.Collections.Generic.List[object]
+    foreach ($x in $ms) { if ($null -ne $x -and -not $x.Bad) { $ok.Add($x) } }
+    $s = @{ N = $ok.Count; Pos = 0; Neg = 0; Med = 0.0; Points = 0; Kind = '' }
+    if ($ok.Count -eq 0) { return $s }
+    $sum = 0.0
+    foreach ($m in $ok) {
+        $g = Get-AsymSign $m
+        if ($g -gt 0) { $s.Pos++ } elseif ($g -lt 0) { $s.Neg++ }
+        $sum += [double]$m.Asym
     }
-    return $null
+    $s.Med = [double](Get-Median @($ok | ForEach-Object { [double]$_.Asym }))
+    $s.Points = [int][math]::Round([double]$script:ScoreAsymK * $sum / $ok.Count)
+    if ((Get-AlLevel 'asym' $s.Med) -ge 1) {
+        if (100 * $s.Pos -ge [int]$script:AsymSignPct * $s.N) { $s.Kind = '+' }
+        elseif (100 * $s.Neg -ge [int]$script:AsymSignPct * $s.N) { $s.Kind = '-' }
+    }
+    return $s
 }
 
-function Get-AsymRefs([string]$drive) {
-    # 12.10 : references d asymetrie du lecteur, par famille (std, long) et par tete : cle « famille + tete »
-    $r = @{}
-    foreach ($fam in 'std', 'long') { foreach ($h in 0, 1) { $r["$fam$h"] = Get-AsymRefTable $fam $h $drive } }
-    return $r
-}
-
-function Set-TrackAsymRef($m, [int]$cyl, [int]$hd, $refs) {
-    # 12.10 : asymetrie corrigee du biais de lecture du lecteur. Constat du 02/11/2026 (TEAC, long track) : les rapports
-    # 3T/2T et 4T/2T sont positifs sur toutes les pistes, autant sur le motif de calibration relu a decalage nul que sur
-    # l image ecrite : biais de lecture a cette densite, pas une precompensation fausse ; le score (x 2000) en etait gonfle
-    # et incomparable d une famille a l autre. Famille d apres la cellule mesuree (long track sous 1 950 ns, standard
-    # au-dela ; haute densite sous 1 500 ns : sans reference) ; AsymRaw : valeur mesuree gardee, AsymRef : reference
-    # appliquee ; score recalcule. L etat de la piste ne depend pas de l asymetrie : inchange. Vrai si une reference a
-    # ete appliquee
-    if (-not [bool]$script:QualAsymRefOn) { return $false }   # desactivee par defaut (560 : constat du 02/11/2026 au soir)
-    if ($null -eq $refs -or $null -eq $m -or $m.Bad) { return $false }
-    $cell = [double]$m.Cell
-    if ($cell -lt 1500) { return $false }
-    $fam = if ($cell -lt 1950) { 'long' } else { 'std' }
-    $t = $refs["$fam$hd"]
-    if ($null -eq $t -or -not $t.ContainsKey($cyl)) { return $false }
-    $d = $t[$cyl]
-    $m.AsymRaw = [double]$m.Asym; $m.AsymRef = @([double]$d[0], [double]$d[1])
-    $m.Asym = [math]::Abs([double]$m.R3 - 1.5 - [double]$d[0]) + [math]::Abs([double]$m.R4 - 2.0 - [double]$d[1])
-    $m.Score = Get-TrackScore $m
-    return $true
+function Get-AsymSummaryText($s, [switch]$Always) {
+    # 12.11 : phrase du resume de l asymetrie (Get-AsymSummary) : signe commun, pistes qui le portent, mediane, part du
+    # score moyen. Sans signe commun : chaine vide, ou forme courte avec -Always (en-tete de l export) ; sans piste
+    # lisible : chaine vide. La phrase reste conditionnelle (« comme apres une ecriture... » : regle etablie sur un seul
+    # lecteur) et ne donne aucune consigne : le conseil de mesure reste celui de Get-WriteFactorHint (140)
+    if ($null -eq $s -or [int]$s.N -le 0) { return '' }
+    $med = Format-UiNum ([double]$s.Med) '0.000'
+    if ($s.Kind -eq '+') { return ((T "Asymétrie positive sur {0} piste(s) sur {1} (médiane {2}) : les intervalles longs sont relus trop longs, comme après une écriture au-dessus du niveau de précompensation qui centre les intervalles pour ce lecteur. Elle compte pour {3} point(s) du score moyen et ne change pas l'état des pistes.") -f "$($s.Pos)", "$($s.N)", $med, "$($s.Points)") }
+    if ($s.Kind -eq '-') { return ((T "Asymétrie négative sur {0} piste(s) sur {1} (médiane {2}) : les intervalles longs sont relus trop courts, comme après une écriture au-dessous du niveau de précompensation qui centre les intervalles pour ce lecteur. Elle compte pour {3} point(s) du score moyen et ne change pas l'état des pistes.") -f "$($s.Neg)", "$($s.N)", $med, "$($s.Points)") }
+    if ($Always) { return ((T 'médiane {0}, sans signe commun ; {1} point(s) du score moyen') -f $med, "$($s.Points)") }
+    return ''
 }
 
 # Ligne du tableau de l onglet Qualite pour une piste ; $mark complete l etat (ex. « (reecrite x2) »)
@@ -12572,7 +12608,7 @@ function New-AlignRow([string]$lab, $m, [string]$mark, [string]$delta, [int]$del
     $wk = if ($m.Weak) { (T ' (zone instable)') } else { '' }
     # Zone instable non jugee (controle d une copie dont la source peut porter des zones faibles) : ni SAINE ni faible
     $stTxt = if ($m.Unjudged -and $hl -eq 0) { (T 'NON JUGÉE') } else { $healthNames[$hl] }
-    foreach ($v in @(($stTxt + $wk + $mark), ('{0:N1}' -f $m.Ooc), ('{0:N1}' -f $m.Dr), [string]$m.Stab, ('{0:N0}' -f $m.J), ('{0:N0}' -f $m.Score), $delta, ('{0:N3}' -f $m.Asym), ('{0:N0}' -f $m.Cell))) { [void]$it.SubItems.Add($v) }
+    foreach ($v in @(($stTxt + $wk + $mark), ('{0:N1}' -f $m.Ooc), ('{0:N1}' -f $m.Dr), [string]$m.Stab, ('{0:N0}' -f $m.J), ('{0:N0}' -f $m.Score), $delta, (Format-AsymCell $m), ('{0:N0}' -f $m.Cell))) { [void]$it.SubItems.Add($v) }   # 12.11 : case « Asym. » signee
     $it.SubItems[1].BackColor = $healthColor[$hl]; $it.SubItems[1].ForeColor = $script:AlFg[$(@{0=0;1=2;2=3}[$hl])]
     if ($m.Unjudged -and $hl -eq 0) { $it.SubItems[1].BackColor = $script:AlColors[1]; $it.SubItems[1].ForeColor = $script:AlFg[1] }
     $it.SubItems[1].Font = $bold
@@ -12629,8 +12665,10 @@ function Get-AlignTableExport {
             $rows.Add(@($sub[0], $sub[1], $sub[2], $sub[3], $sub[4], $sub[5], $sub[6], $sub[7], $sub[8], '-', '-', $sub[9]))
         }
     }
-    $nAr = @(@($lvAl.Items) | Where-Object { $_.Tag -is [hashtable] -and $_.Tag.ContainsKey('M') -and $_.Tag.M -and $null -ne $_.Tag.M.AsymRef }).Count
-    if ($nAr -gt 0) { $head.Add(@((T 'Asymétrie'), ((T "corrigée du biais de lecture du lecteur sur {0} piste(s), d'après le motif de sa calibration") -f "$nAr"))) }
+    # 12.11 : ligne « Asymetrie » toujours presente : resume de Get-AsymSummary sur les metriques des lignes (Tag.M), forme
+    # courte sans signe commun, « - » sans piste lisible (la correction retiree n ecrivait cette ligne que si elle agissait)
+    $asym = Get-AsymSummaryText (Get-AsymSummary @(@($lvAl.Items) | ForEach-Object { if ($_.Tag -is [hashtable] -and $_.Tag.ContainsKey('M')) { $_.Tag.M } })) -Always
+    $head.Add(@((T 'Asymétrie'), $(if ($asym) { $asym } else { '-' })))
     $head.Add(@((T 'Pistes'), [string]$rows.Count))
     # .ToArray() et non @() : sous PowerShell 7, @() sur une List[object] d elements tableaux echoue (liaison dynamique)
     return @{ Head = $head.ToArray(); Cols = $cols; Rows = $rows.ToArray() }
@@ -12715,18 +12753,18 @@ function Invoke-AlignAnalysis {
 
     $last = @{}; $watch = @(); $crit = @(); $weakL = @(); $critK = @(); $nBad = 0
     $res = @{ Kind = 'measure'; Score = $null; Lvl = 3; Count = 0; Bad = 0; Health = 0; NTracks = 0; WatchKeys = @(); CritKeys = @()
-              HealthText = ''; ScoreText = ''; Prev = $null; Best = $null; RefAvg = $null }
+              HealthText = ''; ScoreText = ''; Prev = $null; Best = $null; RefAvg = $null; AsymText = '' }
     $lvAl.Columns[1].Width = 222                          # 12.8 (lot 3b) : icone d etat de 16 px devant le texte
     $lvAl.BeginUpdate()
     try {
         $lvAl.Items.Clear()
         $total = 0.0; $count = 0; $zo = 0; $zt = 0; $zf = 0; $fb = @(); $so = 0; $sot = 0; $sov = @()   # 12.10 (S13) : so / sot / sov
-        $arefs = Get-AsymRefs ([string]$cmbDrive.Text); $nRef = 0     # 12.10 : asymetrie corrigee du biais de lecture
+        $ams = New-Object System.Collections.Generic.List[object]     # 12.11 : metriques des pistes, pour le resume de l asymetrie
         foreach ($tn in ($tracks.Keys | Sort-Object)) {
             $st = $tracks[$tn]; $cyl = [math]::Floor($tn / 2); $hd = $tn % 2; $key = "$cyl.$hd"
             $lab = "$cyl.$hd"
             $m = Get-TrackMetrics $st
-            if (Set-TrackAsymRef $m $cyl $hd $arefs) { $nRef++ }
+            $ams.Add($m)
             if ($m.ZoneOoc -gt 0) { $zo += $m.ZoneOoc; $zt++; if ($m.ZoneFarNs -gt $zf) { $zf = $m.ZoneFarNs } }
             if ($m.StructOoc -gt 0) { $so += $m.StructOoc; $sot++ }
             if ($m.StructOver -gt 0) { $sov += $lab }
@@ -12755,7 +12793,9 @@ function Invoke-AlignAnalysis {
             $total += $sc; $count++
         }
         $script:AlignLast = $last
-        if ($nRef -gt 0) { Append-Log ((T "Mesure : asymétrie et score corrigés du biais de lecture du lecteur {0} sur {1} piste(s), d'après le motif de sa calibration (famille d'après la cellule mesurée).") -f "$($cmbDrive.Text)", "$nRef") }
+        # 12.11 : resume de l asymetrie (Get-AsymSummary : signe commun, part du score moyen) pour l infobulle de la carte et
+        # le journal (apres le score moyen) ; l en-tete de l export le recalcule sur les lignes du tableau, meme fonction
+        $res.AsymText = Get-AsymSummaryText (Get-AsymSummary $ams)
         $nTracks = $tracks.Count
 
         # --- Verdict 1 : etat du support (12.8, lot 3b : carte de resultat ; texte complet dans l infobulle et le journal)
@@ -12801,6 +12841,8 @@ function Invoke-AlignAnalysis {
             $res.Score = $avg; $res.Lvl = $lvlAvg; $res.Count = $count; $res.Best = $script:AlignBest['_global']
             $res.ScoreText = ((T "Qualité de lecture : score {0} - {1}{2}{3}   |   meilleur {4}") -f "$avg", "$($script:AlNames[$lvlAvg])", "$trend", "$refTxt", "$($script:AlignBest['_global'])")
             Append-Log ((T "Mesure : score moyen {0} ({1}){2}") -f "$avg", "$($script:AlNames[$lvlAvg])", "$trend")
+            # 12.11 : phrase de l asymetrie ; mesure continue : a la premiere passe seulement, comme les lignes du raccord
+            if ($res.AsymText -and (-not $script:AlignLoop -or [int]$script:QualView.Pass -le 1)) { Append-Log ((T "Mesure : {0}") -f $res.AsymText) }
             Update-AlignGuide $avg
             $bn = if ($weakL.Count -gt 0) { ((T "Zone instable d'un tour à l'autre (protection contre la copie ou défaut du support) : {0}") -f "$($weakL -join ', ')") + $(if ($clu.Count -gt 0) { (T " ; cylindres voisins {0} : défaut du support probable") -f "$($clu -join ', ')" } else { '' }) } else { '' }
             Set-UnstableBanner @($bn)
@@ -13406,7 +13448,7 @@ function Get-QualityCardModel($v) {
     if ($m.Chip) { $tips += ($m.Chip + ' : ' + $m.Line2) } elseif ($v.State -eq 'empty' -and $m.Line2) { $tips += $m.Line2 }
     if ($prevTip) { $tips += $prevTip }
     if ($show -eq $true -and $fullL2) { $tips += $fullL2 }
-    if ($r -and $null -ne $show) { if ($r.HealthText) { $tips += [string]$r.HealthText }; if ($r.ScoreText) { $tips += [string]$r.ScoreText } }
+    if ($r -and $null -ne $show) { if ($r.HealthText) { $tips += [string]$r.HealthText }; if ($r.ScoreText) { $tips += [string]$r.ScoreText }; if ($r.AsymText) { $tips += [string]$r.AsymText } }   # 12.11 : AsymText, resume de l asymetrie (Get-AsymSummaryText, 190)
     $tips += ''
     $tips += (T "État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter. Erreurs comptées sans le premier intervalle de la lecture ni, en double densité, le raccord d'écriture dans la zone de ± 1 ms autour de l'index ; stabilité mesurée sur des tours alignés (double densité, 3 tours ou plus).`nIndépendant du contenu : comparable d'une disquette à l'autre.")
     $tips += (T "Score de qualité de lecture (plus bas = mieux). Dépend du contenu : à comparer uniquement sur une même image`n(deux lecteurs, deux précompensations, deux réglages).")
@@ -22969,7 +23011,7 @@ function Invoke-CalibAnalysis {
     try { $tracks = Read-ScpFile $cal.Scp ([int]$cal.PatternBits) } catch { Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)"); Stop-PrecompCalib -GwError; return }
     $cal.ReadDurs += ((Get-Date) - $cal.PhaseStart).TotalSeconds
     $cal.PassesDone++
-    # 12.10 : asymetrie de reference de la famille sur ce lecteur (onglet Qualite, Set-TrackAsymRef) : rapports 3T/2T et
+    # 12.10 : releve de l asymetrie du motif (12.11 : garde pour l etude, plus lu par l onglet Qualite) : rapports 3T/2T et
     # 4T/2T du motif relu a la premiere verification complete (tous les cylindres ecrits a la courbe), par piste
     if ($cal.Stage -eq 'verify' -and [int]$cal.VerifyCount -eq 1 -and [int]$cal.Retests -eq 0 -and $null -eq $cal.AsymRef) { $cal.AsymRef = Get-TracksAsym $tracks }
     foreach ($u in $cal.Units) {
@@ -24101,7 +24143,7 @@ function Complete-PrecompCalib {
             Res = [double[]]@($cs | ForEach-Object { if (@($u.Warn.Contra) -contains $_ -or @($u.ContraMoved) -contains $_) { [double]::NaN } elseif (@($u.Witness) -contains $_ -and $u.VerifyPrev.ContainsKey($_) -and -not $u.Warn.Drift.Sys.ContainsKey($_)) { [math]::Round($(if ([bool]$cal.VOff) { [double]$u.VerifyPrev[$_].Shift } elseif ($u.VerifyPrev[$_].Meas -and $null -ne $u.VerifyPrev[$_].Meas.Raw) { [double]$u.VerifyPrev[$_].Meas.Raw } else { [double]$u.VerifyPrev[$_].Shift }), 1) } elseif ($u.Verify.ContainsKey($_)) { [math]::Round($(if ([bool]$cal.VOff -or $null -eq $u.Verify[$_].Raw) { [double]$u.Verify[$_].Shift } else { [double]$u.Verify[$_].Raw }), 1) } else { [double]::NaN } })
             Converged = ($u.Warn.NonConv.Count -eq 0); MaxX = $maxX; MaxNs = [int]$script:CalHardNs
             # 12.10 : asymetrie de reference de la famille sur ce lecteur (Get-UnitAsymRef) : cylindres, ecarts 3T/2T - 1,5 et
-            # 4T/2T - 2 du motif relu a la verification 1 ; lus par l onglet Qualite et le controle (Get-AsymRefTable, 190)
+            # 4T/2T - 2 du motif relu a la verification 1 ; 12.11 : gardes pour l etude, plus lus par l onglet Qualite
             AsymCyl = [int[]]@($asym.Cyl); AsymD3 = [double[]]@($asym.D3); AsymD4 = [double[]]@($asym.D4)
             Contra = [int[]]@(@($u.Warn.Contra) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Sort-Object)
             # 12.9 (correction 4) : toutes les dents de la courbe (confirmees, en attente, ou non confirmees a la derniere
@@ -29222,12 +29264,12 @@ $script:CalCoarse    = @(0, 30, 100)   # passes de mesure : trois niveaux, repar
 # celui du standard (TEAC du 02/11/2026 : 105 a 439 ns) et tous les cylindres depassaient 100 ns : plus aucun zero interpole,
 # decalage commun de l ecriture non evaluable, toute la courbe extrapolee ou encadree. Facteur sur CalCoarse : 0/60/200 ns
 $script:CalLevelKLong = 2.0
-# 12.10 : correction de l asymetrie de l onglet Qualite par la reference du motif (Set-TrackAsymRef, 190). Desactivee par
-# defaut : le 02/11/2026 au soir, la meme image ecrite au facteur mesure sur la disquette (0,7) a donne des ecarts 3T/4T
-# bruts nuls et une asymetrie « corrigee » plus forte (0,04 a 0,11) : la reference du motif (zero de la calibration) et
-# la mesure sur l image ne s accordent pas en long track ; a instruire au banc et sur materiel avant d activer. Le releve
-# (AsymCyl, AsymD3, AsymD4) reste enregistre avec chaque courbe
-$script:QualAsymRefOn = $false
+# 12.11 : correction de l asymetrie de l onglet Qualite par la reference du motif retiree (fonctions et drapeau de la
+# 12.10, livres desactives). Lectures gardees du 02/11/2026 (un lecteur, long track) : l asymetrie n est pas un biais de
+# lecture du lecteur, elle suit la precompensation ecrite ; retrancher le releve du motif, ecrit a la courbe entiere,
+# n etait juste qu a ce niveau et penalisait une ecriture au facteur mesure. Le releve (AsymCyl, AsymD3, AsymD4 : ecarts
+# 3T/2T - 1,5 et 4T/2T - 2 du motif relu a la premiere verification, Get-TracksAsym, Get-UnitAsymRef) reste enregistre
+# avec chaque courbe, pour l etude ; plus aucun code ne le relit
 # 12.9 (correction 3) : 0, 30 et 100 ns au lieu de 0, 100 et 200 : la corde qui donne le zero des besoins courants (5 a
 # 85 ns au lecteur A) est courte et proche du zero (biais de courbure +0,91 -> +0,19 ns, v129\cal2\donnees) ; un besoin
 # au-dela de 100 ns est encadre (CalBracketMargin, CalBracketStep et CalMaxNs inchanges).

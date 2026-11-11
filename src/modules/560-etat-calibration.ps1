@@ -27,12 +27,12 @@ $script:CalCoarse    = @(0, 30, 100)   # passes de mesure : trois niveaux, repar
 # celui du standard (TEAC du 02/11/2026 : 105 a 439 ns) et tous les cylindres depassaient 100 ns : plus aucun zero interpole,
 # decalage commun de l ecriture non evaluable, toute la courbe extrapolee ou encadree. Facteur sur CalCoarse : 0/60/200 ns
 $script:CalLevelKLong = 2.0
-# 12.10 : correction de l asymetrie de l onglet Qualite par la reference du motif (Set-TrackAsymRef, 190). Desactivee par
-# defaut : le 02/11/2026 au soir, la meme image ecrite au facteur mesure sur la disquette (0,7) a donne des ecarts 3T/4T
-# bruts nuls et une asymetrie « corrigee » plus forte (0,04 a 0,11) : la reference du motif (zero de la calibration) et
-# la mesure sur l image ne s accordent pas en long track ; a instruire au banc et sur materiel avant d activer. Le releve
-# (AsymCyl, AsymD3, AsymD4) reste enregistre avec chaque courbe
-$script:QualAsymRefOn = $false
+# 12.11 : correction de l asymetrie de l onglet Qualite par la reference du motif retiree (fonctions et drapeau de la
+# 12.10, livres desactives). Lectures gardees du 02/11/2026 (un lecteur, long track) : l asymetrie n est pas un biais de
+# lecture du lecteur, elle suit la precompensation ecrite ; retrancher le releve du motif, ecrit a la courbe entiere,
+# n etait juste qu a ce niveau et penalisait une ecriture au facteur mesure. Le releve (AsymCyl, AsymD3, AsymD4 : ecarts
+# 3T/2T - 1,5 et 4T/2T - 2 du motif relu a la premiere verification, Get-TracksAsym, Get-UnitAsymRef) reste enregistre
+# avec chaque courbe, pour l etude ; plus aucun code ne le relit
 # 12.9 (correction 3) : 0, 30 et 100 ns au lieu de 0, 100 et 200 : la corde qui donne le zero des besoins courants (5 a
 # 85 ns au lecteur A) est courte et proche du zero (biais de courbure +0,91 -> +0,19 ns, v129\cal2\donnees) ; un besoin
 # au-dela de 100 ns est encadre (CalBracketMargin, CalBracketStep et CalMaxNs inchanges).

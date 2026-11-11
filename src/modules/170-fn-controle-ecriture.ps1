@@ -229,10 +229,9 @@ function Invoke-WriteCheckAnalysis {
     if ($rep.Round -eq 0) { $expected = @($rep.Scope.Keys) } else { $expected = @($rep.Weak) }
     $expected = Sort-TrackKeys $expected
     $watch = @(); $crit = @(); $healthy = 0
-    $arefs = Get-AsymRefs ([string]$cmbDrive.Text)       # 12.10 : asymetrie corrigee du biais de lecture (Set-TrackAsymRef)
     foreach ($k in $expected) {
         $tn = Get-TrackKeyOrder $k
-        if ($tracks.ContainsKey($tn)) { $m = Get-TrackMetrics $tracks[$tn]; [void](Set-TrackAsymRef $m ([int][math]::Floor([int]$tn / 2)) ([int]$tn % 2) $arefs) }
+        if ($tracks.ContainsKey($tn)) { $m = Get-TrackMetrics $tracks[$tn] }
         else { $m = Get-TrackMetrics @(); $m.Missing = $true }
         Set-CopyUnstable $rep $k $m
         $rep.State[$k] = $m
@@ -379,6 +378,10 @@ function Show-WriteCheckTable($rep) {
     } else {
         $res.ScoreText = (T 'Aucune piste analysable')
     }
+    # 12.11 : resume de l asymetrie des pistes lisibles (Get-AsymSummary : signe commun, part du score moyen) : infobulle
+    # de la carte et journal ; l en-tete de l export le recalcule sur les lignes du tableau, meme fonction
+    $res.AsymText = Get-AsymSummaryText (Get-AsymSummary @($keys | ForEach-Object { $rep.State[$_] }))
+    if ($res.AsymText) { Append-Log ((T "Contrôle après écriture : {0}") -f $res.AsymText) }
     Set-QualityResult $res
 }
 
@@ -452,7 +455,7 @@ function Update-RepPartial {
         foreach ($tn in @($t.Keys)) {
             $k = "$([math]::Floor([int]$tn / 2)).$([int]$tn % 2)"
             if (@($rep.Weak) -notcontains $k) { continue }
-            $mm = Get-TrackMetrics $t[$tn]; [void](Set-TrackAsymRef $mm ([int][math]::Floor([int]$tn / 2)) ([int]$tn % 2) (Get-AsymRefs ([string]$cmbDrive.Text))); Set-CopyUnstable $rep $k $mm
+            $mm = Get-TrackMetrics $t[$tn]; Set-CopyUnstable $rep $k $mm
             $rep.State[$k] = $mm
             $rep.Rewrites[$k] = 1 + $(if ($rep.Rewrites.ContainsKey($k)) { [int]$rep.Rewrites[$k] } else { 0 })
             $remeasured[$k] = $true
