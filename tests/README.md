@@ -90,7 +90,15 @@ Vingt tests viennent de la campagne hors dépôt des versions 12.9 et 12.10 ; le
 
 Trois tests portent sur les outils eux-mêmes : `logic-lanceur` (verdicts du lanceur sur des tests factices), `logic-controle-source` (un défaut semé par contrôle dans un dépôt factice) et `logic-csharp-compilation` (les cinq blocs `Add-Type` de l'application compilent et donnent leurs types ; la compilation n'a lieu qu'avec `-Ci`).
 
+## Intégration continue
+
+Le workflow `.github/workflows/tests.yml` lance `.\tests\Run-Tests.ps1 -Ci` sous Windows PowerShell 5.1 (`shell: powershell`), l'édition que vise l'application, sur un runner Windows : à chaque push sur `main` ou sur une branche `release-*`, à chaque pull request et à la demande. Il vérifie d'abord l'édition de PowerShell, puis joint `tests/out/` à l'exécution (artefact `tests-<numéro>`), que les tests réussissent ou non. Il ne publie rien, n'utilise aucun secret et ne conditionne pas la release.
+
+Avec `-Ci`, `logic-csharp-compilation` compile les blocs C# de l'application (par `csc.exe` sous 5.1) et `logic-lanceur` joue l'arrêt sur la marque d'alerte.
+
+Les résultats sous 5.1 peuvent différer de ceux du poste de développement sous PowerShell 7 : compilation C#, lecture du JSON, arrondi des nombres formatés, police par défaut et mesure du texte de WinForms, culture du runner. Un échec de la seule intégration continue se trie entre défaut du test, à corriger dans le test, et différence réelle de l'application sous 5.1, à traiter comme un défaut de l'application.
+
 ## Ce qui reste hors du dépôt
 
-- Les essais sur matériel et le banc de test de l'interface (fenêtres réelles, simulateur de `gw.exe`).
+- Les essais sur matériel et le banc de test de l'interface, qui pilote les fenêtres réelles de l'application.
 - Les tests qui rejouent des données réelles (journaux de calibration, relevés, lectures `.scp`) ou qui comparent la source à une copie d'une version antérieure. `logic-qualite-hors-classe -Reads <dossier> -Before <copie de la source d'avant>`, `logic-calib-bout-en-bout -Base <copie>` et `logic-calib-pente-modele -Prof <fichier>` rejouent ces cas sur le poste qui a ces données.

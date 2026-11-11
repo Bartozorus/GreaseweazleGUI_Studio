@@ -125,19 +125,22 @@ Le lanceur vérifie que `src/GreaseweazleGUI.ps1` correspond aux modules (`tools
 
 Les tests chargent les fonctions réelles des modules et simulent le reste (gw, fenêtres, configuration). Ils couvrent les calculs et les décisions : calibration, lecteur cible, restauration, qualité, textes de l'interface. Ils ne couvrent ni le matériel ni l'affichage, qui restent éprouvés sur un lecteur réel et par le banc de test de l'interface, hors du dépôt. [tests/README.md](tests/README.md) décrit les paramètres du lanceur, les contrôles de la source et la façon d'écrire un test.
 
+Le workflow GitHub Actions [tests.yml](.github/workflows/tests.yml) lance ce même lanceur sous Windows PowerShell 5.1, l'édition que vise l'application, à chaque push sur `main` ou sur une branche `release-*`, à chaque pull request et à la demande. Il y compile aussi les blocs C# de l'application, ce que les tests ne font pas sur le poste de développement. Il ne publie rien et n'utilise aucun secret ; ses sorties (`tests/out/`) sont jointes à chaque exécution. La release n'en dépend pas : avant de publier, on vérifie à la main qu'il est vert (voir ci-dessous).
+
 ## Publication d'une version
 
 Le workflow GitHub Actions [release.yml](.github/workflows/release.yml) compile l'exécutable sur un runner Windows et l'attache à une release GitHub à chaque tag `vX.Y`, avec pour notes la section correspondante du CHANGELOG.
 
 1. Mettre à jour `$script:Version` dans `src/modules/000-entete.ps1`, réassembler (`tools/Assemble-Source.ps1`), puis mettre à jour le [CHANGELOG](CHANGELOG.md).
-2. Commit, puis tag et push :
+2. Commit, puis push de `main`. Vérifier dans l'onglet Actions que le workflow « Tests » est vert sur ce commit : la release ne l'attend pas, cette vérification est manuelle.
+3. Tag et push :
 
    ```powershell
    git tag v12.10
    git push origin main --tags
    ```
 
-3. Le workflow vérifie que le tag correspond à `$script:Version`, compile, puis attache `GreaseweazleGUI.exe` et `GreaseweazleGUI.ps1` à la release. Tant que le dépôt n'a pas les secrets de signature décrits ci-dessous, cet exe n'est pas signé : le remplacer par l'exe signé compilé localement avec `Build-Exe.ps1` depuis le même commit, par exemple `gh release upload v12.10 dist\GreaseweazleGUI.exe --clobber`.
+4. Le workflow de release vérifie que le tag correspond à `$script:Version`, compile, puis attache `GreaseweazleGUI.exe` et `GreaseweazleGUI.ps1` à la release. Tant que le dépôt n'a pas les secrets de signature décrits ci-dessous, cet exe n'est pas signé : le remplacer par l'exe signé compilé localement avec `Build-Exe.ps1` depuis le même commit, par exemple `gh release upload v12.10 dist\GreaseweazleGUI.exe --clobber`.
 
 Un lancement manuel du workflow (workflow_dispatch) régénère les notes d'une release existante depuis le CHANGELOG, sans toucher aux fichiers attachés.
 
@@ -158,7 +161,9 @@ La page [Compilation et publication](https://github.com/Bartozorus/GreaseweazleG
 
 ```
 .
-├── .github/workflows/release.yml   Compilation et release à chaque tag vX.Y
+├── .github/workflows/
+│   ├── release.yml                 Compilation et release à chaque tag vX.Y
+│   └── tests.yml                   Contrôles de la source et tests hors ligne sous Windows PowerShell 5.1
 ├── src/
 │   ├── modules/                    Source, en modules NNN-nom.ps1 (README.md : modifier, réassembler)
 │   ├── GreaseweazleGUI.ps1         Application (script unique), assemblée depuis modules/
