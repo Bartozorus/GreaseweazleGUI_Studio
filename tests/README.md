@@ -95,6 +95,7 @@ Les tests écrits depuis la 12.11 portent dès l'origine le nom de leur thème :
 | Test | Vérifie |
 |---|---|
 | `logic-ecriture-onglet` | Textes indicatifs des champs vides entiers dans leur champ, en français et en anglais ; entrées anglaises de la table I18n (aucune clé de `T()` sans entrée, aucune clé redéfinie par `019-i18n-1211.ps1`) |
+| `logic-gw-lancement` | Lancement de gw en trois temps (`Start-Gw`) : démarrage seul dans le premier `try`, suivi du processus posé aussitôt hors de tout `try`, suite du démarrage dans un second `try` ; texte réel de ce second `try` exécuté avec un faux processus : une exception n'écrit qu'une ligne au journal, sans abandonner le suivi ni la séquence en cours |
 
 ## Intégration continue
 

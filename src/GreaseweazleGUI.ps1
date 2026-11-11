@@ -2712,6 +2712,8 @@ $script:I18n['Dossier de vos images disque'] = 'Folder of your disk images'
 $script:I18n['…\Greaseweazle Studio\Restaurations'] = '…\Greaseweazle Studio\Restorations'
 
 # --- L2 : lancement de gw (110) ----------------------------------------------------------------------------------------
+# Journal : erreur de l application apres le demarrage de gw (second try de Start-Gw) ; gw reste suivi jusqu a sa fin
+$script:I18n["gw est lancé, mais une erreur a suivi son démarrage : {0}. La commande reste suivie jusqu'à sa fin ; « Arrêter » l'interrompt."] = 'gw has started, but an error followed its start: {0}. The command is still tracked until it ends; "Stop" interrupts it.'
 
 # --- L3 : asymetrie signee de l onglet « Qualite & alignement » et du controle apres ecriture (190, 170, 195) ----------
 
@@ -4567,10 +4569,29 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
     $p = New-Object System.Diagnostics.Process
     $p.StartInfo = $psi
 
+    # 12.11 : lancement en trois temps. Jusqu a la 12.10, un seul try couvrait Process.Start et la suite du demarrage :
+    # une exception apres le demarrage (flux, Set-Busy, onglet Qualite) passait pour un echec du lancement, et gw
+    # tournait sans suivi (sortie non lue, fin non traitee, « Arreter » sans effet, autre commande possible).
+    # Temps 1 : Process.Start seul ; son echec est le seul cas « gw n a pas pu etre lance »
     try {
         [void]$p.Start()
-        $script:GwProc = $p
-        $script:GwSoft = $warmRead; $script:GwDriveKey = $driveKey
+    } catch {
+        Append-Log ((T "ERREUR lancement : {0}") -f "$($_.Exception.Message)")
+        if ($libWr -and $script:OpOverride) { $script:OpOverride.Written = $false }
+        $script:GwProc = $null; $script:GwSoft = $false; $script:GwDriveKey = $null
+        Reset-GwSequence
+        Set-GwLaunchFailedStatus
+        Set-Busy $false
+        return
+    }
+    # 12.11 (temps 2) : gw tourne ; suivi du processus pose aussitot, hors de tout try : Start-Gw ne le defait plus
+    $script:GwProc = $p
+    $script:GwSoft = $warmRead; $script:GwDriveKey = $driveKey
+    # 12.11 (temps 3) : suite du demarrage. Une exception ici n est pas un echec du lancement : une ligne au journal,
+    # sans toucher au suivi, a la sequence en cours ni a la barre d etat (« ... en cours... »). Le minuteur suit la
+    # commande jusqu a sa fin et applique sa regle de fin, « Arreter » l interrompt, Get-AppBusy refuse toute autre
+    # operation. Si les flux ont echoue, la sortie de gw n est pas lue (Drain-GwReader accepte une tache nulle)
+    try {
         # Lecture asynchrone des deux flux : chaque ReadLineAsync rend une Task que le timer
         # inspecte sans bloquer l'interface. Pas de bloc -Action (inactif sous ShowDialog).
         $script:OutStdoutReader = $p.StandardOutput
@@ -4583,12 +4604,8 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
         # 12.8 (FIX3) : verdict du controle precedent (onglet Ecriture) masque
         if (($first -eq 'write' -or $first -eq 'erase') -and -not $script:Rep) { Set-QualityStale 'written'; Hide-WCalVerdict }
     } catch {
-        Append-Log ((T "ERREUR lancement : {0}") -f "$($_.Exception.Message)")
-        if ($libWr -and $script:OpOverride) { $script:OpOverride.Written = $false }
-        $script:GwProc = $null; $script:GwSoft = $false; $script:GwDriveKey = $null
-        Reset-GwSequence
-        Set-GwLaunchFailedStatus
-        Set-Busy $false
+        Append-Log ((T "gw est lancé, mais une erreur a suivi son démarrage : {0}. La commande reste suivie jusqu'à sa fin ; « Arrêter » l'interrompt.") -f "$($_.Exception.Message)")
+        try { Set-Busy $true } catch { }
     }
 }
 
