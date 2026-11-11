@@ -7,7 +7,8 @@ $Wt = Get-TestRoot $Wt
 #  B1 depot conforme (9 controles, code 0) ; A0 bloc Add-Type absent de la liste (A1) ;
 #  D1 module sans BOM (E1) ; D2 module en LF (E1) ; D3 document en CRLF (E2) ; D4 erreur de syntaxe (S1) ;
 #  D5 fonction definie deux fois (F1) ; D6 bloc Add-Type modifie (A1) ; D7 cle T() sans traduction au-dela du seuil
-#  (I1), admise quand le seuil la couvre ; D8 chemin du poste dans un test (P1) ; D9 adresse de messagerie dans un
+#  (I1), admise quand le seuil la couvre ; D7b la meme cle refusee par le seuil par defaut du controle (0 depuis la
+#  12.11 : aucun -MaxI18nMissing transmis) ; D8 chemin du poste dans un test (P1) ; D9 adresse de messagerie dans un
 #  test (P1).
 # Les fichiers factices ne sont jamais executes : check-source.ps1 les lit et les analyse seulement. Les sorties de
 # check-source.ps1 ne sont pas recopiees ici (leur ligne de bilan fausserait celle de ce test) : elles sont ecrites dans
@@ -57,8 +58,9 @@ $chk = Join-Path $fx 'tests\check-source.ps1'
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'check-source.ps1') -Destination $chk
 
 function Invoke-Check([string]$name, [int]$max = 0) {
-    # Lance la copie de check-source.ps1 sur le depot factice ; rend le code de sortie et l etat de chaque controle
-    $a = @('-Root', $fx, '-MaxI18nMissing', "$max")
+    # Lance la copie de check-source.ps1 sur le depot factice ; rend le code de sortie et l etat de chaque controle.
+    # $max negatif : aucun -MaxI18nMissing transmis, le seuil par defaut du controle s applique
+    $a = @('-Root', $fx); if ($max -ge 0) { $a += @('-MaxI18nMissing', "$max") }
     $ErrorActionPreference = 'Continue'
     $lines = @(& $exe -NoProfile -File $chk @a 2>&1 | ForEach-Object { "$_" })
     $rc = $LASTEXITCODE
@@ -121,8 +123,9 @@ $a1 = [string](@($r.Lines | Where-Object { $_ -cmatch '^A1\s' }) | Select-Object
 Chk 'D6' ((Test-Only $r @('A1')) -and $a1.Contains('empreintes sans bloc : 1')) "bloc Add-Type modifie sans mise a jour de la liste : $(Get-Bad $r) ; bloc nouveau et empreinte orpheline signales"
 
 Set-Ps 'src\GreaseweazleGUI.ps1' ($m000 + $m010 + $m030 + $m100 + @('function Get-Autre { return (T ''Sans traduction'') }'))
-$r = Invoke-Check 'D7'; $r1 = Invoke-Check 'D7-seuil' 1; Set-Modules
+$r = Invoke-Check 'D7'; $r1 = Invoke-Check 'D7-seuil' 1; $rd = Invoke-Check 'D7-defaut' -1; Set-Modules
 Chk 'D7' ((Test-Only $r @('I1')) -and (Test-Only $r1 @()) -and @($r.Lines | Where-Object { $_ -like '*sans traduction : Sans traduction*' }).Count -eq 1) "cle T() sans traduction, seuil 0 : $(Get-Bad $r) ; cle nommee ; seuil 1 : $(Get-Bad $r1)"
+Chk 'D7b' ((Test-Only $rd @('I1')) -and @($rd.Lines | Where-Object { $_ -like '*(au plus 0)*' }).Count -eq 1) "cle T() sans traduction, seuil par defaut du controle (0 depuis la 12.11, aucun -MaxI18nMissing transmis) : $(Get-Bad $rd)"
 
 # Chemin et adresse en morceaux : ce fichier ne doit pas etre signale par le controle P1 du depot
 $poste = 'C:' + '\Users\' + 'quelquun\lecture.scp'

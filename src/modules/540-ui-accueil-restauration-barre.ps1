@@ -117,7 +117,7 @@ $txtRsName.Location = '78,51'; $txtRsName.Width = 292
 $tip.SetToolTip($txtRsDir, (T "Dossier où sont enregistrés la lecture de l'original, la relecture de la copie et le rapport de restauration."))
 $tip.SetToolTip($txtRsName, (T 'Nom des fichiers enregistrés, par exemple « Workbench 1.3 ». Vide : date et heure.'))
 $grpRsDir.Controls.AddRange(@((New-Label (T 'Dossier :') '12,24'), $txtRsDir, $btnRsDir, (New-Label (T 'Nom :') '12,54'), $txtRsName))
-Set-Cue $txtRsDir (T 'Documents\Greaseweazle Studio\Restaurations')
+Set-Cue $txtRsDir (T '…\Greaseweazle Studio\Restaurations')   # 12.11 : repere raccourci (283 px pour un champ de 256 px : il etait coupe) ; fin du dossier par defaut de Get-RestoreDefaultDir (300)
 Set-Cue $txtRsName (T 'vide = date et heure')
 
 $btnRsStart = New-Object System.Windows.Forms.Button
@@ -197,7 +197,7 @@ $script:NoviceTabs = @($tabH, $tabRs, $tabL, $tabW, $tabR, $tabAl)
 $chkExpert.Add_CheckedChanged({ Update-TabSet })
 
 # Textes indicatifs des champs vides et infobulles des champs qui n en avaient pas
-Set-Cue $txtLibRoot   (T 'Dossier qui contient vos images disque (bouton à droite pour le choisir)')
+Set-Cue $txtLibRoot   (T 'Dossier de vos images disque'); $tip.SetToolTip($txtLibRoot, (T 'Dossier qui contient vos images disque (bouton à droite pour le choisir)'))   # 12.11 : repere raccourci (429 px pour un champ de 240 px : il etait coupe), son texte complet passe en infobulle
 Set-Cue $txtLibFilter (T 'Nom d''image à rechercher')
 Set-Cue $txtWFile     (T 'Image à écrire : ADF, IPF, SCP, HFE, IMG... (bouton à droite)')
 Set-Cue $txtWTracks   (T 'vide = toutes les pistes')

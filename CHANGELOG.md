@@ -5,6 +5,25 @@ Le numéro de version est celui de `$script:Version` dans `src/GreaseweazleGUI.p
 
 Chaque version s'ouvre sur un résumé de ce qu'elle apporte, puis classe ses changements en Nouveautés, Améliorations et Corrections. La rubrique « À savoir pour la mise à jour » indique ce qu'il faut faire en installant la version, par exemple recalibrer un lecteur. « Pour les développeurs » regroupe la compilation, la publication et le format de configuration. Le fonctionnement détaillé est décrit dans le [wiki](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki).
 
+## [12.11] - 2026-??-??
+
+### Nouveautés
+
+### Améliorations
+
+### Corrections
+
+- **Textes indicatifs de champs vides coupés.** Le texte indicatif gris d'un champ vide était coupé dans le champ « Racine » de la Bibliothèque et dans le champ « Dossier » de l'onglet « Restauration ». Il est raccourci : « Dossier de vos images disque » pour la Bibliothèque, dont l'ancien texte complet s'affiche maintenant en infobulle, et « …\Greaseweazle Studio\Restaurations » pour la restauration, c'est-à-dire la fin du dossier utilisé par défaut dans vos Documents.
+- **Interface anglaise : huit textes sans traduction déclarée.** Huit textes de l'interface et du journal, par exemple « Standard 2 us » dans la liste des profils ou la ligne « SHA1 ref » d'une comparaison, n'avaient pas d'entrée parmi les textes anglais. Ils s'écrivent de la même façon dans les deux langues : rien ne change à l'écran, mais chaque texte de l'application a désormais sa traduction déclarée.
+
+### À savoir pour la mise à jour
+
+### Pour les développeurs
+
+- Version : `$script:Version = '12.11'`. `CalibCalc` reste 12.10, `CalibCalcHd` 12.7 et `ContentCalc` 12.9.
+- **Tests hors ligne dans le dépôt.** Le dossier `tests/` contient les contrôles de la source et vingt-quatre tests logiques, lancés par `pwsh -NoProfile -File tests\Run-Tests.ps1`. Ils chargent les fonctions réelles des modules, sans gw, sans matériel et sans fenêtre. Le workflow « Tests » les lance sous Windows PowerShell 5.1 à chaque push sur `main` ou sur une branche `release-*` et à chaque pull request.
+- Textes anglais (019, 540, `tests/`) : nouveau module `019-i18n-1211.ps1`, suite de la table I18n pour la 12.11, une section par lot. Le contrôle I1 de `tests/check-source.ps1` n'admet plus aucune clé de `T` sans entrée dans la table (`-MaxI18nMissing` vaut 0 par défaut ; 8 clés étaient admises) : un texte identique dans les deux langues y reçoit une entrée explicite. Nouveau test `tests/logic-ecriture-onglet.ps1` : textes indicatifs des champs vides mesurés dans leur champ, en français et en anglais, et entrées de la table.
+
 ## [12.10] - 2026-11-11
 
 Cette version range les courbes de calibration par lecteur et permet d'écrire une disquette avec un lecteur pour qu'un autre la relise bien, par exemple avec un lecteur Sony pour le lecteur TEAC d'un Amiga. La calibration croisée, faite avec les deux lecteurs branchés sur le Greaseweazle, mesure cylindre par cylindre le besoin du lecteur qui relira ; une fois ce lecteur choisi dans la liste « Lecteur cible » de l'onglet « Écriture », les écritures appliquent la courbe obtenue. Cette liste remplace la correction « lecteur cible » de la 12.8.1.

@@ -136,11 +136,11 @@ Le workflow GitHub Actions [release.yml](.github/workflows/release.yml) compile 
 3. Tag et push :
 
    ```powershell
-   git tag v12.10
+   git tag v12.11
    git push origin main --tags
    ```
 
-4. Le workflow de release vérifie que le tag correspond à `$script:Version`, compile, puis attache `GreaseweazleGUI.exe` et `GreaseweazleGUI.ps1` à la release. Tant que le dépôt n'a pas les secrets de signature décrits ci-dessous, cet exe n'est pas signé : le remplacer par l'exe signé compilé localement avec `Build-Exe.ps1` depuis le même commit, par exemple `gh release upload v12.10 dist\GreaseweazleGUI.exe --clobber`.
+4. Le workflow de release vérifie que le tag correspond à `$script:Version`, compile, puis attache `GreaseweazleGUI.exe` et `GreaseweazleGUI.ps1` à la release. Tant que le dépôt n'a pas les secrets de signature décrits ci-dessous, cet exe n'est pas signé : le remplacer par l'exe signé compilé localement avec `Build-Exe.ps1` depuis le même commit, par exemple `gh release upload v12.11 dist\GreaseweazleGUI.exe --clobber`.
 
 Un lancement manuel du workflow (workflow_dispatch) régénère les notes d'une release existante depuis le CHANGELOG, sans toucher aux fichiers attachés.
 

@@ -26,6 +26,7 @@ Dans tous les modules, aucune instruction n'est à cheval sur deux modules, et c
 | `016-i18n-mesure-129.ps1` | Table I18n, suite (12.9) : mesure de la disquette sur l'image (liste « Marque », 4e passe, relectures gardées, journal du modèle « K-ns », facteur par marque des écritures, lignes du chargement de la configuration) |
 | `017-i18n-calib-129.ps1` | Table I18n, suite (12.9) : écriture sans surveillance (case de l'onglet Écriture, avertissement de calibration sans délai pour une calibration seule) et conseils des non-convergences de la calibration (marche du besoin, même écart sur les deux disquettes, nouvel essai), et corrections du calcul de la calibration 12.9 (conditionnement du lecteur, niveaux de mesure répartis, dent locale du besoin, nouvel essai à valeur inchangée) |
 | `018-i18n-1210.ps1` | Table I18n, suite (12.10) : export du tableau de l'onglet Qualité (bouton, menu contextuel, en-tête et colonnes du fichier, journal), courbes par lecteur, calibration croisée (bouton, fenêtre de choix, avertissement, invites d'échange, progression, bilan), écriture pour un lecteur cible (liste, refus, journal, lecteur cible sans effet, restauration, textes du facteur sans Δk) |
+| `019-i18n-1211.ps1` | Table I18n, suite (12.11), une section par lot de la version : textes de la 12.10 restés sans entrée anglaise (identiques dans les deux langues), textes indicatifs raccourcis de deux champs vides (racine de la Bibliothèque, dossier de la restauration) |
 | `020-amorce.ps1` | Assemblies WinForms, chemins, état de gw, extensions reconnues |
 | `030-csharp.ps1` | Blocs C# compilés au démarrage : comparateur de secteurs, statistiques SCP, motif de calibration, ajustement de courbe, index rapide |
 | `040-etat-formats.ps1` | État de l'application, profils de précompensation, table des réglages (`$script:SettingDefs`), table des formats |
@@ -87,7 +88,7 @@ Déplacer une fonction d'un module `fn` à un autre ne change rien à l'exécuti
 1. Ouvrez le module et modifiez-le.
    - Encodage : UTF-8 avec BOM, fins de ligne CRLF. `.editorconfig` et `.gitattributes` les imposent déjà.
    - Méfiez-vous des outils qui réécrivent le fichier, comme `sed` ou Python en mode texte : ils peuvent retirer le BOM ou les CR. L'assembleur le refuse, en donnant le module et la ligne.
-   - Conventions inchangées : commentaires en français sans accents, et chaque texte de l'interface passe par `T`, avec son entrée anglaise dans `010-i18n.ps1`.
+   - Conventions inchangées : commentaires en français sans accents, et chaque texte de l'interface passe par `T`, avec son entrée anglaise dans la table I18n : `010-i18n.ps1` et ses suites, `019-i18n-1211.ps1` pour les textes de la 12.11. Le contrôle de la source (`tests/check-source.ps1`, cas I1) refuse une clé de `T` sans entrée, même quand le texte est identique dans les deux langues.
    - La version de l'application est dans `000-entete.ps1` (`$script:Version`).
 2. Les messages de PowerShell, de PS2EXE et du banc de test donnent les lignes du fichier assemblé. Pour retrouver le module :
 

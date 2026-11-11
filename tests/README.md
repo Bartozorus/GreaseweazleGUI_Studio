@@ -38,7 +38,7 @@ Sorties : `tests\out\<étape>.txt`, `tests\out\tests.log` (les lignes affichées
 | S3 | Modules et tests : ni évaluation de texte, ni commande encodée, ni ou exclusif binaire |
 | F1 | Aucune fonction définie deux fois dans les modules |
 | A1 | Blocs `Add-Type` qui compilent : empreintes égales à `tests/add-type.txt` |
-| I1 | Clés `T()` littérales sans traduction anglaise : au plus `-MaxI18nMissing` |
+| I1 | Clés `T()` littérales sans entrée anglaise dans la table I18n : aucune (seuil `-MaxI18nMissing`, 0 par défaut) |
 | P1 | Tests et workflows : aucun chemin du poste de développement, aucune adresse de réseau privé ni de messagerie |
 
 Modifier un bloc C# impose de mettre `tests/add-type.txt` à jour dans le même commit : le cas A1 affiche l'empreinte attendue.
@@ -89,6 +89,12 @@ Vingt tests viennent de la campagne hors dépôt des versions 12.9 et 12.10 ; le
 | `logic-restauration-regles` | `logic-1210-fix2-e` | Restauration : règles et cadre, mesures de texte |
 
 Trois tests portent sur les outils eux-mêmes : `logic-lanceur` (verdicts du lanceur sur des tests factices), `logic-controle-source` (un défaut semé par contrôle dans un dépôt factice) et `logic-csharp-compilation` (les cinq blocs `Add-Type` de l'application compilent et donnent leurs types ; la compilation n'a lieu qu'avec `-Ci`).
+
+Les tests écrits depuis la 12.11 portent dès l'origine le nom de leur thème :
+
+| Test | Vérifie |
+|---|---|
+| `logic-ecriture-onglet` | Textes indicatifs des champs vides entiers dans leur champ, en français et en anglais ; entrées anglaises de la table I18n (aucune clé de `T()` sans entrée, aucune clé redéfinie par `019-i18n-1211.ps1`) |
 
 ## Intégration continue
 

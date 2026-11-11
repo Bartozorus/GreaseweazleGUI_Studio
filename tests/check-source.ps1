@@ -1,7 +1,7 @@
 ﻿param(
     [string]$Root = '',
-    # Cles T() sans traduction admises (12.10 : 8). A ramener a 0 quand elles sont traduites.
-    [int]$MaxI18nMissing = 8
+    # Cles T() sans traduction admises : aucune depuis la 12.11 (les 8 de la 12.10 ont leur entree dans 019-i18n-1211)
+    [int]$MaxI18nMissing = 0
 )
 # Controles de la source, sans executer le code de l application (lecture seule) :
 #  E1 fichiers .ps1 (modules, fichier assemble, outils, Build-Exe.ps1, tests) : UTF-8 avec un seul BOM, CRLF seuls ;
@@ -12,7 +12,7 @@
 #     syntaxique : un commentaire ou une chaine ne comptent pas) ;
 #  F1 aucune fonction definie deux fois dans les modules ;
 #  A1 blocs Add-Type qui compilent (hors chargement d assembly) : empreintes egales a tests\add-type.txt ;
-#  I1 cles T() litterales sans traduction : au plus -MaxI18nMissing ;
+#  I1 cles T() litterales sans traduction : au plus -MaxI18nMissing (0 par defaut : aucune) ;
 #  P1 tests et workflows : aucun chemin du poste de developpement, aucune adresse de reseau prive ni de messagerie.
 # Les tests controles sont ceux du dossier de ce script ; -Root designe le depot dont on controle la source.
 # Code de sortie : 0 conforme, 1 sinon. Compatible Windows PowerShell 5.1 et PowerShell 7.
