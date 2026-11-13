@@ -4,6 +4,9 @@
 # release existante depuis le CHANGELOG de la branche courante, sans toucher aux
 # fichiers attachés. Tag visé : celui saisi dans le formulaire, sinon le dernier
 # tag de la branche. Sans aucun tag : simple compilation de test (artefact).
+# Un tag vX.Y-rcN publie une préversion (« Pre-release », jamais « Latest ») : même
+# compilation, version du script X.Y, notes de la section X.Y du CHANGELOG précédées
+# d'un avertissement.
 # L'exe est signé avec le certificat du projet si les secrets CODESIGN_PFX_BASE64 et
 # CODESIGN_PFX_PASSWORD existent ; sinon il est publié non signé.
 name: Release
@@ -49,17 +52,23 @@ jobs:
             if (-not $tag) { $tag = (git describe --tags --abbrev=0 2>$null); if ($LASTEXITCODE -ne 0) { $tag = '' } }
             if ($tag) { $mode = 'notes' }
           }
+          $ver = "$tag".TrimStart('v'); $pre = 'false'
+          if ("$tag" -match '^v([0-9]+(\.[0-9]+)*)-rc[0-9]+$') { $ver = $Matches[1]; $pre = 'true' }
           "mode=$mode" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "tag=$tag"   | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "Mode : $mode / tag : $tag"
+          "ver=$ver"   | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "pre=$pre"   | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "Mode : $mode / tag : $tag / version : $ver / preversion : $pre"
 
       - name: Extraire les notes de release du CHANGELOG
         if: steps.mode.outputs.mode != 'test'
         shell: pwsh
         env:
           TAG: ${{ steps.mode.outputs.tag }}
+          VER: ${{ steps.mode.outputs.ver }}
+          PRE: ${{ steps.mode.outputs.pre }}
         run: |
-          $ver = $env:TAG.TrimStart('v')
+          $ver = $env:VER
           $lines = Get-Content -LiteralPath 'CHANGELOG.md' -Encoding UTF8
           $out = @(); $in = $false
           foreach ($l in $lines) {
@@ -68,6 +77,7 @@ jobs:
             if ($in) { $out += $l }
           }
           $body = if ($out.Count -gt 0) { (($out -join "`n").Trim()) } else { "Voir le CHANGELOG du dépôt pour la version $ver." }
+          if ($env:PRE -eq 'true') { $body = "> Préversion $($env:TAG) : version d'essai, publiée pour validation sur matériel réel avant la $ver définitive. La version recommandée reste la dernière version publiée.`n`n" + $body }
           [System.IO.File]::WriteAllText('release-notes.md', $body + "`n", (New-Object System.Text.UTF8Encoding($false)))
           Get-Content release-notes.md
 
@@ -83,12 +93,12 @@ jobs:
         if: steps.mode.outputs.mode == 'release'
         shell: powershell
         env:
-          TAG: ${{ steps.mode.outputs.tag }}
+          VER: ${{ steps.mode.outputs.ver }}
         run: |
           $m = Select-String -LiteralPath 'src\GreaseweazleGUI.ps1' -Pattern '^\$script:Version\s*=\s*''([0-9.]+)''' | Select-Object -First 1
           if (-not $m) { throw 'Version introuvable dans src\GreaseweazleGUI.ps1' }
           $src = $m.Matches[0].Groups[1].Value
-          $tag = $env:TAG.TrimStart('v')
+          $tag = $env:VER
           if ($src -ne $tag) { throw "Version du script ($src) différente du tag ($tag)." }
           "Version $src"
 
@@ -135,12 +145,25 @@ jobs:
           if-no-files-found: error
 
       - name: Créer la release GitHub (tag poussé)
-        if: steps.mode.outputs.mode == 'release'
+        if: steps.mode.outputs.mode == 'release' && steps.mode.outputs.pre != 'true'
         uses: softprops/action-gh-release@v3
         with:
           name: Greaseweazle Studio ${{ steps.mode.outputs.tag }}
           body_path: release-notes.md
           generate_release_notes: true
+          files: |
+            dist/GreaseweazleGUI.exe
+            src/GreaseweazleGUI.ps1
+
+      - name: Créer la préversion GitHub (tag vX.Y-rcN poussé)
+        if: steps.mode.outputs.mode == 'release' && steps.mode.outputs.pre == 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          name: Greaseweazle Studio ${{ steps.mode.outputs.tag }}
+          body_path: release-notes.md
+          generate_release_notes: true
+          prerelease: true
+          make_latest: 'false'
           files: |
             dist/GreaseweazleGUI.exe
             src/GreaseweazleGUI.ps1
