@@ -128,14 +128,23 @@ function Get-SpecCount([string]$spec) {
     return $n
 }
 
-function Start-Progress([string]$verb) {
+function Start-Progress([string]$verb, [string[]]$gwArgs = $null) {
     $script:ProgOp = $verb; $script:ProgTotal = 0
     $script:ProgSeen = New-Object 'System.Collections.Generic.HashSet[string]'
+    # 12.11 : etat de la commande remis a zero (progression par piste) ; une commande suit : etat de fin de sequence en
+    # attente annule (calibration puis ecriture, Set-SeqEnd), commande comptee dans la sequence (Update-SeqEnd)
+    $script:ProgHead = ''; $script:ProgKey = ''; $script:ProgRetry = ''; $script:ProgDone = 0
+    $script:ProgDirty = $false; $script:ProgFailed = $false
+    $script:SeqEnd = $null; $script:SeqCmds = 1 + [int]$script:SeqCmds
+    # 12.11 : poids de la commande dans le plan de l etape en cours (New-ProgPlan), d apres ses arguments ; second parametre
+    # absent (appels a un argument, lecture de prechauffage, detection des lecteurs) : commande hors de tout plan
+    $script:ProgCmd = $null
+    if ($script:ProgPlan -and $gwArgs -and $gwArgs.Count -gt 0) { $script:ProgCmd = Get-GwCmdUnits $gwArgs; $script:ProgPlan.Got = 1 + [int]$script:ProgPlan.Got }
     $stOp.Text = ((T "{0} en cours...") -f "$verb"); $stTrack.Text = ''; $stOp.Image = $script:StIcons.run
     $stBar.Style = 'Marquee'; $stBar.Visible = $true
 }
 
-function Update-Progress([string]$line) {
+function Update-Progress([string]$line, [switch]$Defer) {
     # Nettoyage des tetes (Start-HeadClean) : « Pass N: ... » a la fin de chaque passe (passes faites) ; une ligne de passe
     # interrompue par « Command Failed » et les autres lignes sont gardees pour le bilan (Complete-HeadClean)
     if ($script:CleanRun) {
@@ -146,27 +155,52 @@ function Update-Progress([string]$line) {
         $script:CleanRun.Lines.Add($line)
         return
     }
-    if ($line -match '^(Reading|Writing|Erasing)\s+c=([\d,\-]+):h=([\d,\-]+)') {
-        $script:ProgTotal = (Get-SpecCount $Matches[2]) * (Get-SpecCount $Matches[3])
-        if ($script:ProgTotal -gt 0) { $stBar.Style = 'Continuous'; $stBar.Minimum = 0; $stBar.Maximum = $script:ProgTotal; $stBar.Value = 0 }
-        return
+    # 12.11 : etat de la commande d apres la seule lecture de la ligne (Get-GwLineInfo), sans toucher a l interface ;
+    # affichage par Show-GwProgress : aussitot, ou une fois par lot de lignes avec -Defer (Read-GwOutput). ProgTotal et
+    # ProgSeen gardent leur sens (regle de fin d une commande, 600) ; l annonce « Converting » donne aussi un total, que
+    # la regle de fin ne compte pas (Get-EndRuleTotal)
+    $i = Get-GwLineInfo $line
+    if ($null -ne $i) {
+        if ($i.Kind -eq 'head') {
+            $script:ProgHead = [string]$i.Verb; $script:ProgTotal = [int]$i.Total
+            # Commande d un plan dont les arguments ne donnaient pas les pistes (--tracks=h=0, ou pas de --tracks) : poids
+            # complete par l annonce de gw, dans la commande et dans le total du plan si elle y etait prevue
+            $pc = $script:ProgCmd
+            if ($pc -and [int]$pc.Tracks -le 0 -and [int]$i.Total -gt 0 -and [double]$pc.Per -gt 0) {
+                $add = [int]$i.Total * [double]$pc.Per
+                $pc.Tracks = [int]$i.Total; $pc.Units = [double]$pc.Units + $add
+                if ($script:ProgPlan -and [int]$script:ProgPlan.Got -le @($script:ProgPlan.Cmds).Count) { $script:ProgPlan.Units = [double]$script:ProgPlan.Units + $add }
+            }
+        } else {
+            [void]$script:ProgSeen.Add([string]$i.Key)
+            $script:ProgKey = [string]$i.Key; $script:ProgRetry = [string]$i.Retry
+            # Pistes terminees : gw read et gw convert impriment la ligne apres la piste, gw write et gw erase avant de
+            # l ecrire ou de l effacer (piste commencee, non finie) ; jamais decroissant pendant une commande
+            $d = $script:ProgSeen.Count; if ([string]$i.Op -ne 'read') { $d-- }
+            if ($d -gt [int]$script:ProgDone) { $script:ProgDone = $d }
+        }
+        $script:ProgDirty = $true
     }
-    if ($line -match '^T(\d+)\.(\d+)\b[^:]*:') {
-        $key = "$($Matches[1]).$($Matches[2])"
-        [void]$script:ProgSeen.Add($key)
-        if ($script:ProgTotal -gt 0) {
-            $v = [math]::Min($script:ProgSeen.Count, $script:ProgTotal)
-            $stBar.Value = $v
-            $pct = [math]::Round(100 * $v / $script:ProgTotal, 0)
-            $stTrack.Text = ((T "piste {0}  ({1}/{2}, {3} %)") -f "$key", "$v", "$($script:ProgTotal)", "$pct")
-        } else { $stTrack.Text = ((T "piste {0}") -f "$key") }
-        if ($line -match 'Retry #(\d+)(?:\.(\d+))?') { $stTrack.Text += ((T "  -  essai {0}") -f "$(if ($Matches[2]) { $Matches[2] } else { $Matches[1] })") }
-    }
+    if (-not $Defer) { Show-GwProgress }
 }
 
 function Stop-Progress([int]$code) {
     $stBar.Style = 'Continuous'
+    # 12.11 : fin de la commande. Echec garde pour la fin de sequence (Update-SeqEnd ne remplace pas « ... en echec ») ;
+    # poids de la commande credite au plan de l etape : entier avec le code 0, sinon sa part fixe et ses pistes terminees.
+    # Second appel pour la detection des lecteurs (600) : plus de poids a crediter
+    $script:ProgFailed = ($code -ne 0)
+    $pc = $script:ProgCmd; $script:ProgCmd = $null
+    if ($pc -and $script:ProgPlan) {
+        $u = [double]$pc.Fixed + (Get-GwProgress).Done * [double]$pc.Per
+        if ($code -eq 0 -and $u -lt [double]$pc.Units) { $u = [double]$pc.Units }
+        $script:ProgPlan.Done = [double]$script:ProgPlan.Done + $u
+    }
     if ($code -eq 0) {
+        # 12.11 : commande terminee, la derniere piste vue est finie : pistes terminees = pistes vues (« (82/82, 100 %) »
+        # apres une ecriture ou un effacement complets ; image plus courte que l annonce : compte reel, barre pleine)
+        if ($script:ProgSeen -and $script:ProgSeen.Count -gt [int]$script:ProgDone) { $script:ProgDone = $script:ProgSeen.Count; $script:ProgDirty = $true }
+        Show-GwProgress
         if ($script:ProgTotal -gt 0) { $stBar.Value = $stBar.Maximum }
         $stOp.Text = ((T "{0} terminé(e)  -  {1}") -f "$($script:ProgOp)", "$(Get-Date -Format 'HH:mm:ss')"); $stOp.Image = $script:StIcons.ok
     } else {
@@ -242,6 +276,8 @@ function Complete-DriveProbe([int]$code) {
 function Complete-DriveDetect {
     $dt = $script:Detect; $script:Detect = $null
     if (-not $dt) { return }
+    # 12.11 : barre d etat apres la recherche des lecteurs : « Pret. », sans heure (avant : « gw seek termine(e) »)
+    Set-SeqEnd (T 'Prêt.') 'idle' -NoTime
     $script:DetectNone = ($dt.Found.Count -eq 0)
     # A et 2 (broche 14), B et 1 (broche 12) partagent une ligne de selection : gw seek, sans moteur, ne les distingue
     # pas. Une seule entree par paire : A ou B, sauf si 2 ou 1 etait deja le reglage ; l identifiant prefere qui a ete
@@ -307,7 +343,9 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
     # sequence ; lecteur de la commande pour DriveActivity (serie d activite mise a jour par le minuteur a la fin de la
     # commande, seulement si le moteur a tourne). Nom distinct du parametre Soft (PowerShell ignore la casse).
     $warmRead = [bool]([bool]$Soft -or ($script:Cal -and $script:Cal.Stage -eq 'warmup' -and $first -eq 'read'))
-    Start-Progress $(if ($warmRead) { (T 'Préchauffage') } elseif ($verbs.ContainsKey($first)) { $verbs[$first] } else { "gw $first" })
+    # 12.11 : arguments transmis a la progression (poids de la commande dans le plan de l etape, New-ProgPlan), sauf pour
+    # une lecture de prechauffage et pour la detection des lecteurs, qui n entrent dans aucun plan
+    Start-Progress $(if ($warmRead) { (T 'Préchauffage') } elseif ($verbs.ContainsKey($first)) { $verbs[$first] } else { "gw $first" }) $(if ($warmRead -or $script:Detect) { $null } else { $gwArgs })
     # 12.8.1 (spec-1281.md § A.7) : arret « Failed to verify Track C.H » de la commande, pose par Read-GwOutput (ecriture)
     $script:GwVerifyFail = $null
     if ($script:GwIsWrite) { $script:WriteRetries = @{}; $script:WriteTracks = @{} }
@@ -390,6 +428,9 @@ function Set-GwLaunchFailedStatus {
     # animee. Appelee apres Reset-GwSequence (fin de la sequence, dont Close-Restore) : la cause est au journal
     $stOp.Text = ((T "{0} : gw n'a pas pu être lancé, voir le journal  -  {1}") -f "$($script:ProgOp)", "$(Get-Date -Format 'HH:mm:ss')"); $stOp.Image = $script:StIcons.err
     $stTrack.Text = ''; $stBar.Style = 'Continuous'; $stBar.Visible = $false
+    # 12.11 : etat d echec : l etat de fin de sequence pose par Reset-GwSequence (restauration, calibration, controle) est
+    # annule, et Update-SeqEnd ne remplace pas cet affichage, qui dit la cause
+    $script:SeqEnd = $null; $script:ProgFailed = $true; $script:ProgCmd = $null
 }
 
 function Drain-GwReader($reader, [ref]$task) {
@@ -430,7 +471,9 @@ function Read-GwOutput([bool]$flush) {
     }
     if ($lines.Count -eq 0) { return }
     $script:GwLines += $lines.Count
-    foreach ($l in $lines) { Update-Progress $l }
+    # 12.11 : etat de la progression mis a jour ligne par ligne, barre d etat peinte une seule fois pour le lot
+    foreach ($l in $lines) { Update-Progress $l -Defer }
+    Show-GwProgress
     if ($null -ne $script:GwCapture) { foreach ($l in $lines) { $script:GwCapture.Add($l) } }
     if ($script:Detect) { return }                      # detection des lecteurs : sortie analysee, pas affichee
     if ($script:GwIsWrite) {
@@ -523,4 +566,192 @@ function Export-LogFile([string]$path) {
     # journal tel qu il est affiche (marque de troncature comprise, Limit-LogText), avec ses fins de ligne ; codage
     # inchange (Set-Content -Encoding UTF8)
     (((Get-LogExportHeader) -join "`n") + "`n" + $txtLog.Text) | Set-Content -LiteralPath $path -Encoding UTF8
+}
+
+# --- Progression par piste : ligne de gw, commande, plan d une etape, fin de sequence (12.11) ---
+# Une source, trois niveaux. La ligne : Get-GwLineInfo, seule lecture d une ligne de gw pour la progression. La commande :
+# Update-Progress tient l etat (040), Show-GwProgress le peint dans la barre d etat. Le plan : une etape de plusieurs
+# commandes (passe de calibration, conditionnement, passe de la mesure sur l image) declare ses commandes par New-ProgPlan ;
+# Get-ProgPlanFrac rend son avancement d apres les pistes annoncees par gw, lu par Update-CalibProgress (270) a la place
+# du temps ecoule. Affichage seulement : rien ici ne lance, n arrete ni ne juge une operation.
+
+function Get-GwLineInfo([string]$line) {
+    # Lecture d une ligne de gw 1.23, sans etat ni interface. $null : ligne sans effet sur la progression. Annonce du jeu
+    # de pistes : @{ Kind = 'head' ; Verb = Reading, Writing, Erasing ou Converting ; Total = pistes annoncees }. Ligne de
+    # piste « Tc.h...: » : @{ Kind = 'track' ; Key = 'c.h' ; Op = 'erase' (« Erasing Track »), 'write' (« Writing Track »)
+    # ou 'read' (toute autre : lecture, conversion, piste sautee) ; Retry = numero d essai, ou '' }. Premier caractere
+    # teste avant toute expression ; memes expressions que la 12.10, plus « Converting ». Piste renumerotee (« T1.0 ->
+    # Drive 2.0: ») : cle de la piste de l image
+    if ($line.Length -lt 5) { return $null }
+    $c = $line[0]
+    if ($c -ceq 'T') {
+        if ($line -notmatch '^T(\d+)\.(\d+)\b[^:]*: ?(Erasing Track|Writing Track)?') { return $null }
+        $key = $Matches[1] + '.' + $Matches[2]
+        $op = if ($Matches[3] -ceq 'Erasing Track') { 'erase' } elseif ($Matches[3]) { 'write' } else { 'read' }
+        $retry = ''
+        if ($line.IndexOf('Retry #') -ge 0 -and $line -match 'Retry #(\d+)(?:\.(\d+))?') { $retry = [string]$(if ($Matches[2]) { $Matches[2] } else { $Matches[1] }) }
+        return @{ Kind = 'track'; Key = $key; Op = $op; Retry = $retry }
+    }
+    if ($c -ceq 'R' -or $c -ceq 'W' -or $c -ceq 'E' -or $c -ceq 'C') {
+        if ($line -match '^(Reading|Writing|Erasing|Converting)\s+c=([\d,\-]+):h=([\d,\-]+)') {
+            return @{ Kind = 'head'; Verb = [string]$Matches[1]; Total = ((Get-SpecCount $Matches[2]) * (Get-SpecCount $Matches[3])) }
+        }
+    }
+    return $null
+}
+
+function Get-GwProgress {
+    # Etat de la commande gw en cours, ou de la derniere : @{ Known (total annonce par gw) ; Total ; Seen (pistes
+    # distinctes vues) ; Done (pistes terminees, au plus le total annonce) ; Key (derniere piste vue) ; Retry (numero
+    # d essai, ou '') }. Pour l affichage seulement : la regle de fin d une commande lit ProgTotal et ProgSeen (600)
+    $t = [int]$script:ProgTotal
+    $d = [int]$script:ProgDone
+    if ($t -gt 0 -and $d -gt $t) { $d = $t }
+    return @{ Known = ($t -gt 0); Total = $t; Seen = $(if ($script:ProgSeen) { [int]$script:ProgSeen.Count } else { 0 }); Done = $d; Key = [string]$script:ProgKey; Retry = [string]$script:ProgRetry }
+}
+
+function Show-GwProgress {
+    # Peint la barre et le compteur de la barre d etat d apres l etat de la commande, seulement s il a change (ProgDirty) :
+    # une fois par lot de lignes de gw, et non a chaque ligne. Compteur « piste {0}  ({1}/{2}, {3} %) » : {0} piste en
+    # cours, {1} et {3} pistes terminees (une ecriture ou un effacement n affiche plus 100 % pendant sa derniere piste).
+    # Plus de pistes vues qu annoncees : barre et compteur restent au total annonce, la piste en cours continue de
+    # s afficher. Sans annonce reconnue : barre animee, « piste {0} » seul, comme en 12.10
+    if (-not $script:ProgDirty) { return }
+    $script:ProgDirty = $false
+    $g = Get-GwProgress
+    if ($g.Known) {
+        if ([string]$stBar.Style -ne 'Continuous' -or $stBar.Maximum -ne $g.Total) { $stBar.Style = 'Continuous'; $stBar.Minimum = 0; $stBar.Maximum = $g.Total }
+        if ($stBar.Value -ne $g.Done) { $stBar.Value = $g.Done }
+    }
+    if (-not $g.Key) { return }
+    $txt = if ($g.Known) { (T "piste {0}  ({1}/{2}, {3} %)") -f "$($g.Key)", "$($g.Done)", "$($g.Total)", "$([math]::Round(100 * $g.Done / $g.Total, 0))" }
+           else { (T "piste {0}") -f "$($g.Key)" }
+    if ($g.Retry) { $txt += ((T "  -  essai {0}") -f "$($g.Retry)") }
+    if ([string]$stTrack.Text -ne $txt) { $stTrack.Text = $txt }
+}
+
+function Get-EndRuleTotal {
+    # Total des pistes annoncees que le minuteur principal (600) passe a la regle de fin d une commande (Get-GwEndRule :
+    # « moins de la moitie des pistes annoncees » = operation incomplete). 0 pour gw convert : son annonce donne depuis
+    # la 12.11 un total a la barre d etat, mais une image peut porter moins de pistes que le jeu annonce ; la regle reste
+    # celle de la 12.10, ou ce total n etait pas lu. Autres commandes : $script:ProgTotal, inchange
+    if ([string]$script:ProgHead -ceq 'Converting') { return 0 }
+    return [int]$script:ProgTotal
+}
+
+function Get-GwCmdUnits([string[]]$gwArgs, [int]$tracks = -1) {
+    # Poids estime d une commande gw dans le plan d une etape, d apres ses arguments (tableau, ou une seule chaine) :
+    # @{ Fixed ; Per ; Tracks ; Units }, Units = Fixed + Tracks x Per, en secondes estimees ($script:ProgCost, 040 :
+    # proportions relevees sur les lecteurs d un seul utilisateur, jamais affichees comme des durees). Par piste :
+    # effacement ; ecriture, plus le pre-effacement (--pre-erase), plus la verification (sans --no-verify) ; relecture selon
+    # --revs. Pistes : c= et h= de --tracks (Get-SpecCount), 0 si elles ne s y lisent pas (l annonce de gw complete alors
+    # le poids, Update-Progress) ; $tracks >= 0 : nombre impose. Autre commande (clean, rpm, seek, info...) : poids nul
+    $c = $script:ProgCost
+    $line = ' ' + ((@($gwArgs) | Where-Object { $null -ne $_ }) -join ' ') + ' '
+    $verb = ''
+    foreach ($t in @($line.Trim() -split '\s+')) { if ($t -and -not $t.StartsWith('--')) { $verb = $t; break } }
+    $per = -1.0
+    if ($verb -ceq 'erase') { $per = [double]$c.Erase }
+    elseif ($verb -ceq 'write') {
+        $per = [double]$c.Write
+        if ($line -match '\s--pre-erase\s') { $per += [double]$c.PreErase }
+        if ($line -notmatch '\s--no-verify\s') { $per += [double]$c.Verify }
+    }
+    elseif ($verb -ceq 'read') {
+        $per = if ($line -match '\s--revs=(\d+)\s') { [double]$c.ReadBase + [double]$c.ReadRev * [int]$Matches[1] } else { [double]$c.ReadNoRevs }
+    }
+    if ($per -lt 0) { return @{ Fixed = 0.0; Per = 0.0; Tracks = 0; Units = 0.0 } }
+    $n = $tracks
+    if ($n -lt 0) {
+        $n = 0
+        if ($line -match '\s--tracks=(\S+)') {
+            $ts = [string]$Matches[1]
+            if ($ts -match '(?:^|:)c=([\d,\-]+)') {
+                $nc = Get-SpecCount $Matches[1]
+                if ($ts -match '(?:^|:)h=([\d,\-]+)') { $n = $nc * (Get-SpecCount $Matches[1]) }
+            }
+        }
+    }
+    return @{ Fixed = [double]$c.Fixed; Per = $per; Tracks = [int]$n; Units = ([double]$c.Fixed + [int]$n * $per) }
+}
+
+function New-ProgPlan($cmds) {
+    # Plan d une etape faite de plusieurs commandes gw ($cmds : tableaux d arguments, dans l ordre de leur lancement) :
+    # $script:ProgPlan = @{ Units (poids prevu) ; Done (poids des commandes finies) ; Max (plus grande fraction rendue) ;
+    # Cmds (poids prevus, par commande) ; Got (commandes recues de Start-Progress) }. Pose la ou l etape construit ses
+    # commandes (New-CalibPass, Start-CalibCondition, New-ContentPass) ; retire quand la passe est comptee, a l arret d une
+    # calibration et au repos (Update-SeqEnd). Ne lance rien et ne modifie aucune commande
+    $u = 0.0
+    $l = New-Object System.Collections.Generic.List[object]
+    foreach ($c in @($cmds)) {
+        if ($null -eq $c) { continue }
+        $w = Get-GwCmdUnits ([string[]]@($c))
+        $u += [double]$w.Units
+        $l.Add($w)
+    }
+    $script:ProgPlan = @{ Units = $u; Done = 0.0; Max = 0.0; Cmds = $l.ToArray(); Got = 0 }
+    $script:ProgCmd = $null
+}
+
+function Get-ProgPlanFrac {
+    # Avancement de l etape en cours, de 0 a 1 ; $null sans plan, ou tant que le plan n a recu aucune commande (Start-Gw
+    # remplace par un banc de test : l appelant garde alors son calcul par le temps). (poids fini + part de la commande en
+    # cours) / max(poids prevu, poids fini + poids de la commande en cours). Part de la commande en cours : des sa
+    # premiere ligne de piste, part fixe + pistes terminees x cout par piste ; avant (4 a 6 s en pratique, ou toute la
+    # commande si gw n imprime aucune ligne de piste), temps ecoule depuis son lancement, borne a 98 % de son poids.
+    # Jamais decroissant dans un plan (Max), 1 au plus : une commande non prevue (reprise d une tete), ou plus de pistes
+    # vues que prevu, allonge le plan sans faire reculer la barre, qui attend alors sur place
+    $p = $script:ProgPlan
+    if (-not $p -or [int]$p.Got -le 0) { return $null }
+    $done = [double]$p.Done; $cur = 0.0; $w = 0.0
+    $pc = $script:ProgCmd
+    if ($pc) {
+        $w = [double]$pc.Units
+        if ($script:ProgSeen -and $script:ProgSeen.Count -gt 0) {
+            $cur = [double]$pc.Fixed + (Get-GwProgress).Done * [double]$pc.Per
+            if ($cur -gt $w) { $w = $cur }
+        } else {
+            $el = if ($script:GwStart -is [datetime]) { ((Get-Date) - $script:GwStart).TotalSeconds } else { 0.0 }
+            $cur = [math]::Max(0.0, [math]::Min($el, 0.98 * $w))
+        }
+    }
+    $den = [math]::Max([double]$p.Units, $done + $w)
+    $f = if ($den -gt 0) { [math]::Min(1.0, ($done + $cur) / $den) } else { 0.0 }
+    if ($f -lt [double]$p.Max) { $f = [double]$p.Max } else { $p.Max = $f }
+    return [double]$f
+}
+
+function Set-SeqEnd([string]$text, [string]$icon = 'idle', [switch]$NoTime) {
+    # Etat de la barre d etat a poser a la fin de la sequence en cours : le resultat de l operation (restauration,
+    # calibration, controle apres ecriture, recherche des lecteurs), sans compteur ni barre. En attente seulement :
+    # Update-SeqEnd l applique au repos ; une commande gw qui suit l annule (Start-Progress), un echec du lancement aussi
+    # (Set-GwLaunchFailedStatus). Icone : idle, ok ou err ($script:StIcons, 540). Sans -NoTime, l heure suit le texte
+    $script:SeqEnd = @{ Text = $text; Icon = $icon; NoTime = [bool]$NoTime }
+}
+
+function Clear-SeqEnd {
+    # Etat de fin de sequence en attente annule sans qu une commande gw suive : la barre d etat vient de recevoir une
+    # consigne qui le remplace (attente de la disquette de destination d une restauration, Enter-RestoreWait, apres une
+    # calibration sur une disquette sacrifiee : sans cela, « Annuler » pendant l attente afficherait « Pret. », puis au
+    # repos le titre de la calibration)
+    $script:SeqEnd = $null
+}
+
+function Update-SeqEnd {
+    # Minuteur principal (600) : fin de sequence, une fois l application au repos (Get-AppBusy vide). Etat pose par
+    # Set-SeqEnd : texte (suivi de l heure), icone, compteur de piste efface, barre masquee. Sans etat pose, apres une
+    # sequence de deux commandes gw ou plus : compteur efface et barre masquee, texte de la derniere commande garde ; une
+    # commande isolee garde l affichage de la 12.10. Jamais sur un etat d echec de la derniere commande (« ... en echec
+    # (code N) », gw non lance : ProgFailed), qui dit la cause : l attente est abandonnee, la barre d etat laissee.
+    # Plan de l etape retire. Cout par passage : trois variables, puis Get-AppBusy tant qu une sequence est en cours
+    if ($null -eq $script:SeqEnd -and [int]$script:SeqCmds -le 0 -and $null -eq $script:ProgPlan) { return }
+    if (Get-AppBusy) { return }
+    $e = $script:SeqEnd; $n = [int]$script:SeqCmds
+    $script:SeqEnd = $null; $script:SeqCmds = 0; $script:ProgPlan = $null; $script:ProgCmd = $null
+    if ($script:ProgFailed) { return }
+    if ($e) {
+        $stOp.Text = $(if ($e.NoTime) { [string]$e.Text } else { [string]$e.Text + '  -  ' + (Get-Date -Format 'HH:mm:ss') })
+        $stOp.Image = $(if ($script:StIcons.ContainsKey([string]$e.Icon)) { $script:StIcons[[string]$e.Icon] } else { $script:StIcons.idle })
+        $stTrack.Text = ''; $stBar.Visible = $false
+    } elseif ($n -ge 2) { $stTrack.Text = ''; $stBar.Visible = $false }
 }

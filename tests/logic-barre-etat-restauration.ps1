@@ -21,6 +21,14 @@ $Wt = Get-TestRoot $Wt
 # Aucun gw, aucune fenetre, aucun Add-Type, aucune evaluation de texte.
 # Attendu NON CONFORME : sur 9c1d1ee (RC10) R9, R10, R12, R13 ; sur 0a06387 (RC9) R1, R7, R9, R10, R12, R13 ; sur fa64535
 # (RC8) R1, R2, R4b, R6, R7, R9, R10, R12, R13. (11/11/2026, relecture de la RC11, m2 : compteur rempli avant R9, R13.)
+# 12.11 (lot L8, progression par piste) : Close-Restore pose l etat de fin de sequence de la restauration (Set-SeqEnd, 110),
+# d apres l icone du verdict de Show-RestoreResult, et Update-SeqEnd l applique au repos. Adapte : Set-SeqEnd,
+# Clear-SeqEnd (appelee par Enter-RestoreWait) et Update-SeqEnd reels charges ; le remplacant de Show-RestoreResult
+# enregistre l appel puis appelle la vraie fonction (elle pose l icone que lit Close-Restore). R1 a R13 gardent leur attendu. Ajoutes : R14 (apres R3, restauration echouee sur
+# une commande reussie : barre d etat intacte a la fin de Close-Restore, puis « Restauration echouee » au repos), R15
+# (annulations de R2, R6 et R7 : « Pret. », rien en attente), R16 (apres R12, gw non lance : etat en attente annule par
+# Set-GwLaunchFailedStatus, la barre d etat garde l echec), R17 (etat en attente d une calibration annule par la consigne
+# de l attente de la destination). Sur une source d avant le lot L8 : R14 a R17 NON CONFORMES.
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 Import-TestWinForms
@@ -49,7 +57,7 @@ if ($hit.Count -ne 1) { throw "Add_Click de btnRsCancel : $($hit.Count)" }
 $cancelBody = $hit[0].Arguments[0].ScriptBlock.Extent.Text.Trim().TrimStart('{').TrimEnd('}')
 
 $want = @('Test-CalibImage', 'Start-CrossCalib', 'Enter-RestoreWait', 'Close-Restore', 'Fail-Restore', 'Stop-Restore', 'Resume-Restore', 'Get-RestoreKeepCyls', 'Start-Progress')
-$wantNew = @('Get-CalibEnvBlock', 'Set-GwLaunchFailedStatus')
+$wantNew = @('Get-CalibEnvBlock', 'Set-GwLaunchFailedStatus', 'Set-SeqEnd', 'Clear-SeqEnd', 'Update-SeqEnd')
 $snd = '[System.Media.SystemSounds]::Exclamation.Play()'
 $ew = [string]$all['Enter-RestoreWait']
 $nSnd = ([regex]::Matches($ew, [regex]::Escape($snd))).Count
@@ -58,6 +66,11 @@ $all['Enter-RestoreWait'] = $ew.Replace($snd, '$script:Sound++')
 $code = (@($want | ForEach-Object { if (-not $all.ContainsKey($_)) { throw "fonction $_ introuvable" }; $all[$_] }) -join "`r`n`r`n")
 $code += "`r`n`r`n" + (@($wantNew | Where-Object { $all.ContainsKey($_) } | ForEach-Object { $all[$_] }) -join "`r`n`r`n")
 $code += "`r`n`r`nfunction Invoke-RsCancelClick {`r`n" + $cancelBody + "`r`n}`r`n"
+# 12.11 (lot L8) : vraie Show-RestoreResult sous un autre nom, appelee par son remplacant : elle pose l icone du verdict
+# ($script:RsResultIcon) d apres laquelle Close-Restore pose l etat de fin de sequence
+$srr = [string]$all['Show-RestoreResult']
+if (-not $srr.StartsWith('function Show-RestoreResult')) { throw 'en-tete inattendu pour Show-RestoreResult' }
+$code += "`r`nfunction Show-RestoreResultReal" + $srr.Substring('function Show-RestoreResult'.Length) + "`r`n"
 $gen = Join-Path $here 'gen-1210-rc11.ps1'
 [System.IO.File]::WriteAllText($gen, $code, (New-Object System.Text.UTF8Encoding($true)))
 # Set-Busy et Get-AppBusy reels, charges seulement pour R8 (les cas E simulent l occupation)
@@ -88,7 +101,7 @@ function Set-RsLock($b) { $script:Calls.Add("Set-RsLock $b") }
 function Update-RsCalib { $script:Calls.Add('Update-RsCalib') }
 function Stop-WriteWarmup { }
 function Write-RestoreReport([bool]$ok, [string]$verdict) { $script:Calls.Add("Write-RestoreReport $verdict") }
-function Show-RestoreResult([bool]$ok, [string]$text, [string]$icon = '') { $script:Calls.Add("Show-RestoreResult $text") }
+function Show-RestoreResult([bool]$ok, [string]$text, [string]$icon = '') { $script:Calls.Add("Show-RestoreResult $text"); Show-RestoreResultReal $ok $text $icon }
 function Format-CylList($c) { return (@($c) -join ',') }
 function Format-TrackList($c) { return (@($c) -join ',') }
 function Sort-TrackKeys($c) { return @($c) }
@@ -111,6 +124,10 @@ $lblRsWait = New-Object System.Windows.Forms.Label; $lblRsWait.Size = New-Object
 $btnRsGo = New-Object System.Windows.Forms.Button; $btnRsCancel = New-Object System.Windows.Forms.Button; $btnRsForce = New-Object System.Windows.Forms.Button
 $pnlRsWait.Controls.AddRange(@($btnRsGo, $btnRsCancel, $btnRsForce))
 $lblRsRules = New-Object System.Windows.Forms.Label; $lblRsNow = New-Object System.Windows.Forms.Label
+# 12.11 (lot L8) : libelle du verdict et encre de la reserve, pour la vraie Show-RestoreResult
+$lblRsResult = New-Object System.Windows.Forms.Label; $tabRs.Controls.Add($lblRsResult)
+$script:Theme = @{ WarnInk = [System.Drawing.Color]::FromArgb(138, 90, 0) }
+$script:SeqEnd = $null; $script:SeqCmds = 0; $script:ProgPlan = $null; $script:ProgCmd = $null; $script:ProgFailed = $false; $script:RsResultIcon = $null
 $cmbDrive = New-Object System.Windows.Forms.ComboBox
 $tabs = New-Object System.Windows.Forms.TabControl
 $btnStop = New-Object System.Windows.Forms.Button; $btnCfgSave = New-Object System.Windows.Forms.Button; $btnCfgReset = New-Object System.Windows.Forms.Button
@@ -178,6 +195,7 @@ New-Rs; Enter-Wait
 Chk 'R1' ($stTrack.Text -eq '' -and -not $stBar.Available -and $stOp.Text -eq $waitFr -and [object]::ReferenceEquals($stOp.Image, $script:StIcons.idle) -and $script:Sound -eq 1 -and $script:Restore.Waiting) "attente de la destination : compteur vide, barre masquee, icone neutre, consigne « $($stOp.Text) »"
 $script:Calls.Clear()
 Invoke-RsCancelClick
+$pend2 = ($null -ne $script:SeqEnd)      # 12.11 (lot L8) : etat de fin de sequence en attente apres l annulation (R15)
 Chk 'R2' ((Test-Idle) -and $stTrack.Text -eq '' -and -not $stBar.Available -and $null -eq $script:Restore -and (Get-Calls "Show-RestoreResult*$(T 'annulée par l''utilisateur')*").Count -eq 1 -and (Get-Calls 'Set-RsLock False').Count -eq 1) "« Annuler » pendant l attente (gestionnaire reel, Stop-Restore, Fail-Restore, Close-Restore) : barre d etat « $($stOp.Text) », icone neutre"
 $script:Lang = 'en'
 New-Rs; Enter-Wait
@@ -191,20 +209,48 @@ New-Rs; Enter-Wait
 Resume-Restore $false
 $wf = (-not $script:Restore.Waiting -and (Get-Calls 'Start-RestoreProbe').Count -ge 1)
 $stOp.Text = 'Lecture terminé(e)  -  21:05:00'; $stOp.Image = $script:StIcons.ok
+$stTrack.Text = 'piste 79.1  (160/160, 100 %)'; $stBar.Visible = $true     # 12.11 (lot L8) : compteur et barre de la sonde (R14)
 Stop-Restore 'essai'
 Chk 'R3' ($wf -and $stOp.Text -eq 'Lecture terminé(e)  -  21:05:00' -and [object]::ReferenceEquals($stOp.Image, $script:StIcons.ok)) "« Continuer » (sonde, commande gw simulee) puis echec : barre d etat de la sonde intacte (« $($stOp.Text) »)"
+# R14 (12.11, lot L8) : la restauration a echoue alors que sa derniere commande gw avait reussi : Close-Restore a pose
+# l etat de fin de sequence sans toucher a la barre d etat (R3) ; au repos, Update-SeqEnd annonce le resultat de la
+# restauration, sans compteur ni barre
+$hasSe = [bool](Get-Command Update-SeqEnd -ErrorAction SilentlyContinue)
+$pend3 = if ($script:SeqEnd) { "$($script:SeqEnd.Text)|$($script:SeqEnd.Icon)" } else { '' }
+$keep3 = ($stTrack.Text -eq 'piste 79.1  (160/160, 100 %)' -and $stBar.Available)
+if ($hasSe) { Update-SeqEnd }
+Chk 'R14' ($hasSe -and $pend3 -eq ((T 'Restauration échouée') + '|err') -and $keep3 -and $stOp.Text -match ('^' + [regex]::Escape((T 'Restauration échouée')) + '  -  \d\d:\d\d:\d\d$') -and [object]::ReferenceEquals($stOp.Image, $script:StIcons.err) -and $stTrack.Text -eq '' -and -not $stBar.Available -and $null -eq $script:SeqEnd) "restauration echouee, derniere commande reussie : etat pose par Close-Restore (« $pend3 »), compteur et barre gardes jusqu au repos ($keep3), puis « $($stOp.Text) », icone d erreur, compteur vide, barre masquee"
 New-Rs 'flux'; Enter-Wait
 $script:ConfirmAnswer = $false
 Resume-Restore $false
 $keep = ($script:Restore -and $script:Restore.Waiting -and $stOp.Text -eq $waitFr)
 $script:ConfirmAnswer = $true
 Invoke-RsCancelClick
+$pend6 = ($null -ne $script:SeqEnd)
 Chk 'R6' ($keep -and (Test-Idle)) "« Continuer » puis confirmation refusee : attente gardee ($keep) ; puis « Annuler » : « $($stOp.Text) »"
 New-Rs 'sector'; Enter-Wait -Override
 $script:WriteFails = $true
 Resume-Restore $true
 $script:WriteFails = $false
+$pend7 = ($null -ne $script:SeqEnd)
 Chk 'R7' ($null -eq $script:Restore -and (Test-Idle)) "« Ecraser quand meme » puis echec simule avant toute commande gw (comme une fenetre « Calibration precomp » annulee) : « $($stOp.Text) »"
+# R15 (12.11, lot L8) : ces trois fins sans commande gw reviennent a « Pret. » aussitot (R2, R6, R7) : Close-Restore ne
+# pose alors aucun etat de fin de sequence, et Update-SeqEnd ne change rien
+if ($hasSe) { Update-SeqEnd }
+Chk 'R15' ($hasSe -and -not $pend2 -and -not $pend6 -and -not $pend7 -and (Test-Idle) -and $stTrack.Text -eq '' -and -not $stBar.Available) "annulation pendant l attente, confirmation refusee puis annulation, echec avant toute commande gw : rien en attente ($pend2, $pend6, $pend7), « $($stOp.Text) » garde au repos"
+# R17 (12.11, lot L8) : calibration terminee sur une disquette sacrifiee (son etat de fin de sequence est en attente), puis
+# attente de la disquette de destination : la consigne d Enter-RestoreWait annule cet etat (Clear-SeqEnd) ; « Annuler »
+# pendant l attente : « Pret. », qui reste au repos (sans cela, le titre de la calibration le remplacerait)
+$pend17 = $true; $wait17 = ''
+if ($hasSe) {
+    New-Rs; Set-SeqEnd (T 'Calibration terminée : courbe convergée') 'ok'
+    $script:Restore.SwapBack = $true
+    Enter-Wait
+    $pend17 = ($null -ne $script:SeqEnd); $wait17 = [string]$stOp.Text
+    Invoke-RsCancelClick
+    Update-SeqEnd
+}
+Chk 'R17' ($hasSe -and -not $pend17 -and $wait17 -eq $waitFr -and (Test-Idle) -and $null -eq $script:SeqEnd) "calibration terminee puis attente de la destination : etat en attente annule par la consigne ($(-not $pend17)) ; « Annuler » : « $($stOp.Text) » garde au repos"
 $fr = $allAst['Fail-Restore']
 $callsFr = @($fr.Body.FindAll({ param($x) $x -is [System.Management.Automation.Language.CommandAst] -and $x.GetCommandName() -eq 'Close-Restore' }, $true)).Count
 $sr = $allAst['Stop-Restore']
@@ -243,8 +289,15 @@ Chk 'R11' ($stOp.Text -eq ((T "{0} en cours...") -f (T 'Lecture')) -and [object]
 $script:Restore.Waiting = $false
 Stop-Restore (T 'gw n''a pas pu être lancé')
 $afterClose = [string]$stOp.Text
+$pend12 = ($null -ne $script:SeqEnd)
 if ($hasLf) { Set-GwLaunchFailedStatus }
 Chk 'R12' ($hasLf -and $afterClose -eq ((T "{0} en cours...") -f (T 'Lecture')) -and [string]$stOp.Text -match "gw n'a pas pu être lancé, voir le journal" -and [object]::ReferenceEquals($stOp.Image, $script:StIcons.err)) "restauration, gw non lance apres « Continuer » : Close-Restore laisse la barre (« $afterClose »), puis Set-GwLaunchFailedStatus : « $($stOp.Text) »"
+# R16 (12.11, lot L8) : l etat de fin de sequence pose par Close-Restore est annule par Set-GwLaunchFailedStatus ; au
+# repos, Update-SeqEnd laisse la barre d etat de l echec, qui dit la cause
+$txt12 = [string]$stOp.Text; $left12 = ($null -eq $script:SeqEnd)
+$script:Restore = $null
+if ($hasSe) { Update-SeqEnd }
+Chk 'R16' ($hasSe -and $pend12 -and $left12 -and [string]$stOp.Text -eq $txt12 -and [object]::ReferenceEquals($stOp.Image, $script:StIcons.err) -and $stTrack.Text -eq '' -and -not $stBar.Available) "gw non lance : etat pose par Close-Restore ($pend12) puis annule par Set-GwLaunchFailedStatus ($left12) ; au repos la barre d etat garde « $($stOp.Text) »"
 . $gen2
 New-Rs; Enter-Wait
 $btnStop.Enabled = $true

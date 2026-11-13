@@ -59,6 +59,14 @@ $script:I18n['[Journal tronqué : les {0} premiers caractères ont été retiré
 # --- L7 : revenir a une calibration precedente (120, 240, 250, 520) ----------------------------------------------------
 
 # --- L8 : progression par piste, barre d etat en fin d operation (110, 170, 200, 270, 276, 300, 600) -------------------
+# Phase du libelle de la barre de calibration (Update-CalibProgress, 270) pendant un gw erase : « (passe 3/5, 0/30/100 ns,
+# effacement) », a cote de « ecriture » et « relecture » (010)
+$script:I18n['effacement'] = 'erasing'
+# Barre d etat a la fin d une restauration (Close-Restore, 300, par Set-SeqEnd, 110) ; l heure suit le texte. Les autres
+# fins (calibration, controle apres ecriture, recherche des lecteurs) reprennent des textes existants
+$script:I18n['Restauration réussie'] = 'Restore succeeded'
+$script:I18n['Restauration réussie avec réserve'] = 'Restore succeeded with a reservation'
+$script:I18n['Restauration échouée'] = 'Restore failed'
 
 # --- L9 : onglet Ecriture en trois etapes, options avancees, barre d onglets (145, 510, 520, 600) ----------------------
 

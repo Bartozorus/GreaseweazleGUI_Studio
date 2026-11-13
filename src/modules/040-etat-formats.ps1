@@ -34,6 +34,31 @@ $script:LibDatRx       = $null             # FIX4B : expressions du format clrma
 $script:ProgTotal      = 0
 $script:ProgSeen       = $null
 $script:ProgOp         = ''
+# 12.11 : progression par piste (110), affichage seulement. Commande gw en cours ou derniere commande : verbe de l annonce
+# de gw (ProgHead : Reading, Writing, Erasing, Converting), derniere piste vue (ProgKey), numero d essai (ProgRetry),
+# pistes terminees (ProgDone : une ligne d ecriture ou d effacement annonce une piste commencee, non finie ; jamais
+# decroissant pendant une commande), affichage a refaire (ProgDirty), commande en echec ou gw non lance (ProgFailed :
+# l etat de fin de sequence ne remplace pas cet affichage). Etape de plusieurs commandes (passe de calibration,
+# conditionnement, passe de la mesure sur l image) : plan (ProgPlan, New-ProgPlan) et poids de la commande en cours dans ce
+# plan (ProgCmd). Fin de sequence : etat en attente (SeqEnd, Set-SeqEnd) et commandes lancees depuis le dernier repos
+# (SeqCmds), appliques par Update-SeqEnd (minuteur principal). Aucune decision d ecriture, de controle, de calibration ni
+# de restauration ne lit ces variables ; seule exception, ProgHead, lu par Get-EndRuleTotal pour que la regle de fin
+# d une commande reste celle de la 12.10 pendant un gw convert (total annonce non compte)
+$script:ProgHead       = ''
+$script:ProgKey        = ''
+$script:ProgRetry      = ''
+$script:ProgDone       = 0
+$script:ProgDirty      = $false
+$script:ProgFailed     = $false
+$script:ProgCmd        = $null
+$script:ProgPlan       = $null
+$script:SeqEnd         = $null
+$script:SeqCmds        = 0
+# 12.11 : poids estimes d une commande gw dans un plan (Get-GwCmdUnits), en secondes : part fixe, puis par piste selon la
+# commande et ses options (effacement ; ecriture, pre-effacement, verification ; relecture : base, par tour, sans --revs).
+# Releves dans les journaux d un seul utilisateur (deux lecteurs a 300 tr/min) : seules leurs proportions servent, pour
+# repartir l avancement d une etape entre ses commandes ; aucune duree affichee n en est tiree
+$script:ProgCost       = @{ Fixed = 5.0; Erase = 0.23; Write = 0.40; PreErase = 0.21; Verify = 0.58; ReadBase = 0.2; ReadRev = 0.2; ReadNoRevs = 0.3 }
 $script:ConfirmDlg     = $null   # 12.8 (D3) : bouton principal de la fenetre frmConfirm ouverte (Set-ConfirmGo)
 # 12.8 (S3) : reponse de la derniere fenetre frmConfirm ('go', 'alt' : second bouton, 'close'), texte de sa liste de marque
 $script:ConfirmChoice  = ''

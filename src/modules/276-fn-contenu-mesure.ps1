@@ -300,6 +300,10 @@ function New-ContentPass {
     $cal.ValueTxt = (T 'tête 0 puis tête 1')
     Append-Log ((T "Mesure sur l'image : passe {0}/{1}, {2}") -f "$($p + 1)", "$($cal.TotalPasses)", "$($cal.ValueTxt), $($bk -join ' ; ')")
     $cal.Phase = 'write'; $cal.PassStart = Get-Date; $cal.PhaseStart = $cal.PassStart
+    # 12.11 : plan de la passe pour la barre de progression (110) : ses effacements, une ecriture par tete (memes
+    # arguments que la commande lancee, Get-ContentWriteArgs), puis sa relecture ; une reprise apres un arret de gw
+    # (Register-ContentWriteStop) n y est pas prevue : elle allonge le plan sans faire reculer la barre
+    New-ProgPlan (@(foreach ($w in $ct.Todo) { if ($w.Erase) { ,([string[]]$w.Erase) } else { ,(Get-ContentWriteArgs $cal $w) } }) + ,([string[]]$cal.ReadArgs))
     Update-CalibProgress
     $script:Chain.Clear()
     Invoke-ContentWriteNext
@@ -408,6 +412,7 @@ function Invoke-ContentAnalysis {
     foreach ($s in $stats) { if ($null -ne $s) { $ct.Obs.Add($s) } }
     Write-ContentPassLog $cal $stats
     $cal.PassesDone++
+    $script:ProgPlan = $null   # 12.11 : passe comptee : son plan est retire (270, Invoke-CalibAnalysis)
     $ct.Pass = [int]$ct.Pass + 1
     # 12.9 (D6) : fichier compagnon a jour apres chaque passe (statut « en cours » si la mesure s arrete ensuite)
     Save-ContentCompanion $cal 'en cours'

@@ -429,6 +429,10 @@ function Complete-WriteCheck([switch]$GwError) {
     # Bilan exploitable par la restauration (accroche : le controle vide la chaine d etapes, rien ne le suit)
     $short = if ($GwError) { (T 'contrôle interrompu par une erreur gw') } elseif ($lvl -eq 0) { (T "{0}/{1} pistes saines") -f "$nOk", "$n" }
              elseif ($n -eq 0) { (T 'aucune piste mesurée') } else { (T "{0} piste(s) faible(s) : {1}") -f "$($weak.Count)", "$(Format-TrackList $weak)" }
+    # 12.11 : barre d etat en fin de sequence (Set-SeqEnd, 110) : le bilan court du controle, a la place de « Lecture
+    # termine(e) » et du compteur de la derniere relecture ; icone du niveau (0 : ok, 3 : err, sinon neutre). En
+    # restauration, la relecture de comparaison puis le verdict de la restauration le remplacent
+    Set-SeqEnd ((T "Contrôle après écriture : {0}") -f "$short") $(if ($lvl -le 0) { 'ok' } elseif ($lvl -ge 3) { 'err' } else { 'idle' })
     # 12.8 (lot 3) : verdict sur la carte de l onglet Qualite (texte complet dans l infobulle) et dans l onglet Ecriture,
     # avec l icone d etat (niveau 0 : h0, 2 : h1, 3 : h2) et son encre
     Set-QualityCheckState $lvl $txt $short $weak.Count

@@ -65,7 +65,10 @@ function New-CrossGen([string]$m, [string]$out) {
     Add-Cal2Fns $parts (Get-Cal2FnDefs (Join-Path $m '260-fn-calib-rapide.ps1')) @('Format-LevelNum') $found '260'
     Add-Cal2Fns $parts (Get-Cal2FnDefs (Join-Path $m '274-fn-contenu-calcul.ps1')) @('Solve-ContentLinear') $found '274'
     Add-Cal2Fns $parts (Get-Cal2FnDefs (Join-Path $m '276-fn-contenu-mesure.ps1')) @('Format-CylRanges') $found '276'
-    Add-Cal2Fns $parts (Get-Cal2FnDefs (Join-Path $m '110-fn-coeur-gw.ps1')) @('Get-GwDriveKey') $found '110'
+    # 12.11 (lot L8) : progression par piste : les vraies Start-CalibCondition et New-CalibPass posent le plan de leur etape
+    # (New-ProgPlan, poids de Get-GwCmdUnits et de $script:ProgCost) ; Update-CalibProgress reel lit Get-ProgPlanFrac
+    Add-Cal2Fns $parts (Get-Cal2FnDefs (Join-Path $m '110-fn-coeur-gw.ps1')) @('Get-GwDriveKey', 'Get-SpecCount', 'Get-GwCmdUnits', 'New-ProgPlan', 'Get-GwProgress', 'Get-ProgPlanFrac') $found '110'
+    foreach ($s in (Get-Cal2Assign (Join-Path $m '040-etat-formats.ps1') @('$script:ProgCost'))) { $parts.Add($s) }
     Add-Cal2Fns $parts (Get-Cal2FnDefs (Join-Path $m '200-fn-accueil-calibration.ps1')) @('Get-HomeProgTitle') $found '200'
     $parts.Add((Get-Cal2Renamed (Get-Cal2FnDefs (Join-Path $m '270-fn-calib-complete.ps1')) 'Update-CalibProgress' 'Update-CalibProgressReal'))
     $parts.Add((Get-Cal2CalStateFn $m))
@@ -180,6 +183,7 @@ function Invoke-CrossCase($o) {
     function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
         $script:CCmds.Add((@($gwArgs) -join ' ')); $script:CSteps.Add('gw ' + [string]@($gwArgs)[0])
         $script:CAt.Add($(if ($script:Cal -and $script:Cal.ContainsKey('DiskAt')) { [string]$script:Cal.DiskAt } else { '-' }))
+        $script:CPlanOf.Add($script:ProgPlan)    # 12.11 (lot L8) : plan de l etape pose au lancement de la commande (cas E10)
         if ([string]@($gwArgs)[0] -eq 'read' -and -not $script:CFake) { [System.IO.File]::WriteAllText([string]$script:Cal.Scp, 'x'); New-SimPass }
     }
     function Invoke-NextChainStep {
@@ -207,6 +211,7 @@ function Invoke-CrossCase($o) {
     $script:CLog = New-Object System.Collections.Generic.List[string]; $script:CPrompts = New-Object System.Collections.Generic.List[object]
     $script:CBackup = New-Object System.Collections.Generic.List[object]; $script:CShown = New-Object System.Collections.Generic.List[object]; $script:CReview = New-Object System.Collections.Generic.List[object]; $script:CStop = New-Object System.Collections.Generic.List[object]
     $script:Analysed = $false; $script:NProg = 0; $script:NAna = 0; $script:NSave = 0; $script:NUpd = 0; $script:NRestore = 0; $script:CGuard = 0
+    $script:CPlanOf = New-Object System.Collections.Generic.List[object]; $script:ProgPlan = $null; $script:ProgCmd = $null
     $cmbDrive = [pscustomobject]@{ Text = 'A' }; $txtDev = [pscustomobject]@{ Text = [string]$o.Device }
     $pbWCal = [pscustomobject]@{ Value = 0; Visible = $false }; $lblWCal = [pscustomobject]@{ Text = ''; Visible = $false }; $lblWProfileInfo = [pscustomobject]@{ Text = '' }
     $cmbWProfile = [pscustomobject]@{ SelectedIndex = 0 }; $chkWPrecomp = [pscustomobject]@{ Checked = $true }; $txtWPrecomp = [pscustomobject]@{ Text = '' }; $txtWPrecomp1 = [pscustomobject]@{ Text = '' }
@@ -240,7 +245,7 @@ function Invoke-CrossCase($o) {
             Backup = $script:CBackup.ToArray(); Shown = $script:CShown.ToArray(); Review = $script:CReview.ToArray(); Stop = $script:CStop.ToArray(); NSave = $script:NSave; NUpd = $script:NUpd; NRestore = $script:NRestore; Guard = $script:CGuard; NAna = $script:NAna
             Done = (-not $script:Cal); Cal = $script:Cal; LblCal = [string]$lblWCal.Text; LblInfo = [string]$lblWProfileInfo.Text
             End = $(if ($script:Cal) { @{ Swaps = [int]$script:Cal.Swaps; DiskAt = [string]$script:Cal.DiskAt; HoldNull = ($null -eq $script:Cal.SwapHold) } } else { $null })
-            Store = @{}; View = @{}; Levels = @($script:LevelShifts.Keys); PrecompStd = $script:PrecompStd }
+            Store = @{}; View = @{}; Levels = @($script:LevelShifts.Keys); PrecompStd = $script:PrecompStd; PlanOf = $script:CPlanOf.ToArray() }
     foreach ($k in @($script:DriveCurves.Keys)) { $r.Store[$k] = $script:DriveCurves[$k] }
     foreach ($k in @($script:PrecompCurves.Keys)) { $r.View[$k] = $script:PrecompCurves[$k] }
     if ($o.Restart -and $script:Cal) {
@@ -543,6 +548,26 @@ $nPlus = (Get-LogN $eX.Log "Calibration : passe d'encadrement*") + (Get-LogN $eX
 $swapN = @($eX.Prompts | ForEach-Object { if ($_.Text -match '^Échange (\d+) :') { [int]$Matches[1] } })
 "    | passes de mesure $nMes, verifications $nVer, passes en plus $nPlus, relectures $nReadX ; invites d echange : $($swapN -join ',') ; minimum annonce : test fin $($se.Fine.Min), test standard $($se.Std.Min) ; maximum : $($se.Fine.Max) et $($se.Std.Max)"
 Chk 'E9' ($nMes -eq [int]$se.NCoarse -and $nVer -eq 1 -and $nV1 -eq 1 -and $nPlus -eq 0 -and $nReadX -eq ($nMes + 1) -and ($swapN -join ',') -eq '1,2,3,4,5,6,7' -and $eX.Prompts.Count -eq 7 -and [int]$se.Fine.Min -eq $eX.Prompts.Count -and [int]$se.Std.Min -eq $eX.Prompts.Count -and [int]$se.Fine.Max -eq 13 -and [int]$se.Std.Max -eq 17) "calibration croisee convergee a la premiere verification ($nMes passes de mesure, $nVer verification, ni encadrement, ni mesure complementaire, ni nouvel essai) : $($eX.Prompts.Count) invites d echange, numerotees $($swapN -join ','), soit le minimum annonce par Get-CrossSwapEstimate avec les constantes reelles ($($se.NPass) passes prevues : $($se.Fine.Min) au moins, et non 9)"
+# 12.11 (lot L8) : plan de la progression par piste (110 : New-ProgPlan et Get-GwCmdUnits reels) pose par les vraies
+# Start-CalibCondition et New-CalibPass : le remplacant de Start-Gw releve le plan en place a chaque commande. Chaque plan
+# couvre exactement les commandes lancees pendant qu il etait en place : meme nombre, meme poids recalcule d apres la
+# ligne de commande ; un plan par etape (conditionnement, puis chaque passe). Les commandes elles-memes sont celles des
+# cas K1 a K5, E4 et E8 : poser le plan n en change aucune
+function Test-PlanCover($cmds, $plans) {
+    . $gen
+    $i = 0; $n = 0; $bad = 0; $nc = @($cmds).Count
+    while ($i -lt $nc) {
+        $p = $plans[$i]; $j = $i; $u = 0.0
+        while ($j -lt $nc -and [object]::ReferenceEquals($plans[$j], $p)) { $u += [double](Get-GwCmdUnits @([string]$cmds[$j])).Units; $j++ }
+        $n++
+        if ($null -eq $p -or @($p.Cmds).Count -ne ($j - $i) -or [double]$p.Units -le 0 -or [math]::Abs([double]$p.Units - $u) -gt 1e-6) { $bad++ }
+        $i = $j
+    }
+    return @{ N = $n; Bad = $bad }
+}
+$pcX = Test-PlanCover $eX.Cmds $eX.PlanOf; $pcO = Test-PlanCover $eO.Cmds $eO.PlanOf
+$nCondX = Get-LogN $eX.Log 'Calibration : conditionnement du lecteur * avant la première passe de mesure*'
+Chk 'E10' ($eX.PlanOf.Count -eq $eX.Cmds.Count -and $pcX.Bad -eq 0 -and $pcO.Bad -eq 0 -and $nCondX -eq 1 -and $pcX.N -eq ($nReadX + $nCondX) -and $pcO.N -eq $pcX.N) "plan de la progression par piste : $($pcX.N) plans en croise et $($pcO.N) en ordinaire (conditionnement : $nCondX, passes : $nReadX), chacun egal aux commandes lancees pendant qu il etait en place (nombre et poids) ; plans en defaut : $($pcX.Bad) et $($pcO.Bad)"
 
 # ================================================================ P. barre de progression (Update-CalibProgress reel)
 "--- P. Update-CalibProgress reel : libelles croises et attente d un echange"

@@ -59,8 +59,11 @@ function New-FbGenFlux([string]$m, [string]$out) {
     Add-Cal2Fns $parts (Get-Cal2FnDefs (Join-Path $m '260-fn-calib-rapide.ps1')) @('Format-LevelNum') $found '260'
     Add-Cal2Fns $parts (Get-Cal2FnDefs (Join-Path $m '274-fn-contenu-calcul.ps1')) @('Solve-ContentLinear') $found '274'
     Add-Cal2Fns $parts (Get-Cal2FnDefs (Join-Path $m '276-fn-contenu-mesure.ps1')) @('Format-CylRanges') $found '276'
-    Add-Cal2Fns $parts (Get-Cal2FnDefs (Join-Path $m '110-fn-coeur-gw.ps1')) @('Get-GwDriveKey') $found '110'
-    Test-Cal2Missing @('New-CalibPass', 'Invoke-CalibAnalysis', 'Complete-PrecompCalib', 'Start-CalibWarmup', 'Set-CalibScale', 'New-CalibUnit', 'Get-VerifyOffset', 'Get-CalLevels', 'Format-LevelNum') $found
+    # 12.11 (lot L8) : les vraies Start-CalibCondition et New-CalibPass posent le plan de leur etape pour la barre de
+    # progression (New-ProgPlan, poids de Get-GwCmdUnits et de $script:ProgCost) : fonctions reelles, sans effet sur le calcul
+    Add-Cal2Fns $parts (Get-Cal2FnDefs (Join-Path $m '110-fn-coeur-gw.ps1')) @('Get-GwDriveKey', 'Get-SpecCount', 'Get-GwCmdUnits', 'New-ProgPlan') $found '110'
+    foreach ($s in (Get-Cal2Assign (Join-Path $m '040-etat-formats.ps1') @('$script:ProgCost'))) { $parts.Add($s) }
+    Test-Cal2Missing @('New-CalibPass', 'Invoke-CalibAnalysis', 'Complete-PrecompCalib', 'Start-CalibWarmup', 'Set-CalibScale', 'New-CalibUnit', 'Get-VerifyOffset', 'Get-CalLevels', 'Format-LevelNum', 'New-ProgPlan') $found
     $parts.Add((Get-Cal2CalStateFn $m))
     foreach ($s in (Get-Cal2Consts $m)) { $parts.Add($s) }
     foreach ($s in (Get-Cal2Assign (Join-Path $m '565-etat-contenu.ps1') @('$script:EraseEstTrack'))) { $parts.Add($s) }

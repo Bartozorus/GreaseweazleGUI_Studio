@@ -667,6 +667,7 @@ function Enter-RestoreWait([string]$extra) {
     # (relecture de la RC9) icone neutre a cote de la consigne, au lieu de la coche de la lecture terminee
     $stTrack.Text = ''; $stBar.Visible = $false; $stOp.Image = $script:StIcons.idle
     $stOp.Text = (T 'Restauration : changez de disquette, puis cliquez sur « Continuer ».')
+    Clear-SeqEnd    # 12.11 : la consigne remplace l etat de fin de sequence en attente (calibration terminee juste avant, 110)
     Append-Log ((T "Restauration : en attente de la disquette de destination dans le lecteur {0}.") -f "$($r.Drive)")
     try { [System.Media.SystemSounds]::Exclamation.Play() } catch { }
 }
@@ -1236,5 +1237,16 @@ function Close-Restore {
     # toute commande gw, par exemple fenetre « Calibration precomp » annulee) : la consigne d Enter-RestoreWait, que seule
     # une commande gw remplace (Start-Progress), ne reste pas dans la barre d etat ; etat neutre du demarrage
     if ($r -and ($r.Waiting -or [string]$stOp.Text -eq (T 'Restauration : changez de disquette, puis cliquez sur « Continuer ».'))) { $stOp.Text = (T 'Prêt.'); $stOp.Image = $script:StIcons.idle }
+    # 12.11 : autre fin : la barre d etat annoncera le resultat de la restauration une fois l application au repos
+    # (Set-SeqEnd, 110), d apres l icone du verdict que Show-RestoreResult vient de poser (h0 reussie, h1 reussie avec
+    # reserve, h2 echouee). Elle gardait « Lecture termine(e) », le compteur et la barre de la derniere relecture. Echec
+    # sur une erreur gw ou gw non lance : l etat de la commande reste affiche (Update-SeqEnd, Set-GwLaunchFailedStatus)
+    elseif ($r) {
+        switch ([string]$script:RsResultIcon) {
+            'h0' { Set-SeqEnd (T 'Restauration réussie') 'ok' }
+            'h1' { Set-SeqEnd (T 'Restauration réussie avec réserve') 'idle' }
+            'h2' { Set-SeqEnd (T 'Restauration échouée') 'err' }
+        }
+    }
     Update-RsCalib
 }

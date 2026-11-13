@@ -276,11 +276,27 @@ function Get-HomeProgTitle($cal, $ww) {
     return ((T "Préchauffage avant l'écriture lente : lecteur {0}") -f "$($ww.Drive)")
 }
 
+function Get-CalibDoneTitle([string]$kind) {
+    # 12.11 : titre du bilan d une calibration selon sa fin ('ok', 'warn', 'abandon', autre : arretee), extrait de
+    # Update-HomeProgress : seule source du titre de la zone de l Accueil et de la barre d etat en fin de calibration
+    switch ($kind) {
+        'ok'      { return (T 'Calibration terminée : courbe convergée') }
+        'warn'    { return (T 'Calibration terminée avec réserves : voir le journal') }
+        'abandon' { return (T 'Calibration abandonnée') }
+        default   { return (T 'Calibration arrêtée') }
+    }
+}
+
 function Set-HomeProgDone($cal, [string]$kind, [string]$detail = '') {
     # Bilan d une calibration lancee depuis l Accueil (Complete-PrecompCalib, Complete-LevelCalib, Stop-PrecompCalib) :
     # 'ok', 'warn' (reserves acceptees), 'abandon' (refusee dans la fenetre de decision), 'stop' (arretee, sans mesure
     # exploitable). Detail : premiere raison de la fenetre de decision, sinon le libelle de l onglet Ecriture. Proc : gw
     # en cours a la fin (arret), qui n est pas une nouvelle operation. Sans effet pour une calibration lancee ailleurs.
+    # 12.11 : barre d etat en fin de sequence (Set-SeqEnd, 110), quel que soit le point de depart : meme titre que la zone
+    # de l Accueil, pour une calibration du lecteur seulement (test standard ou fin : complete, B, croisee). Calibration
+    # rapide, mesure de la disquette sur l image (autres modes) et mesure complete d une seule disquette (DiskOnly) : le
+    # titre ne les decrit pas, rien n est pose (regle generale d Update-SeqEnd)
+    if ($cal -and @('std', 'fine') -contains [string]$cal.Mode -and -not $cal.DiskOnly) { Set-SeqEnd (Get-CalibDoneTitle $kind) $(if ($kind -eq 'ok') { 'ok' } else { 'idle' }) }
     if (-not $cal -or -not $cal.Home) { return }
     if ($detail) { $detail = $detail.Substring(0, 1).ToUpper() + $detail.Substring(1) } else { $detail = [string]$lblWCal.Text }
     $script:HomeProgDone = @{ Kind = $kind; Detail = $detail; Family = [string]$cal.Family; Slow = [bool]$cal.Slow; Proc = $script:GwProc
@@ -320,7 +336,7 @@ function Update-HomeProgress {
     # zone ; le bouton « Afficher journal » de la barre reste disponible
     $logLink = [bool]$split.Panel2Collapsed -and [bool]$tabs.Enabled
     if ($mode -eq 'done') {
-        $title = switch ([string]$d.Kind) { 'ok' { (T 'Calibration terminée : courbe convergée') } 'warn' { (T 'Calibration terminée avec réserves : voir le journal') } 'abandon' { (T 'Calibration abandonnée') } default { (T 'Calibration arrêtée') } }
+        $title = Get-CalibDoneTitle ([string]$d.Kind)   # 12.11 : meme titre que la barre d etat en fin de calibration
         $src = [string]$d.Detail; $bar = $false; $curveLink = [bool]$d.Curve; $closeLink = $true
     } else {
         # Fenetre de decision ouverte (mode hold) : calibration terminee, barre et detail de sa fin gardes

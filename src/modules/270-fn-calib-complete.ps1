@@ -627,9 +627,16 @@ function Update-CalibProgress {
     }
     $tp = [math]::Max(1, [int]$cal.TotalPasses)
     $total = $tp + $cw
-    if ($cal.CondRun) { $done = [math]::Min(0.98, $elapsed / [math]::Max(1.0, $cw * $pass)) * $cw }
+    # 12.11 : avancement de l etape en cours (passe ou conditionnement) d apres les pistes que gw efface, ecrit puis relit
+    # (plan de l etape, Get-ProgPlanFrac, 110), a la place du temps ecoule rapporte aux durees des passes precedentes, qui
+    # restait a 98 % ou sautait quand une passe portait sur moins de pistes. $null sans plan, ou tant que le plan n a recu
+    # aucune commande : calcul par le temps de la 12.10, a l identique. Passes comptees a parts egales et temps restant
+    # inchanges ; affichage seulement
+    $pf = if ($script:ProgPlan) { Get-ProgPlanFrac } else { $null }
+    if ($cal.CondRun) { $done = $(if ($null -ne $pf) { [double]$pf } else { [math]::Min(0.98, $elapsed / [math]::Max(1.0, $cw * $pass)) }) * $cw }
     else {
-        $frac = if ($cal.Phase -eq 'write') { [math]::Min(0.98, $elapsed / $avgW) * ($avgW / $pass) }
+        $frac = if ($null -ne $pf) { [double]$pf }
+                elseif ($cal.Phase -eq 'write') { [math]::Min(0.98, $elapsed / $avgW) * ($avgW / $pass) }
                 else { ($avgW / $pass) + [math]::Min(0.98, $elapsed / $avgR) * ($avgR / $pass) }
         $done = [math]::Min($total, $(if ($cal.Cond) { $cw } else { 0.0 }) + $cal.PassesDone + $frac)
     }
@@ -643,7 +650,9 @@ function Update-CalibProgress {
                 else { (T "Calibration : {0} %, reste environ {1} (conditionnement du lecteur, écriture sans relecture)") }
         $lblWCal.Text = ($fmtC -f "$pct", (Format-CalDuration $remaining)); return
     }
-    $phaseTxt = if ($cal.Phase -eq 'write') { (T 'écriture') } else { (T 'relecture') }
+    # 12.11 : « effacement » pendant un gw erase de la passe (commande en cours : $script:GwProc et $script:GwIsErase, 110) ;
+    # avant, la phase d ecriture disait « ecriture » pendant son effacement haute frequence
+    $phaseTxt = if ($script:GwProc -and $script:GwIsErase) { (T 'effacement') } elseif ($cal.Phase -eq 'write') { (T 'écriture') } else { (T 'relecture') }
     # 12.8.1 : mesure de la disquette sur l image (276) : ValueTxt « tete 0 puis tete 1 »
     $fmt = if ($cal.Mode -eq 'content') { (T "Mesure de la disquette sur l'image : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
            elseif ($cal.Mode -eq 'level') { (T "Calibration rapide : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
@@ -672,6 +681,7 @@ function Stop-PrecompCalib([switch]$GwError) {
     if ($script:CalRedo -and $script:CalRedo.Stage -eq 'running') { $script:CalRedo.Stage = 'interrupted'; if (-not $script:CalRedo.Why) { $script:CalRedo.Why = (T 'calibration interrompue') } }
     $cal = $script:Cal
     $script:Cal = $null
+    $script:ProgPlan = $null                              # 12.11 : plan de la passe interrompue retire (barre de progression)
     if ($cal -and $cal.DiskOnly) { Reset-DiskHardNs }     # 12.8 (S3) : borne de precompMaxNs retablie
     # 12.9 (D6) : statut du JSON compagnon ; synthese C (A5) : seulement apres une passe analysee (arret pendant le
     # prechauffage ou erreur gw a la premiere ecriture : aucun JSON seul, qui compterait comme une mesure gardee)
@@ -888,6 +898,7 @@ function Start-CalibCondition($cal) {
     if ($hfC) { Append-Log ((T "Calibration : conditionnement du lecteur {0} avant la première passe de mesure : effacement haute fréquence puis écriture du motif sur les cylindres {1} (2 faces), sans relecture, pour que les passes de mesure partent d'un lecteur en écriture.") -f "$($cal.Drive)", "0-$([int]$cal.MaxCyl)") }
     else { Append-Log ((T "Calibration : conditionnement du lecteur {0} avant la première passe de mesure : écriture du motif avec pré-effacement sur les cylindres {1} (2 faces), sans relecture, pour que les passes de mesure partent d'un lecteur en écriture.") -f "$($cal.Drive)", "0-$([int]$cal.MaxCyl)") }
     Add-CalibWriteCmds $cal @(,@($cal.CondTSpec, $cal.Spec))
+    New-ProgPlan @($cal.Writes.ToArray())   # 12.11 : plan du conditionnement pour la barre de progression (110)
     $cal.PassStart = Get-Date; $cal.PhaseStart = $cal.PassStart; $cal.Phase = 'write'
     Update-CalibProgress
     $script:Chain.Clear()
@@ -1079,6 +1090,9 @@ function New-CalibPass {
     # Add-CalibWriteCmds, partagee avec le conditionnement du lecteur (Start-CalibCondition)
     Add-CalibWriteCmds $cal $writes
     $cal.ReadArgs  = @('read') + (Get-CalibDriveArgsFor 'read') + @(Get-DriveReadArgs) + @('--revs=3', "--tracks=$readTs", "`"$($cal.Scp)`"")   # 12.10 : lecteur cible en croise
+    # 12.11 : plan de la passe pour la barre de progression (110) : ses effacements, ses ecritures, puis sa relecture,
+    # tels qu ils viennent d etre construits ; ne lance rien et ne modifie aucune commande
+    New-ProgPlan (@($cal.Writes.ToArray()) + ,$cal.ReadArgs)
     $cal.PassStart = Get-Date; $cal.PhaseStart = $cal.PassStart; $cal.Phase = 'write'
     Update-CalibProgress
     $script:Chain.Clear()
@@ -1225,6 +1239,7 @@ function Invoke-CalibAnalysis {
     try { $tracks = Read-ScpFile $cal.Scp ([int]$cal.PatternBits) } catch { Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)"); Stop-PrecompCalib -GwError; return }
     $cal.ReadDurs += ((Get-Date) - $cal.PhaseStart).TotalSeconds
     $cal.PassesDone++
+    $script:ProgPlan = $null   # 12.11 : passe comptee : son plan est retire (la barre ne compte pas la passe deux fois)
     # 12.10 : releve de l asymetrie du motif (12.11 : garde pour l etude, plus lu par l onglet Qualite) : rapports 3T/2T et
     # 4T/2T du motif relu a la premiere verification complete (tous les cylindres ecrits a la courbe), par piste
     if ($cal.Stage -eq 'verify' -and [int]$cal.VerifyCount -eq 1 -and [int]$cal.Retests -eq 0 -and $null -eq $cal.AsymRef) { $cal.AsymRef = Get-TracksAsym $tracks }
