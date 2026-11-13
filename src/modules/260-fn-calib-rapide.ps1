@@ -509,7 +509,7 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     try { $pat = New-CalibPattern $fam $img $lr.NCyl }
     catch { [void](Show-AppMessage ((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)") (T 'Calibration precomp') 'OK' 'Error'); return }
     Set-CalibScale $fam     # 12.7 : bareme double densite (pas de calibration rapide en haute densite, Get-LevelRef)
-    $units = New-LevelCalUnits $lr $brand ([string]$cmbDrive.Text) $(if ($Geom) { 0 } else { Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text) ([bool]$pat.Known) })   # 12.11 : cellules de la piste ecrite (Get-DiskCapBits ; 0 si elle n est pas connue : format hors de la table, ou aucun format et densite non tiree de l image) ; carte de l Accueil (Geom : type de disquette, pas l image a ecrire) : sans densite, plafond de 470 ns comme en 12.10 (son profil peut etre place dans les champs d une image d une autre densite, Complete-LevelCalib)
+    $units = New-LevelCalUnits $lr $brand ([string]$cmbDrive.Text) $(if ($Geom) { 0 } else { Get-DiskCapBits ([int]$pat.CapBits) ([string]$cmbWFmt.Text) ([bool]$pat.Known) })   # 12.11 : cellules de la piste ecrite (Get-DiskCapBits, sur CapBits, la piste la plus longue de l image ; 0 si elle n est pas connue : format hors de la table, ou aucun format et densite non tiree de l image) ; carte de l Accueil (Geom : type de disquette, pas l image a ecrire) : sans densite, plafond de 470 ns comme en 12.10 (son profil peut etre place dans les champs d une image d une autre densite, Complete-LevelCalib)
     $cylList = Format-CylList $cyls
     $script:Cal = @{
         Mode = 'level'; Stage = 'level'; LPass = 1; Cyls = $cyls; MaxCyl = $lr.MaxCyl; Family = $fam; Slow = $slow

@@ -14,7 +14,7 @@ $Wt = Get-TestRoot $Wt
 #     Get-DriveIds et Get-CrossCalibTargets (codes des lecteurs lus dans 040, jamais recopies) : le lecteur cible de l onglet
 #     est transmis ; fenetre fermee ou validee sur un autre lecteur : lecteur cible memorise et courbes inchanges.
 #  J  journal exporte : Get-LogExportHeader et Export-LogFile reelles (110) : deux lignes mot pour mot, en francais et en
-#     anglais, date JJ/MM/AAAA HH:mm:ss, ni chemin ni nom de compte ; le fichier commence par ces deux lignes, le journal
+#     anglais, date JJ/MM/AAAA HH:mm:ss quelle que soit la culture du poste (J5b), ni chemin ni nom de compte ; le fichier commence par ces deux lignes, le journal
 #     affiche ne les recoit pas ; le bouton « Exporter » (540) appelle Export-LogFile.
 #  L  troncature : Limit-LogText et Append-Log reelles (110) sur un RichTextBox jamais affiche, constantes reelles de 540 :
 #     399 999 et 400 000 caracteres inchanges ; 400 001 : marque en premiere ligne, coupe en debut de ligne, 400 000
@@ -316,6 +316,23 @@ $t0 = Get-Date; $hD = Get-LogExportHeader; $dOk = $false; $dTxt = ''
 $mD = [regex]::Match([string]$hD[0], '^Journal exporté le (\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}) par Greaseweazle Studio v')
 if ($mD.Success) { $dTxt = $mD.Groups[1].Value; $dd = [datetime]::ParseExact($dTxt, 'dd/MM/yyyy HH:mm:ss', $inv); $dOk = ([math]::Abs(($dd - $t0).TotalSeconds) -le 120) }
 Chk 'J5' ($dOk) "sans argument : date et heure de l export, au format JJ/MM/AAAA HH:mm:ss ($dTxt)"
+# J5b (corrections de relecture) : la date de l en-tete ne suit pas la culture du poste. « / » et « : » d un format .NET
+# sont les separateurs de la culture courante (13.11.2026 en de-DE et en fr-CH, 13-11-2026 en nl-NL, 14.05.09 en fi-FI) :
+# sous chacune, la premiere ligne reste celle du cas J1, au caractere pres ; le meme format sans culture invariante
+# differe sous au moins une de ces cultures (sinon le cas ne prouverait rien)
+$script:TargetDrives = @{ A = '0' }; $cmbDrive.Text = 'A'
+$script:Version = '12.11'; $script:CalibCalc = '12.10'; $script:ContentCalc = '12.9'
+$badCu = @(); $difCu = @(); $cuList = @('de-DE', 'fr-CH', 'fr-CA', 'nl-NL', 'fi-FI')
+try {
+    foreach ($cu in $cuList) {
+        Set-TestCulture $cu
+        $hC = Get-LogExportHeader $when
+        if (@($hC).Count -ne 2 -or [string]$hC[0] -cne $fr1 -or [string]$hC[1] -cne 'Lecteur du bandeau : A ; lecteur cible de ses écritures : 0.') { $badCu += "$cu : « $($hC[0]) »" }
+        if ($when.ToString('dd/MM/yyyy HH:mm:ss') -cne '13/11/2026 14:05:09') { $difCu += $cu }
+    }
+} finally { Set-TestCulture 'fr-FR' }
+$script:TargetDrives = @{}; $script:Version = $real.Version; $script:CalibCalc = $real.CalibCalc; $script:ContentCalc = $real.ContentCalc
+Chk 'J5b' ($badCu.Count -eq 0 -and $difCu.Count -ge 1) "date de l en-tete independante de la culture du poste : meme premiere ligne sous $($cuList -join ', ') (ecarts : $(if ($badCu.Count) { $badCu -join ' | ' } else { 'aucun' })) ; sans culture invariante, le meme format differe sous : $($difCu -join ', ')"
 $allH = (@($hT) + @($hN) + @($hTe) + @($hNe) + @($hR) + @($hD)) -join "`n"
 $priv = @()
 if ($allH.Contains('\')) { $priv += 'barre inverse' }

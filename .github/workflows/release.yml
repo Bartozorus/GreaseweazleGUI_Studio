@@ -6,7 +6,8 @@
 # tag de la branche. Sans aucun tag : simple compilation de test (artefact).
 # Un tag vX.Y-rcN publie une préversion (« Pre-release », jamais « Latest ») : même
 # compilation, version du script X.Y, notes de la section X.Y du CHANGELOG précédées
-# d'un avertissement.
+# d'un avertissement. En lancement manuel, saisissez le tag : après une préversion,
+# le dernier tag de la branche peut être un tag rc.
 # L'exe est signé avec le certificat du projet si les secrets CODESIGN_PFX_BASE64 et
 # CODESIGN_PFX_PASSWORD existent ; sinon il est publié non signé.
 name: Release

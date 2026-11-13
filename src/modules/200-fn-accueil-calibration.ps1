@@ -295,8 +295,10 @@ function Set-HomeProgDone($cal, [string]$kind, [string]$detail = '') {
     # 12.11 : barre d etat en fin de sequence (Set-SeqEnd, 110), quel que soit le point de depart : meme titre que la zone
     # de l Accueil, pour une calibration du lecteur seulement (test standard ou fin : complete, B, croisee). Calibration
     # rapide, mesure de la disquette sur l image (autres modes) et mesure complete d une seule disquette (DiskOnly) : le
-    # titre ne les decrit pas, rien n est pose (regle generale d Update-SeqEnd)
-    if ($cal -and @('std', 'fine') -contains [string]$cal.Mode -and -not $cal.DiskOnly) { Set-SeqEnd (Get-CalibDoneTitle $kind) $(if ($kind -eq 'ok') { 'ok' } else { 'idle' }) }
+    # titre ne les decrit pas, rien n est pose (regle generale d Update-SeqEnd). Calibration arretee ('stop') : le titre ne
+    # remplace pas un etat deja en attente (-IfNone : restauration arretee pendant la calibration de son lecteur, dont le
+    # verdict « Restauration echouee » vient d etre pose par Stop-Restore, appelee avant Stop-PrecompCalib)
+    if ($cal -and @('std', 'fine') -contains [string]$cal.Mode -and -not $cal.DiskOnly) { Set-SeqEnd (Get-CalibDoneTitle $kind) $(if ($kind -eq 'ok') { 'ok' } else { 'idle' }) -IfNone:($kind -eq 'stop') }
     if (-not $cal -or -not $cal.Home) { return }
     if ($detail) { $detail = $detail.Substring(0, 1).ToUpper() + $detail.Substring(1) } else { $detail = [string]$lblWCal.Text }
     $script:HomeProgDone = @{ Kind = $kind; Detail = $detail; Family = [string]$cal.Family; Slow = [bool]$cal.Slow; Proc = $script:GwProc

@@ -554,9 +554,11 @@ function Get-LogExportHeader([datetime]$when = (Get-Date)) {
     # journal affiche : date de l export et versions (application, calcul de calibration, mesure sur l image), puis lecteur
     # du bandeau et lecteur cible de ses ecritures (Get-TargetDrive, 140 ; « (meme lecteur) » sans lecteur cible). Apres
     # « Vider », la ligne de version du demarrage n est plus dans le journal : l en-tete la remplace. Ni chemin, ni nom de
-    # compte, ni nom de poste. Tableau protege par la virgule (pas de @() autour de l appel)
+    # compte, ni nom de poste. Tableau protege par la virgule (pas de @() autour de l appel). Date en culture invariante :
+    # « / » et « : » d un format .NET sont sinon les separateurs de la culture du poste (13.11.2026 en de-DE, 14.05.09 en
+    # fi-FI) ; la ligne s ecrit de la meme facon sur tout poste
     $tgt = Get-TargetDrive
-    $l1 = (T "Journal exporté le {0} par Greaseweazle Studio v{1} ; calcul de calibration v{2}, mesure sur l'image v{3}.") -f $when.ToString('dd/MM/yyyy HH:mm:ss'), "$($script:Version)", "$($script:CalibCalc)", "$($script:ContentCalc)"
+    $l1 = (T "Journal exporté le {0} par Greaseweazle Studio v{1} ; calcul de calibration v{2}, mesure sur l'image v{3}.") -f $when.ToString('dd/MM/yyyy HH:mm:ss', [System.Globalization.CultureInfo]::InvariantCulture), "$($script:Version)", "$($script:CalibCalc)", "$($script:ContentCalc)"
     $l2 = (T "Lecteur du bandeau : {0} ; lecteur cible de ses écritures : {1}.") -f "$($cmbDrive.Text)", $(if ($tgt) { $tgt } else { (T '(même lecteur)') })
     return ,@($l1, $l2)
 }
@@ -721,11 +723,14 @@ function Get-ProgPlanFrac {
     return [double]$f
 }
 
-function Set-SeqEnd([string]$text, [string]$icon = 'idle', [switch]$NoTime) {
+function Set-SeqEnd([string]$text, [string]$icon = 'idle', [switch]$NoTime, [switch]$IfNone) {
     # Etat de la barre d etat a poser a la fin de la sequence en cours : le resultat de l operation (restauration,
     # calibration, controle apres ecriture, recherche des lecteurs), sans compteur ni barre. En attente seulement :
     # Update-SeqEnd l applique au repos ; une commande gw qui suit l annule (Start-Progress), un echec du lancement aussi
     # (Set-GwLaunchFailedStatus). Icone : idle, ok ou err ($script:StIcons, 540). Sans -NoTime, l heure suit le texte
+    # 12.11 : -IfNone : ne remplace pas un etat deja en attente (arret d une calibration juste apres le verdict d une
+    # restauration : Stop-Restore puis Stop-PrecompCalib dans le minuteur et dans le bouton Arreter)
+    if ($IfNone -and $null -ne $script:SeqEnd) { return }
     $script:SeqEnd = @{ Text = $text; Icon = $icon; NoTime = [bool]$NoTime }
 }
 

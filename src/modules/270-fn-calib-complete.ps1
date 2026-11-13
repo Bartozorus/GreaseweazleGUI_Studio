@@ -174,8 +174,8 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     # @() autour du if : une seule unite resterait sinon une hashtable nue ($cal.Units[0] = $null)
     Set-CalibScale $family     # 12.7 : bareme de la famille (amplitudes haute densite), apres les sorties anticipees
     # 12.8 (S3) : borne de la courbe de cette disquette (Get-DiskHardNs : plafond par disquette, ou precompMaxNs reglee sous
-    # 400 ns) pendant la mesure complete, retablie a sa fin (Reset-DiskHardNs). 12.11 : calculee ici, le motif cree, sur les cellules de la piste ecrite (CapBits, Get-DiskCapBits : motif, ou format gw au-dela de 250 kbit/s ; 0 si elle n est pas connue : 470 ns, comme en 12.10)
-    if ($do) { $do.CapBits = Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text) ([bool]$pat.Known); $do.HardNs = Get-DiskHardNs ([int]$do.CapBits); Set-DiskHardNs @{ DiskOnly = $true; HardNs = [int]$do.HardNs } }
+    # 400 ns) pendant la mesure complete, retablie a sa fin (Reset-DiskHardNs). 12.11 : calculee ici, le motif cree, sur les cellules de la piste ecrite (CapBits, Get-DiskCapBits : piste la plus longue de l image, codec du format, ou format gw au-dela de 250 kbit/s ; 0 si elle n est pas connue : 470 ns, comme en 12.10)
+    if ($do) { $do.CapBits = Get-DiskCapBits ([int]$pat.CapBits) ([string]$cmbWFmt.Text) ([bool]$pat.Known); $do.HardNs = Get-DiskHardNs ([int]$do.CapBits); Set-DiskHardNs @{ DiskOnly = $true; HardNs = [int]$do.HardNs } }
     $units = @(if ($slow) { (New-CalibUnit 0), (New-CalibUnit 1) } else { New-CalibUnit $null })
     foreach ($u in $units) { foreach ($c in $cyls) { $u.Results[[int]$c] = @{} } }
     $script:Cal = @{

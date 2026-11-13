@@ -10,10 +10,12 @@ $Wt = Get-TestRoot $Wt
 #  P7       carte « Calibrer le lecteur » de l Accueil : unites sans densite (argument reel de Start-LevelCalib), donc
 #           470 ns au plus : son profil peut etre place dans les champs d une image d une autre densite ;
 #  P8       format gw de plus de 250 kbit/s en double densite (Get-DiskCapBits) : cellules de la piste ecrite, et non
-#           celles du motif ; argument reel de Start-LevelCalib avec le format de l onglet Ecriture ;
+#           celles du motif ; argument reel de Start-LevelCalib avec le format de l onglet Ecriture ; format dont le codec
+#           ecrit plus de cellules que le motif d une image secteur (amiga.amigados : 101 344) : cellules du codec ;
 #  B1, B2   le plafond ne depasse jamais le quart de la cellule ni 500 ns : toutes les densites de 50 000 a 260 000
 #           cellules, puis toutes les courbes de la grille ; B3 tous les formats gw que l application calibre en double
-#           densite (Get-FormatCalibInfo reelle, table reelle de 040) : jamais plus du quart de la cellule ecrite ;
+#           densite (Get-FormatCalibInfo reelle, table reelle de 040) : jamais plus du quart de la cellule ecrite, pour le
+#           motif du format comme pour celui d une image secteur qui n est pas de ce format (100 000 cellules) ;
 #  E1 a E6  equivalence avec la regle de la 12.10 sur une grille de courbes factices (6 densites standard et long track,
 #           4 bornes, 8 besoins ; tete 0 : forme adaptee, tete 1 : courbe complete d une marque au depart). La regle de la
 #           12.10 est celle d une unite sans densite (470 ns pour toutes) : egalite prouvee avec -Before (Q1), valeurs de la
@@ -23,7 +25,8 @@ $Wt = Get-TestRoot $Wt
 #  D1 a D3  courbe de marque enregistree par la 12.10 (curveMaxNs 470) : relue et reprise telle quelle ; D4 reference
 #           plus longue que la courbe : cylindres prolonges bornes au plafond de l image (470 ns sans densite) ;
 #  M1 a M4  mesure complete de cette disquette : borne posee par Start-PrecompCalib (instructions reelles extraites par
-#           l arbre syntaxique), ligne du journal, borne retablie ; M4 format de plus de 250 kbit/s ;
+#           l arbre syntaxique), ligne du journal, borne retablie ; M4 format de plus de 250 kbit/s ; M5 image secteur
+#           et amiga.amigados, image dont une piste est plus longue que le motif (cellule la plus courte annoncee) ;
 #  F1 a F4  lot L4b : cellule de la piste ecrite inconnue, donc sans densite (470 ns, comme en 12.10). Format explicite
 #           absent de la table des formats (saisie libre de la liste Format : gw plus recent, fichier diskdefs) :
 #           Get-DiskCapBits rend 0, calibration rapide factice a 470 ns, mesure complete a 470 ns avec la ligne de journal
@@ -32,7 +35,12 @@ $Wt = Get-TestRoot $Wt
 #           (ADF, D64, D81, XDF, HDM, FD, MGT), puis flux, IPF, HFE et images secteur : densite du motif (Get-PatternBits
 #           reelle sur des images factices), chemin du plafond emprunte ou non (Get-CalibImageCheck et Get-WriteLevelKind
 #           reelles), plafond obtenu : au-dela de 470 ns seulement pour une densite tiree de l image (ADF, IPF, HFE) ;
-#  H1, H2   haute densite : aucun chemin du plafond par disquette (Get-LevelRef, Start-DiskMeasure, Set-CalibScale reels),
+#  A4, A5   corrections de relecture : IPF et HFE dont une piste est plus longue que les autres (protection) : le plafond
+#           suit la piste la plus longue, donc la cellule la plus courte (champ CapBits du motif), la densite du motif
+#           (mediane) ne change pas ; HFE v3 (densite tiree du seul debit de l en-tete, longueur des pistes non lue) :
+#           470 ns sans format ; format amiga.amigados sur une image secteur qui n est pas un ADF : cellule du codec
+#           AmigaDOS (101 344 cellules, 493 ns), calibration rapide factice et mesure complete comprises ;
+#  H1, H2  haute densite : aucun chemin du plafond par disquette (Get-LevelRef, Start-DiskMeasure, Set-CalibScale reels),
 #           appelants des fonctions du plafond ;
 #  I1, L1   table I18n (019 ; ligne de la 12.10 retablie dans 010 pour la borne sans cellule connue), CHANGELOG ;
 #  N1       resultats de la source de la 12.10 pour les 32 courbes sans densite de la grille ;
@@ -45,9 +53,9 @@ $Wt = Get-TestRoot $Wt
 # Non couvert : une calibration rapide ou une mesure complete deroulee de bout en bout avec une borne au-dela de 470 ns
 # (passes, zeros estimes, verification) ; l enchainement reel de Start-LevelCalib et de Start-PrecompCalib (fenetres) ;
 # toute ecriture reelle au-dela de 470 ns ; la cellule que gw ecrit reellement (aucun gw : elle vient de la table des
-# formats, du codec AmigaDOS et des bits par piste lus dans l image) ; une piste d un IPF ou d un HFE plus longue que la
-# mediane de l image, et un format de la table ecrit avec plus de cellules que le motif hors des debits de 260 et
-# 261 kbit/s (amiga.amigados choisi pour une image qui n est pas un ADF) : le plafond s y calcule sur la densite du motif.
+# formats, du codec AmigaDOS et des bits par piste lus dans l image : que gw ecrive chaque piste d un IPF ou d un HFE a sa
+# propre longueur, et 101 344 cellules avec amiga.amigados quelle que soit l image, n est pas relu dans sa source) ; un
+# HFE v3 reel (image factice : signature et en-tete seulement) ; un IPF reel a pistes de longueurs differentes.
 $here = Get-TestWorkDir $MyInvocation.MyCommand.Path $Work
 . (Join-Path $PSScriptRoot 'cal2-commun.ps1')
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
@@ -151,8 +159,10 @@ function New-Gen([string]$root, [string]$outFile, [bool]$l4) {
     # Complete-DiskMeasure : controle apres ecriture impose
     $sF = Get-StmtIn $cd { param($x) $x -is $tIf -and $x.Clauses[0].Item2.Extent.Text.Contains('$script:LevelPostForce = $true') -and -not $x.Extent.Text.Contains('Start-ImageWrite') } 'controle impose'
     $nl = "`r`n"
-    # Motif factice : cellules ($script:TBits) et, lot L4b, densite tiree de l image ou non ($script:TKnown, champ Known)
-    $parts.Add('function Start-PrecompCalib([switch]$ForceFine, $Heads = $null) {' + $nl + '    $do = $script:CalDiskOnly; $script:CalDiskOnly = $null' + $nl + '    $pat = @{ Bits = [int]$script:TBits; Known = [bool]$script:TKnown }' + $nl + "    Set-CalibScale ''" + $nl + '    ' + $sA.Extent.Text + $nl + '    $script:Cal = @{ DiskOnly = $true; HardNs = [int]$do.HardNs }' + $nl + '    $thr = Get-DiskOverNs' + $nl + '    ' + $sC.Extent.Text + $nl + '}')
+    # Motif factice : cellules ($script:TBits) et, lot L4b, densite tiree de l image ou non ($script:TKnown, champ Known) ;
+    # corrections de relecture : cellules de la piste la plus longue de l image ($script:TCap, champ CapBits ; celles du
+    # motif par defaut)
+    $parts.Add('function Start-PrecompCalib([switch]$ForceFine, $Heads = $null) {' + $nl + '    $do = $script:CalDiskOnly; $script:CalDiskOnly = $null' + $nl + '    $pat = @{ Bits = [int]$script:TBits; Known = [bool]$script:TKnown; CapBits = [int]$(if ([int]$script:TCap -gt 0) { $script:TCap } else { $script:TBits }) }' + $nl + "    Set-CalibScale ''" + $nl + '    ' + $sA.Extent.Text + $nl + '    $script:Cal = @{ DiskOnly = $true; HardNs = [int]$do.HardNs }' + $nl + '    $thr = Get-DiskOverNs' + $nl + '    ' + $sC.Extent.Text + $nl + '}')
     $parts.Add('function Invoke-TDiskOver($cal, $u, $issues, $kinds) {' + $nl + '    ' + $sO.Extent.Text + $nl + '}')
     $parts.Add('function Invoke-TDiskForce($recs) {' + $nl + '    $thr = Get-DiskOverNs' + $nl + '    ' + $sF.Extent.Text + $nl + '}')
     if ($l4) {
@@ -191,8 +201,15 @@ $cmbWFmt = [pscustomobject]@{ Text = '' }
 $txtWFile = [pscustomobject]@{ Text = '' }; $chkWHard = [pscustomobject]@{ Checked = $false }; $chkWTG43 = [pscustomobject]@{ Checked = $false }
 $cmbWProfile = [pscustomobject]@{ SelectedIndex = 0 }; $chkWPrecomp = [pscustomobject]@{ Checked = $true }
 $script:ScpStatsOk = $true
-# Motif factice du banc Start-PrecompCalib : densite tiree de l image (champ Known de Get-PatternBits), sauf cas F et A
-$script:TKnown = $true
+# Motif factice du banc Start-PrecompCalib : densite tiree de l image (champ Known de Get-PatternBits), sauf cas F et A ;
+# piste la plus longue (champ CapBits) : celle du motif, sauf cas A5
+$script:TKnown = $true; $script:TCap = 0
+function New-TPat([int]$bits, [bool]$known, [int]$cap = 0) {
+    # Motif factice tel que New-CalibPattern le rend au plafond : cellules, densite tiree de l image ou non, cellules de la
+    # piste la plus longue de l image (celles du motif par defaut)
+    if ($cap -le 0) { $cap = $bits }
+    return @{ Bits = $bits; Known = $known; CapBits = $cap }
+}
 
 # ---------------------------------------------------------------- bouchons, entrees factices
 $script:RLog = New-Object System.Collections.Generic.List[string]
@@ -356,14 +373,15 @@ function Invoke-TGrid([bool]$withBits) {
     }
     return $g
 }
-function Invoke-TDisk([int]$bits, [int]$bound, [bool]$known = $true) {
+function Invoke-TDisk([int]$bits, [int]$bound, [bool]$known = $true, [int]$cap = 0) {
     # Debut de la mesure complete de cette disquette : Start-DiskMeasure reelle, puis le banc Start-PrecompCalib (ses
     # instructions reelles : borne posee apres Set-CalibScale, ligne du journal), puis Reset-DiskHardNs. $known (lot L4b) :
-    # densite du motif tiree de l image (champ Known) ; faux : valeur par defaut de la famille (image secteur)
+    # densite du motif tiree de l image (champ Known) ; faux : valeur par defaut de la famille (image secteur). $cap :
+    # cellules de la piste la plus longue de l image (champ CapBits ; 0 : celles du motif)
     Set-TBound $bound
-    $script:RLog.Clear(); $script:Cal = $null; $script:CalDiskOnly = $null; $script:AfterCalib = ''; $script:TBits = $bits; $script:TKnown = $known
+    $script:RLog.Clear(); $script:Cal = $null; $script:CalDiskOnly = $null; $script:AfterCalib = ''; $script:TBits = $bits; $script:TKnown = $known; $script:TCap = $cap
     Start-DiskMeasure (New-TLr 'std') 'Marque X'
-    $script:TKnown = $true
+    $script:TKnown = $true; $script:TCap = 0
     $o = @{ Bits = $bits; Bound = $bound; HardNs = -1; During = [int]$script:CalHardNs; Log = @($script:RLog.ToArray()); After = [string]$script:AfterCalib; Left = [bool]($null -eq $script:CalDiskOnly) }
     if ($script:Cal) { $o.HardNs = [int]$script:Cal.HardNs }
     Reset-DiskHardNs
@@ -460,7 +478,7 @@ $readAt = @($spAst.Body.FindAll({ param($n) $n -is [System.Management.Automation
 # la ligne du journal ; le motif transmet son champ Known
 $capAt = @($spAst.Body.FindAll({ param($n) $n -is $tAsg -and $n.Left.Extent.Text -eq '$do.CapBits' }, $true))
 $lineAt = @($spAst.Body.FindAll({ param($n) $n -is $tCmd -and $n.GetCommandName() -eq 'Get-DiskBoundText' }, $true))
-$okOrder = ($setAt.Count -eq 1 -and $useAt.Count -eq 1 -and $capAt.Count -eq 1 -and $capAt[0].Extent.Text -eq '$do.CapBits = Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text) ([bool]$pat.Known)' -and $capAt[0].Extent.StartOffset -lt $setAt[0].Extent.StartOffset -and
+$okOrder = ($setAt.Count -eq 1 -and $useAt.Count -eq 1 -and $capAt.Count -eq 1 -and $capAt[0].Extent.Text -eq '$do.CapBits = Get-DiskCapBits ([int]$pat.CapBits) ([string]$cmbWFmt.Text) ([bool]$pat.Known)' -and $capAt[0].Extent.StartOffset -lt $setAt[0].Extent.StartOffset -and
             $setAt[0].Extent.Text -eq '$do.HardNs = Get-DiskHardNs ([int]$do.CapBits)' -and $setAt[0].Extent.StartOffset -lt $useAt[0].Extent.StartOffset -and $readAt.Count -ge 4 -and $readAt[0] -eq $setAt[0].Extent.StartOffset -and
             $lineAt.Count -eq 1 -and $lineAt[0].Extent.Text -eq 'Get-DiskBoundText ([int]$do.HardNs) ([int]$do.CapBits)' -and $lineAt[0].Extent.StartOffset -gt $useAt[0].Extent.StartOffset)
 $dmAst = Get-FnAst $f270 'Start-DiskMeasure'
@@ -469,15 +487,20 @@ $okAdv = ((Get-Callers 'Get-DiskOverAdviceText') -eq '260:Get-LevelUnitResults, 
 $slAst = Get-FnAst (Join-Path $mods '260-fn-calib-rapide.ps1') 'Start-LevelCalib'
 $nuAt = @($slAst.Body.FindAll({ param($n) $n -is $tCmd -and $n.GetCommandName() -eq 'New-LevelCalUnits' }, $true))
 $patAt = @($slAst.Body.FindAll({ param($n) $n -is $tAsg -and $n.Left.Extent.Text -eq '$pat' }, $true))
-$okUnits = ((Get-Callers 'New-LevelCalUnits') -eq '260:Start-LevelCalib' -and $nuAt.Count -eq 1 -and $nuAt[0].CommandElements.Count -eq 5 -and $nuAt[0].CommandElements[4].Extent.Text -eq '$(if ($Geom) { 0 } else { Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text) ([bool]$pat.Known) })' -and
+$okUnits = ((Get-Callers 'New-LevelCalUnits') -eq '260:Start-LevelCalib' -and $nuAt.Count -eq 1 -and $nuAt[0].CommandElements.Count -eq 5 -and $nuAt[0].CommandElements[4].Extent.Text -eq '$(if ($Geom) { 0 } else { Get-DiskCapBits ([int]$pat.CapBits) ([string]$cmbWFmt.Text) ([bool]$pat.Known) })' -and
             $patAt.Count -eq 1 -and $patAt[0].Extent.Text.Contains('New-CalibPattern') -and $patAt[0].Extent.StartOffset -lt $nuAt[0].Extent.StartOffset)
 # Get-DiskCapBits : la calibration rapide (une fois) et la mesure complete de la disquette (une fois : la borne et la ligne
 # du journal lisent la meme valeur, $do.CapBits) ; Get-DiskBoundText : la mesure complete seule. New-CalibPattern rend le
-# champ Known du motif (Get-PatternBits)
+# champ Known du motif (Get-PatternBits). Corrections de relecture : les deux appels lisent le champ CapBits du motif
+# (piste la plus longue de l image), que New-CalibPattern transmet ; plus aucune lecture de $pat.Bits par le plafond ;
+# Get-DiskCapBits lit les cellules du codec du format dans Get-FormatCalibInfo (un appel)
 $okBits = ((Get-Callers 'Get-DiskCapBits') -eq '260:Start-LevelCalib, 270:Start-PrecompCalib' -and (Get-Callers 'Get-DiskBoundText') -eq '270:Start-PrecompCalib')
 $ncpTxt = (Get-FnAst (Join-Path $mods '240-fn-calib-mesure.ps1') 'New-CalibPattern').Extent.Text
-$okKnown = ($ncpTxt.Contains('$pb = Get-PatternBits $family $img') -and $ncpTxt.Contains('Known = [bool]$pb.Known'))
-Chk 'P6' ($usesTxt -eq $usesExp -and $okOrder -and $okDm -and $okAdv -and $okUnits -and $okBits -and $okKnown) "CalHardMaxNs dans le code : $usesTxt ; Start-PrecompCalib garde les cellules de la piste ecrite, pose la borne avant Set-DiskHardNs et avant toute lecture, puis ecrit la ligne de Get-DiskBoundText avec ces memes cellules ($okOrder) ; Start-DiskMeasure ne la calcule plus ($okDm) ; conseil appele par : $(Get-Callers 'Get-DiskOverAdviceText') ; Start-LevelCalib, seul appelant de New-LevelCalUnits, lui transmet les cellules de la piste ecrite une fois le motif cree, aucune pour la carte de l Accueil ($okUnits) ; Get-DiskCapBits appelee par : $(Get-Callers 'Get-DiskCapBits') ; Get-DiskBoundText par : $(Get-Callers 'Get-DiskBoundText') ($okBits) ; New-CalibPattern transmet le champ Known du motif ($okKnown)"
+$okKnown = ($ncpTxt.Contains('$pb = Get-PatternBits $family $img') -and $ncpTxt.Contains('Known = [bool]$pb.Known') -and $ncpTxt.Contains('CapBits = [int]$pb.CapBits'))
+$dcbAst = Get-FnAst (Join-Path $mods '265-fn-calib-adaptative.ps1') 'Get-DiskCapBits'
+$fciAt = @($dcbAst.Body.FindAll({ param($n) $n -is $tCmd -and $n.GetCommandName() -eq 'Get-FormatCalibInfo' }, $true))
+$okCodec = ($fciAt.Count -eq 1 -and $fciAt[0].Extent.Text -eq 'Get-FormatCalibInfo $fmt')
+Chk 'P6' ($usesTxt -eq $usesExp -and $okOrder -and $okDm -and $okAdv -and $okUnits -and $okBits -and $okKnown -and $okCodec) "Get-DiskCapBits lit les cellules du codec du format (Get-FormatCalibInfo, $okCodec) ; CalHardMaxNs dans le code : $usesTxt ; Start-PrecompCalib garde les cellules de la piste ecrite, pose la borne avant Set-DiskHardNs et avant toute lecture, puis ecrit la ligne de Get-DiskBoundText avec ces memes cellules ($okOrder) ; Start-DiskMeasure ne la calcule plus ($okDm) ; conseil appele par : $(Get-Callers 'Get-DiskOverAdviceText') ; Start-LevelCalib, seul appelant de New-LevelCalUnits, lui transmet les cellules de la piste ecrite une fois le motif cree, aucune pour la carte de l Accueil ($okUnits) ; Get-DiskCapBits appelee par : $(Get-Callers 'Get-DiskCapBits') ; Get-DiskBoundText par : $(Get-Callers 'Get-DiskBoundText') ($okBits) ; New-CalibPattern transmet le champ Known du motif ($okKnown)"
 # P7 : carte « Calibrer le lecteur » de l Accueil (Geom). Le profil de sa calibration rapide peut etre place dans les champs
 # --precomp d une image de la meme famille et d une autre densite (Complete-LevelCalib : condition de $toFields, qui ne lit
 # pas la densite) : l argument reel de Start-LevelCalib ne transmet aucune densite, les unites gardent donc 470 ns, sous le
@@ -486,8 +509,8 @@ $clAst = Get-FnAst (Join-Path $mods '260-fn-calib-rapide.ps1') 'Complete-LevelCa
 $tfAt = @($clAst.Body.FindAll({ param($n) $n -is $tAsg -and $n.Left.Extent.Text -eq '$toFields' }, $true))
 $geomT = @{ Img = 'geometrie.hfe'; Label = 'ibm.720' }
 # Lot L4b : motifs dont la densite est tiree de l image (champ Known ; l image de geometrie de la carte est un HFE)
-$cmbWFmt.Text = 'atarist.880'; $bHome = Get-TUnitBits $geomT @{ Bits = 100000; Known = $true }
-$cmbWFmt.Text = ''; $bHomeAdf = Get-TUnitBits $geomT @{ Bits = 101344; Known = $true }; $bTab = Get-TUnitBits $null @{ Bits = 100000; Known = $true }; $bTabAdf = Get-TUnitBits $null @{ Bits = 101344; Known = $true }
+$cmbWFmt.Text = 'atarist.880'; $bHome = Get-TUnitBits $geomT (New-TPat 100000 $true)
+$cmbWFmt.Text = ''; $bHomeAdf = Get-TUnitBits $geomT (New-TPat 101344 $true); $bTab = Get-TUnitBits $null (New-TPat 100000 $true); $bTabAdf = Get-TUnitBits $null (New-TPat 101344 $true)
 $rHome = Invoke-TRun $bHome 400 520 0
 Chk 'P7' ($tfAt.Count -eq 1 -and $tfAt[0].Right.Extent.Text -eq '(-not $cal.Home) -or ((Get-WriteTabFamily) -eq $cal.Family -and -not $tgtL.Applies)' -and $bHome -eq 0 -and $bHomeAdf -eq 0 -and $bTab -eq 100000 -and $bTabAdf -eq 101344 -and
           $rHome.Heads[0].Hard -eq 470 -and $rHome.Heads[1].Hard -eq 470 -and (Get-TMax $rHome.Heads[0].Values) -eq 470 -and (Get-TMax $rHome.Heads[1].Values) -eq 470 -and (Get-DiskCapNs 102560) -eq 487) "carte de l Accueil : profil place dans les champs d apres la famille seule (Complete-LevelCalib) ; argument reel de Start-LevelCalib : $bHome et $bHomeAdf cellule pour la carte, $bTab et $bTabAdf pour l onglet Ecriture ; unites sans densite : $(Get-TMax $rHome.Heads[0].Values) et $(Get-TMax $rHome.Heads[1].Values) ns au plus pour un besoin de 520 ns, sous le quart de la cellule de toute image standard ($(Get-DiskCapNs 102560) ns a 1 950 ns)"
@@ -497,18 +520,29 @@ Chk 'P7' ($tfAt.Count -eq 1 -and $tfAt[0].Right.Extent.Text -eq '(-not $cal.Home
 # Lot L4b : quatrieme element, densite du motif tiree de l image (champ Known) : sans effet avec un format de la table ;
 # sans format (vide, « (auto) ») les cellules ne sont gardees que si elle l est ; format absent de la table : 0 (cas F1 ;
 # ce cas attendait 100 000 au lot L4)
-$p8 = @(@(100000, 'atarist.880', 104400, $false), @(100000, 'atarist.440', 104400, $false), @(100000, 'atari.130', 104000, $false), @(100000, 'ibm.720', 100000, $false), @(100000, 'atarist.720', 100000, $false),
+# Corrections de relecture : format de la table dont le codec ecrit plus de cellules que le motif d une image secteur
+# (amiga.amigados : 101 344, Get-FormatCalibInfo ; gw l ecrit que l image soit un ADF ou non) : jamais moins que celles
+# du codec, densite tiree de l image ou non ; un motif plus long que le codec garde ses cellules
+$p8 = @(@(100000, 'amiga.amigados', 101344, $false), @(100000, 'amiga.amigados', 101344, $true), @(100400, 'amiga.amigados', 101344, $true), @(105500, 'amiga.amigados', 105500, $true), @(105500, 'ibm.720', 105500, $true), @(105500, '', 105500, $true), @(105500, '', 0, $false),
+        @(200000, 'amiga.amigados_hd', 202688, $false), @(202688, 'amiga.amigados_hd', 202688, $true), @(100000, 'atarist.880', 104400, $false), @(100000, 'atarist.440', 104400, $false), @(100000, 'atari.130', 104000, $false), @(100000, 'ibm.720', 100000, $false), @(100000, 'atarist.720', 100000, $false),
         @(100000, '(auto)', 100000, $true), @(100000, '', 100000, $true), @(100000, 'format.inconnu', 0, $false), @(101344, 'amiga.amigados', 101344, $true), @(101344, '', 101344, $true),
         @(105808, 'atarist.880', 105808, $true), @(200000, 'ibm.1440', 200000, $false), @(0, 'atarist.880', 0, $false), @(0, '', 0, $true),
         @(100000, 'atarist.880', 104400, $true), @(100000, 'ibm.720', 100000, $true), @(101344, 'amiga.amigados', 101344, $false))
 $bad = @($p8 | Where-Object { (Get-DiskCapBits $_[0] $_[1] $_[3]) -ne $_[2] } | ForEach-Object { "$($_[0]) cellules, format « $($_[1]) », densite tiree de l image $($_[3]) -> $(Get-DiskCapBits $_[0] $_[1] $_[3]) au lieu de $($_[2])" })
 # Image secteur (densite du motif par defaut : Known faux) et format de la table : argument reel de Start-LevelCalib
-$cmbWFmt.Text = 'atarist.880'; $bSt = Get-TUnitBits $null @{ Bits = 100000; Known = $false }; $cmbWFmt.Text = 'ibm.720'; $bIbm = Get-TUnitBits $null @{ Bits = 100000; Known = $false }; $cmbWFmt.Text = ''
+$cmbWFmt.Text = 'atarist.880'; $bSt = Get-TUnitBits $null (New-TPat 100000 $false); $cmbWFmt.Text = 'ibm.720'; $bIbm = Get-TUnitBits $null (New-TPat 100000 $false)
+# Corrections de relecture : image secteur et amiga.amigados (cellules du codec) ; motif dont une piste est plus longue
+# (champ CapBits : le plafond le lit, et non la densite du motif)
+$cmbWFmt.Text = 'amiga.amigados'; $bAmi = Get-TUnitBits $null (New-TPat 100000 $false); $cmbWFmt.Text = ''; $bLongTrk = Get-TUnitBits $null (New-TPat 100400 $true 105500)
 $rSt = Invoke-TRun $bSt 400 520 0 'std'
 $okSt = ($rSt.Heads[0].Hard -eq 478 -and $rSt.Heads[1].Hard -eq 478 -and (Get-TMax $rSt.Heads[0].Values) -eq 478 -and (Get-TMax $rSt.Heads[1].Values) -eq 478 -and
          @($rSt.Issues | Where-Object { $_.Contains('plafond porté à 478 ns pour cette disquette seulement') }).Count -eq 2)
+$rAmi = Invoke-TRun $bAmi 400 520 0 'std'
+$okAmi = ($bAmi -eq 101344 -and $rAmi.Heads[0].Hard -eq 493 -and $rAmi.Heads[1].Hard -eq 493 -and (Get-TMax $rAmi.Heads[0].Values) -eq 493 -and (Get-TMax $rAmi.Heads[1].Values) -eq 493 -and
+          @($rAmi.Issues | Where-Object { $_.Contains('plafond porté à 493 ns pour cette disquette seulement') }).Count -eq 2)
 Chk 'P8' ($bad.Count -eq 0 -and (Get-DiskCapBits 100000 'atarist.880') -is [int] -and (Get-DiskCapNs (Get-DiskCapBits 100000 'atarist.880')) -eq 478 -and (Get-DiskCapNs (Get-DiskCapBits 100000 'atari.130')) -eq 480 -and
-          (Get-DiskCapNs (Get-DiskCapBits 0 'atarist.880')) -eq 470 -and $bSt -eq 104400 -and $bIbm -eq 100000 -and $okSt) "Get-DiskCapBits : $($p8.Count) cas (format de plus de 250 kbit/s : 400 x debit cellules ; autres formats de la table, densite tiree de l image sans format, image de plus de cellules, unite sans densite : inchange ; format absent de la table : 0) ; plafond de 478 ns a 261 kbit/s et de 480 ns a 260 kbit/s, et non 500 ; argument reel de Start-LevelCalib avec atarist.880 : $bSt cellules ($bIbm avec ibm.720) ; calibration factice, besoin de 520 ns : $(Get-TMax $rSt.Heads[0].Values) et $(Get-TMax $rSt.Heads[1].Values) ns au plus, reserve « plafond porté à 478 ns » ($okSt) ; ecarts : $(Get-List $bad)"
+          (Get-DiskCapNs (Get-DiskCapBits 0 'atarist.880')) -eq 470 -and $bSt -eq 104400 -and $bIbm -eq 100000 -and $okSt -and (Get-DiskCapBits 100000 'amiga.amigados' $false) -eq 101344 -and (Get-DiskCapBits 100000 'amiga.amigados' $false) -is [int] -and
+          (Get-DiskCapNs (Get-DiskCapBits 100000 'amiga.amigados' $false)) -eq 493 -and $okAmi -and $bLongTrk -eq 105500) "Get-DiskCapBits : $($p8.Count) cas (format de plus de 250 kbit/s : 400 x debit cellules ; format dont le codec ecrit plus de cellules que le motif, amiga.amigados : cellules du codec ; autres formats de la table, densite tiree de l image sans format, image de plus de cellules, unite sans densite : inchange ; format absent de la table : 0) ; plafond de 478 ns a 261 kbit/s et de 480 ns a 260 kbit/s, et non 500 ; argument reel de Start-LevelCalib avec atarist.880 : $bSt cellules ($bIbm avec ibm.720, $bAmi avec amiga.amigados, $bLongTrk pour un motif de 100 400 cellules dont une piste en compte 105 500) ; calibration factice, besoin de 520 ns : $(Get-TMax $rSt.Heads[0].Values) et $(Get-TMax $rSt.Heads[1].Values) ns au plus, reserve « plafond porté à 478 ns » ($okSt) ; image secteur et amiga.amigados : $(Get-TMax $rAmi.Heads[0].Values) et $(Get-TMax $rAmi.Heads[1].Values) ns, reserve « plafond porté à 493 ns » ($okAmi) ; ecarts : $(Get-List $bad)"
 
 # ---------------------------------------------------------------- B : jamais plus du quart de la cellule ni 500 ns
 '--- B : le plafond ne depasse jamais le quart de la cellule reelle ni 500 ns'
@@ -536,7 +570,11 @@ Chk 'B2' ($bad.Count -eq 0 -and $gridNew.Bits.Count -eq 192) "$($gridNew.Bits.Co
 # reelle de 040. Cellules de la piste ecrite, calcul independant de Get-DiskCapBits : codec AmigaDOS de gw (101 344), sinon
 # 400 x debit (250 kbit/s par defaut). Le plafond ne depasse jamais le quart de cette cellule ; sans Get-DiskCapBits
 # (densite du motif seule), les formats a 260 et 261 kbit/s le depassaient
-$nF = 0; $bad = @(); $chg = @(); $over0 = @()
+# Corrections de relecture : le motif du format (Bits de Get-FormatCalibInfo : 101 344 pour amiga.amigados) n est celui
+# d une image de ce format que pour un ADF ; une image secteur qui n est pas un ADF (IMG, ST, DSK) garde un motif de
+# 100 000 cellules quel que soit le format (Get-PatternBits), densite non tiree de l image : le plafond ne depasse pas non
+# plus le quart de la cellule ecrite pour ce motif-la (amiga.amigados : 500 ns pour un quart de 493 ns avant la correction)
+$nF = 0; $bad = @(); $chg = @(); $over0 = @(); $chgS = @()
 foreach ($name in @($script:GwFormats.Keys)) {
     $fi = Get-FormatCalibInfo $name
     if ([string]$fi.Cal -ne 'std') { continue }
@@ -546,10 +584,13 @@ foreach ($name in @($script:GwFormats.Keys)) {
     $qF = Get-Quarter $wr
     $bitsF = Get-DiskCapBits ([int]$fi.Bits) $name; $capF = Get-DiskCapNs $bitsF
     if ($capF -gt $qF -or $capF -gt 500) { $bad += "$name : $capF ns pour un quart de cellule de $qF ns" }
+    $bitsS = Get-DiskCapBits 100000 $name $false; $capS = Get-DiskCapNs $bitsS
+    if ($capS -gt $qF -or $capS -gt 500) { $bad += "$name, image secteur : $capS ns pour un quart de cellule de $qF ns" }
     if ((Get-DiskCapNs ([int]$fi.Bits)) -gt $qF) { $over0 += $name }
     if ($bitsF -ne [int]$fi.Bits) { $chg += "$name $capF" }
+    if ($bitsS -ne 100000) { $chgS += "$name $capS" }
 }
-Chk 'B3' ($bad.Count -eq 0 -and $nF -ge 60 -and ($chg -join ', ') -ceq 'atari.130 480, atarist.440 478, atarist.880 478' -and ($over0 -join ', ') -ceq 'atari.130, atarist.440, atarist.880') "$nF formats gw calibres en double densite (table de 040, Get-FormatCalibInfo reelle), sur $($script:GwFormats.Count) : plafond jamais au-dela du quart de la cellule de la piste ecrite ; formats dont le plafond suit le debit : $($chg -join ', ') ns ; sur la seule densite du motif, au-dela du quart : $($over0 -join ', ') ; ecarts : $(Get-List $bad)"
+Chk 'B3' ($bad.Count -eq 0 -and $nF -ge 60 -and ($chg -join ', ') -ceq 'atari.130 480, atarist.440 478, atarist.880 478' -and ($over0 -join ', ') -ceq 'atari.130, atarist.440, atarist.880' -and ($chgS -join ', ') -ceq 'amiga.amigados 493, atari.130 480, atarist.440 478, atarist.880 478') "$nF formats gw calibres en double densite (table de 040, Get-FormatCalibInfo reelle), sur $($script:GwFormats.Count) : plafond jamais au-dela du quart de la cellule de la piste ecrite, pour le motif du format comme pour celui d une image secteur (100 000 cellules, densite non tiree de l image) ; formats dont le plafond suit le debit : $($chg -join ', ') ns ; image secteur, formats dont le plafond ne suit pas le motif : $($chgS -join ', ') ns ; sur la seule densite du motif, au-dela du quart : $($over0 -join ', ') ; ecarts : $(Get-List $bad)"
 
 # ---------------------------------------------------------------- E : equivalence avec la regle de la 12.10
 '--- E : equivalence avec la regle de la 12.10 (unite sans densite : 470 ns pour toutes)'
@@ -695,6 +736,17 @@ $cmbWFmt.Text = 'ibm.720'; $oIbm = Invoke-TDisk 100000 400 $false
 $cmbWFmt.Text = ''
 Chk 'M4' ($oSt.HardNs -eq 478 -and $oSt.During -eq 478 -and $oSt.Reset -eq 400 -and $oSt.Log.Count -eq 1 -and [string]$oSt.Log[0] -ceq "Borne de la courbe de cette disquette : 478 ns, le quart de la cellule de l'image (1916 ns), 500 ns au plus ; au-delà de 400 ns, contrôle après écriture imposé." -and
           $oSt470.HardNs -eq 478 -and $oIbm.HardNs -eq 500 -and [string]$oIbm.Log[0] -ceq "Borne de la courbe de cette disquette : 500 ns, le quart de la cellule de l'image (2000 ns), 500 ns au plus ; au-delà de 400 ns, contrôle après écriture imposé.") "mesure complete, image secteur et format atarist.880 (261 kbit/s) : borne $($oSt.HardNs) ns et non 500, « $(Get-Short ([string]$oSt.Log[0]) 100) » ; borne reglee a 470 ns : $($oSt470.HardNs) ns ; format ibm.720 : $($oIbm.HardNs) ns"
+# M5 (corrections de relecture) : borne et cellule annoncee d apres la cellule la plus courte ecrite. Image secteur et
+# format amiga.amigados (motif de 100 000 cellules, densite non tiree de l image) : cellules du codec AmigaDOS, 493 ns et
+# « (1973 ns) », et non 500 ns et « (2000 ns) ». Motif de 100 000 ou de 100 400 cellules dont une piste de l image en
+# compte 105 504 ou 105 500 (champ CapBits) : 473 ns et « (1896 ns) », sans format comme avec ibm.720
+$cmbWFmt.Text = 'amiga.amigados'; $oAmi = Invoke-TDisk 100000 400 $false; $oAmi470 = Invoke-TDisk 100000 470 $false
+$cmbWFmt.Text = ''; $oMix = Invoke-TDisk 100000 400 $true 105504; $oMix2 = Invoke-TDisk 100400 400 $true 105500; $oMix350 = Invoke-TDisk 100400 350 $true 105500
+$cmbWFmt.Text = 'ibm.720'; $oMixF = Invoke-TDisk 100400 400 $true 105500
+$cmbWFmt.Text = ''
+$lMix = "Borne de la courbe de cette disquette : 473 ns, le quart de la cellule de l'image (1896 ns), 500 ns au plus ; au-delà de 400 ns, contrôle après écriture imposé."
+Chk 'M5' ($oAmi.HardNs -eq 493 -and $oAmi.During -eq 493 -and $oAmi.Reset -eq 400 -and $oAmi.Log.Count -eq 1 -and [string]$oAmi.Log[0] -ceq "Borne de la courbe de cette disquette : 493 ns, le quart de la cellule de l'image (1973 ns), 500 ns au plus ; au-delà de 400 ns, contrôle après écriture imposé." -and $oAmi470.HardNs -eq 493 -and
+          $oMix.HardNs -eq 473 -and $oMix.During -eq 473 -and [string]$oMix.Log[0] -ceq $lMix -and $oMix2.HardNs -eq 473 -and [string]$oMix2.Log[0] -ceq $lMix -and $oMix350.HardNs -eq 350 -and $oMixF.HardNs -eq 473 -and [string]$oMixF.Log[0] -ceq $lMix) "mesure complete, image secteur et format amiga.amigados : borne $($oAmi.HardNs) ns et non 500, « $(Get-Short ([string]$oAmi.Log[0]) 100) » ; motif de 100 000 cellules dont une piste de l image en compte 105 504 : borne $($oMix.HardNs) ns, « $(Get-Short ([string]$oMix.Log[0]) 100) » ; meme regle avec le format ibm.720 ($($oMixF.HardNs) ns) ; borne reglee a 350 ns respectee ($($oMix350.HardNs) ns)"
 
 # ---------------------------------------------------------------- F : format absent de la table (lot L4b)
 '--- F : format explicite absent de la table (cellule de la piste ecrite inconnue : 470 ns, comme en 12.10)'
@@ -710,7 +762,7 @@ $fUnk = @(@(100000, 'format.inconnu', $false), @(100000, 'format.inconnu', $true
 $bad = @($fUnk | Where-Object { (Get-DiskCapBits $_[0] $_[1] $_[2]) -ne 0 -or (Get-DiskCapNs (Get-DiskCapBits $_[0] $_[1] $_[2])) -ne 470 } | ForEach-Object { "$($_[0]) cellules, format « $($_[1]) » -> $(Get-DiskCapBits $_[0] $_[1] $_[2]) cellules" })
 $inTab = @($fUnk | Where-Object { $script:GwFormats.Contains($_[1]) })
 foreach ($x in @(@(350, 350), @(400, 470), @(430, 470), @(470, 470))) { Set-TBound $x[0]; $g = Get-DiskHardNs (Get-DiskCapBits 100000 'format.inconnu' $false); if ($g -ne $x[1]) { $bad += "borne $($x[0]) -> $g au lieu de $($x[1])" } }
-$cmbWFmt.Text = 'format.inconnu'; $bUnk = Get-TUnitBits $null @{ Bits = 100000; Known = $false }; $bUnkK = Get-TUnitBits $null @{ Bits = 101344; Known = $true }; $cmbWFmt.Text = ''
+$cmbWFmt.Text = 'format.inconnu'; $bUnk = Get-TUnitBits $null (New-TPat 100000 $false); $bUnkK = Get-TUnitBits $null (New-TPat 101344 $true); $cmbWFmt.Text = ''
 Chk 'F1' ($bad.Count -eq 0 -and $inTab.Count -eq 0 -and (Get-DiskCapBits 100000 'format.inconnu') -is [int] -and $bUnk -eq 0 -and $bUnkK -eq 0 -and (Get-DiskCapBits 100000 'ibm.720' $false) -eq 100000 -and (Get-DiskCapNs (Get-DiskCapBits 100000 'ibm.720' $false)) -eq 500) "Get-DiskCapBits, format absent de la table ($($fUnk.Count) cas, densite du motif tiree de l image ou non) : 0 cellule, donc 470 ns (Get-DiskCapNs) ; borne de la mesure complete : 470 ns des 400 ns de reglage, borne sous 400 ns respectee ; argument reel de Start-LevelCalib : $bUnk et $bUnkK ; un format de la table garde ses cellules (ibm.720 : $(Get-DiskCapBits 100000 'ibm.720' $false), 500 ns) ; ecarts : $(Get-List $bad)"
 # F2 : calibration rapide factice, besoin de 520 ns, unites creees avec ces cellules : 470 ns au plus, resultat identique au
 # caractere pres a celui d une unite sans densite (la regle de la 12.10 : cas N1, et Q1 avec -Before)
@@ -805,7 +857,37 @@ $zFd = New-TFile 'defaut.fd' $small; $zMgt = New-TFile 'defaut.mgt' $small
 $zScp = New-TFile 'flux.scp' $small; $zImg = New-TFile 'secteurs.img' (New-Object byte[] 737280); $zSt = New-TFile 'secteurs.st' $small; $zMsa = New-TFile 'secteurs.msa' $small
 $zIpf = New-TIpf 'long.ipf' 105500; $zHfe = New-THfe 'deux-us.hfe' 25000
 $zIpfBad = New-TFile 'illisible.ipf' $small; $zHfeBad = New-TFile 'illisible.hfe' $small
-$errA = ''; $badA1 = @('non joue'); $badA2 = @('non joue'); $badA3 = @('non joue')
+# Corrections de relecture (cas A4, A5) : images dont les pistes n ont pas toutes la meme longueur, et HFE v3
+function New-TIpfTracks([string]$name, [int[]]$trkBits) {
+    # IPF minimal : enregistrement CAPS, puis un enregistrement IMGE de 11 blocs par element de $trkBits (bits de la piste)
+    $b = New-Object byte[] (12 + 80 * $trkBits.Count)
+    [System.Text.Encoding]::ASCII.GetBytes('CAPS').CopyTo($b, 0); Set-TBE32 $b 4 12
+    for ($i = 0; $i -lt $trkBits.Count; $i++) {
+        $o = 12 + 80 * $i
+        [System.Text.Encoding]::ASCII.GetBytes('IMGE').CopyTo($b, $o); Set-TBE32 $b ($o + 4) 80
+        Set-TBE32 $b ($o + 12) $i; Set-TBE32 $b ($o + 48) $trkBits[$i]; Set-TBE32 $b ($o + 52) 11
+    }
+    return (New-TFile $name $b)
+}
+function New-THfeTracks([string]$name, [int[]]$lens, [string]$sig = 'HXCPICFE') {
+    # HFE minimal (MFM, 250 kbit/s) : table des pistes au bloc 1, un cylindre par element de $lens (octets, deux faces), soit
+    # 8 x (longueur // 2) bits par face. $sig 'HXCHFEV3' : HFE v3, dont l application ne lit pas la table des pistes
+    $offs = @(); $next = 2
+    foreach ($l in $lens) { $offs += $next; $next += [int][math]::Ceiling($l / 512.0) }
+    $b = New-Object byte[] ($next * 512)
+    [System.Text.Encoding]::ASCII.GetBytes($sig).CopyTo($b, 0); $b[9] = [byte]$lens.Count; $b[10] = 2; $b[11] = 0; $b[12] = 250; $b[13] = 0; $b[18] = 1; $b[19] = 0
+    for ($i = 0; $i -lt $lens.Count; $i++) { $b[512 + 4 * $i] = [byte]($offs[$i] -band 255); $b[513 + 4 * $i] = [byte]($offs[$i] -shr 8); $b[514 + 4 * $i] = [byte]($lens[$i] -band 255); $b[515 + 4 * $i] = [byte]($lens[$i] -shr 8) }
+    return (New-TFile $name $b)
+}
+# IPF : 7 pistes de 100 400 bits et une de 105 500 (mediane 100 400) ; 6 pistes de 100 000 bits et 2 de 105 500 (mediane
+# 100 000). HFE : 3 cylindres de 25 000 octets (100 000 bits par face) et un de 26 376 (105 504 bits) ; le meme en HFE v3 ;
+# HFE v3 aux pistes egales. IMG et DSK de la taille d une disquette Amiga (901 120 octets)
+$zIpfMix = New-TIpfTracks 'piste-longue.ipf' ([int[]]@(100400, 100400, 105500, 100400, 100400, 100400, 100400, 100400))
+$zIpfMix2 = New-TIpfTracks 'pistes-longues.ipf' ([int[]]@(100000, 105500, 100000, 100000, 100000, 105500, 100000, 100000))
+$zHfeMix = New-THfeTracks 'piste-longue.hfe' ([int[]]@(25000, 25000, 26376, 25000))
+$zHfeV3 = New-THfeTracks 'v3.hfe' ([int[]]@(25000, 25000, 25000, 25000)) 'HXCHFEV3'; $zHfeV3Mix = New-THfeTracks 'v3-piste-longue.hfe' ([int[]]@(25000, 25000, 26376, 25000)) 'HXCHFEV3'
+$zImgAmi = New-TFile 'amiga.img' (New-Object byte[] 901120); $zDskAmi = New-TFile 'amiga.dsk' (New-Object byte[] 901120)
+$errA = ''; $badA1 = @('non joue'); $badA2 = @('non joue'); $badA3 = @('non joue'); $badA4 = @('non joue'); $badA5 = @('non joue'); $cellA4 = @()
 try {
     # A1 : un cas par type auquel gw 1.23 donne un format par defaut. ADF (amiga.amigados, 101 344 cellules) : densite du
     # codec, chemin emprunte, 493 ns, le quart de sa cellule. D64 (commodore.1541, GCR) : calibration refusee, aucun chemin.
@@ -817,10 +899,11 @@ try {
     $badA1 = Test-TImages $a1 @('(auto)', '')
     # A2 : autres images sans format. Flux SCP : calibration refusee, aucun chemin. Image secteur brute (IMG, ST : gw exige
     # un format) et MSA : admises par « Calibrer », cellule non etablie, 470 ns. IPF et HFE lisibles : bits par piste de
-    # l image, chemin emprunte, quart de cette cellule (473 ns pour 105 488 cellules, 500 ns pour 100 000). IPF ou HFE dont
-    # la densite ne se lit pas : chemin emprunte avec le motif par defaut, 470 ns
+    # l image, chemin emprunte, quart de cette cellule (473 ns pour 105 500 cellules, 500 ns pour 100 000). IPF ou HFE dont
+    # la densite ne se lit pas : chemin emprunte avec le motif par defaut, 470 ns. Corrections de relecture : les cellules
+    # retenues sont celles de la piste la plus longue de l image (IPF : 105 500, le motif en compte 105 488, multiple de 16)
     $a2 = @(@($zScp, 'std|100000|False|False|-|0|470'), @($zImg, 'std|100000|False|True|-|0|470'), @($zSt, 'std|100000|False|True|-|0|470'), @($zMsa, 'std|100000|False|True|-|0|470'),
-            @($zIpf, 'long|105488|True|True|dd|105488|473'), @($zHfe, 'std|100000|True|True|dd|100000|500'), @($zIpfBad, 'std|100000|False|True|dd|0|470'), @($zHfeBad, 'std|100000|False|True|dd|0|470'))
+            @($zIpf, 'long|105488|True|True|dd|105500|473'), @($zHfe, 'std|100000|True|True|dd|100000|500'), @($zIpfBad, 'std|100000|False|True|dd|0|470'), @($zHfeBad, 'std|100000|False|True|dd|0|470'))
     $badA2 = Test-TImages $a2 @('(auto)', '')
     # A3 : memes images avec un format explicite : un format de la table suffit a connaitre la cellule (500 ns a
     # 250 kbit/s, 478 ns a 261 kbit/s) ; un format absent de la table emprunte le chemin (« Calibrer » et ECRIRE) et garde
@@ -830,6 +913,31 @@ try {
                      @($zIpf, 'format.inconnu', 'long|105488|True|True|dd|0|470'), @($zHfe, 'format.inconnu', 'std|100000|True|True|dd|0|470'), @($zAdf, 'amiga.amigados', 'std|101344|True|True|dd|101344|493'))) {
         $g = Get-TImage ([string]$x[0]) ([string]$x[1]); if ($g -cne [string]$x[2]) { $badA3 += "$([System.IO.Path]::GetFileName([string]$x[0])), format « $($x[1]) » : $g au lieu de $($x[2])" }
     }
+    # A4 (corrections de relecture) : IPF et HFE dont une piste est plus longue que les autres. La densite du motif reste la
+    # mediane des pistes (100 400 et 100 000 cellules : la calibration ne change pas) ; le plafond suit la piste la plus
+    # longue, donc la cellule la plus courte : 473 ns pour 105 500 ou 105 504 cellules, et non 498 ou 500 ns. HFE v3 : la
+    # longueur des pistes n est pas lue (densite tiree du seul debit de l en-tete) : cellule non etablie, 470 ns, que ses
+    # pistes soient egales ou non. Lectures directes de Get-IpfCellInfo, Get-HfeCellInfo et Get-PatternBits : champs
+    # MaxBits et CapBits
+    $a4 = @(@($zIpfMix, 'std|100400|True|True|dd|105500|473'), @($zIpfMix2, 'std|100000|True|True|dd|105500|473'), @($zHfeMix, 'std|100000|True|True|dd|105504|473'),
+            @($zHfeV3, 'std|100000|False|True|dd|0|470'), @($zHfeV3Mix, 'std|100000|False|True|dd|0|470'))
+    $badA4 = Test-TImages $a4 @('(auto)', '')
+    $iI = Get-IpfCellInfo $zIpfMix; $iH = Get-HfeCellInfo $zHfeMix; $iV = Get-HfeCellInfo $zHfeV3Mix; $iU = Get-HfeCellInfo $zHfe; $iL = Get-IpfCellInfo $zIpf
+    $pI = Get-PatternBits 'std' $zIpfMix; $pH = Get-PatternBits 'std' $zHfeMix; $pV = Get-PatternBits 'std' $zHfeV3Mix; $pS = Get-PatternBits 'std' $zImg; $pA = Get-PatternBits 'std' $zAdf; $pB = Get-PatternBits 'std' $zHfeBad; $pLg = Get-PatternBits 'long' $zImg
+    $cellA4 = @("IPF $([int64]$iI.Bits)/$([int64]$iI.MaxBits)", "HFE $([int64]$iH.Bits)/$([int64]$iH.MaxBits)", "HFE v3 $([int64]$iV.Bits)/$([int64]$iV.MaxBits)", "HFE egal $([int64]$iU.Bits)/$([int64]$iU.MaxBits)", "IPF egal $([int64]$iL.Bits)/$([int64]$iL.MaxBits)",
+                "motif IPF $([int]$pI.Bits)/$([int]$pI.CapBits)/$([bool]$pI.Known)", "motif HFE $([int]$pH.Bits)/$([int]$pH.CapBits)/$([bool]$pH.Known)", "motif HFE v3 $([int]$pV.Bits)/$([int]$pV.CapBits)/$([bool]$pV.Known)",
+                "motif IMG $([int]$pS.Bits)/$([int]$pS.CapBits)/$([bool]$pS.Known)", "motif ADF $([int]$pA.Bits)/$([int]$pA.CapBits)/$([bool]$pA.Known)", "motif HFE illisible $([int]$pB.Bits)/$([int]$pB.CapBits)/$([bool]$pB.Known)", "motif long par defaut $([int]$pLg.Bits)/$([int]$pLg.CapBits)/$([bool]$pLg.Known)")
+    # A5 (corrections de relecture) : format explicite. amiga.amigados sur une image secteur qui n est pas un ADF (IMG,
+    # DSK de 901 120 octets) : motif de 100 000 cellules, cellules du codec AmigaDOS retenues, 493 ns et non 500 ; IPF ou
+    # HFE a piste longue avec un format de la table a 250 kbit/s : la piste la plus longue reste retenue (473 ns) ; HFE v3
+    # avec un format de la table : cellule du format (500 ns a 250 kbit/s, 493 ns pour amiga.amigados) ; HFE v3 et format
+    # absent de la table : 470 ns
+    $badA5 = @()
+    foreach ($x in @(@($zImgAmi, 'amiga.amigados', 'std|100000|False|True|dd|101344|493'), @($zDskAmi, 'amiga.amigados', 'std|100000|False|True|dd|101344|493'), @($zImg, 'amiga.amigados', 'std|100000|False|True|dd|101344|493'),
+                     @($zIpfMix, 'ibm.720', 'std|100400|True|True|dd|105500|473'), @($zIpfMix, 'amiga.amigados', 'std|100400|True|True|dd|105500|473'), @($zHfeMix, 'ibm.720', 'std|100000|True|True|dd|105504|473'),
+                     @($zHfeV3, 'ibm.720', 'std|100000|False|True|dd|100000|500'), @($zHfeV3, 'amiga.amigados', 'std|100000|False|True|dd|101344|493'), @($zHfeV3Mix, 'format.inconnu', 'std|100000|False|True|dd|0|470'))) {
+        $g = Get-TImage ([string]$x[0]) ([string]$x[1]); if ($g -cne [string]$x[2]) { $badA5 += "$([System.IO.Path]::GetFileName([string]$x[0])), format « $($x[1]) » : $g au lieu de $($x[2])" }
+    }
 } catch { $errA = [string]$_.Exception.Message }
 Reset-TState
 # Bibliotheque et restauration (Start-PresetWrite) : sans format, seuls ADF, IPF et HFE atteignent la calibration ou la mesure
@@ -838,6 +946,9 @@ $okDd = ($ddAt.Count -eq 1 -and $ddAt[0].Right.Extent.Text -eq "(@('.adf', '.ipf
 Chk 'A1' ($errA -eq '' -and $badA1.Count -eq 0 -and $okDd) "types a format par defaut de gw 1.23, sans format (« (auto) » et vide, $($a1.Count) types) : ADF 101 344 cellules lues, chemin emprunte, 493 ns ; D64 (GCR), XDF et HDM (haute densite a 360 tr/min) : calibration refusee, aucun chemin ; D81, FD, MGT : admis par « Calibrer » seulement, motif par defaut, 470 ns ; depuis la Bibliotheque, seuls ADF, IPF et HFE sont mesures sans format ($okDd) ; exception : « $errA » ; ecarts : $(Get-List $badA1)"
 Chk 'A2' ($errA -eq '' -and $badA2.Count -eq 0) "autres images sans format : SCP refuse (aucun chemin) ; IMG, ST, MSA admis par « Calibrer », 470 ns ; IPF de 105 488 cellules : 473 ns ; HFE de 100 000 cellules : 500 ns ; IPF ou HFE de densite illisible : chemin emprunte, 470 ns ; ecarts : $(Get-List $badA2)"
 Chk 'A3' ($errA -eq '' -and $badA3.Count -eq 0) "format explicite sur ces images : ibm.720 500 ns, atarist.880 478 ns ; format absent de la table : chemin emprunte, 470 ns, densite de l image lue ou non ; ADF et amiga.amigados : 493 ns ; ecarts : $(Get-List $badA3)"
+$cellExp = 'IPF 100400/105500 ; HFE 100000/105504 ; HFE v3 100000/0 ; HFE egal 100000/100000 ; IPF egal 105500/105500 ; motif IPF 100400/105500/True ; motif HFE 100000/105504/True ; motif HFE v3 100000/100000/False ; motif IMG 100000/100000/False ; motif ADF 101344/101344/True ; motif HFE illisible 100000/100000/False ; motif long par defaut 105808/105808/False'
+Chk 'A4' ($errA -eq '' -and $badA4.Count -eq 0 -and ($cellA4 -join ' ; ') -ceq $cellExp) "IPF et HFE dont une piste est plus longue que les autres, sans format : densite du motif inchangee (mediane), plafond d apres la piste la plus longue, 473 ns et non 498 ou 500 ; HFE v3 (longueur des pistes non lue) : 470 ns ; cellules mediane/plus longue lues par Get-IpfCellInfo et Get-HfeCellInfo, motif/retenues/tirees de l image par Get-PatternBits : $($cellA4 -join ' ; ') ; exception : « $errA » ; ecarts : $(Get-List $badA4)"
+Chk 'A5' ($errA -eq '' -and $badA5.Count -eq 0) "format explicite : amiga.amigados sur une image secteur qui n est pas un ADF (IMG, DSK) : cellules du codec AmigaDOS, 493 ns et non 500 ; IPF ou HFE a piste longue avec ibm.720 ou amiga.amigados : 473 ns ; HFE v3 avec un format de la table : cellule du format (500 ns, 493 ns) ; HFE v3 et format absent de la table : 470 ns ; ecarts : $(Get-List $badA5)"
 
 # ---------------------------------------------------------------- H : haute densite
 '--- H : haute densite'
@@ -866,7 +977,14 @@ $t1 = $sec.IndexOf("**Plafond d'une disquette selon son image.**"); $t2 = $sec.I
 # Lot L4b : phrase du plafond garde a 470 ns quand la cellule ecrite n est pas connue, dans l entree des Améliorations ;
 # Get-DiskBoundText citee pour les developpeurs
 $t3 = $sec.IndexOf("format saisi à la main dans la liste « Format » et inconnu de l'application"); $t4 = $sec.IndexOf('`Get-DiskBoundText([int]$hard, [int]$bits)`')
-Chk 'L1' ($t1 -gt $iAm -and $t1 -lt $iCo -and $t2 -gt $iSa -and $t2 -lt $iDe -and $sec.Contains('entre 471 et 500 ns, la règle du quart de cellule repose sur une simulation du décodage') -and $sec.Contains('logic-calib-plafond-disquette') -and $t3 -gt $t1 -and $t3 -lt $iCo -and $t4 -gt $iDe) "CHANGELOG, section 12.11 : entree « Plafond d'une disquette selon son image » dans les Améliorations, avec le plafond garde a 470 ns pour un format inconnu de l application ; entree « Plafond au-delà de 470 ns non éprouvé sur matériel » dans À savoir ; test et Get-DiskBoundText cites pour les développeurs"
+# Corrections de relecture : HFE v3 a 470 ns, piste la plus longue d un IPF ou d un HFE, cellule du codec AmigaDOS avec
+# amiga.amigados (Améliorations) ; cellules du codec du format et champ CapBits (developpeurs) ; README : meme regle
+$t5 = $sec.IndexOf('ni un ADF, ni un IPF, ni un HFE dont la longueur des pistes se lit dans le fichier (un HFE v3 garde 470 ns)'); $t6 = $sec.IndexOf('le plafond suit la piste la plus longue, donc la cellule la plus courte')
+$t7 = $sec.IndexOf("il suit la cellule du codec AmigaDOS (493 ns), que l'image soit un ADF ou non"); $t8 = $sec.IndexOf('Pour un format de la table, elle ne rend jamais moins que les cellules du codec du format'); $t9 = $sec.IndexOf('`CapBits`')
+$rdm = [System.IO.File]::ReadAllText((Join-Path $Wt 'README.md'))
+$okRd = ($rdm.Contains('ni un ADF, ni un IPF, ni un HFE dont la longueur des pistes se lit dans le fichier ; pour un IPF ou un HFE, la piste la plus longue fait foi)'))
+Chk 'L1' ($t1 -gt $iAm -and $t1 -lt $iCo -and $t2 -gt $iSa -and $t2 -lt $iDe -and $sec.Contains('entre 471 et 500 ns, la règle du quart de cellule repose sur une simulation du décodage') -and $sec.Contains('logic-calib-plafond-disquette') -and $t3 -gt $t1 -and $t3 -lt $iCo -and $t4 -gt $iDe -and
+          $t5 -gt $t3 -and $t6 -gt $t5 -and $t7 -gt $t6 -and $t7 -lt $iCo -and $t8 -gt $iDe -and $t9 -gt $iDe -and $okRd) "CHANGELOG, section 12.11 : entree « Plafond d'une disquette selon son image » dans les Améliorations, avec le plafond garde a 470 ns pour un format inconnu de l application et pour un HFE v3, la piste la plus longue d un IPF ou d un HFE et la cellule du codec AmigaDOS ; entree « Plafond au-delà de 470 ns non éprouvé sur matériel » dans À savoir ; test, Get-DiskBoundText, cellules du codec du format et champ CapBits cites pour les développeurs ; README : meme regle ($okRd)"
 
 # ---------------------------------------------------------------- N : valeurs de la 12.10
 '--- N : resultats de la source de la 12.10 (unites sans densite)'

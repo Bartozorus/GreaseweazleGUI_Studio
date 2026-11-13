@@ -1304,17 +1304,22 @@ function Get-DiskCapBits([int]$bits, [string]$fmt = '', [bool]$known = $false) {
     # d une image secteur est mesure a 2 us (100 000 cellules, Get-PatternBits) quel que soit le format ; un format gw double
     # densite dont le debit depasse 250 kbit/s (atari.130, atarist.440, atarist.880 : 260 et 261 kbit/s, Get-FormatCalibInfo)
     # ecrit 400 x debit cellules par piste : le plafond suit cette cellule, plus courte (478 ns et non 500 a 261 kbit/s).
-    # $fmt : format de l onglet Ecriture. Sans densite ($bits a 0) : 0
+    # $fmt : format de l onglet Ecriture. Sans densite ($bits a 0) : 0. $bits : champ CapBits du motif (Get-PatternBits, 240 :
+    # piste la plus longue d un IPF ou d un HFE, donc cellule la plus courte ; sinon cellules du motif)
     # 12.11 (lot L4b) : 0 aussi (sans densite : plafond de 470 ns, comme en 12.10) quand la cellule de la piste ecrite n est
     # pas connue : format explicite absent de la table (gw plus recent, fichier diskdefs : la liste Format admet une saisie
     # libre), ou aucun format (vide, « (auto) ») et densite du motif non tiree de l image ($known : champ Known du motif,
-    # Get-PatternBits : ADF, IPF, HFE ; faux pour une image secteur dont gw deduit ou exige le format : D81, FD, MGT, IMG,
-    # MSA..., que le bouton « Calibrer » en test rapide admet). Le plafond ne depasse donc CalHardMaxNs que pour un format
-    # de la table ou une densite lue dans l image
+    # Get-PatternBits : ADF, IPF, HFE dont la longueur des pistes est lue ; faux pour un HFE v3, et pour une image secteur
+    # dont gw deduit ou exige le format : D81, FD, MGT, IMG, MSA..., que le bouton « Calibrer » en test rapide admet). Le
+    # plafond ne depasse donc CalHardMaxNs que pour un format de la table ou une densite lue dans l image
     if ($bits -le 0) { return 0 }
     if ($fmt -and $fmt -ne '(auto)') {
         if (-not $script:GwFormats.Contains($fmt)) { return 0 }
         $e = $script:GwFormats[$fmt]
+        # 12.11 : cellules du codec du format (Get-FormatCalibInfo, 200 : 101 344 pour amiga.amigados, que gw ecrit quelle que
+        # soit l image, ADF ou non) : jamais moins que celles-ci
+        $fb = [int](Get-FormatCalibInfo $fmt).Bits
+        if ($fb -gt $bits) { $bits = $fb }
         if ([int]$e.Rpm -eq 300 -and [int]$e.Rate -gt 250 -and [int]$e.Rate -lt 450) { return [int][math]::Max($bits, 400 * [int]$e.Rate) }
         return $bits
     }

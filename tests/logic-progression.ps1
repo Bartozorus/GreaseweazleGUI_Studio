@@ -15,10 +15,14 @@ $Wt = Get-TestRoot $Wt
 #     « effacement », conditionnement, attentes et prechauffage inchanges, passe comptee ;
 #  E  fin de sequence : restauration (Finish-Restore, Fail-Restore, Show-RestoreResult, Close-Restore reels), calibration
 #     (Set-HomeProgDone reel), controle apres ecriture (Complete-WriteCheck reel), recherche des lecteurs
-#     (Complete-DriveDetect reel), echec de la derniere commande, regle generale ;
+#     (Complete-DriveDetect reel), echec de la derniere commande, regle generale ; corrections de relecture : E23, E24
+#     restauration arretee pendant la calibration de son lecteur (Stop-Restore puis la vraie Stop-PrecompCalib, ordre du
+#     minuteur et du bouton Arreter : « Restauration echouee » garde, Set-SeqEnd -IfNone) ; E25 limite connue de la
+#     recherche des lecteurs interrompue sans lecteur trouve (vraie Complete-DriveProbe) ;
 #  B  affichage seulement (arbre syntaxique de tous les modules) : lecteurs des variables de la progression, appelants de
 #     ses fonctions, appels dont le resultat n est pas lu, commandes de Start-Gw et des passes non touchees ;
-#  I  textes : entrees anglaises des cles nouvelles ; D CHANGELOG et README.
+#  I  textes : entrees anglaises des cles nouvelles ; D CHANGELOG et README (D4 : l exemple de compteur du CHANGELOG
+#     est rejoue par les fonctions reelles).
 # Avec -Before <copie de la source de la 12.10> (aucune dans le depot) : cas Q, equivalence avec la 12.10 de l etat lu
 # par la regle de fin (ProgTotal, ProgSeen), du compteur d une lecture et de la barre de calibration sans plan.
 # Fonctions reelles extraites des modules par l arbre syntaxique, ecrites dans un fichier de travail puis chargees par
@@ -73,7 +77,8 @@ $src = Get-ModuleSet $m
 $want = @('Get-SpecCount', 'Start-Progress', 'Update-Progress', 'Stop-Progress', 'Set-GwLaunchFailedStatus', 'Drain-GwReader', 'Read-GwOutput', 'Get-GwEndRule', 'Get-AppBusy',
           'Get-GwLineInfo', 'Get-GwProgress', 'Show-GwProgress', 'Get-EndRuleTotal', 'Get-GwCmdUnits', 'New-ProgPlan', 'Get-ProgPlanFrac', 'Set-SeqEnd', 'Clear-SeqEnd', 'Update-SeqEnd', 'Complete-DriveDetect',
           'Update-CalibProgress', 'Format-CalDuration', 'Get-WarmupLeft', 'Get-CalibDoneTitle', 'Set-HomeProgDone', 'Get-ContentWriteArgs', 'Format-CylRanges',
-          'Enter-RestoreWait', 'Close-Restore', 'Finish-Restore', 'Fail-Restore', 'Stop-Restore', 'Show-RestoreResult', 'Complete-WriteCheck')
+          'Enter-RestoreWait', 'Close-Restore', 'Finish-Restore', 'Fail-Restore', 'Stop-Restore', 'Show-RestoreResult', 'Complete-WriteCheck',
+          'Stop-PrecompCalib', 'Complete-DriveProbe')   # corrections de relecture : cas E23 a E25
 $miss = @($want | Where-Object { -not $src.Text.ContainsKey($_) })
 if ($miss.Count) { throw "fonctions introuvables dans les modules : $($miss -join ', ')" }
 $parts = New-Object System.Collections.Generic.List[string]
@@ -121,6 +126,12 @@ function Get-CommonArgs { return @('--drive=A') }
 function Get-WriteFormatArgs { return @() }
 function Get-BracketSpec($sel) { return '0=100' }
 function Show-Tab($t) { }
+# Corrections de relecture : bouchons de la vraie Stop-PrecompCalib (aucune passe de nouvel essai a retablir, borne et
+# JSON compagnon sans objet) et de la vraie Complete-DriveProbe (lecteur suivant de la recherche)
+function Restore-CalibRetestPre($cal) { return $false }
+function Reset-DiskHardNs { }
+function Save-ContentCompanion($cal, $state) { }
+function Invoke-DriveProbe { $script:Calls.Add('Invoke-DriveProbe') }
 $script:Sound = 0
 . $gen
 
@@ -744,8 +755,74 @@ Enter-RestoreWait ''
 $st22a = "$(Get-St)|$($null -eq $script:SeqEnd)|$([bool]$script:Restore.Waiting)"
 Stop-Restore (T 'annulée par l''utilisateur'); Update-SeqEnd
 Chk 'E22' ($posed22 -and $st22a -eq 'Restauration : changez de disquette, puis cliquez sur « Continuer ».||False|True|True' -and (Get-St) -eq 'Prêt.||False' -and (Test-Icon 'idle') -and $null -eq $script:SeqEnd) "calibration terminee puis attente de la disquette de destination : la consigne annule l etat de fin de la calibration ; « Annuler » : « $($stOp.Text) », garde au repos"
+# Corrections de relecture (E23 a E25). Restauration arretee pendant la calibration de son lecteur : le minuteur (600,
+# operation incomplete) et le bouton Arreter (540) appellent Stop-Restore, puis Stop-PrecompCalib. Close-Restore pose
+# « Restauration echouee » ; le titre « Calibration arretee », que Set-HomeProgDone pose ensuite par Stop-PrecompCalib,
+# ne le remplace pas (-IfNone). Cas du minuteur : disquette sacrifiee protegee en ecriture, gw erase rend le code 0 apres
+# « Command Failed » : la derniere commande n est pas en echec, rien n abandonne l etat en attente. Vraies Stop-Restore,
+# Fail-Restore, Show-RestoreResult, Close-Restore, Stop-PrecompCalib, Set-HomeProgDone et Update-SeqEnd
+function Get-Pend { if ($script:SeqEnd) { return "$($script:SeqEnd.Text)|$($script:SeqEnd.Icon)" }; return 'aucun' }
+function New-RsCal {
+    # Restauration en copie secteur a l etape de la calibration du lecteur (test fin, ecriture lente, hors Accueil) ;
+    # $etat, jamais $cal : au niveau du script, $cal et $script:Cal sont la meme variable (PowerShell ignore la casse)
+    New-Rs 'sector'; $script:Restore.Stage = 'calib'; $script:Restore.Cur = 3
+    $etat = @{ Mode = 'fine'; DiskOnly = $false; Home = $false; Family = 'std'; Slow = $true; PassesDone = 0 }
+    $script:Cal = $etat
+}
+$t600 = [string]$src.Ast['600-minuteur-demarrage.ps1'].Extent.Text; $t540 = [string]$src.Ast['540-ui-accueil-restauration-barre.ps1'].Extent.Text
+$iRsT = $t600.IndexOf('if ($script:Restore -and -not ($script:Rep -and $script:Rep.Round -gt 0)) { Stop-Restore $why }'); $iCalT = $t600.IndexOf('if ($script:Cal) { Stop-PrecompCalib -GwError }')
+$iRsB = $t540.IndexOf("if (`$script:Restore) { Stop-Restore (T 'interrompue par l''utilisateur') }"); $iCalB = $t540.IndexOf('if ($script:Cal) { Stop-PrecompCalib }')
+$okOrd23 = ($iRsT -ge 0 -and $iCalT -gt $iRsT -and $iRsB -ge 0 -and $iCalB -gt $iRsB)
+Reset-All
+Invoke-LastRead; New-RsCal
+Start-Progress (T 'Effacement') @('erase', '--drive=0', '--hfreq', '--tracks=c=0-79:h=0-1'); Update-Progress 'Erasing c=0-79:h=0-1, revs=1'
+Stop-Progress 0
+$st23 = Get-St; $fail23 = [bool]$script:ProgFailed
+Stop-Restore (T 'opération gw incomplète : disquette protégée en écriture, absente, ou lecteur en défaut ? Voir le journal')
+$p23a = Get-Pend
+Stop-PrecompCalib -GwError
+$p23b = Get-Pend; $left23 = ($null -eq $script:Cal -and $null -eq $script:Restore -and $null -eq $script:ProgPlan)
+Update-SeqEnd
+Chk 'E23' ($okOrd23 -and $st23 -eq 'Effacement terminé(e)  -  HH:mm:ss||True' -and -not $fail23 -and $p23a -eq 'Restauration échouée|err' -and $p23b -eq 'Restauration échouée|err' -and $left23 -and (Get-St) -eq 'Restauration échouée  -  HH:mm:ss||False' -and (Test-Icon 'err') -and
+           @($script:Calls | Where-Object { $_ -eq 'Append-Log Calibration precomp interrompue.' }).Count -eq 1) "restauration arretee pendant la calibration de son lecteur, effacement refuse par gw avec le code 0 : Stop-Restore puis Stop-PrecompCalib, dans l ordre du minuteur et du bouton Arreter (lu dans 600 et 540 : $okOrd23) ; fin de gw erase : « $($st23.Split('|')[0]) », derniere commande sans echec ; en attente apres Stop-Restore : « $p23a », apres la vraie Stop-PrecompCalib : « $p23b » ; au repos : « $($stOp.Text -replace '\d\d:\d\d:\d\d$', 'HH:mm:ss') », icone d erreur, et non « Calibration arrêtée »"
+# Bouton Arreter entre deux commandes (aucun gw en cours, derniere commande reussie) : meme ordre, meme resultat
+Reset-All
+Invoke-LastRead; Invoke-LastRead; New-RsCal
+Stop-Restore (T 'interrompue par l''utilisateur'); Stop-PrecompCalib
+$p24a = Get-Pend
+Update-SeqEnd
+$st24a = "$(Get-St)|$(Test-Icon 'err')"
+# gw non lance (Reset-GwSequence, 110) : Stop-PrecompCalib d abord, qui arrete elle-meme la restauration : le verdict de
+# la restauration, pose en dernier, remplace le titre de la calibration
+Reset-All
+Invoke-LastRead; Invoke-LastRead; New-RsCal
+Stop-PrecompCalib -GwError
+$p24b = Get-Pend; $left24 = ($null -eq $script:Restore)
+# -IfNone seule : un etat en attente n est pas remplace, un etat absent est pose ; sans -IfNone, il est remplace. Seule
+# la calibration arretee passe -IfNone : une calibration terminee remplace l etat en attente
+Reset-All
+Set-SeqEnd 'Premier' 'err'; Set-SeqEnd 'Second' 'idle' -IfNone; $p24c = Get-Pend
+Set-SeqEnd 'Troisieme' 'ok'; $p24d = Get-Pend
+Clear-SeqEnd; Set-SeqEnd 'Quatrieme' 'idle' -IfNone -NoTime; $p24e = "$(Get-Pend)|$([bool]$script:SeqEnd.NoTime)"
+Set-HomeProgDone $calStd 'stop'; $p24f = Get-Pend
+Set-HomeProgDone $calStd 'ok'; $p24g = Get-Pend
+Clear-SeqEnd; Set-HomeProgDone $calStd 'stop'; $p24h = Get-Pend
+Clear-SeqEnd
+Chk 'E24' ($p24a -eq 'Restauration échouée|err' -and $st24a -eq 'Restauration échouée  -  HH:mm:ss||False|True' -and $p24b -eq 'Restauration échouée|err' -and $left24 -and $p24c -eq 'Premier|err' -and $p24d -eq 'Troisieme|ok' -and $p24e -eq 'Quatrieme|idle|True' -and
+           $p24f -eq 'Quatrieme|idle' -and $p24g -eq 'Calibration terminée : courbe convergée|ok' -and $p24h -eq 'Calibration arrêtée|idle') "bouton Arreter entre deux commandes pendant la calibration d une restauration : « $($st24a.Split('|')[0]) », icone d erreur ; gw non lance (Stop-PrecompCalib d abord, qui arrete la restauration) : en attente « $p24b » ; Set-SeqEnd -IfNone ne remplace pas un etat en attente (« $p24c »), le pose s il n y en a pas (« $p24e ») ; calibration arretee : etat en attente garde (« $p24f »), pose sans etat en attente (« $p24h ») ; calibration terminee : etat remplace (« $p24g »)"
+# Limite connue, gardee de la 12.10 : recherche des lecteurs interrompue sans lecteur trouve (carte absente, port occupe :
+# vraie Complete-DriveProbe) : la recherche est abandonnee sans Complete-DriveDetect, la barre d etat garde « gw seek
+# terminé(e) » ; le CHANGELOG ne promet « Prêt. » qu apres une recherche menee a son terme (cas D4)
+Reset-All
+$script:Detect = @{ Mode = 'auto'; Queue = (New-Object System.Collections.Queue); Found = @(); Tried = @('A'); Cur = 'A'; Drive = 'A' }
+$script:GwCapture = New-Object System.Collections.Generic.List[string]; $script:GwCapture.Add('** FATAL ERROR:'); $script:GwCapture.Add('ligne d erreur factice : carte absente')
+Start-Progress 'gw seek'; Stop-Progress 1; Stop-Progress 0
+Complete-DriveProbe 1
+$p25 = Get-Pend; $left25 = ($null -eq $script:Detect)
+Update-SeqEnd
+Chk 'E25' ($p25 -eq 'aucun' -and $left25 -and (Get-St) -eq 'gw seek terminé(e)  -  HH:mm:ss||False' -and (Test-Icon 'ok') -and @($script:Calls | Where-Object { $_ -like 'Append-Log Détection des lecteurs interrompue : *' }).Count -eq 1 -and @($script:Calls | Where-Object { $_ -eq 'Invoke-DriveProbe' }).Count -eq 0) "limite connue, comme en 12.10 : recherche des lecteurs interrompue sans lecteur trouve (vraie Complete-DriveProbe) : aucun etat pose, la barre d etat garde « $($stOp.Text -replace '\d\d:\d\d:\d\d$', 'HH:mm:ss') » ; la cause est au journal"
 # Minuteur principal : Update-SeqEnd au premier niveau du gestionnaire, apres le traitement de la fin de gw
-$tick = @($src.Ast['600-minuteur-demarrage.ps1'].FindAll({ param($x) $x -is [System.Management.Automation.Language.InvokeMemberExpressionAst] -and [string]$x.Expression -eq '$timer' -and [string]$x.Member -eq 'Add_Tick' }, $true))
+$tick =@($src.Ast['600-minuteur-demarrage.ps1'].FindAll({ param($x) $x -is [System.Management.Automation.Language.InvokeMemberExpressionAst] -and [string]$x.Expression -eq '$timer' -and [string]$x.Member -eq 'Add_Tick' }, $true))
 $tk = @(); if ($tick.Count -eq 1) { $tk = @($tick[0].Arguments[0].ScriptBlock.EndBlock.Statements) }
 $iSeq = -1; $iGw = -1; $iRs = -1
 for ($i = 0; $i -lt $tk.Count; $i++) {
@@ -913,6 +990,37 @@ $devEn = @($dv -split "`n" | Where-Object { $_ -like '- Progression par piste*' 
 Chk 'D2' ($durs.Count -eq 0 -and $devEn.Count -eq 1 -and $devEn[0].Contains('un seul utilisateur') -and $devEn[0].Contains('$script:ProgCost') -and $devEn[0].Contains('Get-EndRuleTotal') -and $devEn[0].Contains('Update-SeqEnd') -and @(@($en1, $en2, $en3, $en4, $devEn[0]) | Where-Object { $_ -match 'matériel' }).Count -eq 0) "les quatre entrees n annoncent aucune duree ($($durs.Count)) ; « Pour les développeurs » dit que les poids viennent des journaux d un seul utilisateur et nomme la regle de fin et la fin de sequence ; aucune entree du lot ne dit un comportement verifie sur materiel"
 $rm = Read-Doc 'src\modules\README.md'; $rt = Read-Doc 'tests\README.md'
 Chk 'D3' ($rm.Contains('`Get-GwLineInfo`') -and $rm.Contains('`Get-ProgPlanFrac`') -and $rm.Contains('`Update-SeqEnd`') -and $rm.Contains('`Get-EndRuleTotal`') -and $rt.Contains('| `logic-progression` |')) "README des modules : fonctions de la progression (110) ; README des tests : ligne de logic-progression"
+# D4 (corrections de relecture) : l exemple de compteur de l entree « Écriture et effacement » est rejoue par les vraies
+# Start-Progress et Update-Progress : pendant la piste citee d une ecriture, puis d un effacement, du nombre de pistes
+# annonce, la barre d etat affiche ce texte au caractere pres (l exemple « piste 12.1  (24/160, 15 %) » etait faux : 25
+# pistes sont terminees pendant la piste 12.1). « 100 % a la fin d une commande qui a traite toutes les pistes
+# annoncees » : commande complete 100 %, image plus courte que le jeu annonce (code 0) : compte reel. « Prêt. » apres
+# une recherche des lecteurs menee a son terme seulement (cas E17, E18 et E25)
+$mEx = [regex]::Match($en4, '« (piste (\d+)\.([01])  \((\d+)/(\d+), (\d+) %\)) »')
+$exTxt = ''; $exW = ''; $exE = ''; $exFull = ''; $exShort = ''
+if ($mEx.Success -and ([int]$mEx.Groups[5].Value % 2) -eq 0 -and [int]$mEx.Groups[5].Value -ge 2) {
+    $exTxt = [string]$mEx.Groups[1].Value; $exC = [int]$mEx.Groups[2].Value; $exH = [int]$mEx.Groups[3].Value; $exN = [int]([int]$mEx.Groups[5].Value / 2)
+    $exSet = "c=0-$($exN - 1):h=0-1"; $exArgW = [string[]]@('write', '--drive=A', "--tracks=$exSet", '"x.adf"'); $exArgE = [string[]]@('erase', '--drive=A', "--tracks=$exSet")
+    foreach ($op in 'write', 'erase') {
+        Reset-All
+        # Sans @() autour de l appel : New-TrackLines rend son tableau en un seul objet
+        $ls = New-TrackLines $op 0 $exC @(0, 1); if ($exH -eq 0) { $ls = [string[]]@($ls | Select-Object -First ($ls.Count - 1)) }
+        if ($op -eq 'write') { Start-Progress (T 'Écriture') $exArgW; Update-Progress "Writing $exSet" }
+        else { Start-Progress (T 'Effacement') $exArgE; Update-Progress "Erasing $exSet, revs=1" }
+        Push-Lines $ls
+        if ($op -eq 'write') { $exW = [string]$stTrack.Text } else { $exE = [string]$stTrack.Text }
+    }
+    # Ecriture complete, puis image de la moitie des cylindres annonces : compteur apres la fin de la commande (code 0)
+    Reset-All
+    Start-Progress (T 'Écriture') $exArgW; Update-Progress "Writing $exSet"
+    Push-Lines (New-TrackLines 'write' 0 ($exN - 1) @(0, 1)); Stop-Progress 0; $exFull = [string]$stTrack.Text
+    Reset-All
+    Start-Progress (T 'Écriture') $exArgW; Update-Progress "Writing $exSet"
+    Push-Lines (New-TrackLines 'write' 0 ([int]($exN / 2) - 1) @(0, 1)); Stop-Progress 0; $exShort = [string]$stTrack.Text
+    Reset-All
+}
+Chk 'D4' ($mEx.Success -and $exTxt -and $exW -ceq $exTxt -and $exE -ceq $exTxt -and $en4.Contains("il atteint 100 % à la fin d'une commande qui a traité toutes les pistes annoncées") -and $exFull -match '\(\d+/\d+, 100 %\)$' -and $exShort -match ', 50 %\)$' -and
+          $en3.Contains('Après une recherche des lecteurs menée à son terme, elle revient à « Prêt. »')) "CHANGELOG, « Écriture et effacement » : l exemple « $exTxt » est le compteur que la barre d etat affiche pendant cette piste (ecriture : « $exW » ; effacement : « $exE ») ; fin d une commande complete : « $exFull » ; image plus courte que le jeu annonce : « $exShort » ; « Barre d'état en fin d'opération » : « Prêt. » apres une recherche des lecteurs menee a son terme"
 
 # ================================================================ Q. equivalence avec la 12.10 (-Before)
 '--- Q. equivalence avec la 12.10 (-Before)'

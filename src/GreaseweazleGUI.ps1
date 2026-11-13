@@ -4838,9 +4838,11 @@ function Get-LogExportHeader([datetime]$when = (Get-Date)) {
     # journal affiche : date de l export et versions (application, calcul de calibration, mesure sur l image), puis lecteur
     # du bandeau et lecteur cible de ses ecritures (Get-TargetDrive, 140 ; « (meme lecteur) » sans lecteur cible). Apres
     # « Vider », la ligne de version du demarrage n est plus dans le journal : l en-tete la remplace. Ni chemin, ni nom de
-    # compte, ni nom de poste. Tableau protege par la virgule (pas de @() autour de l appel)
+    # compte, ni nom de poste. Tableau protege par la virgule (pas de @() autour de l appel). Date en culture invariante :
+    # « / » et « : » d un format .NET sont sinon les separateurs de la culture du poste (13.11.2026 en de-DE, 14.05.09 en
+    # fi-FI) ; la ligne s ecrit de la meme facon sur tout poste
     $tgt = Get-TargetDrive
-    $l1 = (T "Journal exporté le {0} par Greaseweazle Studio v{1} ; calcul de calibration v{2}, mesure sur l'image v{3}.") -f $when.ToString('dd/MM/yyyy HH:mm:ss'), "$($script:Version)", "$($script:CalibCalc)", "$($script:ContentCalc)"
+    $l1 = (T "Journal exporté le {0} par Greaseweazle Studio v{1} ; calcul de calibration v{2}, mesure sur l'image v{3}.") -f $when.ToString('dd/MM/yyyy HH:mm:ss', [System.Globalization.CultureInfo]::InvariantCulture), "$($script:Version)", "$($script:CalibCalc)", "$($script:ContentCalc)"
     $l2 = (T "Lecteur du bandeau : {0} ; lecteur cible de ses écritures : {1}.") -f "$($cmbDrive.Text)", $(if ($tgt) { $tgt } else { (T '(même lecteur)') })
     return ,@($l1, $l2)
 }
@@ -5005,11 +5007,14 @@ function Get-ProgPlanFrac {
     return [double]$f
 }
 
-function Set-SeqEnd([string]$text, [string]$icon = 'idle', [switch]$NoTime) {
+function Set-SeqEnd([string]$text, [string]$icon = 'idle', [switch]$NoTime, [switch]$IfNone) {
     # Etat de la barre d etat a poser a la fin de la sequence en cours : le resultat de l operation (restauration,
     # calibration, controle apres ecriture, recherche des lecteurs), sans compteur ni barre. En attente seulement :
     # Update-SeqEnd l applique au repos ; une commande gw qui suit l annule (Start-Progress), un echec du lancement aussi
     # (Set-GwLaunchFailedStatus). Icone : idle, ok ou err ($script:StIcons, 540). Sans -NoTime, l heure suit le texte
+    # 12.11 : -IfNone : ne remplace pas un etat deja en attente (arret d une calibration juste apres le verdict d une
+    # restauration : Stop-Restore puis Stop-PrecompCalib dans le minuteur et dans le bouton Arreter)
+    if ($IfNone -and $null -ne $script:SeqEnd) { return }
     $script:SeqEnd = @{ Text = $text; Icon = $icon; NoTime = [bool]$NoTime }
 }
 
@@ -14245,8 +14250,10 @@ function Set-HomeProgDone($cal, [string]$kind, [string]$detail = '') {
     # 12.11 : barre d etat en fin de sequence (Set-SeqEnd, 110), quel que soit le point de depart : meme titre que la zone
     # de l Accueil, pour une calibration du lecteur seulement (test standard ou fin : complete, B, croisee). Calibration
     # rapide, mesure de la disquette sur l image (autres modes) et mesure complete d une seule disquette (DiskOnly) : le
-    # titre ne les decrit pas, rien n est pose (regle generale d Update-SeqEnd)
-    if ($cal -and @('std', 'fine') -contains [string]$cal.Mode -and -not $cal.DiskOnly) { Set-SeqEnd (Get-CalibDoneTitle $kind) $(if ($kind -eq 'ok') { 'ok' } else { 'idle' }) }
+    # titre ne les decrit pas, rien n est pose (regle generale d Update-SeqEnd). Calibration arretee ('stop') : le titre ne
+    # remplace pas un etat deja en attente (-IfNone : restauration arretee pendant la calibration de son lecteur, dont le
+    # verdict « Restauration echouee » vient d etre pose par Stop-Restore, appelee avant Stop-PrecompCalib)
+    if ($cal -and @('std', 'fine') -contains [string]$cal.Mode -and -not $cal.DiskOnly) { Set-SeqEnd (Get-CalibDoneTitle $kind) $(if ($kind -eq 'ok') { 'ok' } else { 'idle' }) -IfNone:($kind -eq 'stop') }
     if (-not $cal -or -not $cal.Home) { return }
     if ($detail) { $detail = $detail.Substring(0, 1).ToUpper() + $detail.Substring(1) } else { $detail = [string]$lblWCal.Text }
     $script:HomeProgDone = @{ Kind = $kind; Detail = $detail; Family = [string]$cal.Family; Slow = [bool]$cal.Slow; Proc = $script:GwProc
@@ -15107,7 +15114,8 @@ function Get-IpfCellInfo([string]$path) {
     if ($bits.Count -eq 0) { throw (T 'Aucune piste formatée dans l''IPF') }
     $sorted = $bits | Sort-Object
     $med = [int64]$sorted[[int]($sorted.Count / 2)]
-    return @{ CellNs = [double](200000000.0 / $med); Bits = $med; Tracks = $n; DosTracks = $dos; Source = (T 'IPF (bits par piste)') }
+    # 12.11 : MaxBits, piste la plus longue (cellule la plus courte) : plafond par disquette (Get-PatternBits, 240)
+    return @{ CellNs = [double](200000000.0 / $med); Bits = $med; MaxBits = [int64]($bits | Measure-Object -Maximum).Maximum; Tracks = $n; DosTracks = $dos; Source = (T 'IPF (bits par piste)') }
 }
 
 # SCP : cellule mesuree sur les premieres pistes presentes (revolution 0)
@@ -15145,6 +15153,9 @@ function Get-HfeCellInfo([string]$path) {
         if ($rate -le 0) { throw (T 'Débit HFE nul') }
         if ($rate -lt 100 -or $rate -gt 1000) { throw ((T "Débit HFE invalide ({0} kbit/s)") -f "$rate") }
         $bits = [int64](400 * [int]$rate); $src = ((T "HFE (débit {0} kbit/s)") -f "$rate")
+        # 12.11 : MaxBits, piste la plus longue lue dans la table des pistes ; 0 : densite tiree du seul debit de l en-tete
+        # (HFE v3, table inexploitable), longueur des pistes inconnue : plafond par disquette de 470 ns (Get-PatternBits, 240)
+        $max = [int64]0
         # 12.10 (lot 1, B1) : octet d encodage (offset 11, table EncodingType de hfe.py) : FM 0x02, 0x03, 0x04, 0x0E, 0x14 ;
         # GCR 0x06 a 0x09 (Apple II), 0x10 (Macintosh), 0x12 (C64), 0x13 (Victor 9000) ; codage propre 0x0F (M2FM du DEC
         # RX02) ; MFM 0x00, 0x01, 0x05, 0x0C, 0x0D ; 0xFF (valeur que gw ecrit par defaut) et autres : inconnu (''), MFM
@@ -15167,14 +15178,14 @@ function Get-HfeCellInfo([string]$path) {
                 }) | Sort-Object)
                 if ($lens.Count -gt 0 -and $lens.Count -ge [math]::Ceiling($nCyl / 2)) {
                     $med = [int64]$lens[[int][math]::Floor($lens.Count / 2)]
-                    if ($med -ge 20000 -and $med -le 600000) { $bits = $med; $src = ((T "HFE ({0} bits par piste, débit {1} kbit/s)") -f "$med", "$rate") }
+                    if ($med -ge 20000 -and $med -le 600000) { $bits = $med; $max = [int64]$lens[$lens.Count - 1]; $src = ((T "HFE ({0} bits par piste, débit {1} kbit/s)") -f "$med", "$rate") }
                 }
             }
         }
     } finally { $fs.Dispose() }
     $cell = [double](200000000.0 / $bits)
-    if ($dbl) { $cell *= 2; $bits = [int64][math]::Floor($bits / 2) }   # 12.10 (lot 1, B1) : double debit (FM, Apple II)
-    return @{ CellNs = $cell; Bits = $bits; Tracks = -1; DosTracks = -1; Source = $src; EncByte = $eb; Enc = $enc; DoubleRate = $dbl }
+    if ($dbl) { $cell *= 2; $bits = [int64][math]::Floor($bits / 2); $max = [int64][math]::Floor($max / 2) }   # 12.10 (lot 1, B1) : double debit (FM, Apple II)
+    return @{ CellNs = $cell; Bits = $bits; MaxBits = $max; Tracks = -1; DosTracks = -1; Source = $src; EncByte = $eb; Enc = $enc; DoubleRate = $dbl }
 }
 
 function Get-CurveDate($cv) {
@@ -16676,7 +16687,11 @@ function New-CalibUnit($head) {
 function Get-PatternBits([string]$family, [string]$img) {
     # Cellules par piste du motif de test (voir New-CalibPattern) : densite de l image ; la calibration rapide compare
     # celle de l image a celle de sa reference. 12.11 : Known, cellules tirees de l image (codec AmigaDOS d un ADF, bits par piste d un IPF ou d un HFE) et non valeur par defaut de la famille : seule densite que le plafond par disquette retient sans format gw (Get-DiskCapBits, 265)
-    $bits = 100000; $src = (T 'format à secteurs, 2 us par cellule'); $known = $false
+    # 12.11 : CapBits, cellules de la piste la plus longue de l image (IPF, HFE : MaxBits de Get-IpfCellInfo et de
+    # Get-HfeCellInfo, 220 ; cellule la plus courte ecrite), au moins celles du motif : seule densite que lit le plafond par
+    # disquette. Known faux pour un HFE dont la longueur des pistes n est pas lue (HFE v3, table inexploitable : densite
+    # tiree du seul debit de l en-tete, MaxBits a 0). Bits, la densite du motif, ne change pas (mediane des pistes)
+    $bits = 100000; $src = (T 'format à secteurs, 2 us par cellule'); $known = $false; $cap = [int64]0
     $ext = [System.IO.Path]::GetExtension($img).ToLower()
     try {
         switch ($ext) {
@@ -16685,14 +16700,14 @@ function Get-PatternBits([string]$family, [string]$img) {
                 if ($len % 22528 -eq 0 -and $len / 11264 -gt 84) { $bits = 202688; $src = (T 'ADF haute densité, horloge AmigaDOS de gw') }
                 else { $bits = 101344; $src = (T 'ADF, horloge AmigaDOS de gw') }
             }
-            '.ipf' { $info = Get-IpfCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'IPF, bits par piste de l''image'); $known = $true } }
-            '.hfe' { $info = Get-HfeCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'HFE, bits par piste de l''image'); $known = $true } }
+            '.ipf' { $info = Get-IpfCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'IPF, bits par piste de l''image'); $known = $true; $cap = [int64]$info.MaxBits } }
+            '.hfe' { $info = Get-HfeCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'HFE, bits par piste de l''image'); $cap = [int64]$info.MaxBits; $known = ($cap -gt 0) } }
         }
     } catch { }
-    if ($family -eq 'long' -and $bits -eq 100000) { $bits = 105820; $src = (T 'long track, 1,89 us par cellule'); $known = $false }
-    elseif ($family -eq 'hd' -and $bits -eq 100000) { $bits = 200000; $src = (T 'format à secteurs haute densité, 1 us par cellule'); $known = $false }   # 12.7
+    if ($family -eq 'long' -and $bits -eq 100000) { $bits = 105820; $src = (T 'long track, 1,89 us par cellule'); $known = $false; $cap = [int64]0 }
+    elseif ($family -eq 'hd' -and $bits -eq 100000) { $bits = 200000; $src = (T 'format à secteurs haute densité, 1 us par cellule'); $known = $false; $cap = [int64]0 }   # 12.7
     $bits -= $bits % 16
-    return @{ Bits = $bits; Source = $src; Known = $known }
+    return @{ Bits = $bits; Source = $src; Known = $known; CapBits = [int][math]::Min([int64]2000000000, [math]::Max([int64]$bits, $cap)) }
 }
 
 function New-CalibPattern([string]$family, [string]$img, [int]$nCyl, [int]$Rpm = 300) {
@@ -16716,7 +16731,7 @@ function New-CalibPattern([string]$family, [string]$img, [int]$nCyl, [int]$Rpm =
     $path = Join-Path $script:TempDir 'precomp-pattern.hfe'
     [CalibPattern]::WriteHfe($path, $nCyl, $bits, $rate, 20261014)
     $cell = if ($Rpm -eq 300) { 200000000.0 / $bits } else { (60000000000.0 / $Rpm) / $bits }
-    return @{ Path = $path; Bits = $bits; Rate = $rate; CellNs = $cell; Source = $src; Rpm = $Rpm; Known = [bool]$pb.Known }   # 12.11 : Known, densite tiree de l image (Get-PatternBits)
+    return @{ Path = $path; Bits = $bits; Rate = $rate; CellNs = $cell; Source = $src; Rpm = $Rpm; Known = [bool]$pb.Known; CapBits = [int]$pb.CapBits }   # 12.11 : Known, densite tiree de l image, et CapBits, cellules de sa piste la plus longue (Get-PatternBits)
 }
 
 function Get-CalibDriveArgs {
@@ -19558,7 +19573,7 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     try { $pat = New-CalibPattern $fam $img $lr.NCyl }
     catch { [void](Show-AppMessage ((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)") (T 'Calibration precomp') 'OK' 'Error'); return }
     Set-CalibScale $fam     # 12.7 : bareme double densite (pas de calibration rapide en haute densite, Get-LevelRef)
-    $units = New-LevelCalUnits $lr $brand ([string]$cmbDrive.Text) $(if ($Geom) { 0 } else { Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text) ([bool]$pat.Known) })   # 12.11 : cellules de la piste ecrite (Get-DiskCapBits ; 0 si elle n est pas connue : format hors de la table, ou aucun format et densite non tiree de l image) ; carte de l Accueil (Geom : type de disquette, pas l image a ecrire) : sans densite, plafond de 470 ns comme en 12.10 (son profil peut etre place dans les champs d une image d une autre densite, Complete-LevelCalib)
+    $units = New-LevelCalUnits $lr $brand ([string]$cmbDrive.Text) $(if ($Geom) { 0 } else { Get-DiskCapBits ([int]$pat.CapBits) ([string]$cmbWFmt.Text) ([bool]$pat.Known) })   # 12.11 : cellules de la piste ecrite (Get-DiskCapBits, sur CapBits, la piste la plus longue de l image ; 0 si elle n est pas connue : format hors de la table, ou aucun format et densite non tiree de l image) ; carte de l Accueil (Geom : type de disquette, pas l image a ecrire) : sans densite, plafond de 470 ns comme en 12.10 (son profil peut etre place dans les champs d une image d une autre densite, Complete-LevelCalib)
     $cylList = Format-CylList $cyls
     $script:Cal = @{
         Mode = 'level'; Stage = 'level'; LPass = 1; Cyls = $cyls; MaxCyl = $lr.MaxCyl; Family = $fam; Slow = $slow
@@ -22010,17 +22025,22 @@ function Get-DiskCapBits([int]$bits, [string]$fmt = '', [bool]$known = $false) {
     # d une image secteur est mesure a 2 us (100 000 cellules, Get-PatternBits) quel que soit le format ; un format gw double
     # densite dont le debit depasse 250 kbit/s (atari.130, atarist.440, atarist.880 : 260 et 261 kbit/s, Get-FormatCalibInfo)
     # ecrit 400 x debit cellules par piste : le plafond suit cette cellule, plus courte (478 ns et non 500 a 261 kbit/s).
-    # $fmt : format de l onglet Ecriture. Sans densite ($bits a 0) : 0
+    # $fmt : format de l onglet Ecriture. Sans densite ($bits a 0) : 0. $bits : champ CapBits du motif (Get-PatternBits, 240 :
+    # piste la plus longue d un IPF ou d un HFE, donc cellule la plus courte ; sinon cellules du motif)
     # 12.11 (lot L4b) : 0 aussi (sans densite : plafond de 470 ns, comme en 12.10) quand la cellule de la piste ecrite n est
     # pas connue : format explicite absent de la table (gw plus recent, fichier diskdefs : la liste Format admet une saisie
     # libre), ou aucun format (vide, « (auto) ») et densite du motif non tiree de l image ($known : champ Known du motif,
-    # Get-PatternBits : ADF, IPF, HFE ; faux pour une image secteur dont gw deduit ou exige le format : D81, FD, MGT, IMG,
-    # MSA..., que le bouton « Calibrer » en test rapide admet). Le plafond ne depasse donc CalHardMaxNs que pour un format
-    # de la table ou une densite lue dans l image
+    # Get-PatternBits : ADF, IPF, HFE dont la longueur des pistes est lue ; faux pour un HFE v3, et pour une image secteur
+    # dont gw deduit ou exige le format : D81, FD, MGT, IMG, MSA..., que le bouton « Calibrer » en test rapide admet). Le
+    # plafond ne depasse donc CalHardMaxNs que pour un format de la table ou une densite lue dans l image
     if ($bits -le 0) { return 0 }
     if ($fmt -and $fmt -ne '(auto)') {
         if (-not $script:GwFormats.Contains($fmt)) { return 0 }
         $e = $script:GwFormats[$fmt]
+        # 12.11 : cellules du codec du format (Get-FormatCalibInfo, 200 : 101 344 pour amiga.amigados, que gw ecrit quelle que
+        # soit l image, ADF ou non) : jamais moins que celles-ci
+        $fb = [int](Get-FormatCalibInfo $fmt).Bits
+        if ($fb -gt $bits) { $bits = $fb }
         if ([int]$e.Rpm -eq 300 -and [int]$e.Rate -gt 250 -and [int]$e.Rate -lt 450) { return [int][math]::Max($bits, 400 * [int]$e.Rate) }
         return $bits
     }
@@ -22389,8 +22409,8 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     # @() autour du if : une seule unite resterait sinon une hashtable nue ($cal.Units[0] = $null)
     Set-CalibScale $family     # 12.7 : bareme de la famille (amplitudes haute densite), apres les sorties anticipees
     # 12.8 (S3) : borne de la courbe de cette disquette (Get-DiskHardNs : plafond par disquette, ou precompMaxNs reglee sous
-    # 400 ns) pendant la mesure complete, retablie a sa fin (Reset-DiskHardNs). 12.11 : calculee ici, le motif cree, sur les cellules de la piste ecrite (CapBits, Get-DiskCapBits : motif, ou format gw au-dela de 250 kbit/s ; 0 si elle n est pas connue : 470 ns, comme en 12.10)
-    if ($do) { $do.CapBits = Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text) ([bool]$pat.Known); $do.HardNs = Get-DiskHardNs ([int]$do.CapBits); Set-DiskHardNs @{ DiskOnly = $true; HardNs = [int]$do.HardNs } }
+    # 400 ns) pendant la mesure complete, retablie a sa fin (Reset-DiskHardNs). 12.11 : calculee ici, le motif cree, sur les cellules de la piste ecrite (CapBits, Get-DiskCapBits : piste la plus longue de l image, codec du format, ou format gw au-dela de 250 kbit/s ; 0 si elle n est pas connue : 470 ns, comme en 12.10)
+    if ($do) { $do.CapBits = Get-DiskCapBits ([int]$pat.CapBits) ([string]$cmbWFmt.Text) ([bool]$pat.Known); $do.HardNs = Get-DiskHardNs ([int]$do.CapBits); Set-DiskHardNs @{ DiskOnly = $true; HardNs = [int]$do.HardNs } }
     $units = @(if ($slow) { (New-CalibUnit 0), (New-CalibUnit 1) } else { New-CalibUnit $null })
     foreach ($u in $units) { foreach ($c in $cyls) { $u.Results[[int]$c] = @{} } }
     $script:Cal = @{
