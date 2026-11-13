@@ -278,7 +278,7 @@ $btnSaveLog.Add_Click({
     $d = New-Object System.Windows.Forms.SaveFileDialog
     $d.Filter = (T 'Texte|*.txt'); $d.InitialDirectory = $script:AppDir
     $d.FileName = "gw-log-$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
-    if ($d.ShowDialog() -eq 'OK') { $txtLog.Text | Set-Content -LiteralPath $d.FileName -Encoding UTF8 }
+    if ($d.ShowDialog() -eq 'OK') { Export-LogFile $d.FileName }   # 12.11 : en-tete (version, date, lecteur, lecteur cible) puis journal (110)
 })
 
 $btnCfgSave = New-BarButton (T 'Enregistrer') 115
@@ -344,6 +344,9 @@ $script:LogColors = @{
     dim  = [System.Drawing.Color]::FromArgb(165, 170, 178)
     std  = [System.Drawing.Color]::FromArgb(232, 234, 238)
 }
+# 12.11 : journal borne (Limit-LogText, 110) : au-dela de LogMaxChars caracteres, le debut est retire pour n en garder que
+# LogKeepChars, et une marque en premiere ligne le dit (LogCut : caracteres retires depuis le dernier « Vider », marque en place)
+$script:LogMaxChars = 400000; $script:LogKeepChars = 250000; $script:LogCut = @{ N = 0; Mark = '' }
 $split.Panel2.Controls.Add($txtLog)
 
 # ============================== HABILLAGE (icones) =============================

@@ -119,7 +119,7 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     if ($cx) {
         # 12.10 : calibration croisee : texte en tete (lecteurs, echanges de disquette estimes, duree hors echanges), case
         # obligatoire (la disquette est dans la source), jamais de demarrage automatique ; reponse au journal
-        $sw = Get-CrossSwapEstimate $nPassEst $fine ([int]$script:CalMaxRetest)
+        $sw = Get-CrossSwapEstimate $nPassEst $fine ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify)   # 12.11 : au moins : une seule verification
         $ci = ((T "Calibration croisée : le lecteur {0} écrit le motif de test, le lecteur {1} le relit. Avant chaque relecture, puis avant l'écriture suivante, l'application vous demande de déplacer la disquette d'un lecteur à l'autre : {2} échanges au moins, {3} au plus. La durée estimée ne compte pas ces échanges. La courbe obtenue sert aux écritures du lecteur {0} destinées au lecteur {1} ; la courbe propre du lecteur {0} n'est pas modifiée.") -f "$($cx.Src)", "$($cx.Tgt)", "$($sw.Min)", "$($sw.Max)") + "`n`n"
         $rc = Show-TimedConfirm 'frmCalibConfirm' (T 'Calibration precomp') ($Intro + $ci + $body + "`n`n" + $wear) (T 'Lancer la calibration') 'Diagnostic' '' ((T "J'ai inséré une disquette sacrifiée (sans valeur, jamais l'original) dans le lecteur {0}, celui qui écrit") -f "$($cx.Src)") '' (T "Pas de démarrage automatique : cochez la case, puis cliquez sur « Lancer la calibration ».") -Seconds 0 -NeedCheck -Heading (T 'Calibration croisée : la disquette sacrifiée reçoit le motif de test') -Level 'warn' -Picto 'warn'
         $ans = @{ Ok = ($rc.Ok -and $rc.Checked); Swap = $false; Auto = $false }
@@ -296,8 +296,8 @@ function Start-CrossCalib {
     $imgInfo = if ($imgFam) { (T "Image de l'onglet Écriture : {0} ({1}) ; avec cette famille, ses cylindres sont ceux de la calibration ; avec l'autre, 80 cylindres à la densité de la famille.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))", (Get-CalibFamilyName $imgFam) }
                else { (T "Aucune image calibrable dans l'onglet Écriture : 80 cylindres, à la densité de la famille choisie.") }
     $nPassEst = @($script:CalCoarse).Count + [int]$script:CalMaxVerify
-    $swF = Get-CrossSwapEstimate $nPassEst $true ([int]$script:CalMaxRetest); $swS = Get-CrossSwapEstimate $nPassEst $false ([int]$script:CalMaxRetest)
-    $ch = Show-CrossCalibDialog $src $targets $(if ($imgFam) { $imgFam } else { 'std' }) ($cmbWCalMode.SelectedIndex -eq 1) $imgInfo ([bool]$chkWSlow.Checked) ([int]$swF.Min) ([int]$swS.Max)
+    $swF = Get-CrossSwapEstimate $nPassEst $true ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify); $swS = Get-CrossSwapEstimate $nPassEst $false ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify)   # 12.11 : au moins : une seule verification
+    $ch = Show-CrossCalibDialog $src $targets $(if ($imgFam) { $imgFam } else { 'std' }) ($cmbWCalMode.SelectedIndex -eq 1) $imgInfo ([bool]$chkWSlow.Checked) ([int]$swF.Min) ([int]$swS.Max) (Get-TargetDrive $src)   # 12.11 : lecteur cible de l onglet Ecriture preselectionne
     if (-not $ch.Ok) { $res.Why = (T 'annulée'); Append-Log (T "Calibration croisée : fenêtre de choix fermée, rien n'est lancé."); return $res }
     $tgt = [string]$ch.Target; $fam = [string]$ch.Family; $test = $(if ($ch.Fine) { 'fine' } else { 'std' })
     Append-Log ((T "Calibration croisée demandée : écriture par le lecteur {0}, relecture par le lecteur {1}, famille {2}, {3}.") -f "$src", "$tgt", (Get-CalibFamilyName $fam), $(if ($ch.Fine) { (T 'test fin') } else { (T 'test standard') }))

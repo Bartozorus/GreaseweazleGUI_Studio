@@ -102,13 +102,26 @@ function Get-CrossCalibTargets([string[]]$ids, [string]$src) {
     return ,@(@($ids) | ForEach-Object { [string]$_ } | Where-Object { $_ -and $_ -ne $src })
 }
 
-function Get-CrossSwapEstimate([int]$nPassEst, [bool]$fine, [int]$maxRetest) {
+function Get-CrossSwapEstimate([int]$nPassEst, [bool]$fine, [int]$maxRetest, [int]$maxVerify = 2) {
     # 12.10 : echanges de disquette d une calibration croisee (E) : deux par passe (vers la cible avant la relecture, retour
     # vers la source avant l ecriture suivante), sauf apres la derniere relecture ; au plus, avec l encadrement, les
     # mesures complementaires du test standard (2) et le nouvel essai
+    # 12.11 : au moins : une premiere verification sans cylindre a corriger termine la calibration (Invoke-CalibAnalysis,
+    # 270) ; les autres verifications prevues ($maxVerify - 1, comptees dans $nPassEst) n ont alors pas lieu : avec 3 passes
+    # de mesure et 2 verifications, 4 relectures, donc 7 echanges et non 9. Le maximum ne change pas
     $n = [math]::Max(1, $nPassEst)
+    $nMin = [math]::Max(1, $nPassEst - [math]::Max(0, $maxVerify - 1))
     $extra = 1 + $(if ($fine) { 0 } else { 2 }) + [math]::Max(0, $maxRetest)
-    return @{ Min = (2 * $n - 1); Max = (2 * ($n + $extra) - 1) }
+    return @{ Min = (2 * $nMin - 1); Max = (2 * ($n + $extra) - 1) }
+}
+
+function Get-CrossTargetIndex([string[]]$targets, [string]$preselect) {
+    # 12.11 : rang, dans la liste des lecteurs cibles de la fenetre de choix d une calibration croisee (Show-CrossCalibDialog,
+    # 250), du lecteur a preselectionner : le lecteur cible de l onglet Ecriture (Get-TargetDrive, 140, transmis par
+    # Start-CrossCalib). 0, le premier de la liste comme en 12.10, sans lecteur cible ou s il n est pas dans la liste.
+    # Simple preselection : rien n est memorise ni lance tant que la fenetre n est pas validee
+    if (-not $preselect -or $null -eq $targets) { return 0 }
+    return [math]::Max(0, [array]::IndexOf($targets, $preselect))
 }
 
 function Get-CurveKeyLabel([string]$key) {

@@ -104,9 +104,9 @@ function Append-Log([string]$text) {
         $txtLog.AppendText($line + "`n")
         if ($c -eq $script:LogColors.err -and $split.Panel2Collapsed) { Set-LogVisible $true }
     }
-    if ($txtLog.TextLength -gt 400000) {
-        $txtLog.ReadOnly = $false; $txtLog.Select(0, 150000); $txtLog.SelectedText = ''; $txtLog.ReadOnly = $true
-    }
+    # 12.11 : journal borne par Limit-LogText : debut retire a une fin de ligne, marque de troncature en premiere ligne
+    # (avant : au-dela de 400 000 caracteres, les 150 000 premiers retires sans trace, une ligne coupee en son milieu)
+    Limit-LogText
     $txtLog.SelectionStart = $txtLog.TextLength
     $txtLog.ScrollToCaret()
 }
@@ -475,4 +475,52 @@ function Get-GwEndRule([int]$code, [bool]$soft, [bool]$isWrite, [bool]$summary, 
     if (-not $soft -and $isWrite -and $verifyFail -and $calMode -eq 'content') { $soft = $true }
     $inc = if ($isWrite) { $code -eq 0 -and -not $summary } else { $code -eq 0 -and (($progTotal -gt 0 -and $progSeen * 2 -lt $progTotal) -or $cmdFailed) }
     return @{ Soft = $soft; Incomplete = [bool]$inc; Next = ($code -eq 0 -or $soft) }
+}
+
+# --- Journal : borne et export (12.11) -----------------------------------------
+
+function Limit-LogText {
+    # 12.11 : journal borne a $script:LogMaxChars caracteres (400 000, 540), appelee par Append-Log apres chaque ajout.
+    # Au-dela, le debut est retire pour n en garder que $script:LogKeepChars (250 000 : les 150 000 premiers caracteres au
+    # premier depassement, comme avant), mais la coupe est ramenee au debut d une ligne (derniere fin de ligne de la partie
+    # retiree ; sans fin de ligne dans cette partie : coupe au caractere) et une marque, premiere ligne du journal, dit
+    # combien de caracteres ont ete retires. Depassements suivants : la marque en place est retiree avec le debut sans etre
+    # comptee, et son compte est cumule ($script:LogCut : N caracteres retires, Mark marque en place) ; si elle n est plus
+    # en tete (journal vide par « Vider »), le compte repart de zero. Seule fonction qui ecrit la marque
+    $max = [int]$script:LogMaxChars
+    if ($txtLog.TextLength -le $max) { return }
+    $t = [string]$txtLog.Text
+    $st = $script:LogCut
+    $old = 0
+    if ($st.Mark -and $t.StartsWith([string]$st.Mark + "`n", [System.StringComparison]::Ordinal)) { $old = ([string]$st.Mark).Length + 1 } else { $st.N = 0 }
+    $cut = [math]::Max($old, $t.Length - [int]$script:LogKeepChars)
+    # Debut de ligne : derniere fin de ligne de la partie retiree, marque precedente exclue ; ecartee si le journal garde
+    # depassait alors la borne, marque comprise (ligne de plus de 150 000 caracteres) : coupe au caractere
+    $p = $t.LastIndexOf([char]10, $cut - 1)
+    if ($p + 1 -gt $old -and ($t.Length - $p - 1) -le ($max - 1000)) { $cut = $p + 1 }
+    $st.N = [int]$st.N + ($cut - $old)
+    $st.Mark = (T "[Journal tronqué : les {0} premiers caractères ont été retirés (400 000 au plus sont gardés). Exportez le journal après chaque opération longue.]") -f "$($st.N)"
+    $txtLog.ReadOnly = $false
+    $txtLog.Select(0, $cut); $txtLog.SelectedText = ''
+    $txtLog.Select(0, 0); $txtLog.SelectionColor = $script:LogColors.warn; $txtLog.SelectedText = [string]$st.Mark + "`n"
+    $txtLog.ReadOnly = $true
+}
+
+function Get-LogExportHeader([datetime]$when = (Get-Date)) {
+    # 12.11 : en-tete du journal exporte (Export-LogFile), deux lignes ecrites en tete du fichier seulement, jamais dans le
+    # journal affiche : date de l export et versions (application, calcul de calibration, mesure sur l image), puis lecteur
+    # du bandeau et lecteur cible de ses ecritures (Get-TargetDrive, 140 ; « (meme lecteur) » sans lecteur cible). Apres
+    # « Vider », la ligne de version du demarrage n est plus dans le journal : l en-tete la remplace. Ni chemin, ni nom de
+    # compte, ni nom de poste. Tableau protege par la virgule (pas de @() autour de l appel)
+    $tgt = Get-TargetDrive
+    $l1 = (T "Journal exporté le {0} par Greaseweazle Studio v{1} ; calcul de calibration v{2}, mesure sur l'image v{3}.") -f $when.ToString('dd/MM/yyyy HH:mm:ss'), "$($script:Version)", "$($script:CalibCalc)", "$($script:ContentCalc)"
+    $l2 = (T "Lecteur du bandeau : {0} ; lecteur cible de ses écritures : {1}.") -f "$($cmbDrive.Text)", $(if ($tgt) { $tgt } else { (T '(même lecteur)') })
+    return ,@($l1, $l2)
+}
+
+function Export-LogFile([string]$path) {
+    # 12.11 : export du journal (bouton « Exporter », 540) : les deux lignes de Get-LogExportHeader, puis le texte du
+    # journal tel qu il est affiche (marque de troncature comprise, Limit-LogText), avec ses fins de ligne ; codage
+    # inchange (Set-Content -Encoding UTF8)
+    (((Get-LogExportHeader) -join "`n") + "`n" + $txtLog.Text) | Set-Content -LiteralPath $path -Encoding UTF8
 }

@@ -309,7 +309,8 @@ Chk 'U3' ((($u.ReadDev -join ' ') -eq '--drive=0 --device=COM5') -and (($u.Write
 Chk 'U4' ($u.StoreX -eq 'A>0' -and $u.StoreA -eq 'A') "Get-CalibStoreDrive : $($u.StoreX) (croise), $($u.StoreA) (ordinaire)"
 Chk 'U5' ($u.SplitX.Src -eq 'A' -and $u.SplitX.Tgt -eq '0' -and $null -eq $u.SplitA -and $null -eq $u.SplitBad -and $null -eq $u.SplitEmpty) "Split-CrossDrive : A>0 -> $($u.SplitX.Src)/$($u.SplitX.Tgt) ; A, A>0>1 et vide -> null"
 Chk 'U6' ((($u.T3 -join ',') -eq '0,1') -and $u.T1.Count -eq 0 -and (($u.TNull -join ',') -eq '0') -and $u.T0.Count -eq 0) "Get-CrossCalibTargets : A,0,1 sauf A -> $($u.T3 -join ',') ; A seul -> aucun ; vides et nuls ecartes -> $($u.TNull -join ',')"
-Chk 'U7' ([int]$u.EF.Min -eq 9 -and [int]$u.EF.Max -eq 13 -and [int]$u.ES.Min -eq 9 -and [int]$u.ES.Max -eq 17 -and [int]$u.E0.Min -eq 1 -and [int]$u.E0.Max -eq 3) "Get-CrossSwapEstimate : 5 passes, test fin $($u.EF.Min)/$($u.EF.Max), test standard $($u.ES.Min)/$($u.ES.Max) (CHANGELOG : 9, 13, 17) ; 0 passe -> $($u.E0.Min)/$($u.E0.Max)"
+# 12.11 (lot L6) : minimum de 7 et non 9 (une seule verification quand elle ne corrige rien) ; maximum inchange
+Chk 'U7' ([int]$u.EF.Min -eq 7 -and [int]$u.EF.Max -eq 13 -and [int]$u.ES.Min -eq 7 -and [int]$u.ES.Max -eq 17 -and [int]$u.E0.Min -eq 1 -and [int]$u.E0.Max -eq 3) "Get-CrossSwapEstimate : 5 passes, test fin $($u.EF.Min)/$($u.EF.Max), test standard $($u.ES.Min)/$($u.ES.Max) (CHANGELOG 12.11 : 7, 13, 17) ; 0 passe -> $($u.E0.Min)/$($u.E0.Max)"
 Chk 'U8' ($u.FHeads.Count -eq 2 -and $u.FHeads[0].Spec -eq '0=20' -and $u.FHeads[1].Spec -eq '0=22' -and $u.FOne.Count -eq 1 -and $u.FOne[0].Spec -eq '0=21' -and $u.FNone.Count -eq 0 -and $u.FOwn.Count -eq 1 -and $u.FOwn[0].Spec -eq '0=50') "Get-DriveFamilyCurves A>0 : par tete a jour -> 2 courbes ; sans preference -> commune ; famille sans courbe -> aucune ; lecteur A (courbe propre) -> 1 courbe"
 Chk 'U9' ($u.FNewer.Count -eq 1 -and $u.FNewer[0].Spec -eq '0=21' -and $u.FNoOne.Count -eq 2) "courbe commune plus recente que les courbes par tete -> commune seule ; sans courbe commune -> les deux tetes"
 Chk 'U10' ($u.LblX -eq 'Standard 2 us (tête 0), écriture par le lecteur A pour le lecteur 0' -and $u.LblA -eq 'Standard 2 us (commune), lecteur A' -and $u.LblK -eq 'Long track 1,89 us (tête 1), lecteur A') "Get-DriveCurveLabel : « $($u.LblX) » ; « $($u.LblA) » ; cle sans lecteur -> « $($u.LblK) »"
@@ -365,7 +366,7 @@ Chk 'S3b' ($s.Geom.Log[1] -eq "Cylindres de test : 0,10,20,30,40,50,60,70,79 (80
 Chk 'S4' ($null -eq $s.Plain.Cal.Cross -and $s.Plain.Log.Count -eq 3 -and $s.Plain.Log[0] -eq '=== Calibration precomp : lecteur A, image speedball2.adf (Standard 2 us, test fin, tous les cylindres) ===') "sans demande croisee : branche ordinaire inchangee (3 lignes, pas de Cross)"
 $c1 = $s.Ok.Conf[0]
 Chk 'S5' ($s.Ok.Conf.Count -eq 1 -and $c1.Name -eq 'frmCalibConfirm' -and $c1.Title -eq 'Calibration precomp' -and $c1.NeedCheck -and [int]$c1.Seconds -eq 0 -and $c1.Ok -eq 'Lancer la calibration' -and $c1.Heading -eq 'Calibration croisée : la disquette sacrifiée reçoit le motif de test' -and $c1.Check -eq "J'ai inséré une disquette sacrifiée (sans valeur, jamais l'original) dans le lecteur A, celui qui écrit" -and $c1.StopOff -eq 'Pas de démarrage automatique : cochez la case, puis cliquez sur « Lancer la calibration ».' -and $c1.Level -eq 'warn') "avertissement : frmCalibConfirm, case obligatoire (NeedCheck), sans compte a rebours, case « ... dans le lecteur A, celui qui écrit », en-tete croise"
-Chk 'S6' ($c1.Text -like 'Calibration croisée : le lecteur A écrit le motif de test, le lecteur 0 le relit. Avant chaque relecture, puis avant l''écriture suivante, l''application vous demande de déplacer la disquette d''un lecteur à l''autre : 9 échanges au moins, 13 au plus. La durée estimée ne compte pas ces échanges.*courbe propre du lecteur A n''est pas modifiée.*CORPS*USURE' -and $s.Cancel.Conf[0].Text -like '*9 échanges au moins, 17 au plus.*') "texte : lecteurs, 9 a 13 echanges (test fin), puis corps et usure ; test standard : 9 a 17"
+Chk 'S6' ($c1.Text -like 'Calibration croisée : le lecteur A écrit le motif de test, le lecteur 0 le relit. Avant chaque relecture, puis avant l''écriture suivante, l''application vous demande de déplacer la disquette d''un lecteur à l''autre : 7 échanges au moins, 13 au plus. La durée estimée ne compte pas ces échanges.*courbe propre du lecteur A n''est pas modifiée.*CORPS*USURE' -and $s.Cancel.Conf[0].Text -like '*7 échanges au moins, 17 au plus.*') "texte : lecteurs, 7 a 13 echanges (test fin), puis corps et usure ; test standard : 7 a 17 (12.11 : 7 et non 9)"
 Chk 'S7' ($s.Ok.Ans.Ok -eq $true -and $s.Ok.Ans.Swap -eq $false -and $s.Ok.Ans.Auto -eq $false -and $s.NoChk.Ans.Ok -eq $false -and $s.Cancel.Ans.Ok -eq $false) "reponse : OK et case cochee -> Ok ; OK sans case -> refus ; Annuler -> refus ; jamais Swap ni Auto"
 Chk 'S8' ($s.Ok.Log.Count -eq 1 -and $s.Ok.Log[0] -eq 'Calibration croisée : lancée (case « disquette sacrifiée dans le lecteur A » cochée).' -and $s.NoChk.Log[0] -eq 'Calibration croisée : annulée.' -and $s.Cancel.Log[0] -eq 'Calibration croisée : annulée.') "journal de la reponse : « lancée (case ... cochée) » / « annulée »"
 
@@ -377,10 +378,13 @@ function Invoke-CrossStart($o) {
     function Append-Log([string]$text) { $script:XLog.Add($text) }
     function Get-AppBusy([switch]$Text) { return [string]$o.Busy }
     function Show-AppMessage([string]$text, [string]$title, [string]$buttons = 'OK', [string]$icon = 'Information') { $script:XMsg.Add(@{ Text = $text; Title = $title; Icon = $icon }); return 'OK' }
-    function Show-CrossCalibDialog([string]$src, [string[]]$targets, [string]$family, [bool]$fine, [string]$imgInfo, [bool]$slow, [int]$minSwaps, [int]$maxSwaps) {
-        $script:XDlg.Add(@{ Src = $src; Targets = @($targets); Family = $family; Fine = $fine; ImgInfo = $imgInfo; Slow = $slow; Min = $minSwaps; Max = $maxSwaps })
+    # 12.11 (lot L6) : neuvieme argument, lecteur cible de l onglet Ecriture a preselectionner (Get-TargetDrive, 140, remplace
+    # selon le scenario : TabTarget ; lecteur source demande releve dans XTgtAsk)
+    function Show-CrossCalibDialog([string]$src, [string[]]$targets, [string]$family, [bool]$fine, [string]$imgInfo, [bool]$slow, [int]$minSwaps, [int]$maxSwaps, [string]$preselect = '') {
+        $script:XDlg.Add(@{ Src = $src; Targets = @($targets); Family = $family; Fine = $fine; ImgInfo = $imgInfo; Slow = $slow; Min = $minSwaps; Max = $maxSwaps; Pre = $preselect; NArg = $PSBoundParameters.Count })
         return @{ Ok = [bool]$o.DlgOk; Target = [string]$o.DlgTarget; Family = [string]$o.DlgFamily; Fine = [bool]$o.DlgFine }
     }
+    function Get-TargetDrive([string]$src = '') { $script:XTgtAsk.Add($src); return [string]$o.TabTarget }
     function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$LevelAfter, $Geom = $null, $Heads = $null, [string]$Test = '', [switch]$NoWarmup) {
         $script:XStart.Add(@{ Ask = $script:CalCrossAsk; Geom = $Geom; Test = $Test; Heads = $Heads; ForceFine = [bool]$ForceFine })
         $ask = $script:CalCrossAsk; $script:CalCrossAsk = $null
@@ -396,13 +400,13 @@ function Invoke-CrossStart($o) {
     function Get-HomeCalibInfo([string]$name) { return @{ Name = $name; Label = "type $name"; Cal = $(if ($name -eq 'app.long') { 'long' } else { 'std' }); Bits = $(if ($name -eq 'app.long') { 105808 } else { 101344 }); BitsSrc = "source $name"; NCyl = 80 } }
     function New-CalibGeometry($info, [int]$nCyl) { $script:XGeom.Add(@{ Name = $info.Name; NCyl = $nCyl }); if ($o.GeomFails) { throw 'disque plein' }; return 'C:\x\precomp-geometry.hfe' }
     function Get-ImageFamily([string]$path, [string]$fmt = '') { return [string]$o.GeomFam }
-    $script:XImgChk = 0
+    $script:XImgChk = 0; $script:XTgtAsk = New-Object System.Collections.Generic.List[string]
     $script:XLog = New-Object System.Collections.Generic.List[string]; $script:XMsg = New-Object System.Collections.Generic.List[object]; $script:XDlg = New-Object System.Collections.Generic.List[object]
     $script:XStart = New-Object System.Collections.Generic.List[object]; $script:XGeom = New-Object System.Collections.Generic.List[object]
     $script:CalRedo = $o.Redo; $script:Cal = $null; $script:CalCrossAsk = $null; $script:AfterCalib = 'write'; $script:PrecompThresholdNs = 1950; $script:CalMaxRetest = 1
     $cmbDrive = [pscustomobject]@{ Text = 'A'; Items = @($o.Drives) }; $cmbWCalMode = [pscustomobject]@{ SelectedIndex = [int]$o.Mode }; $chkWSlow = [pscustomobject]@{ Checked = [bool]$o.Slow }; $txtWFile = [pscustomobject]@{ Text = 'C:\x\speedball2.adf' }
     $res = Start-CrossCalib
-    $r = @{ ImgChk = $script:XImgChk; Res = $res; Log = $script:XLog.ToArray(); Msg = $script:XMsg.ToArray(); Dlg = $script:XDlg.ToArray(); Start = $script:XStart.ToArray(); Geom = $script:XGeom.ToArray(); AskAfter = $script:CalCrossAsk; After = $script:AfterCalib }
+    $r = @{ TgtAsk = $script:XTgtAsk.ToArray(); ImgChk = $script:XImgChk; Res = $res; Log = $script:XLog.ToArray();Msg = $script:XMsg.ToArray(); Dlg = $script:XDlg.ToArray(); Start = $script:XStart.ToArray(); Geom = $script:XGeom.ToArray(); AskAfter = $script:CalCrossAsk; After = $script:AfterCalib }
     $script:Cal = $null
     return $r
 }
@@ -416,7 +420,7 @@ $cD = Invoke-CrossStart (Merge-Opt $base @{ Drives = @('A') })
 Chk 'C3' (-not $cD.Res.Started -and $cD.Res.Why -eq 'aucun autre lecteur' -and $cD.Msg[0].Text -eq 'Calibration croisée impossible : aucun autre lecteur dans la liste du bandeau.' -and $cD.Dlg.Count -eq 0) "un seul lecteur dans le bandeau : refus"
 $cC = Invoke-CrossStart (Merge-Opt $base @{ DlgOk = $false })
 $d0 = $cC.Dlg[0]
-Chk 'C4' (-not $cC.Res.Started -and $cC.Res.Why -eq 'annulée' -and $cC.Msg.Count -eq 0 -and $cC.Start.Count -eq 0 -and $cC.Log[-1] -eq "Calibration croisée : fenêtre de choix fermée, rien n'est lancé." -and $cC.Dlg.Count -eq 1 -and $d0.Src -eq 'A' -and ($d0.Targets -join ',') -eq '0' -and $d0.Family -eq 'std' -and $d0.Fine -eq $true -and $d0.Slow -eq $true -and [int]$d0.Min -eq 9 -and [int]$d0.Max -eq 17 -and $d0.ImgInfo -like "Image de l'onglet Écriture : speedball2.adf (Standard 2 us)*") "fenetre de choix fermee : rien lance, journal ; fenetre appelee avec source A, cible 0, famille de l image (std), test fin (liste), ecriture lente, 9 a 17 echanges, info de l image"
+Chk 'C4' (-not $cC.Res.Started -and $cC.Res.Why -eq 'annulée' -and $cC.Msg.Count -eq 0 -and $cC.Start.Count -eq 0 -and $cC.Log[-1] -eq "Calibration croisée : fenêtre de choix fermée, rien n'est lancé." -and $cC.Dlg.Count -eq 1 -and $d0.Src -eq 'A' -and ($d0.Targets -join ',') -eq '0' -and $d0.Family -eq 'std' -and $d0.Fine -eq $true -and $d0.Slow -eq $true -and [int]$d0.Min -eq 7 -and [int]$d0.Max -eq 17 -and $d0.ImgInfo -like "Image de l'onglet Écriture : speedball2.adf (Standard 2 us)*") "fenetre de choix fermee : rien lance, journal ; fenetre appelee avec source A, cible 0, famille de l image (std), test fin (liste), ecriture lente, 7 a 17 echanges (12.11 : 7 et non 9), info de l image"
 $crI = Invoke-CrossStart ($base.Clone())
 $st = $crI.Start[0]
 Chk 'C5' ($crI.Res.Started -and $crI.Start.Count -eq 1 -and $st.Ask.Src -eq 'A' -and $st.Ask.Tgt -eq '0' -and $null -eq $st.Geom -and $st.Test -eq 'fine' -and $null -eq $st.Heads -and $crI.Geom.Count -eq 0 -and $null -eq $crI.AskAfter -and $crI.After -eq '' -and $crI.Log[-1] -eq 'Calibration croisée demandée : écriture par le lecteur A, relecture par le lecteur 0, famille Standard 2 us, test fin.') "famille de l image choisie : Start-PrecompCalib sans Geom, -Test fine, demande @{ Src A ; Tgt 0 } lue, AfterCalib vide, journal « demandée »"
@@ -440,6 +444,10 @@ Chk 'C12' (-not $cS.Res.Started -and $cS.Res.Why -eq 'Calibration non prise en c
 # fix1 (RC5) : secteurs durs avec une image refusee (aucune image, flux, GCR) : refus avant la fenetre, image non controlee
 $cS2 = Invoke-CrossStart (Merge-Opt $base @{ SetBlock = 'Calibration non prise en charge avec secteurs durs'; ImgWhy = 'Choisissez d abord l image'; ImgScope = 'image'; GeomFam = 'std' })
 Chk 'C13' (-not $cS2.Res.Started -and $cS2.Res.Why -eq 'Calibration non prise en charge avec secteurs durs' -and $cS2.Dlg.Count -eq 0 -and $cS2.Start.Count -eq 0 -and $cS2.ImgChk -eq 0 -and $cS2.Msg.Count -eq 1 -and $cS2.Msg[0].Text -eq 'Calibration non prise en charge avec secteurs durs') "secteurs durs ou lecteur 8 pouces avec une image refusee : refus avant la fenetre de choix, image non controlee (Get-CalibImageCheck appele $($cS2.ImgChk) fois), un message"
+# 12.11 (lot L6) : le lecteur cible de l onglet Ecriture (Get-TargetDrive du lecteur du bandeau) est transmis a la fenetre de
+# choix pour y etre preselectionne ; sans lecteur cible, chaine vide (premier de la liste, comme en 12.10)
+$cP = Invoke-CrossStart (Merge-Opt $base @{ Drives = @('A', 'B', '0'); TabTarget = '0'; DlgOk = $false })
+Chk 'C14' ($cP.Dlg.Count -eq 1 -and $cP.Dlg[0].Pre -eq '0' -and ($cP.Dlg[0].Targets -join ',') -eq 'B,0' -and [int]$cP.Dlg[0].NArg -eq 9 -and ($cP.TgtAsk -join ',') -eq 'A' -and $cC.Dlg[0].Pre -eq '' -and [int]$cC.Dlg[0].NArg -eq 9 -and -not $cP.Res.Started -and $cP.Start.Count -eq 0) "lecteur cible 0 choisi dans l onglet : fenetre de choix appelee avec la preselection « $($cP.Dlg[0].Pre) » parmi $($cP.Dlg[0].Targets -join ','), lue par Get-TargetDrive du lecteur $($cP.TgtAsk -join ',') ; sans lecteur cible : preselection vide ; fenetre fermee : rien lance"
 
 # ================================================================ K. commandes et invites par la file reelle
 "--- K. File reelle : conditionnement, passes de mesure, invites d echange (analyse factice de 3 passes)"
@@ -516,6 +524,25 @@ Chk 'E7' ($eO.Done -and $eO.Prompts.Count -eq 0 -and $eO.Store.Count -eq 2 -and 
 $pX = @($eX.Cmds | Where-Object { $_ -like 'read *' } | ForEach-Object { ($_ -replace '^read --drive=0', 'read --drive=A') })
 $pO = @($eO.Cmds | Where-Object { $_ -like 'read *' })
 Chk 'E8' (($pX -join "`n") -eq ($pO -join "`n") -and $eX.Cmds.Count -eq $eO.Cmds.Count) "meme graine : memes relectures (pistes) et meme nombre de commandes en croise et en ordinaire : le calcul ne change pas"
+# 12.11 (lot L6) : minimum annonce des echanges (Get-CrossSwapEstimate, 240) confronte au deroule reel ci-dessus. Cette
+# calibration croisee converge a la premiere verification, sans encadrement, mesure complementaire ni nouvel essai : ses
+# invites d echange, repondues une a une par le remplacant de Show-TimedConfirm, sont comptees et comparees au minimum que
+# rendent la fonction reelle et les constantes reelles de 560 (passes de mesure, verifications, nouvel essai)
+function Get-RealSwapEstimate {
+    . $gen
+    Set-CalibScale 'std'
+    $nPassEst = @($script:CalCoarse).Count + [int]$script:CalMaxVerify
+    return @{ NCoarse = @($script:CalCoarse).Count; NPass = $nPassEst
+              Fine = (Get-CrossSwapEstimate $nPassEst $true ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify)); Std = (Get-CrossSwapEstimate $nPassEst $false ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify)) }
+}
+$se = Get-RealSwapEstimate
+$nMes = Get-LogN $eX.Log 'Calibration : passe de mesure */*'
+$nVer = Get-LogN $eX.Log 'Calibration : passe de vérification */*'
+$nV1 = Get-LogN $eX.Log 'Calibration : passe de vérification 1/*'
+$nPlus = (Get-LogN $eX.Log "Calibration : passe d'encadrement*") + (Get-LogN $eX.Log 'Calibration : mesure complémentaire*') + (Get-LogN $eX.Log 'Calibration : passe de vérification */* du nouvel essai*')
+$swapN = @($eX.Prompts | ForEach-Object { if ($_.Text -match '^Échange (\d+) :') { [int]$Matches[1] } })
+"    | passes de mesure $nMes, verifications $nVer, passes en plus $nPlus, relectures $nReadX ; invites d echange : $($swapN -join ',') ; minimum annonce : test fin $($se.Fine.Min), test standard $($se.Std.Min) ; maximum : $($se.Fine.Max) et $($se.Std.Max)"
+Chk 'E9' ($nMes -eq [int]$se.NCoarse -and $nVer -eq 1 -and $nV1 -eq 1 -and $nPlus -eq 0 -and $nReadX -eq ($nMes + 1) -and ($swapN -join ',') -eq '1,2,3,4,5,6,7' -and $eX.Prompts.Count -eq 7 -and [int]$se.Fine.Min -eq $eX.Prompts.Count -and [int]$se.Std.Min -eq $eX.Prompts.Count -and [int]$se.Fine.Max -eq 13 -and [int]$se.Std.Max -eq 17) "calibration croisee convergee a la premiere verification ($nMes passes de mesure, $nVer verification, ni encadrement, ni mesure complementaire, ni nouvel essai) : $($eX.Prompts.Count) invites d echange, numerotees $($swapN -join ','), soit le minimum annonce par Get-CrossSwapEstimate avec les constantes reelles ($($se.NPass) passes prevues : $($se.Fine.Min) au moins, et non 9)"
 
 # ================================================================ P. barre de progression (Update-CalibProgress reel)
 "--- P. Update-CalibProgress reel : libelles croises et attente d un echange"

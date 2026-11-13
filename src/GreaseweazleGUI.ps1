@@ -2733,6 +2733,12 @@ $script:I18n["Borne de la courbe de cette disquette : {0} ns, le quart de la cel
 $script:I18n["Au-delà de {0} ns, la calibration ne compense que la chaîne d'écriture et de relecture de ce lecteur : essayez la disquette écrite sur la machine à laquelle elle est destinée (un vrai Amiga, par exemple) avant de vous y fier."] = "Above {0} ns, calibration only compensates this drive's own write and read chain: try the written disk on the machine it is meant for (a real Amiga, for example) before relying on it."
 
 # --- L6 : calibration croisee : journal exporte, echanges de disquette, lecteur cible preselectionne (110, 240, 250, 270, 540)
+# En-tete du journal exporte (Get-LogExportHeader, 110), deux lignes en tete du fichier seulement ; {1} de la seconde : le
+# lecteur cible, ou « (meme lecteur) » (018). Les echanges annonces (7 et non 9) et la preselection n ont pas de texte nouveau
+$script:I18n["Journal exporté le {0} par Greaseweazle Studio v{1} ; calcul de calibration v{2}, mesure sur l'image v{3}."] = 'Log exported on {0} by Greaseweazle Studio v{1}; calibration calculation v{2}, on-image measurement v{3}.'
+$script:I18n['Lecteur du bandeau : {0} ; lecteur cible de ses écritures : {1}.'] = 'Drive in the banner: {0}; target drive for its writes: {1}.'
+# Marque de troncature, premiere ligne du journal borne (Limit-LogText, 110) ; 400 000 : $script:LogMaxChars (540)
+$script:I18n['[Journal tronqué : les {0} premiers caractères ont été retirés (400 000 au plus sont gardés). Exportez le journal après chaque opération longue.]'] = '[Log truncated: the first {0} characters were removed (at most 400,000 are kept). Export the log after each long operation.]'
 
 # --- L7 : revenir a une calibration precedente (120, 240, 250, 520) ----------------------------------------------------
 
@@ -4349,9 +4355,9 @@ function Append-Log([string]$text) {
         $txtLog.AppendText($line + "`n")
         if ($c -eq $script:LogColors.err -and $split.Panel2Collapsed) { Set-LogVisible $true }
     }
-    if ($txtLog.TextLength -gt 400000) {
-        $txtLog.ReadOnly = $false; $txtLog.Select(0, 150000); $txtLog.SelectedText = ''; $txtLog.ReadOnly = $true
-    }
+    # 12.11 : journal borne par Limit-LogText : debut retire a une fin de ligne, marque de troncature en premiere ligne
+    # (avant : au-dela de 400 000 caracteres, les 150 000 premiers retires sans trace, une ligne coupee en son milieu)
+    Limit-LogText
     $txtLog.SelectionStart = $txtLog.TextLength
     $txtLog.ScrollToCaret()
 }
@@ -4720,6 +4726,54 @@ function Get-GwEndRule([int]$code, [bool]$soft, [bool]$isWrite, [bool]$summary, 
     if (-not $soft -and $isWrite -and $verifyFail -and $calMode -eq 'content') { $soft = $true }
     $inc = if ($isWrite) { $code -eq 0 -and -not $summary } else { $code -eq 0 -and (($progTotal -gt 0 -and $progSeen * 2 -lt $progTotal) -or $cmdFailed) }
     return @{ Soft = $soft; Incomplete = [bool]$inc; Next = ($code -eq 0 -or $soft) }
+}
+
+# --- Journal : borne et export (12.11) -----------------------------------------
+
+function Limit-LogText {
+    # 12.11 : journal borne a $script:LogMaxChars caracteres (400 000, 540), appelee par Append-Log apres chaque ajout.
+    # Au-dela, le debut est retire pour n en garder que $script:LogKeepChars (250 000 : les 150 000 premiers caracteres au
+    # premier depassement, comme avant), mais la coupe est ramenee au debut d une ligne (derniere fin de ligne de la partie
+    # retiree ; sans fin de ligne dans cette partie : coupe au caractere) et une marque, premiere ligne du journal, dit
+    # combien de caracteres ont ete retires. Depassements suivants : la marque en place est retiree avec le debut sans etre
+    # comptee, et son compte est cumule ($script:LogCut : N caracteres retires, Mark marque en place) ; si elle n est plus
+    # en tete (journal vide par « Vider »), le compte repart de zero. Seule fonction qui ecrit la marque
+    $max = [int]$script:LogMaxChars
+    if ($txtLog.TextLength -le $max) { return }
+    $t = [string]$txtLog.Text
+    $st = $script:LogCut
+    $old = 0
+    if ($st.Mark -and $t.StartsWith([string]$st.Mark + "`n", [System.StringComparison]::Ordinal)) { $old = ([string]$st.Mark).Length + 1 } else { $st.N = 0 }
+    $cut = [math]::Max($old, $t.Length - [int]$script:LogKeepChars)
+    # Debut de ligne : derniere fin de ligne de la partie retiree, marque precedente exclue ; ecartee si le journal garde
+    # depassait alors la borne, marque comprise (ligne de plus de 150 000 caracteres) : coupe au caractere
+    $p = $t.LastIndexOf([char]10, $cut - 1)
+    if ($p + 1 -gt $old -and ($t.Length - $p - 1) -le ($max - 1000)) { $cut = $p + 1 }
+    $st.N = [int]$st.N + ($cut - $old)
+    $st.Mark = (T "[Journal tronqué : les {0} premiers caractères ont été retirés (400 000 au plus sont gardés). Exportez le journal après chaque opération longue.]") -f "$($st.N)"
+    $txtLog.ReadOnly = $false
+    $txtLog.Select(0, $cut); $txtLog.SelectedText = ''
+    $txtLog.Select(0, 0); $txtLog.SelectionColor = $script:LogColors.warn; $txtLog.SelectedText = [string]$st.Mark + "`n"
+    $txtLog.ReadOnly = $true
+}
+
+function Get-LogExportHeader([datetime]$when = (Get-Date)) {
+    # 12.11 : en-tete du journal exporte (Export-LogFile), deux lignes ecrites en tete du fichier seulement, jamais dans le
+    # journal affiche : date de l export et versions (application, calcul de calibration, mesure sur l image), puis lecteur
+    # du bandeau et lecteur cible de ses ecritures (Get-TargetDrive, 140 ; « (meme lecteur) » sans lecteur cible). Apres
+    # « Vider », la ligne de version du demarrage n est plus dans le journal : l en-tete la remplace. Ni chemin, ni nom de
+    # compte, ni nom de poste. Tableau protege par la virgule (pas de @() autour de l appel)
+    $tgt = Get-TargetDrive
+    $l1 = (T "Journal exporté le {0} par Greaseweazle Studio v{1} ; calcul de calibration v{2}, mesure sur l'image v{3}.") -f $when.ToString('dd/MM/yyyy HH:mm:ss'), "$($script:Version)", "$($script:CalibCalc)", "$($script:ContentCalc)"
+    $l2 = (T "Lecteur du bandeau : {0} ; lecteur cible de ses écritures : {1}.") -f "$($cmbDrive.Text)", $(if ($tgt) { $tgt } else { (T '(même lecteur)') })
+    return ,@($l1, $l2)
+}
+
+function Export-LogFile([string]$path) {
+    # 12.11 : export du journal (bouton « Exporter », 540) : les deux lignes de Get-LogExportHeader, puis le texte du
+    # journal tel qu il est affiche (marque de troncature comprise, Limit-LogText), avec ses fins de ligne ; codage
+    # inchange (Set-Content -Encoding UTF8)
+    (((Get-LogExportHeader) -join "`n") + "`n" + $txtLog.Text) | Set-Content -LiteralPath $path -Encoding UTF8
 }
 # ============================== FONCTIONS : CONFIGURATION ======================
 
@@ -16421,13 +16475,26 @@ function Get-CrossCalibTargets([string[]]$ids, [string]$src) {
     return ,@(@($ids) | ForEach-Object { [string]$_ } | Where-Object { $_ -and $_ -ne $src })
 }
 
-function Get-CrossSwapEstimate([int]$nPassEst, [bool]$fine, [int]$maxRetest) {
+function Get-CrossSwapEstimate([int]$nPassEst, [bool]$fine, [int]$maxRetest, [int]$maxVerify = 2) {
     # 12.10 : echanges de disquette d une calibration croisee (E) : deux par passe (vers la cible avant la relecture, retour
     # vers la source avant l ecriture suivante), sauf apres la derniere relecture ; au plus, avec l encadrement, les
     # mesures complementaires du test standard (2) et le nouvel essai
+    # 12.11 : au moins : une premiere verification sans cylindre a corriger termine la calibration (Invoke-CalibAnalysis,
+    # 270) ; les autres verifications prevues ($maxVerify - 1, comptees dans $nPassEst) n ont alors pas lieu : avec 3 passes
+    # de mesure et 2 verifications, 4 relectures, donc 7 echanges et non 9. Le maximum ne change pas
     $n = [math]::Max(1, $nPassEst)
+    $nMin = [math]::Max(1, $nPassEst - [math]::Max(0, $maxVerify - 1))
     $extra = 1 + $(if ($fine) { 0 } else { 2 }) + [math]::Max(0, $maxRetest)
-    return @{ Min = (2 * $n - 1); Max = (2 * ($n + $extra) - 1) }
+    return @{ Min = (2 * $nMin - 1); Max = (2 * ($n + $extra) - 1) }
+}
+
+function Get-CrossTargetIndex([string[]]$targets, [string]$preselect) {
+    # 12.11 : rang, dans la liste des lecteurs cibles de la fenetre de choix d une calibration croisee (Show-CrossCalibDialog,
+    # 250), du lecteur a preselectionner : le lecteur cible de l onglet Ecriture (Get-TargetDrive, 140, transmis par
+    # Start-CrossCalib). 0, le premier de la liste comme en 12.10, sans lecteur cible ou s il n est pas dans la liste.
+    # Simple preselection : rien n est memorise ni lance tant que la fenetre n est pas validee
+    if (-not $preselect -or $null -eq $targets) { return 0 }
+    return [math]::Max(0, [array]::IndexOf($targets, $preselect))
 }
 
 function Get-CurveKeyLabel([string]$key) {
@@ -18632,7 +18699,7 @@ function Show-CalibSurface($opt, [string]$text) {
     return @{ Choice = 'stop'; Swap = $false }
 }
 
-function Show-CrossCalibDialog([string]$src, [string[]]$targets, [string]$family, [bool]$fine, [string]$imgInfo, [bool]$slow, [int]$minSwaps, [int]$maxSwaps) {
+function Show-CrossCalibDialog([string]$src, [string[]]$targets, [string]$family, [bool]$fine, [string]$imgInfo, [bool]$slow, [int]$minSwaps, [int]$maxSwaps, [string]$preselect = '') {
     # 12.10 : fenetre de choix d une calibration croisee (bouton de l onglet Ecriture, Start-CrossCalib, 270) : lecteur cible
     # (lecteurs du bandeau sauf la source $src), famille (standard ou long track, preselectionnee d apres l image de
     # l onglet Ecriture), test (standard ou fin, preselectionne d apres la liste « Calibration precomp »). Bandeau au
@@ -18651,7 +18718,7 @@ function Show-CrossCalibDialog([string]$src, [string[]]$targets, [string]$family
     $txt += "`n" + ((T "Courbes : {0} (case « Écriture lente » de l'onglet).") -f $(if ($slow) { (T 'une courbe par tête') } else { (T 'courbe commune') }))
     $ban = New-DlgBanner $dlg 16 $W (T 'Calibration croisée : écrire avec ce lecteur pour un autre lecteur') $txt 'info' (New-DlgPicto 'drive') $gdi 'lblCrossText'
     $y = $ban.Bottom + 14
-    $rows = @(@{ Name = 'cmbCrossTarget'; Label = (T 'Lecteur cible :'); Items = @($targets); Index = 0 },
+    $rows = @(@{ Name = 'cmbCrossTarget'; Label = (T 'Lecteur cible :'); Items = @($targets); Index = (Get-CrossTargetIndex $targets $preselect) },   # 12.11 : $preselect, lecteur cible de l onglet Ecriture, preselectionne (240) ; sinon le premier
               @{ Name = 'cmbCrossFamily'; Label = (T 'Famille :'); Items = @((Get-CalibFamilyName 'std'), (Get-CalibFamilyName 'long')); Index = $(if ($family -eq 'long') { 1 } else { 0 }) },
               @{ Name = 'cmbCrossTest'; Label = (T 'Test :'); Items = @((T 'Test standard : 1 cylindre sur 10'), (T 'Test fin : tous les cylindres')); Index = $(if ($fine) { 1 } else { 0 }) })
     $lw = 0
@@ -21983,7 +22050,7 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     if ($cx) {
         # 12.10 : calibration croisee : texte en tete (lecteurs, echanges de disquette estimes, duree hors echanges), case
         # obligatoire (la disquette est dans la source), jamais de demarrage automatique ; reponse au journal
-        $sw = Get-CrossSwapEstimate $nPassEst $fine ([int]$script:CalMaxRetest)
+        $sw = Get-CrossSwapEstimate $nPassEst $fine ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify)   # 12.11 : au moins : une seule verification
         $ci = ((T "Calibration croisée : le lecteur {0} écrit le motif de test, le lecteur {1} le relit. Avant chaque relecture, puis avant l'écriture suivante, l'application vous demande de déplacer la disquette d'un lecteur à l'autre : {2} échanges au moins, {3} au plus. La durée estimée ne compte pas ces échanges. La courbe obtenue sert aux écritures du lecteur {0} destinées au lecteur {1} ; la courbe propre du lecteur {0} n'est pas modifiée.") -f "$($cx.Src)", "$($cx.Tgt)", "$($sw.Min)", "$($sw.Max)") + "`n`n"
         $rc = Show-TimedConfirm 'frmCalibConfirm' (T 'Calibration precomp') ($Intro + $ci + $body + "`n`n" + $wear) (T 'Lancer la calibration') 'Diagnostic' '' ((T "J'ai inséré une disquette sacrifiée (sans valeur, jamais l'original) dans le lecteur {0}, celui qui écrit") -f "$($cx.Src)") '' (T "Pas de démarrage automatique : cochez la case, puis cliquez sur « Lancer la calibration ».") -Seconds 0 -NeedCheck -Heading (T 'Calibration croisée : la disquette sacrifiée reçoit le motif de test') -Level 'warn' -Picto 'warn'
         $ans = @{ Ok = ($rc.Ok -and $rc.Checked); Swap = $false; Auto = $false }
@@ -22160,8 +22227,8 @@ function Start-CrossCalib {
     $imgInfo = if ($imgFam) { (T "Image de l'onglet Écriture : {0} ({1}) ; avec cette famille, ses cylindres sont ceux de la calibration ; avec l'autre, 80 cylindres à la densité de la famille.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))", (Get-CalibFamilyName $imgFam) }
                else { (T "Aucune image calibrable dans l'onglet Écriture : 80 cylindres, à la densité de la famille choisie.") }
     $nPassEst = @($script:CalCoarse).Count + [int]$script:CalMaxVerify
-    $swF = Get-CrossSwapEstimate $nPassEst $true ([int]$script:CalMaxRetest); $swS = Get-CrossSwapEstimate $nPassEst $false ([int]$script:CalMaxRetest)
-    $ch = Show-CrossCalibDialog $src $targets $(if ($imgFam) { $imgFam } else { 'std' }) ($cmbWCalMode.SelectedIndex -eq 1) $imgInfo ([bool]$chkWSlow.Checked) ([int]$swF.Min) ([int]$swS.Max)
+    $swF = Get-CrossSwapEstimate $nPassEst $true ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify); $swS = Get-CrossSwapEstimate $nPassEst $false ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify)   # 12.11 : au moins : une seule verification
+    $ch = Show-CrossCalibDialog $src $targets $(if ($imgFam) { $imgFam } else { 'std' }) ($cmbWCalMode.SelectedIndex -eq 1) $imgInfo ([bool]$chkWSlow.Checked) ([int]$swF.Min) ([int]$swS.Max) (Get-TargetDrive $src)   # 12.11 : lecteur cible de l onglet Ecriture preselectionne
     if (-not $ch.Ok) { $res.Why = (T 'annulée'); Append-Log (T "Calibration croisée : fenêtre de choix fermée, rien n'est lancé."); return $res }
     $tgt = [string]$ch.Target; $fam = [string]$ch.Family; $test = $(if ($ch.Fine) { 'fine' } else { 'std' })
     Append-Log ((T "Calibration croisée demandée : écriture par le lecteur {0}, relecture par le lecteur {1}, famille {2}, {3}.") -f "$src", "$tgt", (Get-CalibFamilyName $fam), $(if ($ch.Fine) { (T 'test fin') } else { (T 'test standard') }))
@@ -29126,7 +29193,7 @@ $btnSaveLog.Add_Click({
     $d = New-Object System.Windows.Forms.SaveFileDialog
     $d.Filter = (T 'Texte|*.txt'); $d.InitialDirectory = $script:AppDir
     $d.FileName = "gw-log-$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
-    if ($d.ShowDialog() -eq 'OK') { $txtLog.Text | Set-Content -LiteralPath $d.FileName -Encoding UTF8 }
+    if ($d.ShowDialog() -eq 'OK') { Export-LogFile $d.FileName }   # 12.11 : en-tete (version, date, lecteur, lecteur cible) puis journal (110)
 })
 
 $btnCfgSave = New-BarButton (T 'Enregistrer') 115
@@ -29192,6 +29259,9 @@ $script:LogColors = @{
     dim  = [System.Drawing.Color]::FromArgb(165, 170, 178)
     std  = [System.Drawing.Color]::FromArgb(232, 234, 238)
 }
+# 12.11 : journal borne (Limit-LogText, 110) : au-dela de LogMaxChars caracteres, le debut est retire pour n en garder que
+# LogKeepChars, et une marque en premiere ligne le dit (LogCut : caracteres retires depuis le dernier « Vider », marque en place)
+$script:LogMaxChars = 400000; $script:LogKeepChars = 250000; $script:LogCut = @{ N = 0; Mark = '' }
 $split.Panel2.Controls.Add($txtLog)
 
 # ============================== HABILLAGE (icones) =============================

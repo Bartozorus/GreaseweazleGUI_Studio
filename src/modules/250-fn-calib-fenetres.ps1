@@ -524,7 +524,7 @@ function Show-CalibSurface($opt, [string]$text) {
     return @{ Choice = 'stop'; Swap = $false }
 }
 
-function Show-CrossCalibDialog([string]$src, [string[]]$targets, [string]$family, [bool]$fine, [string]$imgInfo, [bool]$slow, [int]$minSwaps, [int]$maxSwaps) {
+function Show-CrossCalibDialog([string]$src, [string[]]$targets, [string]$family, [bool]$fine, [string]$imgInfo, [bool]$slow, [int]$minSwaps, [int]$maxSwaps, [string]$preselect = '') {
     # 12.10 : fenetre de choix d une calibration croisee (bouton de l onglet Ecriture, Start-CrossCalib, 270) : lecteur cible
     # (lecteurs du bandeau sauf la source $src), famille (standard ou long track, preselectionnee d apres l image de
     # l onglet Ecriture), test (standard ou fin, preselectionne d apres la liste « Calibration precomp »). Bandeau au
@@ -543,7 +543,7 @@ function Show-CrossCalibDialog([string]$src, [string[]]$targets, [string]$family
     $txt += "`n" + ((T "Courbes : {0} (case « Écriture lente » de l'onglet).") -f $(if ($slow) { (T 'une courbe par tête') } else { (T 'courbe commune') }))
     $ban = New-DlgBanner $dlg 16 $W (T 'Calibration croisée : écrire avec ce lecteur pour un autre lecteur') $txt 'info' (New-DlgPicto 'drive') $gdi 'lblCrossText'
     $y = $ban.Bottom + 14
-    $rows = @(@{ Name = 'cmbCrossTarget'; Label = (T 'Lecteur cible :'); Items = @($targets); Index = 0 },
+    $rows = @(@{ Name = 'cmbCrossTarget'; Label = (T 'Lecteur cible :'); Items = @($targets); Index = (Get-CrossTargetIndex $targets $preselect) },   # 12.11 : $preselect, lecteur cible de l onglet Ecriture, preselectionne (240) ; sinon le premier
               @{ Name = 'cmbCrossFamily'; Label = (T 'Famille :'); Items = @((Get-CalibFamilyName 'std'), (Get-CalibFamilyName 'long')); Index = $(if ($family -eq 'long') { 1 } else { 0 }) },
               @{ Name = 'cmbCrossTest'; Label = (T 'Test :'); Items = @((T 'Test standard : 1 cylindre sur 10'), (T 'Test fin : tous les cylindres')); Index = $(if ($fine) { 1 } else { 0 }) })
     $lw = 0
