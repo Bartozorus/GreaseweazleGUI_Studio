@@ -380,6 +380,7 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
     } catch {
         Append-Log ((T "gw est lancé, mais une erreur a suivi son démarrage : {0}. La commande reste suivie jusqu'à sa fin ; « Arrêter » l'interrompt.") -f "$($_.Exception.Message)")
         try { Set-Busy $true } catch { }
+        try { $btnStop.Enabled = $true } catch { }   # 12.11 : « Arreter » actif meme si Set-Busy a leve avant de l activer (sa deuxieme instruction)
     }
 }
 

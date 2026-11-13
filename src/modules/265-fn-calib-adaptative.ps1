@@ -1279,24 +1279,37 @@ function Get-DiskCellNs([int]$bits) {
 }
 
 function Get-DiskCapNs([int]$bits = 0) {
-    # 12.11 : plafond de precompensation d une disquette, seule decision : quart (CalDiskCapCell) de la cellule de l image
-    # ecrite, arrondi au ns inferieur, CalDiskCapMaxNs (500 ns) au plus. $bits : cellules par piste du motif de la
-    # calibration en cours (PatternBits : densite de l image). Au quart de la cellule, un intervalle ecrit atteint sa
-    # frontiere de decision : 500 ns pour 2 us, 493 ns pour un ADF AmigaDOS (101 344 cellules), 472 a 474 ns en long track
-    # (105 808 a 105 312 cellules), au lieu de CalHardMaxNs (470 ns) pour toutes jusqu a la 12.10. Sans densite ($bits a
-    # 0 : unite d une suite sans interface) : CalHardMaxNs. Aucun cas particulier pour la haute densite, qui n emprunte
-    # aucun chemin du plafond par disquette (Get-LevelRef la refuse). Aucune mesure sur materiel au-dela de 470 ns : la
-    # regle repose sur la simulation du decodage (560)
+    # 12.11 : plafond de precompensation d une disquette, seule decision : quart (CalDiskCapCell) de la cellule de la piste
+    # ecrite, arrondi au ns inferieur, CalDiskCapMaxNs (500 ns) au plus. $bits : cellules par piste rendues par
+    # Get-DiskCapBits (motif de la calibration en cours, ou format gw au-dela de 250 kbit/s). Au quart de la cellule, un
+    # intervalle ecrit atteint sa frontiere de decision : 500 ns pour 2 us, 493 ns pour un ADF AmigaDOS (101 344 cellules),
+    # 472 a 474 ns en long track (105 808 a 105 312 cellules), au lieu de CalHardMaxNs (470 ns) pour toutes jusqu a la
+    # 12.10. Sans densite ($bits a 0 : suite sans interface, carte de l Accueil) : CalHardMaxNs. Aucun cas particulier
+    # pour la haute densite, qui n emprunte aucun chemin du plafond par disquette (Get-LevelRef la refuse). Aucune mesure
+    # sur materiel au-dela de 470 ns : la regle repose sur la simulation du decodage (560)
     if ($bits -le 0) { return [int]$script:CalHardMaxNs }
     return [int][math]::Min([double]$script:CalDiskCapMaxNs, [math]::Floor([double]$script:CalDiskCapCell * (Get-DiskCellNs $bits)))
 }
 
 function Get-UnitCapNs($u) {
-    # 12.11 : plafond par disquette d une unite de la calibration rapide : densite de l image gardee par New-LevelCalUnits
-    # (ImgBits) ; unite sans ce champ : repli de Get-DiskCapNs (CalHardMaxNs)
+    # 12.11 : plafond par disquette d une unite de la calibration rapide : cellules de la piste ecrite gardees par
+    # New-LevelCalUnits (ImgBits, Get-DiskCapBits) ; unite sans ce champ : repli de Get-DiskCapNs (CalHardMaxNs)
     $b = 0
     if ($u -and $null -ne $u.ImgBits) { $b = [int]$u.ImgBits }
     return (Get-DiskCapNs $b)
+}
+
+function Get-DiskCapBits([int]$bits, [string]$fmt = '') {
+    # 12.11 : cellules par piste retenues pour le plafond par disquette (Get-DiskCapNs) : celles de la piste ecrite. Le motif
+    # d une image secteur est mesure a 2 us (100 000 cellules, Get-PatternBits) quel que soit le format ; un format gw double
+    # densite dont le debit depasse 250 kbit/s (atari.130, atarist.440, atarist.880 : 260 et 261 kbit/s, Get-FormatCalibInfo)
+    # ecrit 400 x debit cellules par piste : le plafond suit cette cellule, plus courte (478 ns et non 500 a 261 kbit/s).
+    # $fmt : format de l onglet Ecriture ; vide, « (auto) » ou absent de la table : $bits. Sans densite ($bits a 0) : 0
+    if ($bits -gt 0 -and $fmt -and $script:GwFormats.Contains($fmt)) {
+        $e = $script:GwFormats[$fmt]
+        if ([int]$e.Rpm -eq 300 -and [int]$e.Rate -gt 250 -and [int]$e.Rate -lt 450) { return [int][math]::Max($bits, 400 * [int]$e.Rate) }
+    }
+    return $bits
 }
 
 function Get-DiskOverAdviceText([int]$thr) {

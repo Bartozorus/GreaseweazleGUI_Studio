@@ -1,24 +1,30 @@
 ﻿param([string]$Wt = '', [string]$Wiki = '', [string]$Work = '', [switch]$Ci, [string]$Before = '')
 . (Join-Path $PSScriptRoot 'commun.ps1')
 $Wt = Get-TestRoot $Wt
-# 12.11 (lot L4) : plafond de precompensation par disquette, au quart de la cellule de l image ecrite (265, 260, 270, 560,
-# 010, 019). Jusqu a la 12.10, une courbe de disquette dont le besoin depassait la borne montait a 470 ns pour toutes les
-# images ; elle monte maintenant au quart de la cellule, 500 ns au plus (Get-DiskCapNs).
+# 12.11 (lot L4) : plafond de precompensation par disquette, au quart de la cellule de la piste ecrite (265, 260, 270,
+# 560, 010, 019). Jusqu a la 12.10, une courbe de disquette dont le besoin depassait la borne montait a 470 ns pour toutes
+# les images ; elle monte maintenant au quart de la cellule, 500 ns au plus (Get-DiskCapNs).
 #  P1 a P6  cas de la specification : Get-DiskCapNs, Get-DiskHardNs, Get-LevelAdaptHard, courbe adaptee et son bilan
 #           (Build-LevelAdaptValues, Get-LevelAdaptOutcome), courbe d une marque (Get-LevelBrandCurveValues), controle
 #           statique (emplois de CalHardMaxNs, ordre des instructions de Start-PrecompCalib, appels du conseil) ;
+#  P7       carte « Calibrer le lecteur » de l Accueil : unites sans densite (argument reel de Start-LevelCalib), donc
+#           470 ns au plus : son profil peut etre place dans les champs d une image d une autre densite ;
+#  P8       format gw de plus de 250 kbit/s en double densite (Get-DiskCapBits) : cellules de la piste ecrite, et non
+#           celles du motif ; argument reel de Start-LevelCalib avec le format de l onglet Ecriture ;
 #  B1, B2   le plafond ne depasse jamais le quart de la cellule ni 500 ns : toutes les densites de 50 000 a 260 000
-#           cellules, puis toutes les courbes de la grille ;
+#           cellules, puis toutes les courbes de la grille ; B3 tous les formats gw que l application calibre en double
+#           densite (Get-FormatCalibInfo reelle, table reelle de 040) : jamais plus du quart de la cellule ecrite ;
 #  E1 a E6  equivalence avec la regle de la 12.10 sur une grille de courbes factices (6 densites standard et long track,
 #           4 bornes, 8 besoins ; tete 0 : forme adaptee, tete 1 : courbe complete d une marque au depart). La regle de la
 #           12.10 est celle d une unite sans densite (470 ns pour toutes) : egalite prouvee avec -Before (Q1), valeurs de la
 #           12.10 gardees dans N1 ;
 #  C1 a C4  reserve « au-dela de la borne » et controle apres ecriture impose : seuil inchange, courbe adaptee, courbe
 #           mesuree, ligne du journal suivie du conseil d essai sur la machine cible ;
-#  D1 a D3  courbe de marque enregistree par la 12.10 (curveMaxNs 470) : relue et reprise telle quelle ;
-#  M1 a M5  mesure complete de cette disquette : borne posee par Start-PrecompCalib (instructions reelles extraites par
-#           l arbre syntaxique), ligne du journal, borne retablie, reserve de fin, controle impose ;
-#  H1 a H4  haute densite : aucun chemin du plafond par disquette (Get-LevelRef, Start-DiskMeasure, Set-CalibScale reels),
+#  D1 a D3  courbe de marque enregistree par la 12.10 (curveMaxNs 470) : relue et reprise telle quelle ; D4 reference
+#           plus longue que la courbe : cylindres prolonges bornes au plafond de l image (470 ns sans densite) ;
+#  M1 a M4  mesure complete de cette disquette : borne posee par Start-PrecompCalib (instructions reelles extraites par
+#           l arbre syntaxique), ligne du journal, borne retablie ; M4 format de plus de 250 kbit/s ;
+#  H1, H2   haute densite : aucun chemin du plafond par disquette (Get-LevelRef, Start-DiskMeasure, Set-CalibScale reels),
 #           appelants des fonctions du plafond ;
 #  I1, L1   table I18n (019, cle de 010 retiree), CHANGELOG ;
 #  N1       resultats de la source de la 12.10 pour les 32 courbes sans densite de la grille ;
@@ -68,7 +74,9 @@ $fnCommon = [ordered]@{
     '265-fn-calib-adaptative.ps1' = @('New-LevelShape', 'Get-LevelShapeRow', 'Get-LevelPredict', 'Format-LevelSigned', 'Get-LevelAdaptHard', 'Build-LevelAdaptValues', 'Get-LevelAdaptOutcome', 'Get-LevelBrandKey', 'Find-LevelBrand', 'Test-LevelBrandValid', 'Update-LevelBrandStats', 'Set-LevelBrandStart', 'Test-LevelAdaptedSpec', 'Get-DiskHardNs', 'Get-DiskOverNs', 'Test-LevelBrandCurve', 'Get-LevelBrandCurveValues')
     '270-fn-calib-complete.ps1'   = @('Start-DiskMeasure', 'Set-DiskHardNs', 'Reset-DiskHardNs')
 }
-$fnL4 = @('Get-DiskCellNs', 'Get-DiskCapNs', 'Get-UnitCapNs', 'Get-DiskOverAdviceText')   # 265, lot L4
+$fnL4 = @('Get-DiskCellNs', 'Get-DiskCapNs', 'Get-UnitCapNs', 'Get-DiskCapBits', 'Get-DiskOverAdviceText')   # 265, lot L4
+# Lot L4 encore : formats gw calibres par l application (cas B3) : fonctions reelles et table des formats de 040
+$fnFmt = [ordered]@{ '150-fn-pistes-densite.ps1' = @('Test-HdFormat'); '200-fn-accueil-calibration.ps1' = @('Get-FormatCalibInfo'); '230-fn-calib-courbe.ps1' = @('Get-CalibFamilyName') }
 function Get-FnAst([string]$file, [string]$name) {
     $h = @((Get-Cal2Ast $file).FindAll({ param($x) $x -is $tFn -and $x.Name -eq $name }, $false))
     if ($h.Count -ne 1) { throw "fonction $name : $($h.Count) dans $file (1 attendue)" }
@@ -122,6 +130,25 @@ function New-Gen([string]$root, [string]$outFile, [bool]$l4) {
     $parts.Add('function Start-PrecompCalib([switch]$ForceFine, $Heads = $null) {' + $nl + '    $do = $script:CalDiskOnly; $script:CalDiskOnly = $null' + $nl + '    $pat = @{ Bits = [int]$script:TBits }' + $nl + "    Set-CalibScale ''" + $nl + '    ' + $sA.Extent.Text + $nl + '    $script:Cal = @{ DiskOnly = $true; HardNs = [int]$do.HardNs }' + $nl + '    $thr = Get-DiskOverNs' + $nl + '    ' + $sC.Extent.Text + $nl + '}')
     $parts.Add('function Invoke-TDiskOver($cal, $u, $issues, $kinds) {' + $nl + '    ' + $sO.Extent.Text + $nl + '}')
     $parts.Add('function Invoke-TDiskForce($recs) {' + $nl + '    $thr = Get-DiskOverNs' + $nl + '    ' + $sF.Extent.Text + $nl + '}')
+    if ($l4) {
+        # Start-LevelCalib : cinquieme element de l appel de New-LevelCalUnits (cellules transmises aux unites), recopie tel
+        # quel dans un banc qui recoit les deux variables locales qu il lit ; le format vient de $cmbWFmt, pose par le test
+        $sl = Get-FnAst (Join-Path $dir '260-fn-calib-rapide.ps1') 'Start-LevelCalib'
+        $nu = Get-StmtIn $sl { param($x) $x -is $tCmd -and $x.GetCommandName() -eq 'New-LevelCalUnits' } 'appel de New-LevelCalUnits'
+        if ($nu.CommandElements.Count -ne 5) { throw "appel de New-LevelCalUnits dans Start-LevelCalib : $($nu.CommandElements.Count) elements (5 attendus)" }
+        $parts.Add('function Get-TUnitBits($Geom, $pat) {' + $nl + '    return ' + $nu.CommandElements[4].Extent.Text + $nl + '}')
+        # Formats gw : fonctions reelles qui disent si un format se calibre, table reelle de 040 (affectation et boucle)
+        foreach ($mod in @($fnFmt.Keys)) {
+            $have = Get-Cal2FnDefs (Join-Path $dir $mod)
+            foreach ($n in @($fnFmt[$mod])) { if (-not $have.ContainsKey($n)) { throw "fonction $n introuvable dans $mod sous $root" }; $parts.Add($have[$n]) }
+        }
+        $nTab = 0
+        foreach ($st in @((Get-Cal2Ast (Join-Path $dir '040-etat-formats.ps1')).EndBlock.Statements)) {
+            $t = $st.Extent.Text
+            if ($t.StartsWith('$script:GwFormatTable = ') -or $t.StartsWith('$script:GwFormats = ') -or $t.StartsWith('foreach ($fe in ($script:GwFormatTable')) { $parts.Add($t); $nTab++ }
+        }
+        if ($nTab -ne 3) { throw "table des formats de 040 : $nTab instruction(s) trouvee(s) (3 attendues)" }
+    }
     Write-Cal2Gen $outFile $parts
     return @{ Defs = $defs; Stmts = @{ A = $sA.Extent.Text; C = $sC.Extent.Text; Over = $sO.Extent.Text; Force = $sF.Extent.Text }; Lines = @{ A = $sA.Extent.StartLineNumber; C = $sC.Extent.StartLineNumber } }
 }
@@ -130,6 +157,9 @@ $script:Lang = 'fr'
 $genNew = Join-Path $here 'gen-apres.ps1'
 $infoNew = New-Gen $Wt $genNew $true
 . $genNew
+# Format de l onglet Ecriture, lu par les instructions reelles de Start-PrecompCalib et de Start-LevelCalib (Get-DiskCapBits) :
+# aucun par defaut ; les cas P7, P8 et M4 le posent puis le retirent
+$cmbWFmt = [pscustomobject]@{ Text = '' }
 
 # ---------------------------------------------------------------- bouchons, entrees factices
 $script:RLog = New-Object System.Collections.Generic.List[string]
@@ -168,15 +198,17 @@ function New-TEst($u, [double]$delta) {
               Delta = $delta; SE = 1.0; Tau = 1.5; Rbar = 0.5; RTol = 2.0; Wit = @{}; ProbeZ = $null; ProbeKind = '' }
 }
 function Get-TMax($values) { return [int](@($values) | Measure-Object -Maximum).Maximum }
-function Invoke-TRun([int]$bits, [int]$bound, [int]$need, [int]$drift) {
+function Invoke-TRun([int]$bits, [int]$bound, [int]$need, [int]$drift, [string]$FamForce = '') {
     # Calibration rapide factice menee a son bilan par les fonctions reelles (New-LevelCalUnits, Set-LevelBrandStart,
     # Build-LevelAdaptValues, Get-LevelUnitResults et ce qu elles appellent). $bits < 0 : unite sans densite (quatrieme
     # argument de New-LevelCalUnits omis). Tete 0 : forme adaptee (modele Ms), besoin modelise $need au dernier cylindre,
     # derive $drift corrigee avant le plafond. Tete 1 : courbe complete de la marque au depart ($need - 10 au dernier
-    # cylindre), niveau mesure + 10 ns
+    # cylindre), niveau mesure + 10 ns. $FamForce : famille imposee (image standard ecrite a plus de 250 kbit/s ; nom
+    # distinct de $fam : PowerShell ignore la casse)
     Set-TBound $bound
     $script:LevelShifts = @{}; $script:RLog.Clear()
     $fam = 'std'; if ($bits -ge 104000) { $fam = 'long' }
+    if ($FamForce) { $fam = $FamForce }
     $lr = New-TLr $fam
     $script:LevelBrands = @(New-TBrand $fam ($need - 10) 470)
     # Sans @() : New-LevelCalUnits rend le tableau des unites en un seul objet
@@ -374,7 +406,7 @@ Chk 'P5' ((Get-TMax $v1) -eq 493 -and (Get-TMax $v0) -eq 470 -and (Get-TMax $v2)
 $uses = @{}; $calls = @{}
 foreach ($f in @(Get-ChildItem -LiteralPath $mods -Filter '*.ps1' -File | Sort-Object Name)) {
     $ast = Get-Cal2Ast $f.FullName; $num = $f.Name.Substring(0, 3)
-    foreach ($x in @($ast.FindAll({ param($n) ($n -is $tVar -and $n.VariablePath.UserPath -eq 'script:CalHardMaxNs') -or ($n -is $tCmd -and @('Get-DiskCapNs', 'Get-UnitCapNs', 'Get-DiskHardNs', 'Get-DiskCellNs', 'Get-DiskOverAdviceText', 'Get-LevelAdaptHard', 'Get-LevelBrandCurveValues', 'New-LevelCalUnits') -contains $n.GetCommandName()) }, $true))) {
+    foreach ($x in @($ast.FindAll({ param($n) ($n -is $tVar -and $n.VariablePath.UserPath -eq 'script:CalHardMaxNs') -or ($n -is $tCmd -and @('Get-DiskCapNs', 'Get-UnitCapNs', 'Get-DiskCapBits', 'Get-DiskHardNs', 'Get-DiskCellNs', 'Get-DiskOverAdviceText', 'Get-LevelAdaptHard', 'Get-LevelBrandCurveValues', 'New-LevelCalUnits') -contains $n.GetCommandName()) }, $true))) {
         $p = $x.Parent; while ($p -and $p -isnot $tFn) { $p = $p.Parent }
         $where = "${num}:" + $(if ($p) { $p.Name } else { '(script)' })
         if ($x -is $tVar) { if (-not $uses.ContainsKey($where)) { $uses[$where] = 0 }; $uses[$where]++ }
@@ -389,16 +421,43 @@ $spAst = Get-FnAst $f270 'Start-PrecompCalib'
 $setAt = @($spAst.Body.FindAll({ param($n) $n -is $tAsg -and $n.Left.Extent.Text -eq '$do.HardNs' }, $true))
 $useAt = @($spAst.Body.FindAll({ param($n) $n -is $tCmd -and $n.GetCommandName() -eq 'Set-DiskHardNs' }, $true))
 $readAt = @($spAst.Body.FindAll({ param($n) $n -is [System.Management.Automation.Language.MemberExpressionAst] -and $n.Extent.Text -eq '$do.HardNs' }, $true) | ForEach-Object { $_.Extent.StartOffset } | Sort-Object)
-$okOrder = ($setAt.Count -eq 1 -and $useAt.Count -eq 1 -and $setAt[0].Extent.Text -eq '$do.HardNs = Get-DiskHardNs ([int]$pat.Bits)' -and $setAt[0].Extent.StartOffset -lt $useAt[0].Extent.StartOffset -and $readAt.Count -ge 4 -and $readAt[0] -eq $setAt[0].Extent.StartOffset)
+$okOrder = ($setAt.Count -eq 1 -and $useAt.Count -eq 1 -and $setAt[0].Extent.Text -eq '$do.HardNs = Get-DiskHardNs (Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text))' -and $setAt[0].Extent.StartOffset -lt $useAt[0].Extent.StartOffset -and $readAt.Count -ge 4 -and $readAt[0] -eq $setAt[0].Extent.StartOffset)
 $dmAst = Get-FnAst $f270 'Start-DiskMeasure'
 $okDm = ($dmAst.Extent.Text.Contains('HardNs = 0;') -and (Get-Callers 'Get-DiskHardNs') -eq '265:Get-LevelBrandCurveValues, 270:Start-PrecompCalib')
 $okAdv = ((Get-Callers 'Get-DiskOverAdviceText') -eq '260:Get-LevelUnitResults, 265:Get-LevelAdaptOutcome, 270:Complete-PrecompCalib')
 $slAst = Get-FnAst (Join-Path $mods '260-fn-calib-rapide.ps1') 'Start-LevelCalib'
 $nuAt = @($slAst.Body.FindAll({ param($n) $n -is $tCmd -and $n.GetCommandName() -eq 'New-LevelCalUnits' }, $true))
 $patAt = @($slAst.Body.FindAll({ param($n) $n -is $tAsg -and $n.Left.Extent.Text -eq '$pat' }, $true))
-$okUnits = ((Get-Callers 'New-LevelCalUnits') -eq '260:Start-LevelCalib' -and $nuAt.Count -eq 1 -and $nuAt[0].CommandElements.Count -eq 5 -and $nuAt[0].CommandElements[4].Extent.Text -eq '([int]$pat.Bits)' -and
+$okUnits = ((Get-Callers 'New-LevelCalUnits') -eq '260:Start-LevelCalib' -and $nuAt.Count -eq 1 -and $nuAt[0].CommandElements.Count -eq 5 -and $nuAt[0].CommandElements[4].Extent.Text -eq '$(if ($Geom) { 0 } else { Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text) })' -and
             $patAt.Count -eq 1 -and $patAt[0].Extent.Text.Contains('New-CalibPattern') -and $patAt[0].Extent.StartOffset -lt $nuAt[0].Extent.StartOffset)
-Chk 'P6' ($usesTxt -eq $usesExp -and $okOrder -and $okDm -and $okAdv -and $okUnits) "CalHardMaxNs dans le code : $usesTxt ; Start-PrecompCalib pose la borne avant Set-DiskHardNs et avant toute lecture ($okOrder) ; Start-DiskMeasure ne la calcule plus ($okDm) ; conseil appele par : $(Get-Callers 'Get-DiskOverAdviceText') ; Start-LevelCalib, seul appelant de New-LevelCalUnits, lui transmet la densite du motif une fois celui-ci cree ($okUnits)"
+# Get-DiskCapBits : la calibration rapide (une fois) et la mesure complete de la disquette (borne et ligne du journal)
+$okBits = ((Get-Callers 'Get-DiskCapBits') -eq '260:Start-LevelCalib, 270:Start-PrecompCalib, 270:Start-PrecompCalib')
+Chk 'P6' ($usesTxt -eq $usesExp -and $okOrder -and $okDm -and $okAdv -and $okUnits -and $okBits) "CalHardMaxNs dans le code : $usesTxt ; Start-PrecompCalib pose la borne avant Set-DiskHardNs et avant toute lecture, sur les cellules de la piste ecrite ($okOrder) ; Start-DiskMeasure ne la calcule plus ($okDm) ; conseil appele par : $(Get-Callers 'Get-DiskOverAdviceText') ; Start-LevelCalib, seul appelant de New-LevelCalUnits, lui transmet les cellules de la piste ecrite une fois le motif cree, aucune pour la carte de l Accueil ($okUnits) ; Get-DiskCapBits appelee par : $(Get-Callers 'Get-DiskCapBits') ($okBits)"
+# P7 : carte « Calibrer le lecteur » de l Accueil (Geom). Le profil de sa calibration rapide peut etre place dans les champs
+# --precomp d une image de la meme famille et d une autre densite (Complete-LevelCalib : condition de $toFields, qui ne lit
+# pas la densite) : l argument reel de Start-LevelCalib ne transmet aucune densite, les unites gardent donc 470 ns, sous le
+# quart de la cellule de toute image de la famille standard (487 ns a 1 950 ns, seuil de famille par defaut)
+$clAst = Get-FnAst (Join-Path $mods '260-fn-calib-rapide.ps1') 'Complete-LevelCalib'
+$tfAt = @($clAst.Body.FindAll({ param($n) $n -is $tAsg -and $n.Left.Extent.Text -eq '$toFields' }, $true))
+$geomT = @{ Img = 'geometrie.hfe'; Label = 'ibm.720' }
+$cmbWFmt.Text = 'atarist.880'; $bHome = Get-TUnitBits $geomT @{ Bits = 100000 }
+$cmbWFmt.Text = ''; $bHomeAdf = Get-TUnitBits $geomT @{ Bits = 101344 }; $bTab = Get-TUnitBits $null @{ Bits = 100000 }; $bTabAdf = Get-TUnitBits $null @{ Bits = 101344 }
+$rHome = Invoke-TRun $bHome 400 520 0
+Chk 'P7' ($tfAt.Count -eq 1 -and $tfAt[0].Right.Extent.Text -eq '(-not $cal.Home) -or ((Get-WriteTabFamily) -eq $cal.Family -and -not $tgtL.Applies)' -and $bHome -eq 0 -and $bHomeAdf -eq 0 -and $bTab -eq 100000 -and $bTabAdf -eq 101344 -and
+          $rHome.Heads[0].Hard -eq 470 -and $rHome.Heads[1].Hard -eq 470 -and (Get-TMax $rHome.Heads[0].Values) -eq 470 -and (Get-TMax $rHome.Heads[1].Values) -eq 470 -and (Get-DiskCapNs 102560) -eq 487) "carte de l Accueil : profil place dans les champs d apres la famille seule (Complete-LevelCalib) ; argument reel de Start-LevelCalib : $bHome et $bHomeAdf cellule pour la carte, $bTab et $bTabAdf pour l onglet Ecriture ; unites sans densite : $(Get-TMax $rHome.Heads[0].Values) et $(Get-TMax $rHome.Heads[1].Values) ns au plus pour un besoin de 520 ns, sous le quart de la cellule de toute image standard ($(Get-DiskCapNs 102560) ns a 1 950 ns)"
+# P8 : format gw double densite de plus de 250 kbit/s (atari.130, atarist.440, atarist.880) : la piste ecrite compte
+# 400 x debit cellules, plus que le motif (100 000 a 2 us) : le plafond suit la cellule ecrite. Format absent, automatique,
+# inconnu, a 250 kbit/s ou haute densite, image qui compte deja plus de cellules, unite sans densite : cellules inchangees
+$p8 = @(@(100000, 'atarist.880', 104400), @(100000, 'atarist.440', 104400), @(100000, 'atari.130', 104000), @(100000, 'ibm.720', 100000), @(100000, 'atarist.720', 100000),
+        @(100000, '(auto)', 100000), @(100000, '', 100000), @(100000, 'format.inconnu', 100000), @(101344, 'amiga.amigados', 101344), @(101344, '', 101344),
+        @(105808, 'atarist.880', 105808), @(200000, 'ibm.1440', 200000), @(0, 'atarist.880', 0), @(0, '', 0))
+$bad = @($p8 | Where-Object { (Get-DiskCapBits $_[0] $_[1]) -ne $_[2] } | ForEach-Object { "$($_[0]) cellules, format « $($_[1]) » -> $(Get-DiskCapBits $_[0] $_[1]) au lieu de $($_[2])" })
+$cmbWFmt.Text = 'atarist.880'; $bSt = Get-TUnitBits $null @{ Bits = 100000 }; $cmbWFmt.Text = 'ibm.720'; $bIbm = Get-TUnitBits $null @{ Bits = 100000 }; $cmbWFmt.Text = ''
+$rSt = Invoke-TRun $bSt 400 520 0 'std'
+$okSt = ($rSt.Heads[0].Hard -eq 478 -and $rSt.Heads[1].Hard -eq 478 -and (Get-TMax $rSt.Heads[0].Values) -eq 478 -and (Get-TMax $rSt.Heads[1].Values) -eq 478 -and
+         @($rSt.Issues | Where-Object { $_.Contains('plafond porté à 478 ns pour cette disquette seulement') }).Count -eq 2)
+Chk 'P8' ($bad.Count -eq 0 -and (Get-DiskCapBits 100000 'atarist.880') -is [int] -and (Get-DiskCapNs (Get-DiskCapBits 100000 'atarist.880')) -eq 478 -and (Get-DiskCapNs (Get-DiskCapBits 100000 'atari.130')) -eq 480 -and
+          (Get-DiskCapNs (Get-DiskCapBits 0 'atarist.880')) -eq 470 -and $bSt -eq 104400 -and $bIbm -eq 100000 -and $okSt) "Get-DiskCapBits : $($p8.Count) cas (format de plus de 250 kbit/s : 400 x debit cellules ; autres formats, format absent ou automatique, image de plus de cellules, unite sans densite : inchange) ; plafond de 478 ns a 261 kbit/s et de 480 ns a 260 kbit/s, et non 500 ; argument reel de Start-LevelCalib avec atarist.880 : $bSt cellules ($bIbm avec ibm.720) ; calibration factice, besoin de 520 ns : $(Get-TMax $rSt.Heads[0].Values) et $(Get-TMax $rSt.Heads[1].Values) ns au plus, reserve « plafond porté à 478 ns » ($okSt) ; ecarts : $(Get-List $bad)"
 
 # ---------------------------------------------------------------- B : jamais plus du quart de la cellule ni 500 ns
 '--- B : le plafond ne depasse jamais le quart de la cellule reelle ni 500 ns'
@@ -422,6 +481,24 @@ foreach ($k in @($gridNew.Bits.Keys | Sort-Object)) {
     if ((Get-TMax $r.Start1) -gt $lim) { $bad += "$k : depart de la marque a $(Get-TMax $r.Start1) ns, limite $lim" }
 }
 Chk 'B2' ($bad.Count -eq 0 -and $gridNew.Bits.Count -eq 192) "$($gridNew.Bits.Count) calibrations factices ($nV valeurs de courbe) : aucune valeur ni aucun plafond au-dela du quart de la cellule de l image, sauf borne reglee plus haut (elle reste appliquee), jamais plus de 500 ns ; ecarts : $(Get-List $bad)"
+# B3 : tous les formats gw que l application calibre en double densite (Get-FormatCalibInfo reelle : Cal « std »), table
+# reelle de 040. Cellules de la piste ecrite, calcul independant de Get-DiskCapBits : codec AmigaDOS de gw (101 344), sinon
+# 400 x debit (250 kbit/s par defaut). Le plafond ne depasse jamais le quart de cette cellule ; sans Get-DiskCapBits
+# (densite du motif seule), les formats a 260 et 261 kbit/s le depassaient
+$nF = 0; $bad = @(); $chg = @(); $over0 = @()
+foreach ($name in @($script:GwFormats.Keys)) {
+    $fi = Get-FormatCalibInfo $name
+    if ([string]$fi.Cal -ne 'std') { continue }
+    $nF++
+    $fe1 = $script:GwFormats[$name]
+    $wr = 100000; if ([string]$fe1.Enc -eq 'amiga') { $wr = 101344 } elseif ([int]$fe1.Rate -gt 0) { $wr = 400 * [int]$fe1.Rate }
+    $qF = Get-Quarter $wr
+    $bitsF = Get-DiskCapBits ([int]$fi.Bits) $name; $capF = Get-DiskCapNs $bitsF
+    if ($capF -gt $qF -or $capF -gt 500) { $bad += "$name : $capF ns pour un quart de cellule de $qF ns" }
+    if ((Get-DiskCapNs ([int]$fi.Bits)) -gt $qF) { $over0 += $name }
+    if ($bitsF -ne [int]$fi.Bits) { $chg += "$name $capF" }
+}
+Chk 'B3' ($bad.Count -eq 0 -and $nF -ge 60 -and ($chg -join ', ') -ceq 'atari.130 480, atarist.440 478, atarist.880 478' -and ($over0 -join ', ') -ceq 'atari.130, atarist.440, atarist.880') "$nF formats gw calibres en double densite (table de 040, Get-FormatCalibInfo reelle), sur $($script:GwFormats.Count) : plafond jamais au-dela du quart de la cellule de la piste ecrite ; formats dont le plafond suit le debit : $($chg -join ', ') ns ; sur la seule densite du motif, au-dela du quart : $($over0 -join ', ') ; ecarts : $(Get-List $bad)"
 
 # ---------------------------------------------------------------- E : equivalence avec la regle de la 12.10
 '--- E : equivalence avec la regle de la 12.10 (unite sans densite : 470 ns pour toutes)'
@@ -535,6 +612,14 @@ $st0 = Get-TStart -1 400
 Chk 'D2' ($bad.Count -eq 0 -and [int]$st0.Bits0 -eq 0) "courbe de marque de la 12.10 (jusqu a 468 ns) reprise telle quelle comme point de depart (New-LevelCalUnits et Set-LevelBrandStart reelles) : sans densite, cellule de 2 us, ADF, long track, borne reglee a 470 ns ; la densite de l image est gardee par chaque unite (0 sans elle) ; ecarts : $(Get-List $bad)"
 $stLo = Get-TStart 110000 400; $st350 = Get-TStart 101344 350; $st500 = Get-TStart 101344 400 $en500; $st500n = Get-TStart -1 400 $en500
 Chk 'D3' ((Get-TMax $stLo.V) -eq 454 -and (Get-TMax $st350.V) -eq 350 -and (Get-TMax $st500.V) -eq 493 -and (Get-TMax $st500n.V) -eq 470) "meme courbe, cas ou elle est ramenee : long track de 110 000 cellules -> $(Get-TMax $stLo.V) ns (quart de sa cellule ; 470 en 12.10) ; borne reglee a 350 ns -> $(Get-TMax $st350.V) ns (comme en 12.10) ; courbe de marque mesuree jusqu a 500 ns reprise pour un ADF -> $(Get-TMax $st500.V) ns, sans densite -> $(Get-TMax $st500n.V) ns"
+# D4 : reference plus longue que la courbe de la marque (image de 84 cylindres, courbe de 80) : cylindres de la courbe repris
+# tels quels ; cylindres manquants prolonges (reference decalee de l ecart du dernier cylindre) et bornes au plafond de
+# l image, 470 ns sans densite (regle de la 12.10)
+Set-TBound 400
+$ref84 = New-Object int[] 84; for ($c = 0; $c -lt 84; $c++) { $ref84[$c] = 60 + 4 * $c }
+$en468 = @{ Curve = [int[]]$cur468 }
+$xA = Get-LevelBrandCurveValues $en468 $ref84 101344; $xL = Get-LevelBrandCurveValues $en468 $ref84 105808; $xN = Get-LevelBrandCurveValues $en468 $ref84
+Chk 'D4' ((Test-TSameSeq @($xA[0..79]) $cur468) -and (Test-TSameSeq @($xL[0..79]) $cur468) -and (Test-TSameSeq @($xN[0..79]) $cur468) -and (@($xA[80..83]) -join ' ') -ceq '472 476 480 484' -and (@($xL[80..83]) -join ' ') -ceq '472 472 472 472' -and (@($xN[80..83]) -join ' ') -ceq '470 470 470 470') "courbe de marque de la 12.10 (80 cylindres, 468 ns au plus) et reference de 84 cylindres : les 80 cylindres de la courbe repris tels quels ; cylindres prolonges : ADF $(@($xA[80..83]) -join ' ') (plafond de 493 ns), long track $(@($xL[80..83]) -join ' ') (472 ns), sans densite $(@($xN[80..83]) -join ' ') (470 ns, comme en 12.10)"
 
 # ---------------------------------------------------------------- M : mesure complete de cette disquette
 '--- M : mesure complete de cette disquette'
@@ -551,6 +636,13 @@ $script:Lang = 'en'
 $oEn = Invoke-TDisk 101344 400; $advEn = Get-DiskOverAdviceText 400
 $script:Lang = 'fr'
 Chk 'M3' ([string]$oEn.Log[0] -ceq 'Curve bound for this disk: 493 ns, a quarter of the image cell (1973 ns), 500 ns at most; above 400 ns, post-write check enforced.' -and $advEn -ceq ($eAdv -f '400') -and (Get-DiskOverAdviceText 430) -ceq ($kAdv -f '430')) "interface anglaise : ligne de la borne et conseil (« $(Get-Short $advEn 70) »)"
+# M4 : image secteur ecrite avec un format de plus de 250 kbit/s (motif de 100 000 cellules) : borne et cellule annoncee
+# d apres la piste ecrite (instructions reelles de Start-PrecompCalib, format lu dans $cmbWFmt)
+$cmbWFmt.Text = 'atarist.880'; $oSt = Invoke-TDisk 100000 400; $oSt470 = Invoke-TDisk 100000 470
+$cmbWFmt.Text = 'ibm.720'; $oIbm = Invoke-TDisk 100000 400
+$cmbWFmt.Text = ''
+Chk 'M4' ($oSt.HardNs -eq 478 -and $oSt.During -eq 478 -and $oSt.Reset -eq 400 -and $oSt.Log.Count -eq 1 -and [string]$oSt.Log[0] -ceq "Borne de la courbe de cette disquette : 478 ns, le quart de la cellule de l'image (1916 ns), 500 ns au plus ; au-delà de 400 ns, contrôle après écriture imposé." -and
+          $oSt470.HardNs -eq 478 -and $oIbm.HardNs -eq 500 -and [string]$oIbm.Log[0] -ceq "Borne de la courbe de cette disquette : 500 ns, le quart de la cellule de l'image (2000 ns), 500 ns au plus ; au-delà de 400 ns, contrôle après écriture imposé.") "mesure complete, image secteur et format atarist.880 (261 kbit/s) : borne $($oSt.HardNs) ns et non 500, « $(Get-Short ([string]$oSt.Log[0]) 100) » ; borne reglee a 470 ns : $($oSt470.HardNs) ns ; format ibm.720 : $($oIbm.HardNs) ns"
 
 # ---------------------------------------------------------------- H : haute densite
 '--- H : haute densite'

@@ -417,7 +417,7 @@ function New-LevelCalUnits($lr, [string]$brand, [string]$drive, [int]$Bits = 0) 
         $u.Mode = 'lvl1'; $u.Raw = @{}; $u.V0 = [int[]]@($lu.V); $u.Memo = $null; $u.BrandEntry = $null; $u.AN = $null; $u.AV = $null; $u.VR = $null
         $u.Named = @{}; $u.Refus = ''; $u.Trig = $null; $u.Note = ''; $u.AdaptNote = ''; $u.AdaptLog = $null; $u.Ctl = [int[]]@()
         # 12.8 (F3R) : controles integres a l ajustement par une reprise e3 (CtlFit), reserve de controle e2 (motif, controles)
-        $u.CtlFit = [int[]]@(); $u.CtlReserve = ''; $u.CtlBad = @(); $u.ImgBits = $Bits   # 12.11 : ImgBits, cellules par piste du motif (densite de l image ; 0 sans elle) : plafond par disquette (Get-UnitCapNs)
+        $u.CtlFit = [int[]]@(); $u.CtlReserve = ''; $u.CtlBad = @(); $u.ImgBits = $Bits   # 12.11 : ImgBits, cellules de la piste ecrite (Get-DiskCapBits : celles du motif, ou du format gw au-dela de 250 kbit/s ; 0 sans densite) : plafond par disquette (Get-UnitCapNs)
         Set-LevelBrandStart @{ Drive = $drive; Family = [string]$lr.Family } $u $brand
         $u.ShapeV = New-LevelShape $u.V0
         foreach ($c in @(@($u.LCyls) + @($u.Wit) + @($(if ($null -ne $u.Probe) { $u.Probe })))) { $u.Results[[int]$c] = @{} }
@@ -509,7 +509,7 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     try { $pat = New-CalibPattern $fam $img $lr.NCyl }
     catch { [void](Show-AppMessage ((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)") (T 'Calibration precomp') 'OK' 'Error'); return }
     Set-CalibScale $fam     # 12.7 : bareme double densite (pas de calibration rapide en haute densite, Get-LevelRef)
-    $units = New-LevelCalUnits $lr $brand ([string]$cmbDrive.Text) ([int]$pat.Bits)
+    $units = New-LevelCalUnits $lr $brand ([string]$cmbDrive.Text) $(if ($Geom) { 0 } else { Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text) })   # 12.11 : cellules de la piste ecrite (Get-DiskCapBits) ; carte de l Accueil (Geom : type de disquette, pas l image a ecrire) : sans densite, plafond de 470 ns comme en 12.10 (son profil peut etre place dans les champs d une image d une autre densite, Complete-LevelCalib)
     $cylList = Format-CylList $cyls
     $script:Cal = @{
         Mode = 'level'; Stage = 'level'; LPass = 1; Cyls = $cyls; MaxCyl = $lr.MaxCyl; Family = $fam; Slow = $slow

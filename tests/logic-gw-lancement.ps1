@@ -10,15 +10,19 @@ $Wt = Get-TestRoot $Wt
 #  G2 le suivi du processus ($script:GwProc = $p, puis GwSoft et GwDriveKey) est pose hors de tout try, aussitot apres ce
 #     try et avant le second, sans rien d autre entre les deux ; G2b Start-Gw ne touche plus au suivi ensuite ;
 #  G3 second try : flux de gw, Set-Busy $true, Set-QualityStale, Hide-WCalVerdict ; son catch : une ligne de journal (texte
-#     de la specification), Set-Busy $true dans un try au catch vide, rien d autre (ni suivi, ni sequence, ni barre
-#     d etat) ; Set-GwLaunchFailedStatus appelee une seule fois dans les modules, dans le catch du premier try ;
+#     de la specification), Set-Busy $true dans un try au catch vide, puis « Arreter » active directement
+#     ($btnStop.Enabled = $true, seule affectation) dans un second try au catch vide, rien d autre (ni suivi, ni
+#     sequence, ni barre d etat) ; le second try est la derniere instruction de Start-Gw ; Set-GwLaunchFailedStatus
+#     appelee une seule fois dans les modules, dans le catch du premier try ;
 #  G4 execution du texte reel du second try, extrait par l arbre syntaxique et place dans une fonction du dossier de
 #     travail, avec un faux processus (deux lecteurs de texte, aucun processus lance) et des bouchons :
 #     G4v le second try n emploie que des variables et des commandes que ce test fournit ;
-#     G4a Set-Busy qui leve : une ligne de journal, suivi intact, sequence gardee, nouvel essai de Set-Busy absorbe ;
+#     G4a Set-Busy qui leve, deux fois : une ligne de journal, suivi intact, sequence gardee, nouvel essai de Set-Busy
+#         absorbe, « Arreter » actif quand meme ;
 #     G4b Set-QualityStale qui leve : meme attendu, Set-Busy $true appelee ;
-#     G4c sans exception : aucune ligne, taches de lecture posees, lues par la vraie Drain-GwReader ;
+#     G4c sans exception : aucune ligne, taches de lecture posees, lues par la vraie Drain-GwReader ; bouton non touche ;
 #     G4d flux qui levent (flux ferme) : une ligne, Set-Busy $true tentee, taches nulles acceptees par Drain-GwReader ;
+#     G4g bouton « Arreter » inaccessible : exception absorbee, une ligne de journal, suivi intact ;
 #     G4e resultat de l onglet Qualite perime pour une ecriture ou un effacement hors controle seulement ;
 #     G4f ligne en anglais ; couleur d erreur de la vraie Get-LogColor dans les deux langues (le journal masque s ouvre) ;
 #  G5 cas R9 a R13 du test de la barre d etat de la restauration (logic-barre-etat-restauration), lance tel quel dans un
@@ -146,7 +150,7 @@ $after = @(); if ($setP.Count -eq 1) { $after = @($asgP | Where-Object { $_.Exte
 Chk 'G2b' ($setP.Count -eq 1 -and $after.Count -eq 0 -and $asgP.Count -eq 2) "Start-Gw ne touche plus a `$script:GwProc apres l avoir pose : $($after.Count) affectation(s) ensuite, $($asgP.Count) en tout (2 attendues : remise a zero du catch du demarrage, puis pose)"
 
 # --- G3 : second try et son catch
-$g3Body = $false; $g3Catch = $false; $extra = @(); $nAsg = -1; $okIn = $false; $key2 = ''
+$g3Body = $false; $g3Catch = $false; $extra = @(); $nAsg = -1; $okIn = $false; $okStop = $false; $key2 = ''
 if ($t2) {
     $b2 = @(Get-CmdNames $t2.Body)
     $streams = @('script:OutStdoutReader', 'script:OutStderrReader', 'script:OutStdoutTask', 'script:OutStderrTask' | Where-Object { @(Get-Assign $t2.Body $_).Count -eq 1 })
@@ -156,17 +160,22 @@ if ($t2) {
         $c2Names = @(Get-CmdNames $c2)
         $extra = @($c2Names | Where-Object { $_ -notin 'Append-Log', 'T', 'Set-Busy' } | Sort-Object -Unique)
         $in2 = @($c2.FindAll({ param($n) $n -is $tTry }, $true))
-        if ($in2.Count -eq 1) {
-            $s2 = @($in2[0].Body.Statements)
+        # Deux try au catch vide, dans cet ordre : nouvel essai de Set-Busy, puis « Arreter » active directement (Set-Busy
+        # ne l active qu a sa deuxieme instruction : si elle leve avant, deux fois, le bouton resterait inactif)
+        $in2 = @($in2 | Sort-Object { $_.Extent.StartOffset })
+        if ($in2.Count -eq 2) {
+            $s2 = @($in2[0].Body.Statements); $s3 = @($in2[1].Body.Statements)
             $okIn = ($s2.Count -eq 1 -and ($s2[0].Extent.Text.Trim() -replace '\s+', ' ') -ceq 'Set-Busy $true' -and $null -eq $in2[0].Finally -and $in2[0].CatchClauses.Count -eq 1 -and $in2[0].CatchClauses[0].IsCatchAll -and @($in2[0].CatchClauses[0].Body.Statements).Count -eq 0)
+            $okStop = ($s3.Count -eq 1 -and ($s3[0].Extent.Text.Trim() -replace '\s+', ' ') -ceq '$btnStop.Enabled = $true' -and $null -eq $in2[1].Finally -and $in2[1].CatchClauses.Count -eq 1 -and $in2[1].CatchClauses[0].IsCatchAll -and @($in2[1].CatchClauses[0].Body.Statements).Count -eq 0)
         }
         $nAsg = @($c2.FindAll({ param($n) $n -is $tAsg }, $true)).Count
         $key2 = (@(Get-LogKeys $c2) -join '|')
-        $g3Catch = ($key2 -ceq $msgKey -and $extra.Count -eq 0 -and @($c2Names | Where-Object { $_ -eq 'Append-Log' }).Count -eq 1 -and (Get-BusyArg $c2) -ceq '$true' -and $okIn -and $nAsg -eq 0)
+        $g3Catch = ($key2 -ceq $msgKey -and $extra.Count -eq 0 -and @($c2Names | Where-Object { $_ -eq 'Append-Log' }).Count -eq 1 -and (Get-BusyArg $c2) -ceq '$true' -and $okIn -and $okStop -and $nAsg -eq 1)
     }
 }
+$g3Last = ($i2 -ge 0 -and $i2 -eq $top.Count - 1)
 $g3One = ($lfCalls.Count -eq 1 -and $null -ne $c1 -and $lfCalls[0].File -like '110-*' -and $lfCalls[0].Ast.Extent.StartOffset -ge $c1.Extent.StartOffset -and $lfCalls[0].Ast.Extent.EndOffset -le $c1.Extent.EndOffset)
-Chk 'G3' ($null -ne $t2 -and $g3Body -and $g3Catch -and $g3One) "second try (rang $i2) : flux de gw, Set-Busy `$true, Set-QualityStale, Hide-WCalVerdict ($g3Body) ; son catch : ligne de journal de la specification ($($key2 -ceq $msgKey)), Set-Busy `$true dans un try au catch vide ($okIn), autres commandes : $(Get-List $extra), affectations : $nAsg ; Set-GwLaunchFailedStatus : $($lfCalls.Count) appel(s) dans les modules, dans le catch du demarrage ($g3One)"
+Chk 'G3' ($null -ne $t2 -and $g3Body -and $g3Catch -and $g3One -and $g3Last) "second try (rang $i2, derniere instruction de Start-Gw : $g3Last) : flux de gw, Set-Busy `$true, Set-QualityStale, Hide-WCalVerdict ($g3Body) ; son catch : ligne de journal de la specification ($($key2 -ceq $msgKey)), Set-Busy `$true dans un try au catch vide ($okIn), puis `$btnStop.Enabled = `$true dans un try au catch vide ($okStop), autres commandes : $(Get-List $extra), affectations : $nAsg (1 attendue, celle du bouton) ; Set-GwLaunchFailedStatus : $($lfCalls.Count) appel(s) dans les modules, dans le catch du demarrage ($g3One)"
 
 # --- G4 : execution du texte reel du second try
 $nl = "`r`n"
@@ -192,10 +201,13 @@ function New-FakeProc([string]$out, [string]$err, [switch]$Closed) {
     if ($Closed) { $ro.Dispose() }
     return @{ StandardOutput = $ro; StandardError = $re }
 }
+# Bouton « Arreter » factice, inactif comme apres la fin de la commande precedente : le second catch l active directement
+$btnStop = [pscustomobject]@{ Enabled = $false }
 function Invoke-Case([string]$first, [string]$throwAt, $proc, $rep = $null) {
     # Etat de Start-Gw a l entree du second try : suivi pose (temps 2), flux de la commande precedente remis a zero par
-    # le minuteur (600). Rend ce que le bloc a fait
+    # le minuteur (600), bouton « Arreter » inactif. Rend ce que le bloc a fait
     $script:Calls.Clear(); $script:ThrowAt = $throwAt; $script:Rep = $rep
+    if ($btnStop) { $btnStop.Enabled = $false }
     $script:OutStdoutReader = $null; $script:OutStderrReader = $null; $script:OutStdoutTask = $null; $script:OutStderrTask = $null
     $script:OutQueue = New-Object System.Collections.Queue
     $script:GwProc = $proc
@@ -203,7 +215,12 @@ function Invoke-Case([string]$first, [string]$throwAt, $proc, $rep = $null) {
     try { $o = @(Invoke-GwAfterStart $proc $first) } catch { $esc = $true }
     $script:ThrowAt = ''
     return @{ Esc = $esc; Out = $o.Count; Log = @(Get-CallsPre 'Append-Log '); All = ($script:Calls -join ' | '); Kept = [object]::ReferenceEquals($script:GwProc, $proc)
-              Seq = (@(Get-CallsPre 'Reset-GwSequence').Count + @(Get-CallsPre 'Set-GwLaunchFailedStatus').Count) }
+              Seq = (@(Get-CallsPre 'Reset-GwSequence').Count + @(Get-CallsPre 'Set-GwLaunchFailedStatus').Count); Stop = [bool]($btnStop -and $btnStop.Enabled) }
+}
+function Invoke-CaseNoButton([string]$first, [string]$throwAt, $proc) {
+    # Meme cas, bouton « Arreter » inaccessible : la variable locale masque celle du script pour le bloc execute
+    $btnStop = $null
+    return (Invoke-Case $first $throwAt $proc)
 }
 function Read-Fake {
     # Lit les flux poses par le second try avec la vraie Drain-GwReader, comme Read-GwOutput ; rend les lignes recues
@@ -214,9 +231,9 @@ function Read-Fake {
 }
 
 if (-not $t2) {
-    foreach ($id in 'G4v', 'G4a', 'G4b', 'G4c', 'G4d', 'G4e', 'G4f') { Chk $id $false 'second try de Start-Gw introuvable : cas non joue' }
+    foreach ($id in 'G4v', 'G4a', 'G4b', 'G4c', 'G4d', 'G4g', 'G4e', 'G4f') { Chk $id $false 'second try de Start-Gw introuvable : cas non joue' }
 } else {
-    $known = @('p', 'first', 'script:Rep', 'script:OutStdoutReader', 'script:OutStderrReader', 'script:OutStdoutTask', 'script:OutStderrTask', '_', 'true', 'false', 'null')
+    $known = @('p', 'first', 'script:Rep', 'script:OutStdoutReader', 'script:OutStderrReader', 'script:OutStdoutTask', 'script:OutStderrTask', 'btnStop', '_', 'true', 'false', 'null')
     $knownCmd = @('Set-Busy', 'Set-QualityStale', 'Hide-WCalVerdict', 'Append-Log', 'T')
     $unkV = @($t2.FindAll({ param($n) $n -is $tVar }, $true) | ForEach-Object { [string]$_.VariablePath.UserPath } | Sort-Object -Unique | Where-Object { $known -notcontains $_ })
     $unkC = @(Get-CmdNames $t2 | Sort-Object -Unique | Where-Object { $knownCmd -notcontains $_ })
@@ -225,17 +242,17 @@ if (-not $t2) {
     $pa = New-FakeProc "ligne 1`nligne 2" 'erreur 1'
     $r = Invoke-Case 'write' 'busy' $pa
     $want = 'Append-Log ' + ($msgKey -f 'panne simulee de Set-Busy')
-    Chk 'G4a' (-not $r.Esc -and $r.Out -eq 0 -and $r.Log.Count -eq 1 -and $r.Kept -and $r.Seq -eq 0 -and $r.All -ceq ('Set-Busy True | ' + $want + ' | Set-Busy True') -and $null -ne $script:OutStdoutTask -and $null -ne $script:OutStderrTask) "Set-Busy qui leve : $($r.Log.Count) ligne de journal ; `$script:GwProc intact ($($r.Kept)) ; Reset-GwSequence et Set-GwLaunchFailedStatus : $($r.Seq) appel ; nouvel essai de Set-Busy `$true absorbe (exception sortie du bloc : $($r.Esc)) ; flux deja poses ; appels : $($r.All)"
+    Chk 'G4a' (-not $r.Esc -and $r.Out -eq 0 -and $r.Log.Count -eq 1 -and $r.Kept -and $r.Seq -eq 0 -and $r.All -ceq ('Set-Busy True | ' + $want + ' | Set-Busy True') -and $null -ne $script:OutStdoutTask -and $null -ne $script:OutStderrTask -and $r.Stop) "Set-Busy qui leve, deux fois : $($r.Log.Count) ligne de journal ; `$script:GwProc intact ($($r.Kept)) ; Reset-GwSequence et Set-GwLaunchFailedStatus : $($r.Seq) appel ; nouvel essai de Set-Busy `$true absorbe (exception sortie du bloc : $($r.Esc)) ; « Arreter » actif quand meme ($($r.Stop)) ; flux deja poses ; appels : $($r.All)"
 
     $r = Invoke-Case 'write' 'stale' (New-FakeProc 'ligne 1' '')
     $want = 'Append-Log ' + ($msgKey -f 'panne simulee de Set-QualityStale')
-    Chk 'G4b' (-not $r.Esc -and $r.Out -eq 0 -and $r.Log.Count -eq 1 -and $r.Kept -and $r.Seq -eq 0 -and $r.All -ceq ('Set-Busy True | Set-QualityStale written | ' + $want + ' | Set-Busy True')) "Set-QualityStale qui leve : $($r.Log.Count) ligne de journal ; `$script:GwProc intact ($($r.Kept)) ; sequence gardee ($($r.Seq) appel) ; Set-Busy `$true appelee, Hide-WCalVerdict non ; appels : $($r.All)"
+    Chk 'G4b' (-not $r.Esc -and $r.Out -eq 0 -and $r.Log.Count -eq 1 -and $r.Kept -and $r.Seq -eq 0 -and $r.All -ceq ('Set-Busy True | Set-QualityStale written | ' + $want + ' | Set-Busy True') -and $r.Stop) "Set-QualityStale qui leve : $($r.Log.Count) ligne de journal ; `$script:GwProc intact ($($r.Kept)) ; sequence gardee ($($r.Seq) appel) ; Set-Busy `$true appelee, Hide-WCalVerdict non ; « Arreter » actif ($($r.Stop)) ; appels : $($r.All)"
 
     $pc = New-FakeProc "ligne 1`nligne 2" 'erreur 1'
     $r = Invoke-Case 'write' '' $pc
     $wired = ([object]::ReferenceEquals($script:OutStdoutReader, $pc.StandardOutput) -and [object]::ReferenceEquals($script:OutStderrReader, $pc.StandardError) -and $script:OutStdoutTask -is [System.Threading.Tasks.Task] -and $script:OutStderrTask -is [System.Threading.Tasks.Task])
     $read = Read-Fake
-    Chk 'G4c' (-not $r.Esc -and $r.Out -eq 0 -and $r.Log.Count -eq 0 -and $r.Kept -and $r.Seq -eq 0 -and $r.All -ceq 'Set-Busy True | Set-QualityStale written | Hide-WCalVerdict' -and $wired -and $read -ceq 'ligne 1|ligne 2|erreur 1') "sans exception : $($r.Log.Count) ligne de journal, aucune sortie ($($r.Out)) ; lecteurs et taches de lecture poses ($wired) ; lignes lues par la vraie Drain-GwReader : « $read » ; appels : $($r.All)"
+    Chk 'G4c' (-not $r.Esc -and $r.Out -eq 0 -and $r.Log.Count -eq 0 -and $r.Kept -and $r.Seq -eq 0 -and $r.All -ceq 'Set-Busy True | Set-QualityStale written | Hide-WCalVerdict' -and $wired -and $read -ceq 'ligne 1|ligne 2|erreur 1' -and -not $r.Stop) "sans exception : $($r.Log.Count) ligne de journal, aucune sortie ($($r.Out)) ; lecteurs et taches de lecture poses ($wired) ; lignes lues par la vraie Drain-GwReader : « $read » ; bouton laisse a Set-Busy, ici un bouchon (touche hors du catch : $($r.Stop)) ; appels : $($r.All)"
 
     $r = Invoke-Case 'write' '' (New-FakeProc 'ligne 1' '' -Closed)
     $cut = $msgKey.IndexOf('{0}'); $pre = 'Append-Log ' + $msgKey.Substring(0, $cut); $suf = $msgKey.Substring($cut + 3)
@@ -245,7 +262,12 @@ if (-not $t2) {
     $tasksNull = ($null -eq $script:OutStdoutTask -and $null -eq $script:OutStderrTask)
     $drained = $true; $read = ''
     try { $read = Read-Fake } catch { $drained = $false }
-    Chk 'G4d' (-not $r.Esc -and $r.Out -eq 0 -and $okLine -and $r.Kept -and $r.Seq -eq 0 -and $r.All -ceq ($line + ' | Set-Busy True') -and $tasksNull -and $drained -and $read -eq '') "flux qui levent (flux de sortie ferme) : $($r.Log.Count) ligne de journal au texte attendu ($okLine) ; `$script:GwProc intact ($($r.Kept)) ; sequence gardee ($($r.Seq) appel) ; Set-Busy `$true tentee ; taches de lecture nulles ($tasksNull), acceptees par la vraie Drain-GwReader ($drained, aucune ligne lue)"
+    Chk 'G4d' (-not $r.Esc -and $r.Out -eq 0 -and $okLine -and $r.Kept -and $r.Seq -eq 0 -and $r.All -ceq ($line + ' | Set-Busy True') -and $tasksNull -and $drained -and $read -eq '' -and $r.Stop) "flux qui levent (flux de sortie ferme) : $($r.Log.Count) ligne de journal au texte attendu ($okLine) ; `$script:GwProc intact ($($r.Kept)) ; sequence gardee ($($r.Seq) appel) ; Set-Busy `$true tentee ; « Arreter » actif ($($r.Stop)) ; taches de lecture nulles ($tasksNull), acceptees par la vraie Drain-GwReader ($drained, aucune ligne lue)"
+
+    $pg = New-FakeProc 'ligne 1' ''
+    $r = Invoke-CaseNoButton 'write' 'busy' $pg
+    $want = 'Append-Log ' + ($msgKey -f 'panne simulee de Set-Busy')
+    Chk 'G4g' (-not $r.Esc -and $r.Out -eq 0 -and $r.Log.Count -eq 1 -and $r.Kept -and $r.Seq -eq 0 -and $r.All -ceq ('Set-Busy True | ' + $want + ' | Set-Busy True')) "bouton « Arreter » inaccessible et Set-Busy qui leve : exception absorbee (sortie du bloc : $($r.Esc)) ; $($r.Log.Count) ligne de journal ; `$script:GwProc intact ($($r.Kept)) ; sequence gardee ($($r.Seq) appel)"
 
     $r1 = Invoke-Case 'read' '' (New-FakeProc 'x' '')
     $r2 = Invoke-Case 'erase' '' (New-FakeProc 'x' '')

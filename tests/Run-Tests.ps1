@@ -30,7 +30,8 @@
     Tests seuls, sans les etapes 1 et 2.
 
 .PARAMETER Ci
-    Lance par la CI : active les cas reserves au runner (compilation des blocs C#, marque d alerte).
+    Lance par la CI : active les cas reserves au runner (compilation des blocs C#, marque d alerte) ; WinForms non
+    chargeable y est un echec et non des cas sautes.
 
 .EXAMPLE
     pwsh -NoProfile -File tests\Run-Tests.ps1

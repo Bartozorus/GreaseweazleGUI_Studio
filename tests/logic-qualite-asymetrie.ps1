@@ -8,6 +8,10 @@ $Wt = Get-TestRoot $Wt
 #           verte, pistes illisibles, liste vide, phrase anglaise ;
 #  N1       score d une piste (Get-TrackScore) et constantes de 040 ; N2 plus aucune trace de la correction ;
 #  N3       scores, etats et asymetries de 32 pistes factices : valeurs rendues par la source de la 12.10 ;
+#  N4 a N6  le signe ne change ni l etat d une piste ni les reecritures, sans -Before aussi : etat de chaque ligne du
+#           tableau de la mesure (N4), pistes faibles et commandes de reecriture du controle, passe interrompue comprise
+#           (N5) : valeurs rendues par la source de la 12.10 ; les fonctions de decision ne lisent ni l asymetrie ni son
+#           signe (N6) ;
 #  E1, E2   export : ligne « Asymetrie » de l en-tete, colonne « Asym. » sans signe, ecarts signes, piste illisible ;
 #  C1       la case signee tient dans la colonne « Asym. » (largeur lue dans 530, police lue dans 500, format de 195) ;
 #  J1 a J6  journal et resultat : mesure (Invoke-AlignAnalysis reelle), mesure continue, controle (Show-WriteCheckTable
@@ -15,12 +19,13 @@ $Wt = Get-TestRoot $Wt
 #  T1, T2   infobulle du tableau (Update-QualityTip reelle, vrai ToolTip jamais affiche) ; infobulle de la carte
 #           (Get-QualityCardModel reelle, theme reel de 500) ;
 #  I1       table I18n : textes de la specification dans 019, memes jalons {n}, cles de la correction absentes ;
-#  Q0 a Q6  equivalence avec la 12.10, avec -Before <racine d une copie de la source de la 12.10> (aucune dans le depot ;
+#  Q0 a Q7  equivalence avec la 12.10, avec -Before <racine d une copie de la source de la 12.10> (aucune dans le depot ;
 #           sans elle, une ligne « saute ») : les memes pistes factices passent par les fonctions des deux versions,
 #           chacune chargee dans sa portee. Q1 mesure, deux passes (lignes du tableau au signe pres, derniere mesure,
 #           resultat, journal a la phrase nouvelle pres) ; Q2 controle apres ecriture, deux passes (etat de chaque piste,
 #           pistes faibles, file des commandes de reecriture et de relecture, journal) ; Q3 passe interrompue
-#           (Update-RepPartial) ; Q4 tableau du controle ; Q5 fonctions de decision au caractere pres ; Q6 valeurs de N3.
+#           (Update-RepPartial) ; Q4 tableau du controle ; Q5 fonctions de decision au caractere pres ; Q6 valeurs de N3 ;
+#           Q7 valeurs de N4 et de N5.
 # Fonctions reelles extraites par l arbre syntaxique, ecrites dans un fichier de travail, chargees par dot-source ; vrais
 # controles WinForms jamais affiches (ListView, ToolTip) ; bouchons pour le journal, la carte, la lecture des fichiers SCP
 # et la chaine d etapes. Aucun gw, aucune fenetre, aucune compilation.
@@ -476,8 +481,37 @@ function Remove-CellSign($rows) {
 }
 function Remove-AsymLines($lines) { return @(@($lines) | Where-Object { $_ -notmatch '^(Mesure|Contrôle après écriture) : Asymétrie (positive|négative) sur ' }) }
 function Get-SignCount($rows) { return @(@($rows) | Where-Object { $p = @($_ -split '\|'); $p.Count -ge 12 -and $p[8] -match '^[+-]\d' }).Count }
+# N4 a N6 : sans -Before aussi : etats de la mesure, pistes faibles et commandes de reecriture du controle (scenario des
+# cas Q), valeurs rendues par la source de la 12.10 (c8a3c72) ; Q7 les recalcule avec -Before
+function Get-StateDigest($o) {
+    # Etat de chaque ligne du tableau de la mesure (icone d etat posee par New-AlignRow), premiere puis seconde passe
+    return ((@(@($o.M1.Rows) + @($o.M2.Rows)) | ForEach-Object { $p = @($_ -split '\|'); $p[0] + ':' + $p[10] }) -join ' ')
+}
+function Get-DecisionDigest($o) {
+    # Pistes faibles et commandes en file (verbe et pistes) : premiere relecture, remesure, passe interrompue
+    $l = @()
+    foreach ($st in @($o.C0, $o.C1, $o.P)) {
+        foreach ($x in @($st)) {
+            if ($x -like 'faibles *') { $l += $x }
+            elseif ($x -like 'commande *') { $w = @($x -split ' '); $l += ($w[1] + ' ' + ([string](@($w | Where-Object { $_ -like '--tracks=*' })[0])).Substring(9)) }
+        }
+        $l += '--'
+    }
+    return ($l -join ' / ')
+}
+$goldStates = '0.0:h0 0.1:h0 1.0:h0 1.1:h1 2.0:h0 2.1:h1 3.0:h0 3.1:h0 4.0:h0 4.1:h2 5.0:h0 5.1:h1 6.0:h0 6.1:h0 7.0:h1 7.1:h0 8.0:h0 8.1:h2 9.0:h0 9.1:h1 10.0:h0 10.1:h2 11.0:h0 11.1:h2 12.0:h0 12.1:h0 13.0:h0 13.1:h1 14.0:h0 14.1:h0 15.0:h0 15.1:h0 0.0:h1 0.1:h0 1.0:h0 1.1:h0 2.0:h0 2.1:h0 3.0:h0 3.1:h0 4.0:h1 4.1:h2 5.0:h0 5.1:h0 6.0:h0 6.1:h0 7.0:h0 7.1:h0 8.0:h1 8.1:h0 9.0:h0 9.1:h0 10.0:h0 10.1:h2 11.0:h0 11.1:h0 12.0:h1 12.1:h0 13.0:h0 13.1:h0 14.0:h0 14.1:h0 15.0:h0 15.1:h0'
+$goldDecisions = 'faibles 1.1,2.1,4.1,5.1,7.0,9.1,10.1,11.1,16.0 / erase c=7,16:h=0 / write c=7,16:h=0 / erase c=1,2,4,5,9,10,11:h=1 / write c=1,2,4,5,9,10,11:h=1 / read c=7,16:h=0 / read c=1,2,4,5,9,10,11:h=1 / -- / faibles 4.1,10.1,16.0 / erase c=16:h=0 / write c=16:h=0 / erase c=4,10:h=1 / write c=4,10:h=1 / read c=16:h=0 / read c=4,10:h=1 / -- / faibles 4.1,10.1,16.0 / erase c=7,16:h=0 / write c=7,16:h=0 / erase c=1,2,4,5,9,10,11:h=1 / write c=1,2,4,5,9,10,11:h=1 / read c=7,16:h=0 / read c=1,2,4,5,9,10,11:h=1 / --'
+'--- N (suite) : etats et reecritures inchanges (valeurs de la 12.10, sans -Before)'
+$now = & $scenario
+$stNow = Get-StateDigest $now; $decNow = Get-DecisionDigest $now
+Chk 'N4' ($stNow -ceq $goldStates) "mesure, deux passes : etat de chacune des $(@($stNow -split ' ').Count) lignes du tableau = valeurs de la 12.10 ($(Get-Short $stNow 60))"
+Chk 'N5' ($decNow -ceq $goldDecisions) "controle : pistes faibles et commandes en file (relecture, remesure, passe interrompue) = valeurs de la 12.10 ($(Get-Short $decNow 80))"
+$decFns = @('Invoke-WriteCheckAnalysis', 'Update-RepPartial', 'Set-CopyUnstable', 'Merge-RepRetries', 'Add-RepReads')
+$noText = @(@($decFns + @('Get-HealthLevel')) | Where-Object { -not $defsNew[$_] })
+$readAsym = @($decFns | Where-Object { $defsNew[$_] -match 'Asym|\.R3\b|\.R4\b' })
+Chk 'N6' ($noText.Count -eq 0 -and $readAsym.Count -eq 0 -and $defsNew['Get-HealthLevel'] -notmatch '\$asym|\.Asym|Get-AsymSign') "les fonctions qui decident de l etat d une piste et des reecritures du controle ($($decFns.Count + 1) textes lus, $($noText.Count) absent) ne lisent ni l asymetrie ni son signe ; en defaut : $(if ($readAsym.Count) { $readAsym -join ', ' } else { 'aucune' })"
 if (-not $Before) {
-    'Q0-Q6    saute : sans -Before <copie de la source de la 12.10>, l equivalence avec la 12.10 n est pas rejouee (N1 et N3 en gardent les valeurs)'
+    'Q0-Q7    saute : sans -Before <copie de la source de la 12.10>, l equivalence avec la 12.10 n est pas rejouee (N1, N3, N4 et N5 en gardent les valeurs)'
 } else {
     if (-not (Test-Path -LiteralPath (Join-Path $Before 'src\modules\190-fn-qualite-alignement.ps1'))) { throw "source d avant introuvable sous $Before" }
     $genOld = Join-Path $here 'gen-avant.ps1'
@@ -511,6 +545,7 @@ if (-not $Before) {
     if (-not ($rpOld -ceq (Get-Lf $defsNew['Update-RepPartial']))) { $diff += 'Update-RepPartial' }
     Chk 'Q5' ($diff.Count -eq 0) "$($same.Count) fonctions de decision au caractere pres ; Get-TrackMetrics au commentaire pres ; Invoke-WriteCheckAnalysis et Update-RepPartial aux appels retires pres ; differentes : $(if ($diff.Count) { $diff -join ', ' } else { 'aucune' })"
     Chk 'Q6' ($a.Gold -ceq $gold -and $b.Gold -ceq $gold) "valeurs de N3 = celles que rend la source d avant$(if (-not ($a.Gold -ceq $gold)) { ' ; source d avant : ' + $a.Gold })"
+    Chk 'Q7' ((Get-StateDigest $a) -ceq $goldStates -and (Get-DecisionDigest $a) -ceq $goldDecisions) "valeurs de N4 et de N5 = celles que rend la source d avant"
 }
 
 $lvAl.Dispose(); $tip.Dispose(); $bold.Dispose()
