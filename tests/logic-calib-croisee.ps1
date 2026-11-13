@@ -68,7 +68,10 @@ function New-CrossGen([string]$m, [string]$out) {
     # 12.11 (lot L8) : progression par piste : les vraies Start-CalibCondition et New-CalibPass posent le plan de leur etape
     # (New-ProgPlan, poids de Get-GwCmdUnits et de $script:ProgCost) ; Update-CalibProgress reel lit Get-ProgPlanFrac
     Add-Cal2Fns $parts (Get-Cal2FnDefs (Join-Path $m '110-fn-coeur-gw.ps1')) @('Get-GwDriveKey', 'Get-SpecCount', 'Get-GwCmdUnits', 'New-ProgPlan', 'Get-GwProgress', 'Get-ProgPlanFrac') $found '110'
-    foreach ($s in (Get-Cal2Assign (Join-Path $m '040-etat-formats.ps1') @('$script:ProgCost'))) { $parts.Add($s) }
+    # 12.11 (lot LN-a) : Get-CalibDriveArgsFor donne a --drive la connexion du lecteur (Get-DriveConn, 112, avec les codes
+    # du reglage drive de 040) ; sans lecteur enregistre, une connexion y rend elle-meme : aucun attendu ne change
+    Add-Cal2Fns $parts (Get-Cal2FnDefs (Join-Path $m '112-fn-lecteurs.ps1')) @('Get-DriveConn') $found '112'
+    foreach ($s in (Get-Cal2Assign (Join-Path $m '040-etat-formats.ps1') @('$script:ProgCost', '$script:SettingDefs'))) { $parts.Add($s) }
     Add-Cal2Fns $parts (Get-Cal2FnDefs (Join-Path $m '200-fn-accueil-calibration.ps1')) @('Get-HomeProgTitle') $found '200'
     $parts.Add((Get-Cal2Renamed (Get-Cal2FnDefs (Join-Path $m '270-fn-calib-complete.ps1')) 'Update-CalibProgress' 'Update-CalibProgressReal'))
     $parts.Add((Get-Cal2CalStateFn $m))

@@ -82,7 +82,7 @@ function Get-CalibDriveArgsFor([string]$verb) {
     $cal = $script:Cal
     if (-not $cal -or -not $cal.Cross) { return @(Get-CommonArgs) }
     $d = if ($verb -eq 'read') { [string]$cal.Cross.Tgt } else { [string]$cal.Cross.Src }
-    $a = @("--drive=$d")
+    $a = @("--drive=$(Get-DriveConn $d)")   # 12.11 : Src et Tgt sont des identites (code ou nom) ; --drive recoit leur connexion (112)
     if ($txtDev.Text.Trim()) { $a += "--device=$($txtDev.Text.Trim())" }
     return $a
 }

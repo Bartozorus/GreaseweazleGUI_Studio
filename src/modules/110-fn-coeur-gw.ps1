@@ -23,7 +23,9 @@ function Invoke-NextChainStep {
 
 # --- Coeur ---------------------------------------------------------------------
 function Get-CommonArgs {
-    $a = @("--drive=$($cmbDrive.Text)")
+    # 12.11 : la liste du bandeau porte l identite du lecteur (le code d une connexion, ou le nom d un lecteur enregistre) ;
+    # --drive recoit sa connexion (Get-DriveConn, 112 : un code y rend lui-meme, un nom n atteint jamais gw)
+    $a = @("--drive=$(Get-DriveConn ([string]$cmbDrive.Text))")
     if ($txtDev.Text.Trim()) { $a += "--device=$($txtDev.Text.Trim())" }
     return $a
 }
@@ -226,7 +228,7 @@ function Start-DriveDetect([string]$mode) {
     if (-not (Test-Path -LiteralPath $script:GwExe)) { return }
     if (Get-AppBusy) { return }                           # 12.8 (D20) : aussi pendant un prechauffage ou la mesure continue
     $script:DetectAt = $null
-    $cur = [string]$cmbDrive.Text
+    $cur = Get-DriveConn ([string]$cmbDrive.Text)         # 12.11 : la detection sonde des connexions (celle du lecteur du bandeau d abord)
     $order = @(@($cur) + @($script:DriveIds | Where-Object { $_ -ne $cur }) | Where-Object { $_ })
     if ($mode -eq 'auto' -and $script:DetectNone) {
         $order = @($cur)

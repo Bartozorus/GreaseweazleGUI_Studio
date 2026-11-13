@@ -529,6 +529,10 @@ function Save-Config {
     # le bloc targetCorrection de la correction « lecteur cible » Dk n est plus ecrit (une 12.9 relit sa configuration sans lui)
     $cmCfg = @(@($script:ContentMeasures) | Where-Object { $_ } | ForEach-Object { ConvertTo-ContentConfig $_ })
     $tdCfg = Export-TargetDrives
+    # 12.11 : lecteurs enregistres (Export-DriveRegistry, 112) : bloc drives, au premier niveau ; $null tant que personne
+    # n a enregistre de lecteur (le fichier garde les cles exactes de la 12.10) ; une 12.10 ignore ce bloc et le perd si
+    # elle enregistre : la copie de secours <fichier>.lecteurs le garde (Save-DriveRescue, apres l ecriture reussie)
+    $drCfg = Export-DriveRegistry
     $cfg = [ordered]@{
         _comment = (T 'Configuration GreaseweazleGUI - régénérée automatiquement. Supprimable sans risque.')
         _saved   = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
@@ -595,10 +599,12 @@ function Save-Config {
     # compare.formatChoice ; library.dat, lot 4b), puis, pendant
     # une operation surchargee (D4 : ecriture depuis la Bibliotheque ; lot 2 : restauration), reglages de l onglet
     # Ecriture d avant l operation
+    if ($drCfg) { $cfg['drives'] = $drCfg }    # 12.11 : lecteurs enregistres
     Export-Settings $cfg
     if ($script:OpOverride) { Set-OpOverrideConfig $cfg }
     try {
         $cfg | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $script:ConfigFile -Encoding UTF8
+        if ($drCfg) { [void](Save-DriveRescue $drCfg) }   # 12.11 : copie de secours du registre, si son contenu a change
         return $true
     } catch {
         Append-Log ((T "ERREUR sauvegarde configuration : {0}") -f "$($_.Exception.Message)")
@@ -698,6 +704,10 @@ function Load-Config {
     $ldDrive = [string](ConvertTo-SettingValue 'drive' (Get-Cfg (Get-Cfg $cfg 'global' $null) 'drive' $null))
     $imp = Import-DriveCurves $pcv $(if ($fromBak) { $null } else { Get-Cfg $w 'driveCurves' $null }) $ldDrive
     $old = $imp.Old
+    # 12.11 : lecteurs enregistres (112) : bloc drives, sinon copie de secours du registre ; rien pour une configuration
+    # qui n en a jamais eu. Les courbes sont deja rangees : une courbe sans lecteur d une configuration 12.9 reste sous la
+    # connexion relue, jamais sous un nom
+    Import-DriveRegistry $cfg $old
     Sync-PrecompCurves $ldDrive
     if ($imp.Migrated) { Append-Log ((T "Configuration d'une version antérieure : {0} courbe(s) de calibration rangée(s) par lecteur ({1}).") -f "$($imp.N + $old.Count)", ((@($imp.Drives)) -join ', ')) }
     # Profil de famille : celui de la courbe commune reprise du lecteur (Sync-PrecompCurves) ; mis de cote avec sa courbe ;
@@ -741,8 +751,15 @@ function Load-Config {
     $script:ContentMeasures = @(); $cmBad = 0
     foreach ($o in @(Get-Cfg $w 'driveFactors' @())) { $rec = ConvertFrom-ContentConfig $o; if ($rec) { $script:ContentMeasures += ,$rec } else { $cmBad++ } }
     if ($cmBad -gt 0) { Append-Log ((T 'Configuration : {0} facteur(s) mesuré(s) illisible(s), ignoré(s).') -f "$cmBad") }
+    # 12.11 : une identite sans fiche n est jamais devinee : fiche sans connexion pour tout nom admis trouve dans les
+    # donnees lues (Repair-DriveRegistry, 112 ; bloc targetDrive lu brut, avant qu Import-TargetDrives ecarte les lecteurs
+    # inconnus) ; aucune pour une configuration dont toutes les donnees citent une connexion (12.10)
+    [void](Repair-DriveRegistry $old (Get-Cfg $w 'targetDrive' $null))
     $tdi = Import-TargetDrives (Get-Cfg $w 'targetDrive' $null)
     if ([int]$tdi.Bad -gt 0) { Append-Log ((T 'Configuration : {0} lecteur(s) cible illisible(s) ou inconnu(s), ignoré(s).') -f "$($tdi.Bad)") }
+    # 12.11 : registre relu dans la copie de secours : lecteurs cibles des lecteurs enregistres retablis depuis elle (une
+    # version anterieure les retire), et ligne de journal qui dit ce qui a ete retrouve ; rien sinon
+    [void](Restore-DriveRescueTargets $old)
     # Revue 12.8.2 : facteurs d un autre calcul qui ne s appliquent plus (aucune mesure du calcul actuel pour ce lecteur,
     # cette famille et cette tete, Get-StaleDriveFactors) : une ligne a chaque demarrage, jusqu a une nouvelle mesure
     $sdf = Get-StaleDriveFactors

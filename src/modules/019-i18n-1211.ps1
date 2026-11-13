@@ -68,6 +68,50 @@ $script:I18n['Restauration réussie'] = 'Restore succeeded'
 $script:I18n['Restauration réussie avec réserve'] = 'Restore succeeded with a reservation'
 $script:I18n['Restauration échouée'] = 'Restore failed'
 
+# --- LN-a : lecteurs enregistres, socle sans interface (112, 120) ------------------------------------------------------
+# Textes que rendent ou ecrivent les fonctions du socle ; ceux du bandeau et de la fenetre « Lecteurs enregistres »
+# viendront en section LN-b. Un nom de lecteur ne passe jamais par T() ; « {0} ({1}) » (Get-DriveLabel) est sans mot
+# Libelle d une fiche sans connexion (Get-DriveLabel)
+$script:I18n['{0} (connexion à préciser)'] = '{0} (connection to be set)'
+# Calibrations d un lecteur (Get-DriveDataText) ; sans courbe : « aucune » (010)
+$script:I18n['{0} courbe(s), dernière : {1}'] = '{0} curve(s), latest: {1}'
+$script:I18n['{0} courbe(s) dont {1} croisée(s), dernière : {2}'] = '{0} curve(s), {1} of them cross, latest: {2}'
+# Refus d un nom (Test-DriveName, qui decide et dit pourquoi)
+$script:I18n['Donnez un nom au lecteur.'] = 'Give the drive a name.'
+$script:I18n['Nom trop long : {0} caractères au plus.'] = 'Name too long: {0} characters at most.'
+$script:I18n["Caractère non admis : « {0} ». Un nom se compose de lettres, de chiffres, d'espaces et des signes - . _ + # °"] = 'Character not allowed: "{0}". A name is made of letters, digits, spaces and the signs - . _ + # °'
+$script:I18n['Un nom contient au moins une lettre sans accent ou un chiffre.'] = 'A name contains at least one unaccented letter or one digit.'
+$script:I18n['« {0} » désigne une connexion : choisissez un autre nom.'] = '"{0}" designates a connection: choose another name.'
+$script:I18n['« {0} » est un mot réservé : choisissez un autre nom.'] = '"{0}" is a reserved word: choose another name.'
+$script:I18n['Un lecteur enregistré porte déjà ce nom : {0}.'] = 'A registered drive already has this name: {0}.'
+$script:I18n["Nom trop large pour s'afficher en entier dans les listes de lecteurs (environ 17 caractères) : raccourcissez-le."] = 'Name too wide to be shown in full in the drive lists (about 17 characters): shorten it.'
+# Refus des actions du registre (Add-NamedDrive, Rename-NamedDrive, Move-NamedDrive, Remove-NamedDrive, Edit-DriveData,
+# Protect-DriveData) ; {0} du premier : libelle de l operation en cours rendu par Get-AppBusy
+$script:I18n['Lecteurs enregistrés : opération en cours ({0}). Réessayez quand elle est terminée.'] = 'Registered drives: operation in progress ({0}). Try again when it has finished.'
+$script:I18n["Calibration B en cours ou en attente de décision : terminez-la d'abord."] = 'Calibration B in progress or awaiting a decision: finish it first.'
+$script:I18n['Choisissez la connexion du lecteur.'] = 'Select the connection of the drive.'
+$script:I18n['Le lecteur {0} a déjà des calibrations : celles de la connexion {1} ne peuvent pas lui être attribuées.'] = 'Drive {0} already has calibrations: those of connection {1} cannot be assigned to it.'
+$script:I18n['La connexion {0} a déjà des calibrations sans nom de lecteur : le nom ne peut pas être retiré seul.'] = 'Connection {0} already has calibrations without a drive name: the name cannot be removed on its own.'
+$script:I18n["Configuration non sauvegardée : rien n'a été modifié (voir le journal)."] = 'Configuration not backed up: nothing was changed (see the log).'
+# Journal : copie datee de la configuration avant une modification des lecteurs (Backup-ConfigForDrives,
+# Protect-DriveData) ; les copies retirees par la rotation reprennent la ligne « Ancienne sauvegarde... » (010)
+$script:I18n['Configuration sauvegardée avant la modification des lecteurs enregistrés : {0}'] = 'Configuration backed up before changing the registered drives: {0}'
+$script:I18n["Configuration non copiée avant la modification des lecteurs enregistrés : {0}. Modification annulée : rien n'est changé."] = 'Configuration not copied before changing the registered drives: {0}. Change cancelled: nothing is modified.'
+$script:I18n["Configuration non enregistrée avant la modification des lecteurs enregistrés. Modification annulée : rien n'est changé."] = 'Configuration not saved before changing the registered drives. Change cancelled: nothing is modified.'
+# Journal du chargement (Import-DriveRegistry, Repair-DriveRegistry, Restore-DriveRescueTargets) ; « {0} : {1} » : une
+# fiche et ses calibrations, dans la ligne des lecteurs relus dans la copie de secours
+$script:I18n['Lecteurs enregistrés : {0} fiche(s) illisible(s), ignorée(s).'] = 'Registered drives: {0} unreadable record(s), ignored.'
+$script:I18n['Lecteurs enregistrés : connexion illisible pour {0} : redonnez-la dans « Lecteurs enregistrés » (Accueil).'] = 'Registered drives: unreadable connection for {0}: set it again in "Registered drives" (Home).'
+$script:I18n["Lecteurs enregistrés relus dans la copie de secours ({0}) : le fichier de configuration ne les contenait pas (enregistré par une version antérieure, ou copie plus ancienne remise à sa place). Calibrations rangées sous leurs noms : {1}. Lecteurs cibles rétablis depuis cette copie : {2}. Vérifiez le lecteur choisi et son lecteur cible avant d'écrire."] = 'Registered drives read back from the rescue copy ({0}): the configuration file did not contain them (saved by an earlier version, or an older copy put back in its place). Calibrations filed under their names: {1}. Target drives restored from this copy: {2}. Check the selected drive and its target drive before writing.'
+$script:I18n['{0} : {1}'] = '{0}: {1}'
+$script:I18n["Lecteurs présents dans les calibrations, sans fiche : {0}. Redonnez leur connexion dans « Lecteurs enregistrés » (Accueil) ; d'ici là, ils ne sont pas proposés dans le bandeau et leurs calibrations ne servent à aucun autre lecteur."] = 'Drives present in the calibrations, without a record: {0}. Set their connection again in "Registered drives" (Home); until then, they are not offered in the banner and their calibrations are not used for any other drive.'
+$script:I18n['Calibrations rangées sous un nom de lecteur non admis ({0}) : elles ne servent à aucun lecteur.'] = 'Calibrations filed under a drive name that is not allowed ({0}): they are not used for any drive.'
+# Copie de secours du registre (<configuration>.lecteurs : Save-DriveRescue, Import-DriveRegistry) : son commentaire, ses
+# deux lignes de journal
+$script:I18n['Copie de secours des lecteurs enregistrés de Greaseweazle Studio (noms, connexions, lecteurs cibles) - régénérée automatiquement.'] = 'Rescue copy of the registered drives of Greaseweazle Studio (names, connections, target drives) - regenerated automatically.'
+$script:I18n['Copie de secours des lecteurs enregistrés non écrite ({0}) : {1}'] = 'Rescue copy of the registered drives not written ({0}): {1}'
+$script:I18n['Copie de secours des lecteurs enregistrés illisible ({0}) : {1}'] = 'Rescue copy of the registered drives unreadable ({0}): {1}'
+
 # --- L9 : onglet Ecriture en trois etapes, options avancees, barre d onglets (145, 510, 520, 600) ----------------------
 
 # --- L10 : ligne « Ce qui va se passer » de l onglet Ecriture (140, 145, 260, 520) -------------------------------------

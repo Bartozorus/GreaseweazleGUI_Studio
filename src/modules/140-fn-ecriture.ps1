@@ -1219,6 +1219,11 @@ function Update-WriteFactorNote {
 function Get-DriveIds {
     # 12.10 : lecteurs de la liste du bandeau (codes du reglage drive, 040 : A, B, 0 a 3), source unique des lecteurs cibles ;
     # tableau protege par la virgule
+    # 12.11 : lecteurs connus : les six connexions (lecteurs non enregistres), puis les lecteurs enregistres, dans l ordre
+    # du registre ($script:DriveReg, 040 : noms lus par enumeration, sans fonction du module 112 ; la garde « registre non
+    # vide » lit Count, qu aucun nom ne peut masquer : mots reserves de Test-DriveName). Registre vide ou absent : la
+    # ligne de la 12.10
+    if ($script:DriveReg -and $script:DriveReg.Count -gt 0) { return ,@(@([string[]]$script:SettingDefs['drive'].Codes) + @($script:DriveReg.GetEnumerator() | ForEach-Object { [string]$_.Key })) }
     return ,@([string[]]$script:SettingDefs['drive'].Codes)
 }
 

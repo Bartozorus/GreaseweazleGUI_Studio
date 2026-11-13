@@ -263,6 +263,40 @@ $script:WTargetHead = ''                                                    # 12
 $script:WProfilePath = ''                                                   # 12.10 (relecture de la RC) : image du libelle du profil (Update-PrecompForImage, Sync-WTargetHead)
 $script:WProfileLabel = $null                                               # 12.10 (relecture de la RC) : dernier libelle du profil pose par Sync-WTargetHead
 $script:WProfileBuilding = $false                                           # 12.10 (relecture de la RC) : Update-PrecompForImage en cours (gestionnaire de $chkWPrecomp, 520)
+# 12.11 : lecteurs enregistres (112-fn-lecteurs). Un lecteur de disquette peut recevoir un nom : le nom devient son identite
+# (texte de la liste du bandeau, cle de rangement de ses courbes), la connexion (A, B, 0 a 3) un attribut de sa fiche, lu
+# par la seule fonction Get-DriveConn. Registre vide (personne n a enregistre de lecteur) : cles, blocs de la configuration
+# et arguments de gw sont ceux de la 12.10. DriveReg et DriveLast ne sont ecrits que par les fonctions du module 112.
+#   DriveReg         registre, dans l ordre d enregistrement : nom -> fiche @{ Name ; Conn ; Id ; Created ; From ; At }
+#                    (Id : identifiant date, jamais deduit d un compteur ; From, At : connexion dont le lecteur non
+#                    enregistre a recu ce nom, et date de cette attribution) ; table insensible a la casse, lue par
+#                    enumeration (Get-DriveRecord)
+#   DriveLast        connexion -> dernier lecteur enregistre choisi sur elle ; absent : le lecteur non enregistre
+#   DriveChecked     lecteur choisi a la main ou confirme depuis le dernier changement (jamais enregistre) ; DriveCur :
+#                    lecteur du bandeau avant le changement en cours (lot LN-b)
+#   DriveRescued     registre relu dans la copie de secours (<configuration>.lecteurs) pendant cette session
+#   DriveRescueText  contenu utile de la copie de secours, lu au chargement ou ecrit en dernier ; $null tant qu elle n a
+#                    ete ni lue ni ecrite dans la session
+#   DriveRescuePairs couples « source, cible » lus dans la copie de secours, en attente de retablissement apres la
+#                    lecture des lecteurs cibles (Restore-DriveRescueTargets) ; $null hors de ce cas
+#   DriveBlockKeep   bloc drives ecrit meme avec une liste vide, le temps de l enregistrement de Protect-DriveData
+#   DriveNameMax     longueur d un nom, en caracteres ; DriveListWidth : largeur en pixels de la liste du bandeau elargie
+#                    et de la liste « Lecteur cible » (un nom doit s y afficher en entier) ; DriveBackupKeep : copies
+#                    <configuration>.lecteurs-*.bak gardees
+#   DriveReserved    mots refuses comme noms (Test-DriveName) : proprietes d une table, qu une cle de ce nom masquerait
+#                    (une fiche « Count » mettrait en defaut la garde « registre non vide », $script:DriveReg.Count -gt 0)
+$script:DriveReg = [ordered]@{}
+$script:DriveLast = @{}
+$script:DriveChecked = ''
+$script:DriveCur = ''
+$script:DriveRescued = $false
+$script:DriveRescueText = $null
+$script:DriveRescuePairs = $null
+$script:DriveBlockKeep = $false
+$script:DriveNameMax = 24
+$script:DriveListWidth = 150
+$script:DriveBackupKeep = 5
+$script:DriveReserved = @('Count', 'Keys', 'Values', 'Item', 'IsFixedSize', 'IsReadOnly', 'IsSynchronized', 'SyncRoot', 'PSObject', 'PSBase', 'PSAdapted', 'PSExtended', 'PSTypeNames')
 
 $Formats = @('(auto)','amiga.amigados','amiga.amigados_hd','atarist.720','atarist.800','atarist.880',
              'ibm.360','ibm.720','ibm.1440','ibm.scan','commodore.1541','mac.800','raw.250','raw.500')
