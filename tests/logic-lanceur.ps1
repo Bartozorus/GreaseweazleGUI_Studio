@@ -9,7 +9,9 @@ $Wt = Get-TestRoot $Wt
 #  L4 test conforme avec une ligne « saute » (comptee) ; L5 code 1 malgre un bilan conforme ; L5b ligne de bilan
 #  precedee d une marque d ordre des octets (sortie UTF-8 sous Windows PowerShell 5.1) : lue quand meme ; L6 filtre sans
 #  test ; L7 ensemble : sommes, nombre d echecs, tests.log et sorties par etape ; L8 marque d alerte du poste (code 9,
-#  arret immediat), reserve a la CI : sur le poste de developpement, aucune sortie ne doit contenir la marque.
+#  arret immediat), reserve a la CI : sur le poste de developpement, aucune sortie ne doit contenir la marque ;
+#  L9 bilan sans aucun cas (« 0 conformes sur 0 », tous les cas sautes) : echec ; L10 cas affiche NON CONFORME sous un
+#  bilan conforme : echec (deux faux verts ecartes).
 # Les sorties du lanceur factice ne sont pas recopiees ici (elles contiennent des lignes de bilan et « saute » qui
 # fausseraient le decompte de ce test) : elles sont ecrites dans le dossier de travail (L1.txt, L2.txt...).
 # Aucun gw, aucune fenetre.
@@ -80,6 +82,14 @@ $logOk = (Test-Path -LiteralPath $logFile) -and (((@([System.IO.File]::ReadAllLi
 $outs = @('logic-a-echec', 'logic-b-erreur', 'logic-c-faux-vert', 'logic-d-ok', 'logic-e-code', 'logic-f-bom' | Where-Object { Test-Path -LiteralPath (Join-Path $r.Out "$_.txt") })
 $dOut = ''; if ($outs -contains 'logic-d-ok') { $dOut = [System.IO.File]::ReadAllText((Join-Path $r.Out 'logic-d-ok.txt')) }
 Chk 'L7' ($r.Rc -eq 1 -and (Get-N $r '^fin : 6 etape\(s\) ; 7 conformes sur 8 ; lignes saute : 1 ; .* ECHEC : 4 etape\(s\)$') -eq 1 -and $logOk -and $outs.Count -eq 6 -and $dOut.Contains('=== bilan logic-d-ok : 3 conformes sur 3')) "ensemble : code $($r.Rc) (1 attendu), 6 etapes, 7 conformes sur 8, 4 echecs ; tests.log identique a la sortie ($logOk) ; $($outs.Count) sorties par etape (6 attendues)"
+
+# Faux verts : tests factices ecrits apres L7, dont les sommes ne les comptent pas
+Set-FakeTest 'g-zero' @("'  tous les cas passes (cas factice)'", "'=== bilan logic-g-zero : 0 conformes sur 0'", 'exit 0')
+$r = Invoke-Launcher 'g-*' 'out-g'
+Chk 'L9' ($r.Rc -eq 1 -and (Get-N $r '^logic-g-zero\s+ECHEC rc=0 .*bilan sans aucun cas') -eq 1 -and (Get-N $r 'TOUT VERT') -eq 0) "bilan sans aucun cas : code $($r.Rc) (1 attendu), etape en echec"
+Set-FakeTest 'h-menteur' @("'H1       NON CONFORME cas factice'", "'=== bilan logic-h-menteur : 3 conformes sur 3'", 'exit 0')
+$r = Invoke-Launcher 'h-*' 'out-h'
+Chk 'L10' ($r.Rc -eq 1 -and (Get-N $r '^logic-h-menteur\s+ECHEC rc=0 .*cas non conforme sous un bilan conforme') -eq 1 -and (Get-N $r '^\s+\| H1\s+NON CONFORME') -eq 1 -and (Get-N $r 'TOUT VERT') -eq 0) "cas non conforme sous un bilan conforme : code $($r.Rc) (1 attendu), etape en echec, cas repris dans le journal"
 
 if (-not $Ci) { '  L8 saute (marque d alerte du poste : jouee par la CI seulement, -Ci)' }
 else {

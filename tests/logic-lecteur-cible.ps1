@@ -257,7 +257,8 @@ $script:ScpStatsOk = $true; $script:GwProc = $null; $script:Cal = $null; $script
 $script:ContentMeasures = @()
 $script:RestoreRules = @{ WriteRetries = 20; RepairPasses = 3 }
 $wfOk = $false
-try { Import-TestWinForms; $wfOk = $true } catch { "  System.Windows.Forms non chargeable : $($_.Exception.Message) ; cas U sautes" }
+# 12.11 : en integration continue (-Ci), System.Windows.Forms non chargeable est un echec, pas des cas sautes
+try { Import-TestWinForms; $wfOk = $true } catch { if ($Ci) { throw }; "  System.Windows.Forms non chargeable : $($_.Exception.Message) ; cas U sautes" }
 if ($wfOk) {
     $form = [pscustomobject]@{ Font = [System.Drawing.SystemFonts]::DefaultFont }
     $cmbWLevelMode = New-Object System.Windows.Forms.ComboBox; $cmbWLevelMode.Name = 'cmbWLevelMode'; $cmbWLevelMode.Width = 260; $cmbWLevelMode.Location = New-Object System.Drawing.Point(100, 492)

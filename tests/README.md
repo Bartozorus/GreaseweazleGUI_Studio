@@ -23,7 +23,7 @@ Le lanceur enchaîne, un processus par étape, avec l'édition de PowerShell qui
 | `-Out <dossier>` | Dossier des sorties (par défaut `tests\out`, ignoré par git) |
 | `-Ci` | Active les cas réservés à l'intégration continue (compilation des blocs C#, marque d'alerte) |
 
-Une étape réussit si son code de sortie est 0 et, pour un test, si sa dernière ligne `=== bilan <nom> : N conformes sur M` compte autant de cas conformes que de cas. Un code 0 sans ligne de bilan est un échec (« bilan absent »). Les lignes qui contiennent « saute » (cas sautés faute de wiki, de données ou hors intégration continue) sont comptées et affichées. Le lanceur rend 0 si tout est conforme, 1 sinon, et 9 si une sortie contient la marque d'alerte des outils du poste de développement (arrêt immédiat).
+Une étape réussit si son code de sortie est 0 et, pour un test, si sa dernière ligne `=== bilan <nom> : N conformes sur M` compte autant de cas conformes que de cas. Un code 0 sans ligne de bilan est un échec (« bilan absent »). Un bilan sans aucun cas, ou un cas affiché NON CONFORME sous un bilan conforme, est un échec. Les lignes qui contiennent « saute » (cas sautés faute de wiki, de données ou hors intégration continue) sont comptées et affichées. Le lanceur rend 0 si tout est conforme, 1 sinon, et 9 si une sortie contient la marque d'alerte des outils du poste de développement (arrêt immédiat).
 
 Sorties : `tests\out\<étape>.txt`, `tests\out\tests.log` (les lignes affichées) et un dossier de travail par test, `tests\out\<test>\` (fonctions extraites, images factices de quelques octets, rapports).
 
@@ -39,7 +39,7 @@ Sorties : `tests\out\<étape>.txt`, `tests\out\tests.log` (les lignes affichées
 | F1 | Aucune fonction définie deux fois dans les modules |
 | A1 | Blocs `Add-Type` qui compilent : empreintes égales à `tests/add-type.txt` |
 | I1 | Clés `T()` littérales sans entrée anglaise dans la table I18n : aucune (seuil `-MaxI18nMissing`, 0 par défaut) |
-| P1 | Tests et workflows : aucun chemin du poste de développement, aucune adresse de réseau privé ni de messagerie |
+| P1 | Modules, outils, tests, documents et workflows : aucun chemin du poste de développement (barres obliques ou inverses, forme échappée), aucun partage réseau, aucune adresse de réseau privé ni de messagerie |
 
 Modifier un bloc C# impose de mettre `tests/add-type.txt` à jour dans le même commit : le cas A1 affiche l'empreinte attendue.
 
@@ -63,7 +63,7 @@ $here = Get-TestWorkDir $MyInvocation.MyCommand.Path $Work
 
 ## Tests et noms d'origine
 
-Vingt tests viennent de la campagne hors dépôt des versions 12.9 et 12.10 ; leur ligne de bilan garde ce nom d'origine.
+Vingt tests viennent de la campagne hors dépôt des versions 12.9 et 12.10 ; leur ligne de bilan garde le nom que le test se donnait dans la campagne (`logic-1210-cross-j` pour `logic-calib-croisee`, `logic-129-cal2-retest` pour `logic-calib-nouvel-essai`, le nom d'origine pour les autres).
 
 | Test | Nom d'origine | Vérifie |
 |---|---|---|
@@ -88,7 +88,7 @@ Vingt tests viennent de la campagne hors dépôt des versions 12.9 et 12.10 ; le
 | `logic-restauration-rapport` | `logic-1210-fixA-e` | Restauration : cadre, règles et rapport |
 | `logic-restauration-regles` | `logic-1210-fix2-e` | Restauration : règles et cadre, mesures de texte |
 
-Trois tests portent sur les outils eux-mêmes : `logic-lanceur` (verdicts du lanceur sur des tests factices), `logic-controle-source` (un défaut semé par contrôle dans un dépôt factice) et `logic-csharp-compilation` (les cinq blocs `Add-Type` de l'application compilent et donnent leurs types ; la compilation n'a lieu qu'avec `-Ci`).
+Trois tests portent sur les outils eux-mêmes : `logic-lanceur` (verdicts du lanceur sur des tests factices), `logic-controle-source` (un défaut semé à la fois dans un dépôt factice, pour chaque contrôle sauf S3) et `logic-csharp-compilation` (les cinq blocs `Add-Type` de l'application compilent et donnent leurs types ; la compilation n'a lieu qu'avec `-Ci`).
 
 Les tests écrits depuis la 12.11 portent dès l'origine le nom de leur thème :
 
@@ -104,7 +104,7 @@ Les tests écrits depuis la 12.11 portent dès l'origine le nom de leur thème :
 
 Le workflow `.github/workflows/tests.yml` lance `.\tests\Run-Tests.ps1 -Ci` sous Windows PowerShell 5.1 (`shell: powershell`), l'édition que vise l'application, sur un runner Windows : à chaque push sur `main` ou sur une branche `release-*`, à chaque pull request et à la demande. Il vérifie d'abord l'édition de PowerShell, puis joint `tests/out/` à l'exécution (artefact `tests-<numéro>`), que les tests réussissent ou non. Il ne publie rien, n'utilise aucun secret et ne conditionne pas la release.
 
-Avec `-Ci`, `logic-csharp-compilation` compile les blocs C# de l'application (par `csc.exe` sous 5.1) et `logic-lanceur` joue l'arrêt sur la marque d'alerte.
+Avec `-Ci`, `logic-csharp-compilation` compile les cinq blocs C# de l'application (par `csc.exe` sous 5.1) et `logic-lanceur` joue l'arrêt sur la marque d'alerte. Sans `-Ci`, donc aussi sur le poste de développement, deux de ces blocs sont tout de même compilés, par les tests qui les recopient tels quels de `030-csharp.ps1` pour s'en servir : `logic-qualite-hors-classe` (statistiques SCP et motif de calibration) et, par `cal2-commun.ps1`, `logic-calib-bout-en-bout`, `logic-calib-croisee` et `logic-calib-decalage-fort-besoin` (ajustement de courbe). Avec `-Ci` encore, `logic-lecteur-cible` et `logic-ecriture-profil-facteur` échouent si WinForms ne se charge pas, au lieu de sauter leurs cas de mesure du texte.
 
 Les résultats sous 5.1 peuvent différer de ceux du poste de développement sous PowerShell 7 : compilation C#, lecture du JSON, arrondi des nombres formatés, police par défaut et mesure du texte de WinForms, culture du runner. Un échec de la seule intégration continue se trie entre défaut du test, à corriger dans le test, et différence réelle de l'application sous 5.1, à traiter comme un défaut de l'application.
 

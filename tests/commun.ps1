@@ -6,7 +6,8 @@
 # -Wt : racine du depot a tester (defaut : le depot du test) ; -Wiki : copie locale du wiki (controles des pages sautes sans
 # elle) ; -Work : dossier de travail (defaut : tests\out\<nom du test>, ignore par git) ; -Ci : lance par la CI.
 # Ces quatre noms sont des parametres types : un test ne s en sert pas comme variables locales.
-# Compatible Windows PowerShell 5.1 et PowerShell 7. Aucun gw, aucune fenetre, aucune compilation.
+# Compatible Windows PowerShell 5.1 et PowerShell 7. Aucun gw, aucune fenetre ; ce fichier ne compile rien (un test qui
+# recopie un bloc C# de 030 le compile lui-meme).
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 

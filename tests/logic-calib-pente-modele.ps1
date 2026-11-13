@@ -70,13 +70,13 @@ function Chk([string]$id, [bool]$ok, [string]$d) {
     '{0,-8} {1,-12} {2}' -f $id, $(if ($ok) { 'conforme' } else { 'NON CONFORME' }), $d
 }
 function F([double]$x, [string]$f = '0.000') { return $x.ToString($f, [System.Globalization.CultureInfo]::GetCultureInfo('fr-FR')) }
-"logic-1210-slope : Get-VerifySlope 240:$lineFn ; CalibCalc $($script:CalibCalc) ; constantes On $($script:CalSlopeOn) MinCyl $($script:CalSlopeMinCyl) MinNsNs $($script:CalSlopeMinNsNs) SigK $($script:CalSlopeSigK) MinNs $($script:CalSlopeMinNs) ; profil TEAC tete 0 : $nAbove cylindres au-dela de 100 ns ; PowerShell $($PSVersionTable.PSVersion)"
+"logic-1210-slope : Get-VerifySlope 240:$lineFn ; CalibCalc $($script:CalibCalc) ; constantes On $($script:CalSlopeOn) MinCyl $($script:CalSlopeMinCyl) MinNsNs $($script:CalSlopeMinNsNs) SigK $($script:CalSlopeSigK) MinNs $($script:CalSlopeMinNs) ; profil $(if ($Prof) { 'lu par -Prof' } else { 'synthetique' }) : $nAbove cylindres au-dela de 100 ns ; PowerShell $($PSVersionTable.PSVersion)"
 
 "--- A : constantes et version"
 Chk 'A1' ($script:CalibCalc -eq '12.10') "CalibCalc $($script:CalibCalc) (12.10 attendu)"
 Chk 'A2' ($script:CalSlopeOn -eq $true -and $script:CalSlopeMinCyl -eq 10 -and [math]::Abs($script:CalSlopeMinNsNs - 0.02) -lt 1e-9 -and $script:CalSlopeSigK -eq 2.5 -and $script:CalSlopeMinNs -eq 2.0) 'constantes CalSlope* aux valeurs de conception (SigK 2,5 depuis le banc 1210-b)'
 
-"--- T : lecteur a fort besoin (TEAC tete 0, pente -0,0475 ns/ns, bruit +-1,3 ns)"
+"--- T : lecteur a fort besoin (pente -0,0475 ns/ns, bruit +-1,3 ns)"
 $u = New-Unit $teac
 $r = Get-VerifySlope $u -1.0 $script:CalSlopeMinCyl $script:CalSlopeSigK $script:CalSlopeMinNsNs $script:CalSlopeMinNs
 Chk 'T1' ($r.Ok -and $r.N -eq $nAbove -and $r.X0 -eq 100.0) "Ok $($r.Ok), N $($r.N) ($nAbove attendus), X0 $($r.X0), Why « $($r.Why) »"

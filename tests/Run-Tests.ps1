@@ -9,7 +9,8 @@
       3. chaque tests\logic-*.ps1, par ordre de nom (fonctions reelles des modules, bouchons pour le reste).
     Aucun gw, aucun materiel, aucune fenetre. Sorties dans tests\out (ignore par git) : <etape>.txt et tests.log.
     Une etape reussit si son code de sortie est 0 et, pour un test, si sa derniere ligne « === bilan ... : N conformes
-    sur M » compte autant de cas conformes que de cas. Un code 0 sans ligne de bilan est un echec (« bilan absent »).
+    sur M » compte autant de cas conformes que de cas. Un code 0 sans ligne de bilan est un echec (« bilan absent »),
+    comme un bilan sans aucun cas (« 0 conformes sur 0 ») ou un cas affiche NON CONFORME sous un bilan conforme.
     Code de sortie : 0 tout est conforme, 1 sinon, 9 si une sortie contient la marque d alerte du poste (arret immediat).
     Compatible Windows PowerShell 5.1 (CI) et PowerShell 7.
 
@@ -108,6 +109,9 @@ foreach ($s in $steps) {
         else {
             $sumOk += [int]$m.Groups[1].Value; $sumAll += [int]$m.Groups[2].Value
             if ($m.Groups[1].Value -ne $m.Groups[2].Value) { $ok = $false }
+            # Faux verts ecartes : test dont tous les cas sont sautes, cas non conforme que le bilan ne compte pas
+            elseif ([int]$m.Groups[2].Value -eq 0) { $ok = $false; $why = 'bilan sans aucun cas : ' + $bil.Trim() }
+            elseif (@($clean | Where-Object { $_ -cmatch '^\S+\s+NON CONFORME\b' }).Count -gt 0) { $ok = $false; $why = 'cas non conforme sous un bilan conforme : ' + $bil.Trim() }
         }
     }
     $sk = @($clean | Where-Object { $_ -match '\bsaute' }).Count; $nSkip += $sk

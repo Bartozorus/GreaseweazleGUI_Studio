@@ -13,7 +13,8 @@
 #  F1 aucune fonction definie deux fois dans les modules ;
 #  A1 blocs Add-Type qui compilent (hors chargement d assembly) : empreintes egales a tests\add-type.txt ;
 #  I1 cles T() litterales sans traduction : au plus -MaxI18nMissing (0 par defaut : aucune) ;
-#  P1 tests et workflows : aucun chemin du poste de developpement, aucune adresse de reseau prive ni de messagerie.
+#  P1 modules, outils, tests, documents, workflows : aucun chemin du poste de developpement (barres obliques ou inverses,
+#     forme echappee), aucun partage reseau, aucune adresse de reseau prive ni de messagerie.
 # Les tests controles sont ceux du dossier de ce script ; -Root designe le depot dont on controle la source.
 # Code de sortie : 0 conforme, 1 sinon. Compatible Windows PowerShell 5.1 et PowerShell 7.
 $ErrorActionPreference = 'Stop'
@@ -135,17 +136,20 @@ Chk 'I1' ($miss.Count -le $MaxI18nMissing) "table I18n : $($table.Count) cles ; 
 foreach ($k in @($miss | Sort-Object)) { $k1 = ($k -replace '\s+', ' '); if ($k1.Length -gt 110) { $k1 = $k1.Substring(0, 110) + '...' }; "         sans traduction : $k1" }
 
 # Motifs en morceaux : ce script ne doit pas se signaler lui-meme
-$pat = '(?i)[a-z]:\\Users\\|\\App' + 'Data\\|192\.168\.|[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}'
+$pat = '(?i)[a-z]:[\\/]+Users[\\/]|/[a-z]/Users/|[\\/]App' + 'Data[\\/]|\\\\[a-z0-9_.$-]+\\[a-z0-9_$-]+\\|(?<![0-9.])(192\.168|10\.\d{1,3}|172\.(1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}(?![0-9.])|[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}'
 $paths = @()
-$pFiles = @(Get-ChildItem -LiteralPath $tests -File | Where-Object { $_.Extension -eq '.ps1' -or $_.Extension -eq '.md' -or $_.Extension -eq '.txt' } | ForEach-Object { $_.FullName })
-$pFiles += $wfFiles
+# Tous les fichiers texte publies : modules, outils, Build-Exe.ps1 et tests ($ps1, sans le fichier assemble, copie des
+# modules), listes et documents du dossier des tests, documents de la racine et des modules, workflows
+$pFiles = @($ps1 | Where-Object { $_.Name -ne 'GreaseweazleGUI.ps1' } | ForEach-Object { $_.FullName })
+$pFiles += @(Get-ChildItem -LiteralPath $tests -File | Where-Object { $_.Extension -eq '.md' -or $_.Extension -eq '.txt' } | ForEach-Object { $_.FullName })
+$pFiles += @($docs | Where-Object { (Test-Path -LiteralPath $_) -and $pFiles -notcontains $_ })
 foreach ($p in $pFiles) {
     # Le texte trouve n est pas affiche : la sortie de la CI est publique
     $txt = [System.IO.File]::ReadAllText($p)
     $m = [regex]::Match($txt, $pat)
     if ($m.Success) { $ln = $txt.Substring(0, $m.Index).Split([char]10).Count; $paths += "$(Split-Path -Leaf $p):$ln" }
 }
-Chk 'P1' ($paths.Count -eq 0) "$($pFiles.Count) fichiers (tests, workflows) sans chemin du poste, adresse de reseau prive ni adresse de messagerie ; en defaut : $(Get-List $paths)"
+Chk 'P1' ($paths.Count -eq 0) "$($pFiles.Count) fichiers (modules, outils, tests, documents, workflows) sans chemin du poste, partage reseau, adresse de reseau prive ni adresse de messagerie ; en defaut : $(Get-List $paths)"
 
 "=== bilan check-source : $($script:N - $script:Bad) conformes sur $($script:N) ; $([int]$sw.Elapsed.TotalSeconds) s"
 if ($script:Bad) { exit 1 }

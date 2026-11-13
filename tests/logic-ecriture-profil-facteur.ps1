@@ -291,7 +291,8 @@ $script:CalHardNs = 400; $script:CalHardNsUser = 400
 $script:ScpStatsOk = $true; $script:GwProc = $null; $script:Cal = $null; $script:Restore = $null; $script:OpOverride = $null
 $script:ContentMeasures = @(); $script:GwFormats = @{}
 $wfOk = $false
-try { Import-TestWinForms; $wfOk = $true } catch { "  System.Windows.Forms non chargeable : $($_.Exception.Message) ; cas de largeur sautes" }
+# 12.11 : en integration continue (-Ci), System.Windows.Forms non chargeable est un echec, pas des cas sautes
+try { Import-TestWinForms; $wfOk = $true } catch { if ($Ci) { throw }; "  System.Windows.Forms non chargeable : $($_.Exception.Message) ; cas de largeur sautes" }
 $s520 = [System.IO.File]::ReadAllText((Get-FMod '520'))
 $s500 = [System.IO.File]::ReadAllText((Get-FMod '500'))
 $lblSize = if ($s520 -match "\`$lblWProfileInfo\.Location = '\d+,\d+'; \`$lblWProfileInfo\.Size = '(\d+),(\d+)'") { @([int]$Matches[1], [int]$Matches[2]) } else { $null }
