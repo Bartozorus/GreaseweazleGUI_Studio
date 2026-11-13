@@ -1274,7 +1274,7 @@ function Test-LevelAdaptedSpec([string[]]$specs) {
 
 function Get-DiskCellNs([int]$bits) {
     # 12.11 : cellule (ns) d une piste de $bits cellules a 300 tr/min (un tour de 200 ms) : celle du plafond par disquette
-    # (Get-DiskCapNs) et de la ligne de journal qui l annonce (Start-PrecompCalib)
+    # (Get-DiskCapNs) et de la ligne de journal qui l annonce (Get-DiskBoundText) ; jamais appelee sans cellules ($bits a 0)
     return 200000000.0 / $bits
 }
 
@@ -1284,7 +1284,7 @@ function Get-DiskCapNs([int]$bits = 0) {
     # Get-DiskCapBits (motif de la calibration en cours, ou format gw au-dela de 250 kbit/s). Au quart de la cellule, un
     # intervalle ecrit atteint sa frontiere de decision : 500 ns pour 2 us, 493 ns pour un ADF AmigaDOS (101 344 cellules),
     # 472 a 474 ns en long track (105 808 a 105 312 cellules), au lieu de CalHardMaxNs (470 ns) pour toutes jusqu a la
-    # 12.10. Sans densite ($bits a 0 : suite sans interface, carte de l Accueil) : CalHardMaxNs. Aucun cas particulier
+    # 12.10. Sans densite ($bits a 0 : suite sans interface, carte de l Accueil, cellule de la piste ecrite inconnue de Get-DiskCapBits) : CalHardMaxNs. Aucun cas particulier
     # pour la haute densite, qui n emprunte aucun chemin du plafond par disquette (Get-LevelRef la refuse). Aucune mesure
     # sur materiel au-dela de 470 ns : la regle repose sur la simulation du decodage (560)
     if ($bits -le 0) { return [int]$script:CalHardMaxNs }
@@ -1299,17 +1299,39 @@ function Get-UnitCapNs($u) {
     return (Get-DiskCapNs $b)
 }
 
-function Get-DiskCapBits([int]$bits, [string]$fmt = '') {
+function Get-DiskCapBits([int]$bits, [string]$fmt = '', [bool]$known = $false) {
     # 12.11 : cellules par piste retenues pour le plafond par disquette (Get-DiskCapNs) : celles de la piste ecrite. Le motif
     # d une image secteur est mesure a 2 us (100 000 cellules, Get-PatternBits) quel que soit le format ; un format gw double
     # densite dont le debit depasse 250 kbit/s (atari.130, atarist.440, atarist.880 : 260 et 261 kbit/s, Get-FormatCalibInfo)
     # ecrit 400 x debit cellules par piste : le plafond suit cette cellule, plus courte (478 ns et non 500 a 261 kbit/s).
-    # $fmt : format de l onglet Ecriture ; vide, « (auto) » ou absent de la table : $bits. Sans densite ($bits a 0) : 0
-    if ($bits -gt 0 -and $fmt -and $script:GwFormats.Contains($fmt)) {
+    # $fmt : format de l onglet Ecriture. Sans densite ($bits a 0) : 0
+    # 12.11 (lot L4b) : 0 aussi (sans densite : plafond de 470 ns, comme en 12.10) quand la cellule de la piste ecrite n est
+    # pas connue : format explicite absent de la table (gw plus recent, fichier diskdefs : la liste Format admet une saisie
+    # libre), ou aucun format (vide, « (auto) ») et densite du motif non tiree de l image ($known : champ Known du motif,
+    # Get-PatternBits : ADF, IPF, HFE ; faux pour une image secteur dont gw deduit ou exige le format : D81, FD, MGT, IMG,
+    # MSA..., que le bouton « Calibrer » en test rapide admet). Le plafond ne depasse donc CalHardMaxNs que pour un format
+    # de la table ou une densite lue dans l image
+    if ($bits -le 0) { return 0 }
+    if ($fmt -and $fmt -ne '(auto)') {
+        if (-not $script:GwFormats.Contains($fmt)) { return 0 }
         $e = $script:GwFormats[$fmt]
         if ([int]$e.Rpm -eq 300 -and [int]$e.Rate -gt 250 -and [int]$e.Rate -lt 450) { return [int][math]::Max($bits, 400 * [int]$e.Rate) }
+        return $bits
     }
-    return $bits
+    if ($known) { return $bits }
+    return 0
+}
+
+function Get-DiskBoundText([int]$hard, [int]$bits = 0) {
+    # 12.11 (lot L4b) : ligne de journal de la borne, au debut de la mesure complete de cette disquette (Start-PrecompCalib),
+    # tiree de la decision du plafond. $hard : borne posee (Get-DiskHardNs) ; $bits : cellules de la piste ecrite
+    # (Get-DiskCapBits). Borne au plus au seuil du controle impose (Get-DiskOverNs) : borne precompMaxNs ; au-dela, cellule
+    # connue : quart de la cellule annonce ; cellule inconnue ($bits a 0, Get-DiskCapNs rend CalHardMaxNs) : ligne de la
+    # 12.10, sans cellule (aucune division par zero : Get-DiskCellNs n est appelee qu avec des cellules)
+    $thr = Get-DiskOverNs
+    if ($hard -le $thr) { return ((T "Borne de la courbe de cette disquette : {0} ns (precompMaxNs).") -f "$hard") }
+    if ($bits -le 0) { return ((T "Borne de la courbe de cette disquette : {0} ns ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$hard", "$thr") }
+    return ((T "Borne de la courbe de cette disquette : {0} ns, le quart de la cellule de l'image ({2} ns), {3} ns au plus ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$hard", "$thr", "$([int][math]::Round((Get-DiskCellNs $bits)))", "$($script:CalDiskCapMaxNs)")
 }
 
 function Get-DiskOverAdviceText([int]$thr) {

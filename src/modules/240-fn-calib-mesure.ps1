@@ -18,24 +18,24 @@ function New-CalibUnit($head) {
 
 function Get-PatternBits([string]$family, [string]$img) {
     # Cellules par piste du motif de test (voir New-CalibPattern) : densite de l image ; la calibration rapide compare
-    # celle de l image a celle de sa reference
-    $bits = 100000; $src = (T 'format à secteurs, 2 us par cellule')
+    # celle de l image a celle de sa reference. 12.11 : Known, cellules tirees de l image (codec AmigaDOS d un ADF, bits par piste d un IPF ou d un HFE) et non valeur par defaut de la famille : seule densite que le plafond par disquette retient sans format gw (Get-DiskCapBits, 265)
+    $bits = 100000; $src = (T 'format à secteurs, 2 us par cellule'); $known = $false
     $ext = [System.IO.Path]::GetExtension($img).ToLower()
     try {
         switch ($ext) {
             '.adf' {
-                $len = (Get-Item -LiteralPath $img).Length
+                $len = (Get-Item -LiteralPath $img).Length; $known = $true
                 if ($len % 22528 -eq 0 -and $len / 11264 -gt 84) { $bits = 202688; $src = (T 'ADF haute densité, horloge AmigaDOS de gw') }
                 else { $bits = 101344; $src = (T 'ADF, horloge AmigaDOS de gw') }
             }
-            '.ipf' { $info = Get-IpfCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'IPF, bits par piste de l''image') } }
-            '.hfe' { $info = Get-HfeCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'HFE, bits par piste de l''image') } }
+            '.ipf' { $info = Get-IpfCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'IPF, bits par piste de l''image'); $known = $true } }
+            '.hfe' { $info = Get-HfeCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'HFE, bits par piste de l''image'); $known = $true } }
         }
     } catch { }
-    if ($family -eq 'long' -and $bits -eq 100000) { $bits = 105820; $src = (T 'long track, 1,89 us par cellule') }
-    elseif ($family -eq 'hd' -and $bits -eq 100000) { $bits = 200000; $src = (T 'format à secteurs haute densité, 1 us par cellule') }   # 12.7
+    if ($family -eq 'long' -and $bits -eq 100000) { $bits = 105820; $src = (T 'long track, 1,89 us par cellule'); $known = $false }
+    elseif ($family -eq 'hd' -and $bits -eq 100000) { $bits = 200000; $src = (T 'format à secteurs haute densité, 1 us par cellule'); $known = $false }   # 12.7
     $bits -= $bits % 16
-    return @{ Bits = $bits; Source = $src }
+    return @{ Bits = $bits; Source = $src; Known = $known }
 }
 
 function New-CalibPattern([string]$family, [string]$img, [int]$nCyl, [int]$Rpm = 300) {
@@ -59,7 +59,7 @@ function New-CalibPattern([string]$family, [string]$img, [int]$nCyl, [int]$Rpm =
     $path = Join-Path $script:TempDir 'precomp-pattern.hfe'
     [CalibPattern]::WriteHfe($path, $nCyl, $bits, $rate, 20261014)
     $cell = if ($Rpm -eq 300) { 200000000.0 / $bits } else { (60000000000.0 / $Rpm) / $bits }
-    return @{ Path = $path; Bits = $bits; Rate = $rate; CellNs = $cell; Source = $src; Rpm = $Rpm }
+    return @{ Path = $path; Bits = $bits; Rate = $rate; CellNs = $cell; Source = $src; Rpm = $Rpm; Known = [bool]$pb.Known }   # 12.11 : Known, densite tiree de l image (Get-PatternBits)
 }
 
 function Get-CalibDriveArgs {

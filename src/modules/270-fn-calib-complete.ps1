@@ -174,8 +174,8 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     # @() autour du if : une seule unite resterait sinon une hashtable nue ($cal.Units[0] = $null)
     Set-CalibScale $family     # 12.7 : bareme de la famille (amplitudes haute densite), apres les sorties anticipees
     # 12.8 (S3) : borne de la courbe de cette disquette (Get-DiskHardNs : plafond par disquette, ou precompMaxNs reglee sous
-    # 400 ns) pendant la mesure complete, retablie a sa fin (Reset-DiskHardNs). 12.11 : calculee ici, le motif cree, sur les cellules de la piste ecrite (Get-DiskCapBits : motif, ou format gw au-dela de 250 kbit/s)
-    if ($do) { $do.HardNs = Get-DiskHardNs (Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text)); Set-DiskHardNs @{ DiskOnly = $true; HardNs = [int]$do.HardNs } }
+    # 400 ns) pendant la mesure complete, retablie a sa fin (Reset-DiskHardNs). 12.11 : calculee ici, le motif cree, sur les cellules de la piste ecrite (CapBits, Get-DiskCapBits : motif, ou format gw au-dela de 250 kbit/s ; 0 si elle n est pas connue : 470 ns, comme en 12.10)
+    if ($do) { $do.CapBits = Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text) ([bool]$pat.Known); $do.HardNs = Get-DiskHardNs ([int]$do.CapBits); Set-DiskHardNs @{ DiskOnly = $true; HardNs = [int]$do.HardNs } }
     $units = @(if ($slow) { (New-CalibUnit 0), (New-CalibUnit 1) } else { New-CalibUnit $null })
     foreach ($u in $units) { foreach ($c in $cyls) { $u.Results[[int]$c] = @{} } }
     $script:Cal = @{
@@ -231,9 +231,9 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         $script:Cal.DiskOnly = $true; $script:Cal.Brand = [string]$do.Brand; $script:Cal.HardNs = [int]$do.HardNs; $script:Cal.DiskRef = $do.Ref
         Append-Log ((T "=== Mesure complète de cette disquette : lecteur {0}, image {1} ({2}, {3}) ; référence du lecteur inchangée ===") -f "$($cmbDrive.Text)", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$modeTxt")
         if ($do.Brand) { Append-Log ((T 'Marque de la disquette insérée : « {0} ».') -f "$($do.Brand)") }
-        $thr = Get-DiskOverNs
-        if ([int]$do.HardNs -gt $thr) { Append-Log ((T "Borne de la courbe de cette disquette : {0} ns, le quart de la cellule de l'image ({2} ns), {3} ns au plus ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$($do.HardNs)", "$thr", "$([int][math]::Round((Get-DiskCellNs (Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text)))))", "$($script:CalDiskCapMaxNs)") }
-        else { Append-Log ((T "Borne de la courbe de cette disquette : {0} ns (precompMaxNs).") -f "$($do.HardNs)") }
+        # 12.11 (lot L4b) : ligne de la borne tiree de la decision du plafond (Get-DiskBoundText, 265) : quart de la cellule de la
+        # piste ecrite si elle est connue (CapBits), ligne de la 12.10 sinon (470 ns), borne precompMaxNs au plus au seuil
+        Append-Log (Get-DiskBoundText ([int]$do.HardNs) ([int]$do.CapBits))
         # 12.8 (S3-HIGH) : duree estimee et ecritures par piste au plus (avertissement M1)
         Append-Log ((T "Durée estimée de la mesure : environ {0} min ; {1} min au plus avec la mesure directe des cylindres dont le besoin dépasse {2} ns et {3} nouveaux essais au plus des cylindres non convergés.") -f "$minutes", "$minDisk", "$mxDisk", "$($script:CalDiskMaxRetest)")
         # 12.9 (correction 1) : l ecriture de conditionnement du lecteur est comptee
@@ -332,7 +332,7 @@ function Start-DiskMeasure($lr, [string]$brand) {
         Append-Log (T "Mesure complète de cette disquette impossible : elle demande la référence du lecteur par tête (écriture lente). Écriture annulée.")
         return
     }
-    $script:CalDiskOnly = @{ Brand = [string]$brand; HardNs = 0; Ref = $lr }   # 12.11 : HardNs pose par Start-PrecompCalib (Get-DiskHardNs de la densite du motif)
+    $script:CalDiskOnly = @{ Brand = [string]$brand; HardNs = 0; Ref = $lr }   # 12.11 : HardNs pose par Start-PrecompCalib (Get-DiskHardNs des cellules de la piste ecrite, qu il garde dans CapBits)
     $script:AfterCalib = 'write'
     Start-PrecompCalib -ForceFine -Heads $true
     $script:CalDiskOnly = $null      # deja remis a $null par Start-PrecompCalib (premiere instruction)

@@ -269,7 +269,7 @@ $script:CalCrossAsk = $null
 # Set-Defaults et « Effacer les calibrations » (les courbes croisees, elles, sont effacees)
 $script:TargetDrives = @{}
 # 12.8 (S3, decision du 21/10/2026) : mesure complete de cette disquette demandee par Start-DiskMeasure (@{ Brand ; HardNs ;
-# Ref } ; 12.11 : HardNs pose par Start-PrecompCalib, la densite du motif connue) : lue et remise a $null au debut de
+# Ref } ; 12.11 : HardNs et CapBits poses par Start-PrecompCalib, la densite du motif connue) : lue et remise a $null au debut de
 # Start-PrecompCalib (signature inchangee : make-test) ; relance sans marque (W-M2) : lu et remis a $false par Start-LevelCalib
 $script:CalDiskOnly = $null
 $script:LevelNoBrand = $false

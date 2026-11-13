@@ -2060,6 +2060,7 @@ $script:I18n["Cette disquette sera effacée, puis l'image y sera écrite."] = 'T
 $script:I18n['Lancer la mesure complète'] = 'Start the full measurement'
 $script:I18n["Nom libre : marque, année ou lot. La courbe mesurée est mémorisée pour cette marque : les disquettes suivantes de cette marque en partent, avec une calibration rapide. Sans marque, elle ne sert qu'à cette écriture."] = 'Free name: brand, year or batch. The measured curve is stored for this brand: the next disks of this brand start from it, with a quick calibration. Without a brand, it is used for this write only.'
 $script:I18n["=== Mesure complète de cette disquette : lecteur {0}, image {1} ({2}, {3}) ; référence du lecteur inchangée ==="] = '=== Full measurement of this disk: drive {0}, image {1} ({2}, {3}); drive reference unchanged ==='
+$script:I18n["Borne de la courbe de cette disquette : {0} ns ; au-delà de {1} ns, contrôle après écriture imposé."] = 'Curve bound for this disk: {0} ns; above {1} ns, post-write check enforced.'
 $script:I18n["Borne de la courbe de cette disquette : {0} ns (precompMaxNs)."] = 'Curve bound for this disk: {0} ns (precompMaxNs).'
 $script:I18n["Mesure complète de cette disquette impossible : elle demande la référence du lecteur par tête (écriture lente). Écriture annulée."] = 'Full measurement of this disk not possible: it needs the per-head drive reference (slow write). Write cancelled.'
 $script:I18n["Écriture annulée : la mesure complète de cette disquette n'a pas été lancée."] = 'Write cancelled: the full measurement of this disk was not started.'
@@ -2725,8 +2726,8 @@ $script:I18n['médiane {0}, sans signe commun ; {1} point(s) du score moyen'] = 
 $script:I18n["Signe de l'asymétrie : + intervalles longs relus trop longs (comme après une écriture au-dessus de la précompensation qui les centre pour ce lecteur) ; - trop courts (comme après une écriture au-dessous) ; sans signe : écarts de sens opposés."] = 'Asymmetry sign: + long intervals read back too long (as after a write above the precompensation that centres them for this drive); - too short (as after a write below it); no sign: deviations in opposite directions.'
 
 # --- L4 : plafond de precompensation d une disquette lie a la cellule de son image (260, 265, 270) ---------------------
-# Journal du debut de la mesure complete de cette disquette (Start-PrecompCalib, 270) : borne au-dela du seuil, au quart
-# de la cellule de l image ; remplace « Borne de la courbe de cette disquette : {0} ns ; au-dela de {1} ns... » (010, retiree)
+# Journal du debut de la mesure complete de cette disquette (Get-DiskBoundText, 265) : borne au-dela du seuil, au quart de
+# la cellule de la piste ecrite ; cellule inconnue (470 ns) : ligne de la 12.10 « ... {0} ns ; au-dela de {1} ns... » (010)
 $script:I18n["Borne de la courbe de cette disquette : {0} ns, le quart de la cellule de l'image ({2} ns), {3} ns au plus ; au-delà de {1} ns, contrôle après écriture imposé."] = 'Curve bound for this disk: {0} ns, a quarter of the image cell ({2} ns), {3} ns at most; above {1} ns, post-write check enforced.'
 # Conseil « machine cible » (Get-DiskOverAdviceText, 265), au journal apres chaque ligne « ... au-dela de {0} ns ... »
 $script:I18n["Au-delà de {0} ns, la calibration ne compense que la chaîne d'écriture et de relecture de ce lecteur : essayez la disquette écrite sur la machine à laquelle elle est destinée (un vrai Amiga, par exemple) avant de vous y fier."] = "Above {0} ns, calibration only compensates this drive's own write and read chain: try the written disk on the machine it is meant for (a real Amiga, for example) before relying on it."
@@ -16336,24 +16337,24 @@ function New-CalibUnit($head) {
 
 function Get-PatternBits([string]$family, [string]$img) {
     # Cellules par piste du motif de test (voir New-CalibPattern) : densite de l image ; la calibration rapide compare
-    # celle de l image a celle de sa reference
-    $bits = 100000; $src = (T 'format à secteurs, 2 us par cellule')
+    # celle de l image a celle de sa reference. 12.11 : Known, cellules tirees de l image (codec AmigaDOS d un ADF, bits par piste d un IPF ou d un HFE) et non valeur par defaut de la famille : seule densite que le plafond par disquette retient sans format gw (Get-DiskCapBits, 265)
+    $bits = 100000; $src = (T 'format à secteurs, 2 us par cellule'); $known = $false
     $ext = [System.IO.Path]::GetExtension($img).ToLower()
     try {
         switch ($ext) {
             '.adf' {
-                $len = (Get-Item -LiteralPath $img).Length
+                $len = (Get-Item -LiteralPath $img).Length; $known = $true
                 if ($len % 22528 -eq 0 -and $len / 11264 -gt 84) { $bits = 202688; $src = (T 'ADF haute densité, horloge AmigaDOS de gw') }
                 else { $bits = 101344; $src = (T 'ADF, horloge AmigaDOS de gw') }
             }
-            '.ipf' { $info = Get-IpfCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'IPF, bits par piste de l''image') } }
-            '.hfe' { $info = Get-HfeCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'HFE, bits par piste de l''image') } }
+            '.ipf' { $info = Get-IpfCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'IPF, bits par piste de l''image'); $known = $true } }
+            '.hfe' { $info = Get-HfeCellInfo $img; if ($info.Bits -ge 50000 -and $info.Bits -le 260000) { $bits = [int]$info.Bits; $src = (T 'HFE, bits par piste de l''image'); $known = $true } }
         }
     } catch { }
-    if ($family -eq 'long' -and $bits -eq 100000) { $bits = 105820; $src = (T 'long track, 1,89 us par cellule') }
-    elseif ($family -eq 'hd' -and $bits -eq 100000) { $bits = 200000; $src = (T 'format à secteurs haute densité, 1 us par cellule') }   # 12.7
+    if ($family -eq 'long' -and $bits -eq 100000) { $bits = 105820; $src = (T 'long track, 1,89 us par cellule'); $known = $false }
+    elseif ($family -eq 'hd' -and $bits -eq 100000) { $bits = 200000; $src = (T 'format à secteurs haute densité, 1 us par cellule'); $known = $false }   # 12.7
     $bits -= $bits % 16
-    return @{ Bits = $bits; Source = $src }
+    return @{ Bits = $bits; Source = $src; Known = $known }
 }
 
 function New-CalibPattern([string]$family, [string]$img, [int]$nCyl, [int]$Rpm = 300) {
@@ -16377,7 +16378,7 @@ function New-CalibPattern([string]$family, [string]$img, [int]$nCyl, [int]$Rpm =
     $path = Join-Path $script:TempDir 'precomp-pattern.hfe'
     [CalibPattern]::WriteHfe($path, $nCyl, $bits, $rate, 20261014)
     $cell = if ($Rpm -eq 300) { 200000000.0 / $bits } else { (60000000000.0 / $Rpm) / $bits }
-    return @{ Path = $path; Bits = $bits; Rate = $rate; CellNs = $cell; Source = $src; Rpm = $Rpm }
+    return @{ Path = $path; Bits = $bits; Rate = $rate; CellNs = $cell; Source = $src; Rpm = $Rpm; Known = [bool]$pb.Known }   # 12.11 : Known, densite tiree de l image (Get-PatternBits)
 }
 
 function Get-CalibDriveArgs {
@@ -19114,7 +19115,7 @@ function New-LevelCalUnits($lr, [string]$brand, [string]$drive, [int]$Bits = 0) 
         $u.Mode = 'lvl1'; $u.Raw = @{}; $u.V0 = [int[]]@($lu.V); $u.Memo = $null; $u.BrandEntry = $null; $u.AN = $null; $u.AV = $null; $u.VR = $null
         $u.Named = @{}; $u.Refus = ''; $u.Trig = $null; $u.Note = ''; $u.AdaptNote = ''; $u.AdaptLog = $null; $u.Ctl = [int[]]@()
         # 12.8 (F3R) : controles integres a l ajustement par une reprise e3 (CtlFit), reserve de controle e2 (motif, controles)
-        $u.CtlFit = [int[]]@(); $u.CtlReserve = ''; $u.CtlBad = @(); $u.ImgBits = $Bits   # 12.11 : ImgBits, cellules de la piste ecrite (Get-DiskCapBits : celles du motif, ou du format gw au-dela de 250 kbit/s ; 0 sans densite) : plafond par disquette (Get-UnitCapNs)
+        $u.CtlFit = [int[]]@(); $u.CtlReserve = ''; $u.CtlBad = @(); $u.ImgBits = $Bits   # 12.11 : ImgBits, cellules de la piste ecrite (Get-DiskCapBits : celles du motif, ou du format gw au-dela de 250 kbit/s ; 0 sans densite ou cellule inconnue) : plafond par disquette (Get-UnitCapNs)
         Set-LevelBrandStart @{ Drive = $drive; Family = [string]$lr.Family } $u $brand
         $u.ShapeV = New-LevelShape $u.V0
         foreach ($c in @(@($u.LCyls) + @($u.Wit) + @($(if ($null -ne $u.Probe) { $u.Probe })))) { $u.Results[[int]$c] = @{} }
@@ -19206,7 +19207,7 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     try { $pat = New-CalibPattern $fam $img $lr.NCyl }
     catch { [void](Show-AppMessage ((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)") (T 'Calibration precomp') 'OK' 'Error'); return }
     Set-CalibScale $fam     # 12.7 : bareme double densite (pas de calibration rapide en haute densite, Get-LevelRef)
-    $units = New-LevelCalUnits $lr $brand ([string]$cmbDrive.Text) $(if ($Geom) { 0 } else { Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text) })   # 12.11 : cellules de la piste ecrite (Get-DiskCapBits) ; carte de l Accueil (Geom : type de disquette, pas l image a ecrire) : sans densite, plafond de 470 ns comme en 12.10 (son profil peut etre place dans les champs d une image d une autre densite, Complete-LevelCalib)
+    $units = New-LevelCalUnits $lr $brand ([string]$cmbDrive.Text) $(if ($Geom) { 0 } else { Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text) ([bool]$pat.Known) })   # 12.11 : cellules de la piste ecrite (Get-DiskCapBits ; 0 si elle n est pas connue : format hors de la table, ou aucun format et densite non tiree de l image) ; carte de l Accueil (Geom : type de disquette, pas l image a ecrire) : sans densite, plafond de 470 ns comme en 12.10 (son profil peut etre place dans les champs d une image d une autre densite, Complete-LevelCalib)
     $cylList = Format-CylList $cyls
     $script:Cal = @{
         Mode = 'level'; Stage = 'level'; LPass = 1; Cyls = $cyls; MaxCyl = $lr.MaxCyl; Family = $fam; Slow = $slow
@@ -21628,7 +21629,7 @@ function Test-LevelAdaptedSpec([string[]]$specs) {
 
 function Get-DiskCellNs([int]$bits) {
     # 12.11 : cellule (ns) d une piste de $bits cellules a 300 tr/min (un tour de 200 ms) : celle du plafond par disquette
-    # (Get-DiskCapNs) et de la ligne de journal qui l annonce (Start-PrecompCalib)
+    # (Get-DiskCapNs) et de la ligne de journal qui l annonce (Get-DiskBoundText) ; jamais appelee sans cellules ($bits a 0)
     return 200000000.0 / $bits
 }
 
@@ -21638,7 +21639,7 @@ function Get-DiskCapNs([int]$bits = 0) {
     # Get-DiskCapBits (motif de la calibration en cours, ou format gw au-dela de 250 kbit/s). Au quart de la cellule, un
     # intervalle ecrit atteint sa frontiere de decision : 500 ns pour 2 us, 493 ns pour un ADF AmigaDOS (101 344 cellules),
     # 472 a 474 ns en long track (105 808 a 105 312 cellules), au lieu de CalHardMaxNs (470 ns) pour toutes jusqu a la
-    # 12.10. Sans densite ($bits a 0 : suite sans interface, carte de l Accueil) : CalHardMaxNs. Aucun cas particulier
+    # 12.10. Sans densite ($bits a 0 : suite sans interface, carte de l Accueil, cellule de la piste ecrite inconnue de Get-DiskCapBits) : CalHardMaxNs. Aucun cas particulier
     # pour la haute densite, qui n emprunte aucun chemin du plafond par disquette (Get-LevelRef la refuse). Aucune mesure
     # sur materiel au-dela de 470 ns : la regle repose sur la simulation du decodage (560)
     if ($bits -le 0) { return [int]$script:CalHardMaxNs }
@@ -21653,17 +21654,39 @@ function Get-UnitCapNs($u) {
     return (Get-DiskCapNs $b)
 }
 
-function Get-DiskCapBits([int]$bits, [string]$fmt = '') {
+function Get-DiskCapBits([int]$bits, [string]$fmt = '', [bool]$known = $false) {
     # 12.11 : cellules par piste retenues pour le plafond par disquette (Get-DiskCapNs) : celles de la piste ecrite. Le motif
     # d une image secteur est mesure a 2 us (100 000 cellules, Get-PatternBits) quel que soit le format ; un format gw double
     # densite dont le debit depasse 250 kbit/s (atari.130, atarist.440, atarist.880 : 260 et 261 kbit/s, Get-FormatCalibInfo)
     # ecrit 400 x debit cellules par piste : le plafond suit cette cellule, plus courte (478 ns et non 500 a 261 kbit/s).
-    # $fmt : format de l onglet Ecriture ; vide, « (auto) » ou absent de la table : $bits. Sans densite ($bits a 0) : 0
-    if ($bits -gt 0 -and $fmt -and $script:GwFormats.Contains($fmt)) {
+    # $fmt : format de l onglet Ecriture. Sans densite ($bits a 0) : 0
+    # 12.11 (lot L4b) : 0 aussi (sans densite : plafond de 470 ns, comme en 12.10) quand la cellule de la piste ecrite n est
+    # pas connue : format explicite absent de la table (gw plus recent, fichier diskdefs : la liste Format admet une saisie
+    # libre), ou aucun format (vide, « (auto) ») et densite du motif non tiree de l image ($known : champ Known du motif,
+    # Get-PatternBits : ADF, IPF, HFE ; faux pour une image secteur dont gw deduit ou exige le format : D81, FD, MGT, IMG,
+    # MSA..., que le bouton « Calibrer » en test rapide admet). Le plafond ne depasse donc CalHardMaxNs que pour un format
+    # de la table ou une densite lue dans l image
+    if ($bits -le 0) { return 0 }
+    if ($fmt -and $fmt -ne '(auto)') {
+        if (-not $script:GwFormats.Contains($fmt)) { return 0 }
         $e = $script:GwFormats[$fmt]
         if ([int]$e.Rpm -eq 300 -and [int]$e.Rate -gt 250 -and [int]$e.Rate -lt 450) { return [int][math]::Max($bits, 400 * [int]$e.Rate) }
+        return $bits
     }
-    return $bits
+    if ($known) { return $bits }
+    return 0
+}
+
+function Get-DiskBoundText([int]$hard, [int]$bits = 0) {
+    # 12.11 (lot L4b) : ligne de journal de la borne, au debut de la mesure complete de cette disquette (Start-PrecompCalib),
+    # tiree de la decision du plafond. $hard : borne posee (Get-DiskHardNs) ; $bits : cellules de la piste ecrite
+    # (Get-DiskCapBits). Borne au plus au seuil du controle impose (Get-DiskOverNs) : borne precompMaxNs ; au-dela, cellule
+    # connue : quart de la cellule annonce ; cellule inconnue ($bits a 0, Get-DiskCapNs rend CalHardMaxNs) : ligne de la
+    # 12.10, sans cellule (aucune division par zero : Get-DiskCellNs n est appelee qu avec des cellules)
+    $thr = Get-DiskOverNs
+    if ($hard -le $thr) { return ((T "Borne de la courbe de cette disquette : {0} ns (precompMaxNs).") -f "$hard") }
+    if ($bits -le 0) { return ((T "Borne de la courbe de cette disquette : {0} ns ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$hard", "$thr") }
+    return ((T "Borne de la courbe de cette disquette : {0} ns, le quart de la cellule de l'image ({2} ns), {3} ns au plus ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$hard", "$thr", "$([int][math]::Round((Get-DiskCellNs $bits)))", "$($script:CalDiskCapMaxNs)")
 }
 
 function Get-DiskOverAdviceText([int]$thr) {
@@ -22015,8 +22038,8 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     # @() autour du if : une seule unite resterait sinon une hashtable nue ($cal.Units[0] = $null)
     Set-CalibScale $family     # 12.7 : bareme de la famille (amplitudes haute densite), apres les sorties anticipees
     # 12.8 (S3) : borne de la courbe de cette disquette (Get-DiskHardNs : plafond par disquette, ou precompMaxNs reglee sous
-    # 400 ns) pendant la mesure complete, retablie a sa fin (Reset-DiskHardNs). 12.11 : calculee ici, le motif cree, sur les cellules de la piste ecrite (Get-DiskCapBits : motif, ou format gw au-dela de 250 kbit/s)
-    if ($do) { $do.HardNs = Get-DiskHardNs (Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text)); Set-DiskHardNs @{ DiskOnly = $true; HardNs = [int]$do.HardNs } }
+    # 400 ns) pendant la mesure complete, retablie a sa fin (Reset-DiskHardNs). 12.11 : calculee ici, le motif cree, sur les cellules de la piste ecrite (CapBits, Get-DiskCapBits : motif, ou format gw au-dela de 250 kbit/s ; 0 si elle n est pas connue : 470 ns, comme en 12.10)
+    if ($do) { $do.CapBits = Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text) ([bool]$pat.Known); $do.HardNs = Get-DiskHardNs ([int]$do.CapBits); Set-DiskHardNs @{ DiskOnly = $true; HardNs = [int]$do.HardNs } }
     $units = @(if ($slow) { (New-CalibUnit 0), (New-CalibUnit 1) } else { New-CalibUnit $null })
     foreach ($u in $units) { foreach ($c in $cyls) { $u.Results[[int]$c] = @{} } }
     $script:Cal = @{
@@ -22072,9 +22095,9 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         $script:Cal.DiskOnly = $true; $script:Cal.Brand = [string]$do.Brand; $script:Cal.HardNs = [int]$do.HardNs; $script:Cal.DiskRef = $do.Ref
         Append-Log ((T "=== Mesure complète de cette disquette : lecteur {0}, image {1} ({2}, {3}) ; référence du lecteur inchangée ===") -f "$($cmbDrive.Text)", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$modeTxt")
         if ($do.Brand) { Append-Log ((T 'Marque de la disquette insérée : « {0} ».') -f "$($do.Brand)") }
-        $thr = Get-DiskOverNs
-        if ([int]$do.HardNs -gt $thr) { Append-Log ((T "Borne de la courbe de cette disquette : {0} ns, le quart de la cellule de l'image ({2} ns), {3} ns au plus ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$($do.HardNs)", "$thr", "$([int][math]::Round((Get-DiskCellNs (Get-DiskCapBits ([int]$pat.Bits) ([string]$cmbWFmt.Text)))))", "$($script:CalDiskCapMaxNs)") }
-        else { Append-Log ((T "Borne de la courbe de cette disquette : {0} ns (precompMaxNs).") -f "$($do.HardNs)") }
+        # 12.11 (lot L4b) : ligne de la borne tiree de la decision du plafond (Get-DiskBoundText, 265) : quart de la cellule de la
+        # piste ecrite si elle est connue (CapBits), ligne de la 12.10 sinon (470 ns), borne precompMaxNs au plus au seuil
+        Append-Log (Get-DiskBoundText ([int]$do.HardNs) ([int]$do.CapBits))
         # 12.8 (S3-HIGH) : duree estimee et ecritures par piste au plus (avertissement M1)
         Append-Log ((T "Durée estimée de la mesure : environ {0} min ; {1} min au plus avec la mesure directe des cylindres dont le besoin dépasse {2} ns et {3} nouveaux essais au plus des cylindres non convergés.") -f "$minutes", "$minDisk", "$mxDisk", "$($script:CalDiskMaxRetest)")
         # 12.9 (correction 1) : l ecriture de conditionnement du lecteur est comptee
@@ -22173,7 +22196,7 @@ function Start-DiskMeasure($lr, [string]$brand) {
         Append-Log (T "Mesure complète de cette disquette impossible : elle demande la référence du lecteur par tête (écriture lente). Écriture annulée.")
         return
     }
-    $script:CalDiskOnly = @{ Brand = [string]$brand; HardNs = 0; Ref = $lr }   # 12.11 : HardNs pose par Start-PrecompCalib (Get-DiskHardNs de la densite du motif)
+    $script:CalDiskOnly = @{ Brand = [string]$brand; HardNs = 0; Ref = $lr }   # 12.11 : HardNs pose par Start-PrecompCalib (Get-DiskHardNs des cellules de la piste ecrite, qu il garde dans CapBits)
     $script:AfterCalib = 'write'
     Start-PrecompCalib -ForceFine -Heads $true
     $script:CalDiskOnly = $null      # deja remis a $null par Start-PrecompCalib (premiere instruction)
@@ -29562,7 +29585,7 @@ $script:CalCrossAsk = $null
 # Set-Defaults et « Effacer les calibrations » (les courbes croisees, elles, sont effacees)
 $script:TargetDrives = @{}
 # 12.8 (S3, decision du 21/10/2026) : mesure complete de cette disquette demandee par Start-DiskMeasure (@{ Brand ; HardNs ;
-# Ref } ; 12.11 : HardNs pose par Start-PrecompCalib, la densite du motif connue) : lue et remise a $null au debut de
+# Ref } ; 12.11 : HardNs et CapBits poses par Start-PrecompCalib, la densite du motif connue) : lue et remise a $null au debut de
 # Start-PrecompCalib (signature inchangee : make-test) ; relance sans marque (W-M2) : lu et remis a $false par Start-LevelCalib
 $script:CalDiskOnly = $null
 $script:LevelNoBrand = $false
