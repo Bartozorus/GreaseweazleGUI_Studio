@@ -2762,6 +2762,10 @@ $script:I18n['Copies illisibles ou sans courbe, non listées : {0}.'] = 'Unreada
 $script:I18n['À rétablir : {0} ; calibration du {1}, {2}, calcul {3}.'] = 'To restore: {0}; calibrated on {1}, {2}, calculation {3}.'
 $script:I18n['Courbes en place remplacées : {0}.'] = 'Curves in place replaced: {0}.'
 $script:I18n["Aucune courbe en place n'est remplacée."] = 'No curve in place is replaced.'
+# Relecture de L7 : courbes en attente du choix, courbes ajoutees, retour sans copie (Get-CalibBackInfo, champ Backup)
+$script:I18n["Courbes en attente du choix « garder ou recalibrer » retirées de l'attente : {0}."] = 'Curves awaiting the "keep or recalibrate" choice taken out of the wait: {0}.'
+$script:I18n['Courbes ajoutées, sans courbe en place : {0}. Elles restent en place si vous annulez ce retour.'] = 'Curves added, with no curve in place: {0}. They stay in place if you undo this return.'
+$script:I18n["Aucune copie n'est faite avant ce retour : il ne s'annule pas par ce bouton, qui rétablit des courbes et n'en retire aucune."] = 'No copy is made before this return: it cannot be undone with this button, which restores curves and never removes any.'
 $script:I18n['Calcul {0}, autre que le calcul actuel (v{1}) : ces courbes seront conservées telles quelles, comme avec « Conserver ces courbes » au démarrage ; une nouvelle calibration peut donner une courbe plus juste.'] = 'Calculation {0}, other than the current calculation (v{1}): these curves will be kept as they are, as with "Keep these curves" at startup; a new calibration may give a more accurate curve.'
 $script:I18n["Ces courbes par tête sont plus anciennes que la courbe commune en place de ce lecteur ({0}) : l'écriture lente ne les appliquera pas tant que cette courbe commune est plus récente."] = 'These per-head curves are older than the common curve in place for this drive ({0}): slow writing will not apply them as long as that common curve is more recent.'
 $script:I18n["Les niveaux de la calibration rapide mesurés avec les courbes remplacées ne s'appliqueront plus. Les autres courbes, les réglages, la mémoire par marque et les facteurs mesurés ne changent pas."] = 'Quick calibration levels measured with the replaced curves will no longer apply. The other curves, the settings, the per-brand memory and the measured factors do not change.'
@@ -2777,7 +2781,8 @@ $script:I18n["Cette calibration porte le nom « {0} », mais le lecteur enregist
 $script:I18n['Rétablir cette calibration pour le lecteur « {0} » ?'] = 'Restore this calibration for drive "{0}"?'
 $script:I18n["Cette calibration a bien été faite avec le lecteur « {0} » (à l'époque : {1})"] = 'This calibration was indeed made with drive "{0}" (at the time: {1})'
 # Messages, onglet et journal (Start-CalibBack, Restore-CalibBack, 240 ; Backup-ConfigBeforeRef, motif back, 120)
-$script:I18n['Aucune calibration précédente à rétablir : aucune des {0} copie(s) de la configuration lue(s) dans « {1} » ne contient de courbe différente des courbes en place.'] = 'No previous calibration to restore: none of the {0} configuration copies read in "{1}" holds a curve different from the curves in place.'
+$script:I18n['Aucune calibration précédente à rétablir : le dossier « {0} » ne contient aucune copie de la configuration (« {1}.….bak »).'] = 'No previous calibration to restore: folder "{0}" holds no configuration copy ("{1}.….bak").'
+$script:I18n['Aucune calibration précédente à rétablir : aucune des {0} copie(s) de la configuration lue(s) dans « {1} » ne contient de courbe différente des courbes en place.'] ='No previous calibration to restore: none of the {0} configuration copies read in "{1}" holds a curve different from the curves in place.'
 $script:I18n["Retour annulé : l'état actuel n'a pas pu être sauvegardé (voir le journal). Rien n'est modifié."] = 'Return cancelled: the current state could not be backed up (see the log). Nothing is changed.'
 $script:I18n['Calibration précédente rétablie : {0} (calibration du {1}, calcul {2}), lue dans {3}. Courbes remplacées : {4}.'] = 'Previous calibration restored: {0} (calibrated on {1}, calculation {2}), read from {3}. Curves replaced: {4}.'
 $script:I18n['Calibration précédente rétablie.'] = 'Previous calibration restored.'
@@ -2819,8 +2824,8 @@ $script:I18n["Nom trop large pour s'afficher en entier dans les listes de lecteu
 $script:I18n['Lecteurs enregistrés : opération en cours ({0}). Réessayez quand elle est terminée.'] = 'Registered drives: operation in progress ({0}). Try again when it has finished.'
 $script:I18n["Calibration B en cours ou en attente de décision : terminez-la d'abord."] = 'Calibration B in progress or awaiting a decision: finish it first.'
 $script:I18n['Choisissez la connexion du lecteur.'] = 'Select the connection of the drive.'
-$script:I18n['Le lecteur {0} a déjà des calibrations : celles de la connexion {1} ne peuvent pas lui être attribuées.'] = 'Drive {0} already has calibrations: those of connection {1} cannot be assigned to it.'
-$script:I18n['La connexion {0} a déjà des calibrations sans nom de lecteur : le nom ne peut pas être retiré seul.'] = 'Connection {0} already has calibrations without a drive name: the name cannot be removed on its own.'
+$script:I18n['Le lecteur {0} a déjà des données (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : celles de la connexion {1} ne peuvent pas lui être attribuées.'] = 'Drive {0} already has data (curves, target drive, levels, per-brand memory or factors): those of connection {1} cannot be assigned to it.'
+$script:I18n['La connexion {0} a déjà des données sans nom de lecteur (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : le nom ne peut pas être retiré seul.'] = 'Connection {0} already has data without a drive name (curves, target drive, levels, per-brand memory or factors): the name cannot be removed on its own.'
 $script:I18n["Configuration non sauvegardée : rien n'a été modifié (voir le journal)."] = 'Configuration not backed up: nothing was changed (see the log).'
 # Journal : copie datee de la configuration avant une modification des lecteurs (Backup-ConfigForDrives,
 # Protect-DriveData) ; les copies retirees par la rotation reprennent la ligne « Ancienne sauvegarde... » (010)
@@ -5173,8 +5178,9 @@ function Update-SeqEnd {
 # 12.11 (lot LN-a, socle sans interface) : un lecteur de disquette peut recevoir un nom. Le nom est alors son identite : le
 # texte de la liste du bandeau, la cle de rangement de ses courbes (« nom|cle », « source>cible|cle ») et le champ Drive de
 # ses donnees. La connexion (A, B, 0 a 3 : la valeur de --drive) devient un attribut de sa fiche, donne par la seule
-# fonction Get-DriveConn. Un lecteur non enregistre garde pour identite le code de sa connexion : sans lecteur
-# enregistre, cles, blocs de la configuration et arguments de gw sont ceux de la 12.10.
+# fonction Get-DriveConn. Un lecteur non enregistre garde pour identite le code de sa connexion : tant qu aucun lecteur
+# n a ete enregistre, cles, blocs de la configuration et arguments de gw sont ceux de la 12.10 (une fois une copie de
+# secours lue ou ecrite, le bloc drives reste ecrit, liste vide comprise : Export-DriveRegistry).
 # Etat (040) : $script:DriveReg, registre, table ordonnee nom -> fiche @{ Name ; Conn ; Id ; Created ; From ; At } ;
 # $script:DriveLast, connexion -> dernier lecteur enregistre choisi. Le registre n est jamais lu par un index ni par une
 # propriete (Get-DriveRecord enumere ses entrees) : un nom fait de chiffres ne peut pas etre pris pour un rang, et aucun
@@ -5375,7 +5381,9 @@ function Edit-DriveData([string]$from, [string]$to, [switch]$Check) {
     if (-not $from) { return $res }
     $same = ($from -eq $to)
     $toConn = Test-DriveConnCode $to
-    $refuse = if ($toConn) { ((T 'La connexion {0} a déjà des calibrations sans nom de lecteur : le nom ne peut pas être retiré seul.') -f $to) } else { ((T 'Le lecteur {0} a déjà des calibrations : celles de la connexion {1} ne peuvent pas lui être attribuées.') -f $to, $from) }
+    # 12.11 (relecture de LN-a) : le refus part des que $to porte une donnee (Get-DriveData : Any), courbe ou non : le texte
+    # nomme toutes les sortes de donnees, et non les seules calibrations (un lecteur cible choisi suffit)
+    $refuse = if ($toConn) { ((T 'La connexion {0} a déjà des données sans nom de lecteur (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : le nom ne peut pas être retiré seul.') -f $to) } else { ((T 'Le lecteur {0} a déjà des données (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : celles de la connexion {1} ne peuvent pas lui être attribuées.') -f $to, $from) }
     # --- Premier temps : calcul, sans effet -------------------------------------------------------------------------
     $fix = @(); $n = 0; $clash = $false
     $nCurves = @{}; $nOld = [ordered]@{}; $nOldLv = @{}; $nLv = @{}; $nBr = @(); $nCm = @(); $nTd = @{}; $nLast = @{}
@@ -5587,7 +5595,7 @@ function Add-NamedDrive([string]$name, [string]$conn, [string]$from = '') {
     if ($why) { $res.Why = $why; return $res }
     if (-not (Test-DriveConnCode $conn) -or ($from -and -not (Test-DriveConnCode $from))) { $res.Why = (T 'Choisissez la connexion du lecteur.'); return $res }
     $rec = $null
-    if ($from) { $rec = Get-DriveRecord (([string]$name).Trim()) }
+    if ($from) { $rec = Get-DriveRecord ([string](Test-DriveName $name).Name) }   # 12.11 : nom normalise (espaces repetes ramenes a un seul), comme Test-DriveName
     $nm = ''
     if ($rec) { $nm = [string]$rec.Name }
     else {
@@ -5922,12 +5930,13 @@ function Get-DriveIdentities($old = $null, $targets = $null) {
     foreach ($rec in @($script:ContentMeasures)) { if ($rec) { $all += [string]$rec.Drive } }
     if ($null -ne $script:TargetDrives) { foreach ($e in @($script:TargetDrives.GetEnumerator())) { $all += [string]$e.Key; $all += [string]$e.Value } }
     if ($null -ne $targets -and $targets -isnot [string] -and $targets -isnot [ValueType] -and $targets -isnot [array]) {
-        if ($targets -is [System.Collections.IDictionary]) { foreach ($e in @($targets.GetEnumerator())) { $all += [string]$e.Key; $all += [string]$e.Value } }
-        else { foreach ($p in @($targets.PSObject.Properties)) { $all += [string]$p.Name; $all += [string]$p.Value } }
+        # 12.11 (relecture de LN-a) : espaces des bords retires ici seulement, comme Import-TargetDrives les retire
+        if ($targets -is [System.Collections.IDictionary]) { foreach ($e in @($targets.GetEnumerator())) { $all += ([string]$e.Key).Trim(); $all += ([string]$e.Value).Trim() } }
+        else { foreach ($p in @($targets.PSObject.Properties)) { $all += ([string]$p.Name).Trim(); $all += ([string]$p.Value).Trim() } }
     }
     foreach ($a in $all) {
-        $s = ([string]$a).Trim()
-        if (-not $s -or $seen.ContainsKey($s)) { continue }
+        $s = [string]$a   # 12.11 : identite telle que la donnee la porte (Get-DriveData compare sans retirer d espace)
+        if (-not $s.Trim() -or $seen.ContainsKey($s)) { continue }
         $seen[$s] = $true
         $s
     }
@@ -5965,7 +5974,9 @@ function Restore-DriveRescueTargets($old = $null) {
     # lecteurs sont connus (Get-DriveIds) ; un couple dont la source a un autre lecteur cible n est pas touche. Puis une
     # ligne de journal qui dit ce qui a ete trouve, fiche par fiche (Get-DriveDataText, « aucune » comprise), sans
     # affirmer ni la cause de l absence du bloc, ni que les calibrations sont intactes. Rend les couples retablis, un a
-    # un : @{ Src ; Tgt }
+    # un : @{ Src ; Tgt }. Le couple d une fiche relue sans aucune courbe est retabli aussi : ce lecteur cible est alors sa
+    # seule donnee, et nommer de ce nom le lecteur d une connexion pour lui rendre ses courbes est refuse (Edit-DriveData,
+    # texte qui cite le lecteur cible) tant que ce choix reste
     $pairs = $script:DriveRescuePairs
     if ($null -eq $pairs) { return }
     $script:DriveRescuePairs = $null
@@ -18154,9 +18165,11 @@ function Get-CalibBackInfo($item) {
     # a case. Rend @{ Ok ; Drive (lecteur de magasin d aujourd hui) ; Sides (resultats de Resolve-DriveOfEra) ; Sure ;
     # NeedCheck ; CheckNow ; CheckEra (lecteurs nommes par la confirmation) ; Same (courbes identiques a celles en place :
     # ligne non listee) ; DriveText ; Labels ; Replace ; Add ; Pending (cles de magasin : courbe en place, sans courbe, en
-    # attente du choix « garder ou recalibrer ») ; OtherCalc ; HeadsStale ; Text (detail) }
+    # attente du choix « garder ou recalibrer ») ; Backup (12.11, relecture : cles copiees avant le retour, Replace et
+    # Pending ; vide : aucune copie, Restore-CalibBack) ; OtherCalc ; CalcText (12.11, relecture : colonne « Calcul » de la
+    # fenetre) ; HeadsStale ; Text (detail) }
     $res = @{ Ok = $false; Drive = ''; Sides = @(); Sure = $false; NeedCheck = $false; CheckNow = ''; CheckEra = ''; Same = $false; DriveText = ''
-              Labels = @(); Replace = @(); Add = @(); Pending = @(); OtherCalc = $false; HeadsStale = $false; Text = '' }
+              Labels = @(); Replace = @(); Add = @(); Pending = @(); Backup = @(); OtherCalc = $false; CalcText = ''; HeadsStale = $false; Text = '' }
     if (-not $item) { return $res }
     $names = @($item.CurveKeys | ForEach-Object { [string]$_ })
     if ($names.Count -eq 0) { return $res }
@@ -18199,6 +18212,7 @@ function Get-CalibBackInfo($item) {
             # Courbe de cette cle en attente du choix « garder ou recalibrer », en place ou non : retiree de l attente
             if ($script:OldCalib -and $script:OldCalib.Curves -and $script:OldCalib.Curves.Contains($sk)) { $res.Pending += $sk }
         }
+        $res.Backup = @(@(@($res.Replace) + @($res.Pending)) | Sort-Object -Unique)
         $fam = [string]$item.Family
         if (@($names | Where-Object { $_ -match '_h\d$' }).Count -gt 0 -and $names -notcontains $fam) {
             $one = Get-DriveCurve $res.Drive $fam
@@ -18211,11 +18225,20 @@ function Get-CalibBackInfo($item) {
     # Calcul : texte de la colonne « Calcul » (courbe d un autre calcul deja conservee : « v12.9, conserve (calcul actuel
     # v12.10) ») ; courbe d un autre calcul non conservee : son calcul seul, la phrase qui suit dit ce qu il en sera
     $calcTxt = if ($item.CalcOk) { Get-CurveCalcText $cv0 } else { Get-CurveCalcText $cv0 -Plain }
+    # 12.11 (relecture de L7) : colonne « Calcul » de la fenetre (New-CalibBackDialog, 250), decidee ici
+    $res.CalcText = if ($item.CalcOk) { $calcTxt } else { (T '{0} (autre calcul)') -f $calcTxt }
     $t += ((T "À rétablir : {0} ; calibration du {1}, {2}, calcul {3}.") -f ($res.Labels -join ' ; '), [string]$item.Date, (Get-CalibBackTestText ([string]$item.Test)), $calcTxt)
     $t += $why
     if ($res.Ok) {
-        $rp = @(@(@($res.Replace) + @($res.Pending) | Sort-Object -Unique) | ForEach-Object { Get-DriveCurveLabel $_ })
+        # 12.11 (relecture de L7) : courbes en place remplacees, puis, a part, courbes en attente du choix (elles ne sont pas
+        # en place) ; sans aucune des deux, pas de copie (Backup vide) ; une courbe ajoutee n est retiree par aucun retour
+        $rp = @(@($res.Replace) | ForEach-Object { Get-DriveCurveLabel $_ })
         if ($rp.Count -gt 0) { $t += ((T 'Courbes en place remplacées : {0}.') -f ($rp -join ' ; ')) } else { $t += (T "Aucune courbe en place n'est remplacée.") }
+        $pd = @(@($res.Pending) | ForEach-Object { Get-DriveCurveLabel $_ })
+        if ($pd.Count -gt 0) { $t += ((T "Courbes en attente du choix « garder ou recalibrer » retirées de l'attente : {0}.") -f ($pd -join ' ; ')) }
+        $addOnly = @(@($res.Add) | Where-Object { @($res.Pending) -notcontains $_ })
+        if (@($res.Backup).Count -eq 0) { $t += (T "Aucune copie n'est faite avant ce retour : il ne s'annule pas par ce bouton, qui rétablit des courbes et n'en retire aucune.") }
+        elseif ($addOnly.Count -gt 0) { $t += ((T 'Courbes ajoutées, sans courbe en place : {0}. Elles restent en place si vous annulez ce retour.') -f ((@($addOnly | ForEach-Object { Get-DriveCurveLabel $_ })) -join ' ; ')) }
         if ($res.OtherCalc) { $t += ((T "Calcul {0}, autre que le calcul actuel (v{1}) : ces courbes seront conservées telles quelles, comme avec « Conserver ces courbes » au démarrage ; une nouvelle calibration peut donner une courbe plus juste.") -f (Get-CurveCalcText $cv0 -Plain), (Get-CurveCalcRef $cv0)) }
         if ($res.HeadsStale) { $t += ((T "Ces courbes par tête sont plus anciennes que la courbe commune en place de ce lecteur ({0}) : l'écriture lente ne les appliquera pas tant que cette courbe commune est plus récente.") -f $oneDate) }
         $t += (T "Les niveaux de la calibration rapide mesurés avec les courbes remplacées ne s'appliqueront plus. Les autres courbes, les réglages, la mémoire par marque et les facteurs mesurés ne changent pas.")
@@ -18280,13 +18303,15 @@ function Restore-CalibBack($item, [switch]$Confirmed) {
     # courbe serait remplacee : retour annule, rien n est modifie. Ne changent pas : les autres courbes (autres lecteurs,
     # courbes croisees), les reglages, les niveaux, la memoire par marque, les facteurs mesures, les lecteurs cibles. Courbe
     # d un autre calcul : conservee pour le calcul actuel (KeptFor, comme « Conserver ces courbes » au demarrage). Courbes de
-    # ces cles en attente du choix ($script:OldCalib) : retirees de l attente. Rend $true si le retour est fait
+    # ces cles en attente du choix ($script:OldCalib) : retirees de l attente, et les niveaux de la calibration rapide mis de
+    # cote avec elles repris dans $script:LevelShifts, comme « Conserver ces courbes » (Resolve-OldCalibrations ; Load-Config
+    # ne garde au demarrage suivant que ceux d une courbe de meme date). Rend $true si le retour est fait
     $info = Get-CalibBackInfo $item
     if (-not $info.Ok -or $info.Same) { return $false }
     if ($info.NeedCheck -and -not $Confirmed) { return $false }
     if ((Get-AppBusy) -or $script:CalRedo) { return $false }
     $names = @($item.CurveKeys | ForEach-Object { [string]$_ })
-    $repl = @(@(@($info.Replace) + @($info.Pending)) | Sort-Object -Unique)
+    $repl = @($info.Backup)   # 12.11 (relecture) : cles a copier d abord, decidees par Get-CalibBackInfo (detail de la fenetre)
     $title = (T 'Revenir à une calibration précédente')
     # Sauvegarde d abord. Le temps de cet enregistrement, une erreur d ecriture arrete Save-Config (qui la note et rend faux)
     # au lieu d etre seulement affichee : sans cela, la copie qui suit serait celle d un fichier perime (comme
@@ -18313,7 +18338,17 @@ function Restore-CalibBack($item, [switch]$Confirmed) {
         Set-DriveCurve ([string]$info.Drive) $k $cv
     }
     if ($script:OldCalib -and $script:OldCalib.Curves) {
-        foreach ($sk in @($info.Pending)) { [void]$script:OldCalib.Curves.Remove($sk) }
+        foreach ($sk in @($info.Pending)) {
+            [void]$script:OldCalib.Curves.Remove($sk)
+            # 12.11 (L7) : niveaux de la calibration rapide mis de cote avec cette courbe : repris comme avec « Conserver ces
+            # courbes » (Resolve-OldCalibrations) ; ils ne s appliquent qu a une courbe de meme date (RefDate)
+            if ($script:OldCalib.Levels) {
+                foreach ($lk in @($script:OldCalib.Levels.Keys)) {
+                    $lr = $script:OldCalib.Levels[$lk]
+                    if ($lr -and (Get-DriveCurveKey ([string]$lr.Drive) ([string]$lr.RefKey)) -eq $sk) { $script:LevelShifts[$lk] = $lr; [void]$script:OldCalib.Levels.Remove($lk) }
+                }
+            }
+        }
         if ($script:OldCalib.Curves.Count -eq 0) { $script:OldCalib = $null }
     }
     Sync-PrecompCurves
@@ -18338,6 +18373,8 @@ function Start-CalibBack {
     if (Get-AppBusy) { [void](Show-AppMessage (T 'Opération en cours : attendre la fin de la calibration ou de l''écriture.') $title 'OK' 'Warning'); return $false }
     if ($script:CalRedo) { [void](Show-AppMessage (T "Calibration B en cours ou en attente de décision : terminez-la d'abord.") $title 'OK' 'Warning'); return $false }
     $files = @(Get-CalibBackFiles)
+    # 12.11 (relecture de L7) : aucune copie : message propre, au lieu de « aucune des 0 copie(s) »
+    if ($files.Count -eq 0) { [void](Show-AppMessage ((T 'Aucune calibration précédente à rétablir : le dossier « {0} » ne contient aucune copie de la configuration (« {1}.….bak »).') -f (Split-Path -Parent ([string]$script:ConfigFile)), [System.IO.Path]::GetFileName([string]$script:ConfigFile)) $title 'OK' 'Information'); return $false }
     $reads = @(); $skipped = @()
     foreach ($f in $files) {
         $b = Read-CalibBackup $f
@@ -20415,7 +20452,7 @@ function New-CalibBackDialog($items, [int]$nFiles, [string[]]$skipped) {
     # lvCalBack (une ligne par calibration, une seule selection), detail lblCalBackInfo, pied lblCalBackSkip (copies
     # illisibles ou sans courbe), « Retablir cette calibration » (btnCalBackGo, principal, inactif sans selection et pour
     # une ligne qui ne peut pas etre retablie) et « Fermer » (btnCalBackClose : CancelButton et focus initial ; aucun
-    # AcceptButton, Entree ne retablit rien). Colonne « Lecteur », detail et bouton viennent de Get-CalibBackInfo (240), la
+    # AcceptButton, Entree ne retablit rien). Colonnes « Lecteur » et « Calcul », detail et bouton viennent de Get-CalibBackInfo (240), la
     # fonction qui decide : la fenetre ne decide rien. Rend @{ Dlg ; Lv ; Info ; Skip ; Go ; Close ; Items ; Infos ; Gdi }
     $W = 966
     $gdi = New-Object System.Collections.Generic.List[object]
@@ -20444,8 +20481,7 @@ function New-CalibBackDialog($items, [int]$nFiles, [string[]]$skipped) {
     foreach ($it in @($items)) {
         $inf = Get-CalibBackInfo $it
         $infos += ,$inf
-        $cv0 = $it.Curves[[string]@($it.CurveKeys)[0]]
-        $calc = if ($it.CalcOk) { Get-CurveCalcText $cv0 } else { (T '{0} (autre calcul)') -f (Get-CurveCalcText $cv0 -Plain) }
+        $calc = [string]$inf.CalcText   # 12.11 (relecture) : texte decide par Get-CalibBackInfo
         $copy = [string]$it.FileName
         if ($leaf -and $copy.StartsWith($leaf + '.', [System.StringComparison]::OrdinalIgnoreCase)) { $copy = $copy.Substring($leaf.Length + 1) }
         $row = New-Object System.Windows.Forms.ListViewItem([string]$it.Date)

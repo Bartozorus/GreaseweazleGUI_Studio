@@ -2,8 +2,9 @@
 # 12.11 (lot LN-a, socle sans interface) : un lecteur de disquette peut recevoir un nom. Le nom est alors son identite : le
 # texte de la liste du bandeau, la cle de rangement de ses courbes (« nom|cle », « source>cible|cle ») et le champ Drive de
 # ses donnees. La connexion (A, B, 0 a 3 : la valeur de --drive) devient un attribut de sa fiche, donne par la seule
-# fonction Get-DriveConn. Un lecteur non enregistre garde pour identite le code de sa connexion : sans lecteur
-# enregistre, cles, blocs de la configuration et arguments de gw sont ceux de la 12.10.
+# fonction Get-DriveConn. Un lecteur non enregistre garde pour identite le code de sa connexion : tant qu aucun lecteur
+# n a ete enregistre, cles, blocs de la configuration et arguments de gw sont ceux de la 12.10 (une fois une copie de
+# secours lue ou ecrite, le bloc drives reste ecrit, liste vide comprise : Export-DriveRegistry).
 # Etat (040) : $script:DriveReg, registre, table ordonnee nom -> fiche @{ Name ; Conn ; Id ; Created ; From ; At } ;
 # $script:DriveLast, connexion -> dernier lecteur enregistre choisi. Le registre n est jamais lu par un index ni par une
 # propriete (Get-DriveRecord enumere ses entrees) : un nom fait de chiffres ne peut pas etre pris pour un rang, et aucun
@@ -204,7 +205,9 @@ function Edit-DriveData([string]$from, [string]$to, [switch]$Check) {
     if (-not $from) { return $res }
     $same = ($from -eq $to)
     $toConn = Test-DriveConnCode $to
-    $refuse = if ($toConn) { ((T 'La connexion {0} a déjà des calibrations sans nom de lecteur : le nom ne peut pas être retiré seul.') -f $to) } else { ((T 'Le lecteur {0} a déjà des calibrations : celles de la connexion {1} ne peuvent pas lui être attribuées.') -f $to, $from) }
+    # 12.11 (relecture de LN-a) : le refus part des que $to porte une donnee (Get-DriveData : Any), courbe ou non : le texte
+    # nomme toutes les sortes de donnees, et non les seules calibrations (un lecteur cible choisi suffit)
+    $refuse = if ($toConn) { ((T 'La connexion {0} a déjà des données sans nom de lecteur (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : le nom ne peut pas être retiré seul.') -f $to) } else { ((T 'Le lecteur {0} a déjà des données (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : celles de la connexion {1} ne peuvent pas lui être attribuées.') -f $to, $from) }
     # --- Premier temps : calcul, sans effet -------------------------------------------------------------------------
     $fix = @(); $n = 0; $clash = $false
     $nCurves = @{}; $nOld = [ordered]@{}; $nOldLv = @{}; $nLv = @{}; $nBr = @(); $nCm = @(); $nTd = @{}; $nLast = @{}
@@ -416,7 +419,7 @@ function Add-NamedDrive([string]$name, [string]$conn, [string]$from = '') {
     if ($why) { $res.Why = $why; return $res }
     if (-not (Test-DriveConnCode $conn) -or ($from -and -not (Test-DriveConnCode $from))) { $res.Why = (T 'Choisissez la connexion du lecteur.'); return $res }
     $rec = $null
-    if ($from) { $rec = Get-DriveRecord (([string]$name).Trim()) }
+    if ($from) { $rec = Get-DriveRecord ([string](Test-DriveName $name).Name) }   # 12.11 : nom normalise (espaces repetes ramenes a un seul), comme Test-DriveName
     $nm = ''
     if ($rec) { $nm = [string]$rec.Name }
     else {
@@ -751,12 +754,13 @@ function Get-DriveIdentities($old = $null, $targets = $null) {
     foreach ($rec in @($script:ContentMeasures)) { if ($rec) { $all += [string]$rec.Drive } }
     if ($null -ne $script:TargetDrives) { foreach ($e in @($script:TargetDrives.GetEnumerator())) { $all += [string]$e.Key; $all += [string]$e.Value } }
     if ($null -ne $targets -and $targets -isnot [string] -and $targets -isnot [ValueType] -and $targets -isnot [array]) {
-        if ($targets -is [System.Collections.IDictionary]) { foreach ($e in @($targets.GetEnumerator())) { $all += [string]$e.Key; $all += [string]$e.Value } }
-        else { foreach ($p in @($targets.PSObject.Properties)) { $all += [string]$p.Name; $all += [string]$p.Value } }
+        # 12.11 (relecture de LN-a) : espaces des bords retires ici seulement, comme Import-TargetDrives les retire
+        if ($targets -is [System.Collections.IDictionary]) { foreach ($e in @($targets.GetEnumerator())) { $all += ([string]$e.Key).Trim(); $all += ([string]$e.Value).Trim() } }
+        else { foreach ($p in @($targets.PSObject.Properties)) { $all += ([string]$p.Name).Trim(); $all += ([string]$p.Value).Trim() } }
     }
     foreach ($a in $all) {
-        $s = ([string]$a).Trim()
-        if (-not $s -or $seen.ContainsKey($s)) { continue }
+        $s = [string]$a   # 12.11 : identite telle que la donnee la porte (Get-DriveData compare sans retirer d espace)
+        if (-not $s.Trim() -or $seen.ContainsKey($s)) { continue }
         $seen[$s] = $true
         $s
     }
@@ -794,7 +798,9 @@ function Restore-DriveRescueTargets($old = $null) {
     # lecteurs sont connus (Get-DriveIds) ; un couple dont la source a un autre lecteur cible n est pas touche. Puis une
     # ligne de journal qui dit ce qui a ete trouve, fiche par fiche (Get-DriveDataText, « aucune » comprise), sans
     # affirmer ni la cause de l absence du bloc, ni que les calibrations sont intactes. Rend les couples retablis, un a
-    # un : @{ Src ; Tgt }
+    # un : @{ Src ; Tgt }. Le couple d une fiche relue sans aucune courbe est retabli aussi : ce lecteur cible est alors sa
+    # seule donnee, et nommer de ce nom le lecteur d une connexion pour lui rendre ses courbes est refuse (Edit-DriveData,
+    # texte qui cite le lecteur cible) tant que ce choix reste
     $pairs = $script:DriveRescuePairs
     if ($null -eq $pairs) { return }
     $script:DriveRescuePairs = $null

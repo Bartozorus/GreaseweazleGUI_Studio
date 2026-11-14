@@ -595,7 +595,7 @@ function New-CalibBackDialog($items, [int]$nFiles, [string[]]$skipped) {
     # lvCalBack (une ligne par calibration, une seule selection), detail lblCalBackInfo, pied lblCalBackSkip (copies
     # illisibles ou sans courbe), « Retablir cette calibration » (btnCalBackGo, principal, inactif sans selection et pour
     # une ligne qui ne peut pas etre retablie) et « Fermer » (btnCalBackClose : CancelButton et focus initial ; aucun
-    # AcceptButton, Entree ne retablit rien). Colonne « Lecteur », detail et bouton viennent de Get-CalibBackInfo (240), la
+    # AcceptButton, Entree ne retablit rien). Colonnes « Lecteur » et « Calcul », detail et bouton viennent de Get-CalibBackInfo (240), la
     # fonction qui decide : la fenetre ne decide rien. Rend @{ Dlg ; Lv ; Info ; Skip ; Go ; Close ; Items ; Infos ; Gdi }
     $W = 966
     $gdi = New-Object System.Collections.Generic.List[object]
@@ -624,8 +624,7 @@ function New-CalibBackDialog($items, [int]$nFiles, [string[]]$skipped) {
     foreach ($it in @($items)) {
         $inf = Get-CalibBackInfo $it
         $infos += ,$inf
-        $cv0 = $it.Curves[[string]@($it.CurveKeys)[0]]
-        $calc = if ($it.CalcOk) { Get-CurveCalcText $cv0 } else { (T '{0} (autre calcul)') -f (Get-CurveCalcText $cv0 -Plain) }
+        $calc = [string]$inf.CalcText   # 12.11 (relecture) : texte decide par Get-CalibBackInfo
         $copy = [string]$it.FileName
         if ($leaf -and $copy.StartsWith($leaf + '.', [System.StringComparison]::OrdinalIgnoreCase)) { $copy = $copy.Substring($leaf.Length + 1) }
         $row = New-Object System.Windows.Forms.ListViewItem([string]$it.Date)

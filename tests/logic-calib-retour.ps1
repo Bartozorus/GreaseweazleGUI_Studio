@@ -12,10 +12,12 @@ $Wt = Get-TestRoot $Wt
 #  R3 Get-CalibBackItems : dedoublonnage, paire par tete, courbe commune, cle croisee « A → 0 », courbe identique a celle en
 #     place ecartee, tri, courbe d un autre calcul.
 #  R4 Get-CalibBackInfo : courbes remplacees et ajoutees, courbes par tete plus anciennes que la commune en place, textes
-#     francais et anglais, courbe deja conservee dans la copie.
+#     francais et anglais, courbe deja conservee dans la copie ; ligne mixte (copie, courbe ajoutee restee apres une
+#     annulation) et ligne qui ne fait qu ajouter (aucune copie), dites par le detail.
 #  R5 Restore-CalibBack : seules les cles de la ligne changent ; copie avant le premier Set-DriveCurve ; copie lue protegee
 #     de la rotation (effet de la rotation sans protection) ; enregistrement ou copie en echec : rien n est modifie ; autre
-#     calcul : courbe conservee ; courbe en attente du choix retiree (en place ou non) ; profil de famille du lecteur du
+#     calcul : courbe conservee ; courbe en attente du choix retiree (en place ou non), ses niveaux mis de cote repris et
+#     toujours ecrits (instructions reelles de Save-Config qui composent levelShifts) ; profil de famille du lecteur du
 #     bandeau.
 #  R6 aller et retour : configuration de depart rendue, copie d origine intacte (suffixe -r), aucune copie ecrasee.
 #  R7 Start-CalibBack : operation en cours, calibration B en attente, aucune ligne, copie illisible, fenetre et action
@@ -73,7 +75,7 @@ $want = [ordered]@{
     '120' = @('ConvertTo-SettingValue', 'Get-Cfg', 'Backup-ConfigBeforeRef', 'Export-CurveView', 'Export-DriveCurves', 'Import-DriveCurves', 'Read-DriveCurves', 'Read-CalibBackup', 'Get-CalibBackFiles')
     '140' = @('Get-DriveIds', 'Get-TargetDrive')
     '220' = @('Get-CurveDate', 'Get-DriveFamilyCurves')
-    '230' = @('Test-CurveHd', 'Get-CalibFamilyName', 'Get-CurveCalc', 'Get-CurveCalcRef', 'Test-CurveCalcOk', 'Get-CurveCalcText', 'Test-CurveCalcBefore', 'ConvertTo-CurveConfig', 'ConvertFrom-CurveConfig')
+    '230' = @('Test-CurveHd', 'Get-CalibFamilyName', 'Get-CurveCalc', 'Get-CurveCalcRef', 'Test-CurveCalcOk', 'Get-CurveCalcText', 'Test-CurveCalcBefore', 'ConvertTo-CurveConfig', 'ConvertFrom-CurveConfig', 'ConvertTo-LevelConfig')
     '240' = @('Get-CurveKeyLabel', 'Get-DriveCurveKey', 'Split-DriveCurveKey', 'Get-DriveCurve', 'Set-DriveCurve', 'Sync-PrecompCurves', 'Get-DriveCurveKeys', 'Get-DriveCurveLabel', 'Split-CrossDrive',
               'Get-CalibStoreDrive', 'Reset-CalibProfiles', 'Get-CalibResetAfterText', 'Get-CalibBackFamily', 'Get-CalibBackHeadsText', 'Get-CalibBackTestText', 'Test-CalibBackSameCurve', 'Get-CalibBackInfo',
               'Get-CalibBackItems', 'Restore-CalibBack', 'Start-CalibBack')
@@ -86,6 +88,17 @@ foreach ($px in @($want.Keys)) {
     if (@($want[$px]) -contains '*') { foreach ($fd in $fds) { $parts.Add($fd.Extent.Text) }; continue }
     foreach ($n in @($want[$px])) { $hit = @($fds | Where-Object { $_.Name -eq $n }); if ($hit.Count -ne 1) { $missing += $n } else { $parts.Add($hit[0].Extent.Text) } }
 }
+# Relecture de L7 : niveaux de la calibration rapide qu ecrirait la vraie Save-Config (120) : ses trois instructions qui
+# composent levelShifts ($oc, $lvCfg et son complement des niveaux mis de cote), extraites par l arbre syntaxique, dans une
+# fonction du fichier de travail (Get-RtSavedLevels) ; le reste de Save-Config reste bouchonne
+$svSt = @()
+$svFn = Get-RtFn '120' 'Save-Config'
+if ($svFn) {
+    foreach ($st in $svFn.Body.EndBlock.Statements) {
+        if (($st -is $tAsg -and @('$oc', '$lvCfg') -contains $st.Left.Extent.Text) -or ($st -is [System.Management.Automation.Language.IfStatementAst] -and $st.Extent.Text.Contains('$lvCfg +='))) { $svSt += $st.Extent.Text }
+    }
+}
+if ($svSt.Count -ne 3) { $missing += "Save-Config (instructions des niveaux : $($svSt.Count) sur 3)" } else { $parts.Add("function Get-RtSavedLevels {`r`n" + ($svSt -join "`r`n") + "`r`n    return ,@(`$lvCfg)`r`n}") }
 $wantState = [ordered]@{
     '000' = @('$script:CalibCalc', '$script:CalibCalcHd')
     '040' = @('$script:PrecompStd', '$script:PrecompLong', '$script:PrecompStdDefault', '$script:PrecompLongDefault', '$script:SettingDefs', '$script:DriveReg', '$script:DriveLast', '$script:DriveChecked',
@@ -353,9 +366,25 @@ $script:Lang = 'en'
 $f4e = Get-CalibBackInfo $i4
 $script:Lang = 'fr'
 Chk 'R4d' ($f4e.Text.StartsWith('To restore: Standard 2 us (head 0), drive A ; Standard 2 us (head 1), drive A; calibrated on 01/10/2026 10:00, fine test, calculation v12.10.') -and $f4e.Text.Contains('Curves in place replaced: ') -and $f4e.Text.Contains('These per-head curves are older than the common curve in place for this drive (10/10/2026 10:00)') -and $f4e.Text.Contains('Copy read: GreaseweazleGUI.json.ref-std-20261001-1000.bak, dated 02/10/2026 10:00.')) "detail anglais : $(($f4e.Text -split "`n")[0])"
+# Relecture de L7 : ligne mixte (une tete remplacee, l autre ajoutee) : copie faite, la courbe ajoutee reste apres une
+# annulation, et le detail le dit
+Chk 'R4g' ((@($f4.Backup) -join ',') -ceq 'A|std_h0' -and $f4.Text.Contains('Courbes ajoutées, sans courbe en place : Standard 2 us (tête 1), lecteur A. Elles restent en place si vous annulez ce retour.') -and -not $f4.Text.Contains("Aucune copie n'est faite") -and $f4e.Text.Contains('Curves added, with no curve in place: Standard 2 us (head 1), drive A. They stay in place if you undo this return.')) 'detail d une ligne mixte : copie de la tete remplacee (Backup), tete ajoutee qui reste en place si le retour est annule, francais et anglais'
 $ok4 = Restore-CalibBack $i4
 $fc4 = Get-DriveFamilyCurves 'A' 'std' $true
 Chk 'R4e' ($ok4 -and @($fc4).Count -eq 1 -and [string]@($fc4)[0].Date -eq '10/10/2026 10:00' -and [string](Get-DriveCurve 'A' 'std_h1').Date -eq '01/10/2026 10:00') 'apres le retour : les deux tetes rétablies, mais Get-DriveFamilyCurves rend la courbe commune, plus recente (ecriture lente)'
+$i4u = Find-RtItem (Get-RtItems) 'A' '05/10/2026 10:00'
+$ok4u = Restore-CalibBack $i4u
+Chk 'R4i' ($i4u -and $ok4u -and [string](Get-DriveCurve 'A' 'std_h0').Date -eq '05/10/2026 10:00' -and [string](Get-DriveCurve 'A' 'std_h1').Date -eq '01/10/2026 10:00' -and [string](Get-DriveCurve 'A' 'std').Date -eq '10/10/2026 10:00') 'annulation de ce retour (copie faite avant lui) : la tete remplacee revient, la tete ajoutee reste en place (comportement annonce par le detail et le CHANGELOG)'
+# Ligne qui ne fait qu ajouter : aucune copie, le detail le dit
+Reset-Rt 'r4h'
+Set-Rt 'A|long' (New-Cv 'A' 'long' '01/10/2026 10:00' 1)
+[void](Save-RtCopy 'ref-long-20261001-1000.bak' (New-Object datetime(2026, 10, 2, 10, 0, 0)))
+Set-Rt 'A|long' $null
+$i4h = Find-RtItem (Get-RtItems) 'A' '01/10/2026 10:00'
+$f4h = Get-CalibBackInfo $i4h
+$nb4h = @(Get-RtBaks).Count
+$ok4h = Restore-CalibBack $i4h
+Chk 'R4h' ($f4h.Ok -and @($f4h.Backup).Count -eq 0 -and (@($f4h.Add) -join ',') -ceq 'A|long' -and $f4h.Text.Contains("Aucune courbe en place n'est remplacée.") -and $f4h.Text.Contains("Aucune copie n'est faite avant ce retour : il ne s'annule pas par ce bouton, qui rétablit des courbes et n'en retire aucune.") -and -not $f4h.Text.Contains('Courbes ajoutées') -and $ok4h -and @(Get-RtBaks).Count -eq $nb4h -and [string](Get-DriveCurve 'A' 'long').Date -eq '01/10/2026 10:00') 'ligne qui ne fait qu ajouter : Backup vide, le detail dit qu aucune copie n est faite ; retour fait sans copie'
 # Courbe d un autre calcul deja conservee dans la copie (KeptFor) : du calcul actuel pour l application, texte du calcul
 # d origine et de sa conservation, jamais « v12.10 » seul
 Reset-Rt 'r4k'
@@ -441,7 +470,9 @@ $iO5 = Find-RtItem (Get-RtItems) '0' '01/09/2026 10:00'
 $fO5 = Get-CalibBackInfo $iO5
 $okO = Restore-CalibBack $iO5
 $cvO = Get-DriveCurve '0' 'long'
-Chk 'R5l' ($fO5.OtherCalc -and (@($fO5.Pending) -join ',') -ceq '0|long' -and $fO5.Text.Contains('Calcul v12.9, autre que le calcul actuel (v12.10) : ces courbes seront conservées telles quelles') -and $fO5.Text.Contains('Courbes en place remplacées : Long track 1,89 us (commune), lecteur 0.')) 'detail : autre calcul, courbe en attente du choix comptee parmi les courbes remplacees'
+# Relecture de L7 (point F/m5) : la courbe en attente du choix n est plus citee parmi les courbes « en place remplacees »
+# (elle n est pas en place) mais dans une phrase a part ; attendu adapte dans le meme commit
+Chk 'R5l' ($fO5.OtherCalc -and (@($fO5.Pending) -join ',') -ceq '0|long' -and (@($fO5.Backup) -join ',') -ceq '0|long' -and $fO5.Text.Contains('Calcul v12.9, autre que le calcul actuel (v12.10) : ces courbes seront conservées telles quelles') -and $fO5.Text.Contains("Aucune courbe en place n'est remplacée.") -and $fO5.Text.Contains("Courbes en attente du choix « garder ou recalibrer » retirées de l'attente : Long track 1,89 us (commune), lecteur 0.") -and -not $fO5.Text.Contains('Courbes en place remplacées')) 'detail : autre calcul ; courbe en attente du choix citee a part, jamais comme courbe en place remplacee ; copiee avant le retour (Backup)'
 Chk 'R5m' ($okO -and [string]$cvO.KeptFor -eq '12.10' -and (Test-CurveCalcOk $cvO) -and (Get-CurveCalcText $cvO) -ceq 'v12.9, conservé (calcul actuel v12.10)' -and $null -eq $script:OldCalib -and @($script:Log | Where-Object { $_ -like '*(calibration du 01/09/2026 10:00, calcul v12.9, conservé (calcul actuel v12.10))*' }).Count -eq 1) 'autre calcul : rétablie comme courbe conservee (KeptFor, Test-CurveCalcOk vrai, jamais presentee comme du calcul actuel) ; retiree de l attente du choix'
 # Cle en place et en attente du choix a la fois (recalibree pendant la session) : remplacee, retiree de l attente
 Reset-Rt 'r5p'
@@ -453,6 +484,31 @@ $iP = Find-RtItem (Get-RtItems) '0' '01/09/2026 10:00'
 $fP = Get-CalibBackInfo $iP
 $okP = Restore-CalibBack $iP
 Chk 'R5n' ((@($fP.Replace) -join ',') -ceq '0|std' -and (@($fP.Pending) -join ',') -ceq '0|std' -and $fP.Text.Contains('Courbes en place remplacées : Standard 2 us (commune), lecteur 0.') -and $okP -and $script:OldCalib -and (@($script:OldCalib.Curves.Keys) -join ',') -ceq '0|long' -and [string](Get-DriveCurve '0' 'std').Date -eq '01/09/2026 10:00') 'cle en place et en attente du choix : citee une fois parmi les courbes remplacees, retiree de l attente ; les autres courbes en attente restent'
+# Relecture de L7 (point F/B1) : niveaux de la calibration rapide mis de cote avec une courbe en attente du choix que le
+# retour retire de l attente : repris dans LevelShifts, comme avec « Conserver ces courbes », et toujours ecrits par les
+# instructions reelles de Save-Config (Get-RtSavedLevels)
+Reset-Rt 'r5q'
+Set-Rt '0|long' (New-Cv '0' 'long' '01/09/2026 10:00' 1 '12.9')
+[void](Save-RtCopy 'calib-12.9-avant-v12.10.bak' (New-Object datetime(2026, 9, 2, 10, 0, 0)))
+$script:DriveCurves.Remove('0|long'); Sync-PrecompCurves
+$lvQ = @{ RefKey = 'long'; Tag = 'c|0|1'; Drive = '0'; Date = '03/09/2026 10:00'; RefDate = '01/09/2026 10:00'; Delta = 5 }
+$script:OldCalib = @{ Curves = [ordered]@{ '0|long' = (New-Cv '0' 'long' '01/09/2026 10:00' 1 '12.9') }; Std = $null; Long = $null; Levels = @{ 'long|c|0|1' = $lvQ }; Bak = $null; P0 = $null; P1 = $null }
+$svQ0 = Get-RtSavedLevels
+$okQ = Restore-CalibBack (Find-RtItem (Get-RtItems) '0' '01/09/2026 10:00')
+$svQ1 = Get-RtSavedLevels
+Chk 'R5o' ($okQ -and $null -eq $script:OldCalib -and [object]::ReferenceEquals($script:LevelShifts['long|c|0|1'], $lvQ) -and @($svQ0).Count -eq 1 -and @($svQ1).Count -eq 1 -and [string]@($svQ1)[0].refDate -eq '01/09/2026 10:00') "courbe en attente du choix retablie : ses niveaux de la calibration rapide sont repris (LevelShifts), comme avec « Conserver ces courbes » ; niveaux ecrits par Save-Config : $(@($svQ0).Count) avant, $(@($svQ1).Count) apres"
+Reset-Rt 'r5s'
+Set-Rt '0|long' (New-Cv '0' 'long' '01/09/2026 10:00' 1 '12.9')
+[void](Save-RtCopy 'calib-12.9-avant-v12.10.bak' (New-Object datetime(2026, 9, 2, 10, 0, 0)))
+$script:DriveCurves.Remove('0|long'); Sync-PrecompCurves
+$lvL = @{ RefKey = 'long'; Tag = 'c|0|1'; Drive = '0'; Date = '03/09/2026 10:00'; RefDate = '01/09/2026 10:00'; Delta = 5 }
+$lvS = @{ RefKey = 'std'; Tag = 'c|0|1'; Drive = '0'; Date = '03/09/2026 11:00'; RefDate = '01/09/2026 11:00'; Delta = 3 }
+$script:OldCalib = @{ Curves = [ordered]@{ '0|long' = (New-Cv '0' 'long' '01/09/2026 10:00' 1 '12.9'); '0|std' = (New-Cv '0' 'std' '01/09/2026 11:00' 2 '12.9') }; Std = $null; Long = $null
+                      Levels = @{ 'long|c|0|1' = $lvL; 'std|c|0|1' = $lvS }; Bak = $null; P0 = $null; P1 = $null }
+$svS0 = Get-RtSavedLevels
+$okS = Restore-CalibBack (Find-RtItem (Get-RtItems) '0' '01/09/2026 10:00')
+$svS1 = Get-RtSavedLevels
+Chk 'R5p' ($okS -and $script:OldCalib -and (@($script:OldCalib.Curves.Keys) -join ',') -ceq '0|std' -and (@($script:OldCalib.Levels.Keys) -join ',') -ceq 'std|c|0|1' -and [object]::ReferenceEquals($script:LevelShifts['long|c|0|1'], $lvL) -and -not $script:LevelShifts.ContainsKey('std|c|0|1') -and @($svS0).Count -eq 2 -and @($svS1).Count -eq 2) "deux courbes en attente du choix, retour sur l une : ses niveaux passent dans LevelShifts, ceux de l autre restent mis de cote ; niveaux ecrits par Save-Config : $(@($svS0).Count) avant, $(@($svS1).Count) apres (aucun perdu)"
 $script:TNow = $t0
 
 # ================================================================ R6 aller et retour
@@ -518,6 +574,8 @@ Chk 'R7d' ($st7.Dlg.Name -eq 'frmCalibBack' -and $lv.Name -eq 'lvCalBack' -and $
 Chk 'R7e' (-not $st7.Go.Enabled -and $st7.Dlg.CancelButton -eq $st7.Close -and $null -eq $st7.Dlg.AcceptButton -and $st7.Dlg.ActiveControl -eq $st7.Close -and $st7.Info.Text -eq '' -and $st7.Go.Name -eq 'btnCalBackGo' -and $st7.Close.Name -eq 'btnCalBackClose' -and $st7.Info.Name -eq 'lblCalBackInfo') '« Retablir » inactif sans selection ; « Fermer » : CancelButton et focus ; aucun AcceptButton'
 Update-CalibBackDialog $st7 0
 Chk 'R7f' ($st7.Go.Enabled -and $st7.Info.Text -ceq $inf0.Text) 'selection : detail et bouton tires de Get-CalibBackInfo'
+# Relecture de L7 (point F/m4) : colonne « Calcul » rendue par Get-CalibBackInfo (CalcText), autre calcul compris
+Chk 'R7l' ($lv.Items[0].SubItems[5].Text -ceq [string]$inf0.CalcText -and [string]$inf0.CalcText -ceq 'v12.10' -and [string]$fO5.CalcText -ceq 'v12.9 (autre calcul)') "colonne « Calcul » : texte de Get-CalibBackInfo (« $($inf0.CalcText) » ; autre calcul : « $($fO5.CalcText) »)"
 # Largeurs : titres des colonnes, date et texte des cellules courtes entiers, en francais et en anglais (police de la
 # fenetre, contrôles jamais affiches) ; le detail tient dans sa hauteur
 $wBad = @()
@@ -548,6 +606,12 @@ Set-Rt 'A|std' (New-Cv 'A' 'std' '01/10/2026 10:00' 0)
 $script:NDlg = 0
 $r7i = Start-CalibBack
 Chk 'R7i' (-not $r7i -and $script:NDlg -eq 0 -and $script:Msgs.Count -eq 1 -and $script:Msgs[0].Text -ceq ('Aucune calibration précédente à rétablir : aucune des 1 copie(s) de la configuration lue(s) dans « {0} » ne contient de courbe différente des courbes en place.' -f (Split-Path -Parent ([string]$script:ConfigFile)))) 'aucune ligne (courbe identique a celle en place) : message 9, aucune fenetre'
+# Relecture de L7 (point F/m6) : aucune copie dans le dossier : message qui le dit, sans « aucune des 0 copie(s) »
+Reset-Rt 'r7w'
+Set-Rt 'A|std' (New-Cv 'A' 'std' '01/10/2026 10:00' 0)
+$script:NDlg = 0
+$r7k = Start-CalibBack
+Chk 'R7k' (-not $r7k -and $script:NDlg -eq 0 -and $script:Msgs.Count -eq 1 -and $script:Msgs[0].Text -ceq ('Aucune calibration précédente à rétablir : le dossier « {0} » ne contient aucune copie de la configuration (« GreaseweazleGUI.json.….bak »).' -f (Split-Path -Parent ([string]$script:ConfigFile)))) 'aucune copie de la configuration : message propre, aucune fenetre'
 ${function:Get-CalibBackFiles} = ${function:Rt-RealFiles}
 
 # ================================================================ A lecteurs enregistres
@@ -724,6 +788,8 @@ $nouv = ''; $mn = [regex]::Match($sec, '(?s)### Nouveautés.*?(?=\n### )'); if (
 $sav = ''; $ms = [regex]::Match($sec, '(?s)### À savoir pour la mise à jour.*?(?=\n### )'); if ($ms.Success) { $sav = $ms.Value }
 $dev = ''; $md = [regex]::Match($sec, '(?s)### Pour les développeurs.*$'); if ($md.Success) { $dev = $md.Value }
 Chk 'R8h' ($nouv.Contains("- **Revenir à une calibration précédente.** Dans les options avancées de l'onglet « Écriture », un bouton à côté de « Effacer les calibrations » liste les calibrations complètes gardées dans les copies de la configuration et rétablit celle que vous choisissez, sans fermer l'application. Seules ses courbes changent ; l'état actuel est d'abord sauvegardé, et un retour s'annule de la même façon.") -and $sav.Contains('**Revenir à une calibration précédente : copies lues, autre calcul.**') -and $sav.Contains('courbe conservée') -and $dev.Contains('`Get-CalibBackInfo($item)`') -and $sec -notmatch 'vérifiée? sur (du )?matériel') 'CHANGELOG : Nouveautes (texte du plan, m7), A savoir, Pour les developpeurs ; aucun texte ne dit le comportement verifie sur materiel'
+# Relecture de L7 (point F/B2) : ce que le bouton fait d une courbe ajoutee, dit tel que R4g, R4h et R4i l observent
+Chk 'R8k' ($sav.Contains("Le bouton rétablit des courbes et n'en retire aucune : une courbe qu'un retour ajoute là où il n'y en avait aucune reste en place si vous annulez ce retour, et un retour qui ne remplace aucune courbe ne fait pas de copie.") -and $dev.Contains("un retour qui ne fait qu'ajouter des courbes ne fait pas de copie")) 'CHANGELOG : courbe ajoutee qui reste apres une annulation, retour sans copie (À savoir, Pour les développeurs)'
 $rd = [System.IO.File]::ReadAllText((Join-Path $mods 'README.md'), [System.Text.Encoding]::UTF8)
 $trd = [System.IO.File]::ReadAllText((Join-Path $Wt 'tests\README.md'), [System.Text.Encoding]::UTF8)
 Chk 'R8i' ($rd.Contains('`Get-CalibBackInfo`') -and $rd.Contains('`btnWCalBack`') -and $trd.Contains('| `logic-calib-retour` |')) 'README des modules (120, 240, 250, 520) et des tests'

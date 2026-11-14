@@ -393,8 +393,10 @@ $TX = [ordered]@{
     T24  = @("Nom trop large pour s'afficher en entier dans les listes de lecteurs (environ 17 caractères) : raccourcissez-le.", 'Name too wide to be shown in full in the drive lists (about 17 characters): shorten it.')
     T69  = @('« {0} » est un mot réservé : choisissez un autre nom.', '"{0}" is a reserved word: choose another name.')
     T25  = @('Choisissez la connexion du lecteur.', 'Select the connection of the drive.')
-    T27  = @('Le lecteur {0} a déjà des calibrations : celles de la connexion {1} ne peuvent pas lui être attribuées.', 'Drive {0} already has calibrations: those of connection {1} cannot be assigned to it.')
-    T28  = @('La connexion {0} a déjà des calibrations sans nom de lecteur : le nom ne peut pas être retiré seul.', 'Connection {0} already has calibrations without a drive name: the name cannot be removed on its own.')
+    # 12.11 (relecture de LN-a) : T27 et T28 ecartes de la specification, qui disait « calibrations » : le refus part pour
+    # toute donnee (Get-DriveData : Any), un lecteur cible choisi compris
+    T27  = @('Le lecteur {0} a déjà des données (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : celles de la connexion {1} ne peuvent pas lui être attribuées.', 'Drive {0} already has data (curves, target drive, levels, per-brand memory or factors): those of connection {1} cannot be assigned to it.')
+    T28  = @('La connexion {0} a déjà des données sans nom de lecteur (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : le nom ne peut pas être retiré seul.', 'Connection {0} already has data without a drive name (curves, target drive, levels, per-brand memory or factors): the name cannot be removed on its own.')
     T29  = @("Configuration non sauvegardée : rien n'a été modifié (voir le journal).", 'Configuration not backed up: nothing was changed (see the log).')
     T30  = @("Calibration B en cours ou en attente de décision : terminez-la d'abord.", 'Calibration B in progress or awaiting a decision: finish it first.')
     T71  = @('Lecteurs enregistrés : opération en cours ({0}). Réessayez quand elle est terminée.', 'Registered drives: operation in progress ({0}). Try again when it has finished.')
@@ -640,10 +642,19 @@ Chk 'N2b' ($okB1 -and -not $n2c.Ok -and $n2c.Why -ceq ((Fr 'T27') -f 'Mitsumi D3
 $idM = [string](Get-LnRec 'Mitsumi D359').Id
 Step-LnClock 90
 $sig0 = Get-LnMemSigs
+$script:DriveChecked = '0'
 $n2d = Add-NamedDrive 'mitsumi d359' '0' '0'
 $recM = Get-LnRec 'Mitsumi D359'
 Chk 'N2c' ($n2d.Ok -and $n2d.Name -ceq 'Mitsumi D359' -and $n2d.N -eq 4 -and [string]$recM.Id -ceq $idM -and [string]$recM.Conn -ceq '0' -and [string]$recM.From -ceq '0' -and [string]$recM.At -ceq '2026-11-20 18:03:41' -and [string]$recM.Created -ceq '2026-11-20 18:02:11' -and $script:DriveReg.Count -eq 1 -and $script:DriveCurves.ContainsKey('Mitsumi D359|std_h0') -and (Get-LnMemSigs) -ceq $sig0) "fiche sans aucune donnee : attribution a cette fiche, qui garde son identifiant ($idM) et son nom a sa casse ; From 0 et At poses ($($recM.At))"
+Chk 'N2e' ($script:DriveChecked -ceq '') 'nommer le lecteur non enregistre confirme : confirmation de nouveau due'
 Chk-Inv 'N2d'
+# N2f (relecture de LN-a) : nom saisi avec des espaces repetes, ramenes a un seul (Test-DriveName) avant de chercher la fiche
+Start-LnCase 'n2f'
+[void](Add-NamedDrive 'Mitsumi D359' 'B')
+$idF = [string](Get-LnRec 'Mitsumi D359').Id
+$n2f = Add-NamedDrive 'mitsumi  d359' '0' '0'
+$recF = Get-LnRec 'Mitsumi D359'
+Chk 'N2f' ($n2f.Ok -and $n2f.Name -ceq 'Mitsumi D359' -and $recF -and [string]$recF.Id -ceq $idF -and [string]$recF.Conn -ceq '0' -and $script:DriveReg.Count -eq 1 -and $script:DriveCurves.ContainsKey('Mitsumi D359|std_h0')) "nom saisi « mitsumi  d359 » (deux espaces) : attribue a la fiche vide « Mitsumi D359 », jamais refuse comme doublon (« $($n2f.Why) »)"
 
 # N3 : renommer, aller et retour ; N3b : correction de casse
 Start-LnCase 'n3'
@@ -651,11 +662,13 @@ Start-LnCase 'n3'
 $script:DriveLast = @{ 'A' = 'Sony MPF920'; '0' = 'TEAC FD-235HF' }
 $st0 = Get-LnState; $sig0 = Get-LnMemSigs; $idS = [string](Get-LnRec 'Sony MPF920').Id
 Step-LnClock 60
+$script:DriveChecked = 'sony mpf920'
 $n3 = Rename-NamedDrive 'Sony MPF920' 'Sony MPF-920 n°2'
 $kN3 = Get-LnSortedText @($script:DriveCurves.GetEnumerator() | ForEach-Object { [string]$_.Key })
 $rN3 = Get-LnRec 'Sony MPF-920 n°2'
 $bakN3 = @((Get-LnBaks) | Where-Object { $_ -like '*-180311.bak' })
 Chk 'N3a' ($n3.Ok -and $n3.N -eq 5 -and $kN3 -ceq "Sony MPF-920 n°2>TEAC FD-235HF|std_h0`nSony MPF-920 n°2>TEAC FD-235HF|std_h1`nSony MPF-920 n°2|std`nSony MPF-920 n°2|std_h0`nSony MPF-920 n°2|std_h1`nTEAC FD-235HF|std_h0`nTEAC FD-235HF|std_h1" -and $rN3 -and [string]$rN3.Id -ceq $idS -and ((Get-LnRegNames) -join ',') -ceq 'Sony MPF-920 n°2,TEAC FD-235HF' -and [string]$script:DriveLast['A'] -ceq 'Sony MPF-920 n°2' -and [string]$script:TargetDrives['Sony MPF-920 n°2'] -ceq 'TEAC FD-235HF' -and (Get-LnMemSigs) -ceq $sig0 -and $bakN3.Count -eq 1 -and (Get-LnFileSigs $bakN3[0]) -ceq $sig0) "renommer : les huit porteurs suivent ($($n3.N) courbes), identifiant et rang de la fiche gardes, last suit ; copie datee d abord, avec les memes courbes"
+Chk 'N3h' ($script:DriveChecked -ceq '') 'renommer le lecteur confirme : confirmation de nouveau due ($script:DriveChecked vide)'
 Chk-Inv 'N3b'
 $n3r = Rename-NamedDrive 'sony mpf-920 N°2' 'Sony MPF920'
 Chk 'N3c' ($n3r.Ok -and (Get-LnState) -ceq $st0) 'renommer en sens inverse : aller et retour = etat de depart (porteurs et registre, a la casse pres)'
@@ -1023,6 +1036,13 @@ $l3e = [bool](Load-Config); Sync-PrecompCurves
 $t60e = @($script:Log | Where-Object { $_ -like 'Lecteurs enregistrés relus dans la copie de secours*' })
 Chk 'C3e' ($l3e -and ((Get-LnRegNames) -join ',') -ceq 'Sony MPF920' -and $script:DriveLast.Count -eq 0 -and (Get-DriveForConn 'A') -ceq 'A' -and [string]$cmbDrive.Text -ceq 'A' -and $script:PrecompCurves['std'] -and (Get-LnSortedText @($script:DriveCurves.GetEnumerator() | ForEach-Object { [string]$_.Key })) -ceq $keys1210 -and $t60e.Count -eq 1 -and $t60e[0] -ceq ((Fr 'T60') -f (Get-LnRescue), 'Sony MPF920 : aucune', 'Sony MPF920 → 0') -and (Get-TargetDrive 'A') -ceq '0' -and (Get-TargetDrive 'Sony MPF920') -ceq '0') "copie datee sans bloc drives remise en place : la fiche revient sans courbe (« Sony MPF920 : aucune »), avec son lecteur cible ; le bandeau reste sur le lecteur non enregistre de A, qui porte les courbes ; aucune courbe n est attribuee"
 Chk-Inv 'C3f'
+# C3g (relecture de LN-a) : nommer A « Sony MPF920 » pour lui rendre ses courbes : refuse tant que la fiche garde son
+# lecteur cible retabli (seule donnee de la fiche, qui n a aucune courbe) ; le texte du refus le dit, sans parler de
+# calibrations que la fiche n a pas (comportement actuel ; un changement de Restore-DriveRescueTargets reste a decider)
+$stG = Get-LnState; $nbG = (Get-LnBaks).Count
+$c3g = Add-NamedDrive 'Sony MPF920' 'A' 'A'
+$dG = Get-DriveDataText (Get-DriveData 'Sony MPF920')
+Chk 'C3g' (-not $c3g.Ok -and $c3g.Why -ceq ((Fr 'T27') -f 'Sony MPF920', 'A') -and $c3g.Why -like '*lecteur cible*' -and $c3g.Why -notlike '*calibrations*' -and $dG -ceq 'aucune' -and (Get-LnState) -ceq $stG -and (Get-LnBaks).Count -eq $nbG) "fiche relue sans courbe, avec son lecteur cible (calibrations : « $dG ») : refus sans effet ni copie, texte qui nomme le lecteur cible (« $($c3g.Why) »)"
 
 # C4 : ni bloc ni copie, noms dans les donnees
 Reset-LnWorld 'c4'
@@ -1053,6 +1073,12 @@ Chk 'C4d' (($rep4 -join ',') -ceq 'Niveau Six' -and [string](Get-LnRec 'Niveau S
 Start-LnCase 'c4e'
 $rep4e = @(Repair-DriveRegistry $null ([pscustomobject]@{ A = '0' }))
 Chk 'C4e' ($rep4e.Count -eq 0 -and $script:DriveReg.Count -eq 0 -and $script:Log.Count -eq 0) 'donnees qui ne citent que des connexions (12.10) : aucune fiche, aucune ligne'
+# C4f (relecture de LN-a) : identite portee avec une espace en tete (retouche a la main) : jamais une fiche « Sony » vide
+Reset-LnWorld 'c4f'
+$script:DriveCurves[' Sony|std'] = New-Cv ' Sony' 'std' $null '07/11/2026 10:00' '0=31:40=71'
+$rep4f = @(Repair-DriveRegistry)
+Chk 'C4f' ($rep4f.Count -eq 0 -and $script:DriveReg.Count -eq 0 -and (Get-LogN ((Fr 'T76') -f ' Sony')) -eq 1 -and (Get-LogN ((Fr 'T61') -f '*')) -eq 0 -and $script:DriveCurves.ContainsKey(' Sony|std')) "courbe « ␣Sony|std » : aucune fiche, une ligne « $((Fr 'T76') -f ' Sony') », la courbe reste dans le magasin"
+Chk-Inv 'C4g' @(' Sony')
 
 # C5 : copie de secours illisible
 Reset-LnWorld 'c5'
@@ -1165,6 +1191,8 @@ Chk 'X4' ((Get-TargetDrive 'Sony MPF920') -ceq 'Sans Fil' -and (Get-TargetDriveI
 Chk 'X5' ((@(Get-ConnDrives 'A') -join ',') -ceq 'Sony MPF920,A' -and (@(Get-ConnDrives '0') -join ',') -ceq 'TEAC FD-235HF' -and (@(Get-ConnDrives 'B') -join ',') -ceq '' -and (@(Get-ConnDrives 'x') -join ',') -ceq '' -and (Get-DriveLabel 'Sony MPF920') -ceq 'Sony MPF920 (A)' -and (Get-DriveLabel 'B') -ceq 'B' -and (Get-DriveLabel 'Nulle Part') -ceq 'Nulle Part' -and (Test-DriveRegistered 'teac fd-235hf') -and -not (Test-DriveRegistered 'A')) "lecteurs d une connexion (Get-ConnDrives) : ceux qui y sont enregistres, puis son lecteur non enregistre s il a des donnees ou s il est le lecteur du bandeau (A : $(@(Get-ConnDrives 'A') -join ', ')) ; libelles (Get-DriveLabel)"
 $dT = Get-DriveDataText (Get-DriveData 'Sony MPF920'); $dT0 = Get-DriveDataText (Get-DriveData 'Sans Fil'); $dTe = Invoke-En { Get-DriveDataText (Get-DriveData 'Sony MPF920') }
 Chk 'X6' ($dT -ceq ((Fr 'T13') -f '5', '2', '05/11/2026 10:00') -and $dT0 -ceq ((Fr 'T12') -f '1', '07/11/2026 10:00') -and $dTe -ceq ((En 'T13') -f '5', '2', '05/11/2026 10:00') -and (Get-DriveDataText (Get-DriveData 'B')) -ceq 'aucune') "texte des calibrations d un lecteur : « $dT » ; « $dT0 » ; « aucune »"
+Reset-LnWorld 'x6b'; $script:DriveCurves = @{}; Set-DriveCurve 'Sony MPF920>0' 'std' (New-Cv 'Sony MPF920' 'std' $null '05/11/2026 10:00' '0=25:40=65' '0')
+Chk 'X6b' ((Get-DriveDataText (Get-DriveData '0')) -ceq ((Fr 'T13') -f '1', '1', '05/11/2026 10:00')) 'lecteur dont la seule courbe est croisee : jamais « aucune »'
 
 # ================================================================ E. epoque
 '--- E. lecteur d aujourd hui d une courbe d une copie datee (Resolve-DriveOfEra, pour le lot L7)'
@@ -1320,7 +1348,8 @@ if (-not $Before) {
     $has112 = [bool](Get-LnModule $mb '112')
     # Fonctions que le lot annonce inchangees (specification, § 5.3) : texte identique dans la source d avant
     $same = [ordered]@{
-        '120' = @('Backup-ConfigBeforeRef', 'Export-CurveView', 'Export-DriveCurves', 'Import-DriveCurves', 'Export-TargetDrives', 'Import-TargetDrives', 'Export-Settings', 'Import-Settings', 'Set-Setting', 'Register-SettingCtl', 'Set-SettingCtlValue')
+        # 12.11 (lot L7) : Backup-ConfigBeforeRef recoit le parametre -Protect et le motif back : elle n est plus celle de la 12.10
+        '120' = @('Export-CurveView','Export-DriveCurves', 'Import-DriveCurves', 'Export-TargetDrives', 'Import-TargetDrives', 'Export-Settings', 'Import-Settings', 'Set-Setting', 'Register-SettingCtl', 'Set-SettingCtlValue')
         '140' = @('Get-TargetDrive', 'Set-TargetDrive', 'Get-TargetDriveItems', 'Get-TargetCurves', 'Get-TargetWriteInfo')
         '240' = @('Get-CalibStoreDrive', 'Split-CrossDrive', 'Get-CrossCalibTargets', 'Get-DriveCurveKey', 'Split-DriveCurveKey', 'Get-DriveCurve', 'Set-DriveCurve', 'Sync-PrecompCurves', 'Get-DriveCurveKeys', 'Get-DriveCurveLabel')
         '110' = @('Invoke-DriveProbe', 'Get-GwDriveKey')

@@ -78,6 +78,10 @@ $script:I18n['Copies illisibles ou sans courbe, non listées : {0}.'] = 'Unreada
 $script:I18n['À rétablir : {0} ; calibration du {1}, {2}, calcul {3}.'] = 'To restore: {0}; calibrated on {1}, {2}, calculation {3}.'
 $script:I18n['Courbes en place remplacées : {0}.'] = 'Curves in place replaced: {0}.'
 $script:I18n["Aucune courbe en place n'est remplacée."] = 'No curve in place is replaced.'
+# Relecture de L7 : courbes en attente du choix, courbes ajoutees, retour sans copie (Get-CalibBackInfo, champ Backup)
+$script:I18n["Courbes en attente du choix « garder ou recalibrer » retirées de l'attente : {0}."] = 'Curves awaiting the "keep or recalibrate" choice taken out of the wait: {0}.'
+$script:I18n['Courbes ajoutées, sans courbe en place : {0}. Elles restent en place si vous annulez ce retour.'] = 'Curves added, with no curve in place: {0}. They stay in place if you undo this return.'
+$script:I18n["Aucune copie n'est faite avant ce retour : il ne s'annule pas par ce bouton, qui rétablit des courbes et n'en retire aucune."] = 'No copy is made before this return: it cannot be undone with this button, which restores curves and never removes any.'
 $script:I18n['Calcul {0}, autre que le calcul actuel (v{1}) : ces courbes seront conservées telles quelles, comme avec « Conserver ces courbes » au démarrage ; une nouvelle calibration peut donner une courbe plus juste.'] = 'Calculation {0}, other than the current calculation (v{1}): these curves will be kept as they are, as with "Keep these curves" at startup; a new calibration may give a more accurate curve.'
 $script:I18n["Ces courbes par tête sont plus anciennes que la courbe commune en place de ce lecteur ({0}) : l'écriture lente ne les appliquera pas tant que cette courbe commune est plus récente."] = 'These per-head curves are older than the common curve in place for this drive ({0}): slow writing will not apply them as long as that common curve is more recent.'
 $script:I18n["Les niveaux de la calibration rapide mesurés avec les courbes remplacées ne s'appliqueront plus. Les autres courbes, les réglages, la mémoire par marque et les facteurs mesurés ne changent pas."] = 'Quick calibration levels measured with the replaced curves will no longer apply. The other curves, the settings, the per-brand memory and the measured factors do not change.'
@@ -93,7 +97,8 @@ $script:I18n["Cette calibration porte le nom « {0} », mais le lecteur enregist
 $script:I18n['Rétablir cette calibration pour le lecteur « {0} » ?'] = 'Restore this calibration for drive "{0}"?'
 $script:I18n["Cette calibration a bien été faite avec le lecteur « {0} » (à l'époque : {1})"] = 'This calibration was indeed made with drive "{0}" (at the time: {1})'
 # Messages, onglet et journal (Start-CalibBack, Restore-CalibBack, 240 ; Backup-ConfigBeforeRef, motif back, 120)
-$script:I18n['Aucune calibration précédente à rétablir : aucune des {0} copie(s) de la configuration lue(s) dans « {1} » ne contient de courbe différente des courbes en place.'] = 'No previous calibration to restore: none of the {0} configuration copies read in "{1}" holds a curve different from the curves in place.'
+$script:I18n['Aucune calibration précédente à rétablir : le dossier « {0} » ne contient aucune copie de la configuration (« {1}.….bak »).'] = 'No previous calibration to restore: folder "{0}" holds no configuration copy ("{1}.….bak").'
+$script:I18n['Aucune calibration précédente à rétablir : aucune des {0} copie(s) de la configuration lue(s) dans « {1} » ne contient de courbe différente des courbes en place.'] ='No previous calibration to restore: none of the {0} configuration copies read in "{1}" holds a curve different from the curves in place.'
 $script:I18n["Retour annulé : l'état actuel n'a pas pu être sauvegardé (voir le journal). Rien n'est modifié."] = 'Return cancelled: the current state could not be backed up (see the log). Nothing is changed.'
 $script:I18n['Calibration précédente rétablie : {0} (calibration du {1}, calcul {2}), lue dans {3}. Courbes remplacées : {4}.'] = 'Previous calibration restored: {0} (calibrated on {1}, calculation {2}), read from {3}. Curves replaced: {4}.'
 $script:I18n['Calibration précédente rétablie.'] = 'Previous calibration restored.'
@@ -135,8 +140,8 @@ $script:I18n["Nom trop large pour s'afficher en entier dans les listes de lecteu
 $script:I18n['Lecteurs enregistrés : opération en cours ({0}). Réessayez quand elle est terminée.'] = 'Registered drives: operation in progress ({0}). Try again when it has finished.'
 $script:I18n["Calibration B en cours ou en attente de décision : terminez-la d'abord."] = 'Calibration B in progress or awaiting a decision: finish it first.'
 $script:I18n['Choisissez la connexion du lecteur.'] = 'Select the connection of the drive.'
-$script:I18n['Le lecteur {0} a déjà des calibrations : celles de la connexion {1} ne peuvent pas lui être attribuées.'] = 'Drive {0} already has calibrations: those of connection {1} cannot be assigned to it.'
-$script:I18n['La connexion {0} a déjà des calibrations sans nom de lecteur : le nom ne peut pas être retiré seul.'] = 'Connection {0} already has calibrations without a drive name: the name cannot be removed on its own.'
+$script:I18n['Le lecteur {0} a déjà des données (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : celles de la connexion {1} ne peuvent pas lui être attribuées.'] = 'Drive {0} already has data (curves, target drive, levels, per-brand memory or factors): those of connection {1} cannot be assigned to it.'
+$script:I18n['La connexion {0} a déjà des données sans nom de lecteur (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : le nom ne peut pas être retiré seul.'] = 'Connection {0} already has data without a drive name (curves, target drive, levels, per-brand memory or factors): the name cannot be removed on its own.'
 $script:I18n["Configuration non sauvegardée : rien n'a été modifié (voir le journal)."] = 'Configuration not backed up: nothing was changed (see the log).'
 # Journal : copie datee de la configuration avant une modification des lecteurs (Backup-ConfigForDrives,
 # Protect-DriveData) ; les copies retirees par la rotation reprennent la ligne « Ancienne sauvegarde... » (010)
