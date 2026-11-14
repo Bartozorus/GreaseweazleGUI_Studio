@@ -121,7 +121,8 @@ function Get-WriteHeads([string]$img, [string]$userTs, [bool]$slow, [bool]$erase
             if ($heads.Count -eq 1) { $r.OneFace = $true }
         } elseif ($eraseEmpty) {
             $r.Heads = $heads
-            $r.Err = (T "Écriture lente : nombre de faces de l'image inconnu ({0}).`nIndiquer les têtes dans le champ Pistes (h=0-1 pour une image double face, h=0 pour une simple face)`nou décocher « Effacer les pistes vides » : la tête 1 d'un format simple face serait effacée.") -f "$([System.IO.Path]::GetFileName($img))"
+            # 12.11 (L12a) : champ Pistes et case « Effacer les pistes vides » dans les options avancees (lot L9) : le refus le dit
+            $r.Err = (T "Écriture lente : nombre de faces de l'image inconnu ({0}).`nIndiquer les têtes dans le champ Pistes (h=0-1 pour une image double face, h=0 pour une simple face)`nou décocher « Effacer les pistes vides » : la tête 1 d'un format simple face serait effacée.`nCes deux réglages sont dans les options avancées de l'onglet Écriture.") -f "$([System.IO.Path]::GetFileName($img))"
             return $r
         }
     }

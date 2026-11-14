@@ -1007,14 +1007,17 @@ function Get-LevelUnitResults($cal, [string]$date) {
                 Append-Log ($pfx + $bt + '.'); $issues.Add($pfx + $bt); $info.Add($false)
             }
             # 12.8 (F3R) : plafond par disquette (memoExt) : lignes et reserves plus bas, apres celles de la zone plafonnee
-            if ($bv.Sat.Count -gt 0 -and $u.Memo -and -not $memoExt -and [int]$script:CalHardNs -ge [int]$script:CalHardMaxNs) {
-                # 12.8 (F3R-FIX, constat 9) : borne precompMaxNs deja a CalHardMaxNs : plus de conseil de la relever
+            # 12.11 (L12a) : borne la plus haute a conseiller, jamais au-dela du plafond de l image (Get-BoundAdviceNs, 265)
+            $adv = Get-BoundAdviceNs $u
+            if ($bv.Sat.Count -gt 0 -and $u.Memo -and -not $memoExt -and [int]$script:CalHardNs -ge $adv) {
+                # 12.8 (F3R-FIX, constat 9) : borne precompMaxNs deja a CalHardMaxNs : plus de conseil de la relever. 12.11
+                # (L12a) : ni au-dela du plafond de l image ($adv)
                 Append-Log ($pfx + ((T 'Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés.') -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat))))
                 $issues.Add($pfx + ((T 'plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés') -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)))); $info.Add($true)
             } elseif ($bv.Sat.Count -gt 0 -and $u.Memo -and -not $memoExt) {
                 # 12.8 (FIX1C, constat 5) : courbe de la marque (V', forme adaptee) : libelle neutre du plafond (§ 11.2)
-                Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs).") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat))))
-                $issues.Add($pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs)") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)))); $info.Add($true)
+                Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs).") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)), "$adv"))
+                $issues.Add($pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs)") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)), "$adv")); $info.Add($true)
             } elseif ($bv.Sat.Count -gt 0 -and -not $u.Memo -and [string]$shape.Verdict -eq 'mismatch') {
                 # 12.8 (F3R, decision du 21/10/2026) : forme non conforme : libelle neutre, autre type de disquette ou usure
                 Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec le niveau de cette disquette ({2} ns par rapport à la référence), de forme différente : autre type de disquette ou usure, non distingués ; ces cylindres resteront sous-compensés.") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)), ('{0:+0;-0;0}' -f [int]$u.Level)))

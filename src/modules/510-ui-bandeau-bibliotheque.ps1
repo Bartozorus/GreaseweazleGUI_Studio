@@ -250,7 +250,8 @@ $tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T 'Test rapi
 # 12.10 (relecture de la RC) : ecriture lente, liste « Mesure » a « complete, au motif » : mesure complete de cette disquette
 # (Get-LevelBeforeWriteKind, Start-LevelBeforeWrite)
 $tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T "Avec « complète, au motif » dans la liste « Mesure : » de l'onglet Écriture, cette mesure est une mesure complète de cette disquette, sur tous ses cylindres (26 à 31 min)."))
-$tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T "Écriture lente : le lecteur est d'abord préchauffé par des lectures sans écriture (case « Préchauffer le lecteur avant l'écriture lente » de l'onglet Écriture ; bouton « Passer le préchauffage » pendant l'attente)."))
+# 12.11 (L12a) : la case du prechauffage est dans les options avancees de l onglet Ecriture (lot L9) : l infobulle le dit
+$tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T "Écriture lente : le lecteur est d'abord préchauffé par des lectures sans écriture (case « Préchauffer le lecteur avant l'écriture lente », dans les options avancées de l'onglet Écriture ; bouton « Passer le préchauffage » pendant l'attente)."))
 $btnLibSlow.Add_Click({ Start-UnattendedWrite; Start-LibWrite 'slow' })   # 12.9 (S1) : ecriture sans surveillance
 
 $btnLibOpen = New-Object System.Windows.Forms.Button

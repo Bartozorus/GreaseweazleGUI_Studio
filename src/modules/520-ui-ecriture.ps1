@@ -112,7 +112,8 @@ $tip.SetToolTip($chkWNoVerify, (T '--no-verify : DÉCONSEILLÉ. Supprime la rele
 $chkWSlow = New-Object System.Windows.Forms.CheckBox
 $chkWSlow.Text = (T 'Écriture lente'); $chkWSlow.Location = '183,22'; $chkWSlow.Width = 125
 $tip.SetToolTip($chkWSlow, (T "Écriture lente : toutes les pistes de la tête 0, puis toutes celles de la tête 1 (une commande gw write par tête),`nchacune avec sa propre précompensation. Deux balayages complets du disque : plus long.`nCochée, la calibration mesure et vérifie une courbe de précompensation par tête."))
-$tip.SetToolTip($chkWSlow, $tip.GetToolTip($chkWSlow) + "`n" + (T "Écriture lente : le lecteur est d'abord préchauffé par des lectures sans écriture (case « Préchauffer le lecteur avant l'écriture lente » de l'onglet Écriture ; bouton « Passer le préchauffage » pendant l'attente)."))
+# 12.11 (L12a) : la case du prechauffage est dans les options avancees (lot L9) : l infobulle dit ou la trouver
+$tip.SetToolTip($chkWSlow, $tip.GetToolTip($chkWSlow) + "`n" + (T "Écriture lente : le lecteur est d'abord préchauffé par des lectures sans écriture (case « Préchauffer le lecteur avant l'écriture lente », dans les options avancées de l'onglet Écriture ; bouton « Passer le préchauffage » pendant l'attente)."))
 # Prechauffage du lecteur avant une ecriture lente (Start-WriteWarmup) : reglage warmSlowWrite (write.slowWarmup), case
 # placee sous le bouton ECRIRE ; inactive sans ecriture lente ou quand la duree vaut 0 (Update-SlowUi). 12.11 (L9) : les
 # deux cases de prechauffage et la duree passent dans le cadre des options avancees (rangees 5 a 7)
@@ -125,7 +126,8 @@ $tip.SetToolTip($chkWWarm, (T "Écriture lente (onglet Écriture, Bibliothèque,
 $chkWCalWarm = New-Object System.Windows.Forms.CheckBox
 $chkWCalWarm.Name = 'chkWCalWarm'; $chkWCalWarm.Location = '12,188'; $chkWCalWarm.AutoSize = $true; $chkWCalWarm.Checked = $true
 $chkWCalWarm.Text = (T "Préchauffer le lecteur avant la calibration complète ({0} au plus de lecture sans écriture)") -f '5 min'
-$tip.SetToolTip($chkWCalWarm, (T "Avant une calibration complète (bouton « Calibrer », carte « Calibrer le lecteur » de l'Accueil, calibration automatique avant une écriture) : lectures sans écriture des cylindres de test avant la première passe, pour stabiliser la température du lecteur ; réduites ou sautées si le lecteur vient de servir. Décochée : la calibration commence tout de suite.`nMême réglage dans l'onglet Écriture et dans la fenêtre de la carte « Calibrer le lecteur ». Durée : champ « Durée du préchauffage » de l'onglet Écriture.`nLa calibration rapide (test rapide) n'a pas de préchauffage propre : avant une écriture lente, elle suit la case « Préchauffer le lecteur avant l'écriture lente »."))
+# 12.11 (L12a) : texte commun avec la case de la carte « Calibrer le lecteur » (200) : case et duree dans les options avancees
+$tip.SetToolTip($chkWCalWarm, (T "Avant une calibration complète (bouton « Calibrer », carte « Calibrer le lecteur » de l'Accueil, calibration automatique avant une écriture) : lectures sans écriture des cylindres de test avant la première passe, pour stabiliser la température du lecteur ; réduites ou sautées si le lecteur vient de servir. Décochée : la calibration commence tout de suite.`nMême réglage dans les options avancées de l'onglet Écriture et dans la fenêtre de la carte « Calibrer le lecteur ». Durée : champ « Durée du préchauffage », dans les options avancées de l'onglet Écriture.`nLa calibration rapide (test rapide) n'a pas de préchauffage propre : avant une écriture lente, elle suit la case « Préchauffer le lecteur avant l'écriture lente »."))
 # 12.8 (D6) : duree commune des prechauffages, reglage warmMinutes (write.calWarmupMinutes, 0 a 30 min, decimales
 # admises), jusqu ici dans la configuration seulement ; la position du champ suit la largeur du libelle (apres l ajout a
 # l onglet, police de la fenetre). 12.11 (L9) : a la suite, Set-WriteTabLayout (145)

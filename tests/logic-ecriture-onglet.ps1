@@ -298,14 +298,16 @@ $eoNamed = @('lblWProfileInfo', 'lblWCal', 'pbWCal', 'lblWPrecomp1', 'lblWRepair
 $eoAdv = @('chkWEraseEmpty', 'chkWNoVerify', 'numWRetries', 'numWRepair', 'cmbWProfile', 'chkWPrecomp', 'txtWTracks', 'cmbWDensel', 'txtWFakeIdx', 'chkWReverse', 'txtWDiskdefs', 'chkWHard', 'chkWTG43', 'chkWWarm', 'chkWCalWarm', 'numWWarmMin')
 $eoAdvBox = @($eoAdv + @('txtWPrecomp', 'txtWPrecomp1', 'lblWPrecomp1', 'lblWRepair', 'lblWRetries', 'btnWDiskdefs', 'lblWWarmMin', 'lblWWarmMinU', 'btnWCalBack', 'btnWCalReset', 'grpWAdv'))
 # Empreintes relevees sur d8d80d6, la source d avant le lot L9 (sortie du test lance avec -Before <export de d8d80d6>) :
-# S2, debut du SHA-256 de chaque instruction gardee de 520 ; E2, SHA-256 des commandes de chaque configuration
+# S2, debut du SHA-256 de chaque instruction gardee de 520 ; E2, SHA-256 des commandes de chaque configuration.
+# Lot L12a (adapte a dessein) : deux infobulles changees, qui disent ou trouver la case et la duree du prechauffage (options
+# avancees) : f88ca53b5ebe134a (chkWSlow) devient 18c8dc678d5acd61, 4562540f882c54b6 (chkWCalWarm) devient a624bce57ee74c51
 $eoS2Ref = @(
     '01c072a1c29125c7', '02195b377e0acfb8', '05747bbd10720c85', '060245da3155cf99', '06a1300a283e3dc2', '06dfdcfd1de104ee', '09634c241a54bb89', '0aac5a9968a07ab7',
     '0bc5254e1262d859', '0c529a33f4fc7961', '0ddba44c89049bfb', '1313cf5ef60342be', '1459bd09170b53e6', '1a10b06a97740961', '1c09ca9f19d03288', '1c818c45c7beab6a',
     '1cdf33f12e20cedd', '20155d0491d09cba', '21f74b31c1e9e140', '2477718203645d84', '2812637fc71bd142', '29ce0b66fa3d1cf0', '2b86eca4042223df', '2b98bf0d7432a3df',
     '2c93cf7708371bb6', '2cbffe4478eeb7af', '2e45957441cc9a96', '2ea8fa5ff9a86f8d', '2f39350e3e3685a4', '3055aa222e7601b2', '3276c0a7137fc461', '3428463f7863bfed',
     '349b75960c24f412', '3545cfe09586a022', '360336fbc916f93b', '362cbd9e74b23de8', '39468d13e5d2bf9d', '3b69053a1139b2ac', '430e6ae24a658179', '4517f9b7da0b2fa8',
-    '4562540f882c54b6', '4620483a7a4be173', '47ef944bf24281ea', '4c93e4f1cb21a940', '4d6c72eeed519527', '4d8d2ebb414cebf4', '4f6d90e70b281b52', '51a6019ae9faa766',
+    'a624bce57ee74c51', '4620483a7a4be173', '47ef944bf24281ea', '4c93e4f1cb21a940', '4d6c72eeed519527', '4d8d2ebb414cebf4', '4f6d90e70b281b52', '51a6019ae9faa766',
     '5326d78a8d723b50', '544638395bd361be', '55f68ca65ef1fdb1', '565733057dd5b9b4', '57d8874f9afad555', '59eff7114affcdc7', '5bbcced07d13e790', '5cc7b40a4272a109',
     '5e0e44a7348681db', '61a392e79ac93d3a', '61ad5341c8608a5f', '6493b23bdcac9a2e', '65070345bebec45d', '678bc2a117cf5664', '6876e3b7e67b5c9b', '6ab208da63c47f1e',
     '6b9b714a2099354d', '707839f13c0b2efb', '70f7b74d46157bd8', '71d44eae928a65eb', '73189bf25d9dc1dd', '738b6d4257210527', '739cc573e612b576', '75fcb425621b235a',
@@ -318,8 +320,14 @@ $eoS2Ref = @(
     'cfa5981d5bbda8bd', 'd3daab2376c0eda1', 'd6f87f036afddaa6', 'd70abf5f4d708d32', 'd99211a4bec48c53', 'dc055695c703105a', 'dc30f7360d9fee01', 'dc7eda570db8dd08',
     'dea6717d58e08b40', 'e0e763b8a342a6c7', 'e22cf66b040e2aa4', 'e4c8c9967820eff0', 'e605a144bf61fc82', 'e63486738541075c', 'e8231ea248e544a2', 'e89af2ce0b01e4b3',
     'ea8dd628b4c03599', 'ec7ca13be08f7cf5', 'efeb38e6e4309071', 'f02544e7fae3e30f', 'f142f281c864a686', 'f2490846621ea4ca', 'f4a51d7374fc88e2', 'f72afd3ba019557f',
-    'f88ca53b5ebe134a', 'f9ff0466d7980c4d', 'fb9807d984fae60e', 'fd55dbecb5b25d96'
+    '18c8dc678d5acd61', 'f9ff0466d7980c4d', 'fb9807d984fae60e', 'fd55dbecb5b25d96'
 )
+# Lot L12a : textes ajoutes aux deux infobulles changees, ramenes a ceux de la source d avant pour les comparaisons -Before
+# (S2b, instructions de 520 ; E1b, infobulles affichees)
+$eoL12a = @(@("« Préchauffer le lecteur avant l'écriture lente », dans les options avancées de l'onglet Écriture ;", "« Préchauffer le lecteur avant l'écriture lente » de l'onglet Écriture ;"),
+            @("Même réglage dans les options avancées de l'onglet Écriture", "Même réglage dans l'onglet Écriture"),
+            @("champ « Durée du préchauffage », dans les options avancées de l'onglet Écriture.", "champ « Durée du préchauffage » de l'onglet Écriture."))
+function Get-EoL12aBack([string]$t) { foreach ($p in $eoL12a) { $t = $t.Replace($p[0], $p[1]) }; return $t }
 $eoE2Ref = @{
     E01 = '16d3111066cd4d90'; E02 = '55992ccd99bd50d0'; E03 = '4073def8561dde2c'; E04 = '42424f4776ffe227'; E05 = '59acdc1d2668f429'; E06 = 'ee528337abdcd909'
     E07 = 'efa50701388d6e4a'; E08 = 'cec1a0cc517f5c4c'; E09 = 'b827dfd7c6949649'; E10 = '076f444230598f93'; E11 = 'ccfd55129e25e5d4'; E12 = 'e18645e325c943cd'
@@ -382,11 +390,13 @@ Chk 'S2' ($eoS2Ref.Count -gt 100 -and $s2Miss.Count -eq 0) "gestionnaires, liais
 if ($Before) {
     $keepB = Get-EoKeep (Get-EoMod $Before '520')
     "  S2b : empreintes de la source d avant (a recopier dans `$eoS2Ref si elles changent) : $((@($keepB | ForEach-Object { Get-EoSha $_ 16 }) | Sort-Object -Unique) -join ',')"
-    $bMiss = @($keepB | Where-Object { $keepNow -cnotcontains $_ })
-    $bExtra = @($keepNow | Where-Object { $keepB -cnotcontains $_ })
+    # Lot L12a (adapte a dessein) : les deux infobulles changees par ce lot sont ramenees a leur texte d avant ($eoL12a)
+    $keepNowB = @($keepNow | ForEach-Object { Get-EoL12aBack $_ }); $nBack = @(for ($i = 0; $i -lt $keepNow.Count; $i++) { if ($keepNowB[$i] -cne $keepNow[$i]) { $i } }).Count
+    $bMiss = @($keepB | Where-Object { $keepNowB -cnotcontains $_ })
+    $bExtra = @($keepNowB | Where-Object { $keepB -cnotcontains $_ })
     foreach ($x in @($bMiss | Select-Object -First 4)) { "  S2b ABSENTE : $(($x -split "`n")[0])" }
     foreach ($x in @($bExtra | Select-Object -First 8)) { "  S2b en plus : $(($x -split "`n")[0])" }
-    Chk 'S2b' ($keepB.Count -gt 100 -and $bMiss.Count -eq 0 -and $bExtra.Count -eq 0) "-Before $Before : $($keepB.Count) instructions de la source d avant, toutes dans 520 a l identique ; aucune en plus ; absentes : $($bMiss.Count) ; en plus : $($bExtra.Count)"
+    Chk 'S2b' ($keepB.Count -gt 100 -and $bMiss.Count -eq 0 -and $bExtra.Count -eq 0 -and $nBack -eq 2) "-Before $Before : $($keepB.Count) instructions de la source d avant, toutes dans 520 a l identique, a la precision du lot L12a pres ($nBack infobulles) ; aucune en plus ; absentes : $($bMiss.Count) ; en plus : $($bExtra.Count)"
 } else { '  S2b saute (sans -Before : comparaison instruction par instruction avec la source d avant le lot)' }
 $s520 = [System.IO.File]::ReadAllText($p520, [System.Text.Encoding]::UTF8)
 $mPi = [regex]::Match($s520, "\`$lblWProfileInfo\.Location = '(\d+),(\d+)'; \`$lblWProfileInfo\.Size = '(\d+),(\d+)'")
@@ -869,9 +879,11 @@ $e1Same = (($rf.Snap0 -join "`n") -ceq ($rf.Snap1 -join "`n"))
 Chk 'E1' ($rf.ViewSame -and $eoRes['eo-en'].ViewSame -and $e1Same -and $rf.Snap0.Count -eq 36) "valeurs, textes, noms, etats et infobulles des 36 controles : identiques apres les changements de vue (16 options changees, mode expert coche puis decoche par le lien), en francais et en anglais ; demarrage identique avant et apres les cas W, V et A"
 if ($Before) {
     $ra = $eoRes['avant-fr']
-    $sb = @(); for ($i = 0; $i -lt 36; $i++) { if ($ra.Snap0[$i] -cne $rf.Snap0[$i]) { $sb += "$($ra.Snap0[$i]) => $($rf.Snap0[$i])" } }
+    # Lot L12a (adapte a dessein) : infobulles de chkWSlow et chkWCalWarm ramenees a leur texte d avant ($eoL12a)
+    $sb = @(); $nTipB = 0
+    for ($i = 0; $i -lt 36; $i++) { $nw = Get-EoL12aBack $rf.Snap0[$i]; if ($nw -cne $rf.Snap0[$i]) { $nTipB++ }; if ($ra.Snap0[$i] -cne $nw) { $sb += "$($ra.Snap0[$i]) => $($rf.Snap0[$i])" } }
     foreach ($x in @($sb | Select-Object -First 4)) { "  E1b ECART $x" }
-    Chk 'E1b' ($sb.Count -eq 0) "-Before : valeurs, textes, noms, etats, elements et infobulles des 36 controles au demarrage identiques a ceux de la source d avant ; ecarts : $($sb.Count)"
+    Chk 'E1b' ($sb.Count -eq 0 -and $nTipB -eq 2) "-Before : valeurs, textes, noms, etats, elements et infobulles des 36 controles au demarrage identiques a ceux de la source d avant, a la precision du lot L12a pres ($nTipB infobulles) ; ecarts : $($sb.Count)"
 } else { '  E1b saute (sans -Before)' }
 $e2Bad = @(); $e2Hash = @{}; $e2Diff = @()
 foreach ($sc in $eoScn) {

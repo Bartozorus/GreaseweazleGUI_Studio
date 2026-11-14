@@ -565,7 +565,6 @@ $script:I18n["Courbe de précompensation - {0}, une courbe par tête"] = "Precom
 $script:I18n[' ; écriture lente : profils calibrés tête 0 et tête 1 appliqués'] = '; slow write: head 0 and head 1 calibrated profiles applied'
 $script:I18n[' ; écriture lente : même profil pour les deux têtes (aucune calibration par tête pour cette famille)'] = '; slow write: same profile for both heads (no per-head calibration for this family)'
 $script:I18n["Écriture lente : image à une seule face, seule la tête {0} est écrite."] = "Slow write: single-sided image, only head {0} is written."
-$script:I18n["Écriture lente : nombre de faces de l'image inconnu ({0}).`nIndiquer les têtes dans le champ Pistes (h=0-1 pour une image double face, h=0 pour une simple face)`nou décocher « Effacer les pistes vides » : la tête 1 d'un format simple face serait effacée."] = "Slow write: number of sides of the image unknown ({0}).`nSpecify the heads in the Tracks field (h=0-1 for a double-sided image, h=0 for a single-sided one)`nor uncheck ""Erase empty tracks"": head 1 of a single-sided format would be erased."
 $script:I18n["Calibration : motif de test impossible à créer : {0}"] = "Calibration: unable to create the test pattern: {0}"
 $script:I18n['format à secteurs, 2 us par cellule'] = 'sector format, 2 us per cell'
 $script:I18n['Effacer les calibrations'] = 'Clear calibrations'
@@ -753,7 +752,6 @@ $script:I18n["Dossier où sont enregistrés la lecture de l'original, la relectu
 $script:I18n['Nom des fichiers enregistrés, par exemple « Workbench 1.3 ». Vide : date et heure.'] = 'Name of the saved files, for example "Workbench 1.3". Empty: date and time.'
 $script:I18n['Dossier :'] = 'Folder:'
 $script:I18n['Nom :'] = 'Name:'
-$script:I18n['Documents\Greaseweazle Studio\Restaurations'] = 'Documents\Greaseweazle Studio\Restorations'
 $script:I18n['vide = date et heure'] = 'empty = date and time'
 $script:I18n['RESTAURER LA DISQUETTE'] = 'RESTORE THE DISK'
 $script:I18n["ERREUR restauration : {0}"] = 'Restore ERROR: {0}'
@@ -1215,7 +1213,6 @@ $script:I18n["Préchauffer le lecteur avant l'écriture lente ({0} au plus de le
 $script:I18n["Préchauffer le lecteur avant l'écriture lente (désactivé : durée du préchauffage à 0)"] = 'Warm up the drive before the slow write (disabled: warm-up duration set to 0)'
 $script:I18n["Écriture lente (onglet Écriture, Bibliothèque, restauration) : avant d'écrire, le lecteur est préchauffé par des lectures sans écriture (un cylindre sur 10 des pistes écrites, têtes écrites), comme avant une calibration complète, pour écrire dans l'état du lecteur où la précompensation a été calibrée.`nDurée : champ « Durée du préchauffage » (5 min par défaut, 0 : aucun) ; réduite ou sautée si le lecteur vient de servir, calibration qui précède comprise. Une calibration rapide avant l'écriture lente est précédée de ce préchauffage : le niveau est mesuré dans le même état du lecteur.`nUne disquette protégée en écriture n'est signalée qu'à la première écriture, après le préchauffage.`nDécochée : écriture tout de suite. Pendant le préchauffage, le bouton « Passer le préchauffage » lance l'écriture après la lecture en cours."] = "Slow write (Write tab, Library, restore): before writing, the drive is warmed up by reads without writing (one cylinder in 10 of the written tracks, written heads), as before a full calibration, to write in the drive state in which the precompensation was calibrated.`nDuration: ""Warm-up duration"" field (5 min by default, 0: none); shortened or skipped if the drive was just used, preceding calibration included. A quick calibration before the slow write is preceded by this warm-up: the level is measured in the same drive state.`nA write-protected disk is only reported at the first write, after the warm-up.`nUnticked: write right away. During the warm-up, the ""Skip warm-up"" button starts the write after the current read."
 $script:I18n["Termine le préchauffage du lecteur après la lecture en cours : l'écriture lente (ou la calibration) commence aussitôt."] = 'Ends the drive warm-up after the current read: the slow write (or the calibration) starts right away.'
-$script:I18n["Écriture lente : le lecteur est d'abord préchauffé par des lectures sans écriture (case « Préchauffer le lecteur avant l'écriture lente » de l'onglet Écriture ; bouton « Passer le préchauffage » pendant l'attente)."] = 'Slow write: the drive is first warmed up by reads without writing ("Warm up the drive before the slow write" box of the Write tab; "Skip warm-up" button while waiting).'
 $script:I18n["format absent de la table de l'application (gw plus récent ou fichier diskdefs) : calibrez depuis l'onglet Écriture, avec l'image et ce format"] = 'format missing from the application table (newer gw or diskdefs file): calibrate from the Write tab, with the image and this format'
 $script:I18n["format de balayage : gw n'écrit pas une image secteur avec ibm.scan, densité inconnue à l'avance"] = 'scan format: gw does not write a sector image with ibm.scan, density unknown in advance'
 $script:I18n['disquette à secteurs durs : calibration non prise en charge'] = 'hard-sectored disk: calibration not supported'
@@ -1274,7 +1271,6 @@ $script:I18n['Une courbe par tête (écriture lente et restauration)'] = 'One cu
 $script:I18n["Coché : une courbe par tête, celle de l'écriture lente et de la restauration.`nDécoché : une courbe commune aux deux têtes, celle de l'écriture rapide."] = "Checked: one curve per head, used by slow write and restore.`nUnchecked: one curve common to both heads, used by fast write."
 $script:I18n["Préchauffer le lecteur avant la calibration complète ({0} au plus de lecture sans écriture)"] = 'Warm up the drive before the full calibration (up to {0} of reading without writing)'
 $script:I18n["Préchauffer le lecteur avant la calibration complète (désactivé : durée du préchauffage à 0)"] = 'Warm up the drive before the full calibration (disabled: warm-up duration set to 0)'
-$script:I18n["Avant une calibration complète (bouton « Calibrer », carte « Calibrer le lecteur » de l'Accueil, calibration automatique avant une écriture) : lectures sans écriture des cylindres de test avant la première passe, pour stabiliser la température du lecteur ; réduites ou sautées si le lecteur vient de servir. Décochée : la calibration commence tout de suite.`nMême réglage dans l'onglet Écriture et dans la fenêtre de la carte « Calibrer le lecteur ». Durée : champ « Durée du préchauffage » de l'onglet Écriture.`nLa calibration rapide (test rapide) n'a pas de préchauffage propre : avant une écriture lente, elle suit la case « Préchauffer le lecteur avant l'écriture lente »."] = "Before a full calibration (`"Calibrate`" button, `"Calibrate the drive`" card on the Home tab, automatic calibration before a write): reads without writing of the test cylinders before the first pass, to stabilise the drive temperature; shortened or skipped if the drive was just used. Unticked: the calibration starts right away.`nSame setting in the Write tab and in the window of the `"Calibrate the drive`" card. Duration: `"Warm-up duration`" field of the Write tab.`nThe quick calibration (quick test) has no warm-up of its own: before a slow write, it follows the `"Warm up the drive before the slow write`" box."
 $script:I18n['Afficher la courbe'] = 'Show the curve'
 $script:I18n['Fermer'] = 'Close'
 $script:I18n["Calibration non lancée : {0}."] = 'Calibration not started: {0}.'
@@ -1766,8 +1762,6 @@ $script:I18n['courbe adaptée à cette disquette (besoin plus faible vers le cen
 $script:I18n['Forme adaptée avec réserve : {0} ; défaut local possible ou forme mal identifiée sur {1} cylindres : contrôle après écriture imposé.'] = 'Shape adapted with a reservation: {0}; possible local defect or shape poorly identified on {1} cylinders: post-write check enforced.'
 $script:I18n['forme adaptée avec réserve ({0}) : défaut local possible ; contrôle après écriture imposé'] = 'shape adapted with a reservation ({0}): possible local defect; post-write check enforced'
 $script:I18n['niveau de la courbe adaptée non vérifié (décalage résiduel moyen {0} ns, tolérance {1}) : décalé de {2} ns sans nouvelle écriture'] = 'level of the adapted curve not verified (mean residual shift {0} ns, tolerance {1}): shifted by {2} ns without a new write'
-$script:I18n['Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu''à 470 ns (precompMaxNs).'] = '{0} ns ceiling reached at cylinders {1} with the adapted curve: these cylinders will stay under-compensated; the bound can be raised to 470 ns (precompMaxNs).'
-$script:I18n['plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu''à 470 ns (precompMaxNs)'] = '{0} ns ceiling reached at cylinders {1} with the adapted curve: these cylinders will stay under-compensated; the bound can be raised to 470 ns (precompMaxNs)'
 $script:I18n['Forme de la référence confirmée après mesure à deux précompensations : niveau {0} ns{1}.'] = 'Reference shape confirmed after measurement at two precompensation values: level {0} ns{1}.'
 $script:I18n['(non vérifié)'] = '(not verified)'
 $script:I18n['Forme non conforme à la référence et non adaptée : {0}.'] = 'Shape does not match the reference and was not adapted: {0}.'
@@ -2982,6 +2976,23 @@ $script:I18n['Écriture : {0} %'] = 'Writing: {0} %'
 $script:I18n['Écriture : {0} %, contrôle de toutes les pistes ensuite'] = 'Writing: {0} %, then checking every track'
 $script:I18n['Écriture terminée.'] = 'Write finished.'
 $script:I18n['Écriture interrompue : voir le journal.'] = 'Write interrupted: see the log.'
+
+# --- L12a : finition (140, 200, 260, 265, 510, 520) ---------------------------------------------------------------------
+# Textes qui designent des controles ranges par le lot L9 dans les options avancees de l onglet Ecriture : ou les trouver.
+# Remplacent trois cles de 010, retirees : infobulle de « Ecriture lente » (520) et du bouton de la Bibliotheque (510) ;
+# infobulle du prechauffage de la calibration complete (520 et carte « Calibrer le lecteur », 200) ; refus des tetes d une
+# ecriture lente (Get-WriteHeads, 140 ; repris par la ligne « Ce qui va se passer »)
+$script:I18n["Écriture lente : le lecteur est d'abord préchauffé par des lectures sans écriture (case « Préchauffer le lecteur avant l'écriture lente », dans les options avancées de l'onglet Écriture ; bouton « Passer le préchauffage » pendant l'attente)."] = 'Slow write: the drive is first warmed up by reads without writing ("Warm up the drive before the slow write" box, in the advanced options of the Write tab; "Skip warm-up" button while waiting).'
+$script:I18n["Avant une calibration complète (bouton « Calibrer », carte « Calibrer le lecteur » de l'Accueil, calibration automatique avant une écriture) : lectures sans écriture des cylindres de test avant la première passe, pour stabiliser la température du lecteur ; réduites ou sautées si le lecteur vient de servir. Décochée : la calibration commence tout de suite.`nMême réglage dans les options avancées de l'onglet Écriture et dans la fenêtre de la carte « Calibrer le lecteur ». Durée : champ « Durée du préchauffage », dans les options avancées de l'onglet Écriture.`nLa calibration rapide (test rapide) n'a pas de préchauffage propre : avant une écriture lente, elle suit la case « Préchauffer le lecteur avant l'écriture lente »."] = "Before a full calibration (`"Calibrate`" button, `"Calibrate the drive`" card on the Home tab, automatic calibration before a write): reads without writing of the test cylinders before the first pass, to stabilise the drive temperature; shortened or skipped if the drive was just used. Unticked: the calibration starts right away.`nSame setting in the advanced options of the Write tab and in the window of the `"Calibrate the drive`" card. Duration: `"Warm-up duration`" field, in the advanced options of the Write tab.`nThe quick calibration (quick test) has no warm-up of its own: before a slow write, it follows the `"Warm up the drive before the slow write`" box."
+$script:I18n["Écriture lente : nombre de faces de l'image inconnu ({0}).`nIndiquer les têtes dans le champ Pistes (h=0-1 pour une image double face, h=0 pour une simple face)`nou décocher « Effacer les pistes vides » : la tête 1 d'un format simple face serait effacée.`nCes deux réglages sont dans les options avancées de l'onglet Écriture."] = "Slow write: number of sides of the image unknown ({0}).`nSpecify the heads in the Tracks field (h=0-1 for a double-sided image, h=0 for a single-sided one)`nor uncheck ""Erase empty tracks"": head 1 of a single-sided format would be erased.`nBoth settings are in the advanced options of the Write tab."
+# Journal du debut de la mesure complete de cette disquette (Get-DiskBoundText, 265) : cellules retenues = celles de la
+# piste la plus longue d un IPF ou d un HFE aux pistes inegales (la ligne « Motif de test » donne la densite mediane)
+$script:I18n["Borne de la courbe de cette disquette : {0} ns, le quart de la cellule de la piste la plus longue de l'image ({2} ns), {3} ns au plus ; au-delà de {1} ns, contrôle après écriture imposé."] = 'Curve bound for this disk: {0} ns, a quarter of the cell of the longest track of the image ({2} ns), {3} ns at most; above {1} ns, post-write check enforced.'
+# Conseil de relever la borne precompMaxNs, journal et reserve de la fenetre de decision (260, 265) : {2}, borne la plus
+# haute a conseiller (Get-BoundAdviceNs, 265 : 470 ns au plus, jamais au-dela du plafond de l image). Remplacent les deux
+# cles de 010 a « 470 ns » ecrit en dur, retirees
+$script:I18n["Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs)."] = '{0} ns ceiling reached at cylinders {1} with the adapted curve: these cylinders will stay under-compensated; the bound can be raised to {2} ns (precompMaxNs).'
+$script:I18n["plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs)"] = '{0} ns ceiling reached at cylinders {1} with the adapted curve: these cylinders will stay under-compensated; the bound can be raised to {2} ns (precompMaxNs)'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 try { Add-Type -AssemblyName System.IO.Compression.FileSystem } catch { }
@@ -10637,7 +10648,8 @@ function Get-WriteHeads([string]$img, [string]$userTs, [bool]$slow, [bool]$erase
             if ($heads.Count -eq 1) { $r.OneFace = $true }
         } elseif ($eraseEmpty) {
             $r.Heads = $heads
-            $r.Err = (T "Écriture lente : nombre de faces de l'image inconnu ({0}).`nIndiquer les têtes dans le champ Pistes (h=0-1 pour une image double face, h=0 pour une simple face)`nou décocher « Effacer les pistes vides » : la tête 1 d'un format simple face serait effacée.") -f "$([System.IO.Path]::GetFileName($img))"
+            # 12.11 (L12a) : champ Pistes et case « Effacer les pistes vides » dans les options avancees (lot L9) : le refus le dit
+            $r.Err = (T "Écriture lente : nombre de faces de l'image inconnu ({0}).`nIndiquer les têtes dans le champ Pistes (h=0-1 pour une image double face, h=0 pour une simple face)`nou décocher « Effacer les pistes vides » : la tête 1 d'un format simple face serait effacée.`nCes deux réglages sont dans les options avancées de l'onglet Écriture.") -f "$([System.IO.Path]::GetFileName($img))"
             return $r
         }
     }
@@ -17124,7 +17136,8 @@ function Show-HomeCalib {
     $chkWarm = New-Object System.Windows.Forms.CheckBox
     $chkWarm.Name = 'chkHcWarm'; $chkWarm.Location = '572,318'; $chkWarm.Size = '372,36'; $chkWarm.Checked = ($wm -gt 0 -and [bool](Get-Setting 'warmFullCalib')); $chkWarm.Enabled = ($wm -gt 0)
     $chkWarm.Text = if ($wm -gt 0) { (T "Préchauffer le lecteur avant la calibration complète ({0} au plus de lecture sans écriture)") -f "$wmt" } else { (T "Préchauffer le lecteur avant la calibration complète (désactivé : durée du préchauffage à 0)") }
-    $htip.SetToolTip($chkWarm, (T "Avant une calibration complète (bouton « Calibrer », carte « Calibrer le lecteur » de l'Accueil, calibration automatique avant une écriture) : lectures sans écriture des cylindres de test avant la première passe, pour stabiliser la température du lecteur ; réduites ou sautées si le lecteur vient de servir. Décochée : la calibration commence tout de suite.`nMême réglage dans l'onglet Écriture et dans la fenêtre de la carte « Calibrer le lecteur ». Durée : champ « Durée du préchauffage » de l'onglet Écriture.`nLa calibration rapide (test rapide) n'a pas de préchauffage propre : avant une écriture lente, elle suit la case « Préchauffer le lecteur avant l'écriture lente »."))
+    # 12.11 (L12a) : case et duree du prechauffage de l onglet Ecriture dans ses options avancees (lot L9) : l infobulle le dit
+    $htip.SetToolTip($chkWarm, (T "Avant une calibration complète (bouton « Calibrer », carte « Calibrer le lecteur » de l'Accueil, calibration automatique avant une écriture) : lectures sans écriture des cylindres de test avant la première passe, pour stabiliser la température du lecteur ; réduites ou sautées si le lecteur vient de servir. Décochée : la calibration commence tout de suite.`nMême réglage dans les options avancées de l'onglet Écriture et dans la fenêtre de la carte « Calibrer le lecteur ». Durée : champ « Durée du préchauffage », dans les options avancées de l'onglet Écriture.`nLa calibration rapide (test rapide) n'a pas de préchauffage propre : avant une écriture lente, elle suit la case « Préchauffer le lecteur avant l'écriture lente »."))
     $rbStd = New-Object System.Windows.Forms.RadioButton;   $rbStd.Name = 'rbHcStd';     $rbStd.Location = '572,356';   $rbStd.Size = '372,36'
     $rbFine = New-Object System.Windows.Forms.RadioButton;  $rbFine.Name = 'rbHcFine';   $rbFine.Location = '572,394';  $rbFine.Size = '372,36'
     $rbQuick = New-Object System.Windows.Forms.RadioButton; $rbQuick.Name = 'rbHcQuick'; $rbQuick.Location = '572,432'; $rbQuick.Size = '372,36'
@@ -23131,14 +23144,17 @@ function Get-LevelUnitResults($cal, [string]$date) {
                 Append-Log ($pfx + $bt + '.'); $issues.Add($pfx + $bt); $info.Add($false)
             }
             # 12.8 (F3R) : plafond par disquette (memoExt) : lignes et reserves plus bas, apres celles de la zone plafonnee
-            if ($bv.Sat.Count -gt 0 -and $u.Memo -and -not $memoExt -and [int]$script:CalHardNs -ge [int]$script:CalHardMaxNs) {
-                # 12.8 (F3R-FIX, constat 9) : borne precompMaxNs deja a CalHardMaxNs : plus de conseil de la relever
+            # 12.11 (L12a) : borne la plus haute a conseiller, jamais au-dela du plafond de l image (Get-BoundAdviceNs, 265)
+            $adv = Get-BoundAdviceNs $u
+            if ($bv.Sat.Count -gt 0 -and $u.Memo -and -not $memoExt -and [int]$script:CalHardNs -ge $adv) {
+                # 12.8 (F3R-FIX, constat 9) : borne precompMaxNs deja a CalHardMaxNs : plus de conseil de la relever. 12.11
+                # (L12a) : ni au-dela du plafond de l image ($adv)
                 Append-Log ($pfx + ((T 'Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés.') -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat))))
                 $issues.Add($pfx + ((T 'plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés') -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)))); $info.Add($true)
             } elseif ($bv.Sat.Count -gt 0 -and $u.Memo -and -not $memoExt) {
                 # 12.8 (FIX1C, constat 5) : courbe de la marque (V', forme adaptee) : libelle neutre du plafond (§ 11.2)
-                Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs).") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat))))
-                $issues.Add($pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs)") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)))); $info.Add($true)
+                Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs).") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)), "$adv"))
+                $issues.Add($pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs)") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)), "$adv")); $info.Add($true)
             } elseif ($bv.Sat.Count -gt 0 -and -not $u.Memo -and [string]$shape.Verdict -eq 'mismatch') {
                 # 12.8 (F3R, decision du 21/10/2026) : forme non conforme : libelle neutre, autre type de disquette ou usure
                 Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec le niveau de cette disquette ({2} ns par rapport à la référence), de forme différente : autre type de disquette ou usure, non distingués ; ces cylindres resteront sous-compensés.") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)), ('{0:+0;-0;0}' -f [int]$u.Level)))
@@ -24762,6 +24778,9 @@ function Get-LevelAdaptOutcome($cal, $u) {
     #  - reserve de centre (terme de centre non verifie par une ecriture du motif) et de controle (e2) : J3, R1 ;
     #  - reserves dans l ordre de v3f.py (niveau, centre ou controle, au-dela de la borne, forme, a surveiller, plafond)
     $pfx = $u.Prefix; $e = $u.Est; $an = $u.AN; $mx = [int]$script:CalHardNs
+    # 12.11 (L12a) : borne precompMaxNs la plus haute a conseiller quand la courbe sature a la borne (Get-BoundAdviceNs :
+    # jamais au-dela du plafond de l image) ; borne deja reglee a cette valeur ou plus haut : aucun conseil de la relever
+    $adv = Get-BoundAdviceNs $u
     $iss = New-Object System.Collections.Generic.List[object]
     $r = @{ Values = $null; Sat = @(); Floor = @(); Clip = @(); Verdict = ''; Shape = $null; Issues = $iss; Model = 'M0'; S = 0.0; B = 0.0; Hc = $null; K = $null; Hard = $mx; Over = @(); Corr = $false }
     if ([string]$u.Mode -eq 'refus') {
@@ -24773,14 +24792,15 @@ function Get-LevelAdaptOutcome($cal, $u) {
         Append-Log ($pfx + ((T 'Forme non conforme à la référence et non adaptée : {0}.') -f "$($u.Refus)"))
         $iss.Add(@{ Text = $pfx + ((T 'adaptation refusée : {0}') -f "$($u.Refus)"); Info = $false })
         if (-not $u.Conv) { $iss.Add(@{ Text = $pfx + ((T "niveau non vérifié par une écriture du motif ({0} passe(s))") -f "$($u.Passes)"); Info = $false }) }
-        if ($r.Sat.Count -gt 0 -and $u.Memo -and $mx -ge [int]$script:CalHardMaxNs) {
-            # 12.8 (F3R-FIX, constat 9) : borne precompMaxNs deja a CalHardMaxNs : plus de conseil de la relever
+        if ($r.Sat.Count -gt 0 -and $u.Memo -and $mx -ge $adv) {
+            # 12.8 (F3R-FIX, constat 9) : borne precompMaxNs deja a CalHardMaxNs : plus de conseil de la relever. 12.11 (L12a) :
+            # ni au-dela du plafond de l image ($adv, Get-BoundAdviceNs)
             Append-Log ($pfx + ((T 'Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés.') -f "$mx", (Format-CylList ([int[]]$r.Sat))))
             $iss.Add(@{ Text = $pfx + ((T 'plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés') -f "$mx", (Format-CylList ([int[]]$r.Sat))); Info = $true })
         } elseif ($r.Sat.Count -gt 0 -and $u.Memo) {
             # 12.8 (FIX1C, constat 5) : courbe de refus partie de la forme d une marque (V' + niveau) : libelle neutre
-            Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs).") -f "$mx", (Format-CylList ([int[]]$r.Sat))))
-            $iss.Add(@{ Text = $pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs)") -f "$mx", (Format-CylList ([int[]]$r.Sat))); Info = $true })
+            Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs).") -f "$mx", (Format-CylList ([int[]]$r.Sat)), "$adv"))
+            $iss.Add(@{ Text = $pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs)") -f "$mx", (Format-CylList ([int[]]$r.Sat)), "$adv"); Info = $true })
         } elseif ($r.Sat.Count -gt 0) {
             # 12.8 (F3R, decision du 21/10/2026) : forme non conforme : libelle neutre, autre type de disquette ou usure
             Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec le niveau de cette disquette ({2} ns par rapport à la référence), de forme différente : autre type de disquette ou usure, non distingués ; ces cylindres resteront sous-compensés.") -f "$mx", (Format-CylList ([int[]]$r.Sat)), ('{0:+0;-0;0}' -f [int]$u.Level)))
@@ -24867,14 +24887,15 @@ function Get-LevelAdaptOutcome($cal, $u) {
                 $iss.Add(@{ Text = $pfx + ($it -f (Format-LevelSigned $dEnd), "$last"); Info = $true })
             }
         }
-        if ($r.Sat.Count -gt 0 -and ($hh -gt $mx -or $hh -ge [int]$script:CalHardMaxNs)) {
+        if ($r.Sat.Count -gt 0 -and ($hh -gt $mx -or $hh -ge $adv)) {
             # 12.11 : plafond de la disquette applique ($hh au-dela de la borne : Get-UnitCapNs), ou reglage precompMaxNs deja
-            # a son maximum CalHardMaxNs (12.8, F3R-FIX, constat 9) : plus de conseil de relever la borne
+            # a son maximum CalHardMaxNs (12.8, F3R-FIX, constat 9) : plus de conseil de relever la borne. 12.11 (L12a) : ni
+            # au-dela du plafond de l image ($adv, Get-BoundAdviceNs : long track de cellule courte, borne reglee plus haut)
             Append-Log ($pfx + ((T 'Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés.') -f "$hh", (Format-CylList ([int[]]$r.Sat))))
             $iss.Add(@{ Text = $pfx + ((T 'plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés') -f "$hh", (Format-CylList ([int[]]$r.Sat))); Info = $true })
         } elseif ($r.Sat.Count -gt 0) {
-            Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs).") -f "$hh", (Format-CylList ([int[]]$r.Sat))))
-            $iss.Add(@{ Text = $pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs)") -f "$hh", (Format-CylList ([int[]]$r.Sat))); Info = $true })
+            Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs).") -f "$hh", (Format-CylList ([int[]]$r.Sat)), "$adv"))
+            $iss.Add(@{ Text = $pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs)") -f "$hh", (Format-CylList ([int[]]$r.Sat)), "$adv"); Info = $true })
         }
         if (@($r.Clip).Count -gt 0) { Append-Log ($pfx + ((T "Référence calculée avec une borne de {0} ns, au-delà de la borne actuelle (precompMaxNs = {1} ns) aux cylindres {2} : valeurs ramenées à {1} ns.") -f "$(Get-CurveMaxNs $u.Cv)", "$mx", (Format-CylList ([int[]]$r.Clip)))) }
     }
@@ -25113,6 +25134,15 @@ function Get-UnitCapNs($u) {
     return (Get-DiskCapNs $b)
 }
 
+function Get-BoundAdviceNs($u) {
+    # 12.11 (L12a) : borne precompMaxNs la plus haute que le journal et la fenetre de decision conseillent quand une courbe de
+    # la calibration rapide sature a la borne (« la borne se regle jusqu a {2} ns », 260 et 265, forme adaptee, forme d une
+    # marque, courbe de refus) : haut de la plage du reglage (CalHardMaxNs), jamais au-dela du plafond de l image de l unite
+    # (Get-UnitCapNs : quart de la cellule de la piste ecrite, Get-DiskCapNs ; 470 ns sans densite, valeur de la 12.10).
+    # Borne deja reglee a cette valeur ou plus haut : aucun conseil de la relever. Texte seul : aucune valeur de courbe
+    return [int][math]::Min([int]$script:CalHardMaxNs, [int](Get-UnitCapNs $u))
+}
+
 function Get-DiskCapBits([int]$bits, [string]$fmt = '', [bool]$known = $false) {
     # 12.11 : cellules par piste retenues pour le plafond par disquette (Get-DiskCapNs) : celles de la piste ecrite. Le motif
     # d une image secteur est mesure a 2 us (100 000 cellules, Get-PatternBits) quel que soit le format ; un format gw double
@@ -25141,16 +25171,23 @@ function Get-DiskCapBits([int]$bits, [string]$fmt = '', [bool]$known = $false) {
     return 0
 }
 
-function Get-DiskBoundText([int]$hard, [int]$bits = 0) {
+function Get-DiskBoundText([int]$hard, [int]$bits = 0, $pat = $null) {
     # 12.11 (lot L4b) : ligne de journal de la borne, au debut de la mesure complete de cette disquette (Start-PrecompCalib),
     # tiree de la decision du plafond. $hard : borne posee (Get-DiskHardNs) ; $bits : cellules de la piste ecrite
     # (Get-DiskCapBits). Borne au plus au seuil du controle impose (Get-DiskOverNs) : borne precompMaxNs ; au-dela, cellule
     # connue : quart de la cellule annonce ; cellule inconnue ($bits a 0, Get-DiskCapNs rend CalHardMaxNs) : ligne de la
     # 12.10, sans cellule (aucune division par zero : Get-DiskCellNs n est appelee qu avec des cellules)
+    # 12.11 (L12a) : $pat, motif de la calibration (New-CalibPattern). Cellules retenues par Get-DiskCapBits egales a celles de
+    # la piste la plus longue de l image (CapBits) quand elles depassent la densite du motif (Bits, mediane des pistes) : IPF
+    # ou HFE aux pistes inegales ; la ligne nomme alors cette piste, la ligne « Motif de test » annoncant la densite mediane
     $thr = Get-DiskOverNs
     if ($hard -le $thr) { return ((T "Borne de la courbe de cette disquette : {0} ns (precompMaxNs).") -f "$hard") }
     if ($bits -le 0) { return ((T "Borne de la courbe de cette disquette : {0} ns ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$hard", "$thr") }
-    return ((T "Borne de la courbe de cette disquette : {0} ns, le quart de la cellule de l'image ({2} ns), {3} ns au plus ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$hard", "$thr", "$([int][math]::Round((Get-DiskCellNs $bits)))", "$($script:CalDiskCapMaxNs)")
+    $cell = "$([int][math]::Round((Get-DiskCellNs $bits)))"
+    if ($pat -and [int]$pat.CapBits -gt [int]$pat.Bits -and $bits -eq [int]$pat.CapBits) {
+        return ((T "Borne de la courbe de cette disquette : {0} ns, le quart de la cellule de la piste la plus longue de l'image ({2} ns), {3} ns au plus ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$hard", "$thr", $cell, "$($script:CalDiskCapMaxNs)")
+    }
+    return ((T "Borne de la courbe de cette disquette : {0} ns, le quart de la cellule de l'image ({2} ns), {3} ns au plus ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$hard", "$thr", $cell, "$($script:CalDiskCapMaxNs)")
 }
 
 function Get-DiskOverAdviceText([int]$thr) {
@@ -25563,8 +25600,9 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         Append-Log ((T "=== Mesure complète de cette disquette : lecteur {0}, image {1} ({2}, {3}) ; référence du lecteur inchangée ===") -f "$($cmbDrive.Text)", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$modeTxt")
         if ($do.Brand) { Append-Log ((T 'Marque de la disquette insérée : « {0} ».') -f "$($do.Brand)") }
         # 12.11 (lot L4b) : ligne de la borne tiree de la decision du plafond (Get-DiskBoundText, 265) : quart de la cellule de la
-        # piste ecrite si elle est connue (CapBits), ligne de la 12.10 sinon (470 ns), borne precompMaxNs au plus au seuil
-        Append-Log (Get-DiskBoundText ([int]$do.HardNs) ([int]$do.CapBits))
+        # piste ecrite si elle est connue (CapBits), ligne de la 12.10 sinon (470 ns), borne precompMaxNs au plus au seuil.
+        # 12.11 (L12a) : le motif dit si ces cellules sont celles de la piste la plus longue de l image (IPF, HFE aux pistes inegales)
+        Append-Log (Get-DiskBoundText ([int]$do.HardNs) ([int]$do.CapBits) $pat)
         # 12.8 (S3-HIGH) : duree estimee et ecritures par piste au plus (avertissement M1)
         Append-Log ((T "Durée estimée de la mesure : environ {0} min ; {1} min au plus avec la mesure directe des cylindres dont le besoin dépasse {2} ns et {3} nouveaux essais au plus des cylindres non convergés.") -f "$minutes", "$minDisk", "$mxDisk", "$($script:CalDiskMaxRetest)")
         # 12.9 (correction 1) : l ecriture de conditionnement du lecteur est comptee
@@ -31404,7 +31442,8 @@ $tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T 'Test rapi
 # 12.10 (relecture de la RC) : ecriture lente, liste « Mesure » a « complete, au motif » : mesure complete de cette disquette
 # (Get-LevelBeforeWriteKind, Start-LevelBeforeWrite)
 $tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T "Avec « complète, au motif » dans la liste « Mesure : » de l'onglet Écriture, cette mesure est une mesure complète de cette disquette, sur tous ses cylindres (26 à 31 min)."))
-$tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T "Écriture lente : le lecteur est d'abord préchauffé par des lectures sans écriture (case « Préchauffer le lecteur avant l'écriture lente » de l'onglet Écriture ; bouton « Passer le préchauffage » pendant l'attente)."))
+# 12.11 (L12a) : la case du prechauffage est dans les options avancees de l onglet Ecriture (lot L9) : l infobulle le dit
+$tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T "Écriture lente : le lecteur est d'abord préchauffé par des lectures sans écriture (case « Préchauffer le lecteur avant l'écriture lente », dans les options avancées de l'onglet Écriture ; bouton « Passer le préchauffage » pendant l'attente)."))
 $btnLibSlow.Add_Click({ Start-UnattendedWrite; Start-LibWrite 'slow' })   # 12.9 (S1) : ecriture sans surveillance
 
 $btnLibOpen = New-Object System.Windows.Forms.Button
@@ -31549,7 +31588,8 @@ $tip.SetToolTip($chkWNoVerify, (T '--no-verify : DÉCONSEILLÉ. Supprime la rele
 $chkWSlow = New-Object System.Windows.Forms.CheckBox
 $chkWSlow.Text = (T 'Écriture lente'); $chkWSlow.Location = '183,22'; $chkWSlow.Width = 125
 $tip.SetToolTip($chkWSlow, (T "Écriture lente : toutes les pistes de la tête 0, puis toutes celles de la tête 1 (une commande gw write par tête),`nchacune avec sa propre précompensation. Deux balayages complets du disque : plus long.`nCochée, la calibration mesure et vérifie une courbe de précompensation par tête."))
-$tip.SetToolTip($chkWSlow, $tip.GetToolTip($chkWSlow) + "`n" + (T "Écriture lente : le lecteur est d'abord préchauffé par des lectures sans écriture (case « Préchauffer le lecteur avant l'écriture lente » de l'onglet Écriture ; bouton « Passer le préchauffage » pendant l'attente)."))
+# 12.11 (L12a) : la case du prechauffage est dans les options avancees (lot L9) : l infobulle dit ou la trouver
+$tip.SetToolTip($chkWSlow, $tip.GetToolTip($chkWSlow) + "`n" + (T "Écriture lente : le lecteur est d'abord préchauffé par des lectures sans écriture (case « Préchauffer le lecteur avant l'écriture lente », dans les options avancées de l'onglet Écriture ; bouton « Passer le préchauffage » pendant l'attente)."))
 # Prechauffage du lecteur avant une ecriture lente (Start-WriteWarmup) : reglage warmSlowWrite (write.slowWarmup), case
 # placee sous le bouton ECRIRE ; inactive sans ecriture lente ou quand la duree vaut 0 (Update-SlowUi). 12.11 (L9) : les
 # deux cases de prechauffage et la duree passent dans le cadre des options avancees (rangees 5 a 7)
@@ -31562,7 +31602,8 @@ $tip.SetToolTip($chkWWarm, (T "Écriture lente (onglet Écriture, Bibliothèque,
 $chkWCalWarm = New-Object System.Windows.Forms.CheckBox
 $chkWCalWarm.Name = 'chkWCalWarm'; $chkWCalWarm.Location = '12,188'; $chkWCalWarm.AutoSize = $true; $chkWCalWarm.Checked = $true
 $chkWCalWarm.Text = (T "Préchauffer le lecteur avant la calibration complète ({0} au plus de lecture sans écriture)") -f '5 min'
-$tip.SetToolTip($chkWCalWarm, (T "Avant une calibration complète (bouton « Calibrer », carte « Calibrer le lecteur » de l'Accueil, calibration automatique avant une écriture) : lectures sans écriture des cylindres de test avant la première passe, pour stabiliser la température du lecteur ; réduites ou sautées si le lecteur vient de servir. Décochée : la calibration commence tout de suite.`nMême réglage dans l'onglet Écriture et dans la fenêtre de la carte « Calibrer le lecteur ». Durée : champ « Durée du préchauffage » de l'onglet Écriture.`nLa calibration rapide (test rapide) n'a pas de préchauffage propre : avant une écriture lente, elle suit la case « Préchauffer le lecteur avant l'écriture lente »."))
+# 12.11 (L12a) : texte commun avec la case de la carte « Calibrer le lecteur » (200) : case et duree dans les options avancees
+$tip.SetToolTip($chkWCalWarm, (T "Avant une calibration complète (bouton « Calibrer », carte « Calibrer le lecteur » de l'Accueil, calibration automatique avant une écriture) : lectures sans écriture des cylindres de test avant la première passe, pour stabiliser la température du lecteur ; réduites ou sautées si le lecteur vient de servir. Décochée : la calibration commence tout de suite.`nMême réglage dans les options avancées de l'onglet Écriture et dans la fenêtre de la carte « Calibrer le lecteur ». Durée : champ « Durée du préchauffage », dans les options avancées de l'onglet Écriture.`nLa calibration rapide (test rapide) n'a pas de préchauffage propre : avant une écriture lente, elle suit la case « Préchauffer le lecteur avant l'écriture lente »."))
 # 12.8 (D6) : duree commune des prechauffages, reglage warmMinutes (write.calWarmupMinutes, 0 a 30 min, decimales
 # admises), jusqu ici dans la configuration seulement ; la position du champ suit la largeur du libelle (apres l ajout a
 # l onglet, police de la fenetre). 12.11 (L9) : a la suite, Set-WriteTabLayout (145)

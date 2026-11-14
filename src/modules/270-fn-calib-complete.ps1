@@ -235,8 +235,9 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         Append-Log ((T "=== Mesure complète de cette disquette : lecteur {0}, image {1} ({2}, {3}) ; référence du lecteur inchangée ===") -f "$($cmbDrive.Text)", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$modeTxt")
         if ($do.Brand) { Append-Log ((T 'Marque de la disquette insérée : « {0} ».') -f "$($do.Brand)") }
         # 12.11 (lot L4b) : ligne de la borne tiree de la decision du plafond (Get-DiskBoundText, 265) : quart de la cellule de la
-        # piste ecrite si elle est connue (CapBits), ligne de la 12.10 sinon (470 ns), borne precompMaxNs au plus au seuil
-        Append-Log (Get-DiskBoundText ([int]$do.HardNs) ([int]$do.CapBits))
+        # piste ecrite si elle est connue (CapBits), ligne de la 12.10 sinon (470 ns), borne precompMaxNs au plus au seuil.
+        # 12.11 (L12a) : le motif dit si ces cellules sont celles de la piste la plus longue de l image (IPF, HFE aux pistes inegales)
+        Append-Log (Get-DiskBoundText ([int]$do.HardNs) ([int]$do.CapBits) $pat)
         # 12.8 (S3-HIGH) : duree estimee et ecritures par piste au plus (avertissement M1)
         Append-Log ((T "Durée estimée de la mesure : environ {0} min ; {1} min au plus avec la mesure directe des cylindres dont le besoin dépasse {2} ns et {3} nouveaux essais au plus des cylindres non convergés.") -f "$minutes", "$minDisk", "$mxDisk", "$($script:CalDiskMaxRetest)")
         # 12.9 (correction 1) : l ecriture de conditionnement du lecteur est comptee

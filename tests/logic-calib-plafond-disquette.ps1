@@ -42,6 +42,13 @@ $Wt = Get-TestRoot $Wt
 #           AmigaDOS (101 344 cellules, 493 ns), calibration rapide factice et mesure complete comprises ;
 #  H1, H2  haute densite : aucun chemin du plafond par disquette (Get-LevelRef, Start-DiskMeasure, Set-CalibScale reels),
 #           appelants des fonctions du plafond ;
+#  P9, F5   lot L12a : conseil « la borne se regle jusqu a N ns » jamais au-dela du plafond de l image (Get-BoundAdviceNs :
+#           470 ns au plus ; forme adaptee, forme d une marque et courbe de refus) ; ligne de la borne d une mesure complete
+#           qui nomme la piste la plus longue d un IPF ou d un HFE aux pistes inegales (Get-DiskBoundText et le motif).
+#           Adaptes a dessein par ce lot : P4 (long track de 110 000 cellules, borne reglee a 460 ns : plus de conseil de
+#           relever la borne, deja au-dela du quart de la cellule), P6 (emplois de CalHardMaxNs, appel de Get-DiskBoundText),
+#           E2 et Q2 (conseil ramene a 470 ns avant la comparaison pour une image de plafond plus bas), M5 et L1 (textes), H2
+#           (appelants de Get-UnitCapNs) ;
 #  I1, L1   table I18n (019 ; ligne de la 12.10 retablie dans 010 pour la borne sans cellule connue), CHANGELOG ;
 #  N1       resultats de la source de la 12.10 pour les 32 courbes sans densite de la grille ;
 #  Q0 a Q7  equivalence avec la 12.10, avec -Before <racine d une copie de la source de la 12.10> (aucune dans le depot ;
@@ -94,7 +101,7 @@ $fnCommon = [ordered]@{
     '265-fn-calib-adaptative.ps1' = @('New-LevelShape', 'Get-LevelShapeRow', 'Get-LevelPredict', 'Format-LevelSigned', 'Get-LevelAdaptHard', 'Build-LevelAdaptValues', 'Get-LevelAdaptOutcome', 'Get-LevelBrandKey', 'Find-LevelBrand', 'Test-LevelBrandValid', 'Update-LevelBrandStats', 'Set-LevelBrandStart', 'Test-LevelAdaptedSpec', 'Get-DiskHardNs', 'Get-DiskOverNs', 'Test-LevelBrandCurve', 'Get-LevelBrandCurveValues')
     '270-fn-calib-complete.ps1'   = @('Start-DiskMeasure', 'Set-DiskHardNs', 'Reset-DiskHardNs')
 }
-$fnL4 = @('Get-DiskCellNs', 'Get-DiskCapNs', 'Get-UnitCapNs', 'Get-DiskCapBits', 'Get-DiskBoundText', 'Get-DiskOverAdviceText')   # 265, lots L4 et L4b
+$fnL4 = @('Get-DiskCellNs', 'Get-DiskCapNs', 'Get-UnitCapNs', 'Get-DiskCapBits', 'Get-DiskBoundText', 'Get-DiskOverAdviceText', 'Get-BoundAdviceNs')   # 265, lots L4, L4b et L12a
 # Lot L4 encore : formats gw calibres par l application (cas B3) : fonctions reelles et table des formats de 040
 # Lot L4b (cas A) : densite du motif d une image (240, 220) et fonctions qui decident si une image de l onglet Ecriture
 # atteint la calibration rapide ou la mesure de la disquette (260 : bouton « Calibrer » ; 140 : bouton ECRIRE ; 150, 230)
@@ -248,7 +255,7 @@ function New-TEst($u, [double]$delta) {
               Delta = $delta; SE = 1.0; Tau = 1.5; Rbar = 0.5; RTol = 2.0; Wit = @{}; ProbeZ = $null; ProbeKind = '' }
 }
 function Get-TMax($values) { return [int](@($values) | Measure-Object -Maximum).Maximum }
-function Invoke-TRun([int]$bits, [int]$bound, [int]$need, [int]$drift, [string]$FamForce = '') {
+function Invoke-TRun([int]$bits, [int]$bound, [int]$need, [int]$drift, [string]$FamForce = '', [switch]$Refus) {
     # Calibration rapide factice menee a son bilan par les fonctions reelles (New-LevelCalUnits, Set-LevelBrandStart,
     # Build-LevelAdaptValues, Get-LevelUnitResults et ce qu elles appellent). $bits < 0 : unite sans densite (quatrieme
     # argument de New-LevelCalUnits omis). Tete 0 : forme adaptee (modele Ms), besoin modelise $need au dernier cylindre,
@@ -272,6 +279,8 @@ function Invoke-TRun([int]$bits, [int]$bound, [int]$need, [int]$drift, [string]$
     $u0.VR = @{ Delta = [double]$drift; Corr = [bool]($drift -ne 0); RBar = 0.5; GMean = 3.0; RTol = 3.0 }
     $u0.Conv = $true; $u0.Level = [int][math]::Round($a); $u0.Passes = 3; $u0.Est = New-TEst $u0 $a
     $u1.Level = 10; $u1.Conv = $true; $u1.Passes = 2; $u1.Est = New-TEst $u1 10.0
+    # Lot L12a : -Refus, tete 1 en courbe de refus (Get-LevelAdaptOutcome, mode « refus » : forme de la marque decalee du niveau)
+    if ($Refus) { $u1.Mode = 'refus'; $u1.Refus = 'forme refusee par le test' }
     $cal = @{ Units = $units; Drive = 'A'; Brand = 'Marque X'; Family = $fam; Surf = $null; SurfGross = $false; Medium = $null }
     $res = Get-LevelUnitResults $cal '03/11/2026 12:00'
     $o = @{ Bits = $bits; Bound = $bound; Need = $need; Drift = $drift; Heads = @(); Issues = @(); Log = @($script:RLog.ToArray()); Start1 = [int[]]@($u1.V); HasMemo = [bool]$u1.Memo
@@ -448,9 +457,30 @@ $okC = ($h.Hard -eq 350 -and (Get-TMax $h.Values) -eq 350 -and $h.Sat.Count -gt 
 $rLt = Invoke-TRun 110000 400 480 0; $rLt460 = Invoke-TRun 110000 460 480 0
 $okD = ($rLt.Heads[0].Hard -eq 454 -and $rLt.Heads[1].Hard -eq 454 -and $rLt.Heads[0].Sat.Count -gt 0 -and $rLt.Heads[1].Sat.Count -gt 0 -and @($rLt.Log | Where-Object { $_.Contains('la borne se règle') }).Count -eq 0 -and
          @($rLt.Log | Where-Object { $_.Contains('] Plafond de 454 ns atteint aux cylindres') -and $_.EndsWith('sous-compensés.') }).Count -eq 2)
-$okE = ($rLt460.Heads[0].Hard -eq 460 -and $rLt460.Heads[1].Hard -eq 460 -and @($rLt460.Log | Where-Object { $_.Contains('] Plafond de 460 ns atteint aux cylindres') -and $_.EndsWith("la borne se règle jusqu'à 470 ns (precompMaxNs).") }).Count -eq 2 -and
-         @($rLt460.Log | Where-Object { $_.IndexOf($advMark) -ge 0 }).Count -eq 0)
-Chk 'P4' ($okA -and $okB -and $okC -and $okD -and $okE) "courbe adaptee sur un ADF (Build-LevelAdaptValues, Get-LevelAdaptOutcome) : besoin 520 -> 493 ns, cylindres satures, reserve « plafond porté à 493 ns », sans conseil de relever la borne ($okA) ; besoin 480 -> aucune saturation, $($expOver.Count) cylindres au-dela de la borne ($okB) ; borne 350 -> conseil « jusqu'à 470 ns » garde ($okC) ; long track de 110 000 cellules : plafond de 454 ns atteint sur les deux tetes, sans conseil de relever la borne ($okD) ; meme image, borne reglee a 460 ns : borne gardee, conseil « jusqu'à 470 ns » ($okE)"
+# Lot L12a (adapte a dessein) : borne reglee a 460 ns, au-dela du quart de la cellule de l image (454 ns) : borne gardee,
+# plus aucun conseil de la relever (jusqu au lot L12a : « jusqu'à 470 ns », qui invitait a depasser le quart de la cellule)
+$okE = ($rLt460.Heads[0].Hard -eq 460 -and $rLt460.Heads[1].Hard -eq 460 -and @($rLt460.Log | Where-Object { $_.Contains('] Plafond de 460 ns atteint aux cylindres') -and $_.EndsWith('sous-compensés.') }).Count -eq 2 -and
+         @($rLt460.Log + $rLt460.Issues | Where-Object { $_.Contains('la borne se règle') }).Count -eq 0 -and @($rLt460.Log | Where-Object { $_.IndexOf($advMark) -ge 0 }).Count -eq 0)
+Chk 'P4' ($okA -and $okB -and $okC -and $okD -and $okE) "courbe adaptee sur un ADF (Build-LevelAdaptValues, Get-LevelAdaptOutcome) : besoin 520 -> 493 ns, cylindres satures, reserve « plafond porté à 493 ns », sans conseil de relever la borne ($okA) ; besoin 480 -> aucune saturation, $($expOver.Count) cylindres au-dela de la borne ($okB) ; borne 350 -> conseil « jusqu'à 470 ns » garde ($okC) ; long track de 110 000 cellules : plafond de 454 ns atteint sur les deux tetes, sans conseil de relever la borne ($okD) ; meme image, borne reglee a 460 ns : borne gardee, sans conseil de la relever, deja au-dela du quart de la cellule ($okE)"
+# P9 (lot L12a) : conseil « la borne se regle jusqu a N ns » : N = Get-BoundAdviceNs, le plus bas de 470 ns (haut de la
+# plage du reglage) et du plafond de l image ; conseil seulement sous N. Fonction seule, puis calibrations factices par les
+# fonctions reelles : forme adaptee (tete 0, 265), forme d une marque (tete 1, 260), courbe de refus (tete 1, 265)
+$p9 = @(@(0, 470), @(101344, 470), @(100000, 470), @(105808, 470), @(105312, 470), @(106382, 470), @(106384, 469), @(110000, 454), @(202688, 246))
+$bad = @($p9 | Where-Object { (Get-BoundAdviceNs @{ ImgBits = $_[0] }) -ne $_[1] } | ForEach-Object { "$($_[0]) cellules -> $(Get-BoundAdviceNs @{ ImgBits = $_[0] }) au lieu de $($_[1])" })
+if ((Get-BoundAdviceNs $null) -ne 470 -or (Get-BoundAdviceNs @{}) -ne 470) { $bad += 'unite sans densite : pas 470 ns' }
+# Lignes du journal et reserves (« Info | texte ») qui contiennent un texte ; sans virgule : @(...) en compte les lignes
+function Get-TAdvLines($o, [string]$what) { return @(@($o.Log) + @($o.Issues) | Where-Object { ([string]$_).Contains($what) }) }
+$rLt350 = Invoke-TRun 110000 350 480 0
+$okP9a = ($rLt350.Heads[0].Hard -eq 350 -and $rLt350.Heads[1].Hard -eq 350 -and @(Get-TAdvLines $rLt350 "] Plafond de 350 ns atteint").Count -eq 2 -and
+          @(Get-TAdvLines $rLt350 "la borne se règle jusqu'à 454 ns (precompMaxNs)").Count -eq 4 -and @(Get-TAdvLines $rLt350 'la borne se règle jusqu''à 470').Count -eq 0)
+$rfA = Invoke-TRun 101344 350 480 0 -Refus; $rfL = Invoke-TRun 110000 350 480 0 -Refus; $rfL460 = Invoke-TRun 110000 460 480 0 -Refus
+$okP9b = (@(Get-TAdvLines $rfA 'adaptation refusée : forme refusee par le test').Count -eq 1 -and @(Get-TAdvLines $rfA "[tête 1] Plafond de 350 ns atteint aux cylindres").Count -eq 1 -and
+          @($rfA.Log | Where-Object { $_.StartsWith('[tête 1] Plafond de 350 ns') -and $_.EndsWith("la borne se règle jusqu'à 470 ns (precompMaxNs).") }).Count -eq 1 -and
+          @($rfL.Log | Where-Object { $_.StartsWith('[tête 1] Plafond de 350 ns') -and $_.EndsWith("la borne se règle jusqu'à 454 ns (precompMaxNs).") }).Count -eq 1 -and
+          @($rfL460.Log | Where-Object { $_.StartsWith('[tête 1] Plafond de 460 ns') -and $_.EndsWith('sous-compensés.') }).Count -eq 1 -and @(Get-TAdvLines $rfL460 'la borne se règle').Count -eq 0)
+$script:Lang = 'en'; $rLtEn = Invoke-TRun 110000 350 480 0; $script:Lang = 'fr'
+$okP9c = (@($rLtEn.Log | Where-Object { $_.EndsWith('the bound can be raised to 454 ns (precompMaxNs).') }).Count -eq 2)
+Chk 'P9' ($bad.Count -eq 0 -and $okP9a -and $okP9b -and $okP9c) "Get-BoundAdviceNs : $($p9.Count) densites, 470 ns au plus, jamais au-dela du plafond de l image (454 ns pour 110 000 cellules), 470 ns sans densite ; long track de 110 000 cellules, borne 350 : « jusqu'à 454 ns » au journal et dans les reserves des deux tetes, jamais 470 ($okP9a) ; courbe de refus : 470 ns pour un ADF, 454 ns pour ce long track, aucun conseil avec une borne a 460 ns ($okP9b) ; interface anglaise ($okP9c) ; ecarts : $(Get-List $bad)"
 Set-TBound 400
 $en500 = New-TBrand 'std' 500 500
 $v1 = Get-LevelBrandCurveValues $en500 (New-TRef) 101344; $v0 = Get-LevelBrandCurveValues $en500 (New-TRef); $v2 = Get-LevelBrandCurveValues $en500 (New-TRef) 100000
@@ -459,7 +489,7 @@ Chk 'P5' ((Get-TMax $v1) -eq 493 -and (Get-TMax $v0) -eq 470 -and (Get-TMax $v2)
 $uses = @{}; $calls = @{}
 foreach ($f in @(Get-ChildItem -LiteralPath $mods -Filter '*.ps1' -File | Sort-Object Name)) {
     $ast = Get-Cal2Ast $f.FullName; $num = $f.Name.Substring(0, 3)
-    foreach ($x in @($ast.FindAll({ param($n) ($n -is $tVar -and $n.VariablePath.UserPath -eq 'script:CalHardMaxNs') -or ($n -is $tCmd -and @('Get-DiskCapNs', 'Get-UnitCapNs', 'Get-DiskCapBits', 'Get-DiskBoundText', 'Get-DiskHardNs', 'Get-DiskCellNs', 'Get-DiskOverAdviceText', 'Get-LevelAdaptHard', 'Get-LevelBrandCurveValues', 'New-LevelCalUnits') -contains $n.GetCommandName()) }, $true))) {
+    foreach ($x in @($ast.FindAll({ param($n) ($n -is $tVar -and $n.VariablePath.UserPath -eq 'script:CalHardMaxNs') -or ($n -is $tCmd -and @('Get-DiskCapNs', 'Get-UnitCapNs', 'Get-DiskCapBits', 'Get-DiskBoundText', 'Get-DiskHardNs', 'Get-DiskCellNs', 'Get-DiskOverAdviceText', 'Get-LevelAdaptHard', 'Get-LevelBrandCurveValues', 'New-LevelCalUnits', 'Get-BoundAdviceNs') -contains $n.GetCommandName()) }, $true))) {
         $p = $x.Parent; while ($p -and $p -isnot $tFn) { $p = $p.Parent }
         $where = "${num}:" + $(if ($p) { $p.Name } else { '(script)' })
         if ($x -is $tVar) { if (-not $uses.ContainsKey($where)) { $uses[$where] = 0 }; $uses[$where]++ }
@@ -467,7 +497,9 @@ foreach ($f in @(Get-ChildItem -LiteralPath $mods -Filter '*.ps1' -File | Sort-O
     }
 }
 $usesTxt = (@($uses.Keys | Sort-Object) | ForEach-Object { "$_ x$($uses[$_])" }) -join ', '
-$usesExp = '120:Load-Config x2, 260:Get-LevelUnitResults x1, 265:Get-DiskCapNs x1, 265:Get-LevelAdaptOutcome x2, 560:(script) x1'
+# Lot L12a (adapte a dessein) : les trois conditions du conseil de relever la borne (260:Get-LevelUnitResults,
+# 265:Get-LevelAdaptOutcome x2) lisent Get-BoundAdviceNs, seule a lire CalHardMaxNs pour ce conseil
+$usesExp = '120:Load-Config x2, 265:Get-BoundAdviceNs x1, 265:Get-DiskCapNs x1, 560:(script) x1'
 function Get-Callers([string]$name) { return ((@($calls[$name]) | Sort-Object) -join ', ') }
 $f270 = Join-Path $mods '270-fn-calib-complete.ps1'
 $spAst = Get-FnAst $f270 'Start-PrecompCalib'
@@ -480,7 +512,7 @@ $capAt = @($spAst.Body.FindAll({ param($n) $n -is $tAsg -and $n.Left.Extent.Text
 $lineAt = @($spAst.Body.FindAll({ param($n) $n -is $tCmd -and $n.GetCommandName() -eq 'Get-DiskBoundText' }, $true))
 $okOrder = ($setAt.Count -eq 1 -and $useAt.Count -eq 1 -and $capAt.Count -eq 1 -and $capAt[0].Extent.Text -eq '$do.CapBits = Get-DiskCapBits ([int]$pat.CapBits) ([string]$cmbWFmt.Text) ([bool]$pat.Known)' -and $capAt[0].Extent.StartOffset -lt $setAt[0].Extent.StartOffset -and
             $setAt[0].Extent.Text -eq '$do.HardNs = Get-DiskHardNs ([int]$do.CapBits)' -and $setAt[0].Extent.StartOffset -lt $useAt[0].Extent.StartOffset -and $readAt.Count -ge 4 -and $readAt[0] -eq $setAt[0].Extent.StartOffset -and
-            $lineAt.Count -eq 1 -and $lineAt[0].Extent.Text -eq 'Get-DiskBoundText ([int]$do.HardNs) ([int]$do.CapBits)' -and $lineAt[0].Extent.StartOffset -gt $useAt[0].Extent.StartOffset)
+            $lineAt.Count -eq 1 -and $lineAt[0].Extent.Text -eq 'Get-DiskBoundText ([int]$do.HardNs) ([int]$do.CapBits) $pat' -and $lineAt[0].Extent.StartOffset -gt $useAt[0].Extent.StartOffset)
 $dmAst = Get-FnAst $f270 'Start-DiskMeasure'
 $okDm = ($dmAst.Extent.Text.Contains('HardNs = 0;') -and (Get-Callers 'Get-DiskHardNs') -eq '265:Get-LevelBrandCurveValues, 270:Start-PrecompCalib')
 $okAdv = ((Get-Callers 'Get-DiskOverAdviceText') -eq '260:Get-LevelUnitResults, 265:Get-LevelAdaptOutcome, 270:Complete-PrecompCalib')
@@ -494,7 +526,7 @@ $okUnits = ((Get-Callers 'New-LevelCalUnits') -eq '260:Start-LevelCalib' -and $n
 # champ Known du motif (Get-PatternBits). Corrections de relecture : les deux appels lisent le champ CapBits du motif
 # (piste la plus longue de l image), que New-CalibPattern transmet ; plus aucune lecture de $pat.Bits par le plafond ;
 # Get-DiskCapBits lit les cellules du codec du format dans Get-FormatCalibInfo (un appel)
-$okBits = ((Get-Callers 'Get-DiskCapBits') -eq '260:Start-LevelCalib, 270:Start-PrecompCalib' -and (Get-Callers 'Get-DiskBoundText') -eq '270:Start-PrecompCalib')
+$okBits = ((Get-Callers 'Get-DiskCapBits') -eq '260:Start-LevelCalib, 270:Start-PrecompCalib' -and (Get-Callers 'Get-DiskBoundText') -eq '270:Start-PrecompCalib' -and (Get-Callers 'Get-BoundAdviceNs') -eq '260:Get-LevelUnitResults, 265:Get-LevelAdaptOutcome')
 $ncpTxt = (Get-FnAst (Join-Path $mods '240-fn-calib-mesure.ps1') 'New-CalibPattern').Extent.Text
 $okKnown = ($ncpTxt.Contains('$pb = Get-PatternBits $family $img') -and $ncpTxt.Contains('Known = [bool]$pb.Known') -and $ncpTxt.Contains('CapBits = [int]$pb.CapBits'))
 $dcbAst = Get-FnAst (Join-Path $mods '265-fn-calib-adaptative.ps1') 'Get-DiskCapBits'
@@ -602,18 +634,26 @@ foreach ($k in @($gridNew.Bits.Keys | Sort-Object)) {
     if ($c.Bad) { $bad += "$k : $($c.Bad)" }
 }
 Chk 'E1' ($bad.Count -eq 0 -and $cnt['same'] -gt 0 -and $cnt['cap='] -gt 0 -and $cnt['cap+'] -gt 0 -and $cnt['new'] -gt 0) "$($gridNew.Bits.Count) calibrations factices, deux tetes chacune : $($cnt['same']) tetes sans plafond par disquette (identiques), $($cnt['cap=']) au plafond porte avec les memes valeurs, $($cnt['cap+']) ramenees au plafond de l image, $($cnt['new']) portees au-dela d une borne reglee a 470 ns ; ecarts : $(Get-List $bad)"
-$bad = @(); $n2 = 0; $n3 = 0; $bad3 = @()
+$bad = @(); $n2 = 0; $n3 = 0; $bad3 = @(); $n2Adv = 0
+# Lot L12a (adapte a dessein) : conseil « la borne se regle jusqu a N ns » de la 12.11 ramene a 470 ns avant la comparaison,
+# pour une image de plafond plus bas que 470 ns seulement (N = Get-BoundAdviceNs, verifie par P9) ; compte de ces cas
+function Get-TAdvNorm($lines, [int]$bits) {
+    $lim = [math]::Min(470, (Get-DiskCapNs $bits)); if ($lim -ge 470) { return ,@($lines) }
+    $out = @(); foreach ($x in @($lines)) { $y = ([string]$x).Replace("jusqu'à $lim ns (precompMaxNs)", "jusqu'à 470 ns (precompMaxNs)"); if ($y -cne [string]$x) { $script:NAdvNorm++ }; $out += $y }
+    return ,$out
+}
+$script:NAdvNorm = 0
 foreach ($k in @($gridNew.Bits.Keys | Sort-Object)) {
     $r = $gridNew.Bits[$k]; $r0 = $gridNew.None["$($r.Bound)/$($r.Need)/$($r.Drift)"]; $kd = @($kindOf[$k])
     if ($kd[0] -eq 'same' -and $kd[1] -eq 'same') {
-        $n2++; $d = Get-FirstDiff (Get-RunLines $r0) (Get-RunLines $r)
+        $n2++; $d = Get-FirstDiff (Get-RunLines $r0) (Get-TAdvNorm (Get-RunLines $r) $r.Bits)
         if ($d -or @($r.Log | Where-Object { $_.IndexOf($advMark) -ge 0 }).Count -gt 0) { $bad += "$k : $d" }
     } elseif (@($kd | Where-Object { $_ -ne 'same' -and $_ -ne 'cap=' }).Count -eq 0) {
         $n3++; $d = Get-FirstDiff (Get-TNormText $r0 470) (Get-TNormText $r (Get-DiskCapNs $r.Bits))
         if ($d) { $bad3 += "$k : $d" }
     }
 }
-Chk 'E2' ($bad.Count -eq 0 -and $n2 -ge 60) "plafond par disquette non porte (besoin au plus au seuil, ou borne sous 400 ns) : $n2 calibrations identiques au caractere pres (courbes, plafonds, profils, reserves, journal), sans ligne de conseil ; ecarts : $(Get-List $bad)"
+Chk 'E2' ($bad.Count -eq 0 -and $n2 -ge 60 -and $script:NAdvNorm -gt 0) "plafond par disquette non porte (besoin au plus au seuil, ou borne sous 400 ns) : $n2 calibrations identiques au caractere pres (courbes, plafonds, profils, reserves, journal), sans ligne de conseil d essai sur la machine cible ; lot L12a : $($script:NAdvNorm) lignes « la borne se regle jusqu a 454 ns » d une image de plafond plus bas ramenees a 470 ns avant la comparaison ; ecarts : $(Get-List $bad)"
 Chk 'E3' ($bad3.Count -eq 0 -and $n3 -ge 20) "plafond porte, besoin au plus a 470 ns et au plafond de l image : $n3 calibrations aux memes courbes ; reserves et journal identiques a deux differences pres, le plafond annonce (celui de l image au lieu de 470 ns) et la ligne de conseil ; ecarts : $(Get-List $bad3)"
 $bad = @(); $n4 = 0
 foreach ($k in @($gridNew.Bits.Keys | Sort-Object)) {
@@ -744,7 +784,8 @@ $cmbWFmt.Text = 'amiga.amigados'; $oAmi = Invoke-TDisk 100000 400 $false; $oAmi4
 $cmbWFmt.Text = ''; $oMix = Invoke-TDisk 100000 400 $true 105504; $oMix2 = Invoke-TDisk 100400 400 $true 105500; $oMix350 = Invoke-TDisk 100400 350 $true 105500
 $cmbWFmt.Text = 'ibm.720'; $oMixF = Invoke-TDisk 100400 400 $true 105500
 $cmbWFmt.Text = ''
-$lMix = "Borne de la courbe de cette disquette : 473 ns, le quart de la cellule de l'image (1896 ns), 500 ns au plus ; au-delà de 400 ns, contrôle après écriture imposé."
+# Lot L12a (adapte a dessein) : la ligne nomme la piste la plus longue de l image (jusqu au lot L12a : « de l'image »)
+$lMix = "Borne de la courbe de cette disquette : 473 ns, le quart de la cellule de la piste la plus longue de l'image (1896 ns), 500 ns au plus ; au-delà de 400 ns, contrôle après écriture imposé."
 Chk 'M5' ($oAmi.HardNs -eq 493 -and $oAmi.During -eq 493 -and $oAmi.Reset -eq 400 -and $oAmi.Log.Count -eq 1 -and [string]$oAmi.Log[0] -ceq "Borne de la courbe de cette disquette : 493 ns, le quart de la cellule de l'image (1973 ns), 500 ns au plus ; au-delà de 400 ns, contrôle après écriture imposé." -and $oAmi470.HardNs -eq 493 -and
           $oMix.HardNs -eq 473 -and $oMix.During -eq 473 -and [string]$oMix.Log[0] -ceq $lMix -and $oMix2.HardNs -eq 473 -and [string]$oMix2.Log[0] -ceq $lMix -and $oMix350.HardNs -eq 350 -and $oMixF.HardNs -eq 473 -and [string]$oMixF.Log[0] -ceq $lMix) "mesure complete, image secteur et format amiga.amigados : borne $($oAmi.HardNs) ns et non 500, « $(Get-Short ([string]$oAmi.Log[0]) 100) » ; motif de 100 000 cellules dont une piste de l image en compte 105 504 : borne $($oMix.HardNs) ns, « $(Get-Short ([string]$oMix.Log[0]) 100) » ; meme regle avec le format ibm.720 ($($oMixF.HardNs) ns) ; borne reglee a 350 ns respectee ($($oMix350.HardNs) ns)"
 
@@ -799,6 +840,26 @@ try {
 } catch { $errB = [string]$_.Exception.Message }
 Set-TBound 400
 Chk 'F4' ($errB -eq '' -and $bad.Count -eq 0 -and $noBits -ceq $lU400) "Get-DiskBoundText : $($fTxt.Count) cas (cellule connue : quart de la cellule annonce ; inconnue : ligne de la 12.10, sans cellule ; borne au plus au seuil : precompMaxNs), sans cellules en argument : ligne de la 12.10 ; aucune exception (« $errB ») ; ecarts : $(Get-List $bad)"
+# F5 (lot L12a) : Get-DiskBoundText et le motif ($pat) : les cellules retenues (Get-DiskCapBits) sont celles de la piste la
+# plus longue de l image quand elles egalent CapBits et depassent la densite du motif (IPF, HFE aux pistes inegales) : la
+# ligne nomme cette piste ; sinon (pistes egales, ADF, image secteur, codec ou format au-dela de la piste la plus longue,
+# sans motif) : ligne du lot L4. Textes de la table (019) ; plus aucune cle « jusqu'a 470 ns » ecrit en dur dans les modules
+$kLong = "Borne de la courbe de cette disquette : {0} ns, le quart de la cellule de la piste la plus longue de l'image ({2} ns), {3} ns au plus ; au-delà de {1} ns, contrôle après écriture imposé."
+$eLong = 'Curve bound for this disk: {0} ns, a quarter of the cell of the longest track of the image ({2} ns), {3} ns at most; above {1} ns, post-write check enforced.'
+$f5 = @(@(473, 105500, @{ Bits = 100400; CapBits = 105500 }, ($kLong -f '473', '400', '1896', '500')), @(473, 105504, @{ Bits = 100000; CapBits = 105504 }, ($kLong -f '473', '400', '1896', '500')),
+        @(493, 101344, @{ Bits = 101344; CapBits = 101344 }, ($kBound -f '493', '400', '1973', '500')), @(493, 101344, @{ Bits = 100000; CapBits = 100000 }, ($kBound -f '493', '400', '1973', '500')),
+        @(478, 104400, @{ Bits = 100000; CapBits = 100000 }, ($kBound -f '478', '400', '1916', '500')), @(493, 101344, @{ Bits = 100000; CapBits = 100800 }, ($kBound -f '493', '400', '1973', '500')),
+        @(473, 105500, $null, ($kBound -f '473', '400', '1896', '500')), @(470, 0, @{ Bits = 100400; CapBits = 105500 }, ($kOldBound -f '470', '400')),
+        @(400, 105500, @{ Bits = 100400; CapBits = 105500 }, 'Borne de la courbe de cette disquette : 400 ns (precompMaxNs).'))
+$bad = @(); $errF5 = ''
+try {
+    Set-TBound 400
+    foreach ($x in $f5) { $g = [string](Get-DiskBoundText $x[0] $x[1] $x[2]); if ($g -cne [string]$x[3]) { $bad += "$($x[0]) ns, $($x[1]) cellules, motif $(if ($x[2]) { "$($x[2].Bits)/$($x[2].CapBits)" } else { 'absent' }) -> « $(Get-Short $g 90) »" } }
+    $script:Lang = 'en'; $gEn = [string](Get-DiskBoundText 473 105500 @{ Bits = 100400; CapBits = 105500 }); $script:Lang = 'fr'
+    if ($gEn -cne ($eLong -f '473', '400', '1896', '500')) { $bad += "anglais : « $(Get-Short $gEn 90) »" }
+} catch { $errF5 = [string]$_.Exception.Message; $script:Lang = 'fr' }
+$hard470 = @(Get-ChildItem -LiteralPath $mods -Filter '*.ps1' -File | Where-Object { $t = [System.IO.File]::ReadAllText($_.FullName); $t.Contains("jusqu''à 470 ns (precompMaxNs)") -or $t.Contains("jusqu'à 470 ns (precompMaxNs)") } | ForEach-Object { $_.Name })
+Chk 'F5' ($errF5 -eq '' -and $bad.Count -eq 0 -and [string]$script:I18n[$kLong] -ceq $eLong -and [System.IO.File]::ReadAllText((Join-Path $mods '019-i18n-1211.ps1')).Contains($kLong) -and $hard470.Count -eq 0) "Get-DiskBoundText avec le motif : $($f5.Count) cas (IPF ou HFE aux pistes inegales : piste la plus longue nommee ; pistes egales, ADF, image secteur, codec au-dela de la piste la plus longue, sans motif : ligne du lot L4), anglais ; texte et anglais dans 019 ; modules qui ecrivent encore « jusqu'à 470 ns » en dur : $(Get-List $hard470) ; exception : « $errF5 » ; ecarts : $(Get-List $bad)"
 
 # ---------------------------------------------------------------- A : aucun format (lot L4b)
 '--- A : aucun format (vide ou « (auto) ») : plafond au-dela de 470 ns pour une densite tiree de l image seulement'
@@ -960,7 +1021,8 @@ $hdExp = @("borne 400 : reference Ok False, classe domain, 0 unite(s) ; mesure c
 Chk 'H1' ((Get-FirstDiff $hdExp $hdNew) -eq '') "haute densite (Get-LevelRef, Start-DiskMeasure, Set-CalibScale reelles) : aucune reference de calibration rapide, mesure complete de la disquette refusee, borne a la moitie du reglage (200 et 235 ns), reglage de 300 a 470 ns : valeurs de la 12.10 ; ecart : $(Get-FirstDiff $hdExp $hdNew)"
 $cA = Get-Callers 'Get-DiskCapNs'; $cB = Get-Callers 'Get-UnitCapNs'; $cC = Get-Callers 'Get-DiskCellNs'; $cD = Get-Callers 'Get-LevelAdaptHard'; $cE = Get-Callers 'Get-LevelBrandCurveValues'
 $refTxt = (Get-FnAst $f270 'Complete-PrecompCalib').Extent.Text
-Chk 'H2' ($cA -eq '265:Get-DiskHardNs, 265:Get-UnitCapNs' -and $cB -eq '260:Get-LevelUnitResults, 265:Get-LevelAdaptHard' -and $cC -eq '265:Get-DiskBoundText, 265:Get-DiskCapNs' -and $cD -eq '265:Build-LevelAdaptValues, 265:Get-LevelAdaptOutcome' -and $cE -eq '265:Set-LevelBrandStart' -and $refTxt.Contains('MaxNs = [int]$script:CalHardNs')) "appelants des fonctions du plafond, tous modules : Get-DiskCapNs <- $cA ; Get-UnitCapNs <- $cB ; Get-DiskCellNs <- $cC : calibration rapide et mesure complete de la disquette seulement, que la haute densite n atteint pas ; la reference du lecteur enregistre toujours la borne CalHardNs"
+# Lot L12a (adapte a dessein) : Get-BoundAdviceNs lit aussi Get-UnitCapNs (conseil de relever la borne)
+Chk 'H2' ($cA -eq '265:Get-DiskHardNs, 265:Get-UnitCapNs' -and $cB -eq '260:Get-LevelUnitResults, 265:Get-BoundAdviceNs, 265:Get-LevelAdaptHard' -and $cC -eq '265:Get-DiskBoundText, 265:Get-DiskCapNs' -and $cD -eq '265:Build-LevelAdaptValues, 265:Get-LevelAdaptOutcome' -and $cE -eq '265:Set-LevelBrandStart' -and $refTxt.Contains('MaxNs = [int]$script:CalHardNs')) "appelants des fonctions du plafond, tous modules : Get-DiskCapNs <- $cA ; Get-UnitCapNs <- $cB ; Get-DiskCellNs <- $cC : calibration rapide et mesure complete de la disquette seulement, que la haute densite n atteint pas ; la reference du lecteur enregistre toujours la borne CalHardNs"
 
 # ---------------------------------------------------------------- I, L : textes
 '--- I, L : textes'
@@ -976,7 +1038,7 @@ $iAm = $sec.IndexOf('### Améliorations'); $iCo = $sec.IndexOf('### Corrections'
 $t1 = $sec.IndexOf("**Plafond d'une disquette selon son image.**"); $t2 = $sec.IndexOf('**Plafond au-delà de 470 ns non éprouvé sur matériel.**')
 # Lot L4b : phrase du plafond garde a 470 ns quand la cellule ecrite n est pas connue, dans l entree des Améliorations ;
 # Get-DiskBoundText citee pour les developpeurs
-$t3 = $sec.IndexOf("format saisi à la main dans la liste « Format » et inconnu de l'application"); $t4 = $sec.IndexOf('`Get-DiskBoundText([int]$hard, [int]$bits)`')
+$t3 = $sec.IndexOf("format saisi à la main dans la liste « Format » et inconnu de l'application"); $t4 = $sec.IndexOf('`Get-DiskBoundText([int]$hard, [int]$bits, $pat)`')   # lot L12a : troisieme parametre, le motif
 # Corrections de relecture : HFE v3 a 470 ns, piste la plus longue d un IPF ou d un HFE, cellule du codec AmigaDOS avec
 # amiga.amigados (Améliorations) ; cellules du codec du format et champ CapBits (developpeurs) ; README : meme regle
 $t5 = $sec.IndexOf('ni un ADF, ni un IPF, ni un HFE dont la longueur des pistes se lit dans le fichier (un HFE v3 garde 470 ns)'); $t6 = $sec.IndexOf('le plafond suit la piste la plus longue, donc la cellule la plus courte')
@@ -1046,7 +1108,8 @@ if (-not $Before) {
         $c = Compare-TRuns $ro $r $capK
         foreach ($x in $c.Kinds) { $cq[$x]++ }
         if ($c.Bad) { $bad += "$k : $($c.Bad)" }
-        if (@($c.Kinds | Where-Object { $_ -ne 'same' -and $_ -ne 'cap=' }).Count -eq 0) { $nT++; $d = Get-FirstDiff (Get-TNormText $ro 470) (Get-TNormText $r $capK); if ($d) { $badT += "$k : $d" } }
+        # Lot L12a (adapte a dessein) : conseil « jusqu a N ns » ramene a 470 ns pour une image de plafond plus bas (Get-TAdvNorm, E2)
+        if (@($c.Kinds | Where-Object { $_ -ne 'same' -and $_ -ne 'cap=' }).Count -eq 0) { $nT++; $d = Get-FirstDiff (Get-TNormText $ro 470) (Get-TAdvNorm (Get-TNormText $r $capK) $r.Bits); if ($d) { $badT += "$k : $d" } }
     }
     Chk 'Q2' ($bad.Count -eq 0 -and $badT.Count -eq 0 -and $cq['same'] -eq $cnt['same'] -and $cq['cap='] -eq $cnt['cap='] -and $cq['cap+'] -eq $cnt['cap+'] -and $cq['new'] -eq $cnt['new']) "$($gridNew.Bits.Count) calibrations avec densite, 12.10 reelle contre 12.11 : memes classes qu en E1 ($($cq['same']), $($cq['cap=']), $($cq['cap+']), $($cq['new'])) ; $nT calibrations aux memes courbes : reserves et journal identiques au plafond annonce et a la ligne de conseil pres ; ecarts : $(Get-List (@($bad) + @($badT)))"
     $bad = @()

@@ -948,6 +948,9 @@ function Get-LevelAdaptOutcome($cal, $u) {
     #  - reserve de centre (terme de centre non verifie par une ecriture du motif) et de controle (e2) : J3, R1 ;
     #  - reserves dans l ordre de v3f.py (niveau, centre ou controle, au-dela de la borne, forme, a surveiller, plafond)
     $pfx = $u.Prefix; $e = $u.Est; $an = $u.AN; $mx = [int]$script:CalHardNs
+    # 12.11 (L12a) : borne precompMaxNs la plus haute a conseiller quand la courbe sature a la borne (Get-BoundAdviceNs :
+    # jamais au-dela du plafond de l image) ; borne deja reglee a cette valeur ou plus haut : aucun conseil de la relever
+    $adv = Get-BoundAdviceNs $u
     $iss = New-Object System.Collections.Generic.List[object]
     $r = @{ Values = $null; Sat = @(); Floor = @(); Clip = @(); Verdict = ''; Shape = $null; Issues = $iss; Model = 'M0'; S = 0.0; B = 0.0; Hc = $null; K = $null; Hard = $mx; Over = @(); Corr = $false }
     if ([string]$u.Mode -eq 'refus') {
@@ -959,14 +962,15 @@ function Get-LevelAdaptOutcome($cal, $u) {
         Append-Log ($pfx + ((T 'Forme non conforme à la référence et non adaptée : {0}.') -f "$($u.Refus)"))
         $iss.Add(@{ Text = $pfx + ((T 'adaptation refusée : {0}') -f "$($u.Refus)"); Info = $false })
         if (-not $u.Conv) { $iss.Add(@{ Text = $pfx + ((T "niveau non vérifié par une écriture du motif ({0} passe(s))") -f "$($u.Passes)"); Info = $false }) }
-        if ($r.Sat.Count -gt 0 -and $u.Memo -and $mx -ge [int]$script:CalHardMaxNs) {
-            # 12.8 (F3R-FIX, constat 9) : borne precompMaxNs deja a CalHardMaxNs : plus de conseil de la relever
+        if ($r.Sat.Count -gt 0 -and $u.Memo -and $mx -ge $adv) {
+            # 12.8 (F3R-FIX, constat 9) : borne precompMaxNs deja a CalHardMaxNs : plus de conseil de la relever. 12.11 (L12a) :
+            # ni au-dela du plafond de l image ($adv, Get-BoundAdviceNs)
             Append-Log ($pfx + ((T 'Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés.') -f "$mx", (Format-CylList ([int[]]$r.Sat))))
             $iss.Add(@{ Text = $pfx + ((T 'plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés') -f "$mx", (Format-CylList ([int[]]$r.Sat))); Info = $true })
         } elseif ($r.Sat.Count -gt 0 -and $u.Memo) {
             # 12.8 (FIX1C, constat 5) : courbe de refus partie de la forme d une marque (V' + niveau) : libelle neutre
-            Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs).") -f "$mx", (Format-CylList ([int[]]$r.Sat))))
-            $iss.Add(@{ Text = $pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs)") -f "$mx", (Format-CylList ([int[]]$r.Sat))); Info = $true })
+            Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs).") -f "$mx", (Format-CylList ([int[]]$r.Sat)), "$adv"))
+            $iss.Add(@{ Text = $pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs)") -f "$mx", (Format-CylList ([int[]]$r.Sat)), "$adv"); Info = $true })
         } elseif ($r.Sat.Count -gt 0) {
             # 12.8 (F3R, decision du 21/10/2026) : forme non conforme : libelle neutre, autre type de disquette ou usure
             Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec le niveau de cette disquette ({2} ns par rapport à la référence), de forme différente : autre type de disquette ou usure, non distingués ; ces cylindres resteront sous-compensés.") -f "$mx", (Format-CylList ([int[]]$r.Sat)), ('{0:+0;-0;0}' -f [int]$u.Level)))
@@ -1053,14 +1057,15 @@ function Get-LevelAdaptOutcome($cal, $u) {
                 $iss.Add(@{ Text = $pfx + ($it -f (Format-LevelSigned $dEnd), "$last"); Info = $true })
             }
         }
-        if ($r.Sat.Count -gt 0 -and ($hh -gt $mx -or $hh -ge [int]$script:CalHardMaxNs)) {
+        if ($r.Sat.Count -gt 0 -and ($hh -gt $mx -or $hh -ge $adv)) {
             # 12.11 : plafond de la disquette applique ($hh au-dela de la borne : Get-UnitCapNs), ou reglage precompMaxNs deja
-            # a son maximum CalHardMaxNs (12.8, F3R-FIX, constat 9) : plus de conseil de relever la borne
+            # a son maximum CalHardMaxNs (12.8, F3R-FIX, constat 9) : plus de conseil de relever la borne. 12.11 (L12a) : ni
+            # au-dela du plafond de l image ($adv, Get-BoundAdviceNs : long track de cellule courte, borne reglee plus haut)
             Append-Log ($pfx + ((T 'Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés.') -f "$hh", (Format-CylList ([int[]]$r.Sat))))
             $iss.Add(@{ Text = $pfx + ((T 'plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés') -f "$hh", (Format-CylList ([int[]]$r.Sat))); Info = $true })
         } elseif ($r.Sat.Count -gt 0) {
-            Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs).") -f "$hh", (Format-CylList ([int[]]$r.Sat))))
-            $iss.Add(@{ Text = $pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs)") -f "$hh", (Format-CylList ([int[]]$r.Sat))); Info = $true })
+            Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs).") -f "$hh", (Format-CylList ([int[]]$r.Sat)), "$adv"))
+            $iss.Add(@{ Text = $pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs)") -f "$hh", (Format-CylList ([int[]]$r.Sat)), "$adv"); Info = $true })
         }
         if (@($r.Clip).Count -gt 0) { Append-Log ($pfx + ((T "Référence calculée avec une borne de {0} ns, au-delà de la borne actuelle (precompMaxNs = {1} ns) aux cylindres {2} : valeurs ramenées à {1} ns.") -f "$(Get-CurveMaxNs $u.Cv)", "$mx", (Format-CylList ([int[]]$r.Clip)))) }
     }
@@ -1299,6 +1304,15 @@ function Get-UnitCapNs($u) {
     return (Get-DiskCapNs $b)
 }
 
+function Get-BoundAdviceNs($u) {
+    # 12.11 (L12a) : borne precompMaxNs la plus haute que le journal et la fenetre de decision conseillent quand une courbe de
+    # la calibration rapide sature a la borne (« la borne se regle jusqu a {2} ns », 260 et 265, forme adaptee, forme d une
+    # marque, courbe de refus) : haut de la plage du reglage (CalHardMaxNs), jamais au-dela du plafond de l image de l unite
+    # (Get-UnitCapNs : quart de la cellule de la piste ecrite, Get-DiskCapNs ; 470 ns sans densite, valeur de la 12.10).
+    # Borne deja reglee a cette valeur ou plus haut : aucun conseil de la relever. Texte seul : aucune valeur de courbe
+    return [int][math]::Min([int]$script:CalHardMaxNs, [int](Get-UnitCapNs $u))
+}
+
 function Get-DiskCapBits([int]$bits, [string]$fmt = '', [bool]$known = $false) {
     # 12.11 : cellules par piste retenues pour le plafond par disquette (Get-DiskCapNs) : celles de la piste ecrite. Le motif
     # d une image secteur est mesure a 2 us (100 000 cellules, Get-PatternBits) quel que soit le format ; un format gw double
@@ -1327,16 +1341,23 @@ function Get-DiskCapBits([int]$bits, [string]$fmt = '', [bool]$known = $false) {
     return 0
 }
 
-function Get-DiskBoundText([int]$hard, [int]$bits = 0) {
+function Get-DiskBoundText([int]$hard, [int]$bits = 0, $pat = $null) {
     # 12.11 (lot L4b) : ligne de journal de la borne, au debut de la mesure complete de cette disquette (Start-PrecompCalib),
     # tiree de la decision du plafond. $hard : borne posee (Get-DiskHardNs) ; $bits : cellules de la piste ecrite
     # (Get-DiskCapBits). Borne au plus au seuil du controle impose (Get-DiskOverNs) : borne precompMaxNs ; au-dela, cellule
     # connue : quart de la cellule annonce ; cellule inconnue ($bits a 0, Get-DiskCapNs rend CalHardMaxNs) : ligne de la
     # 12.10, sans cellule (aucune division par zero : Get-DiskCellNs n est appelee qu avec des cellules)
+    # 12.11 (L12a) : $pat, motif de la calibration (New-CalibPattern). Cellules retenues par Get-DiskCapBits egales a celles de
+    # la piste la plus longue de l image (CapBits) quand elles depassent la densite du motif (Bits, mediane des pistes) : IPF
+    # ou HFE aux pistes inegales ; la ligne nomme alors cette piste, la ligne « Motif de test » annoncant la densite mediane
     $thr = Get-DiskOverNs
     if ($hard -le $thr) { return ((T "Borne de la courbe de cette disquette : {0} ns (precompMaxNs).") -f "$hard") }
     if ($bits -le 0) { return ((T "Borne de la courbe de cette disquette : {0} ns ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$hard", "$thr") }
-    return ((T "Borne de la courbe de cette disquette : {0} ns, le quart de la cellule de l'image ({2} ns), {3} ns au plus ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$hard", "$thr", "$([int][math]::Round((Get-DiskCellNs $bits)))", "$($script:CalDiskCapMaxNs)")
+    $cell = "$([int][math]::Round((Get-DiskCellNs $bits)))"
+    if ($pat -and [int]$pat.CapBits -gt [int]$pat.Bits -and $bits -eq [int]$pat.CapBits) {
+        return ((T "Borne de la courbe de cette disquette : {0} ns, le quart de la cellule de la piste la plus longue de l'image ({2} ns), {3} ns au plus ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$hard", "$thr", $cell, "$($script:CalDiskCapMaxNs)")
+    }
+    return ((T "Borne de la courbe de cette disquette : {0} ns, le quart de la cellule de l'image ({2} ns), {3} ns au plus ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$hard", "$thr", $cell, "$($script:CalDiskCapMaxNs)")
 }
 
 function Get-DiskOverAdviceText([int]$thr) {

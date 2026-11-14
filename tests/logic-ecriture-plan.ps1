@@ -327,17 +327,19 @@ $scP2 = @(
     @{ Id = 'W24'; T = 'rapide, Pistes c=82-83'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { $txtWTracks.Text = 'c=82-83' } }
 )
 # Empreintes relevees sur d8d80d6 (sortie du test lance avec -Before <export de d8d80d6>) : commandes, demandes et fenetres
-# (T), journal (J), par scenario
+# (T), journal (J), par scenario. Lot L12a (adapte a dessein) : S20 et W06, journal seul (J : 4fa18cb20cadbb58 devient
+# 50ce4950292349fc) : le refus des tetes d une ecriture lente dit ou trouver le champ Pistes et la case « Effacer les pistes
+# vides » (options avancees) ; commandes, demandes et fenetres (T) inchangees
 $plRef = @{
     S01 = 'e624a56728551b44/f6f818805418477f'; S02 = 'f40a6d209d3a2a39/e3b0c44298fc1c14'; S03 = '968e88fda3a51d8b/e3b0c44298fc1c14'; S04 = '23c1adced9b9ae13/e3b0c44298fc1c14'
     S05 = '2cd3a03cd88b533c/5b814566e5ebaa3e'; S06 = 'f7728a08a4f467ef/bafd5731497abed4'; S07 = '582191f22046c9b1/e3c8c2f2a41f0391'; S08 = '968e88fda3a51d8b/84382efb09734831'
     S09 = '3523ef1a80f11555/cd2ca75f20137ace'; S10 = '92a3341d42f81092/1634b78d65c527f7'; S11 = 'b7bf5f6845004cfa/f42f0a5eafa1c47a'; S12 = '7b68ef52a893307b/e086a6737fbfc731'
     S13 = '0ff1729b6eb66c48/a7bb4bdeb3cdc1cb'; S14 = 'f1ce6b44d56f0d8b/6ff328e433b75cae'; S15 = '582191f22046c9b1/8f61a5a7ddbe748b'; S16 = '3523cf60b9ba0ae6/19da9c3fc1b061df'
-    S17 = '8a880c566d208a41/389d2fa657c4b469'; S18 = 'feaff7b1bfe8cd05/01c2e762a616aa39'; S19 = '4512b35f0a0fe8ea/85f77b15dba62aee'; S20 = '6d55d92b00395b21/4fa18cb20cadbb58'
+    S17 = '8a880c566d208a41/389d2fa657c4b469'; S18 = 'feaff7b1bfe8cd05/01c2e762a616aa39'; S19 = '4512b35f0a0fe8ea/85f77b15dba62aee'; S20 = '6d55d92b00395b21/50ce4950292349fc'
     S21 = '23c1adced9b9ae13/e3b0c44298fc1c14'; S22 = '2cd3a03cd88b533c/1a467b75756caa51'; S23 = '968e88fda3a51d8b/5b814566e5ebaa3e'; S24 = '4e59ff6e2740cda2/9878de4f89dfd731'
     S25 = '063cf1106f68eb1e/80ef31cbde4c622b'; S26 = '2cd3a03cd88b533c/5b814566e5ebaa3e'; S27 = 'f7728a08a4f467ef/d879a545c51c9f65'; S28 = '582191f22046c9b1/bd374b7b4cea8134'
     W01 = '4e59ff6e2740cda2/d91545fc0d919c4c'; W02 = '582191f22046c9b1/e6ee499cd7f76208'; W03 = '425749e6b9487375/e76c080455586978'; W04 = 'a450c9ef2015e382/82edac566160419d'
-    W05 = '6a04d07d425ab285/8580e0c719eed7d4'; W06 = '6d55d92b00395b21/4fa18cb20cadbb58'; W07 = '6d55d92b00395b21/54ccdbaeb3d51156'; W08 = 'a44563feaafaef93/75c5cb21d5795c23'
+    W05 = '6a04d07d425ab285/8580e0c719eed7d4'; W06 = '6d55d92b00395b21/50ce4950292349fc'; W07 = '6d55d92b00395b21/54ccdbaeb3d51156'; W08 = 'a44563feaafaef93/75c5cb21d5795c23'
     W09 = '987bf20fc91b5ea8/72a8a435aff7675d'; W10 = '2fa1cb915576554b/4cac8bbd5a99794b'; W11 = 'f0cb9b7c4d43e004/ab11bfe34801aca8'; W12 = 'c3f776a698bd39b8/45acba1492f3302e'
     W13 = 'a4536535963d9f2e/c6892cfe17a87002'; W14 = '05dbbd27c6d38abe/90659da571963047'; W15 = '9650771b5d762b87/441ec90c93b63b50'; W16 = 'e624a56728551b44/d91545fc0d919c4c'
     W17 = '631ffd0518b95c25/e3b0c44298fc1c14'; W18 = '16775819cacfcd08/003107d7bbcb5f61'; W19 = '00c2c1d301a051bd/14c560e888fadc45'; W20 = '2c592b23d3f7552e/b1fcd512270daf7a'
@@ -728,14 +730,20 @@ Chk 'P2' ($plRef.Count -eq $ids.Count -and @($p1Bad | Where-Object { $_ -like 'W
 if ($Before) {
     $ra = $res['avant-fr']
     $eb = @()
+    # Lot L12a (adapte a dessein) : derniere phrase du refus des tetes d une ecriture lente, ajoutee par ce lot (champ Pistes
+    # et case dans les options avancees), retiree avant la comparaison ; nombre de lignes ainsi ramenees (S20 et W06 : 2)
+    $l12a = "`nCes deux réglages sont dans les options avancées de l'onglet Écriture."; $nL12a = 0
     foreach ($sc in @($scP1 + $scP2)) {
         $a = if ($sc.Id -like 'S*') { $ra.P1[$sc.Id] } else { $ra.P2[$sc.Id] }
         $n = if ($sc.Id -like 'S*') { $rn.P1[$sc.Id] } else { $rn.P2[$sc.Id] }
         for ($i = 0; $i -lt [math]::Max(@($a.Trace).Count, @($n.Trace).Count); $i++) { if ([string]@($a.Trace)[$i] -cne [string]@($n.Trace)[$i]) { $eb += "$($sc.Id) commande $i : « $(@($a.Trace)[$i]) » / « $(@($n.Trace)[$i]) »"; break } }
-        for ($i = 0; $i -lt [math]::Max(@($a.Log).Count, @($n.Log).Count); $i++) { if ([string]@($a.Log)[$i] -cne [string]@($n.Log)[$i]) { $eb += "$($sc.Id) journal $i : « $(@($a.Log)[$i]) » / « $(@($n.Log)[$i]) »"; break } }
+        for ($i = 0; $i -lt [math]::Max(@($a.Log).Count, @($n.Log).Count); $i++) {
+            $nl = [string]@($n.Log)[$i]; if ($nl.EndsWith($l12a)) { $nl = $nl.Substring(0, $nl.Length - $l12a.Length); $nL12a++ }
+            if ([string]@($a.Log)[$i] -cne $nl) { $eb += "$($sc.Id) journal $i : « $(@($a.Log)[$i]) » / « $(@($n.Log)[$i]) »"; break }
+        }
     }
     foreach ($x in @($eb | Select-Object -First 6)) { "  P1b ECART $x" }
-    Chk 'P1b' ($eb.Count -eq 0) "-Before $Before : pour les $($ids.Count) scenarios, commandes, demandes, fenetres et journal identiques ligne a ligne a ceux de la source d avant ; ecarts : $($eb.Count)"
+    Chk 'P1b' ($eb.Count -eq 0 -and $nL12a -eq 2) "-Before $Before : pour les $($ids.Count) scenarios, commandes, demandes, fenetres et journal identiques ligne a ligne a ceux de la source d avant, a la phrase du lot L12a pres ($nL12a ligne(s) du refus des tetes) ; ecarts : $($eb.Count)"
 } else { '  P1b saute (sans -Before : comparaison ligne a ligne avec la source d avant les extractions)' }
 
 # =====================================================================================================================
