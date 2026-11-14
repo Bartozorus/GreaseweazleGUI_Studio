@@ -950,6 +950,36 @@ $p6 = @($tRows | Where-Object { $_.N -eq 6 -and $_.H -eq 372 }); $p11 = @($tRows
 $t2 = @($p6 | Where-Object { $_.PageH -lt $btnWrite.Bottom })
 "  T2 : journal affiche (zone des onglets de 372 px, separateur a sa place par defaut, 510) : page de $(@($p6 | ForEach-Object { $_.PageH }) -join '/') px en mode courant, $(@($p11 | ForEach-Object { $_.PageH }) -join '/') px en mode expert ; bas du bouton ECRIRE a $($btnWrite.Bottom) px"
 Chk 'T2' ($p6.Count -eq 2 -and $t2.Count -eq 0 -and $btnWrite.Bottom -eq 335) "journal affiche, mode courant : le bouton ECRIRE (bas a $($btnWrite.Bottom) px) tient dans la page sans defilement, en francais et en anglais ; mode expert : l onglet defile (dit au CHANGELOG)"
+# T2b (lot L12b, banc write-level S3g3) : la place du separateur est enregistree (Save-Config, 120) et retablie a
+# l affichage (600) : la promesse du CHANGELOG ne vaut qu avec le separateur a sa place par defaut (372 px, lue dans
+# 510). Zone des onglets la plus basse ou le bouton tient encore (mesuree : bas du bouton + hauteur de la barre
+# d onglets), un pixel de moins, et 366 px (separateur remonte de 6 px, cas du banc) ; le separateur peut monter jusqu a
+# Panel1MinSize (510) : aucune disposition ne garde le bouton visible pour toute place enregistree
+$s510 = @((Get-Ast (Get-EoMod $Wt '510')).EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text })
+$splitDef = @($s510 | Where-Object { $_ -match '^\$split\.SplitterDistance = (\d+)$' } | ForEach-Object { [int]([regex]::Match($_, '(\d+)$').Value) })
+$splitMin = @($s510 | Where-Object { $_ -match '^\$split\.Panel1MinSize = (\d+)$' } | ForEach-Object { [int]([regex]::Match($_, '(\d+)$').Value) })
+$strip = if ($p6.Count -gt 0) { 372 - [int]$p6[0].PageH } else { 0 }
+$hMin = [int]$btnWrite.Bottom + $strip
+$t2b = @(); $t2bTxt = @()
+foreach ($lg in 'fr', 'en') {
+    $script:Lang = $lg
+    foreach ($h in @($hMin, ($hMin - 1), 366)) {
+        . $eoG.Tabs
+        $tabs.Dock = 'None'; $tabs.Font = $form.Font; $tabs.Size = New-Object System.Drawing.Size(800, $h)
+        foreach ($tv in $tabVars) { Set-Variable -Name $tv.Var -Value (New-TabPage $(if ($tv.T) { T $tv.Key } else { $tv.Key })) }
+        . $eoG.Ico
+        foreach ($v in $novV) { $tabs.TabPages.Add((Get-Variable -Name $v -ValueOnly)) }
+        $null = $tabs.Handle
+        $ph = $tabs.DisplayRectangle.Height; $tabs.Dispose()
+        $vis = ($ph -ge $btnWrite.Bottom)
+        $t2bTxt += "$lg $h px : page $ph, bouton $(if ($vis) { 'visible' } else { 'cache' })"
+        if ($vis -ne ($h -eq $hMin)) { $t2b += "$lg $h px : page $ph" }
+    }
+}
+$script:Lang = 'fr'
+$clT2 = [System.IO.File]::ReadAllText((Join-Path $Wt 'CHANGELOG.md'), [System.Text.Encoding]::UTF8)
+$enT2 = @($clT2 -split "`n" | Where-Object { $_.StartsWith('- **Bouton « ÉCRIRE LA DISQUETTE » visible journal affiché.**') })
+Chk 'T2b' ($t2b.Count -eq 0 -and $splitDef.Count -eq 1 -and $splitDef[0] -eq 372 -and $splitMin.Count -eq 1 -and $splitMin[0] -lt $hMin - 1 -and $hMin -le 372 -and $enT2.Count -eq 1 -and $enT2[0].Contains('avec le séparateur entre les onglets et le journal à sa place par défaut') -and $enT2[0].Contains('redescendez le séparateur')) "separateur a sa place par defaut ($($splitDef -join ',') px, 510) : bouton visible ; au plus bas $hMin px ; $($t2bTxt -join ' ; ') ; le separateur peut monter jusqu a $($splitMin -join ',') px : le CHANGELOG ne promet le bouton visible qu avec le separateur a sa place par defaut et dit quoi faire sinon ; ecarts : $($t2b -join ' ; ')"
 
 '--- D : CHANGELOG et README'
 $ch = [System.IO.File]::ReadAllText((Join-Path $Wt 'CHANGELOG.md'), [System.Text.Encoding]::UTF8)

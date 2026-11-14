@@ -30,6 +30,7 @@ $Wt = Get-TestRoot $Wt
 #     correction de l estimation, echec, operation incomplete, Arreter pendant l ecriture et le prechauffage, erreur gw
 #     d une ecriture controlee, gw introuvable ou non lance, refus (arbre syntaxique), restauration exclue ; places dans
 #     Start-ImageWrite, New-WriteCheck, Start-RepPending et le minuteur ; affichage seulement (I3, D5 : textes, documents).
+#     Lot L12b (W19 a W23, D6) : passage du minuteur entre la sortie de gw et le traitement de sa fin (vraie Update-SeqEnd).
 # Avec -Before <copie de la source de la 12.10> (aucune dans le depot) : cas Q, equivalence avec la 12.10 de l etat lu
 # par la regle de fin (ProgTotal, ProgSeen), du compteur d une lecture et de la barre de calibration sans plan.
 # Fonctions reelles extraites des modules par l arbre syntaxique, ecrites dans un fichier de travail puis chargees par
@@ -171,7 +172,7 @@ function Set-QualityPending($k) { }
 function Set-QualityRunText($t) { }
 function Set-QualityStale($w) { }
 function Update-RepPartial { }
-$script:WTest = @{ WarmSec = 300.0; Rounds = 0; Mode = ''; DefCyl = 80 }
+$script:WTest = @{ WarmSec = 300.0; Rounds = 0; Mode = ''; DefCyl = 80; Full = $false; Race = $false }
 $script:Sound = 0
 . $gen
 
@@ -933,7 +934,20 @@ function Invoke-WriteCheckAnalysis {
     Complete-WriteCheck
 }
 function Add-WObs([string]$at) { $script:WObs.Add(@{ At = $at; V = [int]$pbWCal.Value; Vis = [bool]$pbWCal.Visible; T = [string]$lblWCal.Text }) }
-function Invoke-WTick([string]$at = 'tick') { Invoke-WTimer; Add-WObs $at }
+function Invoke-WTick([string]$at = 'tick') {
+    # Lot L12b : avec $script:WTest.Full, aussi la vraie Update-SeqEnd, instruction du minuteur qui suit les barres de
+    # l onglet (ordre lu par W17) ; sans elle, les deux instructions des barres seules, comme avant
+    Invoke-WTimer
+    if ($script:WTest.Full) { Update-SeqEnd }
+    Add-WObs $at
+}
+function Invoke-WRace {
+    # Lot L12b : $script:WTest.Race : gw est sorti apres le debut du passage du minuteur, avant Update-SeqEnd : processus
+    # factice sorti (HasExited vrai) mais fin pas encore traitee, puis ce passage ; la fin est traitee au passage suivant
+    if (-not $script:WTest.Race -or -not $script:GwProc) { return }
+    $script:GwProc.HasExited = $true
+    Invoke-WTick 'gw sorti, fin non traitee'
+}
 # Releves : listes generiques lues par ToArray() (sous PowerShell 7, @() sur une List[object] de tables leve « Argument
 # types do not match ») ; dernier releve par le tableau (une List n admet pas d indice negatif)
 function Get-WLast { $o = $script:WObs.ToArray(); return $o[$o.Count - 1] }
@@ -972,7 +986,7 @@ function Invoke-WCmd([int]$code = 0, [int]$upTo = -1, [switch]$Incomplete, [swit
     $cmd = [string]$script:WCmds[$script:WCmds.Count - 1]
     if ($cmd.StartsWith('prechauffage ')) {
         foreach ($i in 1..4) { Move-WTime 25; Invoke-WTick 'prechauffage'; if ($Halt -and $i -eq 2) { break } }
-        if ($Halt) { Invoke-WStop; Invoke-WEnd (-1) } else { Invoke-WEnd 0 }
+        if ($Halt) { Invoke-WStop; Invoke-WRace; Invoke-WEnd (-1) } else { Invoke-WRace; Invoke-WEnd 0 }
         return
     }
     $tk = Get-WTracks $cmd
@@ -987,7 +1001,8 @@ function Invoke-WCmd([int]$code = 0, [int]$upTo = -1, [switch]$Incomplete, [swit
         Show-GwProgress; Invoke-WTick $verb
     }
     if ($verb -eq 'write' -and $upTo -lt 0) { Update-Progress 'All tracks verified' -Defer }
-    if ($Halt) { Invoke-WStop; Invoke-WEnd (-1); return }
+    if ($Halt) { Invoke-WStop; Invoke-WRace; Invoke-WEnd (-1); return }
+    Invoke-WRace
     Invoke-WEnd $code -Incomplete:$Incomplete
 }
 function Invoke-WAll([int]$failAt = -1, [int]$failCode = 1, [int]$failLines = 30, [switch]$Incomplete, [int]$stopAt = -1) {
@@ -1197,6 +1212,85 @@ foreach ($mn in @($src.Ast.Keys)) {
 $rdWl = (@($rdW.Keys | Sort-Object) -join ', ')
 Chk 'W18' ($cmWl -ceq 'Complete-WriteProgress, Get-GwCmdUnits, Get-ProgPlanFrac, Get-SpecCount, Get-WarmupLeft, Get-WriteProgEnd, Get-WriteProgPct, Get-WriteProgText, Get-WriteProgUnits, New-Object, New-ProgPlan, T' -and $wrWl -ceq 'lblWCal.Text, lblWCal.Visible, pbWCal.Value, pbWCal.Visible, wp.Done, wp.F, wp.Max, wp.Pass, wp.Seg, wp.Text, wp.Warm' -and $stW.Count -eq 0 -and
           $rdWl -ceq '(040), (600), Complete-WriteProgress, Get-WriteProgPct, New-WriteCheck, Start-WriteProgress, Step-WriteProgress, Update-WriteProgress, Update-WriteWarmupProgress') "affichage seulement : les $($fnW.Count) fonctions du lot n appellent que $cmWl ; elles n ecrivent que $wrWl ; barre d etat jamais lue ni ecrite (elle garde sa hauteur, lot SB) ; etat de l ecriture lu par $rdWl : aucune decision d ecriture ni de controle"
+# W19 a W23 (lot L12b) : passage du minuteur entre la sortie de gw et le traitement de sa fin. Le minuteur (600) traite la
+# fin d une commande en tete de son passage, quand il voit gw sorti ; gw peut sortir juste apres, et Update-SeqEnd, plus
+# bas dans le meme passage, voyait l application au repos (Get-AppBusy ne compte que gw non sorti) : plan et commande
+# retires avant que Stop-Progress credite la commande, d ou « Ecriture interrompue » apres une ecriture reussie (banc,
+# slow-warm S3), et compteur de pistes laisse dans la barre d etat apres une suite de commandes. Chaque scenario est joue
+# deux fois, passages complets (barres de l onglet puis vraie Update-SeqEnd, $script:WTest.Full) : sans ce passage, puis
+# avec lui a la fin de chaque commande, arret compris (Invoke-WRace) ; fins, barre d etat, commandes gw et journal egaux
+function Invoke-WRaceRun($sc, [bool]$race) {
+    $script:WTest.Full = $true; $script:WTest.Race = $race
+    $a = $sc.A; $r = $sc.R
+    Start-WScenario $a[0] $a[1] $a[2] $a[3] $a[4] $a[5] $a[6]
+    Invoke-WAll @r
+    $o = Get-WLast
+    $res = @{ T = [string]$o.T; Vis = [bool]$o.Vis; St = (Get-St); Back = (Get-WMono).Back
+              Left = ($null -eq $script:WriteProg -and $null -eq $script:ProgPlan -and $null -eq $script:ProgCmd -and $null -eq $script:SeqEnd -and [int]$script:SeqCmds -eq 0)
+              Cmds = (@($script:WCmds | ForEach-Object { if ($_.StartsWith('prechauffage read')) { 'prechauffage read' } else { $_ } }) -join ' | ')
+              Log = (@($script:Calls) -join ' | '); NRace = @($script:WObs.ToArray() | Where-Object { $_.At -eq 'gw sorti, fin non traitee' }).Count }
+    $script:WTest.Full = $false; $script:WTest.Race = $false; $script:WTest.Mode = ''
+    return $res
+}
+$tDone = 'Écriture terminée.'; $tInt = 'Écriture interrompue : voir le journal.'; $tChk4 = 'CONTRÔLE APRÈS ÉCRITURE : 4/4 pistes saines'
+$wRaceSc = @(
+    @{ N = 'rapide'; A = @($false, $false, $false, $false, 0, 40, ''); R = @{}; T = $tDone },
+    @{ N = 'lente'; A = @($true, $false, $false, $true, 0, 80, ''); R = @{}; T = $tDone },
+    @{ N = 'lente prechauffee'; A = @($true, $false, $true, $false, 0, 80, ''); R = @{}; T = $tDone },
+    @{ N = 'rapide controlee'; A = @($false, $true, $false, $false, 0, 80, ''); R = @{}; T = $tChk4 },
+    @{ N = 'lente controlee, reecriture'; A = @($true, $true, $true, $true, 1, 80, ''); R = @{}; T = $tChk4 },
+    @{ N = 'rapide en echec'; A = @($false, $false, $false, $false, 0, 80, ''); R = @{ failAt = 1; failCode = 1; failLines = 30 }; T = $tInt },
+    @{ N = 'rapide incomplete'; A = @($false, $false, $false, $false, 0, 80, ''); R = @{ failAt = 1; failCode = 0; failLines = 160; Incomplete = $true }; T = $tInt },
+    @{ N = 'lente en echec tete 1'; A = @($true, $false, $false, $false, 0, 80, ''); R = @{ failAt = 2; failCode = 1; failLines = 30 }; T = $tInt },
+    @{ N = 'lente arretee tete 1'; A = @($true, $false, $false, $false, 0, 80, ''); R = @{ stopAt = 2 }; T = $tInt },
+    @{ N = 'prechauffage arrete'; A = @($true, $false, $true, $false, 0, 80, ''); R = @{ stopAt = 2 }; T = 'Préchauffage interrompu : écriture annulée.' },
+    @{ N = 'controle arrete'; A = @($true, $true, $true, $false, 0, 80, ''); R = @{ stopAt = 2 }; T = 'Contrôle après écriture interrompu.' },
+    @{ N = 'controlee en echec'; A = @($true, $true, $false, $true, 0, 80, ''); R = @{ failAt = 2; failCode = 1; failLines = 30 }; T = 'Contrôle après écriture interrompu.' },
+    @{ N = 'gw introuvable'; A = @($false, $false, $false, $false, 0, 80, 'missing'); R = @{}; T = $tInt },
+    @{ N = 'gw non lance'; A = @($false, $false, $false, $false, 0, 80, 'launch'); R = @{}; T = $tInt }
+)
+$wRace = @{}; $w19 = @(); $w20 = @(); $wNoRace = 0
+foreach ($sc in $wRaceSc) {
+    $n0 = Invoke-WRaceRun $sc $false; $n1 = Invoke-WRaceRun $sc $true
+    $wRace[$sc.N] = @{ Off = $n0; On = $n1 }
+    foreach ($p in @(@('sans', $n0), @('avec', $n1))) {
+        $x = $p[1]
+        if (-not ($x.T.StartsWith([string]$sc.T, [System.StringComparison]::Ordinal) -and -not $x.Vis -and $x.Left -and $x.Back -eq 0)) { $w19 += "$($sc.N) ($($p[0])) : « $($x.T) », barre visible $($x.Vis), etat retire $($x.Left), reculs $($x.Back)" }
+    }
+    foreach ($k in 'T', 'Vis', 'St', 'Cmds', 'Log') { if ([string]$n0[$k] -cne [string]$n1[$k]) { $w20 += "$($sc.N) : $k « $($n0[$k]) » / « $($n1[$k]) »" } }
+    if ($n1.NRace -eq 0) { $wNoRace++ }
+}
+$nRaceTk = @($wRace.Values | ForEach-Object { [int]$_.On.NRace } | Measure-Object -Sum).Sum
+Chk 'W19' ($w19.Count -eq 0 -and $wNoRace -eq 2 -and $wRace['rapide'].On.T -ceq $tDone -and $wRace['lente'].On.T -ceq $tDone -and $wRace['lente prechauffee'].On.T -ceq $tDone) "passage du minuteur entre la sortie de gw et le traitement de sa fin, a chaque commande ($nRaceTk passages ; aucun sans processus gw : gw introuvable, non lance) : ecriture rapide reussie sans controle « $($wRace['rapide'].On.T) », ecriture lente reussie sans controle « $($wRace['lente'].On.T) », prechauffee « $($wRace['lente prechauffee'].On.T) » ; fins attendues des $($wRaceSc.Count) scenarios (reussie, controlee, en echec, incomplete, arretee pendant l ecriture, le prechauffage ou le controle, gw introuvable ou non lance), barre masquee, etat retire, aucun recul ; ecarts : $($w19 -join ' ; ')"
+Chk 'W20' ($w20.Count -eq 0) "avec et sans ce passage, memes fins de l onglet, meme barre d etat, memes commandes gw et meme journal dans les $($wRaceSc.Count) scenarios : le passage ne change rien ; ecarts : $($w20 -join ' ; ')"
+$stL = [string]$wRace['lente'].On.St; $stF = [string]$wRace['rapide'].On.St; $stC = [string]$wRace['rapide controlee'].On.St
+Chk 'W21' ($stL -ceq 'Écriture terminé(e)  -  HH:mm:ss||False' -and $stF -ceq 'Écriture terminé(e)  -  HH:mm:ss|piste 39.1  (80/80, 100 %)|True' -and $stC -ceq 'Contrôle après écriture : 4/4 pistes saines  -  HH:mm:ss||False') "barre d etat avec ce passage : suite de commandes (effacement, deux tetes) « $stL » (compteur efface, barre masquee) ; commande isolee « $stF » (affichage de la 12.10) ; controle « $stC »"
+# W22 : la vraie Update-SeqEnd n applique rien tant que la fin de gw n est pas traitee ($script:GwProc pose, sorti ou non),
+# pour chaque raison de Get-AppBusy comme au repos ; une fois $script:GwProc retire, elle applique l etat au repos
+$w22 = @(); $w22Ok = ''
+foreach ($k in 'repos', 'restore', 'calib', 'check', 'warmup', 'detect', 'chain') {
+    foreach ($ex in $false, $true) {
+        Reset-All
+        Invoke-LastRead; Invoke-LastRead; Set-SeqEnd 'Essai' 'ok'; New-ProgPlan @(,[string[]]@('read', '--drive=A', '--revs=3', '--tracks=c=0-79:h=0-1'))
+        switch ($k) { 'restore' { $script:Restore = @{ Waiting = $false } } 'calib' { $script:Cal = @{ Mode = 'fine' } } 'check' { $script:Rep = @{ Round = 0 } }
+                      'warmup' { $script:WriteWarm = @{ WarmSec = 1 } } 'detect' { $script:Detect = @{ Mode = 'auto' } } 'chain' { $script:Chain.Enqueue('etape') } }
+        $script:GwProc = [pscustomobject]@{ HasExited = $ex }
+        $b0 = Get-St; Update-SeqEnd
+        $g = "$(Get-Pend)|$($script:SeqCmds)|$($null -ne $script:ProgPlan)|$(Get-St)"
+        if ($g -cne "Essai|ok|2|True|$b0") { $w22 += "$k, gw sorti $ex : $g" }
+        if ($k -eq 'repos' -and $ex) { $script:GwProc = $null; Update-SeqEnd; $w22Ok = "$(Get-Pend)|$($script:SeqCmds)|$($null -ne $script:ProgPlan)|$(Get-St)" }
+    }
+}
+Reset-All
+Chk 'W22' ($w22.Count -eq 0 -and $w22Ok -ceq 'aucun|0|False|Essai  -  HH:mm:ss||False') "vraie Update-SeqEnd, gw sorti ou non mais sa fin non traitee : rien d applique (etat en attente, commandes comptees, plan, barre d etat), au repos comme pour chaque raison de Get-AppBusy ; fin traitee : « $($w22Ok.Split('|')[3]) » ; ecarts : $($w22 -join ' ; ')"
+# W23 : Update-SeqEnd ne fait qu afficher (arbre syntaxique) : elle n appelle que Get-AppBusy et Get-Date et n ecrit que
+# l etat de la fin de sequence, du plan et la barre d etat ; Get-AppBusy et la regle de fin du minuteur ne lisent pas
+# HasExited autrement qu avant (une seule lecture, dans Get-AppBusy)
+$useF = $src.Fn['Update-SeqEnd']
+$useCmd = (@($useF.Body.FindAll({ param($x) $x -is $tCmd }, $true) | ForEach-Object { [string]$_.GetCommandName() } | Sort-Object -Unique) -join ', ')
+$useWr = (@($useF.Body.FindAll({ param($x) $x -is $tAsg }, $true) | ForEach-Object { [string]$_.Left.Extent.Text } | Sort-Object -Unique) -join ', ')
+$gabHe = @($src.Fn['Get-AppBusy'].Body.FindAll({ param($x) $x -is $tMem -and [string]$x.Member -eq 'HasExited' }, $true)).Count
+Chk 'W23' ($useCmd -ceq 'Get-AppBusy, Get-Date' -and $useWr -ceq '$e, $n, $script:ProgCmd, $script:ProgPlan, $script:SeqCmds, $script:SeqEnd, $stBar.Visible, $stOp.Image, $stOp.Text, $stTrack.Text' -and $gabHe -eq 1) "Update-SeqEnd n appelle que $useCmd et n ecrit que $useWr : affichage seulement, aucune commande ni decision ; Get-AppBusy inchangee (gw compte tant qu il n est pas sorti : $gabHe lecture de HasExited)"
 
 # ================================================================ B. affichage seulement
 '--- B. la progression ne fait qu afficher (arbre syntaxique des modules)'
@@ -1412,6 +1506,11 @@ $en5 = Get-Entry $am "Barre de l'onglet « Écriture » pendant l'écriture."
 $dev5 = @($dv -split "`n" | Where-Object { $_ -like "- Barre de l'onglet pendant l'écriture*" })
 Chk 'D5' ($en5 -and $en5.Contains('ne recule pas') -and $en5.Contains('« Écriture terminée. »') -and $en5.Contains('« Écriture interrompue : voir le journal. »') -and $en5.Contains('préchauffage') -and $en5 -notmatch 'matériel' -and $en5 -notmatch $rxDur -and
           $dev5.Count -eq 1 -and $dev5[0].Contains('`Start-WriteProgress') -and $dev5[0].Contains('`New-ProgPlan($cmds, $tracks)`') -and $dev5[0] -notmatch 'matériel' -and $rm.Contains('`Start-WriteProgress`') -and $rt.Contains('série W')) "CHANGELOG 12.11 : « Barre de l'onglet « Écriture » pendant l'écriture » en Ameliorations (barre qui ne recule pas, fins de l ecriture, prechauffage ; ni duree ni verification sur materiel) et son entree « Pour les développeurs » ; README des modules et des tests"
+# D6 (lot L12b) : entree « Fin d'une écriture réussie. » en Corrections (ce que l utilisateur voyait, ce qu il voit,
+# affichage seulement ; ni duree ni verification sur materiel), entree « Pour les développeurs » et README des tests
+$en6 = Get-Entry $co "Fin d'une écriture réussie."
+Chk 'D6' ($en6 -and $en6.Contains('« Écriture interrompue : voir le journal. »') -and $en6.Contains('« Écriture terminée. »') -and $en6.Contains('« Écriture terminé(e) »') -and $en6.Contains('sans le compteur ni la barre') -and $en6.Contains('Seul l''affichage était faux') -and $en6 -notmatch 'matériel' -and $en6 -notmatch $rxDur -and
+          $devEn.Count -eq 1 -and $devEn[0].Contains('`$script:GwProc` est nul') -and $rt.Contains('lot L12b : passage du minuteur entre la sortie de gw et le traitement de sa fin')) "CHANGELOG 12.11 : « Fin d'une écriture réussie » en Corrections (libelle de l onglet et barre d etat, affichage seulement, ni duree ni verification sur materiel) ; « Pour les développeurs » : Update-SeqEnd attend que `$script:GwProc soit nul ; README des tests"
 
 # ================================================================ Q. equivalence avec la 12.10 (-Before)
 '--- Q. equivalence avec la 12.10 (-Before)'

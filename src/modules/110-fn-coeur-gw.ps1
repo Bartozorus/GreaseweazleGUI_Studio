@@ -777,7 +777,10 @@ function Update-SeqEnd {
     # (code N) », gw non lance : ProgFailed), qui dit la cause : l attente est abandonnee, la barre d etat laissee.
     # Plan de l etape retire. Cout par passage : trois variables, puis Get-AppBusy tant qu une sequence est en cours
     if ($null -eq $script:SeqEnd -and [int]$script:SeqCmds -le 0 -and $null -eq $script:ProgPlan) { return }
-    if (Get-AppBusy) { return }
+    # 12.11 (L12b) : gw sorti mais sa fin pas encore traitee par le minuteur ($script:GwProc pose, HasExited vrai : sortie
+    # entre le debut du passage et cette instruction) : sequence pas finie, comme pour le bouton Arreter (540). Sinon plan
+    # et commande retires avant que Stop-Progress credite la commande : « Ecriture interrompue » apres une ecriture reussie
+    if ($script:GwProc -or (Get-AppBusy)) { return }
     $e = $script:SeqEnd; $n = [int]$script:SeqCmds
     $script:SeqEnd = $null; $script:SeqCmds = 0; $script:ProgPlan = $null; $script:ProgCmd = $null
     if ($script:ProgFailed) { return }
