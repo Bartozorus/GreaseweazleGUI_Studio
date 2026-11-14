@@ -5329,7 +5329,8 @@ function Clear-SeqEnd {
 }
 
 function Update-SeqEnd {
-    # Minuteur principal (600) : fin de sequence, une fois l application au repos (Get-AppBusy vide). Etat pose par
+    # Minuteur principal (600) : fin de sequence, une fois l application au repos (Get-AppBusy vide) et la fin de la
+    # derniere commande gw traitee ($script:GwProc nul, 12.11 L12b). Etat pose par
     # Set-SeqEnd : texte (suivi de l heure), icone, compteur de piste efface, barre masquee. Sans etat pose, apres une
     # sequence de deux commandes gw ou plus : compteur efface et barre masquee, texte de la derniere commande garde ; une
     # commande isolee garde l affichage de la 12.10. Jamais sur un etat d echec de la derniere commande (« ... en echec

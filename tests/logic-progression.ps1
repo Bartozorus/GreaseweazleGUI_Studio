@@ -1268,12 +1268,12 @@ Chk 'W21' ($stL -ceq 'Écriture terminé(e)  -  HH:mm:ss||False' -and $stF -ceq 
 # W22 : la vraie Update-SeqEnd n applique rien tant que la fin de gw n est pas traitee ($script:GwProc pose, sorti ou non),
 # pour chaque raison de Get-AppBusy comme au repos ; une fois $script:GwProc retire, elle applique l etat au repos
 $w22 = @(); $w22Ok = ''
-foreach ($k in 'repos', 'restore', 'calib', 'check', 'warmup', 'detect', 'chain') {
+foreach ($k in 'repos', 'restore', 'calib', 'check', 'warmup', 'detect', 'chain', 'quality') {
     foreach ($ex in $false, $true) {
         Reset-All
         Invoke-LastRead; Invoke-LastRead; Set-SeqEnd 'Essai' 'ok'; New-ProgPlan @(,[string[]]@('read', '--drive=A', '--revs=3', '--tracks=c=0-79:h=0-1'))
         switch ($k) { 'restore' { $script:Restore = @{ Waiting = $false } } 'calib' { $script:Cal = @{ Mode = 'fine' } } 'check' { $script:Rep = @{ Round = 0 } }
-                      'warmup' { $script:WriteWarm = @{ WarmSec = 1 } } 'detect' { $script:Detect = @{ Mode = 'auto' } } 'chain' { $script:Chain.Enqueue('etape') } }
+                      'warmup' { $script:WriteWarm = @{ WarmSec = 1 } } 'detect' { $script:Detect = @{ Mode = 'auto' } } 'chain' { $script:Chain.Enqueue('etape') } 'quality' { $script:AlignLoop = $true } }
         $script:GwProc = [pscustomobject]@{ HasExited = $ex }
         $b0 = Get-St; Update-SeqEnd
         $g = "$(Get-Pend)|$($script:SeqCmds)|$($null -ne $script:ProgPlan)|$(Get-St)"

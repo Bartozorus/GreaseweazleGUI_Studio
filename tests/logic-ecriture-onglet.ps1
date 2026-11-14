@@ -50,7 +50,10 @@ $Wt = Get-TestRoot $Wt
 #     d8d80d6 (empreintes relevees sur cette source ; avec -Before, comparaison ligne a ligne, journal compris).
 #  T  barre d onglets : instructions reelles de 510 et 540 sur un vrai TabControl jamais affiche (poignee creee sans
 #     fenetre visible) : T1 onze onglets sur deux rangees et six sur une, en francais et en anglais ; T2 hauteur de la page
-#     journal affiche (separateur a sa place par defaut) : bouton ECRIRE visible en vue simple.
+#     journal affiche, zone des onglets de 372 px (place posee a la construction du separateur, 510) : bouton ECRIRE
+#     visible en vue simple ; T2b zone la plus basse ou il tient, texte du CHANGELOG ; T2c et T2d (lot L12b, revue M) place
+#     reelle du separateur a la taille par defaut de la fenetre (instructions reelles de 500, 510 et 540), sous ce seuil :
+#     le CHANGELOG ne promet pas le bouton visible et dit qu il faut faire defiler l onglet ; place qui suit la fenetre.
 #  D  CHANGELOG, README des modules et des tests.
 # Fonctions et instructions reelles extraites par l arbre syntaxique, ecrites dans des fichiers de travail puis chargees
 # par dot-source ; controles WinForms reels jamais affiches. Aucun gw, aucune fenetre, aucune compilation. Non couvert : le
@@ -948,13 +951,14 @@ $t1 = @($tRows | Where-Object { -not $_.Multi -or ($_.N -eq 11 -and $_.Rows -ne 
 Chk 'T1' ($tRows.Count -eq 8 -and $t1.Count -eq 0 -and $allV.Count -eq 11 -and $novV.Count -eq 6) "instructions reelles de 510 (Multiline) et de 540 (icones), fenetre de 800 px : mode expert, 11 onglets sur 2 rangees ; mode courant, 6 onglets sur 1 rangee, en francais et en anglais"
 $p6 = @($tRows | Where-Object { $_.N -eq 6 -and $_.H -eq 372 }); $p11 = @($tRows | Where-Object { $_.N -eq 11 -and $_.H -eq 372 })
 $t2 = @($p6 | Where-Object { $_.PageH -lt $btnWrite.Bottom })
-"  T2 : journal affiche (zone des onglets de 372 px, separateur a sa place par defaut, 510) : page de $(@($p6 | ForEach-Object { $_.PageH }) -join '/') px en mode courant, $(@($p11 | ForEach-Object { $_.PageH }) -join '/') px en mode expert ; bas du bouton ECRIRE a $($btnWrite.Bottom) px"
-Chk 'T2' ($p6.Count -eq 2 -and $t2.Count -eq 0 -and $btnWrite.Bottom -eq 335) "journal affiche, mode courant : le bouton ECRIRE (bas a $($btnWrite.Bottom) px) tient dans la page sans defilement, en francais et en anglais ; mode expert : l onglet defile (dit au CHANGELOG)"
-# T2b (lot L12b, banc write-level S3g3) : la place du separateur est enregistree (Save-Config, 120) et retablie a
-# l affichage (600) : la promesse du CHANGELOG ne vaut qu avec le separateur a sa place par defaut (372 px, lue dans
-# 510). Zone des onglets la plus basse ou le bouton tient encore (mesuree : bas du bouton + hauteur de la barre
-# d onglets), un pixel de moins, et 366 px (separateur remonte de 6 px, cas du banc) ; le separateur peut monter jusqu a
-# Panel1MinSize (510) : aucune disposition ne garde le bouton visible pour toute place enregistree
+"  T2 : journal affiche (zone des onglets de 372 px, place posee a la construction du separateur, 510) : page de $(@($p6 | ForEach-Object { $_.PageH }) -join '/') px en mode courant, $(@($p11 | ForEach-Object { $_.PageH }) -join '/') px en mode expert ; bas du bouton ECRIRE a $($btnWrite.Bottom) px"
+Chk 'T2' ($p6.Count -eq 2 -and $t2.Count -eq 0 -and $btnWrite.Bottom -eq 335) "journal affiche, mode courant : le bouton ECRIRE (bas a $($btnWrite.Bottom) px) tient sans defilement dans la page d une zone des onglets de 372 px, en francais et en anglais ; mode expert : l onglet defile (dit au CHANGELOG)"
+# T2b (lot L12b, banc write-level S3g3 ; revue M) : zone des onglets la plus basse ou le bouton tient encore journal
+# affiche (mesuree : bas du bouton + hauteur de la barre d onglets), un pixel de moins, et 366 px (place laissee par les
+# redimensionnements du banc). 372 px est la place posee a la construction du separateur (510), pas sa place reelle a la
+# taille par defaut de la fenetre (T2c). Le separateur peut monter jusqu a Panel1MinSize (510) ; sa place est
+# enregistree (Save-Config, 120) et retablie a l affichage (600) : le CHANGELOG ne promet pas le bouton visible et dit
+# quoi faire pour le voir
 $s510 = @((Get-Ast (Get-EoMod $Wt '510')).EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text })
 $splitDef = @($s510 | Where-Object { $_ -match '^\$split\.SplitterDistance = (\d+)$' } | ForEach-Object { [int]([regex]::Match($_, '(\d+)$').Value) })
 $splitMin = @($s510 | Where-Object { $_ -match '^\$split\.Panel1MinSize = (\d+)$' } | ForEach-Object { [int]([regex]::Match($_, '(\d+)$').Value) })
@@ -978,8 +982,38 @@ foreach ($lg in 'fr', 'en') {
 }
 $script:Lang = 'fr'
 $clT2 = [System.IO.File]::ReadAllText((Join-Path $Wt 'CHANGELOG.md'), [System.Text.Encoding]::UTF8)
-$enT2 = @($clT2 -split "`n" | Where-Object { $_.StartsWith('- **Bouton « ÉCRIRE LA DISQUETTE » visible journal affiché.**') })
-Chk 'T2b' ($t2b.Count -eq 0 -and $splitDef.Count -eq 1 -and $splitDef[0] -eq 372 -and $splitMin.Count -eq 1 -and $splitMin[0] -lt $hMin - 1 -and $hMin -le 372 -and $enT2.Count -eq 1 -and $enT2[0].Contains('avec le séparateur entre les onglets et le journal à sa place par défaut') -and $enT2[0].Contains('redescendez le séparateur')) "separateur a sa place par defaut ($($splitDef -join ',') px, 510) : bouton visible ; au plus bas $hMin px ; $($t2bTxt -join ' ; ') ; le separateur peut monter jusqu a $($splitMin -join ',') px : le CHANGELOG ne promet le bouton visible qu avec le separateur a sa place par defaut et dit quoi faire sinon ; ecarts : $($t2b -join ' ; ')"
+$enT2 = @($clT2 -split "`n" | Where-Object { $_.StartsWith('- **Bouton « ÉCRIRE LA DISQUETTE » plus haut dans l''onglet.**') })
+Chk 'T2b' ($t2b.Count -eq 0 -and $splitDef.Count -eq 1 -and $splitDef[0] -eq 372 -and $splitMin.Count -eq 1 -and $splitMin[0] -lt $hMin - 1 -and $hMin -le 372 -and $enT2.Count -eq 1 -and $enT2[0].Contains('il faut encore faire défiler l''onglet, ou descendre le séparateur') -and $enT2[0].Contains('suit les changements de taille de la fenêtre') -and -not $enT2[0].Contains('reste visible')) "place posee a la construction du separateur ($($splitDef -join ',') px, 510) : bouton visible ; au plus bas $hMin px ; $($t2bTxt -join ' ; ') ; le separateur peut monter jusqu a $($splitMin -join ',') px : le CHANGELOG dit le bouton plus haut qu en 12.10, ne le promet pas visible et dit quoi faire pour le voir (faire defiler l onglet, descendre le separateur) ; ecarts : $($t2b -join ' ; ')"
+# T2c (revue M) : place reelle du separateur a la taille par defaut de la fenetre : instructions reelles de 500 (fenetre),
+# 510 (bandeau, separateur) et 540 (barre de boutons, barre d etat, ajout a la fenetre), fenetre jamais affichee. Sans
+# panneau fixe (FixedPanel), la place posee a la construction du separateur (372 px sur 644) suit en proportion la
+# hauteur que la fenetre lui laisse. Le CHANGELOG ne promet le bouton visible journal affiche a la taille par defaut que
+# si cette place atteint le seuil mesure par T2b. Promesse cherchee dans toute entree de la 12.11 qui nomme le bouton, et
+# non dans la seule entree que T2b trouve par son titre : sous un autre titre, elle echapperait sinon a ce cas
+$spSel = New-Object System.Collections.Generic.List[string]
+foreach ($s in @((Get-Ast (Get-EoMod $Wt '500')).EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text })) { if ($s -match '^\$form = New-Object|^\$form\.(ClientSize|MinimumSize|Font) = ') { $spSel.Add($s) } }
+foreach ($s in $s510) { if ($s -match '^\$pnlTop = New-Object|^\$pnlTop\.(Size|Dock) = |^\$split = New-Object|^\$split\.(Orientation|Size|Panel1MinSize|Panel2MinSize|SplitterWidth|SplitterDistance|FixedPanel|Dock) = ') { $spSel.Add($s) } }
+$sp540 = @((Get-Ast (Get-EoMod $Wt '540')).EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text })
+$spIn = $false
+foreach ($s in $sp540) {
+    if ($s -match '^\$status = New-Object System\.Windows\.Forms\.StatusStrip$') { $spIn = $true }
+    if ($spIn -or $s -match '^\$flowButtons = New-Object|^\$flowButtons\.(Size|BackColor|Dock|Padding|WrapContents) = |^\$form\.Controls\.Add\(\$(flowButtons|status|pnlTop|split)\)$|^\$split\.BringToFront\(\)$|^\$split\.(SplitterDistance|FixedPanel) = ') { $spSel.Add($s) }
+    if ($spIn -and $s -match '^\$stBar\.Visible = \$false$') { $spIn = $false }
+}
+$spGen = Join-Path $here 'gen-separateur.ps1'
+[System.IO.File]::WriteAllText($spGen, (($spSel -join "`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($true)))
+function Get-SplitPlace([string]$gen) { . $gen; $form.PerformLayout(); $r = @{ H = [int]$split.Height; D = [int]$split.SplitterDistance; V = [bool]$form.Visible }; $form.Dispose(); return $r }
+$spReal = Get-SplitPlace $spGen
+$spSec = [regex]::Match($clT2, '(?s)## \[12\.11\].*?(?=\n## \[)').Value
+$spPromise = (@($spSec -split "`n" | Where-Object { $_.Contains('ÉCRIRE LA DISQUETTE') -and $_ -match 'taille par défaut de la fenêtre[^.;]*le bouton (reste|est) visible' }).Count -gt 0)
+Chk 'T2c' (-not $spReal.V -and $spReal.H -gt 0 -and ($spReal.D -ge $hMin -or -not $spPromise)) "place reelle du separateur a la taille par defaut : $($spReal.D) px sur $($spReal.H) (instructions reelles de 500, 510 et 540, fenetre jamais affichee ; seuil du bouton ECRIRE $hMin px) ; promesse du CHANGELOG « visible journal affiche a la taille par defaut » : $spPromise"
+# T2d (lot L12b, revue M) : reciproque de T2c. Le CHANGELOG dit qu a la taille par defaut de la fenetre, journal affiche,
+# il faut encore faire defiler l onglet, et que la place du separateur suit les changements de taille de la fenetre :
+# place reelle sous le seuil de T2b, puis plus grande dans la meme fenetre, jamais affichee, agrandie de 218 px
+function Get-SplitGrow([string]$gen) { . $gen; $form.PerformLayout(); $d0 = [int]$split.SplitterDistance; $form.ClientSize = New-Object System.Drawing.Size($form.ClientSize.Width, ($form.ClientSize.Height + 218)); $form.PerformLayout(); $r = @{ D0 = $d0; D1 = [int]$split.SplitterDistance; V = [bool]$form.Visible }; $form.Dispose(); return $r }
+$spGrow = Get-SplitGrow $spGen
+$spScroll = ($enT2.Count -eq 1 -and $enT2[0].Contains('il faut encore faire défiler l''onglet') -and $enT2[0].Contains('suit les changements de taille de la fenêtre'))
+Chk 'T2d' ($spScroll -and -not $spGrow.V -and $spGrow.D0 -eq $spReal.D -and $spReal.D -lt $hMin -and $spGrow.D1 -gt $spGrow.D0) "CHANGELOG : il faut encore faire defiler l onglet a la taille par defaut, journal affiche ($spScroll) : place reelle $($spReal.D) px, attendue sous le seuil du bouton ECRIRE ($hMin px) ; place qui suit la fenetre : $($spGrow.D0) px, puis $($spGrow.D1) px dans la fenetre agrandie de 218 px (jamais affichee)"
 
 '--- D : CHANGELOG et README'
 $ch = [System.IO.File]::ReadAllText((Join-Path $Wt 'CHANGELOG.md'), [System.Text.Encoding]::UTF8)
