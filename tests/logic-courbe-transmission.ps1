@@ -64,17 +64,37 @@ $want = @('Update-SlowUi', 'Get-WarmMinutesText', 'Get-TargetDrive', 'Set-Target
           'Get-TargetDriveItems', 'Set-TargetDriveLayout')
 $wantNew = @('Get-CalibImageCheck', 'Get-LevelBeforeWriteKind', 'Update-WLevelUi', 'Get-WCurveSet', 'Show-WCurve', 'Get-RsCurveSet', 'Get-CalibSettingBlock', 'Get-CalibEnvBlock', 'Get-CalibResetAfterText', 'Get-WriteImageFamily')
 $code = (@($want | ForEach-Object { if (-not $all.ContainsKey($_)) { throw "fonction $_ introuvable" }; $all[$_] }) -join "`r`n`r`n")
+# 12.11 (lot L10) : decisions extraites de Start-WriteTabWrite, Start-LevelBeforeWrite et Start-ImageWrite (140, 260),
+# chargees quand la source les a (une source d avant le lot n en a pas)
+$code += "`r`n`r`n" + (@(@('Get-WriteLevelPlan', 'Get-LevelBeforeWritePlan', 'Get-WriteHeads', 'Get-WriteErasePlan', 'Get-WriteSpecPlan', 'Get-WriteHeadSpecs', 'Get-WriteCheckPlan') | Where-Object { $all.ContainsKey($_) } | ForEach-Object { $all[$_] }) -join "`r`n`r`n")
 $code += "`r`n`r`n" + (@($wantNew | Where-Object { $all.ContainsKey($_) } | ForEach-Object { $all[$_] }) -join "`r`n`r`n")
 # Instructions reelles de Start-ImageWrite (140) qui decident de --precomp, dans leur ordre : refus du lecteur cible (rien
-# n est ecrit), codage de l image, champs, flux ecrit tel quel, image FM, GCR ou a codage propre (profil Manuel excepte)
-$sIw = @(
-    (Get-Stmt 'Start-ImageWrite' 'IfStatementAst' 'if (-not (Test-TargetWriteAllowed'),
-    (Get-Stmt 'Start-ImageWrite' 'AssignmentStatementAst' '$ie = Get-ImageEncoding'),
-    (Get-Stmt 'Start-ImageWrite' 'AssignmentStatementAst' '$pc0 = if ($chkWPrecomp.Checked'),
-    (Get-Stmt 'Start-ImageWrite' 'AssignmentStatementAst' '$pc1 = if ($chkWPrecomp.Checked'),
-    (Get-Stmt 'Start-ImageWrite' 'IfStatementAst' 'if (($pc0 -or $pc1) -and (Test-RawFluxWrite'),
-    (Get-Stmt 'Start-ImageWrite' 'IfStatementAst' 'if (($pc0 -or $pc1) -and $ie.NonMfm)'))
-if (@($sIw | Where-Object { -not $_ }).Count) { throw "instructions de Start-ImageWrite introuvables ($(@($sIw | Where-Object { $_ }).Count) sur 6)" }
+# n est ecrit), codage de l image, champs, flux ecrit tel quel, image FM, GCR ou a codage propre (profil Manuel excepte).
+# 12.11 (lot L10) : champs, flux et codage sont decides par Get-WriteSpecPlan (140), chargee plus haut ; Start-ImageWrite
+# l appelle, ecrit les lignes de journal, puis prend les profils : ces instructions sont enveloppees a la place des quatre
+# d origine, que garde une source d avant le lot
+$sIwSp = Get-Stmt 'Start-ImageWrite' 'AssignmentStatementAst' '$sp = Get-WriteSpecPlan'
+if ($sIwSp) {
+    $sIw = @(
+        (Get-Stmt 'Start-ImageWrite' 'IfStatementAst' 'if (-not (Test-TargetWriteAllowed'),
+        (Get-Stmt 'Start-ImageWrite' 'AssignmentStatementAst' '$ie = Get-ImageEncoding'),
+        $sIwSp,
+        (Get-Stmt 'Start-ImageWrite' 'IfStatementAst' 'if ($sp.Flux)'),
+        (Get-Stmt 'Start-ImageWrite' 'AssignmentStatementAst' '$nt = @($sp.Nt)'),
+        (Get-Stmt 'Start-ImageWrite' 'IfStatementAst' 'if ($nt.Count -gt 0)'),
+        (Get-Stmt 'Start-ImageWrite' 'IfStatementAst' 'if ($sp.NonMfm)'),
+        (Get-Stmt 'Start-ImageWrite' 'AssignmentStatementAst' '$pc0 = $sp.P0'),
+        (Get-Stmt 'Start-ImageWrite' 'AssignmentStatementAst' '$pc1 = $sp.P1'))
+} else {
+    $sIw = @(
+        (Get-Stmt 'Start-ImageWrite' 'IfStatementAst' 'if (-not (Test-TargetWriteAllowed'),
+        (Get-Stmt 'Start-ImageWrite' 'AssignmentStatementAst' '$ie = Get-ImageEncoding'),
+        (Get-Stmt 'Start-ImageWrite' 'AssignmentStatementAst' '$pc0 = if ($chkWPrecomp.Checked'),
+        (Get-Stmt 'Start-ImageWrite' 'AssignmentStatementAst' '$pc1 = if ($chkWPrecomp.Checked'),
+        (Get-Stmt 'Start-ImageWrite' 'IfStatementAst' 'if (($pc0 -or $pc1) -and (Test-RawFluxWrite'),
+        (Get-Stmt 'Start-ImageWrite' 'IfStatementAst' 'if (($pc0 -or $pc1) -and $ie.NonMfm)'))
+}
+if (@($sIw | Where-Object { -not $_ }).Count) { throw "instructions de Start-ImageWrite introuvables ($(@($sIw | Where-Object { $_ }).Count) sur $($sIw.Count))" }
 $code += "`r`n`r`nfunction Invoke-WritePrecomp {`r`n    `$slow = [bool]`$chkWSlow.Checked`r`n    " + ($sIw -join "`r`n    ") + "`r`n    return @{ Sent = [bool](`$pc0 -or `$pc1); P0 = `$pc0; P1 = `$pc1 }`r`n}`r`n"
 $gen = Join-Path $here 'gen-1210-rc6-e.ps1'
 [System.IO.File]::WriteAllText($gen, $code, (New-Object System.Text.UTF8Encoding($true)))

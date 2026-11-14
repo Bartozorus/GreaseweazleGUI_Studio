@@ -959,10 +959,11 @@ $d1 = [ordered]@{
     'decision' = $dev.Contains('`Get-WriteAdvChanges`')
     'retour L7' = $nouv.Contains("Dans les options avancées de l'onglet « Écriture », un bouton à côté de « Effacer les calibrations »")
     'materiel' = ($sec -notmatch 'vérifiée? sur (du )?matériel')
-    'sans L10' = (-not $nouv.Contains('Ce qui va se passer'))
+    # 12.11 (lot L10) : entree « Ce qui va se passer » attendue (jusqu au lot L10, ce cas attendait son absence)
+    'L10' = $nouv.Contains('**Ligne « Ce qui va se passer ».**')
 }
 $d1Bad = @($d1.Keys | Where-Object { -not $d1[$_] })
-Chk 'D1' ($d1Bad.Count -eq 0) "CHANGELOG 12.11 : Nouveautes (trois etapes, seize commandes, lecteur qui ecrit au-dessus de la liste « Lecteur cible » ; l entree du lot L7, « dans les options avancees ... a cote de « Effacer les calibrations » », vraie depuis ce lot), Ameliorations (options avancees repliees, comptees et nommees), Corrections (reperes « Fake index » et « Diskdefs », deux rangees d onglets), A savoir (onglet reorganise), Pour les developpeurs (module 145, Get-WriteAdvChanges) ; rien sur la ligne « Ce qui va se passer » (lot L10), aucun texte ne dit un comportement verifie sur materiel ; ecarts : $(Get-List $d1Bad)"
+Chk 'D1' ($d1Bad.Count -eq 0) "CHANGELOG 12.11 : Nouveautes (trois etapes, seize commandes, lecteur qui ecrit au-dessus de la liste « Lecteur cible » ; l entree du lot L7, « dans les options avancees ... a cote de « Effacer les calibrations » », vraie depuis ce lot), Ameliorations (options avancees repliees, comptees et nommees), Corrections (reperes « Fake index » et « Diskdefs », deux rangees d onglets), A savoir (onglet reorganise), Pour les developpeurs (module 145, Get-WriteAdvChanges) ; ligne « Ce qui va se passer » du lot L10 annoncee, aucun texte ne dit un comportement verifie sur materiel ; ecarts : $(Get-List $d1Bad)"
 $rd = [System.IO.File]::ReadAllText((Join-Path $mods 'README.md'), [System.Text.Encoding]::UTF8)
 $trd = [System.IO.File]::ReadAllText((Join-Path $Wt 'tests\README.md'), [System.Text.Encoding]::UTF8)
 $fn145 = @((Get-Ast (Get-EoMod $Wt '145')).FindAll({ param($x) $x -is $tFnA }, $false) | ForEach-Object { $_.Name })

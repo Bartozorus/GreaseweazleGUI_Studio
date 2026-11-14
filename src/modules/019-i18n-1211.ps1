@@ -246,5 +246,49 @@ $script:I18n["Coché : affiche aussi les options avancées de l'onglet Écriture
 $script:I18n["Lecteur choisi dans la liste « Lecteur : » du bandeau : c'est lui qui écrit la disquette. Le lecteur cible est celui qui la relira."] = 'Drive selected in the "Drive:" list of the banner: it is the one that writes the disk. The target drive is the one that will read it back.'
 
 # --- L10 : ligne « Ce qui va se passer » de l onglet Ecriture (140, 145, 260, 520) -------------------------------------
+# Phrase (Format-WritePlan, 145) : segments separes par « ; » ; phrase coupee (Show-WritePlan : segments descriptifs
+# retires, texte complet en infobulle)
+$script:I18n['Ce qui va se passer : {0}.'] = 'What will happen: {0}.'
+$script:I18n['Ce qui va se passer : {0} ; …'] = 'What will happen: {0}; …'
+$script:I18n[' ; '] = '; '
+# Effacement (Get-WriteErasePlan, 140)
+$script:I18n['effacement haute fréquence des pistes'] = 'high-frequency erase of the tracks'
+$script:I18n['pré-effacement de chaque piste'] = 'pre-erase of each track'
+$script:I18n['sans effacement'] = 'no erase'
+# Mesure de la disquette (Get-WriteLevelPlan, 140 ; Get-LevelBeforeWritePlan, 260) : texte de la liste « Mesure : » de la
+# mesure faite, repli de la mesure sur l image, raisons d une ecriture sans mesure (« precompensation desactivee » : 013)
+$script:I18n['mesure de la disquette : {0}'] = 'disk measurement: {0}'
+$script:I18n["mesure de la disquette : {0}, au lieu de la mesure sur l'image ({1})"] = 'disk measurement: {0}, instead of the measurement on the image ({1})'
+$script:I18n['sans mesure de la disquette ({0})'] = 'no disk measurement ({0})'
+$script:I18n['lecteur cible {0}'] = 'target drive {0}'
+$script:I18n['image flux'] = 'flux image'
+$script:I18n['image en codage {0}'] = '{0}-encoded image'
+$script:I18n['image non calibrable'] = 'image that cannot be calibrated'
+$script:I18n['haute densité'] = 'high density'
+$script:I18n['profil « {0} »'] = 'profile "{0}"'
+$script:I18n['champ Pistes'] = 'Tracks field'
+$script:I18n['image à une seule face'] = 'single-sided image'
+# Tetes (Get-WriteHeads, 140)
+$script:I18n['écriture des deux têtes ensemble'] = 'write of both heads together'
+$script:I18n['écriture tête 0 puis tête 1'] = 'write of head 0 then head 1'
+$script:I18n['écriture de la tête {0} seule'] = 'write of head {0} only'
+# Controle (Get-WriteCheckPlan, 140) : demande, impose par la courbe adaptee d une calibration rapide, non applicable
+$script:I18n['contrôle de toutes les pistes, {0} passe(s) de réécriture au plus'] = 'full track check, up to {0} rewrite pass(es)'
+$script:I18n['contrôle de toutes les pistes, sans réécriture'] = 'full track check, no rewrite'
+$script:I18n['contrôle de toutes les pistes non applicable ({0})'] = 'full track check not applicable ({0})'
+$script:I18n['contrôle complet non demandé'] = 'full track check not requested'
+$script:I18n['contrôle de toutes les pistes imposé par la courbe adaptée à cette disquette, {0} passe(s) de réécriture au plus'] = 'full track check required by the curve adapted to this disk, up to {0} rewrite pass(es)'
+$script:I18n['contrôle de toutes les pistes imposé par la courbe adaptée à cette disquette, sans réécriture'] = 'full track check required by the curve adapted to this disk, no rewrite'
+# Lecteur cible (Get-TargetWriteInfo, 140) : courbes croisees ecrites (Get-TargetCurvesText)
+$script:I18n['pour le lecteur cible {0} : {1}'] = 'for target drive {0}: {1}'
+# Formes courtes des segments critiques (le fait sans sa raison), quand la phrase coupee ne les tient pas entiers
+$script:I18n['sans mesure de la disquette'] = 'no disk measurement'
+$script:I18n["mesure de la disquette : {0}, au lieu de la mesure sur l'image"] = 'disk measurement: {0}, instead of the measurement on the image'
+$script:I18n['contrôle de toutes les pistes non applicable'] = 'full track check not applicable'
+$script:I18n['contrôle de toutes les pistes imposé'] = 'full track check required'
+$script:I18n['lecteur cible {0} sans effet'] = 'target drive {0} has no effect'
+# Refus du « Test rapide » sans reference utilisable (Get-LevelBeforeWritePlan, 260) : premiere phrase du message de
+# Start-LevelBeforeWrite (010), seule dans la ligne
+$script:I18n["Écriture refusée : le test rapide n'a pas de référence utilisable pour cette image ({0})."] = 'Write refused: the quick test has no usable reference for this image ({0}).'
 
 # --- L11 : barre de l onglet Ecriture pendant l ecriture et son controle (140, 160, 170, 600) --------------------------

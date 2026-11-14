@@ -374,11 +374,15 @@ $lnkWAdv.Name = 'lnkWAdv'; $lnkWAdv.Location = '10,339'; $lnkWAdv.AutoSize = $tr
 $tip.SetToolTip($lnkWAdv, (T "Affiche ou masque les options avancées de l'écriture. Ce lien coche ou décoche la case « Mode expert » du bandeau, qui affiche aussi les onglets techniques.`nUne option avancée modifiée s'applique même masquée : le lien les compte et la ligne à droite du bouton « ÉCRIRE LA DISQUETTE » les nomme. « Réinitialiser » les remet à leur valeur par défaut."))
 $lnkWAdv.Add_LinkClicked({ Switch-WAdvView })
 # 12.11 (L9) : ligne a droite du bouton : options avancees modifiees, nommees (Update-WAdvLink, 145), vide quand aucune
-# ne l est ; trois lignes, points de suspension, texte complet en infobulle (Update-WPlanTip, 145)
+# ne l est ; trois lignes, points de suspension, texte complet en infobulle (Update-WPlanTip, 145). 12.11 (L10) : ligne
+# « Ce qui va se passer » des qu une image est choisie (Update-WritePlanUi, 145) ; « & » d un nom de fichier affiche tel
+# quel (UseMnemonic) ; largeur changee : phrase refaite a la nouvelle largeur, sans recalcul du plan (Show-WritePlan)
 $lblWPlan = New-Object System.Windows.Forms.Label
 $lblWPlan.Name = 'lblWPlan'; $lblWPlan.Location = '270,295'; $lblWPlan.Size = '502,58'; $lblWPlan.Anchor = 'Top,Left,Right'; $lblWPlan.AutoEllipsis = $true
+$lblWPlan.UseMnemonic = $false
+$script:WPlanMemo = $null; $script:WPlanCur = $null; $script:WPlanFull = ''; $script:WPlanError = ''
 $lblWPlan.Add_TextChanged({ Update-WPlanTip })
-$lblWPlan.Add_SizeChanged({ Update-WPlanTip })
+$lblWPlan.Add_SizeChanged({ Show-WritePlan })
 
 # 12.11 (L9) : onglet : les trois etapes, puis le cadre des options avancees (ordre de tabulation)
 $tabW.Controls.AddRange(@($grpWImage, $grpWOpt, $btnWrite, $lnkWAdv, $lblWPlan, $grpWAdv))
@@ -415,6 +419,10 @@ $cmbDrive.Add_TextChanged({
 # « Mode expert » : cadre des options avancees affiche ou masque (Set-WriteTabLayout ; le gestionnaire de 540, onglets
 # techniques, est inchange), lien inactif avec la case (restauration en cours, 300)
 foreach ($wAdvDef in @(Get-WriteAdvDefs)) { Register-WAdvCtl $wAdvDef.Ctl }
+# 12.11 (L10) : ligne « Ce qui va se passer » a jour au changement des controles qui changent l ecriture sans passer par
+# Update-WLevelUi (Register-WPlanCtl, 145) ; les autres l appellent deja (image, format, profil, ecriture lente, listes,
+# lecteurs, reglages de la mesure) ou passent par le lien des options avancees
+foreach ($wPlanCtl in @($chkWPreErase, $chkWPostCheck, $txtWPrecomp, $txtWPrecomp1)) { Register-WPlanCtl $wPlanCtl }
 $chkExpert.Add_CheckedChanged({ Set-WriteTabLayout })
 $chkExpert.Add_EnabledChanged({ $lnkWAdv.Enabled = $chkExpert.Enabled })
 

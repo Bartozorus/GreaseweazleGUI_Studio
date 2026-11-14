@@ -132,6 +132,12 @@ foreach ($p in @(
         @('150', @('Test-HdFormat')))) {
     foreach ($n in $p[1]) { $parts.Add((Get-TgFn $p[0] $n)) }
 }
+# 12.11 (lot L10) : decision de la mesure extraite de Start-WriteTabWrite (Get-WriteLevelPlan, 140), chargee quand la
+# source l a (une source d avant le lot n en a pas)
+foreach ($n in @('Get-WriteLevelPlan')) {
+    $fd = @((Get-TgAst (Get-TgMod '140')).FindAll({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq $n }, $false))
+    if ($fd.Count -eq 1) { $parts.Add($fd[0].Extent.Text) }
+}
 # RC4 : vrai Update-PrecompForImage (220) renomme Update-PrecompForImageR (le remplacant Update-PrecompForImage, plus bas,
 # compte les appels des cas W, B et R) : libelle complet des cas P10, P12, P13
 $ixU = -1; for ($i = 0; $i -lt $parts.Count; $i++) { if ($parts[$i] -match '^function Update-PrecompForImage\(') { $ixU = $i } }
@@ -651,8 +657,11 @@ $s520 = [System.IO.File]::ReadAllText((Get-TgMod '520'))
 $tgtIn2 = [regex]::IsMatch($s520, '(?s)\$grpWOpt\.Controls\.AddRange\(@\([^)]*\$lblWLevelMode, \$cmbWLevelMode, \$lblWTarget, \$cmbWTarget,') -and -not $s520.Contains('$tabW.Controls.AddRange(@($lblWTarget, $cmbWTarget))')
 Chk 'S4' ($s520.Contains('$cmbWTarget.Add_SelectedIndexChanged({ if ($script:UiReady) { Set-TargetDriveFromUi } })') -and $s520.Contains("`$cmbDrive.Add_TextChanged({`r`n    Update-TargetDriveUi; Update-SlowUi`r`n    Sync-PrecompCurves`r`n") -and $s520.Contains('$script:WLevelTip = $tip.GetToolTip($chkWLevel)') -and $tgtIn2 -and -not $s520.Contains('numWTgt')) "520 : liste sous UiReady, changement de lecteur du bandeau (liste, case de la mesure, vue), infobulle d origine gardee, champs Dk retires ; libelle et liste dans le cadre 2, apres la liste « Mesure : » (lot L9)"
 $sIw = Get-TgFn '140' 'Start-ImageWrite'
+# 12.11 (lot L10) : les champs --precomp sont lus par Get-WriteSpecPlan (140), qu appelle Start-ImageWrite ($sp = ...),
+# et non plus par l instruction $pc0 = if (...) de Start-ImageWrite, que garde une source d avant le lot ; adapte a dessein
+$sIwPc = if ($sIw.Contains('$sp = Get-WriteSpecPlan')) { '$sp = Get-WriteSpecPlan' } else { '$pc0 = if' }
 $iBusy = $sIw.IndexOf('if ($script:GwProc -and -not $script:GwProc.HasExited) { return }'); $iTa = $sIw.IndexOf('Test-TargetWriteAllowed'); $iGw = $sIw.IndexOf('Start-Gw'); $iQ = $sIw.IndexOf('WriteQueue.Clear()')
-Chk 'S5' ($iBusy -ge 0 -and $iTa -gt $iBusy -and $iGw -gt $iTa -and $iQ -gt $iTa -and $sIw.IndexOf('$tc = @($tw.Curves)') -gt $sIw.IndexOf('elseif ($script:WProfileHd)') -and $sIw.IndexOf('$tc = @($tw.Curves)') -lt $sIw.IndexOf('$pc0 = if')) "Start-ImageWrite : refus apres le test d occupation et avant toute commande ; champs remis avant leur lecture (`$pc0)"
+Chk 'S5' ($iBusy -ge 0 -and $iTa -gt $iBusy -and $iGw -gt $iTa -and $iQ -gt $iTa -and $sIw.IndexOf('$tc = @($tw.Curves)') -gt $sIw.IndexOf('elseif ($script:WProfileHd)') -and $sIw.IndexOf('$tc = @($tw.Curves)') -lt $sIw.IndexOf($sIwPc)) "Start-ImageWrite : refus apres le test d occupation et avant toute commande ; champs remis avant leur lecture (`$pc0)"
 $sCw = Get-TgFn '170' 'Complete-WriteCheck'
 Chk 'S6' ($sCw.IndexOf('if ($rep.Target)') -gt 0 -and $sCw.IndexOf('if ($rep.Target)') -lt $sCw.IndexOf('Append-Log $txt')) "Complete-WriteCheck : complement du verdict avant son ecriture au journal"
 $ch = [System.IO.File]::ReadAllText((Join-Path $Wt 'CHANGELOG.md'))

@@ -52,6 +52,9 @@ $want = @('Update-SlowUi', 'Get-WarmMinutesText', 'Get-TargetDrive', 'Set-Target
           'Test-ImageHighDensity', 'Get-EraseMode', 'Get-EraseFallbackNote', 'Test-ScpDensityUnknown', 'Get-TSpecHeads', 'Get-TSpecExtras', 'Set-TSpecHead',
           'Test-ScpHighDensity')
 $code = (@($want | ForEach-Object { if (-not $all.ContainsKey($_)) { throw "fonction $_ introuvable" }; $all[$_] }) -join "`r`n`r`n")
+# 12.11 (lot L10) : decisions extraites de Start-WriteTabWrite, Start-LevelBeforeWrite et Start-ImageWrite (140, 260),
+# chargees quand la source les a (une source d avant le lot n en a pas)
+$code += "`r`n`r`n" + (@(@('Get-WriteLevelPlan', 'Get-LevelBeforeWritePlan', 'Get-WriteHeads', 'Get-WriteErasePlan', 'Get-WriteSpecPlan', 'Get-WriteHeadSpecs', 'Get-WriteCheckPlan') | Where-Object { $all.ContainsKey($_) } | ForEach-Object { $all[$_] }) -join "`r`n`r`n")
 $gen = Join-Path $here 'gen-1210-rc6fix3.ps1'
 [System.IO.File]::WriteAllText($gen, $code, (New-Object System.Text.UTF8Encoding($true)))
 . $gen

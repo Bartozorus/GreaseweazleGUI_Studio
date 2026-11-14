@@ -1436,9 +1436,6 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
     # la calibration existante, jamais refaite.
     # 12.7 point 5, Measure : mesure ajoutee a une ecriture lente par la case « Mesurer la disquette » (liste au test
     # standard ou fin) : sans reference utilisable, aucune calibration complete imposee, ecriture avec la courbe du lecteur
-    $img = $txtWFile.Text
-    $fam = Get-ImageFamily $img
-    $nfc = Get-CalibCylinders $img $cmbWFmt.Text      # image secteur sans geometrie : cylindres du format choisi
     # 12.8.1 (spec-1281.md § A.1) : liste « Mesure : sur l image a ecrire » (levelBeforeWriteMode = content), ecriture
     # lente avec la case « Mesurer la disquette » (Measure), hors restauration : mesure de la disquette sur le contenu de
     # l image (276) si l image et le contexte s y pretent (Test-ContentMeasurable) ; sinon ligne de journal, puis la suite
@@ -1446,20 +1443,20 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
     # au motif, ligne de journal plus bas
     $content = ((Get-Setting 'levelBeforeWriteMode') -eq 'content')
     # 12.10 (relecture de la RC) : mesure choisie par Get-LevelBeforeWriteKind, decision dont sont tires les textes qui
-    # l annoncent (regles et rapport de la restauration, case de la mesure au « Test rapide »)
-    $lk = Get-LevelBeforeWriteKind $mode ([bool]$Restore -or [bool]$script:Restore) ([bool]$Measure)
-    if ($lk -eq 'content') {
-        $cm = Test-ContentMeasurable $img $cmbWFmt.Text
-        if ($cm.Ok) { Start-ContentMeasure $cm; return }
-        Append-Log ((T "Mesure sur l'image non faite ({0}) : calibration rapide au motif avant cette écriture.") -f "$($cm.Why)")
-    }
-    $lr = Get-LevelRef $fam ($mode -eq 'slow') $cmbDrive.Text $img ([bool]$Restore) -NCyl $(if ($null -ne $nfc.NCyl) { [int]$nfc.NCyl } else { 0 })
+    # l annoncent (regles et rapport de la restauration, case de la mesure au « Test rapide »). 12.11 (L10, correction B1
+    # du plan) : mesure faite, repli et refus decides par Get-LevelBeforeWritePlan, dont la ligne « Ce qui va se passer »
+    # tire aussi son segment ; memes lignes de journal, dans le meme ordre, et memes appels
+    $lp = Get-LevelBeforeWritePlan $mode ([bool]$Restore) ([bool]$Measure)
+    $fam = $lp.Fam
+    if ($lp.Kind -eq 'content') { Start-ContentMeasure $lp.Cm; return }
+    if ($lp.Cm) { Append-Log ((T "Mesure sur l'image non faite ({0}) : calibration rapide au motif avant cette écriture.") -f "$($lp.Cm.Why)") }
+    $lr = $lp.Lr
     if ($lr.Ok) {
         # 12.8 (S3, decision du 21/10/2026) : liste « Mesure : complète » de l onglet Ecriture (levelBeforeWriteMode) : mesure
         # complete de cette disquette avant une ecriture lente (une courbe par tete) ; ecriture rapide : calibration rapide,
         # avec une ligne de journal. 12.8 (S3-FLUX, decision 2) : aussi en restauration, copie secteur (Restore : seul appel,
         # Start-PresetWrite -LevelOnly ; une copie de flux n est jamais mesuree), ecriture lente toujours
-        if ($lk -eq 'complete') {
+        if ($lp.Kind -eq 'complete') {
             if ($Restore) { Append-Log (T "Restauration : disquette de destination mesurée sur tous ses cylindres (mesure complète de cette disquette, liste « Mesure » de l'onglet Écriture), la calibration du lecteur n'est pas refaite.") }
             Start-DiskMeasure $lr ([string]$script:LevelBrand); return
         }
@@ -1489,8 +1486,9 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
         Start-ImageWrite; return
     }
     # Hors domaine : ecriture avec la courbe du lecteur, sauf si elle est plus courte que l image (gw appliquerait la valeur
-    # de son dernier cylindre a tous les suivants) : refus, comme sans reference
-    if ($lr.Class -eq 'domain' -and -not $lr.Short) {
+    # de son dernier cylindre a tous les suivants) : refus, comme sans reference (12.11, L10 : Refuse faux de
+    # Get-LevelBeforeWritePlan, reference hors domaine et non plus courte que l image)
+    if (-not $lp.Refuse) {
         Append-Log ((T "Calibration rapide non applicable à cette image : {0}. Écriture avec la courbe du lecteur, sans mesure du niveau.") -f "$($lr.Why)")
         Start-ImageWrite; return
     }
@@ -1504,6 +1502,38 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
            ((T "Le test rapide mesure la disquette à écrire à partir d'une calibration complète du lecteur {0}, faite au préalable sur une disquette sacrifiée du même type que la disquette à écrire. Calibrez d'abord le lecteur : carte « Calibrer le lecteur » de l'Accueil, avec une disquette sacrifiée.") -f "$($cmbDrive.Text)") + "`n`n" +
            (T "Afficher maintenant l'Accueil et sa carte « Calibrer le lecteur » ?")
     if ("$(Show-AppMessage $msg (T 'Calibration precomp') 'YesNo' 'Warning')" -eq 'Yes') { Show-Tab $tabH }
+}
+
+function Get-LevelBeforeWritePlan([string]$mode, [bool]$restore, [bool]$measure) {
+    # 12.11 (L10, correction B1 du plan ; extraite de Start-LevelBeforeWrite sans changement de comportement) : mesure de
+    # la disquette avant l ecriture de l image de l onglet, decision commune a Start-LevelBeforeWrite et a la ligne « Ce qui
+    # va se passer » (Get-WritePlan, 145) ; aucune ligne de journal, aucune fenetre. Arguments de Start-LevelBeforeWrite
+    # ($restore : son switch Restore ; restauration en cours lue en plus pour Get-LevelBeforeWriteKind, comme lui). Rend
+    # @{ Kind ; Refuse ; Why ; Lr ; Cm ; Fam ; Lk } :
+    #  - Kind 'content' (mesure sur l image, Cm de Test-ContentMeasurable), 'complete' (mesure complete de cette disquette),
+    #    'quick' (calibration rapide au motif ; apres un repli de la mesure sur l image, Cm non vide et Why sa raison),
+    #    'none' (ecriture sans mesure : restauration, case de la mesure cochee ou image hors domaine de la reference, Why
+    #    la raison de Get-LevelRef) ;
+    #  - Refuse : « Test rapide » sans reference utilisable (Kind 'none', Why) : ecriture refusee, rien n est ecrit ;
+    #  - Lr : reference de Get-LevelRef ; Fam : famille de l image ; Lk : Get-LevelBeforeWriteKind.
+    # Lit l image (Test-ContentMeasurable, Get-LevelRef) : la ligne la garde en memoire par signature (Get-WritePlanCached)
+    $img = $txtWFile.Text
+    $fam = Get-ImageFamily $img
+    $nfc = Get-CalibCylinders $img $cmbWFmt.Text      # image secteur sans geometrie : cylindres du format choisi
+    $r = @{ Kind = 'none'; Refuse = $false; Why = ''; Lr = $null; Cm = $null; Fam = $fam; Lk = '' }
+    $r.Lk = Get-LevelBeforeWriteKind $mode ($restore -or [bool]$script:Restore) $measure
+    if ($r.Lk -eq 'content') {
+        $r.Cm = Test-ContentMeasurable $img $cmbWFmt.Text
+        if ($r.Cm.Ok) { $r.Kind = 'content'; return $r }
+        $r.Why = [string]$r.Cm.Why
+    }
+    $r.Lr = Get-LevelRef $fam ($mode -eq 'slow') $cmbDrive.Text $img $restore -NCyl $(if ($null -ne $nfc.NCyl) { [int]$nfc.NCyl } else { 0 })
+    if ($r.Lr.Ok) { $r.Kind = $(if ($r.Lk -eq 'complete') { 'complete' } else { 'quick' }); return $r }
+    $r.Why = [string]$r.Lr.Why
+    if ($restore -or $measure) { return $r }
+    if ($r.Lr.Class -eq 'domain' -and -not $r.Lr.Short) { return $r }
+    $r.Refuse = $true
+    return $r
 }
 
 function Start-LevelCalibButton {
