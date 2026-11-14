@@ -2846,6 +2846,71 @@ $script:I18n['Copie de secours des lecteurs enregistrés de Greaseweazle Studio 
 $script:I18n['Copie de secours des lecteurs enregistrés non écrite ({0}) : {1}'] = 'Rescue copy of the registered drives not written ({0}): {1}'
 $script:I18n['Copie de secours des lecteurs enregistrés illisible ({0}) : {1}'] = 'Rescue copy of the registered drives unreadable ({0}): {1}'
 
+# --- LN-b : lecteurs enregistres, interface (112, 110, 120, 140, 250, 270, 300, 540) ----------------------------------
+# Bandeau : libelle d un lecteur enregistre et infobulle de la liste (Set-DriveBannerLayout) ; carte de l Accueil
+# (Get-DrivesCardText) ; un lecteur non enregistre dans une liste de lecteurs (Format-ConnDrives, Get-DriveRows)
+$script:I18n['Lecteur ({0}) :'] = 'Drive ({0}):'
+$script:I18n["Lecteurs enregistrés : {0}.`nLeurs calibrations sont rangées sous leur nom, quelle que soit leur connexion. L'application ne reconnaît pas le lecteur branché : choisissez-le ici chaque fois que vous en changez (pour les nommer : Accueil, « Lecteurs enregistrés »)."] = "Registered drives: {0}.`nTheir calibrations are filed under their name, whatever their connection. The application cannot recognise the drive that is plugged in: select it here each time you change it (to name them: Home, ""Registered drives"")."
+$script:I18n['Lecteurs enregistrés'] = 'Registered drives'
+$script:I18n['Nommer vos lecteurs : plusieurs sur une même connexion, chacun avec ses calibrations.'] = 'Name your drives: several on one connection, each with its own calibrations.'
+$script:I18n['{0} lecteur(s) sans connexion : redonnez-la ici pour retrouver leurs calibrations.'] = '{0} drive(s) without a connection: set it again here to get their calibrations back.'
+$script:I18n['{0} (non enregistré)'] = '{0} (not registered)'
+# Fenetre « Lecteurs enregistres » (New-DrivesDialog, Get-DriveRows)
+$script:I18n['Vos lecteurs de disquette'] = 'Your floppy drives'
+$script:I18n["Un lecteur enregistré a un nom et une connexion au Greaseweazle (A ou B : nappe PC avec twist ; 0 à 3 : nappe droite). Ses calibrations, son lecteur cible et ses facteurs mesurés sont rangés sous son nom : plusieurs lecteurs peuvent partager une connexion, et un lecteur garde ses calibrations quand il change de connexion.`n`nL'application ne reconnaît pas le lecteur branché : celui qui compte est le lecteur choisi dans la liste « Lecteur : » du bandeau. Un lecteur nouveau part sans calibration, avec le profil d'origine."] = "A registered drive has a name and a connection to the Greaseweazle (A or B: PC cable with twist; 0 to 3: straight cable). Its calibrations, its target drive and its measured factors are filed under its name: several drives can share a connection, and a drive keeps its calibrations when its connection changes.`n`nThe application cannot recognise the drive that is plugged in: the one that counts is the drive selected in the ""Drive:"" list of the banner. A new drive starts without calibration, with the original profile."
+$script:I18n['Connexion'] = 'Connection'
+$script:I18n['Calibrations'] = 'Calibrations'
+$script:I18n['à préciser'] = 'to be set'
+$script:I18n['Connexion :'] = 'Connection:'
+$script:I18n['Nouveau lecteur'] = 'New drive'
+$script:I18n['Supprimer…'] = 'Delete…'
+# Decision et resultats du bouton « Enregistrer » (Get-DriveEditPlan) : note, refus, resultats (texte d etat et journal)
+$script:I18n['La connexion {0} a déjà des calibrations sans nom de lecteur. Pour les garder avec ce lecteur, sélectionnez la ligne « {0} (non enregistré) » et donnez-lui ce nom ; sinon ce lecteur sera calibré à part.'] = 'Connection {0} already has calibrations without a drive name. To keep them with this drive, select the row "{0} (not registered)" and give it this name; otherwise this drive will be calibrated separately.'
+$script:I18n["Rien à enregistrer : le nom et la connexion n'ont pas changé."] = 'Nothing to save: the name and the connection have not changed.'
+$script:I18n['Lecteur « {0} » enregistré sur la connexion {1}, sans calibration. Choisissez-le dans la liste « Lecteur : » du bandeau quand il est branché.'] = 'Drive "{0}" registered on connection {1}, without calibration. Select it in the "Drive:" list of the banner when it is plugged in.'
+$script:I18n['Lecteur « {0} » enregistré sur la connexion {1} : les calibrations faites sans nom sur la connexion {2} ({3} courbe(s)) sont maintenant les siennes.'] = 'Drive "{0}" registered on connection {1}: the calibrations made without a name on connection {2} ({3} curve(s)) are now its own.'
+$script:I18n["Lecteur « {0} » : il s'appelait « {1} ». Ses calibrations ({2} courbe(s)), ses niveaux, sa mémoire par marque, ses facteurs et ses lecteurs cibles portent son nouveau nom."] = 'Drive "{0}": it was called "{1}". Its calibrations ({2} curve(s)), its levels, its per-brand memory, its factors and its target drives carry its new name.'
+$script:I18n['Lecteur « {0} » : connexion {1} (avant : {2}). Ses calibrations le suivent. Après un changement de nappe, contrôlez une écriture (onglet Qualité) ou refaites une calibration rapide.'] = 'Drive "{0}": connection {1} (before: {2}). Its calibrations follow it. After a cable change, check a write (Quality tab) or run a quick calibration again.'
+$script:I18n['Lecteur « {0} » supprimé : {1} courbe(s) retirée(s).'] = 'Drive "{0}" deleted: {1} curve(s) removed.'
+$script:I18n['Nom « {0} » retiré : ses calibrations sont rangées sous la connexion {1}, sans nom de lecteur.'] = 'Name "{0}" removed: its calibrations are filed under connection {1}, without a drive name.'
+# Confirmations de la fenetre (Invoke-DriveEditPlan, Remove-DriveEntry : textes de Get-DriveEditPlan et Get-DriveDeletePlan)
+$script:I18n['Attribuer à ce lecteur les calibrations de la connexion {0} ?'] = 'Assign the calibrations of connection {0} to this drive?'
+$script:I18n["La connexion {0} a des calibrations faites sans nom de lecteur : {1}.`n`nEn nommant ce lecteur « {2} », vous déclarez qu'elles ont été faites avec lui : elles deviennent les siennes, avec ses niveaux, sa mémoire par marque, ses facteurs mesurés et son lecteur cible. Rien n'est recalculé ni effacé ; la configuration est d'abord copiée dans un fichier « {3}.lecteurs-….bak ». La connexion {0} garde un lecteur non enregistré, sans calibration.`n`nSi elles viennent d'un autre lecteur, fermez cette fenêtre et choisissez « Nouveau lecteur » : il partira sans calibration."] = "Connection {0} has calibrations made without a drive name: {1}.`n`nBy naming this drive ""{2}"", you state that they were made with it: they become its own, with its levels, its per-brand memory, its measured factors and its target drive. Nothing is recomputed or erased; the configuration is first copied to a ""{3}.lecteurs-….bak"" file. Connection {0} keeps an unregistered drive, with no calibration.`n`nIf they come from another drive, close this window and choose ""New drive"": it will start without calibration."
+$script:I18n['Les calibrations de la connexion {0} ont été faites avec le lecteur « {1} »'] = 'The calibrations of connection {0} were made with drive "{1}"'
+$script:I18n['Attribuer ces calibrations'] = 'Assign these calibrations'
+$script:I18n["Le lecteur non enregistré de la connexion {0} n'a aucune calibration. Son lecteur cible, ses niveaux, sa mémoire par marque et ses facteurs mesurés passent sous le nom « {1} ». Continuer ?"] = 'The unregistered drive of connection {0} has no calibration. Its target drive, its levels, its per-brand memory and its measured factors move under the name "{1}". Continue?'
+$script:I18n['Supprimer le lecteur « {0} » ?'] = 'Delete drive "{0}"?'
+$script:I18n["Sont retirés : ses calibrations ({0}), ses niveaux, sa mémoire par marque, ses facteurs mesurés et son lecteur cible, ainsi que les courbes croisées dont il est le lecteur cible et le choix de ce lecteur comme cible d'un autre.`n`nL'application ne peut pas annuler cette suppression. Elle copie d'abord la configuration dans « {1}.lecteurs-….bak », dans le même dossier : pour revenir en arrière, fermez l'application, puis remettez cette copie à la place de « {1} »."] = "Removed: its calibrations ({0}), its levels, its per-brand memory, its measured factors and its target drive, as well as the cross curves of which it is the target drive and the choice of this drive as the target of another one.`n`nThe application cannot undo this deletion. It first copies the configuration to ""{1}.lecteurs-….bak"", in the same folder: to go back, close the application, then put this copy in place of ""{1}""."
+$script:I18n['« Retirer seulement le nom » : ses calibrations restent, rangées sous la connexion {0}, sans nom de lecteur.'] = '"Remove the name only": its calibrations remain, filed under connection {0}, without a drive name.'
+$script:I18n['Le lecteur « {0} » ne doit plus être enregistré'] = 'Drive "{0}" must no longer be registered'
+$script:I18n['Supprimer avec ses calibrations'] = 'Delete with its calibrations'
+$script:I18n['Retirer seulement le nom'] = 'Remove the name only'
+$script:I18n["Supprimer le lecteur « {0} » ? Il n'a aucune calibration."] = 'Delete drive "{0}"? It has no calibration.'
+# Confirmation du lecteur branche et du lecteur cible d une calibration croisee (Confirm-DriveIdentity), refus au journal
+$script:I18n['Lecteur branché'] = 'Plugged-in drive'
+$script:I18n['Quel lecteur est branché sur la connexion {0} ?'] = 'Which drive is plugged into connection {0}?'
+$script:I18n["La connexion {0} porte plusieurs lecteurs : {1}. L'application ne reconnaît pas celui qui est branché."] = 'Connection {0} carries several drives: {1}. The application cannot recognise the one that is plugged in.'
+$script:I18n["Vos lecteurs enregistrés viennent d'être relus dans leur copie de secours : le fichier de configuration ne les contenait pas. L'application ne reconnaît pas le lecteur branché sur la connexion {0}."] = 'Your registered drives have just been read back from their rescue copy: the configuration file did not contain them. The application cannot recognise the drive plugged into connection {0}.'
+$script:I18n["Lecteur choisi dans le bandeau : {0}`nSes calibrations : {1}`n`nL'écriture et la calibration emploient ses courbes et rangent leurs résultats sous son nom. Si un autre lecteur est branché, fermez cette fenêtre et choisissez-le dans la liste « Lecteur : » du bandeau : avec la courbe d'un autre lecteur, la disquette serait mal précompensée, sans aucun message d'erreur."] = "Drive selected in the banner: {0}`nIts calibrations: {1}`n`nWriting and calibration use its curves and file their results under its name. If another drive is plugged in, close this window and select it in the ""Drive:"" list of the banner: with the curve of another drive, the disk would be badly precompensated, without any error message."
+$script:I18n['Le lecteur branché sur la connexion {0} est bien « {1} »'] = 'The drive plugged into connection {0} is indeed "{1}"'
+$script:I18n["Le lecteur branché sur la connexion {0} n'est aucun des lecteurs enregistrés"] = 'The drive plugged into connection {0} is none of the registered drives'
+$script:I18n["Lecteur cible de cette calibration croisée : {0}`nLa courbe mesurée servira aux écritures du lecteur {1} destinées à ce lecteur. Si un autre lecteur est branché sur la connexion {2}, fermez cette fenêtre et relancez la calibration croisée avec le bon lecteur cible : mesurée avec un autre lecteur, la courbe serait fausse, sans aucun message d'erreur."] = "Target drive of this cross calibration: {0}`nThe measured curve will be used for the writes of drive {1} intended for this drive. If another drive is plugged into connection {2}, close this window and start the cross calibration again with the right target drive: measured with another drive, the curve would be wrong, without any error message."
+$script:I18n['Opération annulée : lecteur branché non confirmé.'] = 'Operation cancelled: plugged-in drive not confirmed.'
+# Journal : lecteur choisi (Update-DriveChoice), lecteur qui ecrit (Get-WriteSourceText), lecteur retenu par la detection
+# (Complete-DriveDetect, 110)
+$script:I18n['Lecteur choisi : {0} (avant : {1}).'] = 'Drive selected: {0} (before: {1}).'
+$script:I18n['Lecteur qui écrit : {0}'] = 'Writing drive: {0}'
+$script:I18n['Connexion {0} : lecteur retenu « {1} », le dernier choisi sur cette connexion. La détection ne reconnaît pas le lecteur branché : vérifiez la liste « Lecteur : » du bandeau.'] = 'Connection {0}: drive "{1}" kept, the last one selected on this connection. Detection cannot recognise the drive that is plugged in: check the "Drive:" list of the banner.'
+# Textes existants completes, pour un lecteur enregistre en jeu seulement : case de la mesure (140), fenetre de decision
+# (250), cibles ecartees d une calibration croisee (270), ligne d etat de l echange et du controle de surface (270),
+# libelle du lecteur de la restauration (300)
+$script:I18n["Mesurer la disquette avant l'écriture : toujours en « Test rapide », sauf pour un lecteur cible"] = 'Measure the disk before the write: always with "Quick test", except for a target drive'
+$script:I18n["Conserver la courbe : elle est enregistrée pour le lecteur {0} et appliquée à ses prochaines écritures.`nAbandonner la courbe : la calibration précédente est rétablie."] = "Keep the curve: it is saved for drive {0} and applied to its next writes.`nDiscard the curve: the previous calibration is restored."
+$script:I18n["Non proposés, parce qu'ils sont sur la connexion {0} du lecteur qui écrit : {1}. Les deux lecteurs d'une calibration croisée sont branchés en même temps, chacun sur sa connexion."] = 'Not offered, because they are on connection {0} of the writing drive: {1}. The two drives of a cross calibration are plugged in at the same time, each on its own connection.'
+$script:I18n['{0} → {1} : déplacez la disquette'] = '{0} → {1}: move the disk'
+$script:I18n['{0} : contrôle de surface, décision demandée'] = '{0}: surface check, decision requested'
+$script:I18n['{0}  (bandeau)'] = '{0}  (banner)'
+
 # --- L9 : onglet Ecriture en trois etapes, options avancees, barre d onglets (145, 510, 520, 600) ----------------------
 
 # --- L10 : ligne « Ce qui va se passer » de l onglet Ecriture (140, 145, 260, 520) -------------------------------------
@@ -4715,8 +4780,13 @@ function Complete-DriveDetect {
     if ($dt.Mode -ne 'auto') { Append-Log ((T "Lecteur(s) détecté(s) : {0}.") -f "$($dt.Found -join ', ')") }
     if ($pick -ne $dt.Cur) {
         # 12.8 (D10) : la restauration suit le lecteur du bandeau, sans reglage propre a recaler
-        Set-Combo $cmbDrive $pick
+        # 12.11 (lot LN-b) : avec des lecteurs enregistres, le lecteur retenu pour la connexion qui repond, le dernier choisi
+        # sur elle (Get-DriveForConn, 112) : la detection ne reconnait pas le lecteur branche, une ligne le dit
+        $pickD = $pick
+        if ($script:DriveReg.Count -gt 0) { $pickD = Get-DriveForConn $pick }
+        Set-Combo $cmbDrive $pickD
         Append-Log ((T "Lecteur {0} sélectionné : le lecteur {1} ne répond pas.") -f "$pick", "$($dt.Cur)")
+        if ($pickD -cne $pick) { Append-Log ((T 'Connexion {0} : lecteur retenu « {1} », le dernier choisi sur cette connexion. La détection ne reconnaît pas le lecteur branché : vérifiez la liste « Lecteur : » du bandeau.') -f "$pick", "$pickD") }
     } else { Append-Log ((T "Lecteur {0} détecté.") -f "$pick") }
 }
 
@@ -4972,8 +5042,12 @@ function Get-LogExportHeader([datetime]$when = (Get-Date)) {
     # « / » et « : » d un format .NET sont sinon les separateurs de la culture du poste (13.11.2026 en de-DE, 14.05.09 en
     # fi-FI) ; la ligne s ecrit de la meme facon sur tout poste
     $tgt = Get-TargetDrive
+    $src = "$($cmbDrive.Text)"
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, les deux lecteurs avec leur connexion (Get-DriveLabel, 112 :
+    # « Sony MPF920 (A) ») : deux journaux faits sur A avec deux lecteurs n ont pas le meme en-tete
+    if ($script:DriveReg.Count -gt 0) { $src = Get-DriveLabel $src; if ($tgt) { $tgt = Get-DriveLabel $tgt } }
     $l1 = (T "Journal exporté le {0} par Greaseweazle Studio v{1} ; calcul de calibration v{2}, mesure sur l'image v{3}.") -f $when.ToString('dd/MM/yyyy HH:mm:ss', [System.Globalization.CultureInfo]::InvariantCulture), "$($script:Version)", "$($script:CalibCalc)", "$($script:ContentCalc)"
-    $l2 = (T "Lecteur du bandeau : {0} ; lecteur cible de ses écritures : {1}.") -f "$($cmbDrive.Text)", $(if ($tgt) { $tgt } else { (T '(même lecteur)') })
+    $l2 = (T "Lecteur du bandeau : {0} ; lecteur cible de ses écritures : {1}.") -f $src, $(if ($tgt) { $tgt } else { (T '(même lecteur)') })
     return ,@($l1, $l2)
 }
 
@@ -5189,8 +5263,8 @@ function Update-SeqEnd {
 # existantes.
 # Des donnees ne changent d identite que par Edit-DriveData, appelee par les quatre actions du registre (Add-NamedDrive,
 # Rename-NamedDrive, Move-NamedDrive, Remove-NamedDrive), qui ne touchent ni liste ni fenetre et rendent une table
-# @{ Ok ; Why ; ... } (Why : le texte du refus). L interface (bandeau, fenetre « Lecteurs enregistres ») est le lot LN-b :
-# d ici la, rien n enregistre un lecteur et le registre reste vide.
+# @{ Ok ; Why ; ... } (Why : le texte du refus). L interface (bandeau, confirmation du lecteur branche, fenetre
+# « Lecteurs enregistres ») est en fin de module (lot LN-b).
 
 function Test-DriveConnCode([string]$s) {
     # 12.11 : vrai pour une des six connexions (codes du reglage drive, 040) ; comparaison exacte, comme
@@ -6046,6 +6120,697 @@ function Resolve-DriveOfEra([string]$drive, $eraBlock, [datetime]$when) {
     if ($cr -ne [datetime]::MinValue -and $cr -le $when) { $res.Sure = $true; $res.Why = 'name' } else { $res.Why = 'name-after' }
     return $res
 }
+
+# ============================== LN-b : INTERFACE DES LECTEURS ENREGISTRES =======
+# 12.11 (lot LN-b) : liste « Lecteur : » du bandeau (les six connexions, puis les lecteurs enregistres qui ont une
+# connexion) et ses deux dispositions, liaison au reglage drive (Sync-DriveCombo, 120), lecteur a confirmer, confirmation
+# du lecteur branche dans les cinq fonctions qui engagent une operation sous l identite du lecteur (Start-ImageWrite,
+# Start-LevelCalib, Start-PrecompCalib, Start-ContentMeasure, Start-Restore) et du lecteur cible d une calibration
+# croisee (Start-CrossCalib), verrou de la liste pendant une operation, fenetre « Lecteurs enregistres » (frmDrives), qui
+# affiche et transmet les gestes : Get-DriveEditPlan et Get-DriveDeletePlan decident et donnent les textes. Sans lecteur
+# enregistre, le code de la 12.10 n appelle que Update-DriveChoice (gestionnaire du bandeau : lecteur courant retenu),
+# Set-DriveHandChoice (choix a la main) et Update-DriveLock (verrou, voulu pour tous) : bandeau, textes, journal,
+# configuration et arguments de gw restent ceux de la 12.10.
+
+function Get-WriteSourceText {
+    # 12.11 (lot LN-b) : seule source du texte « Lecteur qui ecrit : TEAC FD-235HF (A) » (lecteur non enregistre :
+    # « Lecteur qui ecrit : A ») : journal de chaque ecriture (Confirm-DriveIdentity -Write) ; libelle de l onglet Ecriture
+    # et tete de la ligne « Ce qui va se passer » (lots L9 et L10)
+    return ((T 'Lecteur qui écrit : {0}') -f (Get-DriveLabel ([string]$cmbDrive.Text)))
+}
+
+function Format-ConnDrives($drives) {
+    # 12.11 (lot LN-b) : lecteurs d une connexion en texte (Get-ConnDrives, cibles ecartees d une calibration croisee) :
+    # le nom d un lecteur enregistre, « A (non enregistre) » pour un lecteur non enregistre
+    $l = @()
+    foreach ($d in @($drives)) { if ($d) { $l += $(if (Test-DriveConnCode ([string]$d)) { (T '{0} (non enregistré)') -f [string]$d } else { [string]$d }) } }
+    return ($l -join ', ')
+}
+
+function Get-DriveListItems {
+    # 12.11 (lot LN-b) : elements voulus de la liste du bandeau : les six connexions, puis les lecteurs enregistres qui ont
+    # une connexion, dans l ordre du registre (une fiche sans connexion n y est pas : ses courbes ne servent a aucun
+    # lecteur tant que sa connexion n est pas rendue). Tableau protege par la virgule (pas de @() autour de l appel)
+    $l = @([string[]]$script:SettingDefs['drive'].Codes)
+    if ($script:DriveReg) { foreach ($e in @($script:DriveReg.GetEnumerator())) { if ([string]$e.Value.Conn) { $l += [string]$e.Value.Name } } }
+    return ,@($l)
+}
+
+function Get-DrivesCardText {
+    # 12.11 (lot LN-b) : description de la carte « Lecteurs enregistres » de l Accueil (540) : fiches sans connexion
+    # comptees (leurs courbes ne servent a aucun lecteur), sinon le texte d origine
+    $n = 0
+    if ($script:DriveReg) { $n = @($script:DriveReg.GetEnumerator() | Where-Object { -not [string]$_.Value.Conn }).Count }
+    if ($n -gt 0) { return ((T '{0} lecteur(s) sans connexion : redonnez-la ici pour retrouver leurs calibrations.') -f "$n") }
+    return (T 'Nommer vos lecteurs : plusieurs sur une même connexion, chacun avec ses calibrations.')
+}
+
+function Update-DrivesCard {
+    # 12.11 (lot LN-b) : texte de la carte « Lecteurs enregistres » (Get-DrivesCardText)
+    if (-not $cardDrives) { return }
+    $t = Get-DrivesCardText
+    if ([string]$cardDrives.Controls[3].Text -cne $t) { $cardDrives.Controls[3].Text = $t }
+}
+
+function Update-DriveList([string]$Select = '') {
+    # 12.11 (lot LN-b) : elements de la liste du bandeau (Get-DriveListItems) et lecteur choisi : $Select (un element de
+    # la liste) s il est donne, sinon le choix garde s il existe encore, sinon le lecteur retenu pour la connexion du
+    # reglage (Get-DriveForConn). Ordre impose : element choisi ajoute s il manque, puis choisi (le gestionnaire du
+    # bandeau, 520, s execute avec le lecteur final), puis seulement les autres elements retires et remis dans l ordre du
+    # registre : le choix n est jamais retire, le texte de la liste n est jamais vide (le gestionnaire n a aucune garde sur
+    # un texte vide). Une liste sans poignee (fenetre pas encore affichee, tests) ne deplace pas son choix quand un element
+    # est insere avant lui : le choix est repris a la fin, sans changement de texte. Liaisons des reglages gardees pendant
+    # la mise a jour, puis reglage drive ramene a la connexion du lecteur choisi ; disposition du bandeau et carte de
+    # l Accueil
+    $want = Get-DriveListItems
+    $nc = @($script:SettingDefs['drive'].Codes).Count
+    $cur = [string]$cmbDrive.Text
+    $sel = ''
+    if ($Select -and $want -ccontains $Select) { $sel = $Select }
+    elseif ($cur -and $want -ccontains $cur) { $sel = $cur }
+    else { $sel = Get-DriveForConn ([string](Get-Setting 'drive')); if ($want -cnotcontains $sel) { $sel = [string]$want[0] } }
+    $have = @($cmbDrive.Items | ForEach-Object { [string]$_ })
+    $sv = $script:SettingSync; $script:SettingSync = $true
+    try {
+        if (($have -join "`n") -cne ($want -join "`n")) {
+            if ($have -cnotcontains $sel) { [void]$cmbDrive.Items.Add($sel) }
+            if ([string]$cmbDrive.SelectedItem -cne $sel) { $cmbDrive.SelectedItem = $sel }
+            for ($i = $cmbDrive.Items.Count - 1; $i -ge $nc; $i--) { if ([string]$cmbDrive.Items[$i] -cne $sel) { $cmbDrive.Items.RemoveAt($i) } }
+            $at = $nc; $after = ([array]::IndexOf($want, $sel) -lt $nc)
+            for ($i = $nc; $i -lt $want.Count; $i++) {
+                $w = [string]$want[$i]
+                if ($w -ceq $sel) { $after = $true; continue }
+                if ($after) { [void]$cmbDrive.Items.Add($w) } else { $cmbDrive.Items.Insert($at, $w); $at++ }
+            }
+            if ([string]$cmbDrive.SelectedItem -cne $sel) { $cmbDrive.SelectedIndex = $cmbDrive.Items.IndexOf($sel) }
+        } elseif ([string]$cmbDrive.SelectedItem -cne $sel) { $cmbDrive.SelectedItem = $sel }
+    } finally { $script:SettingSync = $sv }
+    $c = Get-DriveConn ([string]$cmbDrive.Text)
+    if ($c -and [string](Get-Setting 'drive') -cne $c) { Set-Setting 'drive' $c $cmbDrive }
+    Set-DriveBannerLayout
+    Update-DrivesCard
+}
+
+function Set-DriveBannerLayout {
+    # 12.11 (lot LN-b) : disposition du bandeau. Liste de six elements (aucun lecteur enregistre ayant une connexion) :
+    # positions de la 12.10, au pixel pres, libelle « Lecteur : ». Sinon disposition elargie (maquette approuvee le
+    # 13/11/2026) : liste de $script:DriveListWidth px (un nom admis s y affiche en entier : Test-DriveName), libelle
+    # « Lecteur (A) : » pour un lecteur enregistre, « Lecteur : » pour un lecteur non enregistre, contre la liste ;
+    # « COM : » et son champ decales vers le bord droit, « Chrono » remonte sur la rangee de l etat de gw ; « Aide » et
+    # « Mode expert » 12 px a gauche du libelle le plus large (« Lecteur (X) : »), place fixe quel que soit le lecteur
+    # choisi. Positions de la 12.10 relevees au premier appel (distance au bord droit du bandeau : controles ancres en
+    # haut a droite), reprises pour revenir a la disposition de la 12.10 ; les positions elargies en derivent (ecarts de
+    # la 12.10 gardes). Infobulle de la liste : celle de la 12.10, suivie des lecteurs enregistres et de leur connexion
+    if (-not $cmbDrive -or -not $lblDrive -or -not $pnlTop) { return }
+    $W = [int]$pnlTop.Width
+    if (-not $script:DriveBanner) {
+        $p0 = [ordered]@{}
+        $all = [ordered]@{ lblGwStatus = $lblGwStatus; chkTime = $chkTime; txtDev = $txtDev; lblCom = $lblCom; cmbDrive = $cmbDrive; lblDrive = $lblDrive; btnHelpTop = $btnHelpTop; chkExpert = $chkExpert }
+        foreach ($n in @($all.Keys)) {
+            $c = $all[$n]
+            if ($c) { $p0[$n] = @{ C = $c; R = ($W - [int]$c.Left); Top = [int]$c.Top; W = [int]$c.Width } }
+        }
+        $script:DriveBanner = @{ P = $p0; Tip = $(if ($tip) { [string]$tip.GetToolTip($cmbDrive) } else { '' }) }
+    }
+    $p = $script:DriveBanner.P
+    $wide = ($cmbDrive.Items.Count -gt @($script:SettingDefs['drive'].Codes).Count)
+    $d = [string]$cmbDrive.Text
+    $lt = if ($wide -and (Test-DriveRegistered $d)) { (T 'Lecteur ({0}) :') -f (Get-DriveConn $d) } else { (T 'Lecteur :') }
+    if ([string]$lblDrive.Text -cne $lt) { $lblDrive.Text = $lt }
+    if (-not $wide) {
+        foreach ($k in @($p.Keys)) {
+            $x = $p[$k]
+            $x.C.Location = New-Object System.Drawing.Point(($W - [int]$x.R), [int]$x.Top)
+            if ($k -eq 'cmbDrive') { $x.C.Width = [int]$x.W }
+        }
+    } elseif ($p.Contains('chkTime') -and $p.Contains('txtDev') -and $p.Contains('lblCom') -and $p.Contains('cmbDrive')) {
+        # Champ COM contre le bord droit de « Chrono » ; « COM : » et la liste a leurs ecarts de la 12.10
+        $xR = $W - [int]$p['chkTime'].R + [int]$p['chkTime'].W
+        $xDev = $xR - $txtDev.Width
+        $xCom = $xDev - ([int]$p['lblCom'].R - [int]$p['txtDev'].R)
+        $xCmb = $xCom - ([int]$p['cmbDrive'].R - [int]$p['lblCom'].R - [int]$p['cmbDrive'].W) - [int]$script:DriveListWidth
+        $chkTime.Location = New-Object System.Drawing.Point(($W - [int]$p['chkTime'].R), 8)
+        $txtDev.Location = New-Object System.Drawing.Point($xDev, [int]$p['txtDev'].Top)
+        $lblCom.Location = New-Object System.Drawing.Point($xCom, [int]$p['lblCom'].Top)
+        $cmbDrive.Width = [int]$script:DriveListWidth
+        $cmbDrive.Location = New-Object System.Drawing.Point($xCmb, [int]$p['cmbDrive'].Top)
+        $lblDrive.Location = New-Object System.Drawing.Point(($xCmb - $lblDrive.PreferredWidth), [int]$p['lblDrive'].Top)
+        $wMax = 0
+        foreach ($k in @($script:SettingDefs['drive'].Codes)) { $wk = [System.Windows.Forms.TextRenderer]::MeasureText(((T 'Lecteur ({0}) :') -f [string]$k), $lblDrive.Font).Width; if ($wk -gt $wMax) { $wMax = $wk } }
+        if ($btnHelpTop) {
+            $xh = $xCmb - $wMax - 12 - $btnHelpTop.Width
+            $btnHelpTop.Location = New-Object System.Drawing.Point($xh, [int]$p['btnHelpTop'].Top)
+            if ($chkExpert) { $chkExpert.Location = New-Object System.Drawing.Point($xh, [int]$p['chkExpert'].Top) }
+        }
+    }
+    if ($tip) {
+        $t = [string]$script:DriveBanner.Tip
+        if ($script:DriveReg.Count -gt 0) {
+            $names = @($script:DriveReg.GetEnumerator() | ForEach-Object { Get-DriveLabel ([string]$_.Value.Name) })
+            $t += "`n`n" + ((T "Lecteurs enregistrés : {0}.`nLeurs calibrations sont rangées sous leur nom, quelle que soit leur connexion. L'application ne reconnaît pas le lecteur branché : choisissez-le ici chaque fois que vous en changez (pour les nommer : Accueil, « Lecteurs enregistrés »).") -f ($names -join ', '))
+        }
+        if ([string]$tip.GetToolTip($cmbDrive) -cne $t) { $tip.SetToolTip($cmbDrive, $t) }
+    }
+}
+
+function Sync-DriveCombo {
+    # 12.11 (lot LN-b) : reglage drive (une connexion) vers la liste du bandeau quand des lecteurs sont enregistres
+    # (Set-SettingCtlValue, 120 : fenetre de nettoyage, Set-Defaults, chargement de la configuration) : rien si le lecteur
+    # choisi est deja sur cette connexion, sinon le lecteur retenu pour elle (Get-DriveForConn)
+    $c = [string](Get-Setting 'drive')
+    if ((Get-DriveConn ([string]$cmbDrive.Text)) -ceq $c) { return }
+    Set-Combo $cmbDrive (Get-DriveForConn $c)
+}
+
+function Clear-DriveActivity([string]$conn) {
+    # 12.11 (lot LN-b) : activite du prechauffage oubliee pour une connexion ($script:DriveActivity, cles
+    # « peripherique|connexion », Get-GwDriveKey) : un autre lecteur vient d y etre branche, il est froid
+    if (-not $conn -or -not $script:DriveActivity) { return }
+    foreach ($k in @($script:DriveActivity.Keys | Where-Object { ([string]$_).EndsWith('|' + $conn) })) { $script:DriveActivity.Remove($k) }
+}
+
+function Update-DriveChoice {
+    # 12.11 (lot LN-b) : gestionnaire du bandeau (520), apres Sync-PrecompCurves : le texte de la liste vient de changer.
+    # Lecteur a confirmer : $script:DriveChecked est vide des qu il differe du lecteur choisi, quel que soit l ordre des
+    # evenements de la liste (seuls Set-DriveHandChoice, pour un choix fait dans la liste deroulee, et la case de la
+    # confirmation le posent). Avec des lecteurs enregistres : dernier lecteur choisi sur la connexion
+    # ($script:DriveLast), activite du prechauffage de la connexion oubliee quand un autre lecteur y est choisi, libelle
+    # et disposition du bandeau, libelle du lecteur de la restauration, ligne « Lecteur choisi » quand l un des deux
+    # lecteurs est enregistre. Texte vide (liste en reconstruction) ou inchange : rien
+    $new = [string]$cmbDrive.Text; $old = [string]$script:DriveCur
+    if (-not $new -or $new -ceq $old) { return }
+    $script:DriveCur = $new
+    if ([string]$script:DriveChecked -cne $new) { $script:DriveChecked = '' }
+    if ($script:DriveReg.Count -eq 0) { return }
+    $c = Get-DriveConn $new
+    if ($c) {
+        $nl = @{}
+        if ($script:DriveLast) { foreach ($e in @($script:DriveLast.GetEnumerator())) { if ([string]$e.Key -cne $c) { $nl[[string]$e.Key] = [string]$e.Value } } }
+        $r = Get-DriveRecord $new
+        if ($r) { $nl[$c] = [string]$r.Name }
+        $script:DriveLast = $nl
+        if ($old -and (Get-DriveConn $old) -ceq $c) { Clear-DriveActivity $c }
+    }
+    Set-DriveBannerLayout
+    Update-RsDrive
+    if ($old -and ((Test-DriveRegistered $new) -or (Test-DriveRegistered $old))) { Append-Log ((T 'Lecteur choisi : {0} (avant : {1}).') -f (Get-DriveLabel $new), (Get-DriveLabel $old)) }
+}
+
+function Set-DriveHandChoice([bool]$listOpen) {
+    # 12.11 (lot LN-b) : SelectionChangeCommitted de la liste du bandeau (510) : seul un choix fait dans la liste deroulee
+    # ($listOpen : DroppedDown) vaut confirmation du lecteur branche. Molette (sans effet, 510), fleches ou lettre sur la
+    # liste fermee : rien n est pose, la confirmation reste due. Evenement leve avant le changement du texte : le lecteur
+    # pose est l ancien, et Update-DriveChoice le vide ensuite. Une hypothese fausse sur ces evenements fait demander la
+    # confirmation plus souvent, jamais moins
+    if ($listOpen) { $script:DriveChecked = [string]$cmbDrive.SelectedItem }
+}
+
+function Test-DriveCheckDue {
+    # 12.11 (lot LN-b) : vrai quand le lecteur du bandeau doit etre confirme avant une ecriture, une calibration, une
+    # mesure ou une restauration : des lecteurs sont enregistres, le lecteur choisi n a ete ni choisi a la main dans la
+    # liste deroulee ni confirme depuis son dernier changement, et sa connexion porte au moins deux lecteurs
+    # (Get-ConnDrives), ou le registre vient d etre relu dans sa copie de secours et la connexion porte un lecteur
+    # enregistre
+    if ($script:DriveReg.Count -eq 0) { return $false }
+    $d = [string]$cmbDrive.Text
+    if ([string]$script:DriveChecked -and [string]$script:DriveChecked -ceq $d) { return $false }
+    $all = @(Get-ConnDrives (Get-DriveConn $d))
+    if ($script:DriveRescued -and @($all | Where-Object { Test-DriveRegistered $_ }).Count -ge 1) { return $true }
+    return ($all.Count -ge 2)
+}
+
+function Confirm-DriveIdentity([switch]$Write, [string]$Target = '') {
+    # 12.11 (lot LN-b) : confirmation du lecteur branche, appelee seulement avec des lecteurs enregistres par les cinq
+    # fonctions qui engagent une operation sous l identite du lecteur du bandeau (Start-ImageWrite avec -Write,
+    # Start-LevelCalib, Start-PrecompCalib, Start-ContentMeasure, Start-Restore) ; due ou non : Test-DriveCheckDue.
+    # Fenetre frmConfirm (Show-AppConfirm, niveau warn) : lecteurs de la connexion, lecteur choisi et ses calibrations ;
+    # case obligatoire qui nomme le lecteur, ou dit qu il n est aucun des lecteurs enregistres (lecteur non enregistre).
+    # Acceptee : lecteur confirme ($script:DriveChecked), les etapes suivantes de la meme operation ne redemandent pas ;
+    # refusee (Fermer, Echap, croix) : faux, une ligne de journal, l operation ne part pas (refus note dans la surcharge
+    # d une ecriture de la Bibliotheque, comme Test-TargetWriteAllowed). -Write : ligne « Lecteur qui ecrit » au journal
+    # (Get-WriteSourceText). -Target (Start-CrossCalib) : lecteur cible d une calibration croisee, confirme a chaque fois
+    # que sa connexion porte au moins deux lecteurs : la courbe est rangee « source>cible » et la case de l avertissement
+    # de la calibration ne nomme que le lecteur qui ecrit
+    $refuse = (T 'Opération annulée : lecteur branché non confirmé.')
+    if ($Target) {
+        $tc = Get-DriveConn $Target
+        $all = @(Get-ConnDrives $tc)
+        if ($all.Count -lt 2) { return $true }
+        $txt = ((T "La connexion {0} porte plusieurs lecteurs : {1}. L'application ne reconnaît pas celui qui est branché.") -f $tc, (Format-ConnDrives $all)) + "`n`n" + ((T "Lecteur cible de cette calibration croisée : {0}`nLa courbe mesurée servira aux écritures du lecteur {1} destinées à ce lecteur. Si un autre lecteur est branché sur la connexion {2}, fermez cette fenêtre et relancez la calibration croisée avec le bon lecteur cible : mesurée avec un autre lecteur, la courbe serait fausse, sans aucun message d'erreur.") -f (Get-DriveLabel $Target), (Get-DriveLabel ([string]$cmbDrive.Text)), $tc)
+        $rt = Get-DriveRecord $Target
+        $chk = if ($rt) { (T 'Le lecteur branché sur la connexion {0} est bien « {1} »') -f $tc, [string]$rt.Name } else { (T "Le lecteur branché sur la connexion {0} n'est aucun des lecteurs enregistrés") -f $tc }
+        if (Show-AppConfirm -Title (T 'Lecteur branché') -Heading ((T 'Quel lecteur est branché sur la connexion {0} ?') -f $tc) -Text $txt -Check $chk -Level 'warn') { return $true }
+        Append-Log $refuse
+        if ($script:OpOverride) { $script:OpOverride.Refused = $true }
+        return $false
+    }
+    if (Test-DriveCheckDue) {
+        $d = [string]$cmbDrive.Text; $c = Get-DriveConn $d
+        $intro = if ($script:DriveRescued) { (T "Vos lecteurs enregistrés viennent d'être relus dans leur copie de secours : le fichier de configuration ne les contenait pas. L'application ne reconnaît pas le lecteur branché sur la connexion {0}.") -f $c }
+                 else { (T "La connexion {0} porte plusieurs lecteurs : {1}. L'application ne reconnaît pas celui qui est branché.") -f $c, (Format-ConnDrives @(Get-ConnDrives $c)) }
+        $txt = $intro + "`n`n" + ((T "Lecteur choisi dans le bandeau : {0}`nSes calibrations : {1}`n`nL'écriture et la calibration emploient ses courbes et rangent leurs résultats sous son nom. Si un autre lecteur est branché, fermez cette fenêtre et choisissez-le dans la liste « Lecteur : » du bandeau : avec la courbe d'un autre lecteur, la disquette serait mal précompensée, sans aucun message d'erreur.") -f (Get-DriveLabel $d), (Get-DriveDataText (Get-DriveData $d)))
+        $rd = Get-DriveRecord $d
+        $chk = if ($rd) { (T 'Le lecteur branché sur la connexion {0} est bien « {1} »') -f $c, [string]$rd.Name } else { (T "Le lecteur branché sur la connexion {0} n'est aucun des lecteurs enregistrés") -f $c }
+        if (-not (Show-AppConfirm -Title (T 'Lecteur branché') -Heading ((T 'Quel lecteur est branché sur la connexion {0} ?') -f $c) -Text $txt -Check $chk -Level 'warn')) {
+            Append-Log $refuse
+            if ($script:OpOverride) { $script:OpOverride.Refused = $true }
+            return $false
+        }
+        $script:DriveChecked = $d
+    }
+    if ($Write) { Append-Log (Get-WriteSourceText) }
+    return $true
+}
+
+function Update-DriveLock {
+    # 12.11 (lot LN-b) : minuteur principal (600) : liste « Lecteur : » du bandeau inactive pendant toute operation
+    # (Get-AppBusy), sauf la pause d une mesure continue de l onglet Qualite, avec ou sans lecteur enregistre : une
+    # operation commencee avec un lecteur se termine avec lui (une calibration relit la connexion du bandeau a chaque
+    # passe, sa cle de rangement est figee au lancement). Un changement fait par le code reste possible
+    $b = Get-AppBusy
+    $lock = ([bool]$b -and $b -ne 'quality')
+    if ($cmbDrive.Enabled -eq $lock) { $cmbDrive.Enabled = -not $lock }
+}
+
+function Get-DriveRows {
+    # 12.11 (lot LN-b) : lignes de la fenetre « Lecteurs enregistres » : chaque fiche, dans l ordre du registre, puis
+    # chaque lecteur non enregistre qui a des donnees (« A (non enregistre) »). Une ligne : @{ Kind ('rec' ou 'conn') ;
+    # Drive (identite) ; Conn ; Text, ConnText, Cal (textes des trois colonnes) ; Data (Get-DriveData) }. Tableau protege
+    # par la virgule
+    $rows = @()
+    if ($script:DriveReg) {
+        foreach ($e in @($script:DriveReg.GetEnumerator())) {
+            $r = $e.Value; $nm = [string]$r.Name; $dt = Get-DriveData $nm
+            $rows += ,@{ Kind = 'rec'; Drive = $nm; Conn = [string]$r.Conn; Text = $nm; ConnText = $(if ([string]$r.Conn) { [string]$r.Conn } else { (T 'à préciser') }); Cal = (Get-DriveDataText $dt); Data = $dt }
+        }
+    }
+    foreach ($c in @($script:SettingDefs['drive'].Codes)) {
+        $dt = Get-DriveData ([string]$c)
+        if ($dt['Any']) { $rows += ,@{ Kind = 'conn'; Drive = [string]$c; Conn = [string]$c; Text = ((T '{0} (non enregistré)') -f [string]$c); ConnText = [string]$c; Cal = (Get-DriveDataText $dt); Data = $dt } }
+    }
+    return ,@($rows)
+}
+
+function Get-DriveEditPlan($row, [string]$name, [string]$conn) {
+    # 12.11 (lot LN-b) : seule decision du bouton « Enregistrer » de la fenetre « Lecteurs enregistres », et ses textes,
+    # sans rien changer : @{ Kind ; Error ; Note ; Ask ; Text ; Log ; Name ; Conn ; From ; Old ; N ; AskHeading ;
+    # AskText ; AskCheck ; AskGo }. $row : ligne choisie (Get-DriveRows), $null pour « Nouveau lecteur ». Kind : new
+    # (fiche sans courbe ; Note : la connexion a des calibrations sans nom), adopt (le lecteur non enregistre de la ligne
+    # recoit le nom, ou une fiche existante sans aucune donnee), rename (nom change, ne serait-ce que de casse : -cne),
+    # move (connexion changee, ou rendue a une fiche sans connexion), rename+move, none (rien a enregistrer). Ask : check
+    # (confirmation a case : le lecteur non enregistre a des courbes), yesno (question : des donnees sans courbe) ou vide.
+    # Error : refus, texte affiche dans la fenetre. Text : resultat affiche ; Log : lignes du journal (renommer et deplacer
+    # a la fois : les deux, le resultat affiche est celui du changement de connexion). N : courbes deplacees
+    $p = @{ Kind = ''; Error = ''; Note = ''; Ask = ''; Text = ''; Log = @(); Name = ''; Conn = $conn; From = ''; Old = ''; N = 0; AskHeading = ''; AskText = ''; AskCheck = ''; AskGo = '' }
+    $why = Get-DriveEditRefusal
+    if ($why) { $p.Error = $why; return $p }
+    $nm = [string](Test-DriveName $name).Name
+    if (-not $row) {
+        $p.Kind = 'new'
+        if (-not (Test-DriveConnCode $conn)) { $p.Error = (T 'Choisissez la connexion du lecteur.'); return $p }
+        $dc = Get-DriveData $conn
+        if ((@($dc['Keys']).Count + @($dc['Cross']).Count) -gt 0) { $p.Note = (T 'La connexion {0} a déjà des calibrations sans nom de lecteur. Pour les garder avec ce lecteur, sélectionnez la ligne « {0} (non enregistré) » et donnez-lui ce nom ; sinon ce lecteur sera calibré à part.') -f $conn }
+        $tn = Test-DriveName $name
+        if (-not $tn.Ok) { $p.Error = [string]$tn.Why; return $p }
+        $p.Name = [string]$tn.Name
+        $p.Text = (T 'Lecteur « {0} » enregistré sur la connexion {1}, sans calibration. Choisissez-le dans la liste « Lecteur : » du bandeau quand il est branché.') -f $p.Name, $conn
+        $p.Log = @($p.Text)
+        return $p
+    }
+    if ([string]$row.Kind -eq 'conn') {
+        $p.Kind = 'adopt'; $p.From = [string]$row.Drive
+        if (-not (Test-DriveConnCode $conn)) { $p.Error = (T 'Choisissez la connexion du lecteur.'); return $p }
+        $rec = Get-DriveRecord $nm
+        if ($rec) { $p.Name = [string]$rec.Name }
+        else {
+            $tn = Test-DriveName $name
+            if (-not $tn.Ok) { $p.Error = [string]$tn.Why; return $p }
+            $p.Name = [string]$tn.Name
+        }
+        $chk = Edit-DriveData $p.From $p.Name -Check
+        if (-not $chk.Ok) { $p.Error = [string]$chk.Why; return $p }
+        $dt = Get-DriveData $p.From
+        $p.N = @($dt['Keys']).Count + @($dt['Cross']).Count
+        if ($p.N -gt 0) {
+            $p.Ask = 'check'
+            $p.AskHeading = (T 'Attribuer à ce lecteur les calibrations de la connexion {0} ?') -f $p.From
+            $p.AskText = (T "La connexion {0} a des calibrations faites sans nom de lecteur : {1}.`n`nEn nommant ce lecteur « {2} », vous déclarez qu'elles ont été faites avec lui : elles deviennent les siennes, avec ses niveaux, sa mémoire par marque, ses facteurs mesurés et son lecteur cible. Rien n'est recalculé ni effacé ; la configuration est d'abord copiée dans un fichier « {3}.lecteurs-….bak ». La connexion {0} garde un lecteur non enregistré, sans calibration.`n`nSi elles viennent d'un autre lecteur, fermez cette fenêtre et choisissez « Nouveau lecteur » : il partira sans calibration.") -f $p.From, (Get-DriveDataText $dt), $p.Name, [System.IO.Path]::GetFileName([string]$script:ConfigFile)
+            $p.AskCheck = (T 'Les calibrations de la connexion {0} ont été faites avec le lecteur « {1} »') -f $p.From, $p.Name
+            $p.AskGo = (T 'Attribuer ces calibrations')
+        } elseif ($dt['Any']) {
+            $p.Ask = 'yesno'
+            $p.AskText = (T 'Le lecteur non enregistré de la connexion {0} n''a aucune calibration. Son lecteur cible, ses niveaux, sa mémoire par marque et ses facteurs mesurés passent sous le nom « {1} ». Continuer ?') -f $p.From, $p.Name
+        }
+        $p.Text = (T 'Lecteur « {0} » enregistré sur la connexion {1} : les calibrations faites sans nom sur la connexion {2} ({3} courbe(s)) sont maintenant les siennes.') -f $p.Name, $conn, $p.From, "$($p.N)"
+        $p.Log = @($p.Text)
+        return $p
+    }
+    $rec = Get-DriveRecord ([string]$row.Drive)
+    if (-not $rec) { $p.Kind = 'none'; $p.Error = (T 'Rien à enregistrer : le nom et la connexion n''ont pas changé.'); return $p }
+    $old = [string]$rec.Name; $oc = [string]$rec.Conn
+    $p.Old = $old
+    if (-not (Test-DriveConnCode $conn)) { $p.Error = (T 'Choisissez la connexion du lecteur.'); return $p }
+    $ren = ($nm -cne $old); $mov = ($conn -cne $oc)
+    if (-not $ren -and -not $mov) { $p.Kind = 'none'; $p.Error = (T 'Rien à enregistrer : le nom et la connexion n''ont pas changé.'); return $p }
+    $p.Name = $old
+    if ($ren) {
+        $tn = Test-DriveName $name $old
+        if (-not $tn.Ok) { $p.Error = [string]$tn.Why; return $p }
+        $p.Name = [string]$tn.Name
+        $chk = Edit-DriveData $old $p.Name -Check
+        if (-not $chk.Ok) { $p.Error = [string]$chk.Why; return $p }
+    }
+    $dt = Get-DriveData $old
+    $p.N = @($dt['Keys']).Count + @($dt['Cross']).Count
+    $p.Kind = if ($ren -and $mov) { 'rename+move' } elseif ($ren) { 'rename' } else { 'move' }
+    $l = @()
+    if ($ren) { $l += (T "Lecteur « {0} » : il s'appelait « {1} ». Ses calibrations ({2} courbe(s)), ses niveaux, sa mémoire par marque, ses facteurs et ses lecteurs cibles portent son nouveau nom.") -f $p.Name, $old, "$($p.N)" }
+    if ($mov) { $l += (T 'Lecteur « {0} » : connexion {1} (avant : {2}). Ses calibrations le suivent. Après un changement de nappe, contrôlez une écriture (onglet Qualité) ou refaites une calibration rapide.') -f $p.Name, $conn, $(if ($oc) { $oc } else { (T 'à préciser') }) }
+    $p.Log = $l; $p.Text = [string]$l[-1]
+    return $p
+}
+
+function Update-DriveUiAfterEdit([string]$Select = '') {
+    # 12.11 (lot LN-b) : interface apres une action de la fenetre « Lecteurs enregistres » : fenetre Courbe fermee (elle
+    # garderait l ancien nom : seul le gestionnaire du bandeau la ferme), liste et disposition du bandeau
+    # (Update-DriveList), liste « Lecteur cible » et case de la mesure, libelle du lecteur de la restauration, profil de
+    # l image une fois la fenetre affichee
+    if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
+    Update-DriveList $Select
+    Update-TargetDriveUi; Update-SlowUi
+    Update-RsDrive
+    if ($form -and $form.Visible) { Update-PrecompForImage $txtWFile.Text }
+}
+
+function Invoke-DriveEditPlan($plan) {
+    # 12.11 (lot LN-b) : execute la decision de Get-DriveEditPlan : confirmation s il y a lieu (case T37 a T40, ou question
+    # T70), action du registre (Add-NamedDrive, Rename-NamedDrive, Move-NamedDrive : elles font la copie datee), interface
+    # (Update-DriveUiAfterEdit), journal, enregistrement. Lecteur du bandeau nomme, renomme ou deplace : c est le meme
+    # lecteur physique, sans ligne « Lecteur choisi » ; il devient le dernier lecteur de sa connexion, le reglage drive suit
+    # sa connexion (Update-DriveList) ; connexion changee : confirmation de nouveau due, activite du prechauffage de la
+    # nouvelle connexion oubliee. Rend @{ Ok ; Text (resultat affiche) ; Error (refus affiche) } ; confirmation refusee :
+    # Ok faux, rien n est change
+    $res = @{ Ok = $false; Text = ''; Error = '' }
+    if (-not $plan) { return $res }
+    if ($plan.Error) { $res.Error = [string]$plan.Error; return $res }
+    if ($plan.Ask -eq 'check') {
+        if (-not (Show-AppConfirm -Title (T 'Lecteurs enregistrés') -Heading $plan.AskHeading -Text $plan.AskText -Check $plan.AskCheck -GoText $plan.AskGo -GoGlyph 'Save' -Level 'warn')) { return $res }
+    } elseif ($plan.Ask -eq 'yesno') {
+        if ([string](Show-AppMessage $plan.AskText (T 'Lecteurs enregistrés') 'YesNo' 'Question') -ne 'Yes') { return $res }
+    }
+    $banner = [string]$cmbDrive.Text; $bConn = Get-DriveConn $banner
+    $r = $null
+    switch ([string]$plan.Kind) {
+        'new'         { $r = Add-NamedDrive $plan.Name $plan.Conn }
+        'adopt'       { $r = Add-NamedDrive $plan.Name $plan.Conn $plan.From }
+        'rename'      { $r = Rename-NamedDrive $plan.Old $plan.Name }
+        'move'        { $r = Move-NamedDrive $plan.Old $plan.Conn }
+        'rename+move' { $r = Rename-NamedDrive $plan.Old $plan.Name; if ($r.Ok) { $r = Move-NamedDrive $plan.Name $plan.Conn } }
+    }
+    if (-not $r -or -not $r.Ok) { $res.Error = $(if ($r -and $r.Why) { [string]$r.Why } else { (T "Configuration non sauvegardée : rien n'a été modifié (voir le journal).") }); return $res }
+    $now = ''
+    if ($plan.Kind -eq 'adopt' -and $banner -ceq [string]$plan.From) { $now = [string]$plan.Name }
+    elseif ($plan.Old -and $banner -ceq [string]$plan.Old) { $now = [string]$plan.Name }
+    if ($now) {
+        $nc = Get-DriveConn $now
+        $script:DriveCur = $now
+        $nl = @{}
+        foreach ($e in @($script:DriveLast.GetEnumerator())) { if ([string]$e.Key -cne $nc) { $nl[[string]$e.Key] = [string]$e.Value } }
+        if ($nc) { $nl[$nc] = $now }
+        $script:DriveLast = $nl
+        if ($nc -cne $bConn) { $script:DriveChecked = ''; Clear-DriveActivity $nc }
+    }
+    Update-DriveUiAfterEdit $now
+    foreach ($l in @($plan.Log)) { Append-Log ([string]$l) }
+    [void](Save-Config)
+    $res.Ok = $true; $res.Text = [string]$plan.Text
+    return $res
+}
+
+function Get-DriveDeletePlan($row) {
+    # 12.11 (lot LN-b) : seule decision du bouton « Supprimer... » (fiche seulement), et ses textes, sans rien changer :
+    # @{ Error ; Name ; Conn ; Any ; Keep ; N ; Heading ; Text ; Check ; Go ; Alt ; Question ; TextDel ; TextKeep }. Avec
+    # des donnees (Any) : confirmation a case au niveau danger, qui ne nomme aucune des deux issues (la case commande les
+    # deux boutons) ; chaque bouton nomme la sienne ; « Retirer seulement le nom » (Keep) propose quand la fiche a une
+    # connexion dont le lecteur non enregistre n a aucune donnee (sinon Remove-NamedDrive -KeepData le refuserait). Sans
+    # donnee : question simple. La copie annoncee (texte de la confirmation) est faite par Remove-NamedDrive des que le
+    # lecteur a une donnee, le meme champ Any decidant des deux
+    $p = @{ Error = ''; Name = ''; Conn = ''; Any = $false; Keep = $false; N = 0; Heading = ''; Text = ''; Check = ''; Go = ''; Alt = ''; Question = ''; TextDel = ''; TextKeep = '' }
+    $why = Get-DriveEditRefusal
+    if ($why) { $p.Error = $why; return $p }
+    $rec = if ($row -and [string]$row.Kind -eq 'rec') { Get-DriveRecord ([string]$row.Drive) } else { $null }
+    if (-not $rec) { return $p }
+    $nm = [string]$rec.Name; $c = [string]$rec.Conn
+    $dt = Get-DriveData $nm
+    $p.Name = $nm; $p.Conn = $c; $p.Any = [bool]$dt['Any']
+    $p.N = @($dt['Keys']).Count + @($dt['Cross']).Count
+    $p.Keep = [bool]($c -and (Test-DriveConnCode $c) -and -not (Get-DriveData $c)['Any'])
+    if ($p.Any) {
+        $p.Heading = (T 'Supprimer le lecteur « {0} » ?') -f $nm
+        $p.Text = (T "Sont retirés : ses calibrations ({0}), ses niveaux, sa mémoire par marque, ses facteurs mesurés et son lecteur cible, ainsi que les courbes croisées dont il est le lecteur cible et le choix de ce lecteur comme cible d'un autre.`n`nL'application ne peut pas annuler cette suppression. Elle copie d'abord la configuration dans « {1}.lecteurs-….bak », dans le même dossier : pour revenir en arrière, fermez l'application, puis remettez cette copie à la place de « {1} ».") -f (Get-DriveDataText $dt), [System.IO.Path]::GetFileName([string]$script:ConfigFile)
+        if ($p.Keep) { $p.Text += "`n`n" + ((T '« Retirer seulement le nom » : ses calibrations restent, rangées sous la connexion {0}, sans nom de lecteur.') -f $c); $p.Alt = (T 'Retirer seulement le nom') }
+        $p.Check = (T 'Le lecteur « {0} » ne doit plus être enregistré') -f $nm
+        $p.Go = (T 'Supprimer avec ses calibrations')
+    } else { $p.Question = (T 'Supprimer le lecteur « {0} » ? Il n''a aucune calibration.') -f $nm }
+    $p.TextDel = (T 'Lecteur « {0} » supprimé : {1} courbe(s) retirée(s).') -f $nm, "$($p.N)"
+    $p.TextKeep = (T 'Nom « {0} » retiré : ses calibrations sont rangées sous la connexion {1}, sans nom de lecteur.') -f $nm, $c
+    return $p
+}
+
+function Remove-DriveEntry($row) {
+    # 12.11 (lot LN-b) : « Supprimer... » de la fenetre « Lecteurs enregistres » : decision et textes de
+    # Get-DriveDeletePlan, confirmation, Remove-NamedDrive (avec -KeepData pour « Retirer seulement le nom » ; copie
+    # datee faite par elle), interface (Update-DriveUiAfterEdit : lecteur supprime du bandeau remplace par le lecteur non
+    # enregistre de sa connexion), journal, enregistrement. Rend @{ Ok ; Text ; Error } ; confirmation refusee : Ok faux
+    $res = @{ Ok = $false; Text = ''; Error = '' }
+    $p = Get-DriveDeletePlan $row
+    if ($p.Error) { $res.Error = [string]$p.Error; return $res }
+    if (-not $p.Name) { return $res }
+    $keep = $false
+    if ($p.Any) {
+        $go = [bool](Show-AppConfirm -Title (T 'Lecteurs enregistrés') -Heading $p.Heading -Text $p.Text -Check $p.Check -GoText $p.Go -GoGlyph 'Delete' -Level 'danger' -AltText $p.Alt)
+        if (-not $go) {
+            if ($p.Alt -and [string]$script:ConfirmChoice -eq 'alt') { $keep = $true } else { return $res }
+        }
+    } elseif ([string](Show-AppMessage $p.Question (T 'Lecteurs enregistrés') 'YesNo' 'Question') -ne 'Yes') { return $res }
+    $r = if ($keep) { Remove-NamedDrive $p.Name -KeepData } else { Remove-NamedDrive $p.Name }
+    if (-not $r.Ok) { $res.Error = $(if ($r.Why) { [string]$r.Why } else { (T "Configuration non sauvegardée : rien n'a été modifié (voir le journal).") }); return $res }
+    Update-DriveUiAfterEdit
+    $res.Text = $(if ($keep) { [string]$p.TextKeep } else { [string]$p.TextDel })
+    Append-Log $res.Text
+    [void](Save-Config)
+    $res.Ok = $true
+    return $res
+}
+
+function Get-DriveWidestName($font) {
+    # 12.11 (lot LN-b) : nom le plus large admis par Test-DriveName dans la police $font (lettres W, les plus larges) :
+    # sert a mesurer les textes qui citent un nom (hauteur du texte d etat de la fenetre « Lecteurs enregistres »)
+    $n = 'W'
+    while ($n.Length -lt [int]$script:DriveNameMax -and [System.Windows.Forms.TextRenderer]::MeasureText(($n + 'W'), $font).Width -le ([int]$script:DriveListWidth - 24)) { $n += 'W' }
+    return $n
+}
+
+function Get-DrivesStateSamples($font) {
+    # 12.11 (lot LN-b) : textes les plus longs du texte d etat de la fenetre « Lecteurs enregistres », avec le nom le plus
+    # large admis : sa hauteur est celle du plus haut d entre eux (aucun texte coupe)
+    $w = Get-DriveWidestName $font
+    return @(
+        ((T 'La connexion {0} a déjà des calibrations sans nom de lecteur. Pour les garder avec ce lecteur, sélectionnez la ligne « {0} (non enregistré) » et donnez-lui ce nom ; sinon ce lecteur sera calibré à part.') -f 'A'),
+        ((T "Lecteur « {0} » : il s'appelait « {1} ». Ses calibrations ({2} courbe(s)), ses niveaux, sa mémoire par marque, ses facteurs et ses lecteurs cibles portent son nouveau nom.") -f $w, $w, '99'),
+        ((T 'Lecteur « {0} » : connexion {1} (avant : {2}). Ses calibrations le suivent. Après un changement de nappe, contrôlez une écriture (onglet Qualité) ou refaites une calibration rapide.') -f $w, 'A', (T 'à préciser')),
+        ((T 'Lecteur « {0} » enregistré sur la connexion {1} : les calibrations faites sans nom sur la connexion {2} ({3} courbe(s)) sont maintenant les siennes.') -f $w, 'A', '0', '99'),
+        ((T 'Lecteur « {0} » enregistré sur la connexion {1}, sans calibration. Choisissez-le dans la liste « Lecteur : » du bandeau quand il est branché.') -f $w, 'A'),
+        ((T 'Le lecteur {0} a déjà des données (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : celles de la connexion {1} ne peuvent pas lui être attribuées.') -f $w, 'A'),
+        ((T 'La connexion {0} a déjà des données sans nom de lecteur (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : le nom ne peut pas être retiré seul.') -f 'A'),
+        ((T 'Lecteurs enregistrés : opération en cours ({0}). Réessayez quand elle est terminée.') -f (T 'mesure continue de la qualité')),
+        ((T "Nom trop large pour s'afficher en entier dans les listes de lecteurs (environ 17 caractères) : raccourcissez-le."))
+    )
+}
+
+function New-DrivesDialog {
+    # 12.11 (lot LN-b) : fenetre « Lecteurs enregistres » (frmDrives), construite sans etre affichee (Show-DrivesDialog
+    # l affiche), au modele de frmJitter : bandeau d information (New-DlgBanner, lblDrvText) ; liste lvDrives (Get-DriveRows),
+    # colonnes « Lecteur », « Connexion », « Calibrations » (150 + 90 + 379 = 619 px : largeur utile quand la barre
+    # verticale parait, aucune barre horizontale) ; « Nom : » (txtDrvName, 24 caracteres au plus), « Connexion : »
+    # (cmbDrvConn) ; texte d etat lblDrvState (refus dans l encre du danger, note ou resultat dans l encre neutre ; hauteur
+    # du plus haut de ses textes les plus longs, Get-DrivesStateSamples, mesure par le Label lui-meme) ; « Nouveau
+    # lecteur », « Supprimer... », « Enregistrer » (principal), « Fermer » (CancelButton, aucun AcceptButton : Entree
+    # n enregistre rien). La fenetre ne decide rien (Get-DriveEditPlan, Invoke-DriveEditPlan, Get-DriveDeletePlan,
+    # Remove-DriveEntry) et n ouvre aucune boite de message directe (Show-AppConfirm, Show-AppMessage). Rend l etat
+    # partage avec ses gestionnaires ($script:DrvDlg) : @{ Dlg ; Lv ; Name ; Conn ; State ; New ; Del ; Save ; Close ;
+    # Gdi ; Rows ; Mode ('new' ou 'row') ; Busy }
+    $W = 640
+    $gdi = New-Object System.Collections.Generic.List[object]
+    $dlg = New-Object System.Windows.Forms.Form
+    $dlg.Name = 'frmDrives'; $dlg.Text = (T 'Lecteurs enregistrés')
+    $dlg.FormBorderStyle = 'FixedDialog'; $dlg.MaximizeBox = $false; $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false
+    $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font; $dlg.BackColor = [System.Drawing.Color]::White
+    $text = (T "Un lecteur enregistré a un nom et une connexion au Greaseweazle (A ou B : nappe PC avec twist ; 0 à 3 : nappe droite). Ses calibrations, son lecteur cible et ses facteurs mesurés sont rangés sous son nom : plusieurs lecteurs peuvent partager une connexion, et un lecteur garde ses calibrations quand il change de connexion.`n`nL'application ne reconnaît pas le lecteur branché : celui qui compte est le lecteur choisi dans la liste « Lecteur : » du bandeau. Un lecteur nouveau part sans calibration, avec le profil d'origine.")
+    $ban = New-DlgBanner $dlg 16 $W (T 'Vos lecteurs de disquette') $text 'info' (New-DlgPicto 'drive') $gdi 'lblDrvText'
+    $y = $ban.Bottom + 14
+    $lv = New-Object System.Windows.Forms.ListView
+    $lv.Name = 'lvDrives'; $lv.View = 'Details'; $lv.FullRowSelect = $true; $lv.MultiSelect = $false; $lv.HideSelection = $false
+    $lv.HeaderStyle = 'Nonclickable'; $lv.Font = $dlg.Font
+    $lv.Location = New-Object System.Drawing.Point(16, $y); $lv.Size = New-Object System.Drawing.Size($W, 190)
+    [void]$lv.Columns.Add((T 'Lecteur'), 150); [void]$lv.Columns.Add((T 'Connexion'), 90); [void]$lv.Columns.Add((T 'Calibrations'), 379)
+    $y = $lv.Bottom + 12
+    $lblN = New-Object System.Windows.Forms.Label
+    $lblN.Name = 'lblDrvName'; $lblN.Text = (T 'Nom :'); $lblN.AutoSize = $true; $lblN.Location = New-Object System.Drawing.Point(16, ($y + 3))
+    $txt = New-Object System.Windows.Forms.TextBox
+    $txt.Name = 'txtDrvName'; $txt.Width = 220; $txt.MaxLength = [int]$script:DriveNameMax
+    $txt.Location = New-Object System.Drawing.Point((16 + [System.Windows.Forms.TextRenderer]::MeasureText($lblN.Text, $dlg.Font).Width + 6), $y)
+    $lblC = New-Object System.Windows.Forms.Label
+    $lblC.Name = 'lblDrvConn'; $lblC.Text = (T 'Connexion :'); $lblC.AutoSize = $true; $lblC.Location = New-Object System.Drawing.Point(($txt.Right + 24), ($y + 3))
+    $cmb = New-Object System.Windows.Forms.ComboBox
+    $cmb.Name = 'cmbDrvConn'; $cmb.DropDownStyle = 'DropDownList'; $cmb.Width = 56
+    [void]$cmb.Items.AddRange([object[]]@($script:SettingDefs['drive'].Codes))
+    $cmb.Location = New-Object System.Drawing.Point(($lblC.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblC.Text, $dlg.Font).Width + 6), $y)
+    $y += 34
+    $fS = New-Object System.Drawing.Font('Segoe UI Semibold', 9.75); $gdi.Add($fS)
+    $st = New-Object System.Windows.Forms.Label
+    $st.Name = 'lblDrvState'; $st.AutoSize = $false; $st.UseMnemonic = $false; $st.Font = $fS; $st.ForeColor = $script:Theme.Muted
+    $st.Location = New-Object System.Drawing.Point(16, $y); $st.Size = New-Object System.Drawing.Size($W, 20)
+    # 12.11 (lot LN-b) : hauteur mesuree par le Label lui-meme (son decoupage des lignes) : la maquette donnait 36 px a deux
+    # lignes, qui en demandent 40
+    $hs = 0
+    foreach ($s0 in @(Get-DrivesStateSamples $fS)) { $st.Text = [string]$s0; $h0 = $st.GetPreferredSize((New-Object System.Drawing.Size($W, 0))).Height; if ($h0 -gt $hs) { $hs = $h0 } }
+    $st.Text = ''; $st.Height = $hs
+    $y = $st.Bottom + 8
+    $bNew = New-Object System.Windows.Forms.Button; $bNew.Name = 'btnDrvNew'; $bNew.Text = (T 'Nouveau lecteur'); $bNew.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $bNew.Text 'Add' 150), 34)
+    $bDel = New-Object System.Windows.Forms.Button; $bDel.Name = 'btnDrvDel'; $bDel.Text = (T 'Supprimer…'); $bDel.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $bDel.Text 'Delete' 130), 34)
+    $bSave = New-Object System.Windows.Forms.Button; $bSave.Name = 'btnDrvSave'; $bSave.Text = (T 'Enregistrer'); $bSave.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $bSave.Text 'Save' 140), 34)
+    $bClose = New-Object System.Windows.Forms.Button; $bClose.Name = 'btnDrvClose'; $bClose.Text = (T 'Fermer'); $bClose.Size = New-Object System.Drawing.Size(110, 34)
+    $bClose.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    Set-Btn $bNew 'Add' 'normal'; Set-Btn $bDel 'Delete' 'normal'; Set-Btn $bSave 'Save' 'primary'; Set-Btn $bClose '' 'normal'
+    $bNew.Location = New-Object System.Drawing.Point(16, $y); $bDel.Location = New-Object System.Drawing.Point(($bNew.Right + 8), $y)
+    $bClose.Location = New-Object System.Drawing.Point((16 + $W - $bClose.Width), $y); $bSave.Location = New-Object System.Drawing.Point(($bClose.Left - 8 - $bSave.Width), $y)
+    $dlg.ClientSize = New-Object System.Drawing.Size(($W + 32), ($y + 34 + 16))
+    $dlg.CancelButton = $bClose
+    $dlg.Controls.AddRange(@($lv, $lblN, $txt, $lblC, $cmb, $st, $bNew, $bDel, $bSave, $bClose))
+    $s = @{ Dlg = $dlg; Lv = $lv; Name = $txt; Conn = $cmb; State = $st; New = $bNew; Del = $bDel; Save = $bSave; Close = $bClose; Gdi = $gdi; Rows = @(); Mode = 'new'; Busy = $false }
+    $script:DrvDlg = $s
+    $lv.Add_SelectedIndexChanged({ $s = $script:DrvDlg; if ($s -and -not $s.Busy) { Set-DrivesDialogInputs $s } })
+    $cmb.Add_SelectedIndexChanged({ $s = $script:DrvDlg; if ($s -and -not $s.Busy -and $s.Mode -eq 'new') { Show-DrivesDialogNote $s } })
+    $bNew.Add_Click({ if ($script:DrvDlg) { Start-DrivesDialogNew $script:DrvDlg } })
+    $bSave.Add_Click({ if ($script:DrvDlg) { [void](Invoke-DrivesDialogSave $script:DrvDlg) } })
+    $bDel.Add_Click({ if ($script:DrvDlg) { [void](Invoke-DrivesDialogDelete $script:DrvDlg) } })
+    Update-DrivesDialog $s
+    Start-DrivesDialogNew $s
+    return $s
+}
+
+function Get-DrivesDialogRow($s) {
+    # 12.11 (lot LN-b) : ligne choisie de frmDrives (Get-DriveRows), lue sur les elements eux-memes (SelectedIndices reste
+    # vide tant que la liste n a pas de poignee) ; $null sans choix ou en mode « Nouveau lecteur »
+    if (-not $s -or $s.Mode -ne 'row') { return $null }
+    for ($i = 0; $i -lt $s.Lv.Items.Count; $i++) { if ($s.Lv.Items[$i].Selected -and $i -lt @($s.Rows).Count) { return $s.Rows[$i] } }
+    return $null
+}
+
+function Set-DrivesDialogState($s, [string]$text, [bool]$err) {
+    # 12.11 (lot LN-b) : texte d etat de frmDrives : refus dans l encre du danger, note ou resultat dans l encre neutre
+    $s.State.ForeColor = $(if ($err) { $script:Theme.Danger } else { $script:Theme.Muted })
+    $s.State.Text = $text
+}
+
+function Update-DrivesDialog($s, [string]$keep = '') {
+    # 12.11 (lot LN-b) : lignes de frmDrives (Get-DriveRows) ; $keep : identite de la ligne a choisir ensuite (mode ligne)
+    $s.Busy = $true
+    try {
+        $rows = Get-DriveRows
+        $s.Rows = $rows
+        $s.Lv.BeginUpdate()
+        $s.Lv.Items.Clear()
+        foreach ($r in $rows) {
+            $it = New-Object System.Windows.Forms.ListViewItem([string]$r.Text)
+            [void]$it.SubItems.Add([string]$r.ConnText); [void]$it.SubItems.Add([string]$r.Cal)
+            [void]$s.Lv.Items.Add($it)
+        }
+        $s.Lv.EndUpdate()
+        $s.Mode = 'new'
+        if ($keep) { for ($i = 0; $i -lt @($rows).Count; $i++) { if ([string]$rows[$i].Drive -ceq $keep) { Select-DrivesDialogRow $s $i; $s.Mode = 'row' } } }
+    } finally { $s.Busy = $false }
+    if ($s.Mode -eq 'row') { Set-DrivesDialogInputs $s }
+}
+
+function Select-DrivesDialogRow($s, [int]$i) {
+    # 12.11 (lot LN-b) : une seule ligne choisie dans frmDrives : les autres d abord desselectionnees (une liste sans
+    # poignee n applique pas MultiSelect)
+    for ($k = 0; $k -lt $s.Lv.Items.Count; $k++) { if ($k -ne $i -and $s.Lv.Items[$k].Selected) { $s.Lv.Items[$k].Selected = $false } }
+    if ($i -ge 0 -and $i -lt $s.Lv.Items.Count) { $s.Lv.Items[$i].Selected = $true }
+}
+
+function Set-DrivesDialogInputs($s) {
+    # 12.11 (lot LN-b) : ligne choisie de frmDrives : nom de la fiche (vide pour un lecteur non enregistre), sa connexion
+    # (aucune pour une fiche « a preciser »), « Supprimer... » actif pour une fiche seulement
+    $s.Mode = 'row'
+    $r = Get-DrivesDialogRow $s
+    $s.Busy = $true
+    try {
+        if (-not $r) { $s.Mode = 'new'; $s.Del.Enabled = $false; return }
+        $s.Name.Text = $(if ([string]$r.Kind -eq 'rec') { [string]$r.Drive } else { '' })
+        $s.Conn.SelectedIndex = [array]::IndexOf([string[]]@($script:SettingDefs['drive'].Codes), [string]$r.Conn)
+        $s.Del.Enabled = ([string]$r.Kind -eq 'rec')
+    } finally { $s.Busy = $false }
+    Set-DrivesDialogState $s '' $false
+}
+
+function Start-DrivesDialogNew($s) {
+    # 12.11 (lot LN-b) : « Nouveau lecteur » : aucune ligne choisie, nom vide, connexion proposee : celle du lecteur du
+    # bandeau ; note de la connexion (Show-DrivesDialogNote)
+    $s.Busy = $true
+    try {
+        foreach ($it in @($s.Lv.Items)) { $it.Selected = $false }
+        $s.Mode = 'new'; $s.Name.Text = ''; $s.Del.Enabled = $false
+        $c = Get-DriveConn ([string]$cmbDrive.Text); if (-not $c) { $c = [string](Get-Setting 'drive') }
+        $s.Conn.SelectedIndex = [array]::IndexOf([string[]]@($script:SettingDefs['drive'].Codes), $c)
+    } finally { $s.Busy = $false }
+    Show-DrivesDialogNote $s
+}
+
+function Show-DrivesDialogNote($s) {
+    # 12.11 (lot LN-b) : « Nouveau lecteur » : note de la connexion choisie avant l enregistrement (Get-DriveEditPlan :
+    # elle a des calibrations sans nom de lecteur), dans l encre neutre
+    $p = Get-DriveEditPlan $null ([string]$s.Name.Text) ([string]$s.Conn.Text)
+    Set-DrivesDialogState $s ([string]$p.Note) $false
+}
+
+function Invoke-DrivesDialogSave($s) {
+    # 12.11 (lot LN-b) : bouton « Enregistrer » de frmDrives : decision (Get-DriveEditPlan), execution
+    # (Invoke-DriveEditPlan) ; refus dans le texte d etat, la fenetre reste ouverte ; resultat dans le texte d etat, liste
+    # a jour, ligne du lecteur modifie choisie. Rend le resultat d Invoke-DriveEditPlan
+    $row = Get-DrivesDialogRow $s
+    $plan = Get-DriveEditPlan $row ([string]$s.Name.Text) ([string]$s.Conn.Text)
+    $r = Invoke-DriveEditPlan $plan
+    if ($r.Error) { Set-DrivesDialogState $s ([string]$r.Error) $true; return $r }
+    if (-not $r.Ok) { return $r }
+    Update-DrivesDialog $s ([string]$plan.Name)
+    Set-DrivesDialogState $s ([string]$r.Text) $false
+    return $r
+}
+
+function Invoke-DrivesDialogDelete($s) {
+    # 12.11 (lot LN-b) : bouton « Supprimer... » de frmDrives (Remove-DriveEntry) ; ensuite, mode « Nouveau lecteur »
+    $r = Remove-DriveEntry (Get-DrivesDialogRow $s)
+    if ($r.Error) { Set-DrivesDialogState $s ([string]$r.Error) $true; return $r }
+    if (-not $r.Ok) { return $r }
+    Update-DrivesDialog $s
+    Start-DrivesDialogNew $s
+    Set-DrivesDialogState $s ([string]$r.Text) $false
+    return $r
+}
+
+function Show-DrivesDialog {
+    # 12.11 (lot LN-b) : carte « Lecteurs enregistres » de l Accueil (540) : refusee pendant une operation (texte qui porte
+    # le libelle rendu par Get-AppBusy, la fonction qui decide : la pause d une mesure continue et une detection des
+    # lecteurs en sont), sinon frmDrives (New-DrivesDialog), modale ; images et polices liberees a la fermeture
+    $busy = Get-AppBusy -Text
+    if ($busy) { [void](Show-AppMessage ((T 'Lecteurs enregistrés : opération en cours ({0}). Réessayez quand elle est terminée.') -f "$busy") (T 'Lecteurs enregistrés') 'OK' 'Information'); return }
+    $s = New-DrivesDialog
+    [void](Set-DlgFit $s.Dlg ([System.Windows.Forms.Screen]::FromControl($form).WorkingArea))
+    try { [void]$s.Dlg.ShowDialog($form) } finally { $script:DrvDlg = $null; Clear-DlgGdi $s.Dlg $s.Gdi }
+}
 # ============================== FONCTIONS : CONFIGURATION ======================
 
 # --- Reglages a source unique (12.8, point 7) ----------------------------------
@@ -6137,6 +6902,9 @@ function Set-SettingCtlValue($c, [string]$k, $v) {
     # propriete modifiee seulement si elle change (pas d evenement inutile)
     if ($c -is [System.Windows.Forms.CheckBox]) { if ($c.Checked -ne [bool]$v) { $c.Checked = [bool]$v } }
     elseif ($c -is [System.Windows.Forms.ComboBox]) {
+        # 12.11 (lot LN-b) : avec des lecteurs enregistres, la liste du bandeau porte des lecteurs et le reglage drive leur
+        # connexion : le lecteur choisi reste s il est sur cette connexion, sinon le lecteur retenu pour elle (112)
+        if ($k -eq 'drive' -and $script:DriveReg.Count -gt 0) { Sync-DriveCombo; return }
         $i = [array]::IndexOf([string[]]$script:SettingDefs[$k].Codes, [string]$v)
         if ($i -lt $c.Items.Count -and $c.SelectedIndex -ne $i) { $c.SelectedIndex = $i }
     }
@@ -6171,8 +6939,10 @@ function Register-SettingCtl([string]$k, $c) {
     # puis Load-Config, initialisent les controles au demarrage
     if (-not $script:SettingCtl.ContainsKey($k)) { $script:SettingCtl[$k] = New-Object System.Collections.ArrayList }
     [void]$script:SettingCtl[$k].Add($c); $script:SettingOf[$c] = $k
+    # 12.11 (lot LN-b) : liste du bandeau, element au-dela des six connexions (lecteur enregistre) : le reglage drive recoit
+    # sa connexion (Get-DriveConn, 112)
     if ($c -is [System.Windows.Forms.CheckBox]) { $c.Add_CheckedChanged({ if (-not $script:SettingSync) { Set-Setting $script:SettingOf[$this] $this.Checked $this } }) }
-    elseif ($c -is [System.Windows.Forms.ComboBox]) { $c.Add_SelectedIndexChanged({ if (-not $script:SettingSync -and $this.SelectedIndex -ge 0) { $kk = $script:SettingOf[$this]; Set-Setting $kk $script:SettingDefs[$kk].Codes[$this.SelectedIndex] $this } }) }
+    elseif ($c -is [System.Windows.Forms.ComboBox]) { $c.Add_SelectedIndexChanged({ if (-not $script:SettingSync -and $this.SelectedIndex -ge 0) { $kk = $script:SettingOf[$this]; $cd = $script:SettingDefs[$kk].Codes[$this.SelectedIndex]; if ($kk -eq 'drive' -and $this.SelectedIndex -ge @($script:SettingDefs[$kk].Codes).Count) { $cd = Get-DriveConn ([string]$this.SelectedItem) }; Set-Setting $kk $cd $this } }) }
     elseif ($c -is [System.Windows.Forms.NumericUpDown]) { $c.Add_ValueChanged({ if (-not $script:SettingSync) { Set-Setting $script:SettingOf[$this] $this.Value $this } }) }
 }
 
@@ -6833,6 +7603,9 @@ function Load-Config {
     # qui n en a jamais eu. Les courbes sont deja rangees : une courbe sans lecteur d une configuration 12.9 reste sous la
     # connexion relue, jamais sous un nom
     Import-DriveRegistry $cfg $old
+    # 12.11 (lot LN-b) : lecteur de la configuration : le dernier lecteur enregistre choisi sur la connexion relue s il y
+    # est toujours, sinon le lecteur non enregistre (vue, profils de famille et courbes mises de cote de ce lecteur)
+    if ($script:DriveReg.Count -gt 0) { $ldDrive = Get-DriveForConn $ldDrive }
     Sync-PrecompCurves $ldDrive
     if ($imp.Migrated) { Append-Log ((T "Configuration d'une version antérieure : {0} courbe(s) de calibration rangée(s) par lecteur ({1}).") -f "$($imp.N + $old.Count)", ((@($imp.Drives)) -join ', ')) }
     # Profil de famille : celui de la courbe commune reprise du lecteur (Sync-PrecompCurves) ; mis de cote avec sa courbe ;
@@ -6880,6 +7653,9 @@ function Load-Config {
     # donnees lues (Repair-DriveRegistry, 112 ; bloc targetDrive lu brut, avant qu Import-TargetDrives ecarte les lecteurs
     # inconnus) ; aucune pour une configuration dont toutes les donnees citent une connexion (12.10)
     [void](Repair-DriveRegistry $old (Get-Cfg $w 'targetDrive' $null))
+    # 12.11 (lot LN-b) : liste du bandeau (les six connexions, puis les lecteurs enregistres qui ont une connexion) et sa
+    # disposition (Update-DriveList, 112) ; registre vide et liste de six elements : rien (12.10)
+    if ($script:DriveReg.Count -gt 0 -or $cmbDrive.Items.Count -gt @($script:SettingDefs['drive'].Codes).Count) { Update-DriveList }
     $tdi = Import-TargetDrives (Get-Cfg $w 'targetDrive' $null)
     if ([int]$tdi.Bad -gt 0) { Append-Log ((T 'Configuration : {0} lecteur(s) cible illisible(s) ou inconnu(s), ignoré(s).') -f "$($tdi.Bad)") }
     # 12.11 : registre relu dans la copie de secours : lecteurs cibles des lecteurs enregistres retablis depuis elle (une
@@ -6934,7 +7710,12 @@ function Load-Config {
     # illisible ou ramenee a 0..30 min), profil precomp (code, sinon ancien texte francais ou anglais), seuil de famille,
     # carte « Calibrer le lecteur », mesure de l onglet Qualite, seuils de jitter, nettoyage de l onglet Outils
     $lateKeys = @('slowWrite', 'warmSlowWrite', 'warmFullCalib', 'levelBeforeWrite', 'levelBeforeWriteMode')
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, aucune ligne « Lecteur choisi » au chargement (« avant : A » ne
+    # serait que la valeur de Set-Defaults), puis bandeau sur le lecteur retenu pour la connexion du reglage : le reglage
+    # seul ne change pas de lecteur sur une meme connexion (Sync-DriveCombo)
+    if ($script:DriveReg.Count -gt 0) { $script:DriveCur = '' }
     Import-Settings $cfg -Except $lateKeys
+    if ($script:DriveReg.Count -gt 0) { Set-Combo $cmbDrive (Get-DriveForConn ([string](Get-Setting 'drive'))); $script:DriveCur = [string]$cmbDrive.Text }
     Update-LegacyCleanDefault $cfg             # 12.8 (D9) : ancien defaut du nettoyage de l onglet Outils
     Test-ContentLevelSettings $cfg             # 12.8.1 : niveaux de la mesure sur l image, controles ensemble
     $chkWPostCheck.Checked = [bool](Get-Cfg $w 'postCheck' $true)
@@ -9690,7 +10471,9 @@ function Update-WLevelUi {
     $lm = [string](Get-Setting 'levelBeforeWriteMode')
     $full = ($lm -eq 'complete')
     $lk = Get-LevelBeforeWriteKind $(if ($on) { 'slow' } else { 'fast' }) $false $false
-    $chkWLevel.Text = if ($quick -and $ta) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide », sauf pour le lecteur cible {0} (elle relirait avec le lecteur {1})") -f "$($tw.Tgt)", "$($tw.Src)" } elseif ($quick -and $lk -eq 'complete') { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (mesure complète de cette disquette en écriture lente)") } elseif ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } elseif ($lm -eq 'content') { (T "Mesurer la disquette avant l'écriture lente : précompensation mesurée sur l'image (environ 12 min)") } elseif ($full) { (T "Mesurer la disquette avant l'écriture lente : précompensation et état de la surface") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
+    # 12.11 (lot LN-b) : un lecteur enregistre en jeu (lecteur qui ecrit ou lecteur cible) : texte court, sans les deux
+    # lecteurs (avec un nom, le texte a deux lecteurs depasserait la case) ; l infobulle les nomme
+    $chkWLevel.Text = if ($quick -and $ta -and $script:DriveReg.Count -gt 0 -and ((Test-DriveRegistered ([string]$tw.Tgt)) -or (Test-DriveRegistered ([string]$tw.Src)))) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide », sauf pour un lecteur cible") } elseif ($quick -and $ta) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide », sauf pour le lecteur cible {0} (elle relirait avec le lecteur {1})") -f "$($tw.Tgt)", "$($tw.Src)" } elseif ($quick -and $lk -eq 'complete') { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (mesure complète de cette disquette en écriture lente)") } elseif ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } elseif ($lm -eq 'content') { (T "Mesurer la disquette avant l'écriture lente : précompensation mesurée sur l'image (environ 12 min)") } elseif ($full) { (T "Mesurer la disquette avant l'écriture lente : précompensation et état de la surface") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
     $chkWLevel.Enabled = ($on -and -not $quick -and -not $ta)
     # 12.8 (S3) : liste du mode de la mesure (rapide ou complete) : active en ecriture lente quand la disquette est mesuree
     # (case cochee, ou verrouillee au « Test rapide »)
@@ -9735,6 +10518,9 @@ function Start-ImageWrite([switch]$NoWarmup) {
     # (Test-TargetWriteAllowed : journal et fenetre) ; $tgtDrive : lecteur cible dont les courbes croisees sont ecrites ('' :
     # meme lecteur, ou lecteur cible sans effet sur cette ecriture, Get-TargetWriteInfo : ligne de journal)
     if (-not (Test-TargetWriteAllowed $txtWFile.Text $cmbWFmt.Text ([bool]$chkWSlow.Checked))) { return }
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, lecteur branche confirme s il y a lieu et ligne « Lecteur qui
+    # ecrit » au journal (Confirm-DriveIdentity, 112) ; refus : rien n est ecrit
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity -Write)) { return }
     $tw = Get-TargetWriteInfo $txtWFile.Text $cmbWFmt.Text ([bool]$chkWSlow.Checked)
     $tgtDrive = if ($tw.Applies) { [string]$tw.Tgt } else { '' }
     if ($tw.Tgt -and -not $tw.Applies -and $tw.Why) { Append-Log ((T "Lecteur cible {0} sans effet sur cette écriture : {1}.") -f "$($tw.Tgt)", "$($tw.Why)") }
@@ -17869,9 +18655,16 @@ function Split-CrossDrive([string]$drive) {
     return $null
 }
 
-function Get-CrossCalibTargets([string[]]$ids, [string]$src) {
+function Get-CrossCalibTargets([string[]]$ids, [string]$src, [switch]$OtherConn) {
     # 12.10 : lecteurs cibles possibles d une calibration croisee : ceux de la liste du bandeau, sauf la source ; tableau
     # protege par la virgule (pas de @() autour de l appel)
+    # 12.11 (lot LN-b) : -OtherConn, avec des lecteurs enregistres : sans les lecteurs de la connexion de la source
+    # (Get-DriveConn, 112) : les deux lecteurs d une calibration croisee sont branches en meme temps, chacun sur sa
+    # connexion. Sans le commutateur, ou registre vide : resultat de la 12.10
+    if ($OtherConn -and $script:DriveReg.Count -gt 0) {
+        $sc = Get-DriveConn $src
+        return ,@(@($ids) | ForEach-Object { [string]$_ } | Where-Object { $_ -and $_ -ne $src -and (Get-DriveConn $_) -cne $sc })
+    }
     return ,@(@($ids) | ForEach-Object { [string]$_ } | Where-Object { $_ -and $_ -ne $src })
 }
 
@@ -19917,6 +20710,7 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
             elseif ($cal.Cross) { ((T "Conserver la courbe : elle est enregistrée pour les écritures du lecteur {0} destinées au lecteur {1} (courbe croisée « {0} → {1} »), sans modifier la courbe propre du lecteur {0}.`nAbandonner la courbe : la courbe croisée précédente, s'il y en avait une, est rétablie.") -f "$($cal.Cross.Src)", "$($cal.Cross.Tgt)") }
             elseif ($tgtR -and [string]$cal.Family -eq 'hd') { ((T "Conserver la courbe : elle est enregistrée comme courbe propre du lecteur {0}, appliquée à ses écritures haute densité sans lecteur cible ; avec le lecteur cible {1} choisi, ses écritures haute densité en profil Auto sont refusées (la calibration croisée n'existe qu'en double densité).`nAbandonner la courbe : la calibration précédente est rétablie.") -f "$($cal.Drive)", "$tgtR") }
             elseif ($tgtR) { ((T "Conserver la courbe : elle est enregistrée comme courbe propre du lecteur {0}, appliquée à ses écritures sans lecteur cible ; avec le lecteur cible {1} choisi, ses écritures appliquent la courbe croisée {0} → {1} (refusées sans elle).`nAbandonner la courbe : la calibration précédente est rétablie.") -f "$($cal.Drive)", "$tgtR") }
+            elseif ($script:DriveReg.Count -gt 0 -and (Test-DriveRegistered ([string]$cal.Drive))) { ((T "Conserver la courbe : elle est enregistrée pour le lecteur {0} et appliquée à ses prochaines écritures.`nAbandonner la courbe : la calibration précédente est rétablie.") -f "$($cal.Drive)") }   # 12.11 (lot LN-b) : lecteur enregistre nomme
             else { (T "Conserver la courbe : elle est enregistrée et appliquée aux prochaines écritures.`nAbandonner la courbe : la calibration précédente est rétablie.") }
     if ($offerFull) { $head += "`n" + (T "Calibration complète : la courbe du lecteur est mesurée de nouveau en test fin, après un avertissement ; elle devient la nouvelle référence de forme.") }
     # 12.8 (S3, W-M1) : mesure complete de cette disquette proposee par la calibration rapide avant une ecriture lente
@@ -21007,6 +21801,9 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     $noBrand = [bool]$script:LevelNoBrand; $script:LevelNoBrand = $false
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     $script:Cal = $null
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, lecteur branche confirme s il y a lieu (Confirm-DriveIdentity, 112) ;
+    # refus : calibration non lancee ($script:Cal vide, que lisent les appelants)
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity)) { return }
     $script:LevelPostForce = $false
     $chk = Test-CalibImage $Geom
     if (-not $chk) { return }
@@ -23761,6 +24558,9 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     $cx = $script:CalCrossAsk; $script:CalCrossAsk = $null
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     $script:Cal = $null
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, lecteur branche confirme s il y a lieu (Confirm-DriveIdentity, 112) ;
+    # refus : calibration non lancee ($script:Cal vide, que lisent les appelants)
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity)) { return }
     $chk = Test-CalibImage $Geom
     if (-not $chk) { return }
     $img = $chk.Img; $family = $chk.Family; $nCyl = $chk.NCyl; $maxCyl = $chk.MaxCyl; $cylSrc = $chk.CylSrc
@@ -24013,7 +24813,9 @@ function Start-CrossCalib {
     if ($busy) { $res.Why = "$busy"; [void](Show-AppMessage ((T "Calibration croisée impossible : opération en cours ({0}).") -f "$busy") (T 'Calibration precomp') 'OK' 'Warning'); return $res }
     if ($script:CalRedo) { $res.Why = (T 'calibration B'); [void](Show-AppMessage (T "Calibration croisée impossible : une calibration B (« Refaire sur une autre disquette ») est en cours ou en attente de décision.") (T 'Calibration precomp') 'OK' 'Warning'); return $res }
     $src = [string]$cmbDrive.Text
-    $targets = Get-CrossCalibTargets @($cmbDrive.Items | ForEach-Object { [string]$_ }) $src
+    # 12.11 (lot LN-b) : -OtherConn : avec des lecteurs enregistres, les lecteurs de la connexion de la source ne sont pas
+    # proposes (les deux lecteurs sont branches en meme temps, chacun sur sa connexion) ; la fenetre de choix le dit
+    $targets = Get-CrossCalibTargets @($cmbDrive.Items | ForEach-Object { [string]$_ }) $src -OtherConn
     if ($targets.Count -eq 0) { $res.Why = (T 'aucun autre lecteur'); [void](Show-AppMessage (T 'Calibration croisée impossible : aucun autre lecteur dans la liste du bandeau.') (T 'Calibration precomp') 'OK' 'Warning'); return $res }
     # 12.10 (relecture de la RC) : image de l onglet Ecriture d apres le controle de la calibration elle-meme
     # (Get-CalibImageCheck, 260, celui de Test-CalibImage au debut de Start-PrecompCalib) : annoncee et reprise seulement si
@@ -24034,11 +24836,19 @@ function Start-CrossCalib {
     if (@('std', 'long') -notcontains $imgFam) { $imgFam = '' }
     $imgInfo = if ($imgFam) { (T "Image de l'onglet Écriture : {0} ({1}) ; avec cette famille, ses cylindres sont ceux de la calibration ; avec l'autre, 80 cylindres à la densité de la famille.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))", (Get-CalibFamilyName $imgFam) }
                else { (T "Aucune image calibrable dans l'onglet Écriture : 80 cylindres, à la densité de la famille choisie.") }
+    if ($script:DriveReg.Count -gt 0) {
+        $allT = Get-CrossCalibTargets @($cmbDrive.Items | ForEach-Object { [string]$_ }) $src
+        $sameC = @($allT | Where-Object { $targets -cnotcontains $_ })
+        if ($sameC.Count -gt 0) { $imgInfo += "`n" + ((T 'Non proposés, parce qu''ils sont sur la connexion {0} du lecteur qui écrit : {1}. Les deux lecteurs d''une calibration croisée sont branchés en même temps, chacun sur sa connexion.') -f (Get-DriveConn $src), (Format-ConnDrives $sameC)) }
+    }
     $nPassEst = @($script:CalCoarse).Count + [int]$script:CalMaxVerify
     $swF = Get-CrossSwapEstimate $nPassEst $true ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify); $swS = Get-CrossSwapEstimate $nPassEst $false ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify)   # 12.11 : au moins : une seule verification
     $ch = Show-CrossCalibDialog $src $targets $(if ($imgFam) { $imgFam } else { 'std' }) ($cmbWCalMode.SelectedIndex -eq 1) $imgInfo ([bool]$chkWSlow.Checked) ([int]$swF.Min) ([int]$swS.Max) (Get-TargetDrive $src)   # 12.11 : lecteur cible de l onglet Ecriture preselectionne
     if (-not $ch.Ok) { $res.Why = (T 'annulée'); Append-Log (T "Calibration croisée : fenêtre de choix fermée, rien n'est lancé."); return $res }
     $tgt = [string]$ch.Target; $fam = [string]$ch.Family; $test = $(if ($ch.Fine) { 'fine' } else { 'std' })
+    # 12.11 (lot LN-b) : lecteur cible confirme quand sa connexion porte plusieurs lecteurs (Confirm-DriveIdentity -Target,
+    # 112), avant que la demande soit posee : refus, rien n est lance
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity -Target $tgt)) { $res.Why = (T 'Opération annulée : lecteur branché non confirmé.'); return $res }
     Append-Log ((T "Calibration croisée demandée : écriture par le lecteur {0}, relecture par le lecteur {1}, famille {2}, {3}.") -f "$src", "$tgt", (Get-CalibFamilyName $fam), $(if ($ch.Fine) { (T 'test fin') } else { (T 'test standard') }))
     $geom = $null
     if ($fam -ne $imgFam) {
@@ -24334,9 +25144,13 @@ function Update-CalibProgress {
     # 12.10 (relecture de la RC) : texte court, entier sur la ligne de lblWCal (520 : largeur fixe, 439 px a la taille
     # minimale de la fenetre) : « controle de surface, decision demandee (lecteur A). » mesurait 445 px, la lettre du
     # lecteur passait sous les points de suspension
+    # 12.11 (lot LN-b) : lecteur enregistre : texte court, le nom en tete (en fin de texte, il passerait sous les points de
+    # suspension) ; de meme pour l echange de disquette ci-dessous
+    if ($cal.Hold -and $script:DriveReg.Count -gt 0 -and (Test-DriveRegistered ([string]$cal.Drive))) { $lblWCal.Text = (T '{0} : contrôle de surface, décision demandée') -f "$($cal.Drive)"; return }
     if ($cal.Hold) { $lblWCal.Text = (T "Calibration en attente : décision sur le contrôle de surface (lecteur {0}).") -f "$($cal.Drive)"; return }
     # 12.10 : calibration croisee en attente d un echange de disquette (Invoke-CalibSwap). 12.10 (relecture des captures) :
     # texte court, sur une ligne a la taille minimale de la fenetre (439 px a x = 320), anglais compris
+    if ($cal.SwapHold -and $script:DriveReg.Count -gt 0 -and ((Test-DriveRegistered ([string]$cal.SwapHold.From)) -or (Test-DriveRegistered ([string]$cal.SwapHold.To)))) { $lblWCal.Text = (T '{0} → {1} : déplacez la disquette') -f "$($cal.SwapHold.From)", "$($cal.SwapHold.To)"; return }
     if ($cal.SwapHold) { $lblWCal.Text = (T "Calibration croisée : déplacez la disquette du lecteur {0} vers le lecteur {1}") -f "$($cal.SwapHold.From)", "$($cal.SwapHold.To)"; return }
     # Libelles au format court du prechauffage de l ecriture : avancement et temps restant en tete, details ensuite entre
     # parentheses (libelle coupe a la largeur de l onglet a la taille minimale de la fenetre)
@@ -27237,6 +28051,9 @@ function Start-ContentMeasure($chk) {
     # avant ou apres la confirmation) : ecriture annulee, une ligne de journal (revue 12.8.1, point 7)
     $refusTxt = (T 'Écriture annulée : une commande gw est déjà en cours, mesure de la disquette non lancée.')
     if ($script:GwProc -and -not $script:GwProc.HasExited) { $script:AfterCalib = ''; Append-Log $refusTxt; return }
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, lecteur branche confirme s il y a lieu (Confirm-DriveIdentity, 112) ;
+    # refus : ecriture annulee, comme le refus qui precede
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity)) { $script:AfterCalib = ''; return }
     $drive = [string]$chk.Drive; $img = [string]$chk.Img; $fam = [string]$chk.Fam; $plan = $chk.Plan
     $lv = [double[]]@($chk.Levels)
     $cyls = [int[]]@($plan.Cyls | Sort-Object -Unique)
@@ -28257,6 +29074,9 @@ function Set-RestoreFormat([string]$fmt) {
 function Update-RsDrive {
     # 12.8 (D10) : lecteur de la restauration, celui du bandeau (Update-SettingDependents 'drive')
     if (-not $lblRsDrive) { return }
+    # 12.11 (lot LN-b) : lecteur enregistre dans le bandeau : texte court, son nom et sa connexion (Get-DriveLabel, 112) :
+    # avec un nom, le texte de la 12.10 depasserait les 290 px du libelle
+    if ($script:DriveReg.Count -gt 0 -and (Test-DriveRegistered ([string]$cmbDrive.Text))) { $lblRsDrive.Text = (T '{0}  (bandeau)') -f (Get-DriveLabel ([string]$cmbDrive.Text)); return }
     $lblRsDrive.Text = (T "{0}  (choix « Lecteur » du bandeau)") -f "$(Get-Setting 'drive')"
 }
 
@@ -28555,6 +29375,9 @@ function Start-Restore {
         Append-Log ((T "Restauration refusée : opération en cours ({0}).") -f "$busy")
         [void](Show-AppMessage (T 'Une opération est déjà en cours : attendez sa fin ou cliquez sur « Arrêter ».') (T 'Restauration') 'OK' 'Information'); return
     }
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, lecteur branche confirme s il y a lieu (Confirm-DriveIdentity, 112) ;
+    # refus : restauration non lancee
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity)) { return }
     if (-not (Test-Path -LiteralPath $script:GwExe)) {
         [void](Show-AppMessage ((T "gw.exe introuvable : {0}`n`nPlacez ce script dans le même répertoire que gw.exe.") -f "$($script:GwExe)") (T 'Erreur') 'OK' 'Error'); return
     }
@@ -29559,6 +30382,11 @@ $cmbDrive.Anchor = 'Top,Right'
 [void]$cmbDrive.Items.AddRange(@('A','B','0','1','2','3'))
 $tip.SetToolTip($cmbDrive, (T "A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0 à 3 = bus Shugart (nappe droite) - typiquement le lecteur Amiga`nAu démarrage, l'application sélectionne le premier lecteur qui répond."))
 Register-SettingCtl 'drive' $cmbDrive          # 12.8 (point 7) : lecteur de toute l application (fenetre de nettoyage comprise)
+# 12.11 (lot LN-b) : lecteurs enregistres (112). Seul un choix fait dans la liste deroulee vaut confirmation du lecteur
+# branche (Set-DriveHandChoice) ; molette sans effet sur la liste fermee, avec ou sans lecteur enregistre (un geste
+# involontaire changeait de lecteur) : evenement marque traite ; liste deroulee, la molette la fait defiler comme avant
+$cmbDrive.Add_SelectionChangeCommitted({ Set-DriveHandChoice $this.DroppedDown })
+$cmbDrive.Add_MouseWheel({ if (-not $this.DroppedDown -and $_ -is [System.Windows.Forms.HandledMouseEventArgs]) { $_.Handled = $true } })
 
 $txtDev = New-Object System.Windows.Forms.TextBox
 $txtDev.Location = '652,34'; $txtDev.Width = 50; $txtDev.Anchor = 'Top,Right'
@@ -29582,8 +30410,13 @@ $btnHelpTop.Text = (T 'Aide'); $btnHelpTop.Location = '404,28'; $btnHelpTop.Size
 $btnHelpTop.Add_Click({ Open-HelpForTab })
 $tip.SetToolTip($btnHelpTop, (T 'Ouvre le guide en ligne de l''onglet affiché (touche F1).'))
 
-$pnlTop.Controls.AddRange(@($lblGwStatus, (New-BannerLabel (T 'Lecteur :') '500,37'), $cmbDrive,
-    (New-BannerLabel (T 'COM :') '612,37'), $txtDev, $chkTime, $chkExpert, $btnHelpTop))
+# 12.11 (lot LN-b) : libelles nommes : texte et place du libelle du lecteur, place de « COM : » selon les lecteurs
+# enregistres (Set-DriveBannerLayout, 112 : positions de la 12.10 sans lecteur enregistre ayant une connexion)
+$lblDrive = New-BannerLabel (T 'Lecteur :') '500,37'
+$lblCom = New-BannerLabel (T 'COM :') '612,37'
+$pnlTop.Controls.AddRange(@($lblGwStatus, $lblDrive, $cmbDrive,
+    $lblCom, $txtDev, $chkTime, $chkExpert, $btnHelpTop))
+$script:DriveBanner = $null      # 12.11 (lot LN-b) : positions de la 12.10, relevees au premier appel de Set-DriveBannerLayout
 
 # --- Separateur onglets / journal ----------------------------------------------
 $split = New-Object System.Windows.Forms.SplitContainer
@@ -30169,6 +31002,7 @@ Register-SettingCtl 'levelBeforeWriteMode' $cmbWLevelMode
 $cmbDrive.Add_TextChanged({
     Update-TargetDriveUi; Update-SlowUi
     Sync-PrecompCurves
+    Update-DriveChoice                         # 12.11 (lot LN-b) : lecteur a confirmer, dernier lecteur de la connexion, bandeau (112)
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
     if ($form.Visible) { Update-PrecompForImage $txtWFile.Text }
 })
@@ -30826,7 +31660,11 @@ $script:HomeCalDesc = $cardCalib.Controls[3].Text      # description d origine, 
 # avertissement (« Limite de precompensation atteinte... ») tenait sur trois lignes, la 3e coupee a mi-hauteur
 $cardCalib.Controls[3].AutoEllipsis = $true
 $cardCalib.Controls[3].Add_TextChanged({ Update-HomeCalDescTip })
-$tabH.Controls.AddRange(@($lblHTitle, $lblHSub, $pnlHomeProg, $cardRestore, $cardWrite, $cardRead, $cardCheck, $cardCalib, $cardClean, $cardTest, $cardHelp, $cardJitter))
+# 12.11 (lot LN-b) : lecteurs enregistres (fenetre frmDrives, 112), dernier emplacement libre de l Accueil ; description
+# de Get-DrivesCardText (fiches sans connexion comptees), mise a jour par Update-DriveList
+$cardDrives  = New-HomeCard 'Pin' (T 'Lecteurs enregistrés') (Get-DrivesCardText) '397,432' { Show-DrivesDialog }
+$script:DrvDlg = $null
+$tabH.Controls.AddRange(@($lblHTitle, $lblHSub, $pnlHomeProg, $cardRestore, $cardWrite, $cardRead, $cardCheck, $cardCalib, $cardClean, $cardTest, $cardHelp, $cardJitter, $cardDrives))
 
 # ============================== RESTAURATION : INTERFACE =======================
 # Assistant : lecture de l original, changement de disquette, ecriture stricte, controle et comparaison. La logique
@@ -31792,6 +32630,9 @@ $timer.Add_Tick({
     # continue (analyse faite apres la fin de gw, mesure suivante attendue) et sortie sans commande gw (Arreter, erreur
     # d analyse, autre operation)
     if (-not $script:GwProc -and [bool]$script:QualPauseBar -ne ((Get-AppBusy) -eq 'quality')) { Set-Busy $false }
+    # 12.11 (lot LN-b) : liste « Lecteur : » du bandeau inactive pendant toute operation, sauf la pause d une mesure
+    # continue (Update-DriveLock, 112), avec ou sans lecteur enregistre
+    Update-DriveLock
     # Recherche bibliotheque terminee ?
     if ($script:LibAsync -and $script:LibAsync.IsCompleted) { Complete-LibSearch }
     # Indexation en cours / terminee

@@ -303,8 +303,13 @@ function Complete-DriveDetect {
     if ($dt.Mode -ne 'auto') { Append-Log ((T "Lecteur(s) détecté(s) : {0}.") -f "$($dt.Found -join ', ')") }
     if ($pick -ne $dt.Cur) {
         # 12.8 (D10) : la restauration suit le lecteur du bandeau, sans reglage propre a recaler
-        Set-Combo $cmbDrive $pick
+        # 12.11 (lot LN-b) : avec des lecteurs enregistres, le lecteur retenu pour la connexion qui repond, le dernier choisi
+        # sur elle (Get-DriveForConn, 112) : la detection ne reconnait pas le lecteur branche, une ligne le dit
+        $pickD = $pick
+        if ($script:DriveReg.Count -gt 0) { $pickD = Get-DriveForConn $pick }
+        Set-Combo $cmbDrive $pickD
         Append-Log ((T "Lecteur {0} sélectionné : le lecteur {1} ne répond pas.") -f "$pick", "$($dt.Cur)")
+        if ($pickD -cne $pick) { Append-Log ((T 'Connexion {0} : lecteur retenu « {1} », le dernier choisi sur cette connexion. La détection ne reconnaît pas le lecteur branché : vérifiez la liste « Lecteur : » du bandeau.') -f "$pick", "$pickD") }
     } else { Append-Log ((T "Lecteur {0} détecté.") -f "$pick") }
 }
 
@@ -560,8 +565,12 @@ function Get-LogExportHeader([datetime]$when = (Get-Date)) {
     # « / » et « : » d un format .NET sont sinon les separateurs de la culture du poste (13.11.2026 en de-DE, 14.05.09 en
     # fi-FI) ; la ligne s ecrit de la meme facon sur tout poste
     $tgt = Get-TargetDrive
+    $src = "$($cmbDrive.Text)"
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, les deux lecteurs avec leur connexion (Get-DriveLabel, 112 :
+    # « Sony MPF920 (A) ») : deux journaux faits sur A avec deux lecteurs n ont pas le meme en-tete
+    if ($script:DriveReg.Count -gt 0) { $src = Get-DriveLabel $src; if ($tgt) { $tgt = Get-DriveLabel $tgt } }
     $l1 = (T "Journal exporté le {0} par Greaseweazle Studio v{1} ; calcul de calibration v{2}, mesure sur l'image v{3}.") -f $when.ToString('dd/MM/yyyy HH:mm:ss', [System.Globalization.CultureInfo]::InvariantCulture), "$($script:Version)", "$($script:CalibCalc)", "$($script:ContentCalc)"
-    $l2 = (T "Lecteur du bandeau : {0} ; lecteur cible de ses écritures : {1}.") -f "$($cmbDrive.Text)", $(if ($tgt) { $tgt } else { (T '(même lecteur)') })
+    $l2 = (T "Lecteur du bandeau : {0} ; lecteur cible de ses écritures : {1}.") -f $src, $(if ($tgt) { $tgt } else { (T '(même lecteur)') })
     return ,@($l1, $l2)
 }
 

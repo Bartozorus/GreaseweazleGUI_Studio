@@ -20,6 +20,11 @@ $cmbDrive.Anchor = 'Top,Right'
 [void]$cmbDrive.Items.AddRange(@('A','B','0','1','2','3'))
 $tip.SetToolTip($cmbDrive, (T "A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0 à 3 = bus Shugart (nappe droite) - typiquement le lecteur Amiga`nAu démarrage, l'application sélectionne le premier lecteur qui répond."))
 Register-SettingCtl 'drive' $cmbDrive          # 12.8 (point 7) : lecteur de toute l application (fenetre de nettoyage comprise)
+# 12.11 (lot LN-b) : lecteurs enregistres (112). Seul un choix fait dans la liste deroulee vaut confirmation du lecteur
+# branche (Set-DriveHandChoice) ; molette sans effet sur la liste fermee, avec ou sans lecteur enregistre (un geste
+# involontaire changeait de lecteur) : evenement marque traite ; liste deroulee, la molette la fait defiler comme avant
+$cmbDrive.Add_SelectionChangeCommitted({ Set-DriveHandChoice $this.DroppedDown })
+$cmbDrive.Add_MouseWheel({ if (-not $this.DroppedDown -and $_ -is [System.Windows.Forms.HandledMouseEventArgs]) { $_.Handled = $true } })
 
 $txtDev = New-Object System.Windows.Forms.TextBox
 $txtDev.Location = '652,34'; $txtDev.Width = 50; $txtDev.Anchor = 'Top,Right'
@@ -43,8 +48,13 @@ $btnHelpTop.Text = (T 'Aide'); $btnHelpTop.Location = '404,28'; $btnHelpTop.Size
 $btnHelpTop.Add_Click({ Open-HelpForTab })
 $tip.SetToolTip($btnHelpTop, (T 'Ouvre le guide en ligne de l''onglet affiché (touche F1).'))
 
-$pnlTop.Controls.AddRange(@($lblGwStatus, (New-BannerLabel (T 'Lecteur :') '500,37'), $cmbDrive,
-    (New-BannerLabel (T 'COM :') '612,37'), $txtDev, $chkTime, $chkExpert, $btnHelpTop))
+# 12.11 (lot LN-b) : libelles nommes : texte et place du libelle du lecteur, place de « COM : » selon les lecteurs
+# enregistres (Set-DriveBannerLayout, 112 : positions de la 12.10 sans lecteur enregistre ayant une connexion)
+$lblDrive = New-BannerLabel (T 'Lecteur :') '500,37'
+$lblCom = New-BannerLabel (T 'COM :') '612,37'
+$pnlTop.Controls.AddRange(@($lblGwStatus, $lblDrive, $cmbDrive,
+    $lblCom, $txtDev, $chkTime, $chkExpert, $btnHelpTop))
+$script:DriveBanner = $null      # 12.11 (lot LN-b) : positions de la 12.10, relevees au premier appel de Set-DriveBannerLayout
 
 # --- Separateur onglets / journal ----------------------------------------------
 $split = New-Object System.Windows.Forms.SplitContainer

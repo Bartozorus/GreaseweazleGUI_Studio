@@ -361,6 +361,7 @@ Register-SettingCtl 'levelBeforeWriteMode' $cmbWLevelMode
 $cmbDrive.Add_TextChanged({
     Update-TargetDriveUi; Update-SlowUi
     Sync-PrecompCurves
+    Update-DriveChoice                         # 12.11 (lot LN-b) : lecteur a confirmer, dernier lecteur de la connexion, bandeau (112)
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
     if ($form.Visible) { Update-PrecompForImage $txtWFile.Text }
 })

@@ -1273,7 +1273,11 @@ foreach ($k in @($TX.Keys)) {
     if ($got -cne $en -or $phF -cne $phE) { $i3 += $k }
 }
 $t019 = [System.IO.File]::ReadAllText((Get-LnModule $mods '019'), [System.Text.Encoding]::UTF8)
-$used112 = @((Get-LnAst (Get-LnModule $mods '112')).FindAll({ param($x) $x -is $tCmd -and $x.GetCommandName() -eq 'T' }, $true) | ForEach-Object { [string]$_.CommandElements[1].Value } | Sort-Object -Unique)
+# 12.11 (lot LN-b) : adapte a dessein : seules les fonctions du socle, avant la section de l interface (fin du module 112,
+# textes controles par logic-lecteurs-bandeau, I3)
+$lnbAt = ([System.IO.File]::ReadAllText((Get-LnModule $mods '112'), [System.Text.Encoding]::UTF8)).IndexOf('# ============================== LN-b')
+if ($lnbAt -lt 0) { $lnbAt = [int]::MaxValue }
+$used112 = @((Get-LnAst (Get-LnModule $mods '112')).FindAll({ param($x) $x -is $tCmd -and $x.GetCommandName() -eq 'T' -and $x.Extent.StartOffset -lt $lnbAt }, $true) | ForEach-Object { [string]$_.CommandElements[1].Value } | Sort-Object -Unique)
 $known = @($TX.Keys | ForEach-Object { Fr $_ }) + @('aucune', 'aucun', 'Ancienne sauvegarde de configuration supprimée ({1} gardées) : {0}')
 $unk = @($used112 | Where-Object { $known -cnotcontains $_ })
 Chk 'I3' ($i3.Count -eq 0 -and $unk.Count -eq 0 -and $t019.Contains('# --- LN-a : lecteurs enregistres, socle sans interface')) "$(@($TX.Keys).Count) textes du socle : entree anglaise mot pour mot (section « LN-a » de 019), memes parametres {n} ; chaque cle de T() du module 112 est l un d eux ou une cle existante reemployee ; ecarts : $(@($i3 + $unk) -join ', ')"
@@ -1333,7 +1337,7 @@ $md = [regex]::Match($sec1211, '(?s)### Pour les développeurs.*$')
 if ($md.Success) { $dev = $md.Value }
 $userPart = if ($dev) { $sec1211.Substring(0, $sec1211.Length - $dev.Length) } else { $sec1211 }
 $entry = @($dev -split "`n" | Where-Object { $_.Contains('**Lecteurs enregistrés, socle.**') })
-Chk 'I7' ($rd.Contains('| `112-fn-lecteurs.ps1` |') -and $rd.Contains('`Get-DriveConn`') -and $rd.Contains('`Edit-DriveData`') -and $entry.Count -eq 1 -and $entry[0].Contains('`Get-DriveConn($drive)`') -and $entry[0].Contains('`Edit-DriveData($from, $to, [switch]$Check)`') -and $entry[0] -notmatch 'matériel' -and $userPart -notmatch 'Lecteurs enregistrés|lecteur enregistré' -and $trd.Contains('| `logic-lecteurs-registre` |')) 'README des modules (module 112, fonctions du socle), README des tests, CHANGELOG : entree « Pour les développeurs » seulement (rien dans les rubriques de l utilisateur : rien n enregistre encore un lecteur) ; l entree ne dit aucun comportement verifie sur materiel'
+Chk 'I7' ($rd.Contains('| `112-fn-lecteurs.ps1` |') -and $rd.Contains('`Get-DriveConn`') -and $rd.Contains('`Edit-DriveData`') -and $entry.Count -eq 1 -and $entry[0].Contains('`Get-DriveConn($drive)`') -and $entry[0].Contains('`Edit-DriveData($from, $to, [switch]$Check)`') -and $entry[0] -notmatch 'matériel' -and $userPart -notmatch 'socle' -and $trd.Contains('| `logic-lecteurs-registre` |')) 'README des modules (module 112, fonctions du socle), README des tests, CHANGELOG : entree du socle dans « Pour les développeurs » seulement (12.11, lot LN-b : adapte a dessein, les rubriques de l utilisateur decrivent maintenant l interface des lecteurs enregistres) ; l entree ne dit aucun comportement verifie sur materiel'
 
 # ================================================================ Q. equivalence avec la source d avant (-Before), cas C8
 '--- Q. source d avant le lot (-Before) : meme fichier ecrit, memes arguments ; cas C8'
@@ -1349,9 +1353,11 @@ if (-not $Before) {
     # Fonctions que le lot annonce inchangees (specification, § 5.3) : texte identique dans la source d avant
     $same = [ordered]@{
         # 12.11 (lot L7) : Backup-ConfigBeforeRef recoit le parametre -Protect et le motif back : elle n est plus celle de la 12.10
-        '120' = @('Export-CurveView','Export-DriveCurves', 'Import-DriveCurves', 'Export-TargetDrives', 'Import-TargetDrives', 'Export-Settings', 'Import-Settings', 'Set-Setting', 'Register-SettingCtl', 'Set-SettingCtlValue')
+        # 12.11 (lot LN-b) : Register-SettingCtl, Set-SettingCtlValue (liaison de la liste du bandeau a des lecteurs) et
+        # Get-CrossCalibTargets (-OtherConn) recoivent leurs lignes de l interface : elles ne sont plus celles de la 12.10
+        '120' = @('Export-CurveView','Export-DriveCurves', 'Import-DriveCurves', 'Export-TargetDrives', 'Import-TargetDrives', 'Export-Settings', 'Import-Settings', 'Set-Setting')
         '140' = @('Get-TargetDrive', 'Set-TargetDrive', 'Get-TargetDriveItems', 'Get-TargetCurves', 'Get-TargetWriteInfo')
-        '240' = @('Get-CalibStoreDrive', 'Split-CrossDrive', 'Get-CrossCalibTargets', 'Get-DriveCurveKey', 'Split-DriveCurveKey', 'Get-DriveCurve', 'Set-DriveCurve', 'Sync-PrecompCurves', 'Get-DriveCurveKeys', 'Get-DriveCurveLabel')
+        '240' = @('Get-CalibStoreDrive', 'Split-CrossDrive', 'Get-DriveCurveKey', 'Split-DriveCurveKey', 'Get-DriveCurve', 'Set-DriveCurve', 'Sync-PrecompCurves', 'Get-DriveCurveKeys', 'Get-DriveCurveLabel')
         '110' = @('Invoke-DriveProbe', 'Get-GwDriveKey')
         '210' = @('Start-HeadClean')
     }

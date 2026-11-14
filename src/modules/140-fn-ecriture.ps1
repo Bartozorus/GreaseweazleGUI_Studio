@@ -59,7 +59,9 @@ function Update-WLevelUi {
     $lm = [string](Get-Setting 'levelBeforeWriteMode')
     $full = ($lm -eq 'complete')
     $lk = Get-LevelBeforeWriteKind $(if ($on) { 'slow' } else { 'fast' }) $false $false
-    $chkWLevel.Text = if ($quick -and $ta) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide », sauf pour le lecteur cible {0} (elle relirait avec le lecteur {1})") -f "$($tw.Tgt)", "$($tw.Src)" } elseif ($quick -and $lk -eq 'complete') { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (mesure complète de cette disquette en écriture lente)") } elseif ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } elseif ($lm -eq 'content') { (T "Mesurer la disquette avant l'écriture lente : précompensation mesurée sur l'image (environ 12 min)") } elseif ($full) { (T "Mesurer la disquette avant l'écriture lente : précompensation et état de la surface") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
+    # 12.11 (lot LN-b) : un lecteur enregistre en jeu (lecteur qui ecrit ou lecteur cible) : texte court, sans les deux
+    # lecteurs (avec un nom, le texte a deux lecteurs depasserait la case) ; l infobulle les nomme
+    $chkWLevel.Text = if ($quick -and $ta -and $script:DriveReg.Count -gt 0 -and ((Test-DriveRegistered ([string]$tw.Tgt)) -or (Test-DriveRegistered ([string]$tw.Src)))) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide », sauf pour un lecteur cible") } elseif ($quick -and $ta) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide », sauf pour le lecteur cible {0} (elle relirait avec le lecteur {1})") -f "$($tw.Tgt)", "$($tw.Src)" } elseif ($quick -and $lk -eq 'complete') { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (mesure complète de cette disquette en écriture lente)") } elseif ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } elseif ($lm -eq 'content') { (T "Mesurer la disquette avant l'écriture lente : précompensation mesurée sur l'image (environ 12 min)") } elseif ($full) { (T "Mesurer la disquette avant l'écriture lente : précompensation et état de la surface") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
     $chkWLevel.Enabled = ($on -and -not $quick -and -not $ta)
     # 12.8 (S3) : liste du mode de la mesure (rapide ou complete) : active en ecriture lente quand la disquette est mesuree
     # (case cochee, ou verrouillee au « Test rapide »)
@@ -104,6 +106,9 @@ function Start-ImageWrite([switch]$NoWarmup) {
     # (Test-TargetWriteAllowed : journal et fenetre) ; $tgtDrive : lecteur cible dont les courbes croisees sont ecrites ('' :
     # meme lecteur, ou lecteur cible sans effet sur cette ecriture, Get-TargetWriteInfo : ligne de journal)
     if (-not (Test-TargetWriteAllowed $txtWFile.Text $cmbWFmt.Text ([bool]$chkWSlow.Checked))) { return }
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, lecteur branche confirme s il y a lieu et ligne « Lecteur qui
+    # ecrit » au journal (Confirm-DriveIdentity, 112) ; refus : rien n est ecrit
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity -Write)) { return }
     $tw = Get-TargetWriteInfo $txtWFile.Text $cmbWFmt.Text ([bool]$chkWSlow.Checked)
     $tgtDrive = if ($tw.Applies) { [string]$tw.Tgt } else { '' }
     if ($tw.Tgt -and -not $tw.Applies -and $tw.Why) { Append-Log ((T "Lecteur cible {0} sans effet sur cette écriture : {1}.") -f "$($tw.Tgt)", "$($tw.Why)") }

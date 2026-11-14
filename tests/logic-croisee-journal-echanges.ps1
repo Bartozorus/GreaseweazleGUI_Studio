@@ -343,8 +343,10 @@ foreach ($ev in 'USERNAME', 'USERPROFILE', 'COMPUTERNAME', 'USERDOMAIN', 'APPDAT
 }
 $gh = $fns['Get-LogExportHeader']
 $ghVars = @($gh.FindAll({ param($n) $n -is $tVar }, $true) | ForEach-Object { [string]$_.VariablePath.UserPath } | Sort-Object -Unique)
-$ghVarBad = @($ghVars | Where-Object { @('when', 'tgt', 'l1', 'l2', 'script:Version', 'script:CalibCalc', 'script:ContentCalc', 'cmbDrive') -cnotcontains $_ })
-$ghCmdBad = @((Get-CmdNames $gh) | Where-Object { @('T', 'Get-TargetDrive', 'Get-Date') -cnotcontains $_ })
+# 12.11 (lot LN-b) : listes adaptees a dessein : avec des lecteurs enregistres, les deux lecteurs sont mis en forme par
+# Get-DriveLabel ($src, garde « registre non vide » : $script:DriveReg) ; sans lecteur enregistre, J1 a J4 inchanges
+$ghVarBad = @($ghVars | Where-Object { @('when', 'tgt', 'src', 'l1', 'l2', 'script:Version', 'script:CalibCalc', 'script:ContentCalc', 'script:DriveReg', 'cmbDrive') -cnotcontains $_ })
+$ghCmdBad = @((Get-CmdNames $gh) | Where-Object { @('T', 'Get-TargetDrive', 'Get-Date', 'Get-DriveLabel') -cnotcontains $_ })
 Chk 'J6' ($priv.Count -eq 0 -and $ghVarBad.Count -eq 0 -and $ghCmdBad.Count -eq 0) "ni chemin, ni nom de compte, ni nom de poste dans les lignes de l en-tete ($($priv.Count) trouve) ; Get-LogExportHeader ne lit que la date, les trois versions, le lecteur du bandeau et son lecteur cible (autres variables : $($ghVarBad -join ',') ; autres commandes : $($ghCmdBad -join ','))"
 # Export reel : le fichier commence par les deux lignes de Get-LogExportHeader, le journal affiche ne les recoit pas
 $txtLog.Clear(); $script:LogCut = @{ N = 0; Mark = '' }; $script:TargetDrives = @{ A = '0' }

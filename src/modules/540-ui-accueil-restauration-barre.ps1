@@ -60,7 +60,11 @@ $script:HomeCalDesc = $cardCalib.Controls[3].Text      # description d origine, 
 # avertissement (« Limite de precompensation atteinte... ») tenait sur trois lignes, la 3e coupee a mi-hauteur
 $cardCalib.Controls[3].AutoEllipsis = $true
 $cardCalib.Controls[3].Add_TextChanged({ Update-HomeCalDescTip })
-$tabH.Controls.AddRange(@($lblHTitle, $lblHSub, $pnlHomeProg, $cardRestore, $cardWrite, $cardRead, $cardCheck, $cardCalib, $cardClean, $cardTest, $cardHelp, $cardJitter))
+# 12.11 (lot LN-b) : lecteurs enregistres (fenetre frmDrives, 112), dernier emplacement libre de l Accueil ; description
+# de Get-DrivesCardText (fiches sans connexion comptees), mise a jour par Update-DriveList
+$cardDrives  = New-HomeCard 'Pin' (T 'Lecteurs enregistrés') (Get-DrivesCardText) '397,432' { Show-DrivesDialog }
+$script:DrvDlg = $null
+$tabH.Controls.AddRange(@($lblHTitle, $lblHSub, $pnlHomeProg, $cardRestore, $cardWrite, $cardRead, $cardCheck, $cardCalib, $cardClean, $cardTest, $cardHelp, $cardJitter, $cardDrives))
 
 # ============================== RESTAURATION : INTERFACE =======================
 # Assistant : lecture de l original, changement de disquette, ecriture stricte, controle et comparaison. La logique

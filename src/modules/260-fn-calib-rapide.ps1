@@ -439,6 +439,9 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     $noBrand = [bool]$script:LevelNoBrand; $script:LevelNoBrand = $false
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     $script:Cal = $null
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, lecteur branche confirme s il y a lieu (Confirm-DriveIdentity, 112) ;
+    # refus : calibration non lancee ($script:Cal vide, que lisent les appelants)
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity)) { return }
     $script:LevelPostForce = $false
     $chk = Test-CalibImage $Geom
     if (-not $chk) { return }

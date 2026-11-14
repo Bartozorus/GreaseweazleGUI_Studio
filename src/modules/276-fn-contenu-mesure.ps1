@@ -177,6 +177,9 @@ function Start-ContentMeasure($chk) {
     # avant ou apres la confirmation) : ecriture annulee, une ligne de journal (revue 12.8.1, point 7)
     $refusTxt = (T 'Écriture annulée : une commande gw est déjà en cours, mesure de la disquette non lancée.')
     if ($script:GwProc -and -not $script:GwProc.HasExited) { $script:AfterCalib = ''; Append-Log $refusTxt; return }
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, lecteur branche confirme s il y a lieu (Confirm-DriveIdentity, 112) ;
+    # refus : ecriture annulee, comme le refus qui precede
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity)) { $script:AfterCalib = ''; return }
     $drive = [string]$chk.Drive; $img = [string]$chk.Img; $fam = [string]$chk.Fam; $plan = $chk.Plan
     $lv = [double[]]@($chk.Levels)
     $cyls = [int[]]@($plan.Cyls | Sort-Object -Unique)

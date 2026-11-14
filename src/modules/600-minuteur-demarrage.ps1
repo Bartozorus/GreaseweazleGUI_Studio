@@ -144,6 +144,9 @@ $timer.Add_Tick({
     # continue (analyse faite apres la fin de gw, mesure suivante attendue) et sortie sans commande gw (Arreter, erreur
     # d analyse, autre operation)
     if (-not $script:GwProc -and [bool]$script:QualPauseBar -ne ((Get-AppBusy) -eq 'quality')) { Set-Busy $false }
+    # 12.11 (lot LN-b) : liste « Lecteur : » du bandeau inactive pendant toute operation, sauf la pause d une mesure
+    # continue (Update-DriveLock, 112), avec ou sans lecteur enregistre
+    Update-DriveLock
     # Recherche bibliotheque terminee ?
     if ($script:LibAsync -and $script:LibAsync.IsCompleted) { Complete-LibSearch }
     # Indexation en cours / terminee

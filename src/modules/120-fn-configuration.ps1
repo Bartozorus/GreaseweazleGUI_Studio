@@ -89,6 +89,9 @@ function Set-SettingCtlValue($c, [string]$k, $v) {
     # propriete modifiee seulement si elle change (pas d evenement inutile)
     if ($c -is [System.Windows.Forms.CheckBox]) { if ($c.Checked -ne [bool]$v) { $c.Checked = [bool]$v } }
     elseif ($c -is [System.Windows.Forms.ComboBox]) {
+        # 12.11 (lot LN-b) : avec des lecteurs enregistres, la liste du bandeau porte des lecteurs et le reglage drive leur
+        # connexion : le lecteur choisi reste s il est sur cette connexion, sinon le lecteur retenu pour elle (112)
+        if ($k -eq 'drive' -and $script:DriveReg.Count -gt 0) { Sync-DriveCombo; return }
         $i = [array]::IndexOf([string[]]$script:SettingDefs[$k].Codes, [string]$v)
         if ($i -lt $c.Items.Count -and $c.SelectedIndex -ne $i) { $c.SelectedIndex = $i }
     }
@@ -123,8 +126,10 @@ function Register-SettingCtl([string]$k, $c) {
     # puis Load-Config, initialisent les controles au demarrage
     if (-not $script:SettingCtl.ContainsKey($k)) { $script:SettingCtl[$k] = New-Object System.Collections.ArrayList }
     [void]$script:SettingCtl[$k].Add($c); $script:SettingOf[$c] = $k
+    # 12.11 (lot LN-b) : liste du bandeau, element au-dela des six connexions (lecteur enregistre) : le reglage drive recoit
+    # sa connexion (Get-DriveConn, 112)
     if ($c -is [System.Windows.Forms.CheckBox]) { $c.Add_CheckedChanged({ if (-not $script:SettingSync) { Set-Setting $script:SettingOf[$this] $this.Checked $this } }) }
-    elseif ($c -is [System.Windows.Forms.ComboBox]) { $c.Add_SelectedIndexChanged({ if (-not $script:SettingSync -and $this.SelectedIndex -ge 0) { $kk = $script:SettingOf[$this]; Set-Setting $kk $script:SettingDefs[$kk].Codes[$this.SelectedIndex] $this } }) }
+    elseif ($c -is [System.Windows.Forms.ComboBox]) { $c.Add_SelectedIndexChanged({ if (-not $script:SettingSync -and $this.SelectedIndex -ge 0) { $kk = $script:SettingOf[$this]; $cd = $script:SettingDefs[$kk].Codes[$this.SelectedIndex]; if ($kk -eq 'drive' -and $this.SelectedIndex -ge @($script:SettingDefs[$kk].Codes).Count) { $cd = Get-DriveConn ([string]$this.SelectedItem) }; Set-Setting $kk $cd $this } }) }
     elseif ($c -is [System.Windows.Forms.NumericUpDown]) { $c.Add_ValueChanged({ if (-not $script:SettingSync) { Set-Setting $script:SettingOf[$this] $this.Value $this } }) }
 }
 
@@ -785,6 +790,9 @@ function Load-Config {
     # qui n en a jamais eu. Les courbes sont deja rangees : une courbe sans lecteur d une configuration 12.9 reste sous la
     # connexion relue, jamais sous un nom
     Import-DriveRegistry $cfg $old
+    # 12.11 (lot LN-b) : lecteur de la configuration : le dernier lecteur enregistre choisi sur la connexion relue s il y
+    # est toujours, sinon le lecteur non enregistre (vue, profils de famille et courbes mises de cote de ce lecteur)
+    if ($script:DriveReg.Count -gt 0) { $ldDrive = Get-DriveForConn $ldDrive }
     Sync-PrecompCurves $ldDrive
     if ($imp.Migrated) { Append-Log ((T "Configuration d'une version antérieure : {0} courbe(s) de calibration rangée(s) par lecteur ({1}).") -f "$($imp.N + $old.Count)", ((@($imp.Drives)) -join ', ')) }
     # Profil de famille : celui de la courbe commune reprise du lecteur (Sync-PrecompCurves) ; mis de cote avec sa courbe ;
@@ -832,6 +840,9 @@ function Load-Config {
     # donnees lues (Repair-DriveRegistry, 112 ; bloc targetDrive lu brut, avant qu Import-TargetDrives ecarte les lecteurs
     # inconnus) ; aucune pour une configuration dont toutes les donnees citent une connexion (12.10)
     [void](Repair-DriveRegistry $old (Get-Cfg $w 'targetDrive' $null))
+    # 12.11 (lot LN-b) : liste du bandeau (les six connexions, puis les lecteurs enregistres qui ont une connexion) et sa
+    # disposition (Update-DriveList, 112) ; registre vide et liste de six elements : rien (12.10)
+    if ($script:DriveReg.Count -gt 0 -or $cmbDrive.Items.Count -gt @($script:SettingDefs['drive'].Codes).Count) { Update-DriveList }
     $tdi = Import-TargetDrives (Get-Cfg $w 'targetDrive' $null)
     if ([int]$tdi.Bad -gt 0) { Append-Log ((T 'Configuration : {0} lecteur(s) cible illisible(s) ou inconnu(s), ignoré(s).') -f "$($tdi.Bad)") }
     # 12.11 : registre relu dans la copie de secours : lecteurs cibles des lecteurs enregistres retablis depuis elle (une
@@ -886,7 +897,12 @@ function Load-Config {
     # illisible ou ramenee a 0..30 min), profil precomp (code, sinon ancien texte francais ou anglais), seuil de famille,
     # carte « Calibrer le lecteur », mesure de l onglet Qualite, seuils de jitter, nettoyage de l onglet Outils
     $lateKeys = @('slowWrite', 'warmSlowWrite', 'warmFullCalib', 'levelBeforeWrite', 'levelBeforeWriteMode')
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, aucune ligne « Lecteur choisi » au chargement (« avant : A » ne
+    # serait que la valeur de Set-Defaults), puis bandeau sur le lecteur retenu pour la connexion du reglage : le reglage
+    # seul ne change pas de lecteur sur une meme connexion (Sync-DriveCombo)
+    if ($script:DriveReg.Count -gt 0) { $script:DriveCur = '' }
     Import-Settings $cfg -Except $lateKeys
+    if ($script:DriveReg.Count -gt 0) { Set-Combo $cmbDrive (Get-DriveForConn ([string](Get-Setting 'drive'))); $script:DriveCur = [string]$cmbDrive.Text }
     Update-LegacyCleanDefault $cfg             # 12.8 (D9) : ancien defaut du nettoyage de l onglet Outils
     Test-ContentLevelSettings $cfg             # 12.8.1 : niveaux de la mesure sur l image, controles ensemble
     $chkWPostCheck.Checked = [bool](Get-Cfg $w 'postCheck' $true)

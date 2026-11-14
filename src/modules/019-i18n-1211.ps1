@@ -162,6 +162,71 @@ $script:I18n['Copie de secours des lecteurs enregistrés de Greaseweazle Studio 
 $script:I18n['Copie de secours des lecteurs enregistrés non écrite ({0}) : {1}'] = 'Rescue copy of the registered drives not written ({0}): {1}'
 $script:I18n['Copie de secours des lecteurs enregistrés illisible ({0}) : {1}'] = 'Rescue copy of the registered drives unreadable ({0}): {1}'
 
+# --- LN-b : lecteurs enregistres, interface (112, 110, 120, 140, 250, 270, 300, 540) ----------------------------------
+# Bandeau : libelle d un lecteur enregistre et infobulle de la liste (Set-DriveBannerLayout) ; carte de l Accueil
+# (Get-DrivesCardText) ; un lecteur non enregistre dans une liste de lecteurs (Format-ConnDrives, Get-DriveRows)
+$script:I18n['Lecteur ({0}) :'] = 'Drive ({0}):'
+$script:I18n["Lecteurs enregistrés : {0}.`nLeurs calibrations sont rangées sous leur nom, quelle que soit leur connexion. L'application ne reconnaît pas le lecteur branché : choisissez-le ici chaque fois que vous en changez (pour les nommer : Accueil, « Lecteurs enregistrés »)."] = "Registered drives: {0}.`nTheir calibrations are filed under their name, whatever their connection. The application cannot recognise the drive that is plugged in: select it here each time you change it (to name them: Home, ""Registered drives"")."
+$script:I18n['Lecteurs enregistrés'] = 'Registered drives'
+$script:I18n['Nommer vos lecteurs : plusieurs sur une même connexion, chacun avec ses calibrations.'] = 'Name your drives: several on one connection, each with its own calibrations.'
+$script:I18n['{0} lecteur(s) sans connexion : redonnez-la ici pour retrouver leurs calibrations.'] = '{0} drive(s) without a connection: set it again here to get their calibrations back.'
+$script:I18n['{0} (non enregistré)'] = '{0} (not registered)'
+# Fenetre « Lecteurs enregistres » (New-DrivesDialog, Get-DriveRows)
+$script:I18n['Vos lecteurs de disquette'] = 'Your floppy drives'
+$script:I18n["Un lecteur enregistré a un nom et une connexion au Greaseweazle (A ou B : nappe PC avec twist ; 0 à 3 : nappe droite). Ses calibrations, son lecteur cible et ses facteurs mesurés sont rangés sous son nom : plusieurs lecteurs peuvent partager une connexion, et un lecteur garde ses calibrations quand il change de connexion.`n`nL'application ne reconnaît pas le lecteur branché : celui qui compte est le lecteur choisi dans la liste « Lecteur : » du bandeau. Un lecteur nouveau part sans calibration, avec le profil d'origine."] = "A registered drive has a name and a connection to the Greaseweazle (A or B: PC cable with twist; 0 to 3: straight cable). Its calibrations, its target drive and its measured factors are filed under its name: several drives can share a connection, and a drive keeps its calibrations when its connection changes.`n`nThe application cannot recognise the drive that is plugged in: the one that counts is the drive selected in the ""Drive:"" list of the banner. A new drive starts without calibration, with the original profile."
+$script:I18n['Connexion'] = 'Connection'
+$script:I18n['Calibrations'] = 'Calibrations'
+$script:I18n['à préciser'] = 'to be set'
+$script:I18n['Connexion :'] = 'Connection:'
+$script:I18n['Nouveau lecteur'] = 'New drive'
+$script:I18n['Supprimer…'] = 'Delete…'
+# Decision et resultats du bouton « Enregistrer » (Get-DriveEditPlan) : note, refus, resultats (texte d etat et journal)
+$script:I18n['La connexion {0} a déjà des calibrations sans nom de lecteur. Pour les garder avec ce lecteur, sélectionnez la ligne « {0} (non enregistré) » et donnez-lui ce nom ; sinon ce lecteur sera calibré à part.'] = 'Connection {0} already has calibrations without a drive name. To keep them with this drive, select the row "{0} (not registered)" and give it this name; otherwise this drive will be calibrated separately.'
+$script:I18n["Rien à enregistrer : le nom et la connexion n'ont pas changé."] = 'Nothing to save: the name and the connection have not changed.'
+$script:I18n['Lecteur « {0} » enregistré sur la connexion {1}, sans calibration. Choisissez-le dans la liste « Lecteur : » du bandeau quand il est branché.'] = 'Drive "{0}" registered on connection {1}, without calibration. Select it in the "Drive:" list of the banner when it is plugged in.'
+$script:I18n['Lecteur « {0} » enregistré sur la connexion {1} : les calibrations faites sans nom sur la connexion {2} ({3} courbe(s)) sont maintenant les siennes.'] = 'Drive "{0}" registered on connection {1}: the calibrations made without a name on connection {2} ({3} curve(s)) are now its own.'
+$script:I18n["Lecteur « {0} » : il s'appelait « {1} ». Ses calibrations ({2} courbe(s)), ses niveaux, sa mémoire par marque, ses facteurs et ses lecteurs cibles portent son nouveau nom."] = 'Drive "{0}": it was called "{1}". Its calibrations ({2} curve(s)), its levels, its per-brand memory, its factors and its target drives carry its new name.'
+$script:I18n['Lecteur « {0} » : connexion {1} (avant : {2}). Ses calibrations le suivent. Après un changement de nappe, contrôlez une écriture (onglet Qualité) ou refaites une calibration rapide.'] = 'Drive "{0}": connection {1} (before: {2}). Its calibrations follow it. After a cable change, check a write (Quality tab) or run a quick calibration again.'
+$script:I18n['Lecteur « {0} » supprimé : {1} courbe(s) retirée(s).'] = 'Drive "{0}" deleted: {1} curve(s) removed.'
+$script:I18n['Nom « {0} » retiré : ses calibrations sont rangées sous la connexion {1}, sans nom de lecteur.'] = 'Name "{0}" removed: its calibrations are filed under connection {1}, without a drive name.'
+# Confirmations de la fenetre (Invoke-DriveEditPlan, Remove-DriveEntry : textes de Get-DriveEditPlan et Get-DriveDeletePlan)
+$script:I18n['Attribuer à ce lecteur les calibrations de la connexion {0} ?'] = 'Assign the calibrations of connection {0} to this drive?'
+$script:I18n["La connexion {0} a des calibrations faites sans nom de lecteur : {1}.`n`nEn nommant ce lecteur « {2} », vous déclarez qu'elles ont été faites avec lui : elles deviennent les siennes, avec ses niveaux, sa mémoire par marque, ses facteurs mesurés et son lecteur cible. Rien n'est recalculé ni effacé ; la configuration est d'abord copiée dans un fichier « {3}.lecteurs-….bak ». La connexion {0} garde un lecteur non enregistré, sans calibration.`n`nSi elles viennent d'un autre lecteur, fermez cette fenêtre et choisissez « Nouveau lecteur » : il partira sans calibration."] = "Connection {0} has calibrations made without a drive name: {1}.`n`nBy naming this drive ""{2}"", you state that they were made with it: they become its own, with its levels, its per-brand memory, its measured factors and its target drive. Nothing is recomputed or erased; the configuration is first copied to a ""{3}.lecteurs-….bak"" file. Connection {0} keeps an unregistered drive, with no calibration.`n`nIf they come from another drive, close this window and choose ""New drive"": it will start without calibration."
+$script:I18n['Les calibrations de la connexion {0} ont été faites avec le lecteur « {1} »'] = 'The calibrations of connection {0} were made with drive "{1}"'
+$script:I18n['Attribuer ces calibrations'] = 'Assign these calibrations'
+$script:I18n["Le lecteur non enregistré de la connexion {0} n'a aucune calibration. Son lecteur cible, ses niveaux, sa mémoire par marque et ses facteurs mesurés passent sous le nom « {1} ». Continuer ?"] = 'The unregistered drive of connection {0} has no calibration. Its target drive, its levels, its per-brand memory and its measured factors move under the name "{1}". Continue?'
+$script:I18n['Supprimer le lecteur « {0} » ?'] = 'Delete drive "{0}"?'
+$script:I18n["Sont retirés : ses calibrations ({0}), ses niveaux, sa mémoire par marque, ses facteurs mesurés et son lecteur cible, ainsi que les courbes croisées dont il est le lecteur cible et le choix de ce lecteur comme cible d'un autre.`n`nL'application ne peut pas annuler cette suppression. Elle copie d'abord la configuration dans « {1}.lecteurs-….bak », dans le même dossier : pour revenir en arrière, fermez l'application, puis remettez cette copie à la place de « {1} »."] = "Removed: its calibrations ({0}), its levels, its per-brand memory, its measured factors and its target drive, as well as the cross curves of which it is the target drive and the choice of this drive as the target of another one.`n`nThe application cannot undo this deletion. It first copies the configuration to ""{1}.lecteurs-….bak"", in the same folder: to go back, close the application, then put this copy in place of ""{1}""."
+$script:I18n['« Retirer seulement le nom » : ses calibrations restent, rangées sous la connexion {0}, sans nom de lecteur.'] = '"Remove the name only": its calibrations remain, filed under connection {0}, without a drive name.'
+$script:I18n['Le lecteur « {0} » ne doit plus être enregistré'] = 'Drive "{0}" must no longer be registered'
+$script:I18n['Supprimer avec ses calibrations'] = 'Delete with its calibrations'
+$script:I18n['Retirer seulement le nom'] = 'Remove the name only'
+$script:I18n["Supprimer le lecteur « {0} » ? Il n'a aucune calibration."] = 'Delete drive "{0}"? It has no calibration.'
+# Confirmation du lecteur branche et du lecteur cible d une calibration croisee (Confirm-DriveIdentity), refus au journal
+$script:I18n['Lecteur branché'] = 'Plugged-in drive'
+$script:I18n['Quel lecteur est branché sur la connexion {0} ?'] = 'Which drive is plugged into connection {0}?'
+$script:I18n["La connexion {0} porte plusieurs lecteurs : {1}. L'application ne reconnaît pas celui qui est branché."] = 'Connection {0} carries several drives: {1}. The application cannot recognise the one that is plugged in.'
+$script:I18n["Vos lecteurs enregistrés viennent d'être relus dans leur copie de secours : le fichier de configuration ne les contenait pas. L'application ne reconnaît pas le lecteur branché sur la connexion {0}."] = 'Your registered drives have just been read back from their rescue copy: the configuration file did not contain them. The application cannot recognise the drive plugged into connection {0}.'
+$script:I18n["Lecteur choisi dans le bandeau : {0}`nSes calibrations : {1}`n`nL'écriture et la calibration emploient ses courbes et rangent leurs résultats sous son nom. Si un autre lecteur est branché, fermez cette fenêtre et choisissez-le dans la liste « Lecteur : » du bandeau : avec la courbe d'un autre lecteur, la disquette serait mal précompensée, sans aucun message d'erreur."] = "Drive selected in the banner: {0}`nIts calibrations: {1}`n`nWriting and calibration use its curves and file their results under its name. If another drive is plugged in, close this window and select it in the ""Drive:"" list of the banner: with the curve of another drive, the disk would be badly precompensated, without any error message."
+$script:I18n['Le lecteur branché sur la connexion {0} est bien « {1} »'] = 'The drive plugged into connection {0} is indeed "{1}"'
+$script:I18n["Le lecteur branché sur la connexion {0} n'est aucun des lecteurs enregistrés"] = 'The drive plugged into connection {0} is none of the registered drives'
+$script:I18n["Lecteur cible de cette calibration croisée : {0}`nLa courbe mesurée servira aux écritures du lecteur {1} destinées à ce lecteur. Si un autre lecteur est branché sur la connexion {2}, fermez cette fenêtre et relancez la calibration croisée avec le bon lecteur cible : mesurée avec un autre lecteur, la courbe serait fausse, sans aucun message d'erreur."] = "Target drive of this cross calibration: {0}`nThe measured curve will be used for the writes of drive {1} intended for this drive. If another drive is plugged into connection {2}, close this window and start the cross calibration again with the right target drive: measured with another drive, the curve would be wrong, without any error message."
+$script:I18n['Opération annulée : lecteur branché non confirmé.'] = 'Operation cancelled: plugged-in drive not confirmed.'
+# Journal : lecteur choisi (Update-DriveChoice), lecteur qui ecrit (Get-WriteSourceText), lecteur retenu par la detection
+# (Complete-DriveDetect, 110)
+$script:I18n['Lecteur choisi : {0} (avant : {1}).'] = 'Drive selected: {0} (before: {1}).'
+$script:I18n['Lecteur qui écrit : {0}'] = 'Writing drive: {0}'
+$script:I18n['Connexion {0} : lecteur retenu « {1} », le dernier choisi sur cette connexion. La détection ne reconnaît pas le lecteur branché : vérifiez la liste « Lecteur : » du bandeau.'] = 'Connection {0}: drive "{1}" kept, the last one selected on this connection. Detection cannot recognise the drive that is plugged in: check the "Drive:" list of the banner.'
+# Textes existants completes, pour un lecteur enregistre en jeu seulement : case de la mesure (140), fenetre de decision
+# (250), cibles ecartees d une calibration croisee (270), ligne d etat de l echange et du controle de surface (270),
+# libelle du lecteur de la restauration (300)
+$script:I18n["Mesurer la disquette avant l'écriture : toujours en « Test rapide », sauf pour un lecteur cible"] = 'Measure the disk before the write: always with "Quick test", except for a target drive'
+$script:I18n["Conserver la courbe : elle est enregistrée pour le lecteur {0} et appliquée à ses prochaines écritures.`nAbandonner la courbe : la calibration précédente est rétablie."] = "Keep the curve: it is saved for drive {0} and applied to its next writes.`nDiscard the curve: the previous calibration is restored."
+$script:I18n["Non proposés, parce qu'ils sont sur la connexion {0} du lecteur qui écrit : {1}. Les deux lecteurs d'une calibration croisée sont branchés en même temps, chacun sur sa connexion."] = 'Not offered, because they are on connection {0} of the writing drive: {1}. The two drives of a cross calibration are plugged in at the same time, each on its own connection.'
+$script:I18n['{0} → {1} : déplacez la disquette'] = '{0} → {1}: move the disk'
+$script:I18n['{0} : contrôle de surface, décision demandée'] = '{0}: surface check, decision requested'
+$script:I18n['{0}  (bandeau)'] = '{0}  (banner)'
+
 # --- L9 : onglet Ecriture en trois etapes, options avancees, barre d onglets (145, 510, 520, 600) ----------------------
 
 # --- L10 : ligne « Ce qui va se passer » de l onglet Ecriture (140, 145, 260, 520) -------------------------------------

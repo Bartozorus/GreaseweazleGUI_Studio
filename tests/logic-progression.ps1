@@ -924,7 +924,9 @@ function Get-FnWrites($fd) {
 }
 function Get-FnCmds($fd) { return @($fd.Body.FindAll({ param($x) $x -is $tCmd }, $true) | ForEach-Object { [string]$_.GetCommandName() } | Sort-Object -Unique) }
 $wrC = Get-FnWrites $src.Fn['Update-CalibProgress']; $cmC = Get-FnCmds $src.Fn['Update-CalibProgress']
-Chk 'B5' (($wrC -join ', ') -ceq '$lblWCal.Text, $pbWCal.Value' -and ($cmC -join ', ') -ceq 'Format-CalDuration, Get-Date, Get-ProgPlanFrac, Get-WarmupLeft, Measure-Object, T') "Update-CalibProgress n ecrit que $($wrC -join ' et ') ; commandes : $($cmC -join ', ')"
+# 12.11 (lot LN-b) : adapte a dessein : Test-DriveRegistered (112), textes courts de la ligne d etat pour un lecteur
+# enregistre, sous la garde « registre non vide »
+Chk 'B5' (($wrC -join ', ') -ceq '$lblWCal.Text, $pbWCal.Value' -and ($cmC -join ', ') -ceq 'Format-CalDuration, Get-Date, Get-ProgPlanFrac, Get-WarmupLeft, Measure-Object, T, Test-DriveRegistered') "Update-CalibProgress n ecrit que $($wrC -join ' et ') ; commandes : $($cmC -join ', ')"
 # Fonctions de la progression : seuls les controles de la barre d etat sont ecrits
 $wrAll = @{}
 foreach ($f in 'Start-Progress', 'Update-Progress', 'Stop-Progress', 'Get-GwLineInfo', 'Get-GwProgress', 'Show-GwProgress', 'Get-EndRuleTotal', 'Get-GwCmdUnits', 'New-ProgPlan', 'Get-ProgPlanFrac', 'Set-SeqEnd', 'Clear-SeqEnd', 'Update-SeqEnd') {

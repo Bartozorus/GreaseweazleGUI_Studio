@@ -100,9 +100,16 @@ function Split-CrossDrive([string]$drive) {
     return $null
 }
 
-function Get-CrossCalibTargets([string[]]$ids, [string]$src) {
+function Get-CrossCalibTargets([string[]]$ids, [string]$src, [switch]$OtherConn) {
     # 12.10 : lecteurs cibles possibles d une calibration croisee : ceux de la liste du bandeau, sauf la source ; tableau
     # protege par la virgule (pas de @() autour de l appel)
+    # 12.11 (lot LN-b) : -OtherConn, avec des lecteurs enregistres : sans les lecteurs de la connexion de la source
+    # (Get-DriveConn, 112) : les deux lecteurs d une calibration croisee sont branches en meme temps, chacun sur sa
+    # connexion. Sans le commutateur, ou registre vide : resultat de la 12.10
+    if ($OtherConn -and $script:DriveReg.Count -gt 0) {
+        $sc = Get-DriveConn $src
+        return ,@(@($ids) | ForEach-Object { [string]$_ } | Where-Object { $_ -and $_ -ne $src -and (Get-DriveConn $_) -cne $sc })
+    }
     return ,@(@($ids) | ForEach-Object { [string]$_ } | Where-Object { $_ -and $_ -ne $src })
 }
 

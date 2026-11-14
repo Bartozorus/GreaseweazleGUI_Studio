@@ -45,6 +45,9 @@ function Set-RestoreFormat([string]$fmt) {
 function Update-RsDrive {
     # 12.8 (D10) : lecteur de la restauration, celui du bandeau (Update-SettingDependents 'drive')
     if (-not $lblRsDrive) { return }
+    # 12.11 (lot LN-b) : lecteur enregistre dans le bandeau : texte court, son nom et sa connexion (Get-DriveLabel, 112) :
+    # avec un nom, le texte de la 12.10 depasserait les 290 px du libelle
+    if ($script:DriveReg.Count -gt 0 -and (Test-DriveRegistered ([string]$cmbDrive.Text))) { $lblRsDrive.Text = (T '{0}  (bandeau)') -f (Get-DriveLabel ([string]$cmbDrive.Text)); return }
     $lblRsDrive.Text = (T "{0}  (choix « Lecteur » du bandeau)") -f "$(Get-Setting 'drive')"
 }
 
@@ -343,6 +346,9 @@ function Start-Restore {
         Append-Log ((T "Restauration refusée : opération en cours ({0}).") -f "$busy")
         [void](Show-AppMessage (T 'Une opération est déjà en cours : attendez sa fin ou cliquez sur « Arrêter ».') (T 'Restauration') 'OK' 'Information'); return
     }
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, lecteur branche confirme s il y a lieu (Confirm-DriveIdentity, 112) ;
+    # refus : restauration non lancee
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity)) { return }
     if (-not (Test-Path -LiteralPath $script:GwExe)) {
         [void](Show-AppMessage ((T "gw.exe introuvable : {0}`n`nPlacez ce script dans le même répertoire que gw.exe.") -f "$($script:GwExe)") (T 'Erreur') 'OK' 'Error'); return
     }

@@ -22,6 +22,9 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     $cx = $script:CalCrossAsk; $script:CalCrossAsk = $null
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     $script:Cal = $null
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, lecteur branche confirme s il y a lieu (Confirm-DriveIdentity, 112) ;
+    # refus : calibration non lancee ($script:Cal vide, que lisent les appelants)
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity)) { return }
     $chk = Test-CalibImage $Geom
     if (-not $chk) { return }
     $img = $chk.Img; $family = $chk.Family; $nCyl = $chk.NCyl; $maxCyl = $chk.MaxCyl; $cylSrc = $chk.CylSrc
@@ -274,7 +277,9 @@ function Start-CrossCalib {
     if ($busy) { $res.Why = "$busy"; [void](Show-AppMessage ((T "Calibration croisée impossible : opération en cours ({0}).") -f "$busy") (T 'Calibration precomp') 'OK' 'Warning'); return $res }
     if ($script:CalRedo) { $res.Why = (T 'calibration B'); [void](Show-AppMessage (T "Calibration croisée impossible : une calibration B (« Refaire sur une autre disquette ») est en cours ou en attente de décision.") (T 'Calibration precomp') 'OK' 'Warning'); return $res }
     $src = [string]$cmbDrive.Text
-    $targets = Get-CrossCalibTargets @($cmbDrive.Items | ForEach-Object { [string]$_ }) $src
+    # 12.11 (lot LN-b) : -OtherConn : avec des lecteurs enregistres, les lecteurs de la connexion de la source ne sont pas
+    # proposes (les deux lecteurs sont branches en meme temps, chacun sur sa connexion) ; la fenetre de choix le dit
+    $targets = Get-CrossCalibTargets @($cmbDrive.Items | ForEach-Object { [string]$_ }) $src -OtherConn
     if ($targets.Count -eq 0) { $res.Why = (T 'aucun autre lecteur'); [void](Show-AppMessage (T 'Calibration croisée impossible : aucun autre lecteur dans la liste du bandeau.') (T 'Calibration precomp') 'OK' 'Warning'); return $res }
     # 12.10 (relecture de la RC) : image de l onglet Ecriture d apres le controle de la calibration elle-meme
     # (Get-CalibImageCheck, 260, celui de Test-CalibImage au debut de Start-PrecompCalib) : annoncee et reprise seulement si
@@ -295,11 +300,19 @@ function Start-CrossCalib {
     if (@('std', 'long') -notcontains $imgFam) { $imgFam = '' }
     $imgInfo = if ($imgFam) { (T "Image de l'onglet Écriture : {0} ({1}) ; avec cette famille, ses cylindres sont ceux de la calibration ; avec l'autre, 80 cylindres à la densité de la famille.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))", (Get-CalibFamilyName $imgFam) }
                else { (T "Aucune image calibrable dans l'onglet Écriture : 80 cylindres, à la densité de la famille choisie.") }
+    if ($script:DriveReg.Count -gt 0) {
+        $allT = Get-CrossCalibTargets @($cmbDrive.Items | ForEach-Object { [string]$_ }) $src
+        $sameC = @($allT | Where-Object { $targets -cnotcontains $_ })
+        if ($sameC.Count -gt 0) { $imgInfo += "`n" + ((T 'Non proposés, parce qu''ils sont sur la connexion {0} du lecteur qui écrit : {1}. Les deux lecteurs d''une calibration croisée sont branchés en même temps, chacun sur sa connexion.') -f (Get-DriveConn $src), (Format-ConnDrives $sameC)) }
+    }
     $nPassEst = @($script:CalCoarse).Count + [int]$script:CalMaxVerify
     $swF = Get-CrossSwapEstimate $nPassEst $true ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify); $swS = Get-CrossSwapEstimate $nPassEst $false ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify)   # 12.11 : au moins : une seule verification
     $ch = Show-CrossCalibDialog $src $targets $(if ($imgFam) { $imgFam } else { 'std' }) ($cmbWCalMode.SelectedIndex -eq 1) $imgInfo ([bool]$chkWSlow.Checked) ([int]$swF.Min) ([int]$swS.Max) (Get-TargetDrive $src)   # 12.11 : lecteur cible de l onglet Ecriture preselectionne
     if (-not $ch.Ok) { $res.Why = (T 'annulée'); Append-Log (T "Calibration croisée : fenêtre de choix fermée, rien n'est lancé."); return $res }
     $tgt = [string]$ch.Target; $fam = [string]$ch.Family; $test = $(if ($ch.Fine) { 'fine' } else { 'std' })
+    # 12.11 (lot LN-b) : lecteur cible confirme quand sa connexion porte plusieurs lecteurs (Confirm-DriveIdentity -Target,
+    # 112), avant que la demande soit posee : refus, rien n est lance
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity -Target $tgt)) { $res.Why = (T 'Opération annulée : lecteur branché non confirmé.'); return $res }
     Append-Log ((T "Calibration croisée demandée : écriture par le lecteur {0}, relecture par le lecteur {1}, famille {2}, {3}.") -f "$src", "$tgt", (Get-CalibFamilyName $fam), $(if ($ch.Fine) { (T 'test fin') } else { (T 'test standard') }))
     $geom = $null
     if ($fam -ne $imgFam) {
@@ -595,9 +608,13 @@ function Update-CalibProgress {
     # 12.10 (relecture de la RC) : texte court, entier sur la ligne de lblWCal (520 : largeur fixe, 439 px a la taille
     # minimale de la fenetre) : « controle de surface, decision demandee (lecteur A). » mesurait 445 px, la lettre du
     # lecteur passait sous les points de suspension
+    # 12.11 (lot LN-b) : lecteur enregistre : texte court, le nom en tete (en fin de texte, il passerait sous les points de
+    # suspension) ; de meme pour l echange de disquette ci-dessous
+    if ($cal.Hold -and $script:DriveReg.Count -gt 0 -and (Test-DriveRegistered ([string]$cal.Drive))) { $lblWCal.Text = (T '{0} : contrôle de surface, décision demandée') -f "$($cal.Drive)"; return }
     if ($cal.Hold) { $lblWCal.Text = (T "Calibration en attente : décision sur le contrôle de surface (lecteur {0}).") -f "$($cal.Drive)"; return }
     # 12.10 : calibration croisee en attente d un echange de disquette (Invoke-CalibSwap). 12.10 (relecture des captures) :
     # texte court, sur une ligne a la taille minimale de la fenetre (439 px a x = 320), anglais compris
+    if ($cal.SwapHold -and $script:DriveReg.Count -gt 0 -and ((Test-DriveRegistered ([string]$cal.SwapHold.From)) -or (Test-DriveRegistered ([string]$cal.SwapHold.To)))) { $lblWCal.Text = (T '{0} → {1} : déplacez la disquette') -f "$($cal.SwapHold.From)", "$($cal.SwapHold.To)"; return }
     if ($cal.SwapHold) { $lblWCal.Text = (T "Calibration croisée : déplacez la disquette du lecteur {0} vers le lecteur {1}") -f "$($cal.SwapHold.From)", "$($cal.SwapHold.To)"; return }
     # Libelles au format court du prechauffage de l ecriture : avancement et temps restant en tete, details ensuite entre
     # parentheses (libelle coupe a la largeur de l onglet a la taille minimale de la fenetre)
