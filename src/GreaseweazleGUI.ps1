@@ -31093,8 +31093,15 @@ $stTrack = New-Object System.Windows.Forms.ToolStripStatusLabel
 $stTrack.Text = ''; $stTrack.AutoSize = $true; $stTrack.ForeColor = $script:Theme.Accent2
 $stTrack.Font = New-Object System.Drawing.Font('Consolas', 9.75, [System.Drawing.FontStyle]::Bold)
 $stBar = New-Object System.Windows.Forms.ToolStripProgressBar
-$stBar.Size = New-Object System.Drawing.Size(280, 18); $stBar.Visible = $false; $stBar.MarqueeAnimationSpeed = 30
+$stBar.Size = New-Object System.Drawing.Size(280, 18); $stBar.MarqueeAnimationSpeed = 30
 [void]$status.Items.AddRange(@($stOp, $stTrack, $stBar))
+# 12.11 : hauteur de la barre d etat independante de $stBar, masquee au repos (110, 300) : la barre de progression et ses
+# marges depassent les libelles d un pixel, et la barre d etat raccourcie au repos deplacait tous les onglets d un pixel au
+# debut et a la fin de chaque operation. Hauteur minimale = hauteur preferee mesuree ici, avec les vrais elements, avant
+# tout masquage de la barre (hors fenetre, une barre masquee puis montree n est plus comptee) : celle que la barre visible
+# donne pendant une operation. La taille reste automatique (tests/logic-barre-etat-hauteur.ps1).
+$status.MinimumSize = New-Object System.Drawing.Size(0, $status.GetPreferredSize([System.Drawing.Size]::Empty).Height)
+$stBar.Visible = $false
 
 # --- Journal (panneau bas du separateur, repliable) ---
 $txtLog = New-Object System.Windows.Forms.RichTextBox

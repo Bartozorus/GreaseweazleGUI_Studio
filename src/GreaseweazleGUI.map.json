@@ -2,8 +2,8 @@
   "format": 1,
   "note": "Genere par tools/Assemble-Source.ps1, ne pas modifier. Lignes de src/GreaseweazleGUI.ps1, bornes incluses.",
   "source": "src/GreaseweazleGUI.ps1",
-  "sha256": "567fc49388a2423f9a9f723ae34560a6c8948006c73dad1fb97a0e9a90bf20b8",
-  "lines": 31873,
+  "sha256": "bcfbc532d27b1177c022ff6e2cc741eb241209934dc9f0a7c8fccd6c37ad3527",
+  "lines": 31880,
   "modules": [
     { "file": "000-entete.ps1", "first": 1, "last": 52 },
     { "file": "010-i18n.ps1", "first": 53, "last": 2155 },
@@ -52,13 +52,13 @@
     { "file": "510-ui-bandeau-bibliotheque.ps1", "first": 29540, "last": 29808 },
     { "file": "520-ui-ecriture.ps1", "first": 29809, "last": 30175 },
     { "file": "530-ui-onglets-techniques.ps1", "first": 30176, "last": 30766 },
-    { "file": "540-ui-accueil-restauration-barre.ps1", "first": 30767, "last": 31223 },
-    { "file": "550-etat-nettoyage.ps1", "first": 31224, "last": 31237 },
-    { "file": "560-etat-calibration.ps1", "first": 31238, "last": 31548 },
-    { "file": "565-etat-contenu.ps1", "first": 31549, "last": 31583 },
-    { "file": "570-etat-controle-ecriture.ps1", "first": 31584, "last": 31600 },
-    { "file": "580-etat-restauration.ps1", "first": 31601, "last": 31629 },
-    { "file": "590-etat-detection.ps1", "first": 31630, "last": 31641 },
-    { "file": "600-minuteur-demarrage.ps1", "first": 31642, "last": 31873 }
+    { "file": "540-ui-accueil-restauration-barre.ps1", "first": 30767, "last": 31230 },
+    { "file": "550-etat-nettoyage.ps1", "first": 31231, "last": 31244 },
+    { "file": "560-etat-calibration.ps1", "first": 31245, "last": 31555 },
+    { "file": "565-etat-contenu.ps1", "first": 31556, "last": 31590 },
+    { "file": "570-etat-controle-ecriture.ps1", "first": 31591, "last": 31607 },
+    { "file": "580-etat-restauration.ps1", "first": 31608, "last": 31636 },
+    { "file": "590-etat-detection.ps1", "first": 31637, "last": 31648 },
+    { "file": "600-minuteur-demarrage.ps1", "first": 31649, "last": 31880 }
   ]
 }
