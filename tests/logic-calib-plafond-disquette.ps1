@@ -464,8 +464,9 @@ $okE = ($rLt460.Heads[0].Hard -eq 460 -and $rLt460.Heads[1].Hard -eq 460 -and @(
 Chk 'P4' ($okA -and $okB -and $okC -and $okD -and $okE) "courbe adaptee sur un ADF (Build-LevelAdaptValues, Get-LevelAdaptOutcome) : besoin 520 -> 493 ns, cylindres satures, reserve « plafond porté à 493 ns », sans conseil de relever la borne ($okA) ; besoin 480 -> aucune saturation, $($expOver.Count) cylindres au-dela de la borne ($okB) ; borne 350 -> conseil « jusqu'à 470 ns » garde ($okC) ; long track de 110 000 cellules : plafond de 454 ns atteint sur les deux tetes, sans conseil de relever la borne ($okD) ; meme image, borne reglee a 460 ns : borne gardee, sans conseil de la relever, deja au-dela du quart de la cellule ($okE)"
 # P9 (lot L12a) : conseil « la borne se regle jusqu a N ns » : N = Get-BoundAdviceNs, le plus bas de 470 ns (haut de la
 # plage du reglage) et du plafond de l image ; conseil seulement sous N. Fonction seule, puis calibrations factices par les
-# fonctions reelles : forme adaptee (tete 0, 265), forme d une marque (tete 1, 260), courbe de refus (tete 1, 265)
-$p9 = @(@(0, 470), @(101344, 470), @(100000, 470), @(105808, 470), @(105312, 470), @(106382, 470), @(106384, 469), @(110000, 454), @(202688, 246))
+# fonctions reelles : forme adaptee (tete 0, 265), forme d une marque (tete 1, 260), courbe de refus (tete 1, 265). Relecture
+# de L12a : seuil exact du conseil, 106 382 cellules (470 ns) puis 106 383, premiere densite sous 470 ns (469 ns)
+$p9 = @(@(0, 470), @(101344, 470), @(100000, 470), @(105808, 470), @(105312, 470), @(106382, 470), @(106383, 469), @(106384, 469), @(110000, 454), @(202688, 246))
 $bad = @($p9 | Where-Object { (Get-BoundAdviceNs @{ ImgBits = $_[0] }) -ne $_[1] } | ForEach-Object { "$($_[0]) cellules -> $(Get-BoundAdviceNs @{ ImgBits = $_[0] }) au lieu de $($_[1])" })
 if ((Get-BoundAdviceNs $null) -ne 470 -or (Get-BoundAdviceNs @{}) -ne 470) { $bad += 'unite sans densite : pas 470 ns' }
 # Lignes du journal et reserves (« Info | texte ») qui contiennent un texte ; sans virgule : @(...) en compte les lignes
