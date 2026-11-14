@@ -1064,7 +1064,11 @@ Chk 'I4' ($s520.Contains("`$cmbDrive.Add_TextChanged({`r`n    Update-TargetDrive
 $fn112 = @((Get-LbFnAsts (Get-LbModule $mods '112')) | ForEach-Object { $_.Name })
 $allow = @('110 Get-CommonArgs Get-DriveConn', '110 Start-DriveDetect Get-DriveConn', '240 Get-CalibDriveArgsFor Get-DriveConn', '140 Get-DriveIds Get-DriveIds',
            '120 Save-Config Export-DriveRegistry', '120 Save-Config Save-DriveRescue', '120 Load-Config Import-DriveRegistry', '120 Load-Config Repair-DriveRegistry', '120 Load-Config Restore-DriveRescueTargets',
-           '120 Register-SettingCtl Get-DriveConn', '240 Get-CalibBackInfo Resolve-DriveOfEra', '510  Set-DriveHandChoice', '520  Update-DriveChoice', '540  Get-DrivesCardText', '540  Show-DrivesDialog', '600  Update-DriveLock')
+           '120 Register-SettingCtl Get-DriveConn', '240 Get-CalibBackInfo Resolve-DriveOfEra', '510  Set-DriveHandChoice', '520  Update-DriveChoice', '540  Get-DrivesCardText', '540  Show-DrivesDialog', '600  Update-DriveLock',
+           '145 Update-WSourceLabel Get-WriteSourceText')
+# 12.11 (lot L9) : libelle « Lecteur qui ecrit » de l onglet Ecriture (module 145, nouveau, absent de la 12.10), pour tous,
+# avec ou sans lecteur enregistre (amendement « lecteur qui ecrit », decision DL4 : « Lecteur qui ecrit : A ») ; ajoute a
+# dessein a la liste des appels admis
 $i5 = @(); $i5n = 0
 foreach ($f in $modFiles) {
     if ($f.Name -match '^(0|112)') { continue }

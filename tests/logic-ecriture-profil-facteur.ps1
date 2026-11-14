@@ -13,7 +13,8 @@ $Wt = Get-TestRoot $Wt
 # memoire (System.Windows.Forms par Assembly.Load, aucun Add-Type, aucune fenetre). Aucun gw, aucune application.
 #  A : libelle du profil avec un lecteur cible (220 Set-PrecompFields, Get-TargetProfileText, Get-WProfileSpec,
 #      Update-PrecompForImage) : la courbe croisee est nommee (sens, test, date, calcul), le profil propre du lecteur source
-#      n y figure plus ; texte qui tient dans le libelle (502 x 40, Segoe UI 9,75), en francais et en anglais
+#      n y figure plus ; texte qui tient dans le libelle (502 x 40, Segoe UI 9,75 ; 12.11, lot L9 : 458 x 58, taille lue
+#      dans 520), en francais et en anglais
 #  B : Bibliotheque : refus d une ecriture pour un lecteur cible (Test-TargetWriteAllowed -> OpOverride.Refused,
 #      Enter-OpOverride, Show-LibEndNotice) : « ecriture refusee », et non « operation terminee »
 #  C : origine des cylindres de test sans parentheses (260 Get-CalibCylinders) dans « Cylindres de test : {0} ({1}) »
@@ -95,6 +96,9 @@ $Wt = Get-TestRoot $Wt
 # Correction fixB de la RC5 (10/11/2026, v1210\rc5\fixB) : copie adaptee de v1210\rc5\fixA\logic-1210-final-z, qui la remplace dans la
 # campagne : remplacant d Update-WLevelUi (140), appele en sortie d Update-PrecompForImage (220) ;
 # attentes inchangees.
+# 12.11 (lot L9, onglet Ecriture en trois etapes) : libelle du profil sous l image, 458 x 58 (trois lignes) au lieu de 502 x 40
+# (deux lignes) ; la taille est lue dans 520 par A12 a A15 et R3M ; adaptes : A15 (texte trop long allonge pour depasser trois
+# lignes), R4F et R4F2 (taille de 520 au lieu de 502 x 40 ecrit dans le test, trois lignes) ; aucun cas retire.
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 [System.Threading.Thread]::CurrentThread.CurrentCulture = [System.Globalization.CultureInfo]::GetCultureInfo('fr-FR')
@@ -440,7 +444,9 @@ $c15 = Get-FFn '140' 'Clear-WTabNotice'
 $ae15 = $s520 -match '(?m)^\$lblWProfileInfo\.AutoEllipsis = \$true\r?$'
 $ev15 = ($s520 -match '(?m)^\$lblWProfileInfo\.Add_TextChanged\(\{ Clear-WTabNotice; Update-WProfileTip \}\)\r?$') -and ($s520 -match '(?m)^\$lblWProfileInfo\.Add_SizeChanged\(\{ Update-WProfileTip \}\)\r?$')
 if ($lblWProfileInfo -is [System.Windows.Forms.Label]) {
-    $long15 = "Auto : image secteur (.adf) -> standard 2 us ($($script:PrecompStdDefault)) ; écriture lente : profils calibrés tête 0 et tête 1 appliqués ; facteur appliqué à l'écriture : tête 0 × 0,85, tête 1 × 0,90"
+    # 12.11 (lot L9) : libelle de 458 x 58 (trois lignes) : texte trop long allonge pour depasser trois lignes ; le texte
+    # qui tient garde ses deux lignes
+    $long15 = "Auto : image secteur (.adf) -> standard 2 us ($($script:PrecompStdDefault)) ; écriture lente : profils calibrés tête 0 et tête 1 appliqués ; facteur appliqué à l'écriture : tête 0 × 0,85, tête 1 × 0,90 ; courbes par tête du 01/11/2026 17:49 et du 02/11/2026 09:05, calcul v12.10, test fin ; facteur de la marque de la disquette : aucune mesure gardée pour cette marque"
     $fit15 = "Auto : image secteur (.adf) -> standard 2 us ($($script:PrecompStdDefault)) ; écriture lente : profils calibrés tête 0 et tête 1 appliqués"
     $tip = New-Object System.Windows.Forms.ToolTip
     $lblWProfileInfo.Text = $long15; Update-WProfileTip; $tt1 = $tip.GetToolTip($lblWProfileInfo)
@@ -465,7 +471,7 @@ if ($lblWProfileInfo -is [System.Windows.Forms.Label]) {
     "  infobulle : texte trop long : $(if ($tt1 -eq $long15) { 'texte complet' } elseif ($tt1) { "« $tt1 »" } else { 'aucune' }) ; deux lignes : $(if ($tt2) { "« $tt2 »" } else { 'aucune' }) ; trop long a 900 px de large : $(if ($tt3) { "« $tt3 »" } else { 'aucune' })"
     "  derniere ligne d encre du texte trop long : $($iL0.Ink) px sans, $($iL1.Ink) px avec points de suspension ; texte de deux lignes : $($iF0.Ink) / $($iF1.Ink) px, dessin identique $($iF0.Sig -eq $iF1.Sig)"
     $hh = $lblWProfileInfo.Height
-    Chk 'A15' ($ae15 -and $ev15 -and -not ($c15 -match 'AutoEllipsis') -and $tt1 -eq $long15 -and $tt2 -eq '' -and $tt3 -eq '' -and $iL0.Ink -ge ($hh - 4) -and $iL1.Ink -ge 0 -and $iL1.Ink -le ($hh - 5) -and $iF0.Sig -eq $iF1.Sig) "points de suspension en permanence (520 : $ae15), Clear-WTabNotice sans AutoEllipsis (140), Update-WProfileTip au changement de texte et de taille (520 : $ev15) ; infobulle du texte complet seulement au-dela de deux lignes ; 3e ligne coupee remplacee par des points de suspension, texte de deux lignes dessine comme avant"
+    Chk 'A15' ($ae15 -and $ev15 -and -not ($c15 -match 'AutoEllipsis') -and $tt1 -eq $long15 -and $tt2 -eq '' -and $tt3 -eq '' -and $iL0.Ink -ge ($hh - 4) -and $iL1.Ink -ge 0 -and $iL1.Ink -le ($hh - 5) -and $iF0.Sig -eq $iF1.Sig) "points de suspension en permanence (520 : $ae15), Clear-WTabNotice sans AutoEllipsis (140), Update-WProfileTip au changement de texte et de taille (520 : $ev15) ; libelle de $($lblWProfileInfo.Width) x $hh px (12.11, lot L9 : trois lignes) : infobulle du texte complet seulement au-dela de ses lignes ; derniere ligne coupee remplacee par des points de suspension, texte qui tient dessine comme avant"
     $lblWProfileInfo.Text = ''
 } else { Chk 'A15' $false 'libelle WinForms indisponible : A15 non joue' }
 # A16 (m4) : attente d un echange de la calibration croisee (270) sur une ligne de lblWCal (Label AutoSize a x = 320 dans
@@ -635,7 +641,8 @@ foreach ($lang in 'fr', 'en') {
 $script:Lang = 'fr'
 Chk 'R3G' ($hasSync -and @($g | Where-Object { -not $_.Ok }).Count -eq 0) "Sync-WTargetHead $(if ($hasSync) { 'appele deux fois de plus, puis avec -IfOwn' } else { 'absent de la source' }) : libelle et base du complement « facteur » inchanges, refus une seule fois, en tete (francais et anglais)"
 
-# R3M : mesure hors ecran (libelle du profil 502 x 40, Segoe UI 9,75, rendu compatible) : le refus, son separateur et des
+# R3M : mesure hors ecran (libelle du profil 502 x 40 ; 12.11, lot L9 : 458 x 58, taille lue dans 520 ; Segoe UI 9,75, rendu
+# compatible) : le refus, son separateur et des
 # points de suspension tiennent en deux lignes (condition suffisante : le refus reste entier quand le libelle depasse)
 if ($isLbl) {
     $mm = @()
@@ -1110,7 +1117,8 @@ $script:Lang = 'fr'
 foreach ($x in @($re | Where-Object { -not $_.Ok } | Select-Object -First 6)) { "  R4E ECART $($x.Id) : « $($x.T) » ; attendu « $($x.E) »" }
 Chk 'R4E' ($re.Count -eq 48 -and @($re | Where-Object { -not $_.Ok }).Count -eq 0) "$($re.Count) libelles (profils forces Standard et Long track ; .raw et SCP sans --format ; lecteur cible 0 avec courbes croisees communes ou par tete, lecteur cible 2 sans courbe ; lente et rapide ; francais et anglais) : profil d origine entre parentheses et complement de l image flux ecrite telle quelle, aucune courbe croisee nommee, aucun refus annonce ; ecriture non refusee (lecteur cible sans effet : image flux ecrite telle quelle)"
 
-# R4F : deux lignes du libelle du profil (502 x 40), refus en tete et profil d origine de la famille. Mesure hors ecran,
+# R4F : lignes du libelle du profil (502 x 40, deux lignes ; 12.11, lot L9 : 458 x 58, trois lignes, taille lue dans 520),
+# refus en tete et profil d origine de la famille. Mesure hors ecran,
 # police en pixels (Segoe UI 13 px = 9,75 pt a 96 ppp, police de la fenetre, 500), rendu compatible (GDI+, defaut sous
 # Windows PowerShell 5.1), LineLimit ; sans points de suspension (texte entier) et avec (dessin du Label AutoEllipsis)
 $fPx = New-Object System.Drawing.Font('Segoe UI', [single]13.0, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
@@ -1127,6 +1135,9 @@ function Get-R4Box([string]$text, [int]$w, [int]$h, [bool]$ell) {
     return @{ Fit = $cf; Lines = $lf; PH = $ph }
 }
 $rf = @()
+# 12.11 (lot L9) : taille du libelle lue dans 520 ($lblSize : 458 x 58), trois lignes au plus
+$r4W = 502; $r4H = 40; $r4L = 2
+if ($lblSize) { $r4W = $lblSize[0]; $r4H = $lblSize[1]; $r4L = [int][math]::Floor($r4H / 18) }
 foreach ($lang in 'fr', 'en') {
     $script:Lang = $lang
     foreach ($pr in @(@('A', '0'), @('0', 'A'), @('B', '2'), @('2', 'B'))) {
@@ -1137,7 +1148,7 @@ foreach ($lang in 'fr', 'en') {
             elseif ($k -eq 'hd') { Set-R3Store $s; $t = Get-R3Label 'jeu-hd.img' $s $tg 0 $true }
             else { Set-R3Store $s; $t = Get-R3Label 'jeu-ed.img' $s $tg 0 $true }
             $h = Get-R3Head $lang $(if ($k -eq 'ed') { 'hd' } else { $k }) $s $tg
-            $bx = Get-R4Box $t 502 40 $false; $bxE = Get-R4Box $t 502 40 $true
+            $bx = Get-R4Box $t $r4W $r4H $false; $bxE = Get-R4Box $t $r4W $r4H $true
             $rf += [pscustomobject]@{ L = $lang; P = "$s/$tg"; K = $k; T = $t; N = $t.Length; Head = $t.StartsWith($h, [System.StringComparison]::Ordinal); HL = $h.TrimEnd().Length
                 Fit = $bx.Fit; Lines = $bx.Lines; PH = $bx.PH; FitE = $bxE.Fit; Orig = $t.Contains($(if ($k -eq 'hd') { $script:PrecompHdDefault } else { $script:PrecompStdDefault })) }
         }
@@ -1146,11 +1157,11 @@ foreach ($lang in 'fr', 'en') {
 $script:Lang = 'fr'
 $rf | Group-Object L, K | ForEach-Object { "  R4F $($_.Name) : $($_.Count) libelles de $(($_.Group | Measure-Object N -Minimum).Minimum) a $(($_.Group | Measure-Object N -Maximum).Maximum) car. ; hauteur preferee $(($_.Group | Measure-Object PH -Maximum).Maximum) px au plus ; lignes $(($_.Group | Measure-Object Lines -Maximum).Maximum) au plus ; visibles (points de suspension) $(($_.Group | Measure-Object FitE -Minimum).Minimum) car. au moins, refus de $(($_.Group | Measure-Object HL -Maximum).Maximum) car. au plus" }
 foreach ($x in @($rf | Where-Object { $_.L -eq 'en' -and $_.P -eq '2/B' })) { "  R4F en 2/B $($x.K) : « $($x.T) »" }
-$bf = @($rf | Where-Object { $_.K -in 'none', 'head' -and -not ($_.Head -and $_.Orig -and $_.Fit -ge $_.N -and $_.Lines -le 2 -and $_.PH -le 40 -and $_.FitE -ge $_.N) })
+$bf = @($rf | Where-Object { $_.K -in 'none', 'head' -and -not ($_.Head -and $_.Orig -and $_.Fit -ge $_.N -and $_.Lines -le $r4L -and $_.PH -le $r4H -and $_.FitE -ge $_.N) })
 $bf2 = @($rf | Where-Object { $_.K -in 'hd', 'ed' -and -not ($_.Head -and $_.Orig -and $_.FitE -ge $_.HL) })
 foreach ($x in @($bf + $bf2)) { "  R4F ECART $($x.L) $($x.P) $($x.K) : en tete $($x.Head), profil d origine $($x.Orig), $($x.Fit)/$($x.N) car. sur $($x.Lines) ligne(s), hauteur $($x.PH) px, visibles $($x.FitE) : « $($x.T) »" }
-Chk 'R4F' ($isLbl -and @($rf | Where-Object { $_.K -in 'none', 'head' }).Count -eq 16 -and $bf.Count -eq 0) "16 libelles (paires A/0, 0/A, B/2, 2/B ; aucune courbe croisee et par tete en ecriture rapide ; francais et anglais) : refus en tete et profil d origine de la famille standard entiers en deux lignes de 502 x 40 px (Segoe UI 13 px, rendu compatible, LineLimit, avec et sans points de suspension)"
-Chk 'R4F2' ($isLbl -and @($rf | Where-Object { $_.K -in 'hd', 'ed' }).Count -eq 16 -and $bf2.Count -eq 0) "16 libelles haute densite (calibrable : profil d origine haute densite non calibre ; non calibrable : profil d origine standard ; memes paires et langues) : au-dela de deux lignes, refus en tete entier avant les points de suspension"
+Chk 'R4F' ($isLbl -and @($rf | Where-Object { $_.K -in 'none', 'head' }).Count -eq 16 -and $bf.Count -eq 0 -and $r4L -eq 3) "16 libelles (paires A/0, 0/A, B/2, 2/B ; aucune courbe croisee et par tete en ecriture rapide ; francais et anglais) : refus en tete et profil d origine de la famille standard entiers en $r4L lignes de $r4W x $r4H px, taille du libelle de 520 (Segoe UI 13 px, rendu compatible, LineLimit, avec et sans points de suspension)"
+Chk 'R4F2' ($isLbl -and @($rf | Where-Object { $_.K -in 'hd', 'ed' }).Count -eq 16 -and $bf2.Count -eq 0) "16 libelles haute densite (calibrable : profil d origine haute densite non calibre ; non calibrable : profil d origine standard ; memes paires et langues) : au-dela de $r4L lignes, refus en tete entier avant les points de suspension"
 
 # R4G : cadre « Calibration du lecteur » de la restauration (lblRsCal, 540 : 262 x 54, AutoEllipsis) : phrase du lecteur
 # cible en tete (vrai Get-RsCalibText, 300), phrases des familles a sa suite inchangees, phrase entiere dans le cadre

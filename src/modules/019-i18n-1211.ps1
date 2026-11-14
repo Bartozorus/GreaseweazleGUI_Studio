@@ -229,6 +229,21 @@ $script:I18n['{0} : contrôle de surface, décision demandée'] = '{0}: surface 
 $script:I18n['{0}  (bandeau)'] = '{0}  (banner)'
 
 # --- L9 : onglet Ecriture en trois etapes, options avancees, barre d onglets (145, 510, 520, 600) ----------------------
+# Titres des deux premiers cadres de l onglet (520) ; « Options avancees » (010) reste le titre du troisieme
+$script:I18n['1. Image à écrire'] = '1. Image to write'
+$script:I18n['2. Disquette et lecteur'] = '2. Disk and drive'
+# Lien des options avancees et son infobulle (520, Update-WAdvLink : 145) ; ligne a droite du bouton ECRIRE : options
+# modifiees nommees (Get-WriteAdvChanges, 145 : une case decochee dont le defaut est cochee est suivie de « : decochee »)
+$script:I18n['Options avancées…'] = 'Advanced options…'
+$script:I18n['Options avancées : {0} modifiée(s)…'] = 'Advanced options: {0} changed…'
+$script:I18n['Masquer les options avancées'] = 'Hide advanced options'
+$script:I18n["Affiche ou masque les options avancées de l'écriture. Ce lien coche ou décoche la case « Mode expert » du bandeau, qui affiche aussi les onglets techniques.`nUne option avancée modifiée s'applique même masquée : le lien les compte et la ligne à droite du bouton « ÉCRIRE LA DISQUETTE » les nomme. « Réinitialiser » les remet à leur valeur par défaut."] = "Shows or hides the advanced write options. This link checks or unchecks the ""Expert mode"" box of the banner, which also shows the technical tabs.`nA changed advanced option applies even when hidden: the link counts them and the line to the right of the ""WRITE THE DISK"" button names them. ""Reset"" restores their default values."
+$script:I18n['options avancées : {0}'] = 'advanced options: {0}'
+$script:I18n['{0} : décochée'] = '{0}: unchecked'
+# Infobulle de « Mode expert » (510) : ligne ajoutee au texte de 010
+$script:I18n["Coché : affiche aussi les options avancées de l'onglet Écriture."] = 'Checked: also shows the advanced options of the Write tab.'
+# Libelle « Lecteur qui ecrit » du cadre 2 (texte de Get-WriteSourceText, cle de la section LN-b) : infobulle
+$script:I18n["Lecteur choisi dans la liste « Lecteur : » du bandeau : c'est lui qui écrit la disquette. Le lecteur cible est celui qui la relira."] = 'Drive selected in the "Drive:" list of the banner: it is the one that writes the disk. The target drive is the one that will read it back.'
 
 # --- L10 : ligne « Ce qui va se passer » de l onglet Ecriture (140, 145, 260, 520) -------------------------------------
 

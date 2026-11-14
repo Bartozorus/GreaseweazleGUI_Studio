@@ -637,7 +637,7 @@ function Update-WProfileTip {
     # 12.10 (relecture des captures) : texte complet du libelle du profil en infobulle quand il depasse ses deux lignes,
     # aucune infobulle sinon (texte, avis de la Bibliotheque ou largeur changes : 520). L infobulle propre d un Label a
     # points de suspension ne vient pas ici : sa mesure est bornee a la taille du libelle (40 px de haut au plus) ; hauteur
-    # mesuree ici a la largeur du libelle, sans borne
+    # mesuree ici a la largeur du libelle, sans borne. 12.11 (L9) : trois lignes, 58 px de haut
     $h = $lblWProfileInfo.GetPreferredSize((New-Object System.Drawing.Size($lblWProfileInfo.Width, 0))).Height
     $tip.SetToolTip($lblWProfileInfo, $(if ($h -gt $lblWProfileInfo.Height) { [string]$lblWProfileInfo.Text } else { '' }))
 }
@@ -1393,6 +1393,8 @@ function Update-TargetDriveUi {
     $tt = (T "Lecteur qui relira la disquette écrite par le lecteur {0}, celui du bandeau.`n« (même lecteur) » : écriture ordinaire, avec la courbe du lecteur {0} et le facteur de marque.`nUn autre lecteur : l'image est écrite avec la courbe croisée « {0} → lecteur cible » mesurée par « Calibrer pour un lecteur cible… », telle quelle (facteur 1) ; sans courbe croisée pour la famille de l'image (ou du profil forcé), l'écriture est refusée. La mesure de la disquette avant l'écriture et la calibration automatique ne sont pas proposées (elles reliraient avec le lecteur {0}) ; le contrôle après écriture relit avec le lecteur {0}.`nSans effet sur l'écriture (le journal le dit) avec le profil Manuel, la case --precomp décochée, une image flux écrite telle quelle ou une image FM, GCR ou à codage propre ; écriture refusée en haute densité avec le profil Auto, et en écriture rapide quand les courbes croisées sont par tête seulement.`nLe choix est mémorisé pour le lecteur {0}.") -f "$src"
     $tip.SetToolTip($lblWTarget, $tt); $tip.SetToolTip($cmbWTarget, $tt)
     Set-TargetDriveLayout
+    # 12.11 (L9) : libelle « Lecteur qui ecrit » du cadre 2, au-dessus de la liste (Update-WSourceLabel, 145)
+    if ($lblWSource) { Update-WSourceLabel }
 }
 
 function Set-TargetDriveFromUi {

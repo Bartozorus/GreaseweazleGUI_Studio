@@ -39,7 +39,7 @@ $tip.SetToolTip($chkTime, (T 'Affiche le temps écoulé après chaque commande g
 $chkExpert = New-Object System.Windows.Forms.CheckBox
 $chkExpert.Text = (T 'Mode expert'); $chkExpert.Location = '404,5'; $chkExpert.AutoSize = $true; $chkExpert.Anchor = 'Top,Right'
 $chkExpert.BackColor = [System.Drawing.Color]::Transparent; $chkExpert.ForeColor = [System.Drawing.Color]::White
-$tip.SetToolTip($chkExpert, (T "Décoché : seuls les onglets utiles au quotidien sont affichés (Accueil, Restauration, Bibliothèque, Écriture, Lecture, Qualité).`nCoché : tous les onglets, y compris Conversion, Comparaison, Outils, Délais et Commande libre."))
+$tip.SetToolTip($chkExpert, (T "Décoché : seuls les onglets utiles au quotidien sont affichés (Accueil, Restauration, Bibliothèque, Écriture, Lecture, Qualité).`nCoché : tous les onglets, y compris Conversion, Comparaison, Outils, Délais et Commande libre.") + "`n" + (T "Coché : affiche aussi les options avancées de l'onglet Écriture."))   # 12.11 (L9) : options avancees de l onglet Ecriture (Set-WriteTabLayout, 145)
 
 # Aide en ligne (wiki) pour l onglet affiche ; touche F1. 12.8 (lot 5) : hauteur de 34 px (deux hauteurs de bouton, 34 et
 # 40 px), centree sur la rangee du lecteur ; case « Mode expert » remontee de 4 px au-dessus
@@ -69,6 +69,10 @@ $split.Dock = 'Fill'
 $tabs = New-Object System.Windows.Forms.TabControl
 $tabs.Dock = 'Fill'
 $tabs.Padding = New-Object System.Drawing.Point(12, 5)
+# 12.11 (L9) : onglets sur plusieurs rangees plutot que des fleches : en mode expert, les onze onglets sur deux rangees a la
+# taille par defaut de la fenetre (26 px de hauteur en moins pour chaque onglet) ; les six onglets courants tiennent sur une
+# rangee. Comportement de Windows : la rangee de l onglet choisi passe devant
+$tabs.Multiline = $true
 
 # ============================== BIBLIOTHEQUE ===================================
 $tabL = New-TabPage (T 'Bibliothèque')

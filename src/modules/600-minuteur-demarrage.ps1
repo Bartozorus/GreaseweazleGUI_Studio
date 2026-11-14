@@ -215,6 +215,9 @@ $form.Add_Shown({
     if (Test-Path -LiteralPath $script:GwExe) { $script:DetectAt = (Get-Date).AddSeconds(1) }   # detection des lecteurs
 })
 Fit-ControlText $form
+# 12.11 (L9) : onglet Ecriture : controles a la suite de leur libelle ou de la case qui les precede, cadre des options
+# avancees selon « Mode expert », lien (Set-WriteTabLayout, 145) ; apres Fit-ControlText, qui fixe la largeur des cases
+Set-WriteTabLayout
 
 # --- Demarrage -----------------------------------------------------------------
 Set-Defaults
