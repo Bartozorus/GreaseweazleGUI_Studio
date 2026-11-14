@@ -141,7 +141,14 @@ function Start-Progress([string]$verb, [string[]]$gwArgs = $null) {
     # 12.11 : poids de la commande dans le plan de l etape en cours (New-ProgPlan), d apres ses arguments ; second parametre
     # absent (appels a un argument, lecture de prechauffage, detection des lecteurs) : commande hors de tout plan
     $script:ProgCmd = $null
-    if ($script:ProgPlan -and $gwArgs -and $gwArgs.Count -gt 0) { $script:ProgCmd = Get-GwCmdUnits $gwArgs; $script:ProgPlan.Got = 1 + [int]$script:ProgPlan.Got }
+    if ($script:ProgPlan -and $gwArgs -and $gwArgs.Count -gt 0) {
+        $pc = Get-GwCmdUnits $gwArgs
+        # 12.11 (L11) : commande prevue dont le plan estime les pistes, absentes de ses arguments (New-ProgPlan, $tracks :
+        # ecriture d une image sans c= dans --tracks) : poids de l estimation, corrige par l annonce de gw (Update-Progress)
+        $pe = if ([int]$script:ProgPlan.Got -lt @($script:ProgPlan.Cmds).Count) { @($script:ProgPlan.Cmds)[[int]$script:ProgPlan.Got] } else { $null }
+        if ($pe -and $pe.Est -and [int]$pc.Tracks -le 0 -and [double]$pc.Per -gt 0) { $pc = Get-GwCmdUnits $gwArgs ([int]$pe.Tracks); $pc.Est = $true }
+        $script:ProgCmd = $pc; $script:ProgPlan.Got = 1 + [int]$script:ProgPlan.Got
+    }
     $stOp.Text = ((T "{0} en cours...") -f "$verb"); $stTrack.Text = ''; $stOp.Image = $script:StIcons.run
     $stBar.Style = 'Marquee'; $stBar.Visible = $true
 }
@@ -166,11 +173,12 @@ function Update-Progress([string]$line, [switch]$Defer) {
         if ($i.Kind -eq 'head') {
             $script:ProgHead = [string]$i.Verb; $script:ProgTotal = [int]$i.Total
             # Commande d un plan dont les arguments ne donnaient pas les pistes (--tracks=h=0, ou pas de --tracks) : poids
-            # complete par l annonce de gw, dans la commande et dans le total du plan si elle y etait prevue
+            # complete par l annonce de gw, dans la commande et dans le total du plan si elle y etait prevue. 12.11 (L11) :
+            # pistes estimees par le plan (Est, Start-Progress) : poids corrige de l ecart entre l annonce et l estimation
             $pc = $script:ProgCmd
-            if ($pc -and [int]$pc.Tracks -le 0 -and [int]$i.Total -gt 0 -and [double]$pc.Per -gt 0) {
-                $add = [int]$i.Total * [double]$pc.Per
-                $pc.Tracks = [int]$i.Total; $pc.Units = [double]$pc.Units + $add
+            if ($pc -and ([int]$pc.Tracks -le 0 -or $pc.Est) -and [int]$i.Total -gt 0 -and [double]$pc.Per -gt 0) {
+                $add = ([int]$i.Total - [int]$pc.Tracks) * [double]$pc.Per
+                $pc.Tracks = [int]$i.Total; $pc.Units = [double]$pc.Units + $add; $pc.Est = $false
                 if ($script:ProgPlan -and [int]$script:ProgPlan.Got -le @($script:ProgPlan.Cmds).Count) { $script:ProgPlan.Units = [double]$script:ProgPlan.Units + $add }
             }
         } else {
@@ -688,17 +696,25 @@ function Get-GwCmdUnits([string[]]$gwArgs, [int]$tracks = -1) {
     return @{ Fixed = [double]$c.Fixed; Per = $per; Tracks = [int]$n; Units = ([double]$c.Fixed + [int]$n * $per) }
 }
 
-function New-ProgPlan($cmds) {
+function New-ProgPlan($cmds, $tracks = $null) {
     # Plan d une etape faite de plusieurs commandes gw ($cmds : tableaux d arguments, dans l ordre de leur lancement) :
     # $script:ProgPlan = @{ Units (poids prevu) ; Done (poids des commandes finies) ; Max (plus grande fraction rendue) ;
     # Cmds (poids prevus, par commande) ; Got (commandes recues de Start-Progress) }. Pose la ou l etape construit ses
-    # commandes (New-CalibPass, Start-CalibCondition, New-ContentPass) ; retire quand la passe est comptee, a l arret d une
-    # calibration et au repos (Update-SeqEnd). Ne lance rien et ne modifie aucune commande
+    # commandes (New-CalibPass, Start-CalibCondition, New-ContentPass ; 12.11, L11 : Start-WriteProgress, Step-WriteProgress,
+    # 160) ; retire quand la passe est comptee, a l arret d une calibration, a la fin d une ecriture et au repos
+    # (Update-SeqEnd). Ne lance rien et ne modifie aucune commande.
+    # 12.11 (L11) : $tracks (facultatif, un nombre par commande, -1 : pistes lues dans ses arguments) : pistes estimees d une
+    # commande dont --tracks ne les donne pas (ecriture d une image) ; sans elles, son poids ne serait que sa part fixe
+    # jusqu a l annonce de gw, et l etape avancerait trop vite avant elle. Entree marquee Est, corrigee par l annonce
     $u = 0.0
     $l = New-Object System.Collections.Generic.List[object]
+    $ti = -1
     foreach ($c in @($cmds)) {
+        $ti++
         if ($null -eq $c) { continue }
-        $w = Get-GwCmdUnits ([string[]]@($c))
+        $n = if ($null -ne $tracks -and $ti -lt @($tracks).Count) { [int]@($tracks)[$ti] } else { -1 }
+        $w = Get-GwCmdUnits ([string[]]@($c)) $n
+        if ($n -ge 0) { $w.Est = $true }
         $u += [double]$w.Units
         $l.Add($w)
     }

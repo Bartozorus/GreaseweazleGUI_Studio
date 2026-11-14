@@ -54,6 +54,10 @@ $script:ProgCmd        = $null
 $script:ProgPlan       = $null
 $script:SeqEnd         = $null
 $script:SeqCmds        = 0
+# 12.11 (L11) : barre de l onglet Ecriture pendant une ecriture et son controle (Start-WriteProgress, 160) : etapes de
+# l operation (prechauffage, ecriture, passes du controle), leur poids estime et la plus grande valeur affichee ; $null hors
+# d une ecriture, et pendant une restauration (onglet verrouille). Affichage seulement
+$script:WriteProg      = $null
 # 12.11 : poids estimes d une commande gw dans un plan (Get-GwCmdUnits), en secondes : part fixe, puis par piste selon la
 # commande et ses options (effacement ; ecriture, pre-effacement, verification ; relecture : base, par tour, sans --revs).
 # Releves dans les journaux d un seul utilisateur (deux lecteurs a 300 tr/min) : seules leurs proportions servent, pour

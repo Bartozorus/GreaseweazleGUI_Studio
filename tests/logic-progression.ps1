@@ -23,13 +23,23 @@ $Wt = Get-TestRoot $Wt
 #     ses fonctions, appels dont le resultat n est pas lu, commandes de Start-Gw et des passes non touchees ;
 #  I  textes : entrees anglaises des cles nouvelles ; D CHANGELOG et README (D4 : l exemple de compteur du CHANGELOG
 #     est rejoue par les fonctions reelles).
+#  W  (lot L11) barre de l onglet Ecriture pendant une ecriture et son controle : poids estimes (Get-WriteProgUnits),
+#     plan aux pistes estimees corrigees par l annonce de gw (sans elles, le plan avancait trop vite), textes et largeur ;
+#     ecriture lente controlee de bout en bout par les vraies fonctions (prechauffage, effacement, deux tetes, relecture,
+#     reecriture) : barre jamais en recul, etapes ponderees, libelles, commandes inchangees, fin ; reussite avec
+#     correction de l estimation, echec, operation incomplete, Arreter pendant l ecriture et le prechauffage, erreur gw
+#     d une ecriture controlee, gw introuvable ou non lance, refus (arbre syntaxique), restauration exclue ; places dans
+#     Start-ImageWrite, New-WriteCheck, Start-RepPending et le minuteur ; affichage seulement (I3, D5 : textes, documents).
 # Avec -Before <copie de la source de la 12.10> (aucune dans le depot) : cas Q, equivalence avec la 12.10 de l etat lu
 # par la regle de fin (ProgTotal, ProgSeen), du compteur d une lecture et de la barre de calibration sans plan.
 # Fonctions reelles extraites des modules par l arbre syntaxique, ecrites dans un fichier de travail puis chargees par
 # dot-source ; controles WinForms reels jamais affiches ; bouchons pour le reste. Lignes de gw ecrites a la main d apres
 # les formats de gw 1.23 : aucune copie de journal. Aucun gw, aucune fenetre, aucune compilation.
 # Non couvert : le rythme reel de la barre sur materiel (poids releves dans les journaux d un seul utilisateur), l instant
-# ou gw imprime une ligne de piste, le cout d affichage d une fenetre visible, le minuteur principal execute en entier.
+# ou gw imprime une ligne de piste, le cout d affichage d une fenetre visible, le minuteur principal execute en entier
+# (serie W : ses deux instructions des barres de l onglet seulement ; fin d une commande, bouton Arreter, choix des pistes
+# du controle et son analyse rejoues par le pilote du test), la vraie Start-ImageWrite (logic-ecriture-plan,
+# logic-ecriture-onglet l executent avec Start-WriteProgress reelle).
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 Import-TestWinForms
@@ -78,7 +88,11 @@ $want = @('Get-SpecCount', 'Start-Progress', 'Update-Progress', 'Stop-Progress',
           'Get-GwLineInfo', 'Get-GwProgress', 'Show-GwProgress', 'Get-EndRuleTotal', 'Get-GwCmdUnits', 'New-ProgPlan', 'Get-ProgPlanFrac', 'Set-SeqEnd', 'Clear-SeqEnd', 'Update-SeqEnd', 'Complete-DriveDetect',
           'Update-CalibProgress', 'Format-CalDuration', 'Get-WarmupLeft', 'Get-CalibDoneTitle', 'Set-HomeProgDone', 'Get-ContentWriteArgs', 'Format-CylRanges',
           'Enter-RestoreWait', 'Close-Restore', 'Finish-Restore', 'Fail-Restore', 'Stop-Restore', 'Show-RestoreResult', 'Complete-WriteCheck',
-          'Stop-PrecompCalib', 'Complete-DriveProbe')   # corrections de relecture : cas E23 a E25
+          'Stop-PrecompCalib', 'Complete-DriveProbe',   # corrections de relecture : cas E23 a E25
+          # 12.11 (lot L11) : barre de l onglet Ecriture pendant l ecriture et son controle (serie W)
+          'Get-WriteProgUnits', 'Get-WriteProgText', 'Start-WriteProgress', 'Step-WriteProgress', 'Get-WriteProgPct', 'Update-WriteProgress', 'Get-WriteProgEnd', 'Complete-WriteProgress',
+          'Update-WriteWarmupProgress', 'Start-WriteWarmup', 'Invoke-WriteWarmup', 'Stop-WriteWarmup', 'Invoke-WriteQueueNext', 'Invoke-NextChainStep', 'Get-GwDriveKey', 'Reset-GwSequence',
+          'New-WriteCheck', 'Test-SourceMayHaveWeak', 'Start-RepPending', 'Invoke-RepNextCmd', 'Merge-RepRetries', 'Stop-WriteCheck')
 $miss = @($want | Where-Object { -not $src.Text.ContainsKey($_) })
 if ($miss.Count) { throw "fonctions introuvables dans les modules : $($miss -join ', ')" }
 $parts = New-Object System.Collections.Generic.List[string]
@@ -97,6 +111,21 @@ $parts.Add("function Invoke-TimerEndRule([int]`$code, [bool]`$soft, [bool]`$eras
 $planStmt = @($src.Fn['New-ContentPass'].Body.FindAll({ param($x) $x -is $tCmd -and $x.GetCommandName() -eq 'New-ProgPlan' }, $true))
 if ($planStmt.Count -ne 1) { throw "appel de New-ProgPlan dans New-ContentPass : $($planStmt.Count)" }
 $parts.Add("function Invoke-ContentPlanStmt(`$cal, `$ct) {`r`n" + [string]$planStmt[0].Extent.Text + "`r`n}")
+# 12.11 (lot L11) : instructions reelles de Start-ImageWrite (140) qui posent le plan de l ecriture (liste des commandes,
+# puis Start-WriteProgress), et du minuteur principal (600) qui mettent a jour la barre de l onglet Ecriture
+$wpCall = @($src.Fn['Start-ImageWrite'].Body.FindAll({ param($x) $x -is $tCmd -and $x.GetCommandName() -eq 'Start-WriteProgress' }, $true))
+if ($wpCall.Count -ne 1) { throw "appel de Start-WriteProgress dans Start-ImageWrite : $($wpCall.Count)" }
+$wpSt = $wpCall[0].Parent; $wpBlk = @($wpSt.Parent.Statements); $wpI = -1
+for ($i = 0; $i -lt $wpBlk.Count; $i++) { if ([object]::ReferenceEquals($wpBlk[$i], $wpSt)) { $wpI = $i } }
+if ($wpI -lt 2 -or -not ([string]$wpBlk[$wpI - 2].Extent.Text).StartsWith('$wpCmds = ') -or -not ([string]$wpBlk[$wpI - 1].Extent.Text).StartsWith('if (-not $slow)')) { throw 'instructions du plan de l ecriture introuvables dans Start-ImageWrite' }
+$wpStmts = @($wpBlk[$wpI - 2], $wpBlk[$wpI - 1], $wpBlk[$wpI]) | ForEach-Object { [string]$_.Extent.Text }
+$parts.Add("function Invoke-WStartStmt([bool]`$slow, `$a, [bool]`$post, `$blocker) {`r`n" + ($wpStmts -join "`r`n") + "`r`n}")
+$tickW = @($src.Ast['600-minuteur-demarrage.ps1'].FindAll({ param($x) $x -is [System.Management.Automation.Language.InvokeMemberExpressionAst] -and [string]$x.Expression -eq '$timer' -and [string]$x.Member -eq 'Add_Tick' }, $true))
+$tkW = if ($tickW.Count -eq 1) { @($tickW[0].Arguments[0].ScriptBlock.EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text }) } else { @() }
+$tkWarm = @($tkW | Where-Object { $_ -ceq 'if ($script:Cal) { Update-CalibProgress } elseif ($script:WriteWarm) { Update-WriteWarmupProgress }' })
+$tkWrite = @($tkW | Where-Object { $_ -ceq 'if ($script:WriteProg) { Update-WriteProgress }' })
+if ($tkWarm.Count -ne 1 -or $tkWrite.Count -ne 1) { throw "instructions des barres de l onglet Ecriture dans le minuteur : $($tkWarm.Count), $($tkWrite.Count)" }
+$parts.Add("function Invoke-WTimer {`r`n" + $tkWarm[0] + "`r`n" + $tkWrite[0] + "`r`n}")
 $gen = Join-Path $here 'gen-progression.ps1'
 [System.IO.File]::WriteAllText($gen, (($parts -join "`r`n`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($true)))
 
@@ -108,7 +137,6 @@ function Exit-OpOverride([switch]$Keep) { }
 function Restore-WriteTabState($s) { }
 function Set-RsLock($b) { }
 function Update-RsCalib { }
-function Stop-WriteWarmup { }
 function Write-RestoreReport([bool]$ok, [string]$verdict) { }
 function Set-RsStep([int]$i, [string]$state, [string]$detail = '') { }
 function Format-CylList($c) { return (@($c) -join ',') }
@@ -116,7 +144,8 @@ function Format-TrackList($c) { return (@($c) -join ', ') }
 function Sort-TrackKeys($c) { return @($c | Sort-Object) }
 function Show-WriteCheckTable($rep) { }
 function Set-QualityCheckState($lvl, $txt, $short, $n) { }
-function Set-WCalVerdict($txt, $icon) { }
+# 12.11 (lot L11) : le verdict prend le libelle de l onglet Ecriture, comme la vraie Set-WCalVerdict (195)
+function Set-WCalVerdict($txt, $icon) { $lblWCal.Text = [string]$txt; $lblWCal.Visible = $true }
 function Exit-CheckTab { }
 function Invoke-RestoreNext { $script:Calls.Add('Invoke-RestoreNext') }
 function Get-FamilyCurves($f, $s) { return @() }
@@ -132,6 +161,17 @@ function Restore-CalibRetestPre($cal) { return $false }
 function Reset-DiskHardNs { }
 function Save-ContentCompanion($cal, $state) { }
 function Invoke-DriveProbe { $script:Calls.Add('Invoke-DriveProbe') }
+# 12.11 (lot L11) : bouchons de la serie W (vraies Stop-WriteWarmup, Start-WriteWarmup, New-WriteCheck, Invoke-RepNextCmd,
+# Stop-WriteCheck et Reset-GwSequence chargees) : duree du prechauffage fixee par le test, options de lecture, verdict
+# masque, carte de l onglet Qualite
+function Get-CalWarmupPlan([string]$key, [double]$minutes) { return @{ Sec = [double]$script:WTest.WarmSec; Skip = $false; Reduced = $false; Active = 0.0; Idle = 0.0 } }
+function Get-DriveReadArgs { return @() }
+function Hide-WCalVerdict { }
+function Set-QualityPending($k) { }
+function Set-QualityRunText($t) { }
+function Set-QualityStale($w) { }
+function Update-RepPartial { }
+$script:WTest = @{ WarmSec = 300.0; Rounds = 0; Mode = ''; DefCyl = 80 }
 $script:Sound = 0
 . $gen
 
@@ -162,6 +202,7 @@ function Reset-All {
     $script:GwIsWrite = $false; $script:GwIsErase = $false; $script:GwCmdFailed = $false; $script:GwWriteSummary = $false; $script:GwVerifyFail = $null
     $script:EraseLog = $null; $script:WriteRetries = @{}; $script:WriteTracks = @{}
     $script:Restore = $null; $script:Cal = $null; $script:Rep = $null; $script:WriteWarm = $null; $script:GwProc = $null; $script:AlignLoop = $false
+    $script:WriteProg = $null; $script:GwLastCode = 0; $script:GwLastIncomplete = $false; $script:GwSoft = $false   # 12.11 (lot L11)
     $script:Chain = New-Object System.Collections.Queue; $script:WriteQueue = New-Object System.Collections.Queue
     $script:OpOverride = $null; $script:AfterCalib = ''; $script:FmtDetect = $null; $script:LastCheck = $null; $script:RsResultIcon = $null; $script:HomeProgDone = $null
     $script:Lang = 'fr'; $script:Calls.Clear()
@@ -833,6 +874,312 @@ for ($i = 0; $i -lt $tk.Count; $i++) {
 }
 Chk 'E21' ($tick.Count -eq 1 -and $iSeq -gt $iGw -and $iGw -ge 0 -and $iSeq -eq $iRs + 1) "minuteur principal : Update-SeqEnd est une instruction du premier niveau du gestionnaire (rang $iSeq sur $($tk.Count)), apres le traitement de la fin de gw (rang $iGw) et l avancement de la restauration (rang $iRs)"
 
+# ================================================================ W. barre de l onglet Ecriture (lot L11)
+'--- W. barre de l onglet Ecriture pendant l ecriture et son controle (lot L11)'
+# Pilote : vraies fonctions de l ecriture lente (file, prechauffage), du controle (New-WriteCheck, Start-RepPending,
+# Invoke-RepNextCmd, Stop-WriteCheck, Complete-WriteCheck) et de la progression ; instructions reelles de Start-ImageWrite
+# qui posent le plan (Invoke-WStartStmt) et du minuteur qui mettent a jour les barres de l onglet (Invoke-WTimer).
+# Remplaces : gw (Start-Gw ci-dessous, comme la vraie pour la progression), traitement de la fin d une commande par le
+# minuteur (Invoke-WEnd), bouton Arreter (Invoke-WStop), choix des pistes du controle (Start-WriteCheck) et son analyse
+# (Invoke-WriteCheckAnalysis), temps qui passe (Move-WTime). Lignes de gw ecrites a la main d apres ses formats
+$chkWWarm = New-Object System.Windows.Forms.CheckBox; $chkWWarm.Checked = $true
+$chkWHard = New-Object System.Windows.Forms.CheckBox; $chkWTG43 = New-Object System.Windows.Forms.CheckBox
+$script:WObs = New-Object System.Collections.Generic.List[object]; $script:WCmds = New-Object System.Collections.Generic.List[string]
+function Get-WTracks([string]$cmd) {
+    # Cylindres et tetes d une commande factice : c= et h= de --tracks ; sans c=, les cylindres de l image du scenario
+    $c0 = 0; $c1 = [int]$script:WTest.DefCyl - 1; $hs = @(0, 1)
+    if ($cmd -match '--tracks=(\S+)') {
+        $ts = $Matches[1]
+        if ($ts -match '(?:^|:)c=(\d+)(?:-(\d+))?') { $c0 = [int]$Matches[1]; $c1 = $(if ($Matches[2]) { [int]$Matches[2] } else { $c0 }) }
+        if ($ts -match '(?:^|:)h=([01])(?:-([01]))?') { $hs = @(if ($Matches[2]) { 0, 1 } else { [int]$Matches[1] }) }
+    }
+    return @{ C0 = $c0; C1 = $c1; H = $hs; Spec = "c=$c0-$($c1):h=$($hs -join '-')" }
+}
+function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
+    # Bouchon de gw : commande relevee, puis comme la vraie Start-Gw (110) pour la progression : arguments a Start-Progress
+    # (sauf lecture de prechauffage), drapeaux, processus factice. Modes : 'missing' (gw.exe introuvable : Reset-GwSequence,
+    # rien de lance), 'launch' (Process.Start en echec : Start-Progress, Reset-GwSequence, Set-GwLaunchFailedStatus)
+    $script:WCmds.Add($(if ($Soft) { 'prechauffage ' } else { '' }) + ($gwArgs -join ' '))
+    if ($script:WTest.Mode -eq 'missing') { Reset-GwSequence; return }
+    $first = [string]$gwArgs[0]
+    $verbs = @{ write = (T 'Écriture'); read = (T 'Lecture'); erase = (T 'Effacement') }
+    Start-Progress $(if ($Soft) { (T 'Préchauffage') } else { [string]$verbs[$first] }) $(if ($Soft) { $null } else { $gwArgs })
+    if ($script:WTest.Mode -eq 'launch') { Reset-GwSequence; Set-GwLaunchFailedStatus; return }
+    $script:GwIsWrite = ($first -eq 'write'); $script:GwIsErase = ($first -eq 'erase'); $script:GwSoft = [bool]$Soft
+    $script:GwStart = Get-Date; $script:GwProc = [pscustomobject]@{ HasExited = $false }
+}
+function Start-WriteCheck {
+    # Bouchon : relecture de toutes les pistes ecrites en deux commandes (deux groupes), puis la vraie Start-RepPending
+    $rep = $script:Rep; if (-not $rep) { return }
+    Merge-RepRetries
+    $rep.Round = 0; $rep.Scope = @{ '0.0' = $true }; $rep.Pending.Clear()
+    $rep.Pending.Enqueue([string[]]@('read', '--drive=A', '--revs=3', '--tracks=c=0-39:h=0-1', '"r0-0.scp"'))
+    $rep.Pending.Enqueue([string[]]@('read', '--drive=A', '--revs=3', '--tracks=c=40-79:h=0-1', '"r0-1.scp"'))
+    Start-RepPending
+}
+function Invoke-WriteCheckAnalysis {
+    # Bouchon de l analyse : $script:WTest.Rounds passes de reecriture (effacement, ecriture et relecture de deux pistes
+    # faibles), puis la vraie Complete-WriteCheck (quatre pistes saines apres reecriture)
+    $rep = $script:Rep; if (-not $rep) { return }
+    if ([int]$rep.Round -lt [int]$script:WTest.Rounds) {
+        $rep.Round++; $rep.Weak = @('3.0', '3.1'); $rep.Rewrites['3.0'] = 1; $rep.Rewrites['3.1'] = 1
+        $rep.Pending.Enqueue([string[]]@('erase', '--drive=A', '--hfreq', '--tracks=c=3:h=0-1'))
+        $rep.Pending.Enqueue([string[]]@('write', '--drive=A', '--retries=3', '--tracks=c=3:h=0-1', '"img.adf"'))
+        $rep.Pending.Enqueue([string[]]@('read', '--drive=A', '--revs=3', '--tracks=c=3:h=0-1', '"r1.scp"'))
+        Start-RepPending; return
+    }
+    $rep.Weak = @(); $rep.State = @{}; foreach ($k in '0.0', '0.1', '3.0', '3.1') { $rep.State[$k] = @{ Bad = $false; Level = 0; Weak = $false; Unjudged = $false } }
+    $rep.Ignore = @{}; $rep.SrcOver = @{}; $rep.Target = ''
+    Complete-WriteCheck
+}
+function Add-WObs([string]$at) { $script:WObs.Add(@{ At = $at; V = [int]$pbWCal.Value; Vis = [bool]$pbWCal.Visible; T = [string]$lblWCal.Text }) }
+function Invoke-WTick([string]$at = 'tick') { Invoke-WTimer; Add-WObs $at }
+# Releves : listes generiques lues par ToArray() (sous PowerShell 7, @() sur une List[object] de tables leve « Argument
+# types do not match ») ; dernier releve par le tableau (une List n admet pas d indice negatif)
+function Get-WLast { $o = $script:WObs.ToArray(); return $o[$o.Count - 1] }
+function Move-WTime([double]$s) {
+    # Temps qui passe : debut du prechauffage, de sa lecture en cours et de la commande gw recules de $s secondes
+    $w = $script:WriteWarm
+    if ($w) { $w.WarmStart = ([datetime]$w.WarmStart).AddSeconds(-$s); if ($w.WarmReadStart -is [datetime]) { $w.WarmReadStart = ([datetime]$w.WarmReadStart).AddSeconds(-$s) } }
+    if ($script:GwStart -is [datetime]) { $script:GwStart = ([datetime]$script:GwStart).AddSeconds(-$s) }
+}
+function Invoke-WStop {
+    # Bouton Arreter (540), gw en cours : chaine et file videes, prechauffage et controle arretes ; gw tue (code -1) ensuite
+    $script:Chain.Clear(); $script:WriteQueue.Clear()
+    Stop-WriteWarmup
+    if ($script:Rep) { Stop-WriteCheck }
+}
+function Invoke-WEnd([int]$code, [switch]$Incomplete) {
+    # Fin de la commande gw, comme le traitement du minuteur (600) : code, Stop-Progress, operation incomplete, suite de la
+    # chaine ; erreur ou operation incomplete : sequence arretee (Stop-WriteWarmup, Stop-WriteCheck -GwError) ; puis un
+    # passage du minuteur
+    $soft = [bool]$script:GwSoft; $script:GwSoft = $false; $script:GwLastCode = $code
+    Stop-Progress $code
+    $script:GwIsWrite = $false; $script:GwIsErase = $false
+    $script:GwLastIncomplete = [bool]$Incomplete
+    $script:GwProc = $null
+    if ($script:Chain.Count -gt 0) {
+        if ($soft -or ($code -eq 0 -and -not $Incomplete)) { Invoke-NextChainStep }
+        else { $script:Chain.Clear(); $script:WriteQueue.Clear(); Stop-WriteWarmup; if ($script:Rep) { Stop-WriteCheck -GwError } }
+    }
+    Invoke-WTick 'fin'
+}
+function Invoke-WCmd([int]$code = 0, [int]$upTo = -1, [switch]$Incomplete, [switch]$Halt) {
+    # Commande en cours (derniere relevee par le bouchon de gw). Lecture de prechauffage : 100 s en quatre passages du
+    # minuteur. Autre : annonce et lignes de piste, par lots de 20, un passage du minuteur par lot ($upTo : arret apres
+    # autant de lignes ; $Halt : bouton Arreter), puis fin. Jamais de variable nommee comme un controle de la barre
+    # d etat : PowerShell ignore la casse, un parametre $Stop masquerait $stOp dans Stop-Progress
+    $cmd = [string]$script:WCmds[$script:WCmds.Count - 1]
+    if ($cmd.StartsWith('prechauffage ')) {
+        foreach ($i in 1..4) { Move-WTime 25; Invoke-WTick 'prechauffage'; if ($Halt -and $i -eq 2) { break } }
+        if ($Halt) { Invoke-WStop; Invoke-WEnd (-1) } else { Invoke-WEnd 0 }
+        return
+    }
+    $tk = Get-WTracks $cmd
+    $verb = ($cmd -split ' ')[0]
+    $head = switch ($verb) { 'write' { "Writing $($tk.Spec)" } 'erase' { "Erasing $($tk.Spec), revs=1" } default { "Reading $($tk.Spec) revs=3" } }
+    $ls = New-TrackLines $(if ($verb -eq 'read') { 'read' } else { $verb }) $tk.C0 $tk.C1 $tk.H
+    if ($upTo -ge 0) { $ls = [string[]]@($ls | Select-Object -First $upTo) }
+    Invoke-WTick $verb
+    Update-Progress $head -Defer; Show-GwProgress
+    for ($i = 0; $i -lt $ls.Count; $i += 20) {
+        foreach ($l in @($ls[$i..([math]::Min($ls.Count, $i + 20) - 1)])) { Update-Progress $l -Defer }
+        Show-GwProgress; Invoke-WTick $verb
+    }
+    if ($verb -eq 'write' -and $upTo -lt 0) { Update-Progress 'All tracks verified' -Defer }
+    if ($Halt) { Invoke-WStop; Invoke-WEnd (-1); return }
+    Invoke-WEnd $code -Incomplete:$Incomplete
+}
+function Invoke-WAll([int]$failAt = -1, [int]$failCode = 1, [int]$failLines = 30, [switch]$Incomplete, [int]$stopAt = -1) {
+    # Commandes jusqu a la fin de la sequence ($failAt, $stopAt : rang de la commande en echec ou arretee, 1 la premiere)
+    $k = 0
+    while ($script:GwProc -and $k -lt 40) {
+        $k++
+        if ($k -eq $stopAt) { Invoke-WCmd 0 $failLines -Halt }
+        elseif ($k -eq $failAt) { Invoke-WCmd $failCode $failLines -Incomplete:$Incomplete }
+        else { Invoke-WCmd 0 }
+    }
+    Invoke-WTick 'repos'
+}
+function Start-WScenario([bool]$slow, [bool]$check, [bool]$warm, [bool]$erase, [int]$rounds = 0, [int]$defCyl = 80, [string]$mode = '') {
+    # Ecriture comme a la fin de Start-ImageWrite : file (effacement, une ecriture par tete), plan pose par ses
+    # instructions reelles, controle (vraie New-WriteCheck), chaine d etapes, puis prechauffage ou premiere etape.
+    # Affichage d avant : barre et libelle de la calibration qui precede
+    Reset-All
+    $script:WObs = New-Object System.Collections.Generic.List[object]; $script:WCmds = New-Object System.Collections.Generic.List[string]
+    $script:WTest.Rounds = $rounds; $script:WTest.Mode = $mode; $script:WTest.DefCyl = $defCyl
+    $script:CalWarmupMinutes = $(if ($warm) { 5.0 } else { 0.0 }); $script:CalWarmupMinReads = 1; $script:CalWarmupMaxFails = 3; $script:TempDir = $here
+    $cmbDrive.Text = 'A'
+    $lblWCal.Text = 'Calibration terminée en 3 min 10 s'; $lblWCal.Visible = $true; $pbWCal.Value = 100; $pbWCal.Visible = $true
+    $base = @('write', '--drive=A', '--retries=3')
+    if ($erase) { $script:WriteQueue.Enqueue([string[]]@('erase', '--drive=A', '--hfreq', '--tracks=c=0-79:h=0-1')) }
+    if ($slow) { foreach ($h in 0, 1) { $script:WriteQueue.Enqueue([string[]]($base + @('--precomp', '0=100', "--tracks=h=$h", '"img.adf"'))) } }
+    $a = $base + @('"img.adf"')
+    $wq = New-Object System.Collections.Generic.List[string]
+    foreach ($q in @($script:WriteQueue.ToArray())) { $wq.Add((@($q) -join ' ')) }
+    if (-not $slow) { $wq.Add(($a -join ' ')) }
+    $script:WQueued = $wq.ToArray()
+    Invoke-WStartStmt $slow $a $check $null
+    $script:WPoseSeg = $(if ($script:WriteProg) { [string]$script:WriteProg.Seg } else { '' })
+    $script:WQAfter = @($script:WriteQueue.ToArray() | ForEach-Object { @($_) -join ' ' })
+    if ($check) { New-WriteCheck ([string[]]$base) 'img.adf' '' 2 @() $null 'hfreq' }
+    $script:Chain.Clear()
+    for ($i = 0; $i -lt $script:WriteQueue.Count; $i++) { $script:Chain.Enqueue({ Invoke-WriteQueueNext }) }
+    if (-not $slow) { $script:WriteArgs = $a; $script:Chain.Enqueue({ Start-Gw $script:WriteArgs }) }
+    if ($check) { $script:Chain.Enqueue({ Start-WriteCheck }) }
+    Add-WObs 'pose'
+    if ($slow) { Start-WriteWarmup 'c=0,10,20,30,40,50,60,70,79:h=0-1' $false } else { Invoke-NextChainStep }
+}
+function Get-WMono {
+    # Barre de l onglet de la pose a la fin : visible, jamais en recul ; masquee ensuite, pour de bon
+    $o = $script:WObs.ToArray(); $back = 0; $reshow = 0; $hid = -1; $prev = -1
+    for ($i = 0; $i -lt $o.Count; $i++) {
+        if (-not $o[$i].Vis) { if ($hid -lt 0) { $hid = $i }; continue }
+        if ($hid -ge 0) { $reshow++ }
+        if ([int]$o[$i].V -lt $prev) { $back++ }
+        $prev = [int]$o[$i].V
+    }
+    return @{ Back = $back; Reshow = $reshow; Hid = $hid; N = $o.Count; Max = $prev }
+}
+$tWarmP = (T "Préchauffage avant l'écriture : {2} %, reste environ {3} (lecteur {0}, lecture {1}, sans écriture)").Split('{')[0]
+$tCheckW = 'Écriture : {0} %, contrôle de toutes les pistes ensuite'
+
+# W1 : poids estimes ; pistes estimees quand --tracks ne les donne pas
+$uF = Get-WriteProgUnits @(,[string[]]@('write', '--drive=A', '"x.adf"')) $true
+$uS = Get-WriteProgUnits @([string[]]@('erase', '--drive=A', '--hfreq', '--tracks=c=0-79:h=0-1'), [string[]]@('write', '--drive=A', '--precomp', '0=100', '--tracks=h=0', '"x.adf"'), [string[]]@('write', '--drive=A', '--tracks=h=1', '"x.adf"')) $true
+$uC = Get-WriteProgUnits @(,[string[]]@('write', '--drive=A', '--no-verify', '--pre-erase', '--tracks=c=0-39', '"x.adf"')) $false
+$uX = Get-WriteProgUnits @(,[string[]]@('write', '--drive=A', '--tracks=c=0-79:h=0-1:step=2', '"x.adf"')) $true
+Chk 'W1' ((@($uF.Tracks) -join ',') -eq '160' -and [math]::Abs($uF.Write - 161.8) -lt 1e-9 -and [math]::Abs($uF.Check - 133) -lt 1e-9 -and (@($uS.Tracks) -join ',') -eq '-1,80,80' -and [math]::Abs($uS.Write - 208.6) -lt 1e-9 -and [math]::Abs($uS.Check - 133) -lt 1e-9 -and
+          (@($uC.Tracks) -join ',') -eq '80' -and [math]::Abs($uC.Write - (5 + 80 * 0.61)) -lt 1e-9 -and $uC.Check -eq 0 -and (@($uX.Tracks) -join ',') -eq '-1' -and [math]::Abs($uX.Write - 161.8) -lt 1e-9) "poids estimes (Get-WriteProgUnits, table reelle) : ecriture rapide sans --tracks 160 pistes estimees, poids $(Num $uF.Write), controle $(Num $uF.Check) ; effacement et deux tetes (h=0, h=1) : pistes $(@($uS.Tracks) -join ', '), poids $(Num $uS.Write) ; c=0-39 sans h= : $(@($uC.Tracks) -join ', ') ; --tracks complet : lu dans les arguments ($(@($uX.Tracks) -join ', '))"
+# W2 : plan de l ecriture avec les pistes estimees : pas d avance excessive avant l annonce de gw, estimation corrigee par
+# l annonce, fraction 1 a la fin ; sans estimation (comme une etape de calibration), le meme plan avancerait trop vite
+Reset-All
+$cmdD = @([string[]]@('erase', '--drive=A', '--hfreq', '--tracks=c=0-79:h=0-1'), [string[]]@('write', '--drive=A', '--retries=3', '"x.adf"'))
+function Invoke-WPlanErase {
+    Start-Progress (T 'Effacement') $cmdD[0]; Update-Progress 'Erasing c=0-79:h=0-1, revs=1'; Push-Lines (New-TrackLines 'erase' 0 79 @(0, 1)); Stop-Progress 0
+    return (Get-ProgPlanFrac)
+}
+New-ProgPlan $cmdD; $fNo = Invoke-WPlanErase
+Reset-All
+$uD = Get-WriteProgUnits $cmdD $false
+New-ProgPlan $cmdD $uD.Tracks; $estE = (@($script:ProgPlan.Cmds) | ForEach-Object { [bool]$_.Est }) -join ','
+$fEst = Invoke-WPlanErase
+Start-Progress (T 'Écriture') $cmdD[1]; $pc0 = "$($script:ProgCmd.Tracks)|$(Num $script:ProgCmd.Units)|$([bool]$script:ProgCmd.Est)"
+Update-Progress 'Writing c=0-39:h=0-1'; $pc1 = "$($script:ProgCmd.Tracks)|$(Num $script:ProgCmd.Units)|$([bool]$script:ProgCmd.Est)|$(Num $script:ProgPlan.Units)"
+Push-Lines (New-TrackLines 'write' 0 39 @(0, 1)); $fW1 = Get-ProgPlanFrac; Stop-Progress 0; $fW2 = Get-ProgPlanFrac
+Chk 'W2' ([math]::Abs($fNo - 41.8 / 46.8) -lt 1e-9 -and $estE -eq 'False,True' -and [math]::Abs($fEst - 41.8 / 203.6) -lt 1e-9 -and $pc0 -eq '160|161.8|True' -and $pc1 -eq '80|83.4|False|125.2' -and $fW1 -lt 1.0 -and [math]::Abs($fW2 - 1.0) -lt 1e-9) "effacement de 160 pistes puis ecriture sans --tracks : apres l effacement, fraction $(Num $fNo '0.###') sans estimation (l ecriture ne pesait que sa part fixe), $(Num $fEst '0.###') avec les 160 pistes estimees ; commande d ecriture : pistes, poids, estimation $pc0 ; annonce « Writing c=0-39:h=0-1 » : $pc1 (poids du plan corrige) ; fin : $(Num $fW2)"
+# W3 : textes, en francais et en anglais, entiers dans le libelle (largeur de 520 : cadre « 2. Disquette et lecteur »)
+$s520W = [System.IO.File]::ReadAllText((Join-Path $m '520-ui-ecriture.ps1'), [System.Text.Encoding]::UTF8)
+$mG = [regex]::Match($s520W, "\`$grpWOpt = New-Group \(T '2\. Disquette et lecteur'\) '\d+,\d+' '(\d+),(\d+)'"); $mL = [regex]::Match($s520W, "\`$lblWCal\.Location = '(\d+),\d+'")
+$grpW = New-Object System.Windows.Forms.GroupBox; $grpW.Font = New-Object System.Drawing.Font('Segoe UI', 9.75)
+$wLbl = 0; if ($mG.Success -and $mL.Success) { $grpW.Size = New-Object System.Drawing.Size([int]$mG.Groups[1].Value, [int]$mG.Groups[2].Value); $wLbl = $grpW.DisplayRectangle.Right - [int]$mL.Groups[1].Value }
+$w3 = @()
+foreach ($lg in 'fr', 'en') {
+    $script:Lang = $lg
+    foreach ($t in @((Get-WriteProgText 100 $true), (Get-WriteProgText 100 $false), (T 'Écriture terminée.'), (T 'Écriture interrompue : voir le journal.'))) { $w3 += @{ T = $t; W = [System.Windows.Forms.TextRenderer]::MeasureText($t, $grpW.Font).Width } }
+}
+$script:Lang = 'fr'
+$w3Txt = @($w3 | ForEach-Object { $_.T })
+Chk 'W3' ($wLbl -gt 300 -and @($w3 | Where-Object { $_.W -gt $wLbl }).Count -eq 0 -and ($w3Txt -join ' | ') -ceq 'Écriture : 100 %, contrôle de toutes les pistes ensuite | Écriture : 100 % | Écriture terminée. | Écriture interrompue : voir le journal. | Writing: 100 %, then checking every track | Writing: 100 % | Write finished. | Write interrupted: see the log.') "textes de l ecriture : $($w3Txt -join ' | ') ; le plus large $(@($w3 | ForEach-Object { $_.W } | Measure-Object -Maximum).Maximum) px pour $wLbl px de libelle"
+
+# Ecriture lente controlee de bout en bout : prechauffage (300 s), effacement haute frequence, deux tetes, relecture de
+# toutes les pistes en deux commandes, une passe de reecriture de deux pistes faibles
+Start-WScenario $true $true $true $true 1
+$wp0 = $script:WriteProg; $pl0 = $script:ProgPlan; $o0 = $script:WObs[0]
+$w4 = "$($o0.V)|$($o0.Vis)|$($o0.T)"
+$w4p = "$(@($pl0.Cmds).Count)|$(@($pl0.Cmds | ForEach-Object { [bool]$_.Est }) -join ',')|$(Num $wp0.Write)|$(Num $wp0.CheckEst)|$($wp0.Check)|$($script:WPoseSeg)|$($wp0.Seg)"
+Invoke-WAll
+$mono = Get-WMono; $ob = $script:WObs.ToArray()
+$warmObs = @($ob | Where-Object { $_.T.StartsWith($tWarmP) }); $wrObs = @($ob | Where-Object { $_.T -like 'Écriture : * %, contrôle de toutes les pistes ensuite' })
+$ckObs = @($ob | Where-Object { $_.T.StartsWith('Contrôle après écriture : ') }); $rwObs = @($ob | Where-Object { $_.T -match 'réécriture 1/2|remesure 1/2' })
+$iW = -1; $iC = -1; for ($i = 0; $i -lt $ob.Count; $i++) { if ($iW -lt 0 -and $ob[$i].T -like 'Écriture : * %, contrôle*' -and $warmObs.Count -gt 0 -and $i -gt [array]::IndexOf($ob, $warmObs[-1])) { $iW = $i }; if ($iC -lt 0 -and $ob[$i].T.StartsWith('Contrôle après écriture : ')) { $iC = $i } }
+$pctW = @($wrObs | ForEach-Object { [int]([regex]::Match($_.T, '^Écriture : (\d+) %').Groups[1].Value) })
+$backW = 0; for ($i = 1; $i -lt $pctW.Count; $i++) { if ($pctW[$i] -lt $pctW[$i - 1]) { $backW++ } }
+$expWarm = [int][math]::Floor(100 * 300 / 641.6); $expWrite = [int][math]::Floor(100 * 508.6 / 641.6)
+Chk 'W4' ($w4 -eq "0|True|$((T $tCheckW) -f 0)" -and $w4p -eq '3|False,True,True|208.6|133|True|write|warm' -and $o0.V -eq 0) "pose (instructions reelles de Start-ImageWrite, avant le lancement) : barre a 0, visible, « $($o0.T) » ; plan : commandes, estimation, poids de l ecriture et du controle, controle, etape a la pose puis une fois le prechauffage lance : $w4p"
+Chk 'W5' ($mono.Back -eq 0 -and $mono.Reshow -eq 0 -and $mono.Hid -eq $ob.Count - 2 -and $mono.N -ge 50 -and $backW -eq 0 -and $mono.Max -eq 99) "prechauffage, effacement, deux tetes, relecture et reecriture : la barre de l onglet ne recule jamais ($($mono.N) releves, reculs $($mono.Back)), reste visible jusqu a la fin puis est masquee ; « Écriture : x % » croissant ($($pctW.Count) releves, reculs $backW) ; valeur la plus haute $($mono.Max) % avant la fin"
+Chk 'W6' ($warmObs.Count -ge 12 -and $warmObs[-1].V -eq $expWarm -and $iW -gt 0 -and $ob[$iW].V -eq $expWarm -and $ob[$iW].T -ceq ((T $tCheckW) -f 0) -and $iC -gt 0 -and $ob[$iC - 1].V -eq $expWrite -and $ob[$iC].V -eq $expWrite -and @($rwObs | Where-Object { $_.V -ne 99 }).Count -eq 0 -and $rwObs.Count -ge 3) "etapes ponderees par leur duree estimee : fin du prechauffage $($warmObs[-1].V) % (300 s sur 641,6, attendu $expWarm) ; debut de l ecriture $($ob[$iW].V) %, libelle retabli « $($ob[$iW].T) » ; fin de l ecriture $($ob[$iC - 1].V) %, debut du controle $($ob[$iC].V) % (attendu $expWrite, relecture plus longue que prevu : la barre attend) ; passe de reecriture, imprevue : $(@($rwObs | ForEach-Object { $_.V } | Sort-Object -Unique) -join ',') % (attend sur place)"
+$labels = New-Object System.Collections.Generic.List[string]
+foreach ($o in $ob) { $k = if ($o.T.StartsWith($tWarmP)) { 'prechauffage' } elseif ($o.T -like 'Écriture : * %, contrôle*') { 'ecriture' } else { $o.T } ; if ($labels.Count -eq 0 -or $labels[$labels.Count - 1] -cne $k) { $labels.Add($k) } }
+$expLab = @('ecriture', 'prechauffage', 'ecriture', 'Contrôle après écriture : relecture de toutes les pistes...', 'Contrôle après écriture : effacement haute fréquence avant la réécriture 1/2 de 2 piste(s) faible(s)...', 'Contrôle après écriture : réécriture 1/2 de 2 piste(s) faible(s)...', 'Contrôle après écriture : remesure 1/2 de 2 piste(s)...', 'CONTRÔLE APRÈS ÉCRITURE : 4/4 pistes saines, après réécriture de 2 piste(s) en 1 passe(s)')
+Chk 'W7' (($labels -join ' > ') -ceq ($expLab -join ' > ')) "libelles successifs : $($labels -join ' > ')"
+$expCmds = @('prechauffage read', 'prechauffage read', 'prechauffage read') + @($script:WQueued) + @('read --drive=A --revs=3 --tracks=c=0-39:h=0-1 "r0-0.scp"', 'read --drive=A --revs=3 --tracks=c=40-79:h=0-1 "r0-1.scp"', 'erase --drive=A --hfreq --tracks=c=3:h=0-1', 'write --drive=A --retries=3 --tracks=c=3:h=0-1 "img.adf"', 'read --drive=A --revs=3 --tracks=c=3:h=0-1 "r1.scp"')
+$gotCmds = @($script:WCmds | ForEach-Object { if ($_.StartsWith('prechauffage read')) { 'prechauffage read' } else { $_ } })
+Chk 'W8' (($gotCmds -join ' | ') -ceq ($expCmds -join ' | ') -and ($script:WQAfter -join ' | ') -ceq (@($script:WQueued | Select-Object -First 3) -join ' | ')) "commandes lancees, dans l ordre : celles de la file et des passes du controle, telles quelles ($($gotCmds.Count)) ; file de l ecriture intacte apres la pose du plan"
+Chk 'W9' ($ob[-1].T -ceq 'CONTRÔLE APRÈS ÉCRITURE : 4/4 pistes saines, après réécriture de 2 piste(s) en 1 passe(s)' -and -not $ob[-1].Vis -and $null -eq $script:WriteProg -and $null -eq $script:ProgPlan -and $null -eq $script:Rep) "fin : verdict du controle garde (« $($ob[-1].T) »), barre masquee, etat de l ecriture et plan retires"
+
+# Ecriture rapide sans controle d une image de 40 cylindres (160 pistes estimees, 80 annoncees) : reussite
+Start-WScenario $false $false $false $false 0 40
+Invoke-WAll
+$mono = Get-WMono; $ob = $script:WObs.ToArray()
+$pctF = @($ob | Where-Object { $_.T -match '^Écriture : \d+ %$' } | ForEach-Object { [int]([regex]::Match($_.T, '^Écriture : (\d+) %$').Groups[1].Value) })
+$backF = 0; for ($i = 1; $i -lt $pctF.Count; $i++) { if ($pctF[$i] -lt $pctF[$i - 1]) { $backF++ } }
+Chk 'W10' ($mono.Back -eq 0 -and $mono.Reshow -eq 0 -and $backF -eq 0 -and $pctF.Count -ge 4 -and $pctF[-1] -ge 95 -and $ob[-1].T -ceq 'Écriture terminée.' -and -not $ob[-1].Vis -and $null -eq $script:WriteProg -and $null -eq $script:ProgPlan -and $stTrack.Text -eq 'piste 39.1  (80/80, 100 %)' -and $stOp.Text -match ('^Écriture terminé\(e\)' + $rxTime)) "ecriture rapide reussie, estimation corrigee par l annonce : « Écriture : x % » de $($pctF[0]) a $($pctF[-1]) %, sans recul ; fin : « $($ob[-1].T) », barre masquee ; barre d etat inchangee (« $($stTrack.Text) »)"
+# Echecs et arrets : libelle « Ecriture interrompue », sauf quand une autre etape a pris le libelle
+Start-WScenario $false $false $false $false; Invoke-WAll 1 1 30; $r11 = "$((Get-WLast).T)|$((Get-WLast).Vis)|$((Get-WMono).Back)"; $st11 = [string]$stOp.Text
+Start-WScenario $false $false $false $false; Invoke-WAll 1 0 160 -Incomplete; $r12 = "$((Get-WLast).T)|$((Get-WLast).Vis)|$((Get-WMono).Back)"
+Chk 'W11' ($r11 -ceq 'Écriture interrompue : voir le journal.|False|0' -and $st11 -match ('^' + [regex]::Escape('Écriture en échec (code 1)') + $rxTime) -and $r12 -ceq 'Écriture interrompue : voir le journal.|False|0') "gw en echec (code 1) : « $($r11.Split('|')[0]) », barre masquee (barre d etat : « $st11 ») ; code 0 mais operation incomplete, toutes les pistes ecrites : « $($r12.Split('|')[0]) »"
+Start-WScenario $true $false $false $false; Invoke-WAll -stopAt 2; $r13 = "$((Get-WLast).T)|$((Get-WLast).Vis)|$((Get-WMono).Back)|$($script:WCmds.Count)"
+Start-WScenario $true $false $true $false; Invoke-WAll -stopAt 2; $r14a = "$((Get-WLast).T)|$((Get-WLast).Vis)|$((Get-WMono).Back)|$($null -eq $script:WriteProg)"
+Start-WScenario $true $true $true $false; Invoke-WAll -stopAt 2; $r14b = "$((Get-WLast).T)|$((Get-WLast).Vis)|$((Get-WMono).Back)"
+Chk 'W12' ($r13 -ceq 'Écriture interrompue : voir le journal.|False|0|2' -and $r14a -ceq 'Préchauffage interrompu : écriture annulée.|False|0|True' -and $r14b -ceq 'Contrôle après écriture interrompu.|False|0') "Arreter pendant l ecriture de la tete 1 : « $($r13.Split('|')[0]) » ; pendant le prechauffage : « $($r14a.Split('|')[0]) » (texte de Stop-WriteWarmup garde), avec controle : « $($r14b.Split('|')[0]) » (verdict de Stop-WriteCheck garde) ; barre masquee, jamais de recul"
+Start-WScenario $true $true $false $true; Invoke-WAll 2 1 30; $r15 = "$((Get-WLast).T)|$((Get-WLast).Vis)|$((Get-WMono).Back)|$($null -eq $script:Rep)"
+Chk 'W13' ($r15 -ceq 'Contrôle après écriture interrompu.|False|0|True') "ecriture controlee, gw en echec a la tete 0 : verdict de Stop-WriteCheck -GwError garde (« $($r15.Split('|')[0]) »), barre masquee"
+Start-WScenario $false $false $false $false 0 80 'missing'; Invoke-WAll; $r16 = "$((Get-WLast).T)|$((Get-WLast).Vis)|$($script:WCmds.Count)"
+Start-WScenario $false $false $false $false 0 80 'launch'; Invoke-WAll; $r17 = "$((Get-WLast).T)|$((Get-WLast).Vis)"; $st17 = [string]$stOp.Text
+Chk 'W14' ($r16 -ceq 'Écriture interrompue : voir le journal.|False|1' -and $r17 -ceq 'Écriture interrompue : voir le journal.|False' -and $st17 -match ('^' + [regex]::Escape("Écriture : gw n'a pas pu être lancé, voir le journal") + $rxTime)) "gw.exe introuvable (aucune commande recue par le plan) : « $($r16.Split('|')[0]) » ; gw non lance : « $($r17.Split('|')[0]) », barre d etat « $st17 »"
+# Refus : toute sortie de Start-ImageWrite precede la pose du plan ; apres elle, rien ne refuse l ecriture
+$siwF = $src.Fn['Start-ImageWrite']; $offW = $wpCall[0].Extent.StartOffset
+$retAfter = @($siwF.Body.FindAll({ param($x) $x -is [System.Management.Automation.Language.ReturnStatementAst] }, $true) | Where-Object { $_.Extent.StartOffset -gt $offW })
+$retBefore = @($siwF.Body.FindAll({ param($x) $x -is [System.Management.Automation.Language.ReturnStatementAst] }, $true) | Where-Object { $_.Extent.StartOffset -lt $offW })
+$launchBefore = @($siwF.Body.FindAll({ param($x) $x -is $tCmd -and @('Start-Gw', 'Start-WriteWarmup', 'Invoke-NextChainStep', 'New-WriteCheck', 'Invoke-WriteQueueNext') -contains $x.GetCommandName() }, $true) | Where-Object { $_.Extent.StartOffset -lt $offW })
+$enqAfter = @($siwF.Body.FindAll({ param($x) $x -is [System.Management.Automation.Language.InvokeMemberExpressionAst] -and [string]$x.Expression -eq '$script:WriteQueue' -and @('Enqueue', 'Clear', 'Dequeue') -contains [string]$x.Member }, $true) | Where-Object { $_.Extent.StartOffset -gt $offW })
+Chk 'W15' ($retAfter.Count -eq 0 -and $retBefore.Count -ge 6 -and $launchBefore.Count -eq 0 -and $enqAfter.Count -eq 0 -and ($wpStmts -join ' ; ') -ceq '$wpCmds = @($script:WriteQueue.ToArray()) ; if (-not $slow) { $wpCmds += ,$a } ; Start-WriteProgress $wpCmds ([bool]($post -and -not $blocker))') "Start-ImageWrite : les $($retBefore.Count) refus (return) precedent la pose du plan, aucun apres : une ecriture refusee laisse l onglet tel quel ; aucune commande lancee ni controle cree avant, file complete avant et non touchee apres ; instructions : $($wpStmts -join ' ; ')"
+# Restauration : barre de l onglet non posee, affichage de la 12.10 (libelle du controle, prechauffage par le temps)
+$script:WTest.Mode = ''
+Reset-All; $script:WObs = New-Object System.Collections.Generic.List[object]; $script:WCmds = New-Object System.Collections.Generic.List[string]
+$script:CalWarmupMinutes = 5.0; $script:TempDir = $here
+$script:Restore = @{ Drive = 'A'; Mode = 'sector'; Waiting = $false; Stage = 'write'; Cur = 5; Steps = @{} }
+$lblWCal.Text = 'avant'; $pbWCal.Visible = $true; $pbWCal.Value = 37
+$script:WriteQueue.Enqueue([string[]]@('write', '--drive=A', '--tracks=h=0', '"img.adf"'))
+Invoke-WStartStmt $true @('write') $true $null
+$r18a = "$($null -eq $script:WriteProg)|$($null -eq $script:ProgPlan)|$($lblWCal.Text)|$($pbWCal.Value)"
+New-WriteCheck ([string[]]@('write', '--drive=A')) 'img.adf' '' 2 @() $null 'hfreq'
+$r18b = "$($lblWCal.Text)|$($pbWCal.Visible)"
+$script:Chain.Clear(); $script:Chain.Enqueue({ Invoke-WriteQueueNext })
+Start-WriteWarmup 'c=0,10:h=0' $false
+Move-WTime 150; Invoke-WTick 'prechauffage'
+$r18c = "$((Get-WLast).V)|$((Get-WLast).T.StartsWith($tWarmP))"
+$script:WriteWarm = $null; $script:Rep = $null; $script:Restore = $null; $script:GwProc = $null; $script:Chain.Clear(); $script:WriteQueue.Clear()
+Chk 'W16' ($r18a -ceq 'True|True|avant|37' -and $r18b -ceq 'Écriture en cours, contrôle de toutes les pistes ensuite.|False' -and $r18c -ceq '50|True') "restauration : ni plan ni etat de l ecriture, onglet inchange ($r18a) ; New-WriteCheck : libelle de la 12.10, barre masquee (« $($r18b.Split('|')[0]) ») ; prechauffage : barre par le temps seul, comme en 12.10 ($($r18c.Split('|')[0]) % apres 150 s sur 300)"
+# Places : New-WriteCheck, Start-RepPending, minuteur principal
+$nwc = $src.Fn['New-WriteCheck']
+$nwAsg = @($nwc.Body.FindAll({ param($x) $x -is $tAsg -and [string]$x.Left.Extent.Text -eq '$lblWCal.Text' }, $true))
+$nwIf = if ($nwAsg.Count -eq 1) { $x = $nwAsg[0]; while ($null -ne $x -and $x -isnot [System.Management.Automation.Language.IfStatementAst]) { $x = $x.Parent }; $x } else { $null }
+$rpSt = @($src.Fn['Start-RepPending'].Body.EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text })
+$tkI = @{}; for ($i = 0; $i -lt $tkW.Count; $i++) { foreach ($k in @('if ($script:Cal) { Update-CalibProgress } elseif ($script:WriteWarm) { Update-WriteWarmupProgress }', 'if ($script:WriteProg) { Update-WriteProgress }', 'Update-HomeProgress', 'Update-SeqEnd')) { if ($tkW[$i] -ceq $k) { $tkI[$k] = $i } } }
+Chk 'W17' ($nwIf -and [string]$nwIf.Clauses[0].Item1.Extent.Text -ceq '-not $script:WriteProg' -and $rpSt.Count -ge 3 -and $rpSt[0] -ceq '$rep = $script:Rep' -and $rpSt[1] -ceq 'Step-WriteProgress @($rep.Pending.ToArray())' -and $rpSt[2] -ceq '$script:Chain.Clear()' -and
+          [int]$tkI['if ($script:WriteProg) { Update-WriteProgress }'] -eq [int]$tkI['if ($script:Cal) { Update-CalibProgress } elseif ($script:WriteWarm) { Update-WriteWarmupProgress }'] + 1 -and [int]$tkI['if ($script:WriteProg) { Update-WriteProgress }'] -lt [int]$tkI['Update-HomeProgress'] -and [int]$tkI['Update-HomeProgress'] -lt [int]$tkI['Update-SeqEnd']) "New-WriteCheck ne pose le libelle de la 12.10 que sans barre de l onglet (« if ($(if ($nwIf) { $nwIf.Clauses[0].Item1.Extent.Text })) ») ; Start-RepPending pose le plan de la passe avant de construire sa chaine ; minuteur : Update-WriteProgress juste apres le prechauffage, avant Update-HomeProgress et Update-SeqEnd (rangs $($tkI['if ($script:WriteProg) { Update-WriteProgress }']), $($tkI['Update-HomeProgress']), $($tkI['Update-SeqEnd']))"
+# Affichage seulement : commandes appelees, membres ecrits, lecteurs de l etat de l ecriture ; barre d etat jamais touchee
+$fnW = @('Get-WriteProgUnits', 'Get-WriteProgText', 'Start-WriteProgress', 'Step-WriteProgress', 'Get-WriteProgPct', 'Update-WriteProgress', 'Get-WriteProgEnd', 'Complete-WriteProgress')
+$cmW = @{}; $wrW = @{}; $stW = @()
+foreach ($f in $fnW) {
+    foreach ($c in @($src.Fn[$f].Body.FindAll({ param($x) $x -is $tCmd }, $true))) { $cmW[[string]$c.GetCommandName()] = $true }
+    foreach ($a in @($src.Fn[$f].Body.FindAll({ param($x) $x -is $tAsg -and $x.Left -is $tMem }, $true))) { $wrW[[string]$a.Left.Extent.Text -replace '^\$', '' -replace '\.(\w+).*$', '.$1'] = $true }
+    foreach ($v in @($src.Fn[$f].Body.FindAll({ param($x) $x -is $tVar -and [string]$x.VariablePath.UserPath -match '^(stOp|stTrack|stBar|status)$' }, $true))) { $stW += "$f $($v.Extent.Text)" }
+}
+$cmWl = (@($cmW.Keys | Sort-Object) -join ', '); $wrWl = (@($wrW.Keys | Sort-Object) -join ', ')
+$rdW = @{}
+foreach ($mn in @($src.Ast.Keys)) {
+    foreach ($v in @($src.Ast[$mn].FindAll({ param($x) $x -is $tVar -and [string]$x.VariablePath.UserPath -eq 'script:WriteProg' }, $true))) {
+        $x = $v; $own = "($($mn.Substring(0, 3)))"; while ($null -ne $x) { if ($x -is $tFn) { $own = [string]$x.Name }; $x = $x.Parent }
+        $rdW[$own] = $true
+    }
+}
+$rdWl = (@($rdW.Keys | Sort-Object) -join ', ')
+Chk 'W18' ($cmWl -ceq 'Complete-WriteProgress, Get-GwCmdUnits, Get-ProgPlanFrac, Get-SpecCount, Get-WarmupLeft, Get-WriteProgEnd, Get-WriteProgPct, Get-WriteProgText, Get-WriteProgUnits, New-Object, New-ProgPlan, T' -and $wrWl -ceq 'lblWCal.Text, lblWCal.Visible, pbWCal.Value, pbWCal.Visible, wp.Done, wp.F, wp.Max, wp.Pass, wp.Seg, wp.Text, wp.Warm' -and $stW.Count -eq 0 -and
+          $rdWl -ceq '(040), (600), Complete-WriteProgress, Get-WriteProgPct, New-WriteCheck, Start-WriteProgress, Step-WriteProgress, Update-WriteProgress, Update-WriteWarmupProgress') "affichage seulement : les $($fnW.Count) fonctions du lot n appellent que $cmWl ; elles n ecrivent que $wrWl ; barre d etat jamais lue ni ecrite (elle garde sa hauteur, lot SB) ; etat de l ecriture lu par $rdWl : aucune decision d ecriture ni de controle"
+
 # ================================================================ B. affichage seulement
 '--- B. la progression ne fait qu afficher (arbre syntaxique des modules)'
 function Get-Owner($node, [string]$mod) {
@@ -863,22 +1210,24 @@ $expUse = @{
     ProgRetry  = '(040), Get-GwProgress, Start-Progress, Update-Progress'
     ProgDone   = '(040), Get-GwProgress, Start-Progress, Stop-Progress, Update-Progress'
     ProgDirty  = '(040), Show-GwProgress, Start-Progress, Stop-Progress, Update-Progress'
-    ProgFailed = '(040), Set-GwLaunchFailedStatus, Start-Progress, Stop-Progress, Update-SeqEnd'
+    # 12.11 (lot L11) : adapte a dessein : fin de la barre de l onglet Ecriture (Get-WriteProgEnd lit ProgFailed pour dire
+    # « Ecriture interrompue », Complete-WriteProgress remet le plan a $null, 160)
+    ProgFailed = '(040), Get-WriteProgEnd, Set-GwLaunchFailedStatus, Start-Progress, Stop-Progress, Update-SeqEnd'
     ProgCmd    = '(040), Get-ProgPlanFrac, New-ProgPlan, Set-GwLaunchFailedStatus, Start-Progress, Stop-Progress, Update-Progress, Update-SeqEnd'
-    ProgPlan   = '(040), Get-ProgPlanFrac, Invoke-CalibAnalysis, Invoke-ContentAnalysis, New-ProgPlan, Start-Progress, Stop-PrecompCalib, Stop-Progress, Update-CalibProgress, Update-Progress, Update-SeqEnd'
+    ProgPlan   = '(040), Complete-WriteProgress, Get-ProgPlanFrac, Invoke-CalibAnalysis, Invoke-ContentAnalysis, New-ProgPlan, Start-Progress, Stop-PrecompCalib, Stop-Progress, Update-CalibProgress, Update-Progress, Update-SeqEnd'
     SeqEnd     = '(040), Clear-SeqEnd, Set-GwLaunchFailedStatus, Set-SeqEnd, Start-Progress, Update-SeqEnd'
     SeqCmds    = '(040), Start-Progress, Update-SeqEnd'
     ProgCost   = '(040), Get-GwCmdUnits'
 }
 $badUse = @()
 foreach ($v in $stVars) { $got = (@($use[$v].Keys | Sort-Object) -join ', '); if ($got -cne [string]$expUse[$v]) { $badUse += "$v : $got" } }
-Chk 'B1' ($badUse.Count -eq 0) "les $($stVars.Count) variables de la progression ne sont lues ou ecrites que par les fonctions de la progression (110), l etat initial (040) et quatre fonctions de 270 et 276$(if ($badUse.Count) { ' ; ecarts : ' + ($badUse -join ' | ') })"
-$outside = @('ProgPlan|Invoke-CalibAnalysis', 'ProgPlan|Invoke-ContentAnalysis', 'ProgPlan|Stop-PrecompCalib')
+Chk 'B1' ($badUse.Count -eq 0) "les $($stVars.Count) variables de la progression ne sont lues ou ecrites que par les fonctions de la progression (110), l etat initial (040), quatre fonctions de 270 et 276 et deux fonctions de la barre de l onglet Ecriture (160)$(if ($badUse.Count) { ' ; ecarts : ' + ($badUse -join ' | ') })"
+$outside = @('ProgPlan|Invoke-CalibAnalysis', 'ProgPlan|Invoke-ContentAnalysis', 'ProgPlan|Stop-PrecompCalib', 'ProgPlan|Complete-WriteProgress')
 $guard = @($src.Fn['Update-CalibProgress'].Body.FindAll({ param($x) $x -is $tVar -and [string]$x.VariablePath.UserPath -eq 'script:ProgPlan' }, $true))
 $guardTxt = if ($guard.Count -eq 1) { [string]$guard[0].Parent.Extent.Text } else { '' }
 $x = $null; if ($guard.Count -eq 1) { $x = $guard[0]; while ($null -ne $x -and $x -isnot $tAsg) { $x = $x.Parent } }
 $guardAsg = if ($x) { [string]$x.Extent.Text } else { '' }
-Chk 'B2' (@($outside | Where-Object { $nullOnly[$_] -ne $true }).Count -eq 0 -and $guard.Count -eq 1 -and $guardAsg -ceq '$pf = if ($script:ProgPlan) { Get-ProgPlanFrac } else { $null }') "hors de 110 : le plan n est que remis a `$null (Invoke-CalibAnalysis, Invoke-ContentAnalysis, Stop-PrecompCalib) ; Update-CalibProgress ne le lit que dans « $guardAsg »"
+Chk 'B2' (@($outside | Where-Object { $nullOnly[$_] -ne $true }).Count -eq 0 -and $guard.Count -eq 1 -and $guardAsg -ceq '$pf = if ($script:ProgPlan) { Get-ProgPlanFrac } else { $null }') "hors de 110 : le plan n est que remis a `$null (Invoke-CalibAnalysis, Invoke-ContentAnalysis, Stop-PrecompCalib, Complete-WriteProgress) ; Update-CalibProgress ne le lit que dans « $guardAsg »"
 # Appelants de chaque fonction de la progression
 $fnProg = @('Get-GwLineInfo', 'Get-GwProgress', 'Show-GwProgress', 'Get-EndRuleTotal', 'Get-GwCmdUnits', 'New-ProgPlan', 'Get-ProgPlanFrac', 'Set-SeqEnd', 'Clear-SeqEnd', 'Update-SeqEnd', 'Get-CalibDoneTitle')
 $callers = @{}; foreach ($f in $fnProg) { $callers[$f] = @{} }
@@ -898,9 +1247,10 @@ $expCall = @{
     'Get-GwProgress'     = 'Get-ProgPlanFrac, Show-GwProgress, Stop-Progress'
     'Show-GwProgress'    = 'Read-GwOutput, Stop-Progress, Update-Progress'
     'Get-EndRuleTotal'   = '(600)'
-    'Get-GwCmdUnits'     = 'New-ProgPlan, Start-Progress'
-    'New-ProgPlan'       = 'New-CalibPass, New-ContentPass, Start-CalibCondition'
-    'Get-ProgPlanFrac'   = 'Update-CalibProgress'
+    # 12.11 (lot L11) : adapte a dessein : poids, plans et fraction de la barre de l onglet Ecriture (160)
+    'Get-GwCmdUnits'     = 'Get-WriteProgUnits, New-ProgPlan, Start-Progress'
+    'New-ProgPlan'       = 'New-CalibPass, New-ContentPass, Start-CalibCondition, Start-WriteProgress, Step-WriteProgress'
+    'Get-ProgPlanFrac'   = 'Get-WriteProgEnd, Get-WriteProgPct, Update-CalibProgress'
     'Set-SeqEnd'         = 'Close-Restore, Complete-DriveDetect, Complete-WriteCheck, Set-HomeProgDone'
     'Clear-SeqEnd'       = 'Enter-RestoreWait'
     'Update-SeqEnd'      = '(600)'
@@ -917,7 +1267,7 @@ foreach ($f in 'New-ProgPlan', 'Set-SeqEnd', 'Clear-SeqEnd', 'Update-SeqEnd', 'S
         if (-not ($pp -is $tPipe -and @($pp.PipelineElements).Count -eq 1 -and ($pp.Parent -is $tBlock -or $pp.Parent -is $tNamed))) { $notStmt += "$f dans $([string]$c.Parent.Parent.Extent.Text)" }
     }
 }
-Chk 'B4' ($notStmt.Count -eq 0 -and @($callNodes['New-ProgPlan']).Count -eq 3 -and @($callNodes['Set-SeqEnd']).Count -eq 6) "New-ProgPlan (3 appels), Set-SeqEnd (6), Clear-SeqEnd, Update-SeqEnd et Show-GwProgress sont appelees comme des instructions entieres : aucun resultat n est lu, aucune condition n en depend$(if ($notStmt.Count) { ' ; ecarts : ' + ($notStmt -join ' | ') })"
+Chk 'B4' ($notStmt.Count -eq 0 -and @($callNodes['New-ProgPlan']).Count -eq 5 -and @($callNodes['Set-SeqEnd']).Count -eq 6) "New-ProgPlan (5 appels, dont 2 du lot L11), Set-SeqEnd (6), Clear-SeqEnd, Update-SeqEnd et Show-GwProgress sont appelees comme des instructions entieres : aucun resultat n est lu, aucune condition n en depend$(if ($notStmt.Count) { ' ; ecarts : ' + ($notStmt -join ' | ') })"
 # Update-CalibProgress : memes controles ecrits qu en 12.10 (valeur de la barre et libelle), memes commandes plus Get-ProgPlanFrac
 function Get-FnWrites($fd) {
     return @($fd.Body.FindAll({ param($x) $x -is $tAsg -and $x.Left -is $tMem }, $true) | ForEach-Object { [string]$_.Left.Extent.Text } | Sort-Object -Unique)
@@ -934,7 +1284,8 @@ foreach ($f in 'Start-Progress', 'Update-Progress', 'Stop-Progress', 'Get-GwLine
 }
 $cmAll = @{}
 foreach ($f in 'Get-GwLineInfo', 'Get-GwProgress', 'Show-GwProgress', 'Get-EndRuleTotal', 'Get-GwCmdUnits', 'New-ProgPlan', 'Get-ProgPlanFrac', 'Set-SeqEnd', 'Clear-SeqEnd', 'Update-SeqEnd') { foreach ($c in (Get-FnCmds $src.Fn[$f])) { $cmAll[$c] = $true } }
-Chk 'B6' ((@($wrAll.Keys | Sort-Object) -join ', ') -ceq 'CleanRun, p, pc, ProgPlan, stBar, stOp, stTrack' -and (@($cmAll.Keys | Sort-Object) -join ', ') -ceq 'Get-AppBusy, Get-Date, Get-GwCmdUnits, Get-GwProgress, Get-SpecCount, New-Object, T, Where-Object') "fonctions de la progression : membres ecrits $(@($wrAll.Keys | Sort-Object) -join ', ') (barre d etat et etat de la progression) ; commandes des fonctions nouvelles : $(@($cmAll.Keys | Sort-Object) -join ', ') : rien ne lance, n arrete ni ne juge une operation"
+# 12.11 (lot L11) : adapte a dessein : New-ProgPlan marque une entree dont les pistes sont estimees ($w.Est)
+Chk 'B6' ((@($wrAll.Keys | Sort-Object) -join ', ') -ceq 'CleanRun, p, pc, ProgPlan, stBar, stOp, stTrack, w' -and (@($cmAll.Keys | Sort-Object) -join ', ') -ceq 'Get-AppBusy, Get-Date, Get-GwCmdUnits, Get-GwProgress, Get-SpecCount, New-Object, T, Where-Object') "fonctions de la progression : membres ecrits $(@($wrAll.Keys | Sort-Object) -join ', ') (barre d etat et etat de la progression) ; commandes des fonctions nouvelles : $(@($cmAll.Keys | Sort-Object) -join ', ') : rien ne lance, n arrete ni ne juge une operation"
 # Start-Gw et les passes : la commande lancee n est pas touchee
 $sgCalls = @($src.Fn['Start-Gw'].Body.FindAll({ param($x) $x -is $tCmd -and $x.GetCommandName() -eq 'Start-Progress' }, $true))
 $sgArg = if ($sgCalls.Count -eq 1 -and $sgCalls[0].CommandElements.Count -eq 3) { [string]$sgCalls[0].CommandElements[2].Extent.Text } else { '' }
@@ -967,6 +1318,21 @@ foreach ($mn in @($src.Ast.Keys | Sort-Object)) {
     }
 }
 Chk 'I2' ($usedIn['effacement'] -ceq 'Update-CalibProgress' -and $usedIn['Restauration réussie'] -ceq 'Close-Restore' -and $usedIn['Restauration réussie avec réserve'] -ceq 'Close-Restore' -and $usedIn['Restauration échouée'] -ceq 'Close-Restore' -and [string]$script:I18n['Contrôle après écriture : {0}'] -eq 'Post-write check: {0}' -and [string]$script:I18n['Prêt.'] -eq 'Ready.') "cles nouvelles lues par T() dans Update-CalibProgress (« effacement ») et Close-Restore ; controle et recherche des lecteurs : cles existantes (« Contrôle après écriture : {0} », « Prêt. »)"
+# 12.11 (lot L11) : textes de la barre de l onglet Ecriture, lus par T() dans la seule fonction qui les decide
+$newKeys11 = [ordered]@{ 'Écriture : {0} %' = 'Writing: {0} %'; 'Écriture : {0} %, contrôle de toutes les pistes ensuite' = 'Writing: {0} %, then checking every track'; 'Écriture terminée.' = 'Write finished.'; 'Écriture interrompue : voir le journal.' = 'Write interrupted: see the log.' }
+$bad11 = @()
+foreach ($k in $newKeys11.Keys) {
+    $def = "`$script:I18n['$k'] = '$($newKeys11[$k])'"
+    if ([string]$script:I18n[$k] -cne [string]$newKeys11[$k] -or -not $t019.Contains($def) -or $older.Contains("`$script:I18n['$k']") -or $older.Contains("`$script:I18n[`"$k`"]")) { $bad11 += $k }
+}
+$used11 = New-Object System.Collections.Hashtable ([System.StringComparer]::Ordinal); $kl11 = @($newKeys11.Keys)
+foreach ($mn in @($src.Ast.Keys | Sort-Object)) {
+    foreach ($c in @($src.Ast[$mn].FindAll({ param($x) $x -is $tCmd -and $x.GetCommandName() -eq 'T' -and $x.CommandElements.Count -eq 2 -and $x.CommandElements[1] -is $tStr }, $true))) {
+        $k = [string]$c.CommandElements[1].Value
+        if ($kl11 -ccontains $k) { $used11[$k] = (@($used11[$k]) + @(Get-Owner $c $mn) | Where-Object { $_ }) -join ', ' }
+    }
+}
+Chk 'I3' ($bad11.Count -eq 0 -and $used11['Écriture : {0} %'] -ceq 'Get-WriteProgText' -and $used11['Écriture : {0} %, contrôle de toutes les pistes ensuite'] -ceq 'Get-WriteProgText' -and $used11['Écriture terminée.'] -ceq 'Get-WriteProgEnd' -and $used11['Écriture interrompue : voir le journal.'] -ceq 'Get-WriteProgEnd') "lot L11 : les $($newKeys11.Count) cles nouvelles ont leur entree anglaise dans 019, mot pour mot, ne redefinissent aucune cle de 010 a 018 et ne sont lues que par Get-WriteProgText et Get-WriteProgEnd$(if ($bad11.Count) { ' ; ecarts : ' + ($bad11 -join ', ') })"
 
 # ================================================================ D. documents
 '--- D. CHANGELOG et README'
@@ -1023,6 +1389,11 @@ if ($mEx.Success -and ([int]$mEx.Groups[5].Value % 2) -eq 0 -and [int]$mEx.Group
 }
 Chk 'D4' ($mEx.Success -and $exTxt -and $exW -ceq $exTxt -and $exE -ceq $exTxt -and $en4.Contains("il atteint 100 % à la fin d'une commande qui a traité toutes les pistes annoncées") -and $exFull -match '\(\d+/\d+, 100 %\)$' -and $exShort -match ', 50 %\)$' -and
           $en3.Contains('Après une recherche des lecteurs menée à son terme, elle revient à « Prêt. »')) "CHANGELOG, « Écriture et effacement » : l exemple « $exTxt » est le compteur que la barre d etat affiche pendant cette piste (ecriture : « $exW » ; effacement : « $exE ») ; fin d une commande complete : « $exFull » ; image plus courte que le jeu annonce : « $exShort » ; « Barre d'état en fin d'opération » : « Prêt. » apres une recherche des lecteurs menee a son terme"
+# D5 (lot L11) : entrees de la barre de l onglet Ecriture, sans duree ni verification sur materiel ; README
+$en5 = Get-Entry $am "Barre de l'onglet « Écriture » pendant l'écriture."
+$dev5 = @($dv -split "`n" | Where-Object { $_ -like "- Barre de l'onglet pendant l'écriture*" })
+Chk 'D5' ($en5 -and $en5.Contains('ne recule pas') -and $en5.Contains('« Écriture terminée. »') -and $en5.Contains('« Écriture interrompue : voir le journal. »') -and $en5.Contains('préchauffage') -and $en5 -notmatch 'matériel' -and $en5 -notmatch $rxDur -and
+          $dev5.Count -eq 1 -and $dev5[0].Contains('`Start-WriteProgress') -and $dev5[0].Contains('`New-ProgPlan($cmds, $tracks)`') -and $dev5[0] -notmatch 'matériel' -and $rm.Contains('`Start-WriteProgress`') -and $rt.Contains('série W')) "CHANGELOG 12.11 : « Barre de l'onglet « Écriture » pendant l'écriture » en Ameliorations (barre qui ne recule pas, fins de l ecriture, prechauffage ; ni duree ni verification sur materiel) et son entree « Pour les développeurs » ; README des modules et des tests"
 
 # ================================================================ Q. equivalence avec la 12.10 (-Before)
 '--- Q. equivalence avec la 12.10 (-Before)'

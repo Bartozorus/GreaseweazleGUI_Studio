@@ -292,3 +292,9 @@ $script:I18n['lecteur cible {0} sans effet'] = 'target drive {0} has no effect'
 $script:I18n["Écriture refusée : le test rapide n'a pas de référence utilisable pour cette image ({0})."] = 'Write refused: the quick test has no usable reference for this image ({0}).'
 
 # --- L11 : barre de l onglet Ecriture pendant l ecriture et son controle (140, 160, 170, 600) --------------------------
+# Libelle pendant l ecriture (Get-WriteProgText, 160) : avancement de l ecriture seule, controle annonce ensuite ; fin sans
+# verdict du controle (Get-WriteProgEnd, 160) : terminee, ou interrompue (erreur de gw, arret, gw introuvable)
+$script:I18n['Écriture : {0} %'] = 'Writing: {0} %'
+$script:I18n['Écriture : {0} %, contrôle de toutes les pistes ensuite'] = 'Writing: {0} %, then checking every track'
+$script:I18n['Écriture terminée.'] = 'Write finished.'
+$script:I18n['Écriture interrompue : voir le journal.'] = 'Write interrupted: see the log.'

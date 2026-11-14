@@ -126,6 +126,9 @@ function Invoke-NextChainStep { }
 $script:GwA = $null; $script:WQ = $null
 function Start-Gw($a) { $script:GwA = @($a) }
 function Start-WriteWarmup($ts, $nw) { $script:WQ = @($script:WriteQueue.ToArray()) }
+# 12.11 (lot L11) : barre de l onglet pendant l ecriture (Start-WriteProgress, 160), affichage seulement, sans effet sur
+# --precomp : bouchon (la file des commandes est relevee par Start-Gw et Start-WriteWarmup)
+function Start-WriteProgress($cmds, $check) { }
 
 # --- Fichiers d essai (contenu nul ou en-tete minimal, aucune donnee reelle) ----------------------------------------
 $img = Join-Path $here 'img'; if (-not (Test-Path -LiteralPath $img)) { New-Item -ItemType Directory -Path $img | Out-Null }

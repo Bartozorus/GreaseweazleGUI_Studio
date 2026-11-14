@@ -105,6 +105,9 @@ $timer.Add_Tick({
     if ($script:UnattendedRun) { Update-CalibUnattended $gwDoneTick }
     # Calibration precomp : barre globale et temps restant ; prechauffage d une ecriture lente
     if ($script:Cal) { Update-CalibProgress } elseif ($script:WriteWarm) { Update-WriteWarmupProgress }
+    # 12.11 (L11) : barre et libelle de l onglet Ecriture pendant une ecriture et son controle, puis leur etat de fin
+    # (Update-WriteProgress, 160) ; avant Update-HomeProgress et Update-SeqEnd, qui retire le plan au repos
+    if ($script:WriteProg) { Update-WriteProgress }
     if ($script:HomeCalBusy) { Update-HomeCalibCard }     # carte Calibration de l Accueil : progression, puis bilan
     # 12.7 : bareme de calibration remis a la double densite une fois l application au repos (filet de securite ; chaque
     # calibration pose le sien a son debut). Fenetre principale (ShowDialog, donc modale) exclue, comme pour Resume-CalibRedo

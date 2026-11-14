@@ -394,6 +394,11 @@ function Start-ImageWrite([switch]$NoWarmup) {
     if ($blocker) {
         Append-Log ((T "Contrôle de toutes les pistes non applicable ({0}) : l'analyse de flux est calibrée pour le MFM double densité. Écriture sans contrôle.") -f "$blocker")
     }
+    # 12.11 (L11) : barre de l onglet pendant l ecriture et son controle (Start-WriteProgress, 160) : plan des commandes de
+    # l ecriture (file : effacements, ecritures par tete ; ou ecriture rapide), pose avant le lancement de la premiere ;
+    # affichage seulement, file et commandes inchangees
+    $wpCmds = @($script:WriteQueue.ToArray()); if (-not $slow) { $wpCmds += ,$a }
+    Start-WriteProgress $wpCmds ([bool]($post -and -not $blocker))
     if ($post -and -not $blocker) {
         # Options de lecteur reprises par les relectures de controle (gw read les accepte toutes)
         $readOpts = @(Get-DriveReadArgs)

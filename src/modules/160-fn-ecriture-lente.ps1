@@ -125,7 +125,10 @@ function Update-WriteWarmupProgress {
     $w = $script:WriteWarm
     if (-not $w) { return }
     $g = Get-WarmupLeft $w
-    $pbWCal.Value = $g.Pct
+    # 12.11 (L11) : ecriture suivie par la barre de l onglet (Start-WriteProgress) : la barre est celle de toute
+    # l operation, prechauffage compris (Get-WriteProgPct), et ne recule pas quand l ecriture commence ; le libelle garde
+    # l avancement du prechauffage. Restauration : barre du prechauffage seul, comme en 12.10
+    $pbWCal.Value = $(if ($script:WriteProg) { Get-WriteProgPct } else { $g.Pct })
     $lblWCal.Text = if ($w.WarmSkip) { (T 'Préchauffage du lecteur {0} passé : fin de la lecture en cours.') -f "$($w.Drive)" }
                     else { (T "Préchauffage avant l'écriture : {2} %, reste environ {3} (lecteur {0}, lecture {1}, sans écriture)") -f "$($w.Drive)", "$($w.WarmReads)", "$($g.Pct)", (Format-CalDuration ([math]::Round($g.Left))) }
 }
@@ -138,4 +141,145 @@ function Stop-WriteWarmup {
     $pbWCal.Visible = $false
     $lblWCal.Text = (T 'Préchauffage interrompu : écriture annulée.')
     Append-Log (T 'Écriture annulée : préchauffage du lecteur interrompu.')
+}
+
+# --- 12.11 (L11) : barre de l onglet Ecriture pendant une ecriture et son controle --------------------------------------
+# Une ecriture lancee par Start-ImageWrite (140 : bouton ECRIRE, Bibliotheque, fin d une calibration ou d une mesure) suit
+# une seule barre, qui ne recule pas : prechauffage d une ecriture lente (temps ecoule sur la duree prevue), ecriture
+# (effacements et ecritures de la file, ou ecriture rapide : plan de l etape, Get-ProgPlanFrac, 110, d apres les pistes que
+# gw annonce et traite), puis passes du controle apres ecriture (relecture de toutes les pistes, reecritures). Chaque etape
+# compte pour son poids estime (Get-GwCmdUnits, $script:ProgCost : secondes estimees, proportions seulement ; prechauffage :
+# sa duree prevue). Le libelle donne l etape en cours : texte du prechauffage (Update-WriteWarmupProgress), « Ecriture :
+# x % » (avancement de l ecriture seule), textes des passes du controle (Invoke-RepNextCmd, 170) ; a la fin, verdict du
+# controle, « Ecriture terminee. » ou « Ecriture interrompue : voir le journal. », barre masquee. Restauration exclue :
+# onglet verrouille, ligne d avancement et barre d etat propres (Update-RestoreProgress, 300). Affichage seulement : rien
+# ici ne lance, n arrete ni ne juge une operation, aucune commande n est modifiee.
+
+function Get-WriteProgUnits($cmds, [bool]$check) {
+    # Poids estimes : @{ Write (commandes $cmds) ; Check (relecture de toutes les pistes ecrites par le controle, 3 tours,
+    # comme Add-RepReads, 170 ; 0 sans controle) ; Tracks (pistes estimees par commande, pour New-ProgPlan ; -1 quand
+    # --tracks les donne) }. Commande gw write dont --tracks ne donne pas c= et h= (champ Pistes vide, ou sans c=) :
+    # cylindres de c=, sinon 80, fois les tetes de h=, sinon 2 ; l annonce de gw corrige l estimation (Update-Progress)
+    $tr = New-Object System.Collections.Generic.List[int]
+    $w = 0.0; $nw = 0
+    foreach ($c in @($cmds)) {
+        $a = [string[]]@($c)
+        $u = Get-GwCmdUnits $a
+        $n = -1
+        if ($a.Count -gt 0 -and [string]$a[0] -ceq 'write') {
+            if ([int]$u.Tracks -le 0) {
+                $ts = ''
+                foreach ($x in $a) { if ([string]$x -clike '--tracks=*') { $ts = ([string]$x).Substring(9) } }
+                $nc = 80; $nh = 2
+                if ($ts -match '(?:^|:)c=([\d,\-]+)') { $nc = Get-SpecCount $Matches[1] }
+                if ($ts -match '(?:^|:)h=([\d,\-]+)') { $nh = Get-SpecCount $Matches[1] }
+                $n = [int][math]::Max(1, $nc * $nh)
+                $u = Get-GwCmdUnits $a $n
+            }
+            $nw += [int]$u.Tracks
+        }
+        $tr.Add($n)
+        $w += [double]$u.Units
+    }
+    $r = if ($check -and $nw -gt 0) { [double](Get-GwCmdUnits ([string[]]@('read', '--revs=3')) $nw).Units } else { 0.0 }
+    return @{ Write = $w; Check = $r; Tracks = $tr.ToArray() }
+}
+
+function Get-WriteProgText($pct, [bool]$check) {
+    # Libelle de l onglet pendant l ecriture : avancement de l ecriture seule, controle de toutes les pistes annonce ensuite
+    if ($check) { return ((T 'Écriture : {0} %, contrôle de toutes les pistes ensuite') -f "$pct") }
+    return ((T 'Écriture : {0} %') -f "$pct")
+}
+
+function Start-WriteProgress($cmds, [bool]$check) {
+    # Start-ImageWrite (140), file construite, avant le lancement de la premiere commande : plan des commandes de l ecriture
+    # ($cmds : effacements et ecritures de la file, ou ecriture rapide ; pistes estimees quand --tracks ne les donne pas),
+    # etat de l operation, libelle et barre a zero. $check : controle de toutes les pistes ensuite (Get-WriteCheckPlan, sans
+    # raison qui l empeche). Restauration : rien, l onglet garde l affichage de la 12.10
+    $script:WriteProg = $null
+    if ($script:Restore) { return }
+    $u = Get-WriteProgUnits $cmds $check
+    New-ProgPlan $cmds $u.Tracks
+    $t = Get-WriteProgText 0 $check
+    $script:WriteProg = @{ Check = $check; Warm = 0.0; Write = [math]::Max(1.0, [double]$u.Write); CheckEst = [double]$u.Check
+                           Done = 0.0; Pass = 0.0; Seg = 'write'; F = 0.0; Max = 0; Text = $t }
+    $lblWCal.Text = $t; $lblWCal.Visible = $true
+    $pbWCal.Value = 0; $pbWCal.Visible = $true
+}
+
+function Step-WriteProgress($cmds) {
+    # Start-RepPending (170) : passe du controle (relecture de toutes les pistes, puis chaque passe de reecriture) : plan de
+    # ses commandes ($cmds, file de la passe, non modifiee) ; poids des etapes faites gardes. Une passe de reecriture,
+    # imprevisible, allonge l operation : la barre attend sur place
+    $wp = $script:WriteProg
+    if (-not $wp) { return }
+    if ($wp.Seg -eq 'check') { $wp.Done = [double]$wp.Done + [double]$wp.Pass }
+    $u = Get-WriteProgUnits $cmds $false
+    $wp.Seg = 'check'; $wp.Pass = [math]::Max(1.0, [double]$u.Write)
+    New-ProgPlan $cmds $u.Tracks
+}
+
+function Get-WriteProgPct {
+    # Valeur de la barre, de 0 a 99 tant que l operation tourne, jamais decroissante (Max) : (poids des etapes faites +
+    # fraction de l etape en cours x son poids) / poids de toutes les etapes. Prechauffage (WriteWarm) : temps ecoule sur la
+    # duree prevue (Get-WarmupLeft, 270), ecriture et controle a venir ; ecriture : fraction du plan (Get-ProgPlanFrac, 0
+    # tant qu aucune commande n est recue), controle estime a venir ; passe du controle : fraction de son plan. Une etape
+    # plus longue que prevu fait attendre la barre sur place
+    $wp = $script:WriteProg
+    if (-not $wp) { return 0 }
+    $ww = $script:WriteWarm
+    if ($ww) {
+        if ($wp.Seg -ne 'warm') { $wp.Seg = 'warm'; $wp.Warm = [math]::Max(1.0, [double]$ww.WarmSec) }
+        $f = [double](Get-WarmupLeft $ww).Pct / 100.0
+        $a = 0.0; $cur = [double]$wp.Warm; $rest = [double]$wp.Write + [double]$wp.CheckEst
+    } else {
+        if ($wp.Seg -eq 'warm') { $wp.Seg = 'write' }
+        $pf = Get-ProgPlanFrac
+        $f = if ($null -ne $pf) { [double]$pf } else { 0.0 }
+        if ($wp.Seg -eq 'check') { $a = [double]$wp.Warm + [double]$wp.Write + [double]$wp.Done; $cur = [double]$wp.Pass; $rest = 0.0 }
+        else { $wp.F = $f; $a = [double]$wp.Warm; $cur = [double]$wp.Write; $rest = [double]$wp.CheckEst }
+    }
+    $den = $a + $cur + $rest
+    $v = if ($den -gt 0) { [int][math]::Floor(100.0 * ($a + $f * $cur) / $den) } else { 0 }
+    $v = [math]::Max(0, [math]::Min(99, $v))
+    if ($v -lt [int]$wp.Max) { $v = [int]$wp.Max } else { $wp.Max = $v }
+    return $v
+}
+
+function Update-WriteProgress {
+    # Minuteur principal (600), apres le prechauffage : valeur de la barre et libelle de l ecriture ; fin de l operation
+    # (plus de gw, d etape en attente ni de controle) : Complete-WriteProgress. Pendant le prechauffage, barre et libelle
+    # viennent d Update-WriteWarmupProgress ; pendant le controle, le libelle est celui de sa passe (Invoke-RepNextCmd)
+    $wp = $script:WriteProg
+    if (-not $wp -or $script:WriteWarm) { return }
+    if (-not ($script:GwProc -or $script:Chain.Count -gt 0 -or $script:Rep)) { Complete-WriteProgress; return }
+    $v = Get-WriteProgPct
+    if ($pbWCal.Value -ne $v) { $pbWCal.Value = $v }
+    if ($wp.Seg -ne 'write') { return }
+    $t = Get-WriteProgText ([int][math]::Floor(100.0 * [double]$wp.F)) ([bool]$wp.Check)
+    $wp.Text = $t
+    if ([string]$lblWCal.Text -cne $t) { $lblWCal.Text = $t }
+}
+
+function Get-WriteProgEnd($wp) {
+    # Fin de l operation : texte du libelle, ou $null quand une autre etape l a pris (verdict du controle, prechauffage
+    # interrompu, controle sans piste a relire), qui est garde. Ecriture terminee : commandes prevues toutes finies (plan de
+    # l ecriture entier, Get-ProgPlanFrac) et la derniere sans echec (ProgFailed : code non nul, gw non lance ;
+    # GwLastIncomplete : code 0 mais operation incomplete, 600) ; sinon interrompue (erreur, arret, gw introuvable)
+    if (-not $wp -or [string]$lblWCal.Text -cne [string]$wp.Text) { return $null }
+    if ($wp.Seg -ne 'check') {
+        $pf = Get-ProgPlanFrac
+        if ($null -eq $pf -or [double]$pf -lt 1.0 - 1e-9 -or $script:ProgFailed -or $script:GwLastIncomplete) { return (T 'Écriture interrompue : voir le journal.') }
+    }
+    return (T 'Écriture terminée.')
+}
+
+function Complete-WriteProgress {
+    # Fin de l operation (Update-WriteProgress) : libelle de fin (Get-WriteProgEnd), barre masquee, plan de l ecriture retire
+    $wp = $script:WriteProg; $script:WriteProg = $null
+    if (-not $wp) { return }
+    $t = Get-WriteProgEnd $wp
+    if ($t) { $lblWCal.Text = $t; $lblWCal.Visible = $true }
+    $pbWCal.Visible = $false
+    if (-not $script:Cal) { $script:ProgPlan = $null }
 }

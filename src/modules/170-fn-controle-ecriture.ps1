@@ -45,8 +45,12 @@ function New-WriteCheck([string[]]$base, [string]$image, [string]$userTSpec, [in
     }
     # Une mesure continue de l onglet Qualite ecraserait le resultat du controle : elle est arretee
     $script:AlignLoop = $false; $script:AlignNextAt = $null; $script:AlLastMove = 0
-    $lblWCal.Text = (T 'Écriture en cours, contrôle de toutes les pistes ensuite.')
-    $pbWCal.Visible = $false; $lblWCal.Visible = $true
+    # 12.11 (L11) : ecriture suivie par la barre de l onglet (Start-WriteProgress, 160, appelee juste avant) : libelle et
+    # barre sont les siens ; restauration (barre de l onglet non posee) : libelle de la 12.10, barre masquee
+    if (-not $script:WriteProg) {
+        $lblWCal.Text = (T 'Écriture en cours, contrôle de toutes les pistes ensuite.')
+        $pbWCal.Visible = $false; $lblWCal.Visible = $true
+    }
     # 12.8 (lot 3a) : resultat de l onglet Qualite grise et marque « controle en cours » pendant l ecriture et le controle
     Set-QualityPending 'check'
 }
@@ -122,6 +126,9 @@ function Add-RepReads($groups, [string]$extras) {
 function Start-RepPending {
     # Une etape de chaine par commande en file, puis l analyse
     $rep = $script:Rep
+    # 12.11 (L11) : passe du controle dans la barre de l onglet (Step-WriteProgress, 160) : plan de ses commandes, file de
+    # la passe inchangee ; affichage seulement
+    Step-WriteProgress @($rep.Pending.ToArray())
     $script:Chain.Clear()
     for ($i = 0; $i -lt $rep.Pending.Count; $i++) { $script:Chain.Enqueue({ Invoke-RepNextCmd }) }
     $script:Chain.Enqueue({ Invoke-WriteCheckAnalysis })
