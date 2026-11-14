@@ -9,19 +9,22 @@ $Wt = Get-TestRoot $Wt
 #     ces decisions appellent ; S2 Get-WritePlan tire chaque segment de ces memes fonctions ; S3 decisions et phrase sans
 #     journal, sans fenetre, sans commande ; S4 appels de la mise a jour (fin d Update-WLevelUi, 520).
 #  P1 equivalence de Start-WriteTabWrite (et, derriere elle, des vraies Start-LevelBeforeWrite et Start-ImageWrite) :
-#     28 scenarios (ceux du plan, les trois cas de B1, deux lecteurs enregistres sur A) ; commandes gw, demandes, fenetres
+#     32 scenarios (ceux du plan, les trois cas de B1, deux lecteurs enregistres sur A) ; commandes gw, demandes, fenetres
 #     et lignes de journal, dans l ordre, identiques a celles de d8d80d6 (empreintes relevees sur cette source ; avec
-#     -Before, comparaison ligne a ligne). P2 de meme pour Start-ImageWrite appelee seule (21 scenarios : tetes,
+#     -Before, comparaison ligne a ligne). P2 de meme pour Start-ImageWrite appelee seule (24 scenarios : tetes,
 #     effacement, profils transmis, controle impose, lecteur cible, restauration).
 #  P3 textes exacts (francais, anglais) : exemple de la specification en trois lignes de 512 px.
-#  P4 coherence : pour chaque scenario de P1 et P2, ce que la phrase annonce (refus, mesure, effacement, tetes, controle,
-#     lecteur cible) est ce que le clic fait.
+#  P4 coherence : pour chaque scenario de P1 et P2, refus et mesure annonces = ceux du clic ; sans mesure qui precede,
+#     effacement, tetes (ecriture rapide comprise), controle et lecteur cible annonces = commandes et journal du clic.
 #  P5 refus en tete, encre d avertissement ; sans image : ligne du lot L9 ; image absente.
 #  P6 cas de B1 : « Test rapide » sans reference (refus, premiere phrase du message du clic), case cochee sans reference
-#     (sans mesure, raison du journal), image non mesurable sur son contenu (repli au motif, raison du journal).
+#     (sans mesure, raison du journal), image non mesurable sur son contenu (repli au motif, raison du journal) ; revue J :
+#     champs d une courbe adaptee et « Test rapide » (la calibration qui precede remplace les champs) : aucun controle
+#     impose annonce.
 #  P7 cout : memoire par signature ; mise a jour sans changement : aucun calcul ni lecture de l image ; chaque cause
-#     d invalidation (image, date du fichier, format, lecteur et sa connexion, lecteur cible, listes, courbes) recalcule ;
-#     temps medians.
+#     d invalidation (image, date du fichier, format, lecteur et sa connexion, lecteur cible, listes, courbes, passes de
+#     reecriture, option avancee, courbe adaptee, controle impose) recalcule ; temps medians. U1 : avant l affichage de la
+#     fenetre (UiReady faux), aucun calcul.
 #  L  deux lecteurs enregistres sur A : la phrase change avec le lecteur et avec sa connexion ; le clic aussi.
 #  C  coupe : nom le plus large admis, francais et anglais : segments critiques entiers, phrase dans ses trois lignes,
 #     texte complet en infobulle ; refus long : en tete ; zone de la ligne inchangee.
@@ -287,6 +290,12 @@ $scP1 = @(
     @{ Id = 'S26'; T = 'deux lecteurs sur A : Sony MPF920'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { Set-PlDrives @('Sony MPF920', 'TEAC FD-235HF') 'Sony MPF920'; Set-PlCurves 'commune' 'Sony MPF920'; $cmbWCalMode.SelectedIndex = 2 } }
     @{ Id = 'S27'; T = 'deux lecteurs sur A : TEAC FD-235HF'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { Set-PlDrives @('Sony MPF920', 'TEAC FD-235HF') 'TEAC FD-235HF'; Set-PlCurves 'commune' 'Sony MPF920'; $cmbWCalMode.SelectedIndex = 2 } }
     @{ Id = 'S28'; T = 'lente, case decochee'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { Set-PlCurves 'motif'; $chkWSlow.Checked = $true; $chkWLevel.Checked = $false } }
+    # Revue J : reference plus courte que l image, image absente, tetes d une ecriture rapide (h=0 : image a une face gardee
+    # apres une ecriture rapide de la Bibliotheque), champs d une courbe adaptee remplaces par la calibration qui precede
+    @{ Id = 'S29'; T = 'Test rapide, reference courte (70 cylindres)'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { $script:DriveCurves['A|std'] = New-PlCurve 'A' 70; Sync-PrecompCurves; $cmbWCalMode.SelectedIndex = 2 } }
+    @{ Id = 'S30'; T = 'Test rapide, image absente'; Img = (Join-Path $plImg 'absente.adf'); Fmt = 'amiga.amigados'; Do = { Set-PlCurves 'commune'; $cmbWCalMode.SelectedIndex = 2 } }
+    @{ Id = 'S31'; T = 'rapide, Pistes h=0'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { Set-PlCurves 'motif'; $txtWTracks.Text = 'h=0' } }
+    @{ Id = 'S32'; T = 'Test rapide, lente, champs d une courbe adaptee'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { Set-PlCurves 'motif'; $chkWSlow.Checked = $true; $cmbWCalMode.SelectedIndex = 2; $chkWPostCheck.Checked = $false; $txtWPrecomp.Text = '0=111:40=131'; $txtWPrecomp1.Text = '0=112:40=132'; $script:LevelShifts['std_h0|0'] = @{ Model = 'M1'; Spec = '0=111:40=131'; Values = @(111) }; $script:LevelShifts['std_h1|1'] = @{ Model = 'M1'; Spec = '0=112:40=132'; Values = @(112) } } }
 )
 # Scenarios de P2 (Start-ImageWrite appelee seule : Bibliotheque, fin d une calibration)
 $scP2 = @(
@@ -311,6 +320,11 @@ $scP2 = @(
     @{ Id = 'W19'; T = 'restauration sur l original'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { $chkWSlow.Checked = $true; $script:Restore = @{ OnOriginal = $true; Saved = $null } } }
     @{ Id = 'W20'; T = 'rapide, Pistes c=0-39, options'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { $txtWTracks.Text = 'c=0-39'; $chkWNoVerify.Checked = $true; $numWRetries.Value = 4; $chkWEraseEmpty.Checked = $false } }
     @{ Id = 'W21'; T = 'lecteur enregistre'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { Set-PlDrives @('Sony MPF920', 'TEAC FD-235HF') 'Sony MPF920' } }
+    # Revue J : haute densite avec --densel, controle impose par la calibration avec des champs adaptes, effacement haute
+    # frequence sans piste a effacer (champ Pistes hors de l image)
+    @{ Id = 'W22'; T = 'haute densite, --densel'; Img = $imHd; Fmt = 'amiga.amigados_hd'; Do = { $cmbWDensel.SelectedIndex = 1 } }
+    @{ Id = 'W23'; T = 'controle impose par la calibration, champs adaptes'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { $chkWPostCheck.Checked = $false; $txtWPrecomp.Text = '0=111:40=131'; $script:LevelShifts['std|c'] = @{ Model = 'M1'; Spec = '0=111:40=131'; Values = @(111) }; $script:LevelPostForce = $true } }
+    @{ Id = 'W24'; T = 'rapide, Pistes c=82-83'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { $txtWTracks.Text = 'c=82-83' } }
 )
 # Empreintes relevees sur d8d80d6 (sortie du test lance avec -Before <export de d8d80d6>) : commandes, demandes et fenetres
 # (T), journal (J), par scenario
@@ -328,6 +342,8 @@ $plRef = @{
     W13 = 'a4536535963d9f2e/c6892cfe17a87002'; W14 = '05dbbd27c6d38abe/90659da571963047'; W15 = '9650771b5d762b87/441ec90c93b63b50'; W16 = 'e624a56728551b44/d91545fc0d919c4c'
     W17 = '631ffd0518b95c25/e3b0c44298fc1c14'; W18 = '16775819cacfcd08/003107d7bbcb5f61'; W19 = '00c2c1d301a051bd/14c560e888fadc45'; W20 = '2c592b23d3f7552e/b1fcd512270daf7a'
     W21 = '6540067d6f40bfc7/3ced2d52945403b0'
+    S29 = 'f7728a08a4f467ef/1668d9ade2f6b50f'; S30 = '6d55d92b00395b21/1f4b7b28e2112e12'; S31 = 'e165044055d3712d/49d2313f53684812'; S32 = '968e88fda3a51d8b/5b814566e5ebaa3e'
+    W22 = 'f4bee6cfa440639f/75c5cb21d5795c23'; W23 = '9650771b5d762b87/d91545fc0d919c4c'; W24 = 'e6be3a723ef94bfe/e3b0c44298fc1c14'
 }
 
 function Invoke-PlScenario($sc, [string]$fn, [bool]$withPlan) {
@@ -381,7 +397,11 @@ function Test-PlAgree($r) {
     $hs = @(foreach ($w in $write) { $m = [regex]::Match($w, '--tracks=[^ ]*h=(\d)'); if ($m.Success) { [int]$m.Groups[1].Value } })
     if ($r.Slow) {
         $hw = if ($hs.Count -eq 2) { (T 'écriture tête 0 puis tête 1') } elseif ($hs.Count -eq 1) { (T 'écriture de la tête {0} seule') -f "$($hs[0])" } else { '?' }
-    } else { $hw = if ($write.Count -eq 1) { (T 'écriture des deux têtes ensemble') } else { '?' } }
+    } else {
+        # Ecriture rapide (revue J) : tetes de --tracks (h=0 : tete 0 seule), sinon les deux ensemble
+        $fh = @(foreach ($w in $write) { $m = [regex]::Match($w, '--tracks=[^ ]*h=(\d)(?![-,\d])'); if ($m.Success) { [int]$m.Groups[1].Value } })
+        $hw = if ($write.Count -ne 1) { '?' } elseif ($fh.Count -eq 1) { (T 'écriture de la tête {0} seule') -f "$($fh[0])" } else { (T 'écriture des deux têtes ensemble') }
+    }
     if ($segs -notcontains $hw) { $bad += "tetes : ecrites « $hw », phrase « $all »" }
     $cw = $ctl.Count -gt 0
     # Controle annonce : « controle de toutes les pistes, ... » ou « ... impose ... » ; pas « ... non applicable (...) »
@@ -493,16 +513,18 @@ foreach ($pr in $plRoots) {
             $b6 = Get-PlShown @($scP1 | Where-Object { $_.Id -eq 'S06' })[0]; $r6 = $res[$key].P1['S06']
             $b7 = Get-PlShown @($scP1 | Where-Object { $_.Id -eq 'S07' })[0]; $r7 = $res[$key].P1['S07']
             $b8 = Get-PlShown @($scP1 | Where-Object { $_.Id -eq 'S08' })[0]; $r8 = $res[$key].P1['S08']
+            $b9 = Get-PlShown @($scP1 | Where-Object { $_.Id -eq 'S32' })[0]
             $m6 = [string]@($r6.Log)[-1]; $i6 = $m6.IndexOf(" Rien n'a été écrit.")
             $w7 = [regex]::Match([string](@($r7.Log | Where-Object { $_.StartsWith("Mesure de la disquette avant l'écriture non faite : ") })[0]), "non faite : (.+)\. Écriture avec").Groups[1].Value
             $w8 = [regex]::Match([string](@($r8.Log | Where-Object { $_.StartsWith("Mesure sur l'image non faite (") })[0]), "^Mesure sur l'image non faite \((.+)\) : calibration rapide").Groups[1].Value
             $p6 = [ordered]@{
+                'champs adaptes, Test rapide' = (-not $b9.Full.Contains((T 'contrôle de toutes les pistes imposé')) -and $b9.Full.Contains((T 'contrôle complet non demandé')))
                 'B1 refus' = ($i6 -gt 0 -and $b6.Warn -and $b6.Text -ceq $m6.Substring(0, $i6) -and @($r6.Trace)[0] -eq 'message Calibration precomp YesNo' -and $b6.Text.Contains("le test rapide n'a pas de référence utilisable pour cette image ("))
                 'B1 case cochee' = ($w7 -and -not $b7.Warn -and $b7.Text.Contains(((T 'sans mesure de la disquette ({0})') -f $w7)) -and @($r7.Trace | Where-Object { $_ -like 'file write*' }).Count -eq 2)
                 'B1 contenu' = ($w8 -and $b8.Text.Contains(((T "mesure de la disquette : {0}, au lieu de la mesure sur l'image ({1})") -f (Get-SettingText 'levelBeforeWriteMode' 'quick'), $w8)) -and @($r8.Trace)[0] -like 'calibration rapide*')
             }
             "  P6 : « $($b6.Text) » | « $($b7.Text) » | « $($b8.Text) »"
-            Chk 'P6' (@($p6.Keys | Where-Object { -not $p6[$_] }).Count -eq 0) "cas de B1 : Test rapide sans reference (refus en tete, premiere phrase du message du clic, rien d ecrit) ; case cochee sans reference (« sans mesure de la disquette (raison) », raison du journal du clic, ecriture des deux tetes) ; image non mesurable sur son contenu (mesure au motif « au lieu de la mesure sur l image », raison du journal, calibration rapide lancee) ; ecarts : $(Get-List @($p6.Keys | Where-Object { -not $p6[$_] }))"
+            Chk 'P6' (@($p6.Keys | Where-Object { -not $p6[$_] }).Count -eq 0) "cas de B1 : Test rapide sans reference (refus en tete, premiere phrase du message du clic, rien d ecrit) ; case cochee sans reference (« sans mesure de la disquette (raison) », raison du journal du clic, ecriture des deux tetes) ; image non mesurable sur son contenu (mesure au motif « au lieu de la mesure sur l image », raison du journal, calibration rapide lancee) ; champs d une courbe adaptee au « Test rapide » : la calibration qui precede les remplace, aucun controle impose annonce ; ecarts : $(Get-List @($p6.Keys | Where-Object { -not $p6[$_] }))"
 
             # ----------------------------------------------------------------- L : deux lecteurs enregistres sur A
             $l1 = Get-PlShown @($scP1 | Where-Object { $_.Id -eq 'S26' })[0]
@@ -555,6 +577,10 @@ foreach ($pr in $plRoots) {
                 'liste Mesure' = { $cmbWLevelMode.SelectedIndex = 1 }
                 'date d une courbe' = { $script:DriveCurves['A|std_h0'].Date = '02/11/2026 09:00'; Sync-PrecompCurves }
                 'case Effacer avant d ecrire' = { $chkWPreErase.Checked = $false }
+                'passes de reecriture' = { $numWRepair.Value = 0 }
+                'option avancee' = { $chkWNoVerify.Checked = $true }
+                'courbe adaptee' = { $script:LevelShifts['std_h0|0'] = @{ Model = 'M1'; Spec = '0=1'; Values = @(1) } }
+                'controle impose' = { $script:LevelPostForce = $true }
             }
             $p7 = @(); $p7r = @()
             foreach ($k in @($inv.Keys)) {
@@ -576,10 +602,14 @@ foreach ($pr in $plRoots) {
                 $ts = @(); for ($i = 0; $i -lt 20; $i++) { $q = [System.Diagnostics.Stopwatch]::StartNew(); [void](Get-WritePlan); $q.Stop(); $ts += $q.Elapsed.TotalMilliseconds }
                 $tf[[System.IO.Path]::GetExtension($im)] = @{ Med = [double](@($ts | Sort-Object)[10]); Io = $script:PlIo / 20 }
             }
+            # U1 (revue J) : avant l affichage de la fenetre (UiReady faux), aucun calcul de la phrase ni acces a l image
+            Reset-PlState; $txtWFile.Text = $imAdf; $cmbWFmt.SelectedItem = 'amiga.amigados'; Set-PlCurves 'motif'
+            $script:UiReady = $false; $script:PlRuns = 0; $script:WPlanMemo = $null; $script:WPlanCur = $null; Update-WLevelUi; $u1 = $script:PlRuns; $u1t = [string]$lblWPlan.Text; $script:UiReady = $true; Update-WLevelUi
+            Chk 'U1' ($u1 -eq 0 -and $u1t -eq '') "avant l affichage de la fenetre (UiReady faux) : aucun calcul de la phrase ($u1), ligne du lot L9 « $u1t »"
             $medC = [double](@($tc | Sort-Object)[10])
             "  P7 : 20 mises a jour sans changement : $($c20.Runs) calcul(s), $($c20.Io) lecture(s) de l image, mediane $('{0:0.0}' -f $medC) ms ; calcul complet : ADF $('{0:0.0}' -f $tf['.adf'].Med) ms ($($tf['.adf'].Io) lectures), IPF $('{0:0.0}' -f $tf['.ipf'].Med) ms ($($tf['.ipf'].Io) lectures)"
             "  P7 : recalculs par cause : $($p7r -join ' ; ')"
-            Chk 'P7' ($c20.Runs -eq 0 -and $c20.Io -eq 0 -and $p7.Count -eq 0 -and $medC -lt 30 -and [string]$lblWPlan.Text -ne '' -and $t0 -ne '') "memoire par signature : 20 mises a jour sans changement, aucun calcul ni lecture de l image (signature : un acces a la date du fichier), mediane sous 30 ms ; chaque cause d invalidation ($($inv.Count) : date et contenu du fichier, format, lecteur, lecteur cible, deux listes, date d une courbe, case) recalcule la phrase ; ecarts : $(Get-List $p7)"
+            Chk 'P7' ($c20.Runs -eq 0 -and $c20.Io -eq 0 -and $p7.Count -eq 0 -and $medC -lt 30 -and [string]$lblWPlan.Text -ne '' -and $t0 -ne '') "memoire par signature : 20 mises a jour sans changement, aucun calcul ni lecture de l image (signature : un acces a la date du fichier), mediane sous 30 ms ; chaque cause d invalidation ($($inv.Count) : date et contenu du fichier, format, lecteur, lecteur cible, deux listes, date d une courbe, case, passes de reecriture, option avancee, courbe adaptee, controle impose) recalcule la phrase ; ecarts : $(Get-List $p7)"
             # Fonctions d origine rendues (cas suivants)
             foreach ($n in @($script:PlOrig.Keys)) { Set-Item -Path "function:script:$n" -Value $script:PlOrig[$n] }
             "  P7 : fonctions d origine rendues : $(@(@($script:PlOrig.Keys) | Where-Object { (Get-Command $_ -CommandType Function).ScriptBlock -eq $script:PlOrig[$_] }).Count) sur $($script:PlOrig.Count)"
@@ -599,8 +629,13 @@ foreach ($pr in $plRoots) {
         $cCases = @(
             # C1 : lecteur cible sans effet (Manuel), mesure refusee (secteurs durs), controle non applicable, options avancees
             @{ Id = 'C1'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { & $setWide; Set-PlCurves 'motif' $wide; $chkWSlow.Checked = $true; $chkWLevel.Checked = $true; $cmbWProfile.SelectedIndex = 3; $txtWPrecomp.Text = '0=90:40=120'; $chkWHard.Checked = $true; & $advAll } }
-            # C2 : mesure repliee au motif, controle impose par la courbe adaptee, options avancees
-            @{ Id = 'C2'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { & $setWide; [void]$script:TargetDrives.Remove($wide); Set-PlCurves 'courte' $wide; $chkWSlow.Checked = $true; $chkWLevel.Checked = $true; $chkWPostCheck.Checked = $false; $txtWPrecomp.Text = '0=111:40=131'; $script:LevelShifts['std|c'] = @{ Model = 'M1'; Spec = '0=111:40=131'; Values = @(111) }; & $advAll } }
+            # C2 : profil Manuel (aucune mesure ne precede : les champs sont ceux de l ecriture), controle impose par la courbe
+            # adaptee, lecteur cible sans effet, options avancees. Revue J : avec une mesure qui precede (repli au motif), le
+            # controle impose ne s annonce plus d apres les champs, que la calibration remplace
+            @{ Id = 'C2'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { & $setWide; Set-PlCurves 'motif' $wide; $chkWSlow.Checked = $true; $chkWLevel.Checked = $true; $cmbWProfile.SelectedIndex = 3; $chkWPostCheck.Checked = $false; $txtWPrecomp.Text = '0=111:40=131'; $script:LevelShifts['std|c'] = @{ Model = 'M1'; Spec = '0=111:40=131'; Values = @(111) }; & $advAll } }
+            # C2b (revue J) : cas de l ancien C2, mesure repliee au motif avec des champs adaptes : repli critique garde par la
+            # coupe, aucun controle impose annonce (la calibration qui precede remplace les champs)
+            @{ Id = 'C2b'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { & $setWide; [void]$script:TargetDrives.Remove($wide); Set-PlCurves 'courte' $wide; $chkWSlow.Checked = $true; $chkWLevel.Checked = $true; $chkWPostCheck.Checked = $false; $txtWPrecomp.Text = '0=111:40=131'; $script:LevelShifts['std|c'] = @{ Model = 'M1'; Spec = '0=111:40=131'; Values = @(111) }; & $advAll } }
             # C3 : lecteur cible avec effet (courbe croisee nommee : segment descriptif long), mesure non faite pour le lecteur
             # cible, options avancees
             @{ Id = 'C3'; Img = $imAdf; Fmt = 'amiga.amigados'; Do = { & $setWide; $script:DriveCurves["$wide>$wide2|std"] = New-PlCurve "$wide>$wide2"; Sync-PrecompCurves; $chkWSlow.Checked = $true; $chkWLevel.Checked = $true; & $advAll } }
@@ -631,7 +666,9 @@ foreach ($pr in $plRoots) {
             if ($cc.Id -ne 'C3' -and -not $cut) { $cBad += "$($cc.Id) : phrase non coupee (cas sans objet)" }
             if (@($allT | Where-Object { -not $sh.Full.Contains($_) }).Count) { $cBad += "$($cc.Id) : texte complet incomplet" }
             if ($cc.Id -eq 'C1' -and $crit.Count -lt 3) { $cBad += "C1 : $($crit.Count) segments critiques au lieu de 3" }
-            if ($cc.Id -eq 'C2' -and $crit.Count -lt 2) { $cBad += "C2 : $($crit.Count) segments critiques au lieu de 2" }
+            if ($cc.Id -eq 'C2' -and ($crit.Count -lt 3 -or $short -lt 1)) { $cBad += "C2 : $($crit.Count) segments critiques au lieu de 3, $short en forme courte" }
+            $rpMid = ((T "mesure de la disquette : {0}, au lieu de la mesure sur l'image ({1})") -f 'X', 'Y').Split('X')[1].Split('Y')[0]
+            if ($cc.Id -eq 'C2b' -and (@($crit | Where-Object { $_.Contains($rpMid) }).Count -ne 1 -or @($allT | Where-Object { $_.StartsWith((T 'contrôle de toutes les pistes imposé')) }).Count)) { $cBad += "C2b : repli critique absent ou controle impose annonce ($(Get-List $crit 2))" }
         }
         # Borne : les trois segments critiques qui peuvent coexister (mesure, controle, lecteur cible), dans leur forme courte la
         # plus longue et avec le nom le plus large admis, tiennent dans les trois lignes

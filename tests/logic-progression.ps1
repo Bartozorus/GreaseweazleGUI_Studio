@@ -1123,6 +1123,24 @@ Start-WScenario $true $false $false $false; Invoke-WAll -stopAt 2; $r13 = "$((Ge
 Start-WScenario $true $false $true $false; Invoke-WAll -stopAt 2; $r14a = "$((Get-WLast).T)|$((Get-WLast).Vis)|$((Get-WMono).Back)|$($null -eq $script:WriteProg)"
 Start-WScenario $true $true $true $false; Invoke-WAll -stopAt 2; $r14b = "$((Get-WLast).T)|$((Get-WLast).Vis)|$((Get-WMono).Back)"
 Chk 'W12' ($r13 -ceq 'Écriture interrompue : voir le journal.|False|0|2' -and $r14a -ceq 'Préchauffage interrompu : écriture annulée.|False|0|True' -and $r14b -ceq 'Contrôle après écriture interrompu.|False|0') "Arreter pendant l ecriture de la tete 1 : « $($r13.Split('|')[0]) » ; pendant le prechauffage : « $($r14a.Split('|')[0]) » (texte de Stop-WriteWarmup garde), avec controle : « $($r14b.Split('|')[0]) » (verdict de Stop-WriteCheck garde) ; barre masquee, jamais de recul"
+# W12b : Arreter, puis un passage du minuteur avant la fin de gw tue (HasExited encore faux : Kill est asynchrone) :
+# libelle d arret garde jusqu a la fin, barre masquee a la fin
+$w12b = @()
+foreach ($sc in @(@{ S = $true; C = $false; W = $true }, @{ S = $true; C = $true; W = $true }, @{ S = $false; C = $true; W = $false })) {
+    Start-WScenario $sc.S $sc.C $sc.W $false
+    if ($sc.W) { Move-WTime 25; Invoke-WTick 'prechauffage' }
+    else {
+        $tkB = Get-WTracks ([string]$script:WCmds[$script:WCmds.Count - 1])
+        Update-Progress "Writing $($tkB.Spec)" -Defer
+        foreach ($l in @((New-TrackLines 'write' $tkB.C0 $tkB.C1 $tkB.H) | Select-Object -First 40)) { Update-Progress $l -Defer }
+        Show-GwProgress; Invoke-WTick 'ecriture'
+    }
+    Invoke-WStop; $t0 = [string]$lblWCal.Text
+    Invoke-WTick 'arret, gw pas fini'; $t1 = [string](Get-WLast).T
+    Invoke-WEnd (-1); Invoke-WTick 'repos'; $t2 = [string](Get-WLast).T; $v2 = [bool](Get-WLast).Vis
+    if ($t1 -cne $t0 -or $t2 -cne $t0 -or $v2 -or $null -ne $script:WriteProg) { $w12b += "$($sc.S)/$($sc.C) : « $t0 » puis « $t1 », fin « $t2 », barre visible $v2" }
+}
+Chk 'W12b' ($w12b.Count -eq 0) "Arreter puis un passage du minuteur avant la fin de gw (prechauffage d une ecriture lente, avec et sans controle ; ecriture rapide controlee) : libelle d arret garde jusqu a la fin, barre masquee ; ecarts : $($w12b -join ' ; ')"
 Start-WScenario $true $true $false $true; Invoke-WAll 2 1 30; $r15 = "$((Get-WLast).T)|$((Get-WLast).Vis)|$((Get-WMono).Back)|$($null -eq $script:Rep)"
 Chk 'W13' ($r15 -ceq 'Contrôle après écriture interrompu.|False|0|True') "ecriture controlee, gw en echec a la tete 0 : verdict de Stop-WriteCheck -GwError garde (« $($r15.Split('|')[0]) »), barre masquee"
 Start-WScenario $false $false $false $false 0 80 'missing'; Invoke-WAll; $r16 = "$((Get-WLast).T)|$((Get-WLast).Vis)|$($script:WCmds.Count)"

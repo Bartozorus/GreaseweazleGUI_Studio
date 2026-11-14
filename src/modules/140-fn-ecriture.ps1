@@ -103,8 +103,11 @@ function Get-WriteHeads([string]$img, [string]$userTs, [bool]$slow, [bool]$erase
     # 1 serait effacee). OneFace : image a une seule face (ligne de journal). Err : texte du refus (fenetre de
     # Start-ImageWrite) : aucune tete choisie par le champ Pistes, ou faces de l image inconnues avec « Effacer les pistes
     # vides »
-    $r = @{ Heads = @(0, 1); Err = ''; OneFace = $false }
-    if (-not $slow) { return $r }
+    # 12.11 (L10, revue J) : Gw, tetes que gw ecrit, pour la ligne « Ce qui va se passer » : ecriture rapide, tetes du
+    # champ Pistes (h=0 : tete 0 seule ; image a une face gardee apres une ecriture rapide de la Bibliotheque,
+    # Get-FaceSafeWrite) ; Heads reste @(0, 1) en ecriture rapide (pistes de l effacement, Get-WriteEraseKeys)
+    $r = @{ Heads = @(0, 1); Err = ''; OneFace = $false; Gw = @(0, 1) }
+    if (-not $slow) { $r.Gw = Get-TSpecHeads $userTs; return $r }
     $heads = Get-TSpecHeads $userTs
     if ($heads.Count -eq 0) {
         $r.Heads = $heads; $r.Err = (T 'Écriture lente : le champ Pistes ne sélectionne ni la tête 0 ni la tête 1.'); return $r
@@ -122,7 +125,7 @@ function Get-WriteHeads([string]$img, [string]$userTs, [bool]$slow, [bool]$erase
             return $r
         }
     }
-    $r.Heads = $heads
+    $r.Heads = $heads; $r.Gw = $heads
     return $r
 }
 

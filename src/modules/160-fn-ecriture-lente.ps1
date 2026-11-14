@@ -253,6 +253,9 @@ function Update-WriteProgress {
     $wp = $script:WriteProg
     if (-not $wp -or $script:WriteWarm) { return }
     if (-not ($script:GwProc -or $script:Chain.Count -gt 0 -or $script:Rep)) { Complete-WriteProgress; return }
+    # 12.11 (L11) : libelle pris par une autre etape avant la fin de gw (Arreter : Stop-WriteWarmup, Stop-WriteCheck ; gw
+    # tue mais pas encore fini) : ni barre ni libelle de l ecriture, la fin le garde (Get-WriteProgEnd)
+    if ($wp.Seg -ne 'check' -and [string]$lblWCal.Text -cne [string]$wp.Text) { return }
     $v = Get-WriteProgPct
     if ($pbWCal.Value -ne $v) { $pbWCal.Value = $v }
     if ($wp.Seg -ne 'write') { return }

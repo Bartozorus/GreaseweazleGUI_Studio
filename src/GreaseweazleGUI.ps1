@@ -10619,8 +10619,11 @@ function Get-WriteHeads([string]$img, [string]$userTs, [bool]$slow, [bool]$erase
     # 1 serait effacee). OneFace : image a une seule face (ligne de journal). Err : texte du refus (fenetre de
     # Start-ImageWrite) : aucune tete choisie par le champ Pistes, ou faces de l image inconnues avec « Effacer les pistes
     # vides »
-    $r = @{ Heads = @(0, 1); Err = ''; OneFace = $false }
-    if (-not $slow) { return $r }
+    # 12.11 (L10, revue J) : Gw, tetes que gw ecrit, pour la ligne « Ce qui va se passer » : ecriture rapide, tetes du
+    # champ Pistes (h=0 : tete 0 seule ; image a une face gardee apres une ecriture rapide de la Bibliotheque,
+    # Get-FaceSafeWrite) ; Heads reste @(0, 1) en ecriture rapide (pistes de l effacement, Get-WriteEraseKeys)
+    $r = @{ Heads = @(0, 1); Err = ''; OneFace = $false; Gw = @(0, 1) }
+    if (-not $slow) { $r.Gw = Get-TSpecHeads $userTs; return $r }
     $heads = Get-TSpecHeads $userTs
     if ($heads.Count -eq 0) {
         $r.Heads = $heads; $r.Err = (T 'Écriture lente : le champ Pistes ne sélectionne ni la tête 0 ni la tête 1.'); return $r
@@ -10638,7 +10641,7 @@ function Get-WriteHeads([string]$img, [string]$userTs, [bool]$slow, [bool]$erase
             return $r
         }
     }
-    $r.Heads = $heads
+    $r.Heads = $heads; $r.Gw = $heads
     return $r
 }
 
@@ -12193,9 +12196,10 @@ function Get-WritePlan {
     if ($wh.Err) { $r.Refuse = ([string]$wh.Err).Replace("`n", ' '); return $r }
     $sg = New-Object System.Collections.ArrayList
     [void]$sg.Add(@{ T = (Get-WriteSourceText); Crit = $false })
-    # Effacement
+    # Effacement. 12.11 (L10, revue J) : effacement haute frequence sans piste a effacer (champ Pistes hors des pistes de
+    # l image) : aucune commande gw erase ni --pre-erase (Start-ImageWrite, New-HfreqEraseCmds), « sans effacement »
     $ep = Get-WriteErasePlan $img $fmt $userTs ([int[]]@($wh.Heads)) ([bool]$chkWPreErase.Checked)
-    $et = if ($ep.Mode -eq 'hfreq') { (T 'effacement haute fréquence des pistes') } elseif ($ep.Mode -eq 'pre') { (T 'pré-effacement de chaque piste') } else { (T 'sans effacement') }
+    $et = if ($ep.Mode -eq 'hfreq' -and @($ep.EraseKeys).Count -gt 0) { (T 'effacement haute fréquence des pistes') } elseif ($ep.Mode -eq 'pre') { (T 'pré-effacement de chaque piste') } else { (T 'sans effacement') }
     [void]$sg.Add(@{ T = $et; Crit = $false })
     # Mesure de la disquette : omise quand aucune n est demandee. Forme courte d un segment critique (S, sans sa raison) :
     # employee par la coupe quand les segments critiques ne tiennent pas entiers (Show-WritePlan)
@@ -12224,14 +12228,18 @@ function Get-WritePlan {
     if ($nw) { $mt = (T 'sans mesure de la disquette ({0})') -f "$nw"; $ms = (T 'sans mesure de la disquette') }
     if ($mt) { [void]$sg.Add(@{ T = $mt; Crit = $mc; S = $ms }) }
     # Tetes
-    $hs = @($wh.Heads)
-    $ht = if (-not $slow) { (T 'écriture des deux têtes ensemble') } elseif ($hs.Count -eq 1) { (T 'écriture de la tête {0} seule') -f "$($hs[0])" } elseif ($hs.Count -ge 2) { (T 'écriture tête 0 puis tête 1') } else { '' }
+    $hs = @($wh.Gw)
+    $ht = if ($hs.Count -eq 1) { (T 'écriture de la tête {0} seule') -f "$($hs[0])" } elseif ($hs.Count -ge 2 -and -not $slow) { (T 'écriture des deux têtes ensemble') } elseif ($hs.Count -ge 2) { (T 'écriture tête 0 puis tête 1') } else { '' }
     if ($ht) { [void]$sg.Add(@{ T = $ht; Crit = $false }) }
     # Controle : profils transmis par Start-ImageWrite (avant le facteur), pour la courbe adaptee qui l impose ; drapeau
     # de la calibration rapide qui precede (LevelPostForce), lu comme Start-ImageWrite le lit
     $sp = Get-WriteSpecPlan $img $fmt $slow (Get-ImageEncoding $img $fmt)
     $hr = if ($slow) { Get-WriteHeadSpecs $userTs $sp.P0 $sp.P1 } else { $null }
-    $cp = Get-WriteCheckPlan $img $fmt $slow $wh.Heads $hr $sp.P0 ([bool]$script:LevelPostForce)
+    # 12.11 (L10, revue J) : calibration rapide ou mesure complete avant l ecriture (Kind 'quick' ou 'complete') : elle
+    # remplace les champs --precomp (Set-LevelFields) et remet le drapeau LevelPostForce (Start-LevelCalib) ; le controle
+    # impose se decide apres elle (Complete-LevelCalib, Complete-DiskMeasure), pas d apres les champs actuels
+    $fresh = ($lp -and @('quick', 'complete') -contains [string]$lp.Kind)
+    $cp = if ($fresh) { Get-WriteCheckPlan $img $fmt $slow $wh.Heads @{ 0 = $null; 1 = $null } $null $false } else { Get-WriteCheckPlan $img $fmt $slow $wh.Heads $hr $sp.P0 ([bool]$script:LevelPostForce) }
     $rep = [int]$numWRepair.Value
     if ($cp.Blocker) { [void]$sg.Add(@{ T = ((T 'contrôle de toutes les pistes non applicable ({0})') -f "$($cp.Blocker)"); Crit = $true; S = (T 'contrôle de toutes les pistes non applicable') }) }
     elseif ($cp.Forced -and -not $chkWPostCheck.Checked) { [void]$sg.Add(@{ T = $(if ($rep -gt 0) { (T 'contrôle de toutes les pistes imposé par la courbe adaptée à cette disquette, {0} passe(s) de réécriture au plus') -f "$rep" } else { (T 'contrôle de toutes les pistes imposé par la courbe adaptée à cette disquette, sans réécriture') }); Crit = $true; S = (T 'contrôle de toutes les pistes imposé') }) }
@@ -13285,6 +13293,9 @@ function Update-WriteProgress {
     $wp = $script:WriteProg
     if (-not $wp -or $script:WriteWarm) { return }
     if (-not ($script:GwProc -or $script:Chain.Count -gt 0 -or $script:Rep)) { Complete-WriteProgress; return }
+    # 12.11 (L11) : libelle pris par une autre etape avant la fin de gw (Arreter : Stop-WriteWarmup, Stop-WriteCheck ; gw
+    # tue mais pas encore fini) : ni barre ni libelle de l ecriture, la fin le garde (Get-WriteProgEnd)
+    if ($wp.Seg -ne 'check' -and [string]$lblWCal.Text -cne [string]$wp.Text) { return }
     $v = Get-WriteProgPct
     if ($pbWCal.Value -ne $v) { $pbWCal.Value = $v }
     if ($wp.Seg -ne 'write') { return }
