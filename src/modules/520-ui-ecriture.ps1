@@ -204,7 +204,10 @@ $cmbWCalMode = New-Object System.Windows.Forms.ComboBox
 # deroulee a 280 px, textes entiers), « Calibrer » a 106 px (icone et texte, francais et anglais) ; « Effacer les
 # calibrations » (193 px de texte et d icone) et la ligne 4 ne bougent pas, bas de la liste « Mesure : » inchange (517 px au
 # banc de la RC). 12.10 (relecture des captures) : bas des listes a 513 px depuis (voir lblWLevelMode)
-$cmbWCalMode.Location = '165,111'; $cmbWCalMode.Width = 226; $cmbWCalMode.DropDownWidth = 280; $cmbWCalMode.DropDownStyle = 'DropDownList'
+# 12.11 (L7) : geometrie provisoire (jusqu a la refonte de l onglet, lot L9) pour le bouton a icone du retour a une
+# calibration precedente (btnWCalBack, ci-dessous) : liste a 184 px (liste deroulee a 280 px inchangee), « Calibrer » en
+# 357, calibration croisee en 471, retour en 513 ; « Effacer les calibrations » garde sa place (555)
+$cmbWCalMode.Location = '165,111'; $cmbWCalMode.Width = 184; $cmbWCalMode.DropDownWidth = 280; $cmbWCalMode.DropDownStyle = 'DropDownList'
 [void]$cmbWCalMode.Items.AddRange(@((T 'Test standard : 1 cylindre sur 10'), (T 'Test fin : tous les cylindres'), (T 'Test rapide : niveau et forme par disquette')))
 $cmbWCalMode.SelectedIndex = 0
 # 12.8 (D5) : case « Mesurer la disquette » cochee et verrouillee au « Test rapide » (Update-SlowUi), a chaque changement
@@ -218,7 +221,7 @@ $btnWCalib = New-Object System.Windows.Forms.Button
 # 12.8 (lot 5) : boutons de 34 px (deux hauteurs, 34 et 40 px), sous les champs de la ligne 2 (bas a 103 px), liste et
 # libelle de la ligne 3 descendus pour rester centres. FIX5 : rangee descendue de 3 px de plus (3 px d ecart avec les
 # champs du dessus, comme en 12.7), ligne 4 (progression, verdict) de 5 px : 2 px sous les boutons
-$btnWCalib.Text = (T 'Calibrer'); $btnWCalib.Location = '399,106'; $btnWCalib.Size = '106,34'
+$btnWCalib.Text = (T 'Calibrer'); $btnWCalib.Location = '357,106'; $btnWCalib.Size = '106,34'
 $tip.SetToolTip($btnWCalib, (T "Calibre la précompensation pour ce lecteur d'écriture : chaque passe écrit sur les cylindres de test un motif de test pseudo-aléatoire, à la densité de l'image, avec, aux passes de mesure, une valeur de precomp (une par cylindre en double densité) puis, en vérification, le profil obtenu ; elle le relit en flux et mesure le décalage de pic. Une courbe donne ensuite une valeur par cylindre ; le profil est enregistré pour la famille de l'image (standard ou long track) et appliqué ensuite par le mode Auto. Le contenu de l'image n'est pas écrit. La disquette insérée est écrasée. Durées en double densité, sans le préchauffage : test standard (un cylindre sur 10) environ 6 min, test fin (tous les cylindres) environ 26 min."))
 $tip.SetToolTip($btnWCalib, $tip.GetToolTip($btnWCalib) + "`n" + (T 'Écriture lente cochée : une courbe par tête, vérifiée en écrivant la tête 0 puis la tête 1, chacune avec son profil.'))
 $btnWCalib.Add_Click({ $script:AfterCalib = ''; if ($cmbWCalMode.SelectedIndex -eq 2) { Start-LevelCalibButton } else { Start-PrecompCalib } })
@@ -228,10 +231,18 @@ $tip.SetToolTip($btnWCalib, $tip.GetToolTip($btnWCalib) + "`n" + (T 'Test rapide
 # cases du bas), entre « Calibrer » et « Effacer les calibrations » ; son texte sert d infobulle courte (Set-Btn -IconOnly),
 # remplacee par l explication complete ; style pose ici (540 ne le connait pas)
 $btnWCross = New-Object System.Windows.Forms.Button
-$btnWCross.Name = 'btnWCross'; $btnWCross.Text = (T 'Calibrer pour un lecteur cible…'); $btnWCross.Location = '513,106'; $btnWCross.Size = '34,34'
+$btnWCross.Name = 'btnWCross'; $btnWCross.Text = (T 'Calibrer pour un lecteur cible…'); $btnWCross.Location = '471,106'; $btnWCross.Size = '34,34'
 Set-Btn $btnWCross 'Switch' -IconOnly
 $tip.SetToolTip($btnWCross, (T 'Calibrer pour un lecteur cible…') + "`n" + (T "Calibration croisée : ce lecteur écrit le motif de test sur une disquette sacrifiée, un autre lecteur (le lecteur cible) le relit ; à chaque demande de l'application, vous déplacez la disquette d'un lecteur à l'autre. La courbe obtenue (par exemple « A → 0 ») mesure le besoin du lecteur cible à la relecture des écritures de ce lecteur : elle est enregistrée pour les écritures de ce lecteur destinées au lecteur cible, sans modifier sa courbe propre. Famille (standard ou long track) et test (standard ou fin) au choix ; une courbe par tête selon la case « Écriture lente »."))
 $btnWCross.Add_Click({ [void](Start-CrossCalib) })
+# 12.11 (L7) : retour a une calibration precedente (Start-CalibBack, 240 ; fenetre Show-CalibBackDialog, 250) : bouton a
+# icone seule (glyphe History), juste a gauche de « Effacer les calibrations » ; son texte sert d infobulle courte
+# (Set-Btn -IconOnly), remplacee par l explication complete
+$btnWCalBack = New-Object System.Windows.Forms.Button
+$btnWCalBack.Name = 'btnWCalBack'; $btnWCalBack.Text = (T 'Revenir à une calibration précédente…'); $btnWCalBack.Location = '513,106'; $btnWCalBack.Size = '34,34'
+Set-Btn $btnWCalBack 'History' -IconOnly
+$tip.SetToolTip($btnWCalBack, (T 'Revenir à une calibration précédente…') + "`n" + ((T "Liste les calibrations complètes gardées dans les copies de la configuration (fichiers « {0}.….bak » du dossier de l'application, faites avant chaque remplacement ou effacement d'une calibration) et rétablit celle que vous choisissez. Seules ses courbes reviennent : les autres courbes, les réglages, la mémoire par marque et les facteurs mesurés ne changent pas. L'état actuel est d'abord sauvegardé.") -f [System.IO.Path]::GetFileName([string]$script:ConfigFile)))
+$btnWCalBack.Add_Click({ [void](Start-CalibBack) })
 $btnWCalReset = New-Object System.Windows.Forms.Button
 $btnWCalReset.Text = (T 'Effacer les calibrations'); $btnWCalReset.Location = '555,106'; $btnWCalReset.Size = '195,34'
 # 12.10 (relecture de la RC) : infobulle alignee sur Reset-CalibProfiles (240) : tous les lecteurs et toutes les courbes,
@@ -262,7 +273,7 @@ $lblWCal.Add_Paint({ param($s, $e) Draw-WCalIcon $s $e })
 $lblWCal.Add_TextChanged({ if ($script:WCalIcon -and $lblWCal.Text -ne $script:WCalIcon.Text) { Clear-WCalVerdict }; Update-WCalTip })
 
 $grpWOpt.Controls.AddRange(@($chkWPreErase, $chkWEraseEmpty, $chkWNoVerify, (New-Label (T 'Essais :') '500,26'), $numWRetries, $chkWSlow, $chkWPrecomp, $txtWPrecomp, $chkWPostCheck,
-    $lblWPrecomp1, $txtWPrecomp1, (New-Label (T 'Calibration précomp :') '12,115'), $cmbWCalMode, $btnWCalib, $btnWCross, $btnWCalReset, $pbWCal, $lblWCal, $lblWRepair, $numWRepair))
+    $lblWPrecomp1, $txtWPrecomp1, (New-Label (T 'Calibration précomp :') '12,115'), $cmbWCalMode, $btnWCalib, $btnWCross, $btnWCalBack, $btnWCalReset, $pbWCal, $lblWCal, $lblWRepair, $numWRepair))
 
 # --- Groupe 3 : options avancees (rarement utiles)
 $grpWAdv = New-Group (T 'Options avancées') '10,266' '762,74'

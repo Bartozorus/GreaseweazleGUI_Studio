@@ -57,6 +57,51 @@ $script:I18n['Lecteur du bandeau : {0} ; lecteur cible de ses écritures : {1}.'
 $script:I18n['[Journal tronqué : les {0} premiers caractères ont été retirés (400 000 au plus sont gardés). Exportez le journal après chaque opération longue.]'] = '[Log truncated: the first {0} characters were removed (at most 400,000 are kept). Export the log after each long operation.]'
 
 # --- L7 : revenir a une calibration precedente (120, 240, 250, 520) ----------------------------------------------------
+# Bouton btnWCalBack de l onglet Ecriture (520) et son infobulle ({0} : nom du fichier de configuration)
+$script:I18n['Revenir à une calibration précédente…'] = 'Return to a previous calibration…'
+$script:I18n["Liste les calibrations complètes gardées dans les copies de la configuration (fichiers « {0}.….bak » du dossier de l'application, faites avant chaque remplacement ou effacement d'une calibration) et rétablit celle que vous choisissez. Seules ses courbes reviennent : les autres courbes, les réglages, la mémoire par marque et les facteurs mesurés ne changent pas. L'état actuel est d'abord sauvegardé."] = 'Lists the full calibrations kept in the configuration copies ("{0}.….bak" files in the application folder, made before each replacement or clearing of a calibration) and restores the one you choose. Only its curves come back: the other curves, the settings, the per-brand memory and the measured factors do not change. The current state is backed up first.'
+# Fenetre frmCalibBack (250) : titre, bandeau, colonnes, cellules, bouton, pied ; « Lecteur », « commune », « tete {0} »,
+# « par tete », « test fin », « test standard » et « Fermer » sont des cles existantes
+$script:I18n['Revenir à une calibration précédente'] = 'Return to a previous calibration'
+$script:I18n['Quelle calibration rétablir ?'] = 'Which calibration to restore?'
+$script:I18n["Calibrations complètes trouvées dans {0} copie(s) de la configuration, différentes des courbes en place. Choisissez une ligne, puis « Rétablir cette calibration ». Seules les courbes de cette ligne changent ; l'état actuel est d'abord copié dans un fichier « {1}.ref-….bak », d'où ce retour s'annule de la même façon."] = 'Full calibrations found in {0} configuration copies, different from the curves in place. Select a row, then "Restore this calibration". Only the curves of that row change; the current state is first copied to a "{1}.ref-….bak" file, from which this return can be undone the same way.'
+$script:I18n['Calibration du'] = 'Calibrated on'
+$script:I18n['Famille'] = 'Family'
+$script:I18n['Courbes'] = 'Curves'
+$script:I18n['Test'] = 'Test'
+$script:I18n['Calcul'] = 'Calculation'
+$script:I18n['Copie'] = 'Copy'
+$script:I18n['{0} (autre calcul)'] = '{0} (other calculation)'
+$script:I18n['Rétablir cette calibration'] = 'Restore this calibration'
+$script:I18n['Copies illisibles ou sans courbe, non listées : {0}.'] = 'Unreadable copies or copies without a curve, not listed: {0}.'
+# Detail d une ligne, assemble par Get-CalibBackInfo (240), la fonction qui decide
+$script:I18n['À rétablir : {0} ; calibration du {1}, {2}, calcul {3}.'] = 'To restore: {0}; calibrated on {1}, {2}, calculation {3}.'
+$script:I18n['Courbes en place remplacées : {0}.'] = 'Curves in place replaced: {0}.'
+$script:I18n["Aucune courbe en place n'est remplacée."] = 'No curve in place is replaced.'
+$script:I18n['Calcul {0}, autre que le calcul actuel (v{1}) : ces courbes seront conservées telles quelles, comme avec « Conserver ces courbes » au démarrage ; une nouvelle calibration peut donner une courbe plus juste.'] = 'Calculation {0}, other than the current calculation (v{1}): these curves will be kept as they are, as with "Keep these curves" at startup; a new calibration may give a more accurate curve.'
+$script:I18n["Ces courbes par tête sont plus anciennes que la courbe commune en place de ce lecteur ({0}) : l'écriture lente ne les appliquera pas tant que cette courbe commune est plus récente."] = 'These per-head curves are older than the common curve in place for this drive ({0}): slow writing will not apply them as long as that common curve is more recent.'
+$script:I18n["Les niveaux de la calibration rapide mesurés avec les courbes remplacées ne s'appliqueront plus. Les autres courbes, les réglages, la mémoire par marque et les facteurs mesurés ne changent pas."] = 'Quick calibration levels measured with the replaced curves will no longer apply. The other curves, the settings, the per-brand memory and the measured factors do not change.'
+$script:I18n['Copie lue : {0}, du {1}.'] = 'Copy read: {0}, dated {1}.'
+# Lecteur d aujourd hui d une courbe d une copie datee (Resolve-DriveOfEra, 112) : colonne « Lecteur », phrases du detail,
+# confirmation a case d une ligne au lien incertain (Start-CalibBack)
+$script:I18n["{0} (à l'époque : {1})"] = '{0} (at the time: {1})'
+$script:I18n['{0} (lecteur supprimé depuis)'] = '{0} (drive deleted since)'
+$script:I18n['Cette calibration a été faite sur la connexion {0}, avant que son lecteur soit enregistré sous le nom « {1} » : ne la rétablissez que si elle a été faite avec ce lecteur.'] = 'This calibration was made on connection {0}, before its drive was registered under the name "{1}": restore it only if it was made with this drive.'
+$script:I18n["Le lecteur « {0} » de cette copie n'est plus enregistré : cette calibration ne peut pas être rétablie."] = 'Drive "{0}" of this copy is no longer registered: this calibration cannot be restored.'
+$script:I18n["Le lecteur « {0} » de cette copie ne peut pas être relié avec certitude à un lecteur d'aujourd'hui."] = 'Drive "{0}" of this copy cannot be linked with certainty to a drive of today.'
+$script:I18n["Cette calibration porte le nom « {0} », mais le lecteur enregistré aujourd'hui sous ce nom l'a été après elle : ne la rétablissez que si elle a été faite avec ce lecteur."] = 'This calibration bears the name "{0}", but the drive registered under this name today was registered after it: restore it only if it was made with this drive.'
+$script:I18n['Rétablir cette calibration pour le lecteur « {0} » ?'] = 'Restore this calibration for drive "{0}"?'
+$script:I18n["Cette calibration a bien été faite avec le lecteur « {0} » (à l'époque : {1})"] = 'This calibration was indeed made with drive "{0}" (at the time: {1})'
+# Messages, onglet et journal (Start-CalibBack, Restore-CalibBack, 240 ; Backup-ConfigBeforeRef, motif back, 120)
+$script:I18n['Aucune calibration précédente à rétablir : aucune des {0} copie(s) de la configuration lue(s) dans « {1} » ne contient de courbe différente des courbes en place.'] = 'No previous calibration to restore: none of the {0} configuration copies read in "{1}" holds a curve different from the curves in place.'
+$script:I18n["Retour annulé : l'état actuel n'a pas pu être sauvegardé (voir le journal). Rien n'est modifié."] = 'Return cancelled: the current state could not be backed up (see the log). Nothing is changed.'
+$script:I18n['Calibration précédente rétablie : {0} (calibration du {1}, calcul {2}), lue dans {3}. Courbes remplacées : {4}.'] = 'Previous calibration restored: {0} (calibrated on {1}, calculation {2}), read from {3}. Curves replaced: {4}.'
+$script:I18n['Calibration précédente rétablie.'] = 'Previous calibration restored.'
+$script:I18n['Configuration sauvegardée avant le retour à une calibration précédente (référence {0} du {1}) : {2}'] = 'Configuration backed up before returning to a previous calibration ({0} reference of {1}): {2}'
+$script:I18n["Configuration non sauvegardée avant le retour à une calibration précédente ({0}) : {1}. Retour annulé : rien n'est modifié."] = 'Configuration not backed up before returning to a previous calibration ({0}): {1}. Return cancelled: nothing is changed.'
+$script:I18n['Copie de la configuration illisible, ignorée : {0} ({1}).'] = 'Unreadable configuration copy, ignored: {0} ({1}).'
+# Confirmation de « Effacer les calibrations » (Reset-CalibProfiles, 240) : remplace la cle de 010 (texte de la 12.8)
+$script:I18n["L'application copie d'abord la configuration dans « {0}.ref-….bak », dans le même dossier. Ensuite, « Revenir à une calibration précédente… » rétablit les courbes de cette copie, une calibration à la fois ; les niveaux, la mémoire par marque et les facteurs mesurés effacés ne reviennent qu'en remettant la copie à la place de « {0} », application fermée."] = 'The application first copies the configuration to "{0}.ref-….bak", in the same folder. Afterwards, "Return to a previous calibration…" restores the curves of that copy, one calibration at a time; the cleared levels, per-brand memory and measured factors only come back by putting the copy in place of "{0}", with the application closed.'
 
 # --- L8 : progression par piste, barre d etat en fin d operation (110, 170, 200, 270, 276, 300, 600) -------------------
 # Phase du libelle de la barre de calibration (Update-CalibProgress, 270) pendant un gw erase : « (passe 3/5, 0/30/100 ns,
