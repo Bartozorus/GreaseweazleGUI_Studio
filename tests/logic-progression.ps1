@@ -1506,11 +1506,11 @@ $en5 = Get-Entry $am "Barre de l'onglet « Écriture » pendant l'écriture."
 $dev5 = @($dv -split "`n" | Where-Object { $_ -like "- Barre de l'onglet pendant l'écriture*" })
 Chk 'D5' ($en5 -and $en5.Contains('ne recule pas') -and $en5.Contains('« Écriture terminée. »') -and $en5.Contains('« Écriture interrompue : voir le journal. »') -and $en5.Contains('préchauffage') -and $en5 -notmatch 'matériel' -and $en5 -notmatch $rxDur -and
           $dev5.Count -eq 1 -and $dev5[0].Contains('`Start-WriteProgress') -and $dev5[0].Contains('`New-ProgPlan($cmds, $tracks)`') -and $dev5[0] -notmatch 'matériel' -and $rm.Contains('`Start-WriteProgress`') -and $rt.Contains('série W')) "CHANGELOG 12.11 : « Barre de l'onglet « Écriture » pendant l'écriture » en Ameliorations (barre qui ne recule pas, fins de l ecriture, prechauffage ; ni duree ni verification sur materiel) et son entree « Pour les développeurs » ; README des modules et des tests"
-# D6 (lot L12b) : entree « Fin d'une écriture réussie. » en Corrections (ce que l utilisateur voyait, ce qu il voit,
-# affichage seulement ; ni duree ni verification sur materiel), entree « Pour les développeurs » et README des tests
+# D6 (lot L12b, puis relecture M/m3) : aucune entree « Fin d'une écriture réussie. » en Corrections (defaut jamais publie :
+# barre de l onglet du lot L11, fin de sequence du lot SB) ; entree « Pour les développeurs » et README des tests
 $en6 = Get-Entry $co "Fin d'une écriture réussie."
-Chk 'D6' ($en6 -and $en6.Contains('« Écriture interrompue : voir le journal. »') -and $en6.Contains('« Écriture terminée. »') -and $en6.Contains('« Écriture terminé(e) »') -and $en6.Contains('sans le compteur ni la barre') -and $en6.Contains('Seul l''affichage était faux') -and $en6 -notmatch 'matériel' -and $en6 -notmatch $rxDur -and
-          $devEn.Count -eq 1 -and $devEn[0].Contains('`$script:GwProc` est nul') -and $rt.Contains('lot L12b : passage du minuteur entre la sortie de gw et le traitement de sa fin')) "CHANGELOG 12.11 : « Fin d'une écriture réussie » en Corrections (libelle de l onglet et barre d etat, affichage seulement, ni duree ni verification sur materiel) ; « Pour les développeurs » : Update-SeqEnd attend que `$script:GwProc soit nul ; README des tests"
+Chk 'D6' (-not $en6 -and
+          $devEn.Count -eq 1 -and $devEn[0].Contains('`$script:GwProc` est nul') -and $rt.Contains('lot L12b : passage du minuteur entre la sortie de gw et le traitement de sa fin')) "CHANGELOG 12.11 : aucune entree « Fin d'une écriture réussie » en Corrections (defaut jamais publie) ; « Pour les développeurs » : Update-SeqEnd attend que `$script:GwProc soit nul ; README des tests"
 
 # ================================================================ Q. equivalence avec la 12.10 (-Before)
 '--- Q. equivalence avec la 12.10 (-Before)'
