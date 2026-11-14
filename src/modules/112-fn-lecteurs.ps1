@@ -879,8 +879,9 @@ function Resolve-DriveOfEra([string]$drive, $eraBlock, [datetime]$when) {
 # croisee (Start-CrossCalib), verrou de la liste pendant une operation, fenetre « Lecteurs enregistres » (frmDrives), qui
 # affiche et transmet les gestes : Get-DriveEditPlan et Get-DriveDeletePlan decident et donnent les textes. Sans lecteur
 # enregistre, le code de la 12.10 n appelle que Update-DriveChoice (gestionnaire du bandeau : lecteur courant retenu),
-# Set-DriveHandChoice (choix a la main) et Update-DriveLock (verrou, voulu pour tous) : bandeau, textes, journal,
-# configuration et arguments de gw restent ceux de la 12.10.
+# Set-DriveHandChoice (choix a la main), Update-DriveLock (verrou, voulu pour tous) et la carte de l Accueil
+# (Get-DrivesCardText, Show-DrivesDialog, 540) : bandeau, textes, journal, configuration et arguments de gw restent ceux
+# de la 12.10.
 
 function Get-WriteSourceText {
     # 12.11 (lot LN-b) : seule source du texte « Lecteur qui ecrit : TEAC FD-235HF (A) » (lecteur non enregistre :
@@ -1017,7 +1018,9 @@ function Set-DriveBannerLayout {
         $t = [string]$script:DriveBanner.Tip
         if ($script:DriveReg.Count -gt 0) {
             $names = @($script:DriveReg.GetEnumerator() | ForEach-Object { Get-DriveLabel ([string]$_.Value.Name) })
-            $t += "`n`n" + ((T "Lecteurs enregistrés : {0}.`nLeurs calibrations sont rangées sous leur nom, quelle que soit leur connexion. L'application ne reconnaît pas le lecteur branché : choisissez-le ici chaque fois que vous en changez (pour les nommer : Accueil, « Lecteurs enregistrés »).") -f ($names -join ', '))
+            # 12.11 (relecture du lot LN-b) : une phrase par ligne : une infobulle ne coupe ses lignes qu aux retours a la
+            # ligne (en une seule ligne, ce texte faisait plus de 1 100 px)
+            $t += "`n`n" + ((T "Lecteurs enregistrés : {0}.`nLeurs calibrations sont rangées sous leur nom, quelle que soit leur connexion.`nL'application ne reconnaît pas le lecteur branché : choisissez-le ici chaque fois que vous en changez`n(pour les nommer : Accueil, « Lecteurs enregistrés »).") -f ($names -join ', '))
         }
         if ([string]$tip.GetToolTip($cmbDrive) -cne $t) { $tip.SetToolTip($cmbDrive, $t) }
     }
@@ -1105,6 +1108,9 @@ function Confirm-DriveIdentity([switch]$Write, [string]$Target = '') {
     if ($Target) {
         $tc = Get-DriveConn $Target
         $all = @(Get-ConnDrives $tc)
+        # 12.11 (relecture du lot LN-b) : lecteur cible non enregistre choisi : il compte parmi les lecteurs de sa
+        # connexion, comme le lecteur non enregistre du bandeau dans Get-ConnDrives
+        if ($all -cnotcontains $Target) { $all += $Target }
         if ($all.Count -lt 2) { return $true }
         $txt = ((T "La connexion {0} porte plusieurs lecteurs : {1}. L'application ne reconnaît pas celui qui est branché.") -f $tc, (Format-ConnDrives $all)) + "`n`n" + ((T "Lecteur cible de cette calibration croisée : {0}`nLa courbe mesurée servira aux écritures du lecteur {1} destinées à ce lecteur. Si un autre lecteur est branché sur la connexion {2}, fermez cette fenêtre et relancez la calibration croisée avec le bon lecteur cible : mesurée avec un autre lecteur, la courbe serait fausse, sans aucun message d'erreur.") -f (Get-DriveLabel $Target), (Get-DriveLabel ([string]$cmbDrive.Text)), $tc)
         $rt = Get-DriveRecord $Target
@@ -1212,6 +1218,9 @@ function Get-DriveEditPlan($row, [string]$name, [string]$conn) {
             $p.AskText = (T 'Le lecteur non enregistré de la connexion {0} n''a aucune calibration. Son lecteur cible, ses niveaux, sa mémoire par marque et ses facteurs mesurés passent sous le nom « {1} ». Continuer ?') -f $p.From, $p.Name
         }
         $p.Text = (T 'Lecteur « {0} » enregistré sur la connexion {1} : les calibrations faites sans nom sur la connexion {2} ({3} courbe(s)) sont maintenant les siennes.') -f $p.Name, $conn, $p.From, "$($p.N)"
+        # 12.11 (relecture du lot LN-b) : sans courbe (question T70 : « aucune calibration »), le resultat ne parle pas de
+        # calibrations
+        if ($p.N -eq 0) { $p.Text = (T 'Lecteur « {0} » enregistré sur la connexion {1} : le lecteur cible, les niveaux, la mémoire par marque et les facteurs mesurés de la connexion {2} sont maintenant les siens.') -f $p.Name, $conn, $p.From }
         $p.Log = @($p.Text)
         return $p
     }
@@ -1258,8 +1267,8 @@ function Invoke-DriveEditPlan($plan) {
     # (Update-DriveUiAfterEdit), journal, enregistrement. Lecteur du bandeau nomme, renomme ou deplace : c est le meme
     # lecteur physique, sans ligne « Lecteur choisi » ; il devient le dernier lecteur de sa connexion, le reglage drive suit
     # sa connexion (Update-DriveList) ; connexion changee : confirmation de nouveau due, activite du prechauffage de la
-    # nouvelle connexion oubliee. Rend @{ Ok ; Text (resultat affiche) ; Error (refus affiche) } ; confirmation refusee :
-    # Ok faux, rien n est change
+    # nouvelle connexion oubliee. Un lecteur de plus sur la connexion du lecteur du bandeau : confirmation de nouveau due.
+    # Rend @{ Ok ; Text (resultat affiche) ; Error (refus affiche) } ; confirmation refusee : Ok faux, rien n est change
     $res = @{ Ok = $false; Text = ''; Error = '' }
     if (-not $plan) { return $res }
     if ($plan.Error) { $res.Error = [string]$plan.Error; return $res }
@@ -1269,6 +1278,7 @@ function Invoke-DriveEditPlan($plan) {
         if ([string](Show-AppMessage $plan.AskText (T 'Lecteurs enregistrés') 'YesNo' 'Question') -ne 'Yes') { return $res }
     }
     $banner = [string]$cmbDrive.Text; $bConn = Get-DriveConn $banner
+    $nOnConn = @(Get-ConnDrives $bConn).Count
     $r = $null
     switch ([string]$plan.Kind) {
         'new'         { $r = Add-NamedDrive $plan.Name $plan.Conn }
@@ -1279,7 +1289,9 @@ function Invoke-DriveEditPlan($plan) {
     }
     if (-not $r -or -not $r.Ok) { $res.Error = $(if ($r -and $r.Why) { [string]$r.Why } else { (T "Configuration non sauvegardée : rien n'a été modifié (voir le journal).") }); return $res }
     $now = ''
-    if ($plan.Kind -eq 'adopt' -and $banner -ceq [string]$plan.From) { $now = [string]$plan.Name }
+    # 12.11 (relecture du lot LN-b) : nommer vers la fiche (sans donnee) du lecteur du bandeau : c est lui qui recoit la
+    # connexion, il reste le lecteur du bandeau et devient le dernier lecteur de sa nouvelle connexion
+    if ($plan.Kind -eq 'adopt' -and ($banner -ceq [string]$plan.From -or $banner -ceq [string]$plan.Name)) { $now = [string]$plan.Name }
     elseif ($plan.Old -and $banner -ceq [string]$plan.Old) { $now = [string]$plan.Name }
     if ($now) {
         $nc = Get-DriveConn $now
@@ -1289,6 +1301,11 @@ function Invoke-DriveEditPlan($plan) {
         if ($nc) { $nl[$nc] = $now }
         $script:DriveLast = $nl
         if ($nc -cne $bConn) { $script:DriveChecked = ''; Clear-DriveActivity $nc }
+    } elseif ($bConn -and @(Get-ConnDrives $bConn).Count -gt $nOnConn) {
+        # 12.11 (relecture du lot LN-b) : un lecteur de plus sur la connexion du lecteur du bandeau (nouveau lecteur,
+        # lecteur nomme ou deplace vers elle) : il y est peut-etre branche a la place du lecteur choisi, qui n est plus
+        # tenu pour confirme
+        $script:DriveChecked = ''
     }
     Update-DriveUiAfterEdit $now
     foreach ($l in @($plan.Log)) { Append-Log ([string]$l) }
@@ -1370,6 +1387,7 @@ function Get-DrivesStateSamples($font) {
         ((T "Lecteur « {0} » : il s'appelait « {1} ». Ses calibrations ({2} courbe(s)), ses niveaux, sa mémoire par marque, ses facteurs et ses lecteurs cibles portent son nouveau nom.") -f $w, $w, '99'),
         ((T 'Lecteur « {0} » : connexion {1} (avant : {2}). Ses calibrations le suivent. Après un changement de nappe, contrôlez une écriture (onglet Qualité) ou refaites une calibration rapide.') -f $w, 'A', (T 'à préciser')),
         ((T 'Lecteur « {0} » enregistré sur la connexion {1} : les calibrations faites sans nom sur la connexion {2} ({3} courbe(s)) sont maintenant les siennes.') -f $w, 'A', '0', '99'),
+        ((T 'Lecteur « {0} » enregistré sur la connexion {1} : le lecteur cible, les niveaux, la mémoire par marque et les facteurs mesurés de la connexion {2} sont maintenant les siens.') -f $w, 'A', '0'),
         ((T 'Lecteur « {0} » enregistré sur la connexion {1}, sans calibration. Choisissez-le dans la liste « Lecteur : » du bandeau quand il est branché.') -f $w, 'A'),
         ((T 'Le lecteur {0} a déjà des données (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : celles de la connexion {1} ne peuvent pas lui être attribuées.') -f $w, 'A'),
         ((T 'La connexion {0} a déjà des données sans nom de lecteur (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : le nom ne peut pas être retiré seul.') -f 'A'),

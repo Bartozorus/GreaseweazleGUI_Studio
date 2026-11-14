@@ -9,16 +9,21 @@ $Wt = Get-TestRoot $Wt
 #     chevauchement, rien sur le sous-titre, nom le plus large admis entier), retour a la 12.10 ; textes courts de la ligne
 #     d etat (439 px) et du libelle de la restauration (290 px), texte d etat et controles de la fenetre (aucun texte coupe).
 #  D  liste, reglage drive, gestionnaire reel du bandeau (520), detection, en-tete du journal ; D7 lecteur du bandeau
-#     deplace puis rechargement par la vraie Load-Config ; D8 dernier lecteur relu.
-#  K  lecteur a confirmer, confirmation (textes, refus, -Write, -Target), K4 calibration croisee reelle ; K5 les cinq
-#     fonctions reelles qui engagent une operation (Start-ImageWrite, Start-LevelCalib, Start-PrecompCalib,
-#     Start-ContentMeasure, Start-Restore) : jamais sans la confirmation quand elle est due, jamais avec un registre vide.
-#  L  verrou de la liste (Update-DriveLock) ; molette et choix a la main (gestionnaires reels de 510).
+#     deplace puis rechargement par la vraie Load-Config, nomme vers sa fiche ; D8 dernier lecteur relu, courbes d un
+#     autre calcul mises de cote avec lui ; D11 fiche sans connexion hors de la liste.
+#  K  lecteur a confirmer, confirmation (textes, refus, -Write, -Target), K4 calibration croisee reelle (lecteur cible
+#     enregistre ou non) ; K5 les cinq fonctions reelles qui engagent une operation (Start-ImageWrite, Start-LevelCalib,
+#     Start-PrecompCalib, Start-ContentMeasure, Start-Restore) : jamais sans la confirmation quand elle est due, jamais
+#     avec un registre vide, refus note dans la surcharge de la Bibliotheque ; K6 confirmation de nouveau due quand la
+#     fenetre ajoute un lecteur a la connexion du lecteur du bandeau.
+#  L  verrou de la liste (Update-DriveLock), branche au minuteur principal (600) ; molette et choix a la main
+#     (gestionnaires reels de 510).
 #  P  fenetre : Get-DriveEditPlan, Invoke-DriveEditPlan, Get-DriveRows, suppression, textes qui annoncent la copie.
 #  Y  textes completes pour un lecteur enregistre seulement (case de la mesure, fenetre de decision, cibles ecartees,
 #     libelle de la restauration) : sinon ceux de la 12.10, mot pour mot.
 #  I  statique : confirmation avant toute creation d etat, gestionnaire du bandeau, lignes ajoutees gardees par « registre
-#     non vide », textes francais et anglais de la specification, documents.
+#     non vide », textes francais et anglais de la specification, documents (D12 : entrees du CHANGELOG conformes au
+#     comportement prouve par L1, Y2b et P1).
 #  Q  avec -Before <copie de la source d avant le lot> (aucune dans le depot) : bandeau de cette source, memes positions,
 #     libelles et infobulle.
 # Fonctions et instructions reelles extraites par l arbre syntaxique, ecrites dans des fichiers de travail puis chargees
@@ -348,16 +353,29 @@ $lblT = [string]$lblDrive.Text; $posT = Get-LbBannerPos
 Select-LbDrive 'A'
 $lblM = [string]$lblDrive.Text; $posM = Get-LbBannerPos
 $tipW = [string]$tip.GetToolTip($cmbDrive)
-$tipWant = $tip1210 + "`n`n" + ((T "Lecteurs enregistrés : {0}.`nLeurs calibrations sont rangées sous leur nom, quelle que soit leur connexion. L'application ne reconnaît pas le lecteur branché : choisissez-le ici chaque fois que vous en changez (pour les nommer : Accueil, « Lecteurs enregistrés »).") -f 'Sony MPF920 (A), TEAC FD-235HF (A)')
+$tipWant = $tip1210 + "`n`n" + ((T "Lecteurs enregistrés : {0}.`nLeurs calibrations sont rangées sous leur nom, quelle que soit leur connexion.`nL'application ne reconnaît pas le lecteur branché : choisissez-le ici chaque fois que vous en changez`n(pour les nommer : Accueil, « Lecteurs enregistrés »).") -f 'Sony MPF920 (A), TEAC FD-235HF (A)')
 Chk 'U1a' ($lblA -ceq 'Lecteur (A) :' -and $lblT -ceq 'Lecteur (A) :' -and $lblM -ceq 'Lecteur :' -and $cmbDrive.Width -eq 150 -and $posW.cmbDrive -ceq '541,34 w150' -and $posW.lblCom -ceq '702,37' -and $posW.txtDev -ceq '742,34 w50' -and $posW.chkTime -ceq ($pos0.chkTime -replace ',35 ', ',8 ') -and $posW.btnHelpTop -ceq '368,28 w84' -and $posW.chkExpert -ceq '368,5' -and $posW.lblDrive -ceq "$(541 - $pwA),37" -and $posW.lblGwStatus -ceq '566,10' -and $posW.btnHelpTop -ceq $posT.btnHelpTop -and $posW.btnHelpTop -ceq $posM.btnHelpTop -and $tipW -ceq $tipWant) "disposition elargie (maquette approuvee) : liste de 150 px en 541, « COM : » 702, champ 742, « Chrono » remonte en 722,8, etat de gw inchange ; libelle « Lecteur (A) : » pour un lecteur enregistre, « Lecteur : » pour A non enregistre ; « Aide » a la meme place quel que soit le lecteur ; infobulle de la 12.10 suivie des lecteurs : $(Get-LbPosText $posW)"
 # Disposition mesuree en francais et en anglais (instructions reelles de 510 dans une portee d essai), nom le plus large admis
 function Get-LbSubRight {
     $bmp = New-Object System.Drawing.Bitmap(10, 10); $g = [System.Drawing.Graphics]::FromImage($bmp)
     try { $f9 = New-Object System.Drawing.Font('Segoe UI', 9); return (70 + [int][math]::Ceiling($g.MeasureString((T 'Préservation, écriture et contrôle de disquettes'), $f9).Width)) } finally { $g.Dispose(); $bmp.Dispose() }
 }
-function Test-LbBanner([string]$lang) {
-    # Bandeau de 510 refait dans la langue $lang (portee d essai : les controles et la liaison du script ne changent pas),
-    # deux lecteurs enregistres sur A et 0 (dont le nom le plus large admis) ; defauts de la disposition elargie
+function Get-LbOverlaps($ctl, $nm) {
+    # Paires de controles du bandeau qui se recouvrent, avec la taille du recouvrement
+    $o = [ordered]@{}
+    for ($i = 0; $i -lt $ctl.Count; $i++) {
+        for ($j = $i + 1; $j -lt $ctl.Count; $j++) {
+            $a = $ctl[$i].Bounds; $b = $ctl[$j].Bounds
+            if ($a.IntersectsWith($b)) { $ix = [System.Drawing.Rectangle]::Intersect($a, $b); $o["$($nm[$i])/$($nm[$j])"] = "$($ix.Width)x$($ix.Height)" }
+        }
+    }
+    return $o
+}
+function Test-LbBanner([string]$lang, [int]$width = 800) {
+    # Bandeau de 510 refait dans la langue $lang, fenetre de $width px (portee d essai : les controles et la liaison du
+    # script ne changent pas), deux lecteurs enregistres sur A et 0 (dont le nom le plus large admis) ; defauts de la
+    # disposition elargie. 12.11 (relecture du lot) : seul un recouvrement deja present, a l identique, dans le bandeau de
+    # la 12.10 a la meme largeur est admis (avant : tout recouvrement de 8 px au plus qui touchait un libelle)
     $script:Lang = $lang
     $res = @{ Bad = @(); Back = ''; Gap = 0 }
     $saveReg = $script:DriveReg; $saveLast = $script:DriveLast; $saveSet = Get-Setting 'drive'; $saveBan = $script:DriveBanner
@@ -365,29 +383,26 @@ function Test-LbBanner([string]$lang) {
         & {
             function Register-SettingCtl([string]$k, $c) { }
             . $genBan
-            $fx = New-Object System.Windows.Forms.Form; $fx.ClientSize = New-Object System.Drawing.Size(800, 682); $fx.Font = $form.Font
+            $fx = New-Object System.Windows.Forms.Form; $fx.ClientSize = New-Object System.Drawing.Size($width, 682); $fx.Font = $form.Font
             $fx.Controls.Add($pnlTop); Fit-ControlText $fx
             $p1210 = Get-LbBannerPos
+            $ctl = @($lblGwStatus, $chkExpert, $btnHelpTop, $lblDrive, $cmbDrive, $lblCom, $txtDev, $chkTime)
+            $nm = @('lblGwStatus', 'chkExpert', 'btnHelpTop', 'lblDrive', 'cmbDrive', 'lblCom', 'txtDev', 'chkTime')
+            $ov0 = Get-LbOverlaps $ctl $nm
             $script:DriveReg = [ordered]@{}
             $script:DriveReg['Sony MPF920'] = @{ Name = 'Sony MPF920'; Conn = 'A'; Id = 'L20261120180211-01'; Created = '2026-11-20 18:02:11'; From = ''; At = '' }
             $script:DriveReg[$wide] = @{ Name = $wide; Conn = '0'; Id = 'L20261120180211-02'; Created = '2026-11-20 18:02:11'; From = ''; At = '' }
             $script:DriveLast = @{}
             Update-DriveList $wide
             $sub = Get-LbSubRight
-            $ctl = @($lblGwStatus, $chkExpert, $btnHelpTop, $lblDrive, $cmbDrive, $lblCom, $txtDev, $chkTime)
-            $nm = @('lblGwStatus', 'chkExpert', 'btnHelpTop', 'lblDrive', 'cmbDrive', 'lblCom', 'txtDev', 'chkTime')
             $left = 9999; foreach ($c in $ctl) { if ($c.Left -lt $left) { $left = $c.Left } }
             $res.Gap = $left - $sub
             if ($res.Gap -lt 12) { $res.Bad += "controle a $left px, fin du sous-titre a $sub px" }
-            for ($i = 0; $i -lt $ctl.Count; $i++) {
-                if ($ctl[$i].Right -gt $pnlTop.Width - 2) { $res.Bad += "$($nm[$i]) depasse a droite" }
-                for ($j = $i + 1; $j -lt $ctl.Count; $j++) {
-                    $a = $ctl[$i]; $b = $ctl[$j]
-                    if (-not $a.Bounds.IntersectsWith($b.Bounds)) { continue }
-                    $ix = [System.Drawing.Rectangle]::Intersect($a.Bounds, $b.Bounds)
-                    if (($a -is [System.Windows.Forms.Label] -or $b -is [System.Windows.Forms.Label]) -and $ix.Width -le 8) { continue }
-                    $res.Bad += "chevauchement $($nm[$i]) / $($nm[$j])"
-                }
+            for ($i = 0; $i -lt $ctl.Count; $i++) { if ($ctl[$i].Right -gt $pnlTop.Width - 2) { $res.Bad += "$($nm[$i]) depasse a droite" } }
+            $ov = Get-LbOverlaps $ctl $nm
+            foreach ($k in @($ov.Keys)) {
+                if ($ov0.Contains($k) -and [string]$ov0[$k] -ceq [string]$ov[$k]) { continue }
+                $res.Bad += "chevauchement $k ($($ov[$k]))"
             }
             if ((W $wide) + 24 -gt $cmbDrive.Width) { $res.Bad += "nom le plus large ($(W $wide) px) coupe dans la liste de $($cmbDrive.Width) px" }
             if ($lblDrive.Text -cne ((T 'Lecteur ({0}) :') -f '0')) { $res.Bad += "libelle : $($lblDrive.Text)" }
@@ -401,8 +416,15 @@ function Test-LbBanner([string]$lang) {
     return $res
 }
 Reset-LbWorld 'u1b'
-$ubFr = Test-LbBanner 'fr'; $ubEn = Test-LbBanner 'en'
-Chk 'U1b' ($ubFr.Bad.Count -eq 0 -and $ubEn.Bad.Count -eq 0 -and $ubFr.Back -and $ubEn.Back) "disposition elargie mesuree en francais et en anglais, nom le plus large admis « $wide » ($(W $wide) px) sur 0 : aucun chevauchement, rien sur le sous-titre du bandeau (marge $($ubFr.Gap) / $($ubEn.Gap) px), nom entier dans la liste, aucun libelle coupe ; registre vide de nouveau : positions et libelle de la 12.10 ; defauts : $(@($ubFr.Bad + $ubEn.Bad) -join ' ; ')"
+$ub = @(); $ubGap = @()
+foreach ($wx in 800, 816, 1024) {
+    foreach ($lg in 'fr', 'en') {
+        $ubr = Test-LbBanner $lg $wx
+        $ubGap += "$lg $wx : $($ubr.Gap)"
+        if ($ubr.Bad.Count -or -not $ubr.Back) { $ub += "$lg $wx px : $(@($ubr.Bad) -join ' ; ')$(if (-not $ubr.Back) { ' ; retour a la 12.10 en defaut' })" }
+    }
+}
+Chk 'U1b' ($ub.Count -eq 0) "disposition elargie mesuree dans des fenetres de 800, 816 et 1 024 px, en francais et en anglais, nom le plus large admis « $wide » ($(W $wide) px) sur 0 : aucun chevauchement qui ne soit deja, a l identique, dans le bandeau de la 12.10 a la meme largeur, rien sur le sous-titre du bandeau (marges : $($ubGap -join ', ') px), nom entier dans la liste, aucun libelle coupe ; registre vide de nouveau : positions et libelle de la 12.10 ; defauts : $(if ($ub.Count) { $ub -join ' | ' } else { 'aucun' })"
 # Retour a la 12.10 dans le bandeau du script : registre vide de nouveau, positions et infobulle de depart
 Reset-LbWorld 'u2'
 $pos2 = Get-LbBannerPos
@@ -532,6 +554,16 @@ Update-DriveList; Select-LbDrive 'A'; Reset-Settings; $script:DriveCur = 'A'; $s
 $d7b = @{ Banner = [string]$cmbDrive.Text; Set = [string](Get-Setting 'drive'); View = (Get-LbView); ForA = (Get-DriveForConn 'A'); Log54 = @(Get-LbLog 'Lecteur choisi*').Count; Items = (Get-LbItems); Lbl = [string]$lblDrive.Text }
 Chk 'D7a' ($d7a.Kind -ceq 'move' -and $d7a.Ok -and $d7a.Banner -ceq 'Sony MPF920' -and $d7a.Set -ceq '0' -and $d7a.Args -ceq '--drive=0' -and $d7a.Last -ceq '0=Sony MPF920' -and $d7a.Due -and $d7a.Checked -ceq '' -and $d7a.Act -ceq '|A' -and $d7a.Lbl -ceq 'Lecteur (0) :' -and $d7a.Log54 -eq 0 -and [string]$cfg7.global.drive -ceq '0') "lecteur du bandeau deplace sur 0 par Invoke-DriveEditPlan ($($d7a.Kind), $($d7a.Ok), bandeau $($d7a.Banner), confirme « $($d7a.Checked) », due $($d7a.Due)) : reglage $($d7a.Set) (global.drive enregistre : $($cfg7.global.drive)), $($d7a.Args), dernier lecteur $($d7a.Last), confirmation de nouveau due, activite de 0 oubliee (reste : $($d7a.Act)), libelle « $($d7a.Lbl) », aucune ligne « Lecteur choisi »"
 Chk 'D7b' ($d7b.Banner -ceq 'Sony MPF920' -and $d7b.Set -ceq '0' -and $d7b.View -ceq 'std=0=20:40=60' -and $d7b.ForA -ceq 'A' -and $d7b.Log54 -eq 0 -and $d7b.Items -ceq 'A,B,0,1,2,3,Sony MPF920,TEAC FD-235HF' -and $d7b.Lbl -ceq 'Lecteur (0) :') "apres rechargement par la vraie Load-Config : bandeau sur $($d7b.Banner) (reglage $($d7b.Set)), vue = ses courbes ($($d7b.View)), Get-DriveForConn 'A' rend $($d7b.ForA), aucune ligne « Lecteur choisi »"
+# D7c (relecture du lot) : la ligne « 0 (non enregistre) » recoit le nom du lecteur du bandeau (fiche sans donnee) et la
+# connexion 0 : ce lecteur passe sur 0, reste au bandeau et devient le dernier lecteur de 0 (repris au demarrage suivant)
+Reset-LbWorld 'd7c'
+Set-DriveCurve '0' 'std' (New-Cv '0' 'std' $null '02/11/2026 10:00' '0=23:40=63'); Sync-PrecompCurves
+[void](Add-LbDrive 'Sony MPF920' 'A'); Select-LbDrive 'Sony MPF920'
+$script:Log.Clear(); $script:AskAnswer = 'go'
+$p7c = Get-DriveEditPlan (Get-LbRow '0') 'Sony MPF920' '0'
+$r7c = Invoke-DriveEditPlan $p7c
+$d7c = "$($p7c.Kind)/$($r7c.Ok) : bandeau $($cmbDrive.Text), connexion $(Get-DriveConn 'Sony MPF920'), reglage $(Get-Setting 'drive'), Get-DriveForConn 0 = $(Get-DriveForConn '0'), vue $(Get-LbView), lignes « Lecteur choisi » $(@(Get-LbLog 'Lecteur choisi*').Count)"
+Chk 'D7c' ($d7c -ceq 'adopt/True : bandeau Sony MPF920, connexion 0, reglage 0, Get-DriveForConn 0 = Sony MPF920, vue std=0=23:40=63, lignes « Lecteur choisi » 0') "nommer « 0 (non enregistre) » du nom du lecteur du bandeau, sans donnee, avec la connexion 0 : lecteur du bandeau sur 0, dernier lecteur de 0, ses courbes ($d7c)"
 # D8 : global.drive A et last.A ecrit avec une autre casse que la fiche
 Reset-LbWorld 'd8'
 Set-DriveCurve 'Sony MPF920' 'std' (New-Cv 'Sony MPF920' 'std' $null '30/10/2026 09:00' '0=31:40=71')
@@ -544,6 +576,21 @@ $j8 = [ordered]@{
 $script:DriveCurves = @{}; Sync-PrecompCurves; $script:Log.Clear()
 [void](Load-Config)
 Chk 'D8' ([string]$cmbDrive.Text -ceq 'Sony MPF920' -and [string]$script:DriveLast['A'] -ceq 'Sony MPF920' -and (Get-LbView) -ceq 'std=0=31:40=71' -and @(Get-LbLog 'Lecteur choisi*').Count -eq 0 -and $script:DriveCur -ceq 'Sony MPF920' -and $lblDrive.Text -ceq 'Lecteur (A) :') "global.drive A et last.A « sony mpf920 » : bandeau sur « $($cmbDrive.Text) » (casse de la fiche), vue $(Get-LbView), aucune ligne « Lecteur choisi »"
+# D8b (relecture du lot) : la vraie Load-Config retient le dernier lecteur de la connexion relue avant de mettre de cote
+# ses courbes d un autre calcul : le profil de famille de la configuration est mis de cote avec la courbe du lecteur
+Reset-LbWorld 'd8b'
+$cv8 = New-Cv 'Sony MPF920' 'std' $null '30/10/2026 09:00' '0=31:40=71'; $cv8.Calc = '12.9'; $cv8.Version = '12.9'
+Set-DriveCurve 'Sony MPF920' 'std' $cv8
+$j8b = [ordered]@{
+    global = [ordered]@{ drive = 'A' }
+    write = [ordered]@{ eraseMode = 'hfreq'; contentCalc = '12.9'; calibCalc = [string]$script:CalibCalc; precompStd = '0=33:40=77:65=99'; driveCurves = (Export-DriveCurves $null) }
+    drives = [ordered]@{ list = @([ordered]@{ id = 'L20261120180211-01'; name = 'Sony MPF920'; conn = 'A'; created = '2026-11-20 18:02:11'; from = ''; at = '' }); last = [ordered]@{ A = 'Sony MPF920' } }
+}
+[System.IO.File]::WriteAllText($script:ConfigFile, ($j8b | ConvertTo-Json -Depth 8), $utf8)
+$script:DriveCurves = @{}; Sync-PrecompCurves; $script:Log.Clear()
+[void](Load-Config)
+$d8b = "bandeau $($cmbDrive.Text), mises de cote : $(if ($script:OldCalib) { (@($script:OldCalib.Curves.Keys) -join ',') + ' ; profil ' + [string]$script:OldCalib.Std } else { 'aucune' })"
+Chk 'D8b' ($d8b -ceq 'bandeau Sony MPF920, mises de cote : Sony MPF920|std ; profil 0=33:40=77:65=99') "configuration avec last.A = Sony MPF920 et sa courbe d un autre calcul : lecteur retenu avant la mise de cote, profil de famille de la configuration mis de cote avec sa courbe ($d8b)"
 # D9 : en-tete du journal exporte (lot L6), deux lecteurs sur A
 Reset-LbWorld 'd9'
 $h0 = Get-LogExportHeader
@@ -551,6 +598,15 @@ Set-LbTwoOnA
 Select-LbDrive 'Sony MPF920'; $hS = Get-LogExportHeader
 Select-LbDrive 'TEAC FD-235HF'; [void](Set-TargetDrive 'TEAC FD-235HF' 'Sony MPF920'); $hT = Get-LogExportHeader
 Chk 'D9' ([string]$h0[1] -ceq 'Lecteur du bandeau : A ; lecteur cible de ses écritures : (même lecteur).' -and [string]$hS[1] -ceq 'Lecteur du bandeau : Sony MPF920 (A) ; lecteur cible de ses écritures : (même lecteur).' -and [string]$hT[1] -ceq 'Lecteur du bandeau : TEAC FD-235HF (A) ; lecteur cible de ses écritures : Sony MPF920 (A).' -and $hS[1] -cne $hT[1]) "en-tete : registre vide « $($h0[1]) » ; deux lecteurs sur A : « $($hS[1]) » / « $($hT[1]) »"
+# D11 (relecture du lot) : une fiche sans connexion n est pas dans la liste du bandeau (choisie, elle donnerait un
+# « --drive= » vide, que gw refuse)
+Reset-LbWorld 'd11'
+[void](Add-LbDrive 'Sony MPF920' 'A')
+$script:DriveReg['Sans Conn'] = @{ Name = 'Sans Conn'; Conn = ''; Id = 'R20261120180211-09'; Created = '2026-11-20 18:02:11'; From = ''; At = '' }
+Update-DriveList
+$d11 = Get-LbItems
+$script:DriveReg.Remove('Sans Conn'); Update-DriveList
+Chk 'D11' ($d11 -ceq 'A,B,0,1,2,3,Sony MPF920') "fiche sans connexion absente de la liste du bandeau ($d11)"
 
 # ================================================================ K. lecteur a confirmer, confirmation
 '--- K. confirmation du lecteur branche'
@@ -658,6 +714,15 @@ $k4c = Invoke-LbCross 'B'; $k4cAsk = $script:Asks.Count
 $k4Info = (T 'Non proposés, parce qu''ils sont sur la connexion {0} du lecteur qui écrit : {1}. Les deux lecteurs d''une calibration croisée sont branchés en même temps, chacun sur sa connexion.') -f 'A', 'A (non enregistré), Panasonic'
 Chk 'K4' ($k4rAsk -eq 1 -and $k4rCheck -ceq 'Le lecteur branché sur la connexion 0 est bien « TEAC FD-235HF »' -and $k4rText.Contains('Lecteur cible de cette calibration croisée : TEAC FD-235HF (0)') -and $k4rText.Contains('écritures du lecteur Sony MPF920 (A)') -and $null -eq $k4r.Cx -and -not $k4r.Res.Started -and $k4rLog -eq 1 -and
           $k4aAsk -eq 1 -and $k4a.Cx -and [string]$k4a.Cx.Tgt -ceq 'TEAC FD-235HF' -and $k4bAsk -eq 1 -and $k4cAsk -eq 0 -and [string]$k4c.Cx.Tgt -ceq 'B' -and $k4a.Targets -ceq 'B,0,1,2,3,TEAC FD-235HF,Mitsumi D359' -and $k4a.Info.EndsWith("`n" + $k4Info)) "Start-CrossCalib reelle, Sony sur A : cibles proposees $($k4a.Targets) (A et Panasonic, sur A, ecartes ; texte T67 dans la fenetre de choix) ; TEAC sur 0, qui porte deux lecteurs : confirmation a case du lecteur cible ($k4rCheck), refus : demande non posee, ligne T68 ; accord : demande posee ; redemandee a la calibration suivante ($k4bAsk) ; cible B, un seul lecteur : jamais demandee"
+# K4b (relecture du lot) : lecteur cible non enregistre choisi sur une connexion qui porte un lecteur enregistre :
+# confirmation (T53b)
+Reset-LbWorld 'k4b'
+$script:CalCoarse = @(0, 1, 2); $script:CalMaxVerify = 2; $script:CalMaxRetest = 2
+[void](Add-LbDrive 'Sony MPF920' 'A'); [void](Add-LbDrive 'TEAC FD-235HF' '0'); Select-LbDrive 'Sony MPF920'
+$script:AskAnswer = 'close'; $script:Asks.Clear()
+$k4bx = Invoke-LbCross '0'
+$k4bChk = if ($script:Asks.Count) { [string]$script:Asks[0].Check } else { '' }
+Chk 'K4b' ($script:Asks.Count -eq 1 -and $k4bChk -ceq "Le lecteur branché sur la connexion 0 n'est aucun des lecteurs enregistrés" -and $null -eq $k4bx.Cx) "calibration croisee vers « 0 » (non enregistre) alors que TEAC est enregistre sur 0 : confirmation du lecteur cible (case T53b : $k4bChk), refus : demande non posee"
 # K5 : les cinq fonctions reelles qui engagent une operation sous l identite du lecteur
 $imgDummy = Join-Path $here 'image.adf'; [System.IO.File]::WriteAllBytes($imgDummy, [byte[]]@(0, 1, 2))
 $txtWFile.Text = $imgDummy
@@ -705,6 +770,29 @@ foreach ($op in 'write', 'level', 'precomp', 'content', 'restore') {
     $fname = @{ write = 'Start-ImageWrite'; level = 'Start-LevelCalib'; precomp = 'Start-PrecompCalib'; content = 'Start-ContentMeasure'; restore = 'Start-Restore' }[$op]
     Chk $id $ok "$fname reelle : registre vide, aucune confirmation et operation atteinte ; deux lecteurs sur A, lecteur choisi par le code : confirmation a case, refus = operation non lancee (aucun etat cree, ligne T68), accord = lancee, lecteur confirme ; etape suivante sans seconde question ; apres un choix dans la liste deroulee, sans question$(if ($op -eq 'write') { ' ; ligne « Lecteur qui écrit » au journal' }) ($($k5txt[-1]))"
 }
+# K5f (relecture du lot) : ecriture de la Bibliotheque (surcharge de l onglet Ecriture) refusee a la confirmation : refus
+# note dans la surcharge, d ou l avis « ecriture refusee »
+Reset-LbWorld 'k5f'
+Set-LbTwoOnA; Select-LbDrive 'TEAC FD-235HF'; Select-LbDrive 'Sony MPF920'
+$script:AskAnswer = 'close'; $script:Asks.Clear()
+$script:OpOverride = @{ Refused = $false }
+$k5f = Invoke-LbOp 'write'
+Chk 'K5f' (-not $k5f -and $script:Asks.Count -eq 1 -and $script:OpOverride.Refused -eq $true) "Start-ImageWrite reelle sous la surcharge de la Bibliotheque, confirmation refusee : ecriture non lancee ($k5f), refus note dans la surcharge (Refused $($script:OpOverride.Refused))"
+$script:OpOverride = $null
+# K6 (relecture du lot) : lecteur du bandeau choisi a la main, puis un lecteur de plus sur sa connexion par la fenetre
+# (deplace, nouveau, nomme) : confirmation de nouveau due
+$k6 = @()
+foreach ($cas in 'move', 'new', 'adopt') {
+    Reset-LbWorld "k6-$cas"
+    Set-DriveCurve '0' 'std' (New-Cv '0' 'std' $null '02/11/2026 10:00' '0=23:40=63'); Sync-PrecompCurves
+    [void](Add-LbDrive 'Sony MPF920' 'A'); if ($cas -eq 'move') { [void](Add-LbDrive 'TEAC FD-235HF' '0') }
+    Select-LbDrive 'Sony MPF920'; Set-DriveHandChoice $true
+    $row = switch ($cas) { 'move' { Get-LbRow 'TEAC FD-235HF' } 'new' { $null } default { Get-LbRow '0' } }
+    $script:AskAnswer = 'go'
+    $r = Invoke-DriveEditPlan (Get-DriveEditPlan $row 'TEAC FD-235HF' 'A')
+    $k6 += "$cas=$($r.Ok)/$(Test-DriveCheckDue)"
+}
+Chk 'K6' (($k6 -join ',') -ceq 'move=True/True,new=True/True,adopt=True/True') "lecteur du bandeau choisi a la main, puis un lecteur de plus sur sa connexion par la fenetre (deplace, nouveau, nomme) : confirmation de nouveau due ($($k6 -join ', '))"
 
 # ================================================================ L. verrou de la liste, molette
 '--- L. verrou et molette'
@@ -762,6 +850,12 @@ Select-LbDrive 'Sony MPF920'
 Invoke-LbCommit ([pscustomobject]@{ DroppedDown = $false })
 $l2d = [string]$script:DriveChecked
 Chk 'L2b' ($bodyS.Contains('Set-DriveHandChoice $this.DroppedDown') -and $l2c -ceq 'TEAC FD-235HF' -and $l2d -ceq '' -and (Test-DriveCheckDue)) "gestionnaire SelectionChangeCommitted reel de 510 : liste deroulee, lecteur choisi tenu pour confirme ($l2c) ; liste fermee, rien (confirmation due)"
+# L3 (relecture du lot) : verrou branche au minuteur principal (600) : Update-DriveLock est une instruction du premier
+# niveau du gestionnaire Tick (hors de toute condition : a chaque tick, avec ou sans lecteur enregistre)
+$tickSt = @((Get-LbAst (Get-LbModule $mods '600')).EndBlock.Statements | Where-Object { $_.Extent.Text.StartsWith('$timer.Add_Tick(') })
+$tickSb = if ($tickSt.Count -eq 1) { @($tickSt[0].FindAll({ param($x) $x -is [System.Management.Automation.Language.ScriptBlockExpressionAst] }, $true))[0] } else { $null }
+$l3 = if ($tickSb) { @($tickSb.ScriptBlock.EndBlock.Statements | Where-Object { $_.Extent.Text -ceq 'Update-DriveLock' }).Count } else { 0 }
+Chk 'L3' ($tickSt.Count -eq 1 -and $l3 -eq 1) "verrou branche : Update-DriveLock, instruction du premier niveau du gestionnaire Tick du minuteur principal (600), hors de toute condition ($($tickSt.Count) gestionnaire, $l3 appel)"
 
 # ================================================================ P. fenetre « Lecteurs enregistres »
 '--- P. fenetre : decision, execution, lignes, suppression, copies'
@@ -818,6 +912,8 @@ $script:MsgAnswer = 'No'; $rY0 = Invoke-DriveEditPlan $p2p; $script:MsgAnswer = 
 $nb0 = Get-LbBaks
 $rY1 = Invoke-DriveEditPlan $p2p
 $p1.yesnoDone = (-not $rY0.Ok -and $rY1.Ok -and [string](Get-TargetDrive 'Lecteur X') -ceq '2' -and (Get-LbBaks) -eq $nb0 + 1)
+# 12.11 (relecture du lot) : resultat sans courbe (T32b) : il ne parle pas de calibrations, comme la question T70
+$p1.yesnoText = ($rY1.Text -ceq $p2p.Text -and $p2p.Text -ceq 'Lecteur « Lecteur X » enregistré sur la connexion 1 : le lecteur cible, les niveaux, la mémoire par marque et les facteurs mesurés de la connexion 1 sont maintenant les siens.' -and @(Get-LbLog $p2p.Text).Count -eq 1)
 # Fusion refusee : nommer B du nom d une fiche qui a des donnees
 Set-DriveCurve 'B' 'std' (New-Cv 'B' 'std' $null '06/11/2026 10:00' '0=27:40=67')
 $pf = Get-DriveEditPlan (Get-LbRow 'B') 'sony mpf920' 'B'
@@ -908,6 +1004,11 @@ $y2a = Get-LbReviewHead @{ Mode = 'fine'; Drive = 'A'; DiskOnly = $false } $fals
 $y2b = Get-LbReviewHead @{ Mode = 'fine'; Drive = 'Sony MPF920'; DiskOnly = $false } $false $false $false $null $false
 $y2c = Invoke-En { Get-LbReviewHead @{ Mode = 'fine'; Drive = 'Sony MPF920'; DiskOnly = $false } $false $false $false $null $false }
 Chk 'Y2' ($y2a -ceq "Conserver la courbe : elle est enregistrée et appliquée aux prochaines écritures.`nAbandonner la courbe : la calibration précédente est rétablie." -and $y2b -ceq "Conserver la courbe : elle est enregistrée pour le lecteur Sony MPF920 et appliquée à ses prochaines écritures.`nAbandonner la courbe : la calibration précédente est rétablie." -and $y2c -ceq "Keep the curve: it is saved for drive Sony MPF920 and applied to its next writes.`nDiscard the curve: the previous calibration is restored.") "fenetre de decision (affectation reelle de `$head, Show-CalibReview) : texte de la 12.10 pour A, texte T65 qui nomme le lecteur enregistre (francais et anglais)"
+# Y2b (relecture du lot) : calibration suivie de l ecriture de l image : texte de la 12.10, sans le nom du lecteur (l entree
+# du CHANGELOG le dit : D12)
+$y2d = Get-LbReviewHead @{ Mode = 'fine'; Drive = 'Sony MPF920'; DiskOnly = $false } $true $false $false $null $false
+$y2e = Get-LbReviewHead @{ Mode = 'fine'; Drive = 'A'; DiskOnly = $false } $true $false $false $null $false
+Chk 'Y2b' ($y2d -ceq $y2e -and -not $y2d.Contains('Sony') -and $y2d.StartsWith("Écrire l'image : la courbe est conservée")) "fenetre de decision d une calibration suivie de l ecriture de l image : meme texte pour un lecteur enregistre que pour A, sans son nom (« $(($y2d -split "`n")[0]) »)"
 Reset-LbWorld 'y3'
 $script:CalCoarse = @(0, 1, 2); $script:CalMaxVerify = 2; $script:CalMaxRetest = 2
 $y3a = Invoke-LbCross 'B'
@@ -1002,7 +1103,8 @@ Chk 'I6' ($mb -eq 0 -and $dlgActs.Count -eq 0 -and -not $t112.Contains('MessageB
 # I3 : textes de la specification (§ 6.5, section LN-b), francais et anglais, mot pour mot ; memes parametres {n}
 $TX = [ordered]@{
     T1 = @('Lecteur ({0}) :', 'Drive ({0}):')
-    T2 = @("Lecteurs enregistrés : {0}.`nLeurs calibrations sont rangées sous leur nom, quelle que soit leur connexion. L'application ne reconnaît pas le lecteur branché : choisissez-le ici chaque fois que vous en changez (pour les nommer : Accueil, « Lecteurs enregistrés »).", "Registered drives: {0}.`nTheir calibrations are filed under their name, whatever their connection. The application cannot recognise the drive that is plugged in: select it here each time you change it (to name them: Home, `"Registered drives`").")
+    # T2 : une phrase par ligne depuis la relecture du lot (une infobulle ne coupe ses lignes qu aux retours a la ligne)
+    T2 = @("Lecteurs enregistrés : {0}.`nLeurs calibrations sont rangées sous leur nom, quelle que soit leur connexion.`nL'application ne reconnaît pas le lecteur branché : choisissez-le ici chaque fois que vous en changez`n(pour les nommer : Accueil, « Lecteurs enregistrés »).", "Registered drives: {0}.`nTheir calibrations are filed under their name, whatever their connection.`nThe application cannot recognise the drive that is plugged in: select it here each time you change it`n(to name them: Home, `"Registered drives`").")
     T3 = @('Lecteurs enregistrés', 'Registered drives')
     T4 = @('Nommer vos lecteurs : plusieurs sur une même connexion, chacun avec ses calibrations.', 'Name your drives: several on one connection, each with its own calibrations.')
     T5 = @('{0} lecteur(s) sans connexion : redonnez-la ici pour retrouver leurs calibrations.', '{0} drive(s) without a connection: set it again here to get their calibrations back.')
@@ -1014,6 +1116,8 @@ $TX = [ordered]@{
     T26 = @("Rien à enregistrer : le nom et la connexion n'ont pas changé.", 'Nothing to save: the name and the connection have not changed.')
     T31 = @('Lecteur « {0} » enregistré sur la connexion {1}, sans calibration. Choisissez-le dans la liste « Lecteur : » du bandeau quand il est branché.', 'Drive "{0}" registered on connection {1}, without calibration. Select it in the "Drive:" list of the banner when it is plugged in.')
     T32 = @('Lecteur « {0} » enregistré sur la connexion {1} : les calibrations faites sans nom sur la connexion {2} ({3} courbe(s)) sont maintenant les siennes.', 'Drive "{0}" registered on connection {1}: the calibrations made without a name on connection {2} ({3} curve(s)) are now its own.')
+    # T32b (relecture du lot) : nommer un lecteur non enregistre sans courbe (question T70)
+    T32b = @('Lecteur « {0} » enregistré sur la connexion {1} : le lecteur cible, les niveaux, la mémoire par marque et les facteurs mesurés de la connexion {2} sont maintenant les siens.', 'Drive "{0}" registered on connection {1}: the target drive, the levels, the per-brand memory and the measured factors of connection {2} are now its own.')
     T33 = @("Lecteur « {0} » : il s'appelait « {1} ». Ses calibrations ({2} courbe(s)), ses niveaux, sa mémoire par marque, ses facteurs et ses lecteurs cibles portent son nouveau nom.", 'Drive "{0}": it was called "{1}". Its calibrations ({2} curve(s)), its levels, its per-brand memory, its factors and its target drives carry its new name.')
     T34 = @('Lecteur « {0} » : connexion {1} (avant : {2}). Ses calibrations le suivent. Après un changement de nappe, contrôlez une écriture (onglet Qualité) ou refaites une calibration rapide.', 'Drive "{0}": connection {1} (before: {2}). Its calibrations follow it. After a cable change, check a write (Quality tab) or run a quick calibration again.')
     T35 = @('Lecteur « {0} » supprimé : {1} courbe(s) retirée(s).', 'Drive "{0}" deleted: {1} curve(s) removed.')
@@ -1070,6 +1174,13 @@ $rd = [System.IO.File]::ReadAllText((Join-Path $mods 'README.md'), [System.Text.
 $trd = [System.IO.File]::ReadAllText((Join-Path $Wt 'tests\README.md'), [System.Text.Encoding]::UTF8)
 $sec = ''; $mm = [regex]::Match($ch, '(?s)## \[12\.11\].*?(?=\n## \[)'); if ($mm.Success) { $sec = $mm.Value }
 Chk 'D10' ($sec.Contains('**Lecteurs enregistrés.** Donnez un nom à vos lecteurs de disquette') -and $sec.Contains('**Lecteur verrouillé pendant une opération.**') -and $sec.Contains('**Lecteur à l''abri d''un geste involontaire.**') -and $sec.Contains('**La fenêtre de décision d''une calibration nomme le lecteur enregistré**') -and $sec.Contains('**Rien à faire, rien à recalibrer.**') -and $sec.Contains('**Lecteurs enregistrés et versions antérieures.**') -and $sec.Contains('**Choisissez le lecteur branché.**') -and $sec -notmatch 'vérifié sur (le )?matériel' -and $rd.Contains('`Confirm-DriveIdentity`') -and $trd.Contains('| `logic-lecteurs-bandeau` |')) "CHANGELOG 12.11 : Nouveautés, Améliorations et À savoir du lot (textes de la specification, § 11.2), aucun comportement dit verifie sur materiel ; README des modules et des tests"
+# D12 (relecture du lot) : entrees du CHANGELOG fideles au comportement prouve plus haut : verrou (L1 : liste active
+# pendant la pause d une mesure continue), fenetre de decision (Y2b : lecteur non nomme quand la calibration est suivie
+# de l ecriture), socle (la fenetre affiche des refus de la section LN-a avant tout enregistrement : P1)
+$eLock = [regex]::Match($sec, '(?m)^- \*\*Lecteur verrouillé pendant une opération\.\*\*.*$').Value
+$eRev = [regex]::Match($sec, '(?m)^- \*\*La fenêtre de décision d''une calibration nomme le lecteur enregistré\*\*.*$').Value
+$eBase = [regex]::Match($sec, '(?m)^- \*\*Lecteurs enregistrés, socle\.\*\*.*$').Value
+Chk 'D12' ($l1 -ccontains 'quality/quality=True' -and $eLock.Contains('Elle reste active pendant la pause d''une mesure continue de l''onglet Qualité') -and -not $y2d.Contains('Sony') -and $eRev.Contains('quand la calibration n''est pas suivie de l''écriture de l''image') -and $p1.vide -and $eBase -and -not $eBase.Contains('rien ne change à l''écran') -and -not $eBase.Contains('jamais atteints avec une configuration qui n''a jamais eu de lecteur enregistré ni de nom')) "CHANGELOG 12.11 : verrou (pause de la mesure continue : liste active, L1), fenetre de decision (pas de nom avant l ecriture de l image, Y2b), socle (refus d un nom affiches sans lecteur enregistre, P1) : entrees conformes au comportement"
 
 # ================================================================ Q. source d avant le lot (-Before)
 '--- Q. bandeau de la source d avant le lot (-Before)'
