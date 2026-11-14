@@ -661,7 +661,9 @@ Chk 'A4a' ($fx.Ok -and $fx.Sure -and $fx.Drive -eq 'Sony MPF-920>0' -and $fx.Dri
 [void](Restore-CalibBack (Find-RtItem $items2 'Sony MPF920' '10/11/2026 10:00'))
 [void](Restore-CalibBack (Find-RtItem (Get-RtItems) 'Sony MPF920>0' '11/11/2026 10:00'))
 $cx = Get-DriveCurve 'Sony MPF-920>0' 'std'
-Chk 'A2b' ([string](Get-DriveCurve 'Sony MPF-920' 'std').Drive -eq 'Sony MPF-920' -and [string]$cx.Drive -eq 'Sony MPF-920' -and [string]$cx.Target -eq '0' -and (@(Get-DriveCurveKeys) -join ',') -ceq 'Sony MPF-920>0|std,Sony MPF-920|std') 'retablies sous le nom d aujourd hui : cles « Sony MPF-920|std » et « Sony MPF-920>0|std », champs Drive et Target reecrits ; rien sous l ancien nom'
+# 12.11 (CI sous Windows PowerShell 5.1, run du 14/11/2026) : A2b compare l ensemble des cles, trie des deux cotes par la
+# meme comparaison : l ordre de Get-DriveCurveKeys (Sort-Object, culture) differe entre 5.1 et 7 pour « >0| » et « | »
+Chk 'A2b' ([string](Get-DriveCurve 'Sony MPF-920' 'std').Drive -eq 'Sony MPF-920' -and [string]$cx.Drive -eq 'Sony MPF-920' -and [string]$cx.Target -eq '0' -and (@(Get-DriveCurveKeys | Sort-Object { [string]$_ } -CaseSensitive | ForEach-Object { [string]$_ }) -join ',') -ceq (@(@('Sony MPF-920>0|std', 'Sony MPF-920|std') | Sort-Object { [string]$_ } -CaseSensitive) -join ',')) 'retablies sous le nom d aujourd hui : cles « Sony MPF-920|std » et « Sony MPF-920>0|std », champs Drive et Target reecrits ; rien sous l ancien nom'
 # A3 : lecteur supprime depuis ; recree sous le meme nom (autre fiche « L... »)
 Reset-Rt 'a3'
 [void](Write-RtEraCopy 'ref-std-20261110-1000.bak' ([ordered]@{ 'Sony MPF920|std' = (New-Cv 'Sony MPF920' 'std' '10/11/2026 10:00' 1) }) $eraS (New-Object datetime(2026, 11, 12, 10, 0, 0)))
