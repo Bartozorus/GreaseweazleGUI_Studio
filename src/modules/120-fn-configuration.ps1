@@ -791,7 +791,8 @@ function Load-Config {
     # connexion relue, jamais sous un nom
     Import-DriveRegistry $cfg $old
     # 12.11 (lot LN-b) : lecteur de la configuration : le dernier lecteur enregistre choisi sur la connexion relue s il y
-    # est toujours, sinon le lecteur non enregistre (vue, profils de famille et courbes mises de cote de ce lecteur)
+    # est toujours (12.11 rc2.2 : sans dernier lecteur, le premier lecteur enregistre sur elle, Import-DriveRegistry),
+    # sinon le lecteur non enregistre (vue, profils de famille et courbes mises de cote de ce lecteur)
     if ($script:DriveReg.Count -gt 0) { $ldDrive = Get-DriveForConn $ldDrive }
     Sync-PrecompCurves $ldDrive
     if ($imp.Migrated) { Append-Log ((T "Configuration d'une version antérieure : {0} courbe(s) de calibration rangée(s) par lecteur ({1}).") -f "$($imp.N + $old.Count)", ((@($imp.Drives)) -join ', ')) }

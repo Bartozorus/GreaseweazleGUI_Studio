@@ -57,7 +57,9 @@ function Get-DriveLabel([string]$drive) {
 
 function Get-DriveForConn([string]$conn) {
     # 12.11 : lecteur retenu pour une connexion : le dernier lecteur enregistre choisi sur elle s il y est toujours
-    # enregistre, rendu par le nom de sa fiche, a sa casse (Set-Combo choisit par Items.Contains) ; sinon la connexion
+    # enregistre, rendu par le nom de sa fiche, a sa casse (Set-Combo choisit par Items.Contains) ; sinon la connexion.
+    # 12.11 rc2.2 : au chargement, une connexion sans dernier lecteur recoit le premier lecteur enregistre sur elle
+    # (Import-DriveRegistry)
     $l = ''
     if ($script:DriveLast) { foreach ($e in @($script:DriveLast.GetEnumerator())) { if ([string]$e.Key -ceq $conn) { $l = [string]$e.Value } } }
     $r = Get-DriveRecord $l
@@ -679,7 +681,11 @@ function Import-DriveRegistry($cfg, $old = $null) {
     # gardee sans connexion, avec son identifiant. last : ramene au nom de la fiche, a sa casse ; registre relu dans la
     # copie de secours : retenu pour une connexion seulement si le lecteur nomme a une courbe ($old : courbes en attente
     # du choix), ou si le lecteur non enregistre de cette connexion n en a aucune (le bandeau reste sinon sur le lecteur
-    # qui porte les courbes)
+    # qui porte les courbes). 12.11 rc2.2 : connexion sans dernier lecteur (jamais choisi, ou enregistre depuis sur une
+    # autre connexion) : le premier lecteur enregistre sur elle, dans l ordre du registre, a la meme condition quand le
+    # registre est relu dans la copie de secours ; le lecteur non enregistre de la connexion n est retenu que si aucun
+    # lecteur n y est enregistre (avant : le lecteur non enregistre, et le bandeau demarrait sur « A » avec un seul
+    # lecteur enregistre sur A et aucun dernier lecteur)
     $script:DriveReg = [ordered]@{}; $script:DriveLast = @{}; $script:DriveRescuePairs = $null
     $rs = Read-DriveRescue
     $script:DriveRescueText = $(if ($rs.Ok) { [string]$rs.Text } else { $null })
@@ -719,7 +725,11 @@ function Import-DriveRegistry($cfg, $old = $null) {
     $nLast = @{}
     foreach ($c in $script:SettingDefs['drive'].Codes) {
         $r = Get-DriveRecord ([string](Get-DriveField $lastRaw ([string]$c)))
-        if (-not $r -or [string]$r.Conn -cne [string]$c) { continue }
+        if (-not $r -or [string]$r.Conn -cne [string]$c) {
+            $r = $null
+            foreach ($e in @($script:DriveReg.GetEnumerator())) { if ([string]$e.Value.Conn -ceq [string]$c) { $r = $e.Value; break } }
+            if (-not $r) { continue }
+        }
         if ($fromRescue) {
             $dn = Get-DriveData ([string]$r.Name) $old; $dc = Get-DriveData ([string]$c) $old
             if ((@($dn['Keys']).Count + @($dn['Cross']).Count) -eq 0 -and (@($dc['Keys']).Count + @($dc['Cross']).Count) -gt 0) { continue }

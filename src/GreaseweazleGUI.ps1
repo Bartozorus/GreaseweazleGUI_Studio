@@ -31,7 +31,7 @@ $script:Version = '12.11'
 # 12.11 rc2.1 : version montree a l utilisateur (titre de la fenetre, ligne de demarrage du journal, en-tete du journal
 # exporte, rapport de restauration, export « Qualite & alignement ») ; $script:Version reste celle des donnees, des
 # calibrations, de la configuration et du controle du workflow de publication
-$script:VersionLabel = '12.11 rc2.1'
+$script:VersionLabel = '12.11 rc2.2'
 # Version du calcul de calibration (motif de test, mesure du decalage, ajustement de la courbe, verification), enregistree
 # avec chaque courbe : a changer seulement quand ce calcul change. Une courbe faite avec ce calcul est reprise par les
 # versions suivantes de l application ; une courbe d un autre calcul n est reprise que si l utilisateur la conserve.
@@ -3866,6 +3866,10 @@ $script:WProfileBuilding = $false                                           # 12
 #                    enregistre a recu ce nom, et date de cette attribution) ; table insensible a la casse, lue par
 #                    enumeration (Get-DriveRecord)
 #   DriveLast        connexion -> dernier lecteur enregistre choisi sur elle ; absent : le lecteur non enregistre
+#                    (12.11 rc2.2 : au chargement, sans dernier lecteur, le premier lecteur enregistre sur elle,
+#                    Import-DriveRegistry)
+#   DriveHandled     lecteur du bandeau pour lequel le gestionnaire du changement de lecteur (520) s est execute en dernier
+#                    (12.11 rc2.2 : choix fait dans la liste deroulee, qui ne leve pas TextChanged)
 #   DriveChecked     lecteur choisi a la main ou confirme depuis le dernier changement (jamais enregistre) ; DriveCur :
 #                    lecteur du bandeau avant le changement en cours (lot LN-b)
 #   DriveRescued     registre relu dans la copie de secours (<configuration>.lecteurs) pendant cette session
@@ -3886,6 +3890,7 @@ $script:DriveCur = ''
 $script:DriveRescued = $false
 $script:DriveRescueText = $null
 $script:DriveRescuePairs = $null
+$script:DriveHandled = ''
 $script:DriveBlockKeep = $false
 $script:DriveNameMax = 24
 $script:DriveListWidth = 150
@@ -5472,7 +5477,9 @@ function Get-DriveLabel([string]$drive) {
 
 function Get-DriveForConn([string]$conn) {
     # 12.11 : lecteur retenu pour une connexion : le dernier lecteur enregistre choisi sur elle s il y est toujours
-    # enregistre, rendu par le nom de sa fiche, a sa casse (Set-Combo choisit par Items.Contains) ; sinon la connexion
+    # enregistre, rendu par le nom de sa fiche, a sa casse (Set-Combo choisit par Items.Contains) ; sinon la connexion.
+    # 12.11 rc2.2 : au chargement, une connexion sans dernier lecteur recoit le premier lecteur enregistre sur elle
+    # (Import-DriveRegistry)
     $l = ''
     if ($script:DriveLast) { foreach ($e in @($script:DriveLast.GetEnumerator())) { if ([string]$e.Key -ceq $conn) { $l = [string]$e.Value } } }
     $r = Get-DriveRecord $l
@@ -6094,7 +6101,11 @@ function Import-DriveRegistry($cfg, $old = $null) {
     # gardee sans connexion, avec son identifiant. last : ramene au nom de la fiche, a sa casse ; registre relu dans la
     # copie de secours : retenu pour une connexion seulement si le lecteur nomme a une courbe ($old : courbes en attente
     # du choix), ou si le lecteur non enregistre de cette connexion n en a aucune (le bandeau reste sinon sur le lecteur
-    # qui porte les courbes)
+    # qui porte les courbes). 12.11 rc2.2 : connexion sans dernier lecteur (jamais choisi, ou enregistre depuis sur une
+    # autre connexion) : le premier lecteur enregistre sur elle, dans l ordre du registre, a la meme condition quand le
+    # registre est relu dans la copie de secours ; le lecteur non enregistre de la connexion n est retenu que si aucun
+    # lecteur n y est enregistre (avant : le lecteur non enregistre, et le bandeau demarrait sur « A » avec un seul
+    # lecteur enregistre sur A et aucun dernier lecteur)
     $script:DriveReg = [ordered]@{}; $script:DriveLast = @{}; $script:DriveRescuePairs = $null
     $rs = Read-DriveRescue
     $script:DriveRescueText = $(if ($rs.Ok) { [string]$rs.Text } else { $null })
@@ -6134,7 +6145,11 @@ function Import-DriveRegistry($cfg, $old = $null) {
     $nLast = @{}
     foreach ($c in $script:SettingDefs['drive'].Codes) {
         $r = Get-DriveRecord ([string](Get-DriveField $lastRaw ([string]$c)))
-        if (-not $r -or [string]$r.Conn -cne [string]$c) { continue }
+        if (-not $r -or [string]$r.Conn -cne [string]$c) {
+            $r = $null
+            foreach ($e in @($script:DriveReg.GetEnumerator())) { if ([string]$e.Value.Conn -ceq [string]$c) { $r = $e.Value; break } }
+            if (-not $r) { continue }
+        }
         if ($fromRescue) {
             $dn = Get-DriveData ([string]$r.Name) $old; $dc = Get-DriveData ([string]$c) $old
             if ((@($dn['Keys']).Count + @($dn['Cross']).Count) -eq 0 -and (@($dc['Keys']).Count + @($dc['Cross']).Count) -gt 0) { continue }
@@ -7787,7 +7802,8 @@ function Load-Config {
     # connexion relue, jamais sous un nom
     Import-DriveRegistry $cfg $old
     # 12.11 (lot LN-b) : lecteur de la configuration : le dernier lecteur enregistre choisi sur la connexion relue s il y
-    # est toujours, sinon le lecteur non enregistre (vue, profils de famille et courbes mises de cote de ce lecteur)
+    # est toujours (12.11 rc2.2 : sans dernier lecteur, le premier lecteur enregistre sur elle, Import-DriveRegistry),
+    # sinon le lecteur non enregistre (vue, profils de famille et courbes mises de cote de ce lecteur)
     if ($script:DriveReg.Count -gt 0) { $ldDrive = Get-DriveForConn $ldDrive }
     Sync-PrecompCurves $ldDrive
     if ($imp.Migrated) { Append-Log ((T "Configuration d'une version antérieure : {0} courbe(s) de calibration rangée(s) par lecteur ({1}).") -f "$($imp.N + $old.Count)", ((@($imp.Drives)) -join ', ')) }
@@ -32183,6 +32199,22 @@ $cmbDrive.Add_TextChanged({
     Update-DriveChoice                        # 12.11 (lot LN-b) : lecteur a confirmer, dernier lecteur de la connexion, bandeau (112)
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
     if ($form.Visible) { Update-PrecompForImage $txtWFile.Text }
+    $script:DriveHandled = [string]$cmbDrive.Text  # 12.11 rc2.2 : lecteur traite (gestionnaire ci-dessous)
+})
+# 12.11 rc2.2 : choix fait par l utilisateur dans la liste deroulee, fenetre affichee : la liste (DropDownList, avec sa
+# poignee) leve SelectionChangeCommitted et SelectedIndexChanged, mais pas TextChanged (son texte a deja change quand elle
+# le recopie) : le gestionnaire ci-dessus ne s executait pas, et vue, libelle « Lecteur qui ecrit », case de la mesure,
+# dernier lecteur de la connexion et bandeau restaient ceux du lecteur precedent (choix par le code : TextChanged, puis
+# SelectedIndexChanged). Meme corps, execute ici une fois, seulement quand le gestionnaire ci-dessus n a pas deja traite
+# ce lecteur ($script:DriveHandled) ; rien sur un texte vide (liste en reconstruction)
+$cmbDrive.Add_SelectedIndexChanged({
+    if (-not [string]$cmbDrive.Text -or [string]$cmbDrive.Text -ceq [string]$script:DriveHandled) { return }
+    Sync-PrecompCurves
+    Update-TargetDriveUi; Update-SlowUi
+    Update-DriveChoice
+    if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
+    if ($form.Visible) { Update-PrecompForImage $txtWFile.Text }
+    $script:DriveHandled = [string]$cmbDrive.Text
 })
 # 12.11 (L9) : options avancees : lien et ligne a jour a chaque changement de l une d elles, y compris par le code
 # (Bibliotheque, restauration, « Reinitialiser », configuration), apres les liaisons ci-dessus (Register-WAdvCtl, 145) ;

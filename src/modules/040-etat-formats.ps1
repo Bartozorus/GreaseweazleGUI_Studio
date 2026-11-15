@@ -280,6 +280,10 @@ $script:WProfileBuilding = $false                                           # 12
 #                    enregistre a recu ce nom, et date de cette attribution) ; table insensible a la casse, lue par
 #                    enumeration (Get-DriveRecord)
 #   DriveLast        connexion -> dernier lecteur enregistre choisi sur elle ; absent : le lecteur non enregistre
+#                    (12.11 rc2.2 : au chargement, sans dernier lecteur, le premier lecteur enregistre sur elle,
+#                    Import-DriveRegistry)
+#   DriveHandled     lecteur du bandeau pour lequel le gestionnaire du changement de lecteur (520) s est execute en dernier
+#                    (12.11 rc2.2 : choix fait dans la liste deroulee, qui ne leve pas TextChanged)
 #   DriveChecked     lecteur choisi a la main ou confirme depuis le dernier changement (jamais enregistre) ; DriveCur :
 #                    lecteur du bandeau avant le changement en cours (lot LN-b)
 #   DriveRescued     registre relu dans la copie de secours (<configuration>.lecteurs) pendant cette session
@@ -300,6 +304,7 @@ $script:DriveCur = ''
 $script:DriveRescued = $false
 $script:DriveRescueText = $null
 $script:DriveRescuePairs = $null
+$script:DriveHandled = ''
 $script:DriveBlockKeep = $false
 $script:DriveNameMax = 24
 $script:DriveListWidth = 150

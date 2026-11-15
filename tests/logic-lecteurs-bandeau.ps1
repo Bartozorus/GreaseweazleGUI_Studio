@@ -26,9 +26,15 @@ $Wt = Get-TestRoot $Wt
 #     comportement prouve par L1, Y2b et P1).
 #  Q  avec -Before <copie de la source d avant le lot> (aucune dans le depot) : bandeau de cette source, memes positions,
 #     libelles et infobulle.
+#  W  (12.11 rc2.2) choix de l utilisateur dans la liste deroulee : la liste du bandeau recoit sa poignee (fenetre jamais
+#     affichee) et le clic sur un element est rejoue par les messages natifs que la liste recoit alors (CB_SETCURSEL, puis
+#     CBN_SELENDOK et CBN_SELCHANGE reflechis, passes a sa methode WndProc) : vue, libelle du bandeau, libelle « Lecteur qui
+#     ecrit », sonde de la case et de la ligne, garde de l ecriture pour un lecteur cible, dernier lecteur, journal ; choix
+#     par le code avec poignee (gestionnaire execute une fois) ; corps des deux gestionnaires de 520 identiques.
 # Fonctions et instructions reelles extraites par l arbre syntaxique, ecrites dans des fichiers de travail puis chargees
 # par dot-source. Aucun gw, aucune fenetre affichee, aucune compilation. Non couvert ici : les evenements reels d une
-# liste WinForms affichee (ordre, molette, clavier, DroppedDown pendant un clic), le rendu du bandeau et de la fenetre.
+# liste WinForms affichee autres que ceux rejoues en W (ordre exact des messages d un clic reel, molette, clavier,
+# DroppedDown pendant un clic), le rendu du bandeau et de la fenetre.
 $here = Get-TestWorkDir $MyInvocation.MyCommand.Path $Work
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 $script:NChk = 0; $script:Fail = 0; $script:FailIds = @()
@@ -92,7 +98,8 @@ $want = [ordered]@{
     '120' = @('ConvertTo-SettingValue', 'Get-Setting', 'Set-SettingStore', 'Set-SettingCtlValue', 'Set-Setting', 'Register-SettingCtl', 'Update-SettingDependents', 'Get-SettingText', 'Reset-Settings', 'Import-Settings', 'Export-Settings',
               'Update-LegacyCleanDefault', 'Update-LegacyLevelMode', 'Update-LegacyEraseMode', 'Test-ContentLevelSettings', 'Backup-ConfigBeforeRef', 'Export-CurveView', 'Export-DriveCurves', 'Import-DriveCurves',
               'Export-TargetDrives', 'Import-TargetDrives', 'Save-Config', 'Get-Cfg', 'Set-Num', 'Set-Combo', 'Load-Config')
-    '140' = @('Get-DriveIds', 'Get-TargetDrive', 'Set-TargetDrive', 'Get-TargetDriveItems', 'Get-TargetCurves', 'Update-TargetDriveUi', 'Start-ImageWrite')
+    '140' = @('Get-DriveIds', 'Get-TargetDrive', 'Set-TargetDrive', 'Get-TargetDriveItems', 'Get-TargetCurves', 'Update-TargetDriveUi', 'Start-ImageWrite', 'Get-TargetWriteInfo')
+    '145' = @('Update-WSourceLabel')
     '210' = @('Draw-PictoFloppy', 'Draw-PictoDrive')
     '220' = @('Get-CurveDate', 'Get-DriveFamilyCurves')
     '230' = @('Test-CurveHd', 'Get-CalibFamilyName', 'Get-Median', 'Get-CurveCalc', 'Get-CurveCalcRef', 'Test-CurveCalcOk', 'Get-CurveCalcText', 'ConvertTo-CurveConfig', 'ConvertTo-LevelConfig', 'ConvertTo-LevelBrandConfig',
@@ -152,7 +159,9 @@ Write-LbGen $genState @($stateParts)
 # Instructions reelles : bandeau (510, jusqu a la remise a zero de ses positions relevees), gestionnaire du bandeau (520),
 # carte de l Accueil (540)
 $st510 = Get-LbStmts $mods '510' '$pnlTop = ' '$script:DriveBanner = '
-$st520 = Get-LbStmts $mods '520' '$cmbDrive.Add_TextChanged(' '$cmbDrive.Add_TextChanged('
+# 12.11 rc2.2 : gestionnaires du changement de lecteur : TextChanged (choix par le code) et SelectedIndexChanged (choix de
+# l utilisateur dans la liste deroulee, fenetre affichee)
+$st520 = @((Get-LbAst (Get-LbModule $mods '520')).EndBlock.Statements | Where-Object { $_.Extent.Text.StartsWith('$cmbDrive.Add_TextChanged(') -or $_.Extent.Text.StartsWith('$cmbDrive.Add_SelectedIndexChanged(') } | ForEach-Object { $_.Extent.Text })
 $st540 = Get-LbStmts $mods '540' '$cardDrives' '$script:DrvDlg'
 $genBan = Join-Path $here 'gen-bandeau.ps1'; Write-LbGen $genBan @($st510)
 $genHdl = Join-Path $here 'gen-gestionnaire.ps1'; Write-LbGen $genHdl @($st520)
@@ -320,7 +329,7 @@ $wide = Get-DriveWidestName $form.Font
 
 # ================================================================ H. harnais
 '--- H. harnais'
-Chk 'H1' ($missing.Count -eq 0 -and $stateMissing.Count -eq 0 -and $st510.Count -ge 20 -and $st520.Count -eq 1 -and $st540.Count -eq 2 -and $cardDrives -and $lblDrive -and $lblCom -and -not $form.Visible) "fonctions, etat et instructions reels trouves (absents : $(@($missing + $stateMissing) -join ', ')) ; bandeau, carte et libelles nommes crees, fenetre jamais affichee"
+Chk 'H1' ($missing.Count -eq 0 -and $stateMissing.Count -eq 0 -and $st510.Count -ge 20 -and $st520.Count -eq 2 -and $st540.Count -eq 2 -and $cardDrives -and $lblDrive -and $lblCom -and -not $form.Visible) "fonctions, etat et instructions reels trouves (absents : $(@($missing + $stateMissing) -join ', ')) ; bandeau, carte et libelles nommes crees, fenetre jamais affichee"
 Chk 'H2' ($nCtlDrive1 -eq $nCtlDrive0 + 1 -and $pnlTop.Width -eq 800 -and $cmbDrive.Items.Count -eq 6 -and $script:CalibCalc -eq '12.10' -and $script:ContentCalc -eq '12.9') "liste du bandeau liee au reglage drive par Register-SettingCtl (une liaison de plus que l etat de 040 : $nCtlDrive0 -> $nCtlDrive1) ; bandeau de $($pnlTop.Width) px ; CalibCalc $($script:CalibCalc), ContentCalc $($script:ContentCalc) inchanges"
 
 # ================================================================ U. bandeau, registre vide : 12.10 au pixel pres
@@ -553,7 +562,8 @@ Update-DriveList; Select-LbDrive 'A'; Reset-Settings; $script:DriveCur = 'A'; $s
 [void](Load-Config)
 $d7b = @{ Banner = [string]$cmbDrive.Text; Set = [string](Get-Setting 'drive'); View = (Get-LbView); ForA = (Get-DriveForConn 'A'); Log54 = @(Get-LbLog 'Lecteur choisi*').Count; Items = (Get-LbItems); Lbl = [string]$lblDrive.Text }
 Chk 'D7a' ($d7a.Kind -ceq 'move' -and $d7a.Ok -and $d7a.Banner -ceq 'Sony MPF920' -and $d7a.Set -ceq '0' -and $d7a.Args -ceq '--drive=0' -and $d7a.Last -ceq '0=Sony MPF920' -and $d7a.Due -and $d7a.Checked -ceq '' -and $d7a.Act -ceq '|A' -and $d7a.Lbl -ceq 'Lecteur (0) :' -and $d7a.Log54 -eq 0 -and [string]$cfg7.global.drive -ceq '0') "lecteur du bandeau deplace sur 0 par Invoke-DriveEditPlan ($($d7a.Kind), $($d7a.Ok), bandeau $($d7a.Banner), confirme « $($d7a.Checked) », due $($d7a.Due)) : reglage $($d7a.Set) (global.drive enregistre : $($cfg7.global.drive)), $($d7a.Args), dernier lecteur $($d7a.Last), confirmation de nouveau due, activite de 0 oubliee (reste : $($d7a.Act)), libelle « $($d7a.Lbl) », aucune ligne « Lecteur choisi »"
-Chk 'D7b' ($d7b.Banner -ceq 'Sony MPF920' -and $d7b.Set -ceq '0' -and $d7b.View -ceq 'std=0=20:40=60' -and $d7b.ForA -ceq 'A' -and $d7b.Log54 -eq 0 -and $d7b.Items -ceq 'A,B,0,1,2,3,Sony MPF920,TEAC FD-235HF' -and $d7b.Lbl -ceq 'Lecteur (0) :') "apres rechargement par la vraie Load-Config : bandeau sur $($d7b.Banner) (reglage $($d7b.Set)), vue = ses courbes ($($d7b.View)), Get-DriveForConn 'A' rend $($d7b.ForA), aucune ligne « Lecteur choisi »"
+# 12.11 rc2.2 (adapte a dessein) : A, sans dernier lecteur, porte encore TEAC FD-235HF : il est le lecteur retenu pour A
+Chk 'D7b' ($d7b.Banner -ceq 'Sony MPF920' -and $d7b.Set -ceq '0' -and $d7b.View -ceq 'std=0=20:40=60' -and $d7b.ForA -ceq 'TEAC FD-235HF' -and $d7b.Log54 -eq 0 -and $d7b.Items -ceq 'A,B,0,1,2,3,Sony MPF920,TEAC FD-235HF' -and $d7b.Lbl -ceq 'Lecteur (0) :') "apres rechargement par la vraie Load-Config : bandeau sur $($d7b.Banner) (reglage $($d7b.Set)), vue = ses courbes ($($d7b.View)), Get-DriveForConn 'A' rend $($d7b.ForA), aucune ligne « Lecteur choisi »"
 # D7c (relecture du lot) : la ligne « 0 (non enregistre) » recoit le nom du lecteur du bandeau (fiche sans donnee) et la
 # connexion 0 : ce lecteur passe sur 0, reste au bandeau et devient le dernier lecteur de 0 (repris au demarrage suivant)
 Reset-LbWorld 'd7c'
@@ -620,13 +630,18 @@ $jv = [ordered]@{
 [System.IO.File]::WriteAllText($script:ConfigFile, ($jv | ConvertTo-Json -Depth 8), $utf8)
 Reset-LbMemory
 [void](Load-Config)
-$v1 = "bandeau $($cmbDrive.Text), liste $(Get-LbItems), vue [$(Get-LbView)], dernier lecteur [$(@($script:DriveLast.Keys) -join ',')], cible de $nV : $(Get-TargetDrive $nV)"
-Chk 'V1' ($v1 -ceq "bandeau A, liste A,B,0,1,2,3,$nO,$nV, vue [], dernier lecteur [], cible de ${nV} : $nO") "configuration de la forme relevee sur la rc2 (dernier lecteur par connexion vide) : la connexion A reste son lecteur non enregistre, vue de ce lecteur ($v1)"
-$script:LbSlow.Clear()
-Select-LbDrive $nV
 $vView = 'std_h0=0=30:40=70,std_h1=0=32:40=72'
-$v2 = "sonde [$($script:LbSlow -join ' | ')], vue [$(Get-LbView)], dernier lecteur A = $($script:DriveLast['A'])"
-Chk 'V2' ($v2 -ceq "sonde [$nV : $vView], vue [$vView], dernier lecteur A = $nV") "choix de $nV dans le bandeau : la case de la mesure et la ligne sont calculees apres la vue de ce lecteur, retenu pour A ($v2)"
+function Get-LbLast { return (@($script:DriveLast.GetEnumerator() | Sort-Object Key | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ',') }
+# 12.11 rc2.2 (adapte a dessein) : la rc2.1 laissait A sur son lecteur non enregistre (bandeau « A », vue vide : profil
+# d origine, lecteur cible sans courbe croisee « A -> Orion FD-1 ») ; chaque connexion sans dernier lecteur demarre sur le
+# premier lecteur enregistre sur elle
+$v1 = "bandeau $($cmbDrive.Text), libelle $($lblDrive.Text), liste $(Get-LbItems), vue [$(Get-LbView)], derniere sonde [$(@($script:LbSlow)[-1])], dernier lecteur [$(Get-LbLast)], cible de $nV : $(Get-TargetDrive $nV), lignes « Lecteur choisi » $(@(Get-LbLog 'Lecteur choisi*').Count)"
+Chk 'V1' ($v1 -ceq "bandeau $nV, libelle Lecteur (A) :, liste A,B,0,1,2,3,$nO,$nV, vue [$vView], derniere sonde [$nV : $vView], dernier lecteur [0=$nO,A=$nV], cible de ${nV} : $nO, lignes « Lecteur choisi » 0") "configuration de la forme relevee sur la rc2 (dernier lecteur par connexion vide) : le bandeau demarre sur le seul lecteur enregistre de A, vue, case de la mesure et ligne de ce lecteur ; dernier lecteur pose pour A et 0 ($v1)"
+$script:LbSlow.Clear()
+Select-LbDrive $nO
+Select-LbDrive $nV
+$v2 = "sonde [$($script:LbSlow -join ' | ')], vue [$(Get-LbView)], dernier lecteur [$(Get-LbLast)]"
+Chk 'V2' ($v2 -ceq "sonde [$nO : std=0=20:40=60 | $nV : $vView], vue [$vView], dernier lecteur [0=$nO,A=$nV]") "choix de $nO puis de $nV dans le bandeau (par le code) : la case de la mesure et la ligne sont calculees apres la vue de chaque lecteur, une fois par choix ($v2)"
 [void](Save-Config)
 $cv3 = Get-Content -LiteralPath $script:ConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json
 $v3a = "last.A $($cv3.drives.last.A), vue enregistree [$(@($cv3.write.precompCurves.PSObject.Properties | Where-Object { $_.Value } | ForEach-Object { $_.Name }) -join ',')], global.drive $($cv3.global.drive)"
@@ -1271,6 +1286,81 @@ if (-not $Before) {
     $qa = @(); foreach ($c in @($pnlTop.Controls)) { $tx = if ($c -is [System.Windows.Forms.ComboBox]) { (@($c.Items) -join ',') } else { $c.Text }; $qa += "$($c.GetType().Name) $tx $($c.Left),$($c.Top) $($c.Width)x$($c.Height)" }
     Chk 'Q1' (($qa -join ' ; ') -ceq ($qb.Pos -join ' ; ') -and $qb.Tip -ceq $tip1210 -and [string]$tip.GetToolTip($cmbDrive) -ceq $qb.Tip) "bandeau de la source d avant le lot (instructions de 510) : memes controles, textes, elements de la liste, positions et tailles, meme infobulle ; avant : $($qb.Pos -join ' ; ') ; lot : $($qa -join ' ; ')"
 }
+
+# ================================================================ W. choix de l utilisateur, fenetre affichee (12.11 rc2.2)
+'--- W. choix de l utilisateur dans la liste deroulee (poignee creee, fenetre jamais affichee)'
+# Constat sur la rc2.1 : le clic sur un element de la liste deroulee changeait le lecteur de gw (reglage drive, lie a
+# SelectedIndexChanged) sans executer le gestionnaire du bandeau, lie a TextChanged : vue, libelle « Lecteur qui ecrit »,
+# case de la mesure, ligne et dernier lecteur restaient ceux du lecteur precedent (garde de l ecriture pour un lecteur
+# cible declenchee, dernier lecteur jamais enregistre). Configuration de V (noms factices), relue par la vraie
+# Load-Config ; la liste du bandeau, retiree de la fenetre (aucune poignee de fenetre), recoit sa poignee ; image factice,
+# profil Standard (famille sans lecture de l image)
+$script:LbSlow = New-Object System.Collections.Generic.List[string]
+function Update-SlowUi { $script:LbSlow.Add("$($cmbDrive.Text) : $(Get-LbView)") }
+$lblWSource = New-Object System.Windows.Forms.Label; $grpWOpt = New-Object System.Windows.Forms.GroupBox
+$wImg = Join-Path $here 'w-jeu.adf'; [System.IO.File]::WriteAllBytes($wImg, (New-Object byte[] 16))
+$cmbWProfile.SelectedIndex = 1; $chkWPrecomp.Checked = $true
+Reset-LbWorld 'w'
+Set-DriveCurve $nV 'std_h0' (New-Cv $nV 'std' 0 '10/11/2026 09:00' '0=30:40=70')
+Set-DriveCurve $nV 'std_h1' (New-Cv $nV 'std' 1 '10/11/2026 09:00' '0=32:40=72')
+Set-DriveCurve "$nV>$nO" 'std_h0' (New-Cv $nV 'std' 0 '11/11/2026 09:00' '0=40:40=80' $nO)
+Set-DriveCurve "$nV>$nO" 'std_h1' (New-Cv $nV 'std' 1 '11/11/2026 09:00' '0=42:40=82' $nO)
+Set-DriveCurve $nO 'std' (New-Cv $nO 'std' $null '09/11/2026 09:00' '0=20:40=60')
+$jw = [ordered]@{
+    global = [ordered]@{ drive = 'A' }
+    write = [ordered]@{ eraseMode = 'hfreq'; contentCalc = '12.9'; calibCalc = [string]$script:CalibCalc; precompCurves = (Export-CurveView $null); driveCurves = (Export-DriveCurves $null); targetDrive = [ordered]@{ A = $nO; $nV = $nO } }
+    drives = [ordered]@{ list = @([ordered]@{ id = 'L20261110090000-01'; name = $nO; conn = '0'; created = '2026-11-10 09:00:00'; from = ''; at = '' },
+                                  [ordered]@{ id = 'L20261110090000-02'; name = $nV; conn = 'A'; created = '2026-11-10 09:00:00'; from = ''; at = '' }); last = [ordered]@{} }
+}
+[System.IO.File]::WriteAllText($script:ConfigFile, ($jw | ConvertTo-Json -Depth 8), $utf8)
+Reset-LbMemory
+[void](Load-Config)
+$w0 = "bandeau $($cmbDrive.Text), « $($lblWSource.Text) »"
+if ($form.Controls.Contains($pnlTop)) { $form.Controls.Remove($pnlTop) }
+$script:LbTc = New-Object System.Collections.Generic.List[string]
+$cmbDrive.Add_TextChanged({ $script:LbTc.Add([string]$this.Text) })
+$hW = [IntPtr]::Zero; $wErr = ''
+try { $hW = $cmbDrive.Handle } catch { $wErr = [string]$_.Exception.Message }
+$wpW = [System.Windows.Forms.Control].GetMethod('WndProc', [System.Reflection.BindingFlags]'NonPublic,Instance')
+function Send-LbNative([int]$msg, [long]$w, [long]$l) { $m = [System.Windows.Forms.Message]::Create($hW, $msg, [IntPtr]$w, [IntPtr]$l); [void]$wpW.Invoke($cmbDrive, [object[]]@($m)) }
+function Select-LbUser([string]$item) {
+    # Clic sur un element de la liste deroulee : selection du controle natif (CB_SETCURSEL), puis notifications que la liste
+    # recoit de son parent (WM_REFLECT + WM_COMMAND) : CBN_SELENDOK (9), puis CBN_SELCHANGE (1)
+    Send-LbNative 0x014E ($cmbDrive.Items.IndexOf($item)) 0
+    Send-LbNative 0x2111 (9 -shl 16) ([long]$hW)
+    Send-LbNative 0x2111 (1 -shl 16) ([long]$hW)
+}
+function Get-LbW {
+    $tw = Get-TargetWriteInfo $wImg 'amiga.amigados' $true
+    return "bandeau $($cmbDrive.Text), libelle $($lblDrive.Text), vue [$(Get-LbView)], sonde [$($script:LbSlow -join ' | ')], « $($lblWSource.Text) », dernier lecteur [$(Get-LbLast)], lecteur cible [$($tw.Tgt)], facteur par cylindre $($tw.Xfer), garde [$($tw.ViewWhy)]"
+}
+Chk 'W0' ($w0 -ceq "bandeau $nV, « Lecteur qui écrit : $nV (A) »" -and $cmbDrive.IsHandleCreated -and -not $wErr -and -not $form.Visible) "demarrage sur la configuration de V : $w0 ; poignee de la liste creee ($($cmbDrive.IsHandleCreated)$(if ($wErr) { ", $wErr" })), fenetre jamais affichee"
+$script:LbSlow.Clear(); $script:Log.Clear(); $script:LbTc.Clear()
+Select-LbUser $nO
+$w1 = Get-LbW; $w1l = @(Get-LbLog 'Lecteur choisi*'); $w1tc = $script:LbTc.Count
+Chk 'W1' ($w1 -ceq "bandeau $nO, libelle Lecteur (0) :, vue [std=0=20:40=60], sonde [$nO : std=0=20:40=60], « Lecteur qui écrit : $nO (0) », dernier lecteur [0=$nO,A=$nV], lecteur cible [], facteur par cylindre False, garde []" -and $w1l.Count -eq 1 -and $w1l[0] -ceq "Lecteur choisi : $nO (0) (avant : $nV (A)).") "clic sur $nO dans la liste deroulee (TextChanged leve $w1tc fois) : vue, libelle du bandeau, libelle « Lecteur qui ecrit », case et ligne (sonde), dernier lecteur et journal de ce lecteur ($w1 ; journal : $($w1l -join ' / '))"
+$script:LbSlow.Clear(); $script:Log.Clear(); $script:LbTc.Clear()
+Select-LbUser $nV
+$w2 = Get-LbW; $w2l = @(Get-LbLog 'Lecteur choisi*'); $w2tc = $script:LbTc.Count
+Chk 'W2' ($w2 -ceq "bandeau $nV, libelle Lecteur (A) :, vue [$vView], sonde [$nV : $vView], « Lecteur qui écrit : $nV (A) », dernier lecteur [0=$nO,A=$nV], lecteur cible [$nO], facteur par cylindre True, garde []" -and $w2l.Count -eq 1 -and $w2l[0] -ceq "Lecteur choisi : $nV (A) (avant : $nO (0)).") "clic sur $nV ensuite (TextChanged leve $w2tc fois) : courbes de $nV chargees, garde de l ecriture pour le lecteur cible $nO non declenchee (courbe de cette disquette x facteur par cylindre) ($w2 ; journal : $($w2l -join ' / '))"
+$script:LbSlow.Clear(); $script:LbTc.Clear()
+Select-LbDrive $nO; Select-LbDrive $nV
+$w3 = "sonde [$($script:LbSlow -join ' | ')], TextChanged $($script:LbTc.Count)"
+Chk 'W3' ($w3 -ceq "sonde [$nO : std=0=20:40=60 | $nV : $vView], TextChanged 2") "choix par le code, liste avec poignee : TextChanged leve, gestionnaire execute une fois par choix, jamais une seconde fois par SelectedIndexChanged ($w3)"
+[void](Save-Config)
+$cw4 = Get-Content -LiteralPath $script:ConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json
+$w4 = "global.drive $($cw4.global.drive), last $(@($cw4.drives.last.PSObject.Properties | Sort-Object Name | ForEach-Object { "$($_.Name)=$($_.Value)" }) -join ',')"
+Chk 'W4' ($w4 -ceq "global.drive A, last 0=$nO,A=$nV") "dernier lecteur de chaque connexion enregistre ($w4)"
+# W5 (statique) : le gestionnaire de SelectedIndexChanged a le corps de celui de TextChanged, apres sa garde
+$tcB = @(); $sicB = @()
+foreach ($s in @($st520)) {
+    $tkW = $null; $erW = $null
+    $sb = ([System.Management.Automation.Language.Parser]::ParseInput($s, [ref]$tkW, [ref]$erW)).Find({ param($x) $x -is [System.Management.Automation.Language.ScriptBlockExpressionAst] }, $true)
+    $b = @(); if ($sb) { $b = @($sb.ScriptBlock.EndBlock.Statements | ForEach-Object { $_.Extent.Text }) }
+    if ($s.StartsWith('$cmbDrive.Add_TextChanged(')) { $tcB = $b } else { $sicB = $b }
+}
+$w5 = ($tcB.Count -ge 6 -and $sicB.Count -eq $tcB.Count + 1 -and (($sicB | Select-Object -Skip 1) -join "`n") -ceq ($tcB -join "`n") -and ([string]$sicB[0]).Contains('[string]$script:DriveHandled'))
+Chk 'W5' $w5 "520 : gestionnaire de SelectedIndexChanged = garde (texte vide ou deja traite, `$script:DriveHandled) puis les $($tcB.Count) instructions du gestionnaire de TextChanged, a l identique"
 
 "=== bilan logic-lecteurs-bandeau : $($script:NChk - $script:Fail) conformes sur $($script:NChk)$(if ($script:Fail) { ' ; NON CONFORMES : ' + ($script:FailIds -join ', ') }) ; $([int]$sw.Elapsed.TotalSeconds) s"
 if ($script:Fail) { exit 1 }

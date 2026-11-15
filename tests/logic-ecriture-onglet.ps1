@@ -308,6 +308,8 @@ $eoAdvBox = @($eoAdv + @('txtWPrecomp', 'txtWPrecomp1', 'lblWPrecomp1', 'lblWRep
 # lecteur du bandeau (mesure avant l ecriture, puis facteur par cylindre) : 29ce0b66fa3d1cf0 devient 86dbdd9c7b1c2605
 # 12.11 rc2.1 (adapte a dessein) : gestionnaire du bandeau, vue du lecteur choisi d abord (Sync-PrecompCurves), puis liste
 # « Lecteur cible » et case de la mesure : 8a2256548cb05f21 devient 99b662051cb5b528
+# 12.11 rc2.2 (adapte a dessein) : gestionnaire du bandeau, lecteur traite note a sa fin ($script:DriveHandled, lu par le
+# gestionnaire de SelectedIndexChanged, nouveau, d un choix a la souris) : 99b662051cb5b528 devient 20a0686d9c612998
 $eoS2Ref = @(
     '01c072a1c29125c7', '02195b377e0acfb8', '05747bbd10720c85', '060245da3155cf99', '06a1300a283e3dc2', '06dfdcfd1de104ee', '09634c241a54bb89', '0aac5a9968a07ab7',
     '0bc5254e1262d859', '0c529a33f4fc7961', '0ddba44c89049bfb', '1313cf5ef60342be', '1459bd09170b53e6', '1a10b06a97740961', '1c09ca9f19d03288', '1c818c45c7beab6a',
@@ -319,7 +321,7 @@ $eoS2Ref = @(
     '5e0e44a7348681db', '61a392e79ac93d3a', '61ad5341c8608a5f', '6493b23bdcac9a2e', '65070345bebec45d', '678bc2a117cf5664', '6876e3b7e67b5c9b', '6ab208da63c47f1e',
     '6b9b714a2099354d', '707839f13c0b2efb', '70f7b74d46157bd8', '71d44eae928a65eb', '73189bf25d9dc1dd', '738b6d4257210527', '739cc573e612b576', '75fcb425621b235a',
     '76f25a39a7cc649a', '775cc1c6b96df781', '7b961ae42d016871', '7daab5987e90ba65', '7dbbb4596113d786', '7eba27b04f40d613', '866b6213fa784364', '87429eb8aa498c36',
-    '8852f18455c27cbe', '88617cbcbd44669c', '99b662051cb5b528', '8a321c6f9782aa92', '8c9f0d5bf7db0f2f', '8ead95011b71f319', '8efe15aa6cdb54bb', '909f26f96e91a2ca',
+    '8852f18455c27cbe', '88617cbcbd44669c', '20a0686d9c612998', '8a321c6f9782aa92', '8c9f0d5bf7db0f2f', '8ead95011b71f319', '8efe15aa6cdb54bb', '909f26f96e91a2ca',
     '91a00e3883871830', '92068eec082e773f', '92cab291df171eef', '9f74d257700d5a20', 'a325616e34a98df4', 'a4bd281dfdb9d9c5', 'a7a3b62e23f2ae53', 'a8eb882c9f84d728',
     'ab898cf19eaf8129', 'ab9b7deb16c7cb32', 'b65380b930bbf3b1', 'b7161fffffd23d36', 'b757ed89c38965f9', 'bab16824807f1702', 'bd69141703b91d1d', 'bd93a81d65a3b185',
     'bee027d9d3d78281', 'c19e00f2612891ea', 'c2cdae63e37652f3', 'c3430af750c1018e', 'c61b8ac594da934f', 'c69785ba831ef49e', 'c7f2082ea1f0942d', 'c8f280b3b8743c04',

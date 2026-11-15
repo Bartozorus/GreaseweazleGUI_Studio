@@ -420,6 +420,22 @@ $cmbDrive.Add_TextChanged({
     Update-DriveChoice                        # 12.11 (lot LN-b) : lecteur a confirmer, dernier lecteur de la connexion, bandeau (112)
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
     if ($form.Visible) { Update-PrecompForImage $txtWFile.Text }
+    $script:DriveHandled = [string]$cmbDrive.Text  # 12.11 rc2.2 : lecteur traite (gestionnaire ci-dessous)
+})
+# 12.11 rc2.2 : choix fait par l utilisateur dans la liste deroulee, fenetre affichee : la liste (DropDownList, avec sa
+# poignee) leve SelectionChangeCommitted et SelectedIndexChanged, mais pas TextChanged (son texte a deja change quand elle
+# le recopie) : le gestionnaire ci-dessus ne s executait pas, et vue, libelle « Lecteur qui ecrit », case de la mesure,
+# dernier lecteur de la connexion et bandeau restaient ceux du lecteur precedent (choix par le code : TextChanged, puis
+# SelectedIndexChanged). Meme corps, execute ici une fois, seulement quand le gestionnaire ci-dessus n a pas deja traite
+# ce lecteur ($script:DriveHandled) ; rien sur un texte vide (liste en reconstruction)
+$cmbDrive.Add_SelectedIndexChanged({
+    if (-not [string]$cmbDrive.Text -or [string]$cmbDrive.Text -ceq [string]$script:DriveHandled) { return }
+    Sync-PrecompCurves
+    Update-TargetDriveUi; Update-SlowUi
+    Update-DriveChoice
+    if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
+    if ($form.Visible) { Update-PrecompForImage $txtWFile.Text }
+    $script:DriveHandled = [string]$cmbDrive.Text
 })
 # 12.11 (L9) : options avancees : lien et ligne a jour a chaque changement de l une d elles, y compris par le code
 # (Bibliotheque, restauration, « Reinitialiser », configuration), apres les liaisons ci-dessus (Register-WAdvCtl, 145) ;

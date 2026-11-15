@@ -937,7 +937,10 @@ $idsAll = @($script:DriveReg.GetEnumerator() | ForEach-Object { [string]$_.Value
 Chk 'V10a' ($errV10 -ceq '' -and $namesV10 -ceq 'Sony MPF920,Sans Numero,Autre Forme,Quatre,Lettre C,Minuscule a,Minuscule b' -and (Get-LogN ((Fr 'T59') -f '5')) -eq 1) "bloc modifie a la main, aucune exception : doublon a la casse pres, entree sans nom, nom reserve, identifiant en double et entree qui n est pas un objet ignores et comptes (« $((Fr 'T59') -f '5') ») ; gardes : $namesV10"
 Chk 'V10b' ([string]$rSn.Id -cmatch '^R\d{14}-\d{2}$' -and [string]$rAf.Id -cmatch '^R\d{14}-\d{2}$' -and [string]$rSn.Id -cne [string]$rAf.Id -and @($idsAll | Sort-Object -Unique).Count -eq $idsAll.Count -and [string]$rSn.Created -ceq '2026-11-19 08:00:00' -and [string]$rAf.Created -ceq '2026-11-20 18:02:11' -and [string]$rSn.Conn -ceq '1') "identifiant absent ou d une autre forme : fiche gardee avec un identifiant « R... » neuf ($($rSn.Id), $($rAf.Id)), tous distincts ; date de creation illisible : celle du chargement"
 Chk 'V10c' ([string]$rQ.Conn -ceq '' -and [string]$rQ.Id -ceq 'L20261120180400-01' -and [string]$rQ.From -ceq '' -and [string](Get-LnRec 'Lettre C').Conn -ceq '' -and [string](Get-LnRec 'Minuscule a').Conn -ceq '' -and [string](Get-LnRec 'Minuscule b').Conn -ceq '' -and (Get-LogN ((Fr 'T59b') -f 'Quatre, Lettre C, Minuscule a, Minuscule b')) -eq 1 -and (Get-DriveLabel 'Quatre') -ceq ((Fr 'T66') -f 'Quatre') -and (Get-DriveConn 'Quatre') -ceq '') "connexion « 4 », « C », « a » ou « b » : fiche gardee sans connexion, avec son identifiant, citee par le journal ; libelle « $(Get-DriveLabel 'Quatre') »"
-Chk 'V10d' ($script:DriveLast.Count -eq 1 -and [string]$script:DriveLast['A'] -ceq 'Sony MPF920' -and (Get-DriveForConn 'A') -ceq 'Sony MPF920' -and (Get-DriveForConn '0') -ceq '0' -and (Get-DriveForConn 'B') -ceq 'B') 'last : ramene au nom de la fiche, a sa casse ; entree qui cite une fiche d une autre connexion ou un nom inconnu ignoree'
+# 12.11 rc2.2 (adapte a dessein) : connexion sans dernier lecteur valide qui porte un lecteur enregistre (1 et 2) : ce
+# lecteur ; 0 et B, sans lecteur enregistre (fiche « Quatre » sans connexion, nom inconnu) : la connexion
+$v10d = (@($script:DriveLast.GetEnumerator() | Sort-Object Key | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ',')
+Chk 'V10d' ($v10d -ceq '1=Sans Numero,2=Autre Forme,A=Sony MPF920' -and (Get-DriveForConn 'A') -ceq 'Sony MPF920' -and (Get-DriveForConn '0') -ceq '0' -and (Get-DriveForConn 'B') -ceq 'B') "last : ramene au nom de la fiche, a sa casse ; entree qui cite une fiche d une autre connexion ou un nom inconnu ignoree ; connexion sans dernier lecteur : le premier lecteur enregistre sur elle, sinon la connexion ($v10d)"
 # V11 : nom a accents et au signe ° par le fichier
 Start-LnCase 'v11'
 $nmV11 = 'Épson n°2 été'
@@ -1043,6 +1046,16 @@ $stG = Get-LnState; $nbG = (Get-LnBaks).Count
 $c3g = Add-NamedDrive 'Sony MPF920' 'A' 'A'
 $dG = Get-DriveDataText (Get-DriveData 'Sony MPF920')
 Chk 'C3g' (-not $c3g.Ok -and $c3g.Why -ceq ((Fr 'T27') -f 'Sony MPF920', 'A') -and $c3g.Why -like '*lecteur cible*' -and $c3g.Why -notlike '*calibrations*' -and $dG -ceq 'aucune' -and (Get-LnState) -ceq $stG -and (Get-LnBaks).Count -eq $nbG) "fiche relue sans courbe, avec son lecteur cible (calibrations : « $dG ») : refus sans effet ni copie, texte qui nomme le lecteur cible (« $($c3g.Why) »)"
+# C3h (12.11 rc2.2) : la meme copie datee remise en place, copie de secours sans dernier lecteur : le premier lecteur
+# enregistre sur A n est pas retenu, il n a aucune courbe et A en a (meme condition que pour un dernier lecteur relu)
+Start-LnCase 'c3h'
+[void](Add-NamedDrive 'Sony MPF920' 'A' 'A'); $script:DriveLast = @{}
+[void](Save-Config)
+$c3hLast = @(Get-LnProp (Get-LnProp (Read-LnJson (Get-LnRescue)) 'drives') 'last' | ForEach-Object { $_.PSObject.Properties } | ForEach-Object { $_.Name }).Count
+[System.IO.File]::WriteAllText($script:ConfigFile, $startJson, $utf8)
+Clear-LnMemory
+$l3h = [bool](Load-Config); Sync-PrecompCurves
+Chk 'C3h' ($l3h -and $c3hLast -eq 0 -and ((Get-LnRegNames) -join ',') -ceq 'Sony MPF920' -and $script:DriveLast.Count -eq 0 -and (Get-DriveForConn 'A') -ceq 'A' -and [string]$cmbDrive.Text -ceq 'A' -and $script:PrecompCurves['std']) "copie de secours sans dernier lecteur (entrees : $c3hLast) : registre relu, bandeau sur A, qui porte les courbes (vue std $(if ($script:PrecompCurves['std']) { 'chargee' } else { 'vide' }))"
 
 # C4 : ni bloc ni copie, noms dans les donnees
 Reset-LnWorld 'c4'
