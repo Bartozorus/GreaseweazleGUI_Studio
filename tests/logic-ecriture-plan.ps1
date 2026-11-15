@@ -331,11 +331,16 @@ $scP2 = @(
 # (T), journal (J), par scenario. Lot L12a (adapte a dessein) : S20 et W06, J seul (journal et texte des fenetres :
 # 4fa18cb20cadbb58 devient 50ce4950292349fc, puis 42f903eeeb3050be a la relecture de L12a, emplacement en tete de la
 # consigne) : le refus des tetes d une ecriture lente dit ou trouver le champ Pistes et la case « Effacer les pistes
-# vides » (options avancees) ; T (commandes, demandes, titres et boutons des fenetres) inchangee
+# vides » (options avancees) ; T (commandes, demandes, titres et boutons des fenetres) inchangee.
+# 12.11 rc2 (adapte a dessein, facteur par cylindre de la calibration croisee) : S09 (lecteur cible, courbes propres du
+# lecteur A, mesure demandee) : la disquette est mesuree par A comme pour le meme lecteur, T et J ceux de S02
+# (3523ef1a80f11555/cd2ca75f20137ace devient f40a6d209d3a2a39/e3b0c44298fc1c14) ; W18 (lecteur cible sans courbe propre de
+# A), J seul : la ligne de la courbe croisee telle quelle en donne la raison (003107d7bbcb5f61 devient f35c14eaaf49f024),
+# T (commandes) inchangee. Avec -Before <export de 62b8ce2>, P1b releve ces deux ecarts voulus, et eux seuls
 $plRef = @{
     S01 = 'e624a56728551b44/f6f818805418477f'; S02 = 'f40a6d209d3a2a39/e3b0c44298fc1c14'; S03 = '968e88fda3a51d8b/e3b0c44298fc1c14'; S04 = '23c1adced9b9ae13/e3b0c44298fc1c14'
     S05 = '2cd3a03cd88b533c/5b814566e5ebaa3e'; S06 = 'f7728a08a4f467ef/bafd5731497abed4'; S07 = '582191f22046c9b1/e3c8c2f2a41f0391'; S08 = '968e88fda3a51d8b/84382efb09734831'
-    S09 = '3523ef1a80f11555/cd2ca75f20137ace'; S10 = '92a3341d42f81092/1634b78d65c527f7'; S11 = 'b7bf5f6845004cfa/f42f0a5eafa1c47a'; S12 = '7b68ef52a893307b/e086a6737fbfc731'
+    S09 = 'f40a6d209d3a2a39/e3b0c44298fc1c14'; S10 = '92a3341d42f81092/1634b78d65c527f7'; S11 = 'b7bf5f6845004cfa/f42f0a5eafa1c47a'; S12 = '7b68ef52a893307b/e086a6737fbfc731'
     S13 = '0ff1729b6eb66c48/a7bb4bdeb3cdc1cb'; S14 = 'f1ce6b44d56f0d8b/6ff328e433b75cae'; S15 = '582191f22046c9b1/8f61a5a7ddbe748b'; S16 = '3523cf60b9ba0ae6/19da9c3fc1b061df'
     S17 = '8a880c566d208a41/389d2fa657c4b469'; S18 = 'feaff7b1bfe8cd05/01c2e762a616aa39'; S19 = '4512b35f0a0fe8ea/85f77b15dba62aee'; S20 = '6d55d92b00395b21/42f903eeeb3050be'
     S21 = '23c1adced9b9ae13/e3b0c44298fc1c14'; S22 = '2cd3a03cd88b533c/1a467b75756caa51'; S23 = '968e88fda3a51d8b/5b814566e5ebaa3e'; S24 = '4e59ff6e2740cda2/9878de4f89dfd731'
@@ -344,7 +349,7 @@ $plRef = @{
     W05 = '6a04d07d425ab285/8580e0c719eed7d4'; W06 = '6d55d92b00395b21/42f903eeeb3050be'; W07 = '6d55d92b00395b21/54ccdbaeb3d51156'; W08 = 'a44563feaafaef93/75c5cb21d5795c23'
     W09 = '987bf20fc91b5ea8/72a8a435aff7675d'; W10 = '2fa1cb915576554b/4cac8bbd5a99794b'; W11 = 'f0cb9b7c4d43e004/ab11bfe34801aca8'; W12 = 'c3f776a698bd39b8/45acba1492f3302e'
     W13 = 'a4536535963d9f2e/c6892cfe17a87002'; W14 = '05dbbd27c6d38abe/90659da571963047'; W15 = '9650771b5d762b87/441ec90c93b63b50'; W16 = 'e624a56728551b44/d91545fc0d919c4c'
-    W17 = '631ffd0518b95c25/e3b0c44298fc1c14'; W18 = '16775819cacfcd08/003107d7bbcb5f61'; W19 = '00c2c1d301a051bd/14c560e888fadc45'; W20 = '2c592b23d3f7552e/b1fcd512270daf7a'
+    W17 = '631ffd0518b95c25/e3b0c44298fc1c14'; W18 = '16775819cacfcd08/f35c14eaaf49f024'; W19 = '00c2c1d301a051bd/14c560e888fadc45'; W20 = '2c592b23d3f7552e/b1fcd512270daf7a'
     W21 = '6540067d6f40bfc7/3ced2d52945403b0'
     S29 = 'f7728a08a4f467ef/1668d9ade2f6b50f'; S30 = '6d55d92b00395b21/1f4b7b28e2112e12'; S31 = 'e165044055d3712d/49d2313f53684812'; S32 = '968e88fda3a51d8b/5b814566e5ebaa3e'
     W22 = 'f4bee6cfa440639f/75c5cb21d5795c23'; W23 = '9650771b5d762b87/d91545fc0d919c4c'; W24 = 'e6be3a723ef94bfe/e3b0c44298fc1c14'

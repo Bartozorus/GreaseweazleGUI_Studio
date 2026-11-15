@@ -1355,7 +1355,9 @@ $cmN = $script:CmN; $wf11 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true $
 Chk 'F6' ((Get-Hint $wf10).Count -eq 0 -and $wf10.Src[0] -eq 'mesure' -and (Get-Hint $wf11).Count -eq 0 -and $wf11.Apply -and $script:CmN -eq $cmN) "facteur mesure sur cette disquette : aucun conseil ; calcul seul (-Peek, libelle) : aucun conseil, mesure possible non evaluee"
 $script:TargetDrives = @{ A = '0' }; $wf12 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true; $script:TargetDrives = @{}
 Set-Ui 3 $true; $wf13 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true; Set-Ui 0 $true
-Chk 'F7' ((Get-Hint $wf12).Count -eq 0 -and $wf12.Target -eq '0' -and (Get-Hint $wf13).Count -eq 0 -and -not $wf13.Apply) "lecteur cible (facteur 1) et profil Manuel (facteur non applique) : aucun conseil"
+# 12.11 (rc2, adapte a dessein) : lecteur cible avec la courbe propre de A : facteur et conseil de mesure comme pour le meme
+# lecteur (la mesure de la disquette par A entre dans la courbe ecrite pour le lecteur cible)
+Chk 'F7' ((Get-Hint $wf12).Count -eq 1 -and (Get-Hint $wf12)[0] -eq $hA -and $wf12.Target -eq '0' -and $wf12.Apply -and @($wf12.Own).Count -gt 0 -and (Get-Hint $wf13).Count -eq 0 -and -not $wf13.Apply) "lecteur cible avec la courbe propre de A (rc2) : conseil de mesure comme pour le meme lecteur ($((Get-Hint $wf12) -join ' | ')) ; profil Manuel (facteur non applique) : aucun conseil"
 # Long track sans aucune mesure de la marque
 $hB = "Aucun facteur mesuré pour la marque « Sony » sur ce lecteur : en long track, le meilleur facteur s'écarte souvent de 1 ; pour le mesurer, cochez « Mesurer la disquette avant l'écriture lente », avec la mesure « sur l'image à écrire »."
 $script:ContentMeasures = @(New-Km 'Kao' 0 1.2 '01/11/2026 10:00' 'long'; New-Km 'Kao' 1 1.2 '01/11/2026 10:00' 'long')

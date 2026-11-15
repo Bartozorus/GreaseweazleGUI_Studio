@@ -148,6 +148,9 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next, [sw
 }
 $cx = @{ Spec = '0=90:40=130'; Date = '20/10/2026 09:00'; Test = 'std' }
 $cx1 = @{ Spec = '0=95:40=135'; Date = '20/10/2026 09:00'; Test = 'std' }
+# 12.11 (rc2) : courbes propres du lecteur qui ecrit (Get-TargetWriteInfo, Own et Xfer) : aucune ici, les cas de ce test
+# portent sur les gestionnaires du format et de la case --precomp, pas sur le facteur par cylindre (logic-cible-facteur)
+function Get-DriveFamilyCurves($drive, $family, $preferHeads) { return ,@() }
 function Get-TargetCurves($fam, $slow, $src, $tgt) {
     if (-not $S.Tgt) { return }
     $k = if ($S.CrossFam -and $S.CrossFam.ContainsKey($fam)) { $S.CrossFam[$fam] } elseif ($S.CrossFam) { 'none' } else { [string]$S.Cross }

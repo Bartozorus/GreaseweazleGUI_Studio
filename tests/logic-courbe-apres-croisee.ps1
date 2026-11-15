@@ -230,7 +230,9 @@ function Cut([string]$t, [int]$n) { return $t.Substring(0, [math]::Min($n, $t.Le
 "--- P : bouton « Courbe », case de la mesure et cadre de la restauration a la fin d une calibration croisee (Invoke-CalEndRefresh : instruction reelle de Complete-PrecompCalib)"
 # P1 : lecteur cible 0 choisi, courbes propres du lecteur A, aucune courbe croisee : etat de l onglet (Update-CurveButton,
 # Update-WLevelUi, comme en sortie d Update-PrecompForImage) ; puis courbe croisee A>0 enregistree (Set-DriveCurve, comme
-# Complete-PrecompCalib) et instruction reelle de rafraichissement de la fin de calibration, calibration croisee A -> 0
+# Complete-PrecompCalib) et instruction reelle de rafraichissement de la fin de calibration, calibration croisee A -> 0.
+# 12.11 (rc2, adapte a dessein) : courbes propres de A presentes : infobulle de la mesure par A puis du facteur par cylindre
+# (avant : « ecrite avec la courbe croisee telle quelle »)
 Set-Scn $adf 'amiga.amigados' 0 $true $true 0 $true $false '0'; $script:Settings.restoreFormat = 'auto'
 Update-CurveButton $adf; Update-WLevelUi
 $enB = [bool]$btnWCurve.Enabled; $ttB = Get-TipW; $rsB = [string]$lblRsCal.Text
@@ -242,7 +244,7 @@ $enA = [bool]$btnWCurve.Enabled; $ttA = Get-TipW; $rsA = [string]$lblRsCal.Text;
 "  P1 avant : bouton actif $enB ; infobulle de la case « $(Cut $ttB 160)… » ; cadre « $(Cut $rsB 100)… »"
 "     apres : bouton actif $enA, courbes du clic $(Get-Spec $wcA) ; infobulle « $(Cut $ttA 160)… » ; cadre « $(Cut $rsA 100)… »"
 "     libelle « $($lblWProfileInfo.Text) », champ « $($txtWPrecomp.Text) » ; appels : $(@($script:Calls) -join ', ')"
-Chk 'P1' (-not $enB -and $ttB.Contains('Écriture refusée') -and $enA -and (Get-Spec $wcA) -eq 'A>0[0=90:40=120:79=170]' -and -not $ttA.Contains('Écriture refusée') -and $ttA.Contains("L'image est écrite avec la courbe croisée telle quelle") -and $rsB.StartsWith('Lecteur cible 0 : aucune courbe croisée', [System.StringComparison]::Ordinal) -and $rsA.StartsWith('Lecteur cible 0 : courbe croisée A → 0 (commune', [System.StringComparison]::Ordinal)) "fin de la calibration croisee A -> 0 (lecteur cible 0 deja choisi) : bouton « Courbe » de l onglet inactif avant (refus), actif apres avec la courbe croisee que l ecriture applique ; infobulle de la case de la mesure qui ne dit plus « Ecriture refusee » ; cadre de la restauration qui nomme la courbe croisee"
+Chk 'P1' (-not $enB -and $ttB.Contains('Écriture refusée') -and $enA -and (Get-Spec $wcA) -eq 'A>0[0=90:40=120:79=170]' -and -not $ttA.Contains('Écriture refusée') -and $ttA.Contains('le facteur de la calibration croisée A → 0 est ensuite appliqué à la courbe de cette disquette, cylindre par cylindre') -and $rsB.StartsWith('Lecteur cible 0 : aucune courbe croisée', [System.StringComparison]::Ordinal) -and $rsA.StartsWith('Lecteur cible 0 : courbe croisée A → 0 (commune', [System.StringComparison]::Ordinal)) "fin de la calibration croisee A -> 0 (lecteur cible 0 deja choisi) : bouton « Courbe » de l onglet inactif avant (refus), actif apres avec la courbe croisee que l ecriture applique ; infobulle de la case de la mesure qui ne dit plus « Ecriture refusee » ; cadre de la restauration qui nomme la courbe croisee"
 Chk 'P2' ($lblWProfileInfo.Text -eq 'BILAN DE LA CALIBRATION CROISEE' -and $txtWPrecomp.Text -eq '0=60:40=90:79=130' -and @(Get-CallsPre 'Update-PrecompForImage').Count -eq 0) "temoin : calibration croisee : libelle du profil (bilan de la calibration) et champ --precomp inchanges, Update-PrecompForImage non appele"
 # P3 : temoin, calibration ordinaire : Update-PrecompForImage (profil et champs refaits), comme avant
 $script:Calls.Clear(); Invoke-CalEndRefresh @{ Cross = $null; Home = $false; Family = 'std'; Slow = $true; Drive = 'A' }

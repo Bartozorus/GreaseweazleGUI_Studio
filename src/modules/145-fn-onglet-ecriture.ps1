@@ -179,19 +179,27 @@ function Get-WritePlan {
     # Controle : profils transmis par Start-ImageWrite (avant le facteur), pour la courbe adaptee qui l impose ; drapeau
     # de la calibration rapide qui precede (LevelPostForce), lu comme Start-ImageWrite le lit
     $sp = Get-WriteSpecPlan $img $fmt $slow (Get-ImageEncoding $img $fmt)
-    $hr = if ($slow) { Get-WriteHeadSpecs $userTs $sp.P0 $sp.P1 } else { $null }
+    # 12.11 (rc2) : lecteur cible avec la courbe propre du lecteur qui ecrit (Xfer) : profils de cette disquette avant le
+    # facteur (Get-TargetDFields), ceux que Start-ImageWrite donne au controle
+    $p0 = $sp.P0; $p1 = $sp.P1
+    if ($tw.Xfer) { $td = Get-TargetDFields $tw $slow; $p0 = $td.P0; $p1 = $td.P1 }
+    $hr = if ($slow) { Get-WriteHeadSpecs $userTs $p0 $p1 } else { $null }
     # 12.11 (L10, revue J) : calibration rapide ou mesure complete avant l ecriture (Kind 'quick' ou 'complete') : elle
     # remplace les champs --precomp (Set-LevelFields) et remet le drapeau LevelPostForce (Start-LevelCalib) ; le controle
     # impose se decide apres elle (Complete-LevelCalib, Complete-DiskMeasure), pas d apres les champs actuels
     $fresh = ($lp -and @('quick', 'complete') -contains [string]$lp.Kind)
-    $cp = if ($fresh) { Get-WriteCheckPlan $img $fmt $slow $wh.Heads @{ 0 = $null; 1 = $null } $null $false } else { Get-WriteCheckPlan $img $fmt $slow $wh.Heads $hr $sp.P0 ([bool]$script:LevelPostForce) }
+    $cp = if ($fresh) { Get-WriteCheckPlan $img $fmt $slow $wh.Heads @{ 0 = $null; 1 = $null } $null $false } else { Get-WriteCheckPlan $img $fmt $slow $wh.Heads $hr $p0 ([bool]$script:LevelPostForce) }
     $rep = [int]$numWRepair.Value
     if ($cp.Blocker) { [void]$sg.Add(@{ T = ((T 'contrôle de toutes les pistes non applicable ({0})') -f "$($cp.Blocker)"); Crit = $true; S = (T 'contrôle de toutes les pistes non applicable') }) }
     elseif ($cp.Forced -and -not $chkWPostCheck.Checked) { [void]$sg.Add(@{ T = $(if ($rep -gt 0) { (T 'contrôle de toutes les pistes imposé par la courbe adaptée à cette disquette, {0} passe(s) de réécriture au plus') -f "$rep" } else { (T 'contrôle de toutes les pistes imposé par la courbe adaptée à cette disquette, sans réécriture') }); Crit = $true; S = (T 'contrôle de toutes les pistes imposé') }) }
     elseif ($cp.Post) { [void]$sg.Add(@{ T = $(if ($rep -gt 0) { (T 'contrôle de toutes les pistes, {0} passe(s) de réécriture au plus') -f "$rep" } else { (T 'contrôle de toutes les pistes, sans réécriture') }); Crit = $false }) }
     else { [void]$sg.Add(@{ T = (T 'contrôle complet non demandé'); Crit = $false }) }
-    # Lecteur cible : courbes croisees ecrites (texte du journal de Start-ImageWrite), ou sans effet (meme texte)
-    if ($tw.Applies) { [void]$sg.Add(@{ T = ((T 'pour le lecteur cible {0} : {1}') -f "$($tw.Tgt)", (Get-TargetCurvesText ([string]$tw.Src) ([string]$tw.Tgt) ([string]$tw.Fam) $tw.Curves)); Crit = $false }) }
+    # Lecteur cible : courbes croisees ecrites (texte du journal de Start-ImageWrite), ou sans effet (meme texte). 12.11
+    # (rc2) : avec la courbe propre du lecteur qui ecrit (Xfer, Get-TargetWriteInfo) : courbe de cette disquette x facteur
+    # par cylindre de la calibration croisee (Get-TargetTransferPlan) ; sans elle, texte de la rc1. Segment critique (la
+    # courbe ecrite n est pas celle du lecteur qui ecrit) : jamais retire par la coupe, forme courte sans les lecteurs
+    if ($tw.Xfer) { [void]$sg.Add(@{ T = ((T 'pour le lecteur cible {0} : courbe de cette disquette × facteur par cylindre de la calibration croisée {1} → {0}') -f "$($tw.Tgt)", "$($tw.Src)"); Crit = $true; S = ((T 'pour le lecteur cible {0} : facteur par cylindre de la calibration croisée') -f "$($tw.Tgt)") }) }
+    elseif ($tw.Applies) { [void]$sg.Add(@{ T = ((T 'pour le lecteur cible {0} : {1}') -f "$($tw.Tgt)", (Get-TargetCurvesText ([string]$tw.Src) ([string]$tw.Tgt) ([string]$tw.Fam) $tw.Curves)); Crit = $false }) }
     elseif ($tw.Tgt -and $tw.Why) {
         $x = (T "Lecteur cible {0} sans effet sur cette écriture : {1}.") -f "$($tw.Tgt)", "$($tw.Why)"
         if ($x.EndsWith('.')) { $x = $x.Substring(0, $x.Length - 1) }

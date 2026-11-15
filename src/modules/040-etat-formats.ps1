@@ -262,6 +262,10 @@ $script:ContentKeepMeasures = [int]$script:SettingDefs['contentKeepMeasures'].De
 # Sony -> TEAC, facteur total d environ 2,6 ; marge au-dessus). 12.10 : la correction « lecteur cible » Dk de la 12.8.1
 # (champs par tete et sa borne) est retiree, remplacee par la liste « Lecteur cible » et les courbes croisees (140, 220)
 $script:ContentFMax = 4.0
+# 12.11 (rc2) : ecriture pour un lecteur cible (Get-TargetTransferSpec, 140) : besoin propre du lecteur qui ecrit (Sp) a
+# partir duquel le facteur par cylindre de la calibration croisee (X/Sp) s applique a la courbe de cette disquette ; en
+# dessous, l ecart de la disquette (D - Sp) est reporte en ns (un rapport y multiplierait le bruit de mesure)
+$script:XferMinNs = 10
 $script:WFactorNote = $null                                                 # 12.8.1 : complement « facteur » du libelle du profil (Update-WriteFactorNote)
 $script:WTargetHead = ''                                                    # 12.10 (relecture de la RC) : refus du lecteur cible en tete du libelle du profil (Sync-WTargetHead)
 $script:WProfilePath = ''                                                   # 12.10 (relecture de la RC) : image du libelle du profil (Update-PrecompForImage, Sync-WTargetHead)

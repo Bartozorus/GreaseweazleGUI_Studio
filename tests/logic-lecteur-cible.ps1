@@ -421,15 +421,24 @@ Chk 'F1' ($wf0.Apply -and [math]::Abs($wf0.F0 - 1.2) -lt 1e-9 -and [math]::Abs($
 $script:TargetDrives = @{ A = '0' }
 $wf1 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true
 $l1 = @($wf1.Lines)
-Chk 'F2' (-not $wf1.Apply -and $wf1.F0 -eq 1.0 -and $wf1.F1 -eq 1.0 -and $wf1.FMean -eq 1.0 -and $wf1.Target -eq '0' -and $wf1.Fam -eq 'std' -and @($wf1.Curves).Count -eq 2) "lecteur cible : facteur 1 (Apply faux, F0 = F1 = 1), Target 0, 2 courbes croisees"
-Chk 'F3' ($l1.Count -eq 2 -and $l1[0] -eq 'Écriture pour le lecteur cible 0 : courbes croisées A → 0 par tête (Standard 2 us, test fin, tête 0 du 02/11/2026 09:00, tête 1 du 02/11/2026 09:05, calcul v12.10), facteur 1,00.' -and $l1[1] -eq 'Facteur de marque non appliqué : écriture pour le lecteur cible 0 (le facteur est mesuré par la relecture du lecteur A, il ne vaut pas pour le lecteur cible).') "journal : « $($l1[0]) » puis « Facteur de marque non applique »"
+# 12.11 (rc2, adaptes a dessein) : F2 a F6, lecteur cible avec les courbes propres de A (Xfer) : facteur de marque de A
+# calcule comme pour le meme lecteur (il entre dans la courbe de cette disquette), aucune ligne « facteur 1,00 » ni
+# « Facteur de marque non applique » (la ligne de l ecriture vient de Get-TargetTransferPlan, test logic-cible-facteur)
+Chk 'F2' ($wf1.Apply -and [math]::Abs($wf1.F0 - 1.2) -lt 1e-9 -and [math]::Abs($wf1.F1 - 1.2) -lt 1e-9 -and $wf1.Target -eq '0' -and $wf1.Fam -eq 'std' -and @($wf1.Curves).Count -eq 2 -and @($wf1.Own).Count -eq 2) "lecteur cible, courbes propres de A (rc2) : facteur de marque de A (1,20) calcule comme pour le meme lecteur, Target 0, 2 courbes croisees, 2 courbes propres"
+Chk 'F3' ($l1.Count -eq 0 -and [string]$wf1.SrcText[0] -like 'k 1,20*' -and -not $wf1.Line) "journal : aucune ligne du facteur (« $($l1 -join ' | ') ») ; origine du facteur gardee pour la ligne de l ecriture (« $($wf1.SrcText[0]) »)"
 $wf2 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $false
-Chk 'F4' (@($wf2.Lines)[0] -eq 'Écriture pour le lecteur cible 0 : courbe croisée A → 0 (Standard 2 us, test standard, 01/11/2026 17:49, calcul v12.10), facteur 1,00.' -and $wf2.FMean -eq 1.0) "ecriture rapide : courbe croisee commune nommee (test standard, date, calcul), facteur 1,00"
+Chk 'F4' ($wf2.Apply -and @($wf2.Lines).Count -eq 0 -and [math]::Abs($wf2.FMean - 1.2) -lt 1e-9 -and @($wf2.Own).Count -eq 1 -and $wf2.Target -eq '0') "ecriture rapide : facteur moyen des deux tetes de A (1,20), courbe propre commune, aucune ligne"
 $script:ContentMeasures = @()
 $wf3 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true
-Chk 'F5' (@($wf3.Lines).Count -eq 2 -and @($wf3.Lines)[1] -like 'Facteur de marque non appliqué*') "sans facteur de marque mesure : la ligne « Facteur de marque non applique » est ecrite aussi"
+Chk 'F5' (@($wf3.Lines).Count -eq 0 -and $wf3.F0 -eq 1.0 -and $wf3.Src[0] -eq 'defaut') "sans facteur de marque mesure : facteur 1 (aucune mesure), aucune ligne « Facteur de marque non applique »"
 $wfP = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true $null -Peek
-Chk 'F6' (-not $wfP.Apply -and $wfP.Target -eq '0' -and @($wfP.Lines).Count -eq 0 -and (Get-WriteFactorNote $img['jeu.adf']) -eq '') "Peek (libelle du profil) : aucune ligne, complement « facteur » vide"
+Chk 'F6' ($wfP.Target -eq '0' -and @($wfP.Lines).Count -eq 0 -and (Get-WriteFactorNote $img['jeu.adf']) -eq '') "Peek (libelle du profil) : aucune ligne, complement « facteur » vide"
+# 12.11 (rc2) : sans courbe propre de A pour la famille : courbe croisee telle quelle, facteur 1, une ligne qui le dit
+$script:DriveCurves = @{}; Set-DriveCurve 'A>0' 'std' $xS; Set-DriveCurve 'A>0' 'std_h0' $xH0; Set-DriveCurve 'A>0' 'std_h1' $xH1; Sync-PrecompCurves 'A'
+$script:ContentMeasures = @(foreach ($h in 0, 1) { @{ Drive = 'A'; Family = 'std'; Head = $h; K = 1.2; Etat = 'mesure'; Brand = ''; Date = '01/11/2026 10:00'; ContentCalc = $script:ContentCalc; Calc = $script:CalibCalc } })
+$wfN = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true
+Chk 'F10' (-not $wfN.Apply -and $wfN.F0 -eq 1.0 -and $wfN.F1 -eq 1.0 -and $wfN.Target -eq '0' -and @($wfN.Own).Count -eq 0 -and @($wfN.Lines).Count -eq 1 -and @($wfN.Lines)[0] -eq 'Écriture pour le lecteur cible 0 : courbes croisées A → 0 par tête (Standard 2 us, test fin, tête 0 du 02/11/2026 09:00, tête 1 du 02/11/2026 09:05, calcul v12.10), facteur 1,00 ; pas de courbe propre du lecteur A pour cette famille : courbe croisée telle quelle.') "sans courbe propre de A (rc2) : facteur 1 (Apply faux), une seule ligne : « $(@($wfN.Lines)[0]) »"
+$script:ContentMeasures = @(); Reset-Store
 $script:TargetDrives = @{ A = '1' }
 $wf4 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true
 Chk 'F7' (-not $wf4.Apply -and -not $wf4.Target -and $wf4.Why -eq 'aucune courbe croisée A → 1' -and @($wf4.Lines).Count -eq 0) "cible sans courbe croisee : Why « aucune courbe croisee A → 1 » (l ecriture est refusee avant)"
@@ -439,10 +448,11 @@ $wf5 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true
 Chk 'F8' (-not $wf5.Apply -and -not $wf5.Target -and $wf5.Why -eq 'profil précomp. « Manuel »' -and @($wf5.Lines)[0] -like 'Facteur mesuré du lecteur A (tête 0 × 1,20, tête 1 × 1,20) non appliqué à cette écriture : profil précomp. « Manuel »*') "lecteur cible sans effet (Manuel) : regle ordinaire du facteur (non applique, ligne du profil)"
 $script:ContentMeasures = @(); Set-Ui 0 $true
 $xOld = New-Cv 'A' '0' 'std' $null '20/09/2026 08:00' '0=33:40=66' 'standard'; $xOld.Calc = '12.9'; $xOld.KeptFor = $script:CalibCalc
-$script:DriveCurves = @{}; Set-DriveCurve 'A' 'std' $cvA; Set-DriveCurve 'A>0' 'std' $xOld; Sync-PrecompCurves 'A'
+# 12.11 (rc2) : sans courbe propre de A (ligne de la courbe croisee telle quelle, qui nomme son calcul)
+$script:DriveCurves = @{}; Set-DriveCurve 'A>0' 'std' $xOld; Sync-PrecompCurves 'A'
 $script:TargetDrives = @{ A = '0' }; Set-Ui 0 $true
 $wf9 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true; $x9 = Set-PrecompFields $script:PrecompStd 'std'
-Chk 'F9' ($wf9.Target -eq '0' -and @($wf9.Curves).Count -eq 1 -and @($wf9.Lines)[0] -eq 'Écriture pour le lecteur cible 0 : courbe croisée A → 0 (Standard 2 us, test standard, 20/09/2026 08:00, calcul v12.9), facteur 1,00.' -and $txtWPrecomp.Text -eq '0=33:40=66' -and $txtWPrecomp1.Text -eq '0=33:40=66') "courbe croisee d un autre calcul gardee au demarrage : appliquee aux deux tetes, calcul v12.9 nomme au journal"
+Chk 'F9' ($wf9.Target -eq '0' -and @($wf9.Curves).Count -eq 1 -and @($wf9.Lines)[0] -eq 'Écriture pour le lecteur cible 0 : courbe croisée A → 0 (Standard 2 us, test standard, 20/09/2026 08:00, calcul v12.9), facteur 1,00 ; pas de courbe propre du lecteur A pour cette famille : courbe croisée telle quelle.' -and $txtWPrecomp.Text -eq '0=33:40=66' -and $txtWPrecomp1.Text -eq '0=33:40=66') "courbe croisee d un autre calcul gardee au demarrage : appliquee aux deux tetes, calcul v12.9 nomme au journal"
 Reset-Store
 
 "--- W : Start-ImageWrite (instructions reelles), Start-WriteTabWrite, Complete-WriteCheck"
@@ -473,10 +483,18 @@ Reset-Run; Start-WriteTabWrite
 Chk 'W7' ((Get-N 'Partial') -eq 0 -and (Get-N 'ImageWrite') -eq 0 -and (Get-N 'LevelBefore') -eq 0 -and $script:Msgs.Count -eq 1 -and $script:Msgs[0] -like 'Écriture refusée|Écriture refusée : Aucune courbe croisée A → 1 pour la famille Standard 2 us*') "bouton ECRIRE, cible 1 sans courbe croisee : refus avant la confirmation d une ecriture partielle, rien d ecrit ni de mesure"
 $script:TargetDrives = @{ A = '0' }
 Reset-Run; Start-WriteTabWrite
-Chk 'W8' ((Get-N 'Partial') -eq 1 -and (Get-N 'ImageWrite') -eq 1 -and (Get-N 'LevelBefore') -eq 0 -and (Get-LogN "Mesure de la disquette avant l'écriture non faite : écriture pour le lecteur cible 0 (la mesure relirait avec le lecteur A)*") -eq 1) "bouton ECRIRE, cible 0 : mesure non faite (journal), ecriture directe"
+# 12.11 (rc2, adaptes a dessein) : W8 et W9, courbes propres de A : mesure de la disquette par A comme pour le meme lecteur ;
+# W8b et W9b, sans courbe propre de A : comportement de la rc1 (ligne qui en donne la raison)
+Chk 'W8' ((Get-N 'Partial') -eq 1 -and (Get-N 'ImageWrite') -eq 0 -and (Get-N 'LevelBefore') -eq 1 -and (Get-LogN "Mesure de la disquette avant l'écriture non faite*") -eq 0) "bouton ECRIRE, cible 0, courbes propres de A (rc2) : mesure de la disquette lancee (lecteur A), comme pour le meme lecteur"
+$script:DriveCurves = @{}; Set-DriveCurve 'A>0' 'std' $xS; Set-DriveCurve 'A>0' 'std_h0' $xH0; Set-DriveCurve 'A>0' 'std_h1' $xH1; Sync-PrecompCurves 'A'
+Reset-Run; Start-WriteTabWrite
+Chk 'W8b' ((Get-N 'ImageWrite') -eq 1 -and (Get-N 'LevelBefore') -eq 0 -and (Get-LogN "Mesure de la disquette avant l'écriture non faite : écriture pour le lecteur cible 0, sans courbe propre du lecteur A pour cette famille. Écriture avec la courbe croisée telle quelle.") -eq 1) "bouton ECRIRE, cible 0, sans courbe propre de A : mesure non faite (journal qui en donne la raison), ecriture directe"
 $script:Settings.calMode = 'level'; $script:WantLevel = $false
 Reset-Run; Start-WriteTabWrite
-Chk 'W9' ((Get-N 'ImageWrite') -eq 1 -and (Get-N 'LevelBefore') -eq 0) "« Test rapide » : pas de calibration rapide pour un lecteur cible, ecriture directe"
+Chk 'W9b' ((Get-N 'ImageWrite') -eq 1 -and (Get-N 'LevelBefore') -eq 0) "« Test rapide », sans courbe propre de A : pas de calibration rapide, ecriture directe"
+Reset-Store
+Reset-Run; Start-WriteTabWrite
+Chk 'W9' ((Get-N 'ImageWrite') -eq 0 -and (Get-N 'LevelBefore') -eq 1) "« Test rapide », courbes propres de A (rc2) : calibration rapide de la disquette par A, comme pour le meme lecteur"
 $script:Settings.calMode = 'standard'; $script:WantLevel = $true; Set-Ui 3 $true
 Reset-Run; Start-WriteTabWrite
 Chk 'W10' ((Get-N 'ImageWrite') -eq 1 -and (Get-N 'LevelBefore') -eq 0 -and (Get-LogN "Mesure de la disquette avant l'écriture non faite : profil précomp. « Manuel » choisi*") -eq 1) "profil Manuel (lecteur cible sans effet) : deroule ordinaire (raison du profil au journal)"
@@ -488,10 +506,29 @@ $script:WantLevel = $false
 "--- B : Bibliotheque (Start-PresetWrite reel)"
 $script:TargetDrives = @{ A = '0' }; Set-Ui 0 $true; $txtWFile.Text = $img['jeu.adf']; $cmbWCalMode.SelectedIndex = 1
 Reset-Run; Start-PresetWrite 'slow'
-Chk 'B1' ((Get-N 'ImageWrite') -eq 1 -and (Get-N 'CalibState') -eq 0 -and (Get-N 'LevelBefore') -eq 0 -and (Get-LogN 'Écriture pour le lecteur cible 0 : ni calibration automatique ni mesure de la disquette (elles reliraient avec le lecteur A)*') -eq 1) "ecriture lente de la Bibliotheque pour la cible 0 : ni calibration automatique ni mesure, ecriture (refus eventuel dans Start-ImageWrite)"
+# 12.11 (rc2, adaptes a dessein) : B1 et B2, courbes propres de A : deroule du meme lecteur (etat de la calibration de A,
+# mesure demandee, test rapide) ; B1b, mesure demandee ; B1c et B2b, sans courbe propre de A : comportement de la rc1
+Chk 'B1' ((Get-N 'ImageWrite') -eq 1 -and (Get-N 'CalibState') -eq 1 -and (Get-N 'LevelBefore') -eq 0 -and (Get-LogN 'Écriture pour le lecteur cible*') -eq 0) "ecriture lente de la Bibliotheque pour la cible 0, courbes propres de A (rc2) : etat de la calibration de A lu, mesure non demandee, ecriture"
+$script:WantLevel = $true
+Reset-Run; Start-PresetWrite 'slow'
+Chk 'B1b' ((Get-N 'ImageWrite') -eq 0 -and (Get-N 'LevelBefore') -eq 1) "mesure de la disquette demandee : lancee par A, comme pour le meme lecteur"
+$script:WantLevel = $false
+$script:DriveCurves = @{}; Set-DriveCurve 'A>0' 'std' $xS; Set-DriveCurve 'A>0' 'std_h0' $xH0; Set-DriveCurve 'A>0' 'std_h1' $xH1; Sync-PrecompCurves 'A'
+Reset-Run; Start-PresetWrite 'slow'
+Chk 'B1c' ((Get-N 'ImageWrite') -eq 1 -and (Get-N 'CalibState') -eq 0 -and (Get-N 'LevelBefore') -eq 0 -and (Get-LogN 'Écriture pour le lecteur cible 0 : ni calibration automatique ni mesure de la disquette (pas de courbe propre du lecteur A pour cette famille) ; écriture avec la courbe croisée telle quelle.') -eq 1) "sans courbe propre de A : ni calibration automatique ni mesure, ligne qui en donne la raison, ecriture"
 $cmbWCalMode.SelectedIndex = 2
 Reset-Run; Start-PresetWrite 'fast'
-Chk 'B2' ((Get-N 'ImageWrite') -eq 1 -and (Get-N 'LevelBefore') -eq 0) "« Test rapide » : pas de calibration rapide pour un lecteur cible"
+Chk 'B2b' ((Get-N 'ImageWrite') -eq 1 -and (Get-N 'LevelBefore') -eq 0) "« Test rapide », sans courbe propre de A : pas de calibration rapide"
+Reset-Store
+Reset-Run; Start-PresetWrite 'fast'
+Chk 'B2' ((Get-N 'ImageWrite') -eq 0 -and (Get-N 'LevelBefore') -eq 1) "« Test rapide », courbes propres de A (rc2) : calibration rapide de la disquette par A"
+# 12.11 (rc2) : calibration de A a refaire (etat 'none') : jamais de calibration automatique pour un lecteur cible
+$cmbWCalMode.SelectedIndex = 1; $script:Cal = $null; $script:AfterCalib = ''
+function Get-CalibState([string]$fam, [bool]$heads, [int]$nCyl = 0) { Add-N 'CalibState'; return 'none' }
+function Start-PrecompCalib { Add-N 'PrecompCalib' }
+Reset-Run; Start-PresetWrite 'slow'
+Chk 'B1d' ((Get-N 'ImageWrite') -eq 1 -and (Get-N 'PrecompCalib') -eq 0 -and $script:AfterCalib -eq '' -and (Get-LogN 'Écriture pour le lecteur cible 0 : pas de calibration automatique du lecteur A (calibration par tête de la famille Standard 2 us absente ou à refaire)*') -eq 1) "calibration de A absente ou a refaire : pas de calibration automatique (elle changerait la courbe propre de A), ligne de journal, ecriture"
+function Get-CalibState([string]$fam, [bool]$heads, [int]$nCyl = 0) { Add-N 'CalibState'; return 'ok' }
 $cmbWCalMode.SelectedIndex = 1; Set-Ui 3 $true
 Reset-Run; Start-PresetWrite 'slow'
 Chk 'B3' ((Get-N 'CalibState') -eq 1 -and (Get-N 'ImageWrite') -eq 1 -and (Get-LogN 'Écriture pour le lecteur cible*') -eq 0) "profil Manuel (sans effet) : deroule ordinaire (etat de la calibration du lecteur)"
@@ -575,7 +612,13 @@ if ($wfOk) {
     $cmbWTarget.SelectedIndex = 0; Set-TargetDriveFromUi
     Chk 'U3' ((Get-TargetDrive 'A') -eq '' -and (Get-TargetDrive 'B') -eq '1' -and (Get-LogN 'Lecteur cible des écritures du lecteur A : (même lecteur) (avant : 0).') -eq 1 -and (Get-N 'Upd') -eq 1 -and $chkWLevel.Enabled) "choix « (meme lecteur) » : memorise pour A seulement, journal, profil recalcule, case de la mesure active"
     Reset-Run; $cmbWTarget.SelectedIndex = 2; Set-TargetDriveFromUi
-    Chk 'U4' ((Get-TargetDrive 'A') -eq '0' -and (Get-LogN 'Lecteur cible des écritures du lecteur A : 0 (avant : (même lecteur)).') -eq 1 -and -not $chkWLevel.Enabled -and -not $cmbWLevelMode.Enabled -and $script:Tips['chkWLevel'] -like 'Mesure de la disquette non disponible pour un lecteur cible : elle relirait avec le lecteur A, pas avec le lecteur cible 0.*') "choix 0 : journal, case et liste de la mesure inactives, infobulle de la case remplacee"
+    # 12.11 (rc2, adapte a dessein) : U4, courbes propres de A : case et liste actives, infobulle qui dit la mesure par A puis
+    # le facteur par cylindre ; U4b, sans courbe propre de A : case et liste inactives, infobulle qui en donne la raison
+    Chk 'U4' ((Get-TargetDrive 'A') -eq '0' -and (Get-LogN 'Lecteur cible des écritures du lecteur A : 0 (avant : (même lecteur)).') -eq 1 -and $chkWLevel.Enabled -and $cmbWLevelMode.Enabled -and $script:Tips['chkWLevel'] -eq "Écriture pour le lecteur cible 0 : la disquette est mesurée par le lecteur A, celui qui écrit, comme pour une écriture ordinaire ; le facteur de la calibration croisée A → 0 est ensuite appliqué à la courbe de cette disquette, cylindre par cylindre.`ninfobulle d origine") "choix 0, courbes propres de A (rc2) : journal, case et liste de la mesure actives, infobulle « $($script:Tips['chkWLevel']) »"
+    $script:DriveCurves = @{}; Set-DriveCurve 'A>0' 'std' $xS; Set-DriveCurve 'A>0' 'std_h0' $xH0; Set-DriveCurve 'A>0' 'std_h1' $xH1; Sync-PrecompCurves 'A'
+    Update-SlowUi
+    Chk 'U4b' (-not $chkWLevel.Enabled -and -not $cmbWLevelMode.Enabled -and $script:Tips['chkWLevel'] -eq "Mesure de la disquette non disponible pour le lecteur cible 0 : pas de courbe propre du lecteur A pour cette famille, à laquelle la calibration croisée rapporte son facteur. L'image est écrite avec la courbe croisée telle quelle.") "choix 0, sans courbe propre de A : case et liste inactives, infobulle qui en donne la raison"
+    Reset-Store; Update-SlowUi
     Reset-Run; Set-TargetDriveFromUi
     Chk 'U5' ($script:Log.Count -eq 0 -and (Get-N 'Upd') -eq 1) "meme choix : aucune ligne de journal"
     $script:SettingSync = $true; Reset-Run; $cmbWTarget.SelectedIndex = 0; Set-TargetDriveFromUi; $script:SettingSync = $false
