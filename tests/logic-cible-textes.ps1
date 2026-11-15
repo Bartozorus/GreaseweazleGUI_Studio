@@ -302,7 +302,15 @@ Chk 'M7' ($sd -match "'levelBeforeWriteMode' \{ Update-SlowUi; Update-RsRules \}
 "--- T : calibration rapide (bouton Calibrer), fin de calibration complete, fenetre de decision, carte de l Accueil"
 Set-Scn $adf 'amiga.amigados' 0 $true $true 2 $true $true '0'
 Start-LevelCalibButton
-Chk 'T1' ((Get-Calls 'Start-LevelCalib').Count -eq 0 -and (Get-CallsPre 'Show-AppMessage[Calibration precomp] Calibration rapide non faite pour le lecteur cible 0 : elle relirait avec le lecteur A').Count -eq 1) "« Calibrer » au Test rapide, lecteur cible 0 avec effet : refus qui le dit, rien de lance (avant : calibration rapide faite) : $($script:Calls -join ' | ')"
+# Relecture de la rc2 (B4, adapte a dessein) : avec la courbe propre de A (Xfer), refus maintenu, texte qui dit comment
+# mesurer (« ECRIRE LA DISQUETTE », puis facteur par cylindre) ; sans elle, texte de la rc1
+$c1 = @($script:Calls)
+Set-Scn $adf 'amiga.amigados' 0 $true $true 2 $false $true '0'
+Start-LevelCalibButton
+$c1b = @($script:Calls)
+$t1x = @($c1 | Where-Object { ([string]$_).StartsWith("Show-AppMessage[Calibration precomp] Calibration rapide seule non proposée pour le lecteur cible 0. Pour mesurer cette disquette avec le lecteur A avant de l'écrire pour le lecteur cible", [System.StringComparison]::Ordinal) -and ([string]$_).Contains('calibration croisée A → 0 est appliqué.') })
+$t1o = @($c1b | Where-Object { ([string]$_).StartsWith('Show-AppMessage[Calibration precomp] Calibration rapide non faite pour le lecteur cible 0 : elle relirait avec le lecteur A', [System.StringComparison]::Ordinal) })
+Chk 'T1' (@($c1 + $c1b | Where-Object { $_ -eq 'Start-LevelCalib' }).Count -eq 0 -and $t1x.Count -eq 1 -and $t1o.Count -eq 1) "« Calibrer » au Test rapide, lecteur cible 0 avec effet : refus qui le dit, rien de lance (avant : calibration rapide faite) ; avec la courbe propre de A, texte de la rc2 (mesure par « ECRIRE LA DISQUETTE ») ; sans elle, texte de la rc1 : $(($c1 + $c1b) -join ' | ')"
 $t2 = @()
 foreach ($x in @(@{ N = 'sans lecteur cible'; P = 0; T = '' }, @{ N = 'profil Manuel (lecteur cible sans effet)'; P = 3; T = '0' })) {
     Set-Scn $adf 'amiga.amigados' $x.P $true $true 2 $true $true $x.T
@@ -334,7 +342,10 @@ $f6b = Invoke-LevelFields $calL
 $calN = $calL.Clone(); $calN.Home = $false
 Set-Scn $adf 'amiga.amigados' 0 $true $true 2 $true $true '0'
 $f6c = Invoke-LevelFields $calN
-Chk 'T6' (-not $f6 -and $lg6.Count -eq 1 -and $lg6[0] -like "Calibration rapide depuis l'Accueil : lecteur cible 0 choisi pour le lecteur A, dont l'écriture n'utilise pas cette mesure*" -and $f6b -and $f6c) "calibration rapide de la carte de l Accueil, lecteur cible 0 avec effet : profil non place dans les champs, journal qui le dit ; sans lecteur cible : champs (inchange) ; hors Accueil : champs (Start-LevelCalibButton refuse avant)"
+# Relecture de la rc2 (B4, adapte a dessein) : avec la courbe propre de A (Xfer), journal de la rc2 ; sans elle, de la rc1
+Set-Scn $adf 'amiga.amigados' 0 $true $true 2 $false $true '0'
+$f6d = Invoke-LevelFields $calL; $lg6d = @($script:Log)
+Chk 'T6' (-not $f6 -and $lg6.Count -eq 1 -and $lg6[0] -ceq "Calibration rapide depuis l'Accueil : lecteur cible 0 choisi pour le lecteur A : le profil de cette disquette n'est pas placé dans les champs --precomp ; l'écriture pour le lecteur cible ne reprend que la mesure faite par « ÉCRIRE LA DISQUETTE » juste avant l'écriture. Il reste affiché dans la fenêtre Courbe (dernière calibration rapide)." -and -not $f6d -and $lg6d.Count -eq 1 -and $lg6d[0] -like "Calibration rapide depuis l'Accueil : lecteur cible 0 choisi pour le lecteur A, dont l'écriture n'utilise pas cette mesure*" -and $f6b -and $f6c) "calibration rapide de la carte de l Accueil, lecteur cible 0 avec effet : profil non place dans les champs, journal qui le dit (courbe propre de A : mesure reprise seulement par « ECRIRE LA DISQUETTE » ; sans elle : texte de la rc1) ; sans lecteur cible : champs (inchange) ; hors Accueil : champs (Start-LevelCalibButton refuse avant)"
 
 # ================================================================ K. boutons « Courbe »
 "--- K : boutons « Courbe » (onglet Ecriture, cadre 2 de la restauration) avec un lecteur cible"

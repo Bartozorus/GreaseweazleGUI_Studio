@@ -304,10 +304,12 @@ $eoAdvBox = @($eoAdv + @('txtWPrecomp', 'txtWPrecomp1', 'lblWPrecomp1', 'lblWRep
 # S2, debut du SHA-256 de chaque instruction gardee de 520 ; E2, SHA-256 des commandes de chaque configuration.
 # Lot L12a (adapte a dessein) : deux infobulles changees, qui disent ou trouver la case et la duree du prechauffage (options
 # avancees) : f88ca53b5ebe134a (chkWSlow) devient 18c8dc678d5acd61, 4562540f882c54b6 (chkWCalWarm) devient a624bce57ee74c51
+# Relecture de la rc2 (adapte a dessein, B3) : infobulle ajoutee a cmbWCalMode, lecteur cible avec la courbe propre du
+# lecteur du bandeau (mesure avant l ecriture, puis facteur par cylindre) : 29ce0b66fa3d1cf0 devient 86dbdd9c7b1c2605
 $eoS2Ref = @(
     '01c072a1c29125c7', '02195b377e0acfb8', '05747bbd10720c85', '060245da3155cf99', '06a1300a283e3dc2', '06dfdcfd1de104ee', '09634c241a54bb89', '0aac5a9968a07ab7',
     '0bc5254e1262d859', '0c529a33f4fc7961', '0ddba44c89049bfb', '1313cf5ef60342be', '1459bd09170b53e6', '1a10b06a97740961', '1c09ca9f19d03288', '1c818c45c7beab6a',
-    '1cdf33f12e20cedd', '20155d0491d09cba', '21f74b31c1e9e140', '2477718203645d84', '2812637fc71bd142', '29ce0b66fa3d1cf0', '2b86eca4042223df', '2b98bf0d7432a3df',
+    '1cdf33f12e20cedd', '20155d0491d09cba', '21f74b31c1e9e140', '2477718203645d84', '2812637fc71bd142', '86dbdd9c7b1c2605', '2b86eca4042223df', '2b98bf0d7432a3df',
     '2c93cf7708371bb6', '2cbffe4478eeb7af', '2e45957441cc9a96', '2ea8fa5ff9a86f8d', '2f39350e3e3685a4', '3055aa222e7601b2', '3276c0a7137fc461', '3428463f7863bfed',
     '349b75960c24f412', '3545cfe09586a022', '360336fbc916f93b', '362cbd9e74b23de8', '39468d13e5d2bf9d', '3b69053a1139b2ac', '430e6ae24a658179', '4517f9b7da0b2fa8',
     'a624bce57ee74c51', '4620483a7a4be173', '47ef944bf24281ea', '4c93e4f1cb21a940', '4d6c72eeed519527', '4d8d2ebb414cebf4', '4f6d90e70b281b52', '51a6019ae9faa766',

@@ -243,12 +243,12 @@ $exp = @{
             Cadre = 'Lecteur cible 0 : aucune courbe croisée standard A → 0, la restauration sera refusée au lancement. '
             HdRules = "Règles appliquées à la copie : aucune avec le lecteur cible 0, la restauration au format haute densité amiga.amigados_hd sera refusée au lancement"
             HdCadre = "Lecteur cible 0 : aucune calibration croisée en haute densité, la restauration au format amiga.amigados_hd sera refusée. "
-            Cross = "Règles appliquées à la copie : écriture tête par tête par le lecteur A avec la courbe croisée A → 0, telle quelle," }
+            Cross = "Règles appliquées à la copie : écriture tête par tête par le lecteur A avec la courbe croisée A → 0 et, si le lecteur A a sa courbe, son facteur de marque," }
     en = @{ Rules = 'Rules applied to the copy: none with target drive 0: without a standard cross curve A → 0, the restore will be refused at start. Run "Calibrate for a target drive…", or choose "(same drive)" in the "Target drive" list of the Write tab.'
             Cadre = 'Target drive 0: no standard cross curve A → 0, the restore will be refused at start. '
             HdRules = 'Rules applied to the copy: none with target drive 0, the restore in high-density format amiga.amigados_hd will be refused at start'
             HdCadre = 'Target drive 0: no cross calibration in high density, the restore in format amiga.amigados_hd will be refused. '
-            Cross = 'Rules applied to the copy: head-by-head write by drive A with the cross curve A → 0, as is,' }
+            Cross = 'Rules applied to the copy: head-by-head write by drive A with the cross curve A → 0 and, if drive A has its curve, its brand factor,' }
 }
 foreach ($lg in 'fr', 'en') {
     $script:Lang = $lg; $e = $exp[$lg]

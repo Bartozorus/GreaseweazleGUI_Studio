@@ -336,7 +336,8 @@ $scP2 = @(
 # lecteur A, mesure demandee) : la disquette est mesuree par A comme pour le meme lecteur, T et J ceux de S02
 # (3523ef1a80f11555/cd2ca75f20137ace devient f40a6d209d3a2a39/e3b0c44298fc1c14) ; W18 (lecteur cible sans courbe propre de
 # A), J seul : la ligne de la courbe croisee telle quelle en donne la raison (003107d7bbcb5f61 devient f35c14eaaf49f024),
-# T (commandes) inchangee. Avec -Before <export de 62b8ce2>, P1b releve ces deux ecarts voulus, et eux seuls
+# T (commandes) inchangee. Avec -Before <export de 62b8ce2>, P1b releve ces deux ecarts voulus, plus S20 et W06,
+# artefacts de la consigne L12a ramenee a son texte d avant (P1b ne vaut sans artefact qu avec -Before d8d80d6)
 $plRef = @{
     S01 = 'e624a56728551b44/f6f818805418477f'; S02 = 'f40a6d209d3a2a39/e3b0c44298fc1c14'; S03 = '968e88fda3a51d8b/e3b0c44298fc1c14'; S04 = '23c1adced9b9ae13/e3b0c44298fc1c14'
     S05 = '2cd3a03cd88b533c/5b814566e5ebaa3e'; S06 = 'f7728a08a4f467ef/bafd5731497abed4'; S07 = '582191f22046c9b1/e3c8c2f2a41f0391'; S08 = '968e88fda3a51d8b/84382efb09734831'

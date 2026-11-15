@@ -368,7 +368,7 @@ function Start-ImageWrite([switch]$NoWarmup) {
         } elseif ($pc0) { $pc0 = ConvertTo-ScaledSpec $pc0 $wf.FMean $wf.Hard }
     }
     foreach ($wl in @($wf.Lines)) { Append-Log $wl }
-    if ($xp) { Append-Log $xp.Line }
+    if ($xp) { Append-Log $xp.Line; if ($wf.Hint) { Append-Log $wf.Hint } }
     if (-not $slow -and $pc0) { $base += '--precomp'; $base += $pc0 }
     $base += Get-WriteFormatArgs
     $a = $base
@@ -1228,7 +1228,7 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
     $hard = [int]$script:CalHardNsUser; if ($hard -le 0) { $hard = [int]$script:CalHardNs }
     $fMax = [double]$script:ContentFMax
     $r = @{ Apply = $false; Why = ''; F0 = 1.0; F1 = 1.0; FMean = 1.0; K = @{ 0 = 1.0; 1 = 1.0 }; Src = @{ 0 = 'defaut'; 1 = 'defaut' }
-            Hard = $hard; Fam = ''; Line = ''; Lines = @(); Target = ''; Curves = @(); Own = @(); SrcText = @{} }
+            Hard = $hard; Fam = ''; Line = ''; Lines = @(); Target = ''; Curves = @(); Own = @(); SrcText = @{}; Hint = '' }
     $tw = Get-TargetWriteInfo $img $fmt $slow
     if ($tw.Applies) {
         $r.Fam = [string]$tw.Fam
@@ -1310,9 +1310,12 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
     if ($r.Line) { $r.Lines = @($lines) + @($r.Line) } else { $r.Lines = @($lines) }
     # Finalisation 12.10 : conseil de mesure de la disquette apres la ligne du facteur (Get-WriteFactorHint) ; jamais pour
     # -Peek (libelle du profil, confirmation de la mesure : ni ligne, ni test de la mesure possible)
+    # 12.11 (rc2, relecture m3) : lecteur cible : conseil rendu a part (Hint), ecrit par Start-ImageWrite apres la ligne de
+    # Get-TargetTransferPlan, comme il suit la ligne du facteur pour le meme lecteur
     if (-not $Peek) {
         $hint = Get-WriteFactorHint $img $fmt $slow $drive $fam $brand $r.Src
-        if ($hint) { $r.Lines = @($r.Lines) + @($hint) }
+        if ($hint -and $r.Target) { $r.Hint = $hint }
+        elseif ($hint) { $r.Lines = @($r.Lines) + @($hint) }
     }
     return $r
 }
@@ -1524,7 +1527,8 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
     # mesure). D : profil que S ecrirait pour lui-meme sur cette disquette (Start-ImageWrite : mesure, facteur) ; Sp : courbe
     # propre de S ; X : courbe croisee S -> T. Valeur d un cylindre au-dela de la derniere entree d un profil : celle de la
     # derniere (Get-SpecValue, prolongement de gw). Arrondi au ns (au pair, comme ConvertTo-ScaledSpec), au moins 0, au plus
-    # max($cap, X(c)) : la borne de l ecriture « meme lecteur » (une valeur deja au-dessus n est jamais augmentee). n : $cyls,
+    # max($cap, X(c), D(c)) : la borne de l ecriture « meme lecteur » de cette disquette (D deja au-dessus, venue d une
+    # mesure, et X deja au-dessus ne sont jamais reduites par la borne). n : $cyls,
     # et au moins un cylindre apres la derniere entree des trois profils (au-dela, les trois sont constants). Rend @{ Spec ;
     # Values ; Ratio (cylindre -> X/Sp, la ou Sp >= XferMinNs) ; Added (cylindres en ecart reporte) ; Same (D = Sp) }.
     # Regle 5 : courbe ecrite egale a X en chaque cylindre (D = Sp) : Spec est $xSpec, la meme chaine (commandes gw de la rc1)
@@ -1543,7 +1547,7 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
         if ($d -ne $sp) { $r.Same = $false }
         if ($sp -ge $min) { $w = $x * $d / $sp; $r.Ratio[$c] = $x / $sp }
         else { $w = $x + ($d - $sp); $added.Add($c) }
-        $vals[$c] = [int][math]::Max(0.0, [math]::Min([math]::Round($w), [math]::Max([double]$cap, $x)))
+        $vals[$c] = [int][math]::Max(0.0, [math]::Min([math]::Round($w), [math]::Max([double]$cap, [math]::Max($x, $d))))
         if ($vals[$c] -ne [int]$x) { $asX = $false }
     }
     $r.Values = $vals; $r.Added = [int[]]$added.ToArray()
@@ -1627,6 +1631,9 @@ function Get-TargetTransferPlan($tw, $wf, $td, [bool]$slow) {
     }
     $r.Line = (T "Écriture pour le lecteur cible {0} : courbe de cette disquette (lecteur {1}, {2}) × facteur par cylindre de la calibration croisée {1} → {0} ({3}) ; {4}") -f "$tgt", "$src", "$o", (Get-TargetCurvesText $src $tgt ([string]$tw.Fam) $xc), "$sum"
     if ($ad) { $r.Line += ' ; ' + ((T "cylindres où le besoin propre du lecteur {0} est sous {1} ns : écart reporté en ns ({2})") -f "$src", "$($script:XferMinNs)", "$ad") }
+    # Relecture m2 : courbe propre de S plus recente que la courbe croisee (S recalibre depuis) : le facteur X/Sp est pris
+    # sur la courbe propre courante, note pour interpreter le resultat
+    if ((Get-CurveDate $own[0]) -gt (Get-CurveDate $xc[0])) { $r.Line += ' ; ' + ((T 'courbe du lecteur {0} postérieure à la calibration croisée {0} → {1}') -f "$src", "$tgt") }
     $r.Line += '.'
     return $r
 }

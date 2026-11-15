@@ -3023,6 +3023,19 @@ $script:I18n['pour le lecteur cible {0} : courbe de cette disquette × facteur p
 $script:I18n['pour le lecteur cible {0} : facteur par cylindre de la calibration croisée'] = 'for target drive {0}: per-cylinder factor of the cross calibration'
 # Infobulle de la liste « Lecteur cible » (Update-TargetDriveUi, 140) ; remplace celle de 018, retiree de l usage
 $script:I18n["Lecteur qui relira la disquette écrite par le lecteur {0}, celui du bandeau.`n« (même lecteur) » : écriture ordinaire, avec la courbe du lecteur {0} et le facteur de marque.`nUn autre lecteur : la courbe de cette disquette (mesurée par le lecteur {0} si la mesure est demandée, sinon la courbe du lecteur {0} et son facteur de marque) est multipliée, cylindre par cylindre, par le facteur de « Calibrer pour un lecteur cible… » (courbe croisée « {0} → lecteur cible » rapportée à la courbe du lecteur {0}) ; sans courbe du lecteur {0} pour la famille, courbe croisée telle quelle, sans mesure ; sans courbe croisée pour la famille de l'image (ou du profil forcé), l'écriture est refusée. Jamais de calibration automatique ; le lecteur cible n'a pas à être branché ; le contrôle après écriture relit avec le lecteur {0}.`nSans effet sur l'écriture (le journal le dit) avec le profil Manuel, la case --precomp décochée, une image flux écrite telle quelle ou une image FM, GCR ou à codage propre ; écriture refusée en haute densité avec le profil Auto, et en écriture rapide quand les courbes croisées sont par tête seulement.`nLe choix est mémorisé pour le lecteur {0}."] = "Drive that will read the disk written by drive {0}, the one in the banner.`n""(same drive)"": ordinary write, with drive {0}'s curve and the brand factor.`nAnother drive: the curve of this disk (measured by drive {0} if the measurement is requested, otherwise drive {0}'s curve and its brand factor) is multiplied, cylinder by cylinder, by the factor of ""Calibrate for a target drive…"" (cross curve ""{0} → target drive"" relative to drive {0}'s curve); without a drive {0} curve for the family, cross curve as is, without measurement; without a cross curve for the image family (or that of the forced profile), the write is refused. Never an automatic calibration; the target drive does not need to be connected; the post-write check reads back with drive {0}.`nNo effect on the write (stated in the log) with the Manual profile, the --precomp box unchecked, a flux image written as is or an FM, GCR or system-specific-encoding image; write refused in high density with the Auto profile, and in a fast write when the cross curves are per head only.`nThe choice is remembered for drive {0}."
+# Relecture de la rc2 : regles de la restauration pour un lecteur cible (Update-RsRules, ligne « Regles » du rapport, 300) ;
+# remplacent celles de 018, retirees de l usage
+$script:I18n["Règles appliquées à la copie : écriture tête par tête par le lecteur {0} avec la courbe croisée {0} → {1} et, si le lecteur {0} a sa courbe, son facteur de marque, sans calibration ni mesure de la destination, effacement avant l'écriture, vérification par gw, {2} essais par piste, contrôle de toutes les pistes ({3} passes de réécriture au plus), puis relecture par le lecteur {0} et comparaison avec l'original."] = 'Rules applied to the copy: head-by-head write by drive {0} with the cross curve {0} → {1} and, if drive {0} has its curve, its brand factor, without calibration or measurement of the destination, erase before writing, gw verification, {2} retries per track, check of all tracks (up to {3} rewrite passes), then read-back by drive {0} and comparison with the original.'
+$script:I18n["Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête par le lecteur {5} avec la courbe croisée {5} → {6} et, si le lecteur {5} a sa courbe, son facteur de marque, sans calibration ni mesure de la destination, effacement avant l'écriture, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale par le lecteur {5} sans nouvel essai."] = 'Rules       : read {0} revolutions, {1} retries x {2} series; head-by-head write by drive {5} with the cross curve {5} → {6} and, if drive {5} has its curve, its brand factor, without calibration or measurement of the destination, erase before writing, gw verification, {3} retries per track; check of all tracks, up to {4} rewrite passes; final read-back by drive {5} without retry.'
+# Infobulle de la liste « Calibration precomp » (520) ; remplace celle de 018, retiree de l usage
+$script:I18n["« Test rapide » avant une écriture lente, avec « complète, au motif » dans la liste « Mesure : » : mesure complète de cette disquette, sur tous ses cylindres (26 à 31 min), à la place de la calibration rapide. Lecteur cible choisi (liste « Lecteur cible »), avec effet sur l'écriture : la disquette est mesurée de même par le lecteur du bandeau juste avant l'écriture (« Calibrer » seul n'est pas proposé), puis le facteur par cylindre de la calibration croisée est appliqué ; sans courbe du lecteur du bandeau pour la famille de l'image, ni mesure ni calibration rapide (courbe croisée telle quelle)."] = '"Quick test" before a slow write, with "full, on the test pattern" in the "Measure:" list: full measurement of this disk, on all its cylinders (26 to 31 min), instead of the quick calibration. Target drive chosen ("Target drive" list), with an effect on the write: the disk is measured the same way by the banner drive just before the write ("Calibrate" alone is not offered), then the per-cylinder factor of the cross calibration is applied; without a curve of the banner drive for the image family, neither measurement nor quick calibration (cross curve as is).'
+# Bouton « Calibrer » au « Test rapide » et carte de l Accueil, lecteur cible avec la courbe propre du lecteur (260)
+$script:I18n["Calibration rapide seule non proposée pour le lecteur cible {0}. Pour mesurer cette disquette avec le lecteur {1} avant de l'écrire pour le lecteur cible, gardez « Test rapide » (ou cochez « Mesurer la disquette avant l'écriture lente ») et cliquez « ÉCRIRE LA DISQUETTE » : la mesure est faite juste avant l'écriture, puis le facteur par cylindre de la calibration croisée {1} → {0} est appliqué."] = 'Quick calibration alone not offered for target drive {0}. To measure this disk with drive {1} before writing it for the target drive, keep "Quick test" (or tick "Measure the disk before the slow write") and click "WRITE THE DISK": the measurement is made just before the write, then the per-cylinder factor of the cross calibration {1} → {0} is applied.'
+$script:I18n["Calibration rapide depuis l'Accueil : lecteur cible {0} choisi pour le lecteur {1} : le profil de cette disquette n'est pas placé dans les champs --precomp ; l'écriture pour le lecteur cible ne reprend que la mesure faite par « ÉCRIRE LA DISQUETTE » juste avant l'écriture. Il reste affiché dans la fenêtre Courbe (dernière calibration rapide)."] = 'Quick calibration from the Home tab: target drive {0} chosen for drive {1}: the profile of this disk is not placed in the --precomp fields; the write for the target drive only uses the measurement made by "WRITE THE DISK" just before the write. It remains shown in the Curve window (last quick calibration).'
+# Fenetre « Mesure de la disquette sur l image » (Start-ContentMeasure, 276), lecteur cible avec la courbe propre du lecteur
+$script:I18n["Écriture pour le lecteur cible {1} : la courbe ainsi obtenue (niveau mesuré, ou facteur de la marque avec « Écrire sans mesure ») est ensuite multipliée, cylindre par cylindre, par le facteur de la calibration croisée {0} → {1} ; sans mesure ni facteur de la marque, la courbe croisée est écrite telle quelle."] = 'Write for target drive {1}: the curve so obtained (measured level, or brand factor with "Write without measuring") is then multiplied, cylinder by cylinder, by the factor of the cross calibration {0} → {1}; without measurement or brand factor, the cross curve is written as is.'
+# Journal de l ecriture (Get-TargetTransferPlan, 140) : courbe propre du lecteur plus recente que la courbe croisee
+$script:I18n['courbe du lecteur {0} postérieure à la calibration croisée {0} → {1}'] = 'curve of drive {0} newer than the cross calibration {0} → {1}'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 try { Add-Type -AssemblyName System.IO.Compression.FileSystem } catch { }
@@ -10933,7 +10946,7 @@ function Start-ImageWrite([switch]$NoWarmup) {
         } elseif ($pc0) { $pc0 = ConvertTo-ScaledSpec $pc0 $wf.FMean $wf.Hard }
     }
     foreach ($wl in @($wf.Lines)) { Append-Log $wl }
-    if ($xp) { Append-Log $xp.Line }
+    if ($xp) { Append-Log $xp.Line; if ($wf.Hint) { Append-Log $wf.Hint } }
     if (-not $slow -and $pc0) { $base += '--precomp'; $base += $pc0 }
     $base += Get-WriteFormatArgs
     $a = $base
@@ -11793,7 +11806,7 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
     $hard = [int]$script:CalHardNsUser; if ($hard -le 0) { $hard = [int]$script:CalHardNs }
     $fMax = [double]$script:ContentFMax
     $r = @{ Apply = $false; Why = ''; F0 = 1.0; F1 = 1.0; FMean = 1.0; K = @{ 0 = 1.0; 1 = 1.0 }; Src = @{ 0 = 'defaut'; 1 = 'defaut' }
-            Hard = $hard; Fam = ''; Line = ''; Lines = @(); Target = ''; Curves = @(); Own = @(); SrcText = @{} }
+            Hard = $hard; Fam = ''; Line = ''; Lines = @(); Target = ''; Curves = @(); Own = @(); SrcText = @{}; Hint = '' }
     $tw = Get-TargetWriteInfo $img $fmt $slow
     if ($tw.Applies) {
         $r.Fam = [string]$tw.Fam
@@ -11875,9 +11888,12 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
     if ($r.Line) { $r.Lines = @($lines) + @($r.Line) } else { $r.Lines = @($lines) }
     # Finalisation 12.10 : conseil de mesure de la disquette apres la ligne du facteur (Get-WriteFactorHint) ; jamais pour
     # -Peek (libelle du profil, confirmation de la mesure : ni ligne, ni test de la mesure possible)
+    # 12.11 (rc2, relecture m3) : lecteur cible : conseil rendu a part (Hint), ecrit par Start-ImageWrite apres la ligne de
+    # Get-TargetTransferPlan, comme il suit la ligne du facteur pour le meme lecteur
     if (-not $Peek) {
         $hint = Get-WriteFactorHint $img $fmt $slow $drive $fam $brand $r.Src
-        if ($hint) { $r.Lines = @($r.Lines) + @($hint) }
+        if ($hint -and $r.Target) { $r.Hint = $hint }
+        elseif ($hint) { $r.Lines = @($r.Lines) + @($hint) }
     }
     return $r
 }
@@ -12089,7 +12105,8 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
     # mesure). D : profil que S ecrirait pour lui-meme sur cette disquette (Start-ImageWrite : mesure, facteur) ; Sp : courbe
     # propre de S ; X : courbe croisee S -> T. Valeur d un cylindre au-dela de la derniere entree d un profil : celle de la
     # derniere (Get-SpecValue, prolongement de gw). Arrondi au ns (au pair, comme ConvertTo-ScaledSpec), au moins 0, au plus
-    # max($cap, X(c)) : la borne de l ecriture « meme lecteur » (une valeur deja au-dessus n est jamais augmentee). n : $cyls,
+    # max($cap, X(c), D(c)) : la borne de l ecriture « meme lecteur » de cette disquette (D deja au-dessus, venue d une
+    # mesure, et X deja au-dessus ne sont jamais reduites par la borne). n : $cyls,
     # et au moins un cylindre apres la derniere entree des trois profils (au-dela, les trois sont constants). Rend @{ Spec ;
     # Values ; Ratio (cylindre -> X/Sp, la ou Sp >= XferMinNs) ; Added (cylindres en ecart reporte) ; Same (D = Sp) }.
     # Regle 5 : courbe ecrite egale a X en chaque cylindre (D = Sp) : Spec est $xSpec, la meme chaine (commandes gw de la rc1)
@@ -12108,7 +12125,7 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
         if ($d -ne $sp) { $r.Same = $false }
         if ($sp -ge $min) { $w = $x * $d / $sp; $r.Ratio[$c] = $x / $sp }
         else { $w = $x + ($d - $sp); $added.Add($c) }
-        $vals[$c] = [int][math]::Max(0.0, [math]::Min([math]::Round($w), [math]::Max([double]$cap, $x)))
+        $vals[$c] = [int][math]::Max(0.0, [math]::Min([math]::Round($w), [math]::Max([double]$cap, [math]::Max($x, $d))))
         if ($vals[$c] -ne [int]$x) { $asX = $false }
     }
     $r.Values = $vals; $r.Added = [int[]]$added.ToArray()
@@ -12192,6 +12209,9 @@ function Get-TargetTransferPlan($tw, $wf, $td, [bool]$slow) {
     }
     $r.Line = (T "Écriture pour le lecteur cible {0} : courbe de cette disquette (lecteur {1}, {2}) × facteur par cylindre de la calibration croisée {1} → {0} ({3}) ; {4}") -f "$tgt", "$src", "$o", (Get-TargetCurvesText $src $tgt ([string]$tw.Fam) $xc), "$sum"
     if ($ad) { $r.Line += ' ; ' + ((T "cylindres où le besoin propre du lecteur {0} est sous {1} ns : écart reporté en ns ({2})") -f "$src", "$($script:XferMinNs)", "$ad") }
+    # Relecture m2 : courbe propre de S plus recente que la courbe croisee (S recalibre depuis) : le facteur X/Sp est pris
+    # sur la courbe propre courante, note pour interpreter le resultat
+    if ((Get-CurveDate $own[0]) -gt (Get-CurveDate $xc[0])) { $r.Line += ' ; ' + ((T 'courbe du lecteur {0} postérieure à la calibration croisée {0} → {1}') -f "$src", "$tgt") }
     $r.Line += '.'
     return $r
 }
@@ -23601,7 +23621,11 @@ function Complete-LevelCalib {
         if ($adCurve) { $lblWProfileInfo.Text = ((T "Profil {0} de cette disquette (calibration rapide du {1}, lecteur {2}) : référence du {3} adaptée à cette disquette ({4}){5}. À n'utiliser que pour cette disquette (bouton Courbe).") -f "$famTxt", "$date", "$($cal.Drive)", "$($recs[0].RefDate)", "$lvlTxt", $(if ($cal.Brand) { (T ', marque « {0} »') -f "$($cal.Brand)" } else { '' })) }
         else { $lblWProfileInfo.Text = ((T "Profil {0} de cette disquette (calibration rapide du {1}, lecteur {2}) : référence du {3} décalée de {4}. À n'utiliser que pour cette disquette (bouton Courbe).") -f "$famTxt", "$date", "$($cal.Drive)", "$($recs[0].RefDate)", "$lvlTxt") }
     }
-    elseif ($tgtL -and $tgtL.Applies -and (Get-WriteTabFamily) -eq $cal.Family) { Append-Log ((T "Calibration rapide depuis l'Accueil : lecteur cible {0} choisi pour le lecteur {1}, dont l'écriture n'utilise pas cette mesure (courbe croisée {1} → {0} telle quelle, ou refus sans elle) : le profil de cette disquette n'est pas placé dans les champs --precomp ; il reste affiché dans la fenêtre Courbe (dernière calibration rapide).") -f "$($tgtL.Tgt)", "$($tgtL.Src)") }
+    elseif ($tgtL -and $tgtL.Xfer -and (Get-WriteTabFamily) -eq $cal.Family) {
+        # 12.11 (rc2, relecture B4) : lecteur cible avec la courbe propre du lecteur (Xfer) : l ecriture reprend la mesure
+        # faite juste avant elle par « ECRIRE LA DISQUETTE » (Get-TargetDFields), pas celle-ci, non placee dans les champs
+        Append-Log ((T "Calibration rapide depuis l'Accueil : lecteur cible {0} choisi pour le lecteur {1} : le profil de cette disquette n'est pas placé dans les champs --precomp ; l'écriture pour le lecteur cible ne reprend que la mesure faite par « ÉCRIRE LA DISQUETTE » juste avant l'écriture. Il reste affiché dans la fenêtre Courbe (dernière calibration rapide).") -f "$($tgtL.Tgt)", "$($tgtL.Src)") }
+    elseif ($tgtL -and $tgtL.Applies -and -not $tgtL.Xfer -and (Get-WriteTabFamily) -eq $cal.Family) { Append-Log ((T "Calibration rapide depuis l'Accueil : lecteur cible {0} choisi pour le lecteur {1}, dont l'écriture n'utilise pas cette mesure (courbe croisée {1} → {0} telle quelle, ou refus sans elle) : le profil de cette disquette n'est pas placé dans les champs --precomp ; il reste affiché dans la fenêtre Courbe (dernière calibration rapide).") -f "$($tgtL.Tgt)", "$($tgtL.Src)") }
     else { Append-Log ((T "Calibration rapide depuis l'Accueil : l'image de l'onglet Écriture n'est pas de la famille {0}, le profil de cette disquette n'est pas placé dans ses champs --precomp ; il reste affiché dans la fenêtre Courbe (dernière calibration rapide).") -f "$famTxt") }
     Append-Log ((T "Calibration rapide terminée en {0} : {1} passe(s), {2} écritures de piste sur {3} cylindres (2 faces), aucune ailleurs.") -f (Format-CalDuration $elapsed), "$($cal.PassesDone)", "$($cal.TrackWrites)", "$(@($cal.Cyls).Count)")
     Append-Log ((T "Niveau retenu : {0}.") -f "$lvlTxt")
@@ -23900,7 +23924,10 @@ function Start-LevelCalibButton {
     # Start-ImageWrite) : calibration rapide refusee, comme la mesure avant l ecriture (Start-WriteTabWrite) : elle relirait
     # avec le lecteur du bandeau, et l ecriture remet la courbe croisee dans les champs --precomp (ou est refusee sans
     # elle). Avant : faite, et annoncee « a n utiliser que pour cette disquette »
+    # 12.11 (rc2, relecture B4) : avec la courbe propre du lecteur du bandeau (Xfer), l ecriture pour le lecteur cible reprend
+    # la mesure faite juste avant elle par « ECRIRE LA DISQUETTE » : refus maintenu (rc3), texte qui dit comment mesurer
     $tw = Get-TargetWriteInfo $chk.Img $cmbWFmt.Text ([bool]$chkWSlow.Checked)
+    if ($tw.Applies -and $tw.Xfer) { [void](Show-AppMessage ((T "Calibration rapide seule non proposée pour le lecteur cible {0}. Pour mesurer cette disquette avec le lecteur {1} avant de l'écrire pour le lecteur cible, gardez « Test rapide » (ou cochez « Mesurer la disquette avant l'écriture lente ») et cliquez « ÉCRIRE LA DISQUETTE » : la mesure est faite juste avant l'écriture, puis le facteur par cylindre de la calibration croisée {1} → {0} est appliqué.") -f "$($tw.Tgt)", "$($tw.Src)") (T 'Calibration precomp') 'OK' 'Information'); return }
     if ($tw.Applies) { [void](Show-AppMessage ((T "Calibration rapide non faite pour le lecteur cible {0} : elle relirait avec le lecteur {1}, et l'écriture pour le lecteur cible n'utilise pas sa mesure (courbe croisée telle quelle, ou refus sans elle). Pour mesurer cette disquette avec le lecteur {1}, choisissez « (même lecteur) » dans la liste « Lecteur cible ».") -f "$($tw.Tgt)", "$($tw.Src)") (T 'Calibration precomp') 'OK' 'Information'); return }
     $lr = Get-LevelRef $chk.Family ([bool]$chkWSlow.Checked) $cmbDrive.Text $chk.Img $false -NCyl ([int]$chk.NCyl)
     if ($lr.Ok) { $script:AfterCalib = ''; Start-LevelCalib $lr; return }
@@ -29119,6 +29146,10 @@ function Start-ContentMeasure($chk) {
                  GoText = (T 'Mesurer puis écrire'); GoGlyph = 'Diagnostic'; AltText = (T 'Écrire sans mesure')
                  Combo = @{ Label = (T 'Marque de la disquette insérée :'); Items = $bi.Items; Text = [string]$script:LevelBrand
                             Tip = (T "Nom libre : marque, année ou lot. Le facteur mesuré est mémorisé pour ce lecteur et cette marque ; « Écrire sans mesure » applique celui de la marque choisie (courbe du lecteur telle quelle si la marque n'a pas de mesure).") } }
+        # 12.11 (rc2, relecture B5) : ecriture pour un lecteur cible avec la courbe propre de ce lecteur (Get-TargetWriteInfo,
+        # Xfer) : la courbe obtenue est ensuite multipliee par le facteur par cylindre (Get-TargetTransferPlan, 140)
+        $twc = Get-TargetWriteInfo $img $cmbWFmt.Text $true
+        if ($twc.Xfer) { $cq.Text += "`n`n" + ((T "Écriture pour le lecteur cible {1} : la courbe ainsi obtenue (niveau mesuré, ou facteur de la marque avec « Écrire sans mesure ») est ensuite multipliée, cylindre par cylindre, par le facteur de la calibration croisée {0} → {1} ; sans mesure ni facteur de la marque, la courbe croisée est écrite telle quelle.") -f "$drive", "$($twc.Tgt)") }
         # 12.8.2 (revue) : effacement haute frequence de chaque passe (New-ContentPass), compris dans la duree
         if ((Get-ContentEraseEst) -gt 0) { $cq.Text += "`n`n" + (T "Case « Effacer avant d'écrire » cochée : ces pistes sont effacées en haute fréquence avant chaque passe, durée comprise.") }
         $script:ConfirmChoice = $null
@@ -30333,7 +30364,7 @@ function Update-RsRules {
     # flux ou haute densite, et ecriture avec la courbe croisee pour un format haute densite refuse
     $pl = Get-RestorePlan $src $tg (Get-RestoreFormat)
     if ($pl.Kind -eq 'target') {
-        $t = (T "Règles appliquées à la copie : écriture tête par tête par le lecteur {0} avec la courbe croisée {0} → {1}, telle quelle, sans calibration ni mesure de la destination, effacement avant l'écriture, vérification par gw, {2} essais par piste, contrôle de toutes les pistes ({3} passes de réécriture au plus), puis relecture par le lecteur {0} et comparaison avec l'original.") -f "$src", "$tg", "$($r.WriteRetries)", "$($r.RepairPasses)"
+        $t = (T "Règles appliquées à la copie : écriture tête par tête par le lecteur {0} avec la courbe croisée {0} → {1} et, si le lecteur {0} a sa courbe, son facteur de marque, sans calibration ni mesure de la destination, effacement avant l'écriture, vérification par gw, {2} essais par piste, contrôle de toutes les pistes ({3} passes de réécriture au plus), puis relecture par le lecteur {0} et comparaison avec l'original.") -f "$src", "$tg", "$($r.WriteRetries)", "$($r.RepairPasses)"
     } elseif ($pl.Kind -eq 'flux') {
         $t = (T "Règles appliquées à la copie : copie exacte du flux, écrite telle quelle par gw (ni précompensation, ni vérification par gw), sans calibration du lecteur ni mesure de la destination, écriture tête par tête, effacement avant l'écriture, contrôle de toutes les pistes ({0} passes de réécriture au plus), sans comparaison secteur par secteur avec l'original.") -f "$($r.RepairPasses)"
     } elseif ($pl.Kind -eq 'refused' -and $pl.Ti.BlockKind -eq 'hd') {
@@ -31193,7 +31224,7 @@ function Write-RestoreReport([bool]$ok, [string]$verdict) {
     if (-not $pk) { $pp = Get-RestorePlan ([string]$r.Drive) ([string]$r.TgtChoice) $(if ($r.Mode -eq 'flux') { '' } elseif ($r.Mode -eq 'sector') { [string]$r.Fmt } else { 'auto' }); $pk = [string]$pp.Kind }
     $rtg = if ($r.Target) { [string]$r.Target } else { [string]$r.TgtChoice }
     if ($pk -eq 'flux') { $rl = (T "Règles      : lecture {0} tours ; copie exacte du flux, écrite telle quelle par gw (ni précompensation, ni vérification gw), sans calibration du lecteur ni mesure de la destination ; écriture tête par tête, effacement avant l'écriture ; contrôle de toutes les pistes, {1} passes de réécriture au plus ; pas de comparaison secteur par secteur.") -f "$($rr.ReadRevs)", "$($rr.RepairPasses)" }
-    elseif ($pk -eq 'target') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête par le lecteur {5} avec la courbe croisée {5} → {6}, telle quelle, sans calibration ni mesure de la destination, effacement avant l'écriture, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale par le lecteur {5} sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)", "$($r.Drive)", "$rtg" }
+    elseif ($pk -eq 'target') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête par le lecteur {5} avec la courbe croisée {5} → {6} et, si le lecteur {5} a sa courbe, son facteur de marque, sans calibration ni mesure de la destination, effacement avant l'écriture, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale par le lecteur {5} sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)", "$($r.Drive)", "$rtg" }
     elseif ($pk -eq 'refused' -and $pp -and $pp.Ti.BlockKind -eq 'hd') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture pour le lecteur cible {3} non atteinte (elle serait refusée en haute densité : la calibration croisée n'existe qu'en double densité).") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$rtg" }
     elseif ($pk -eq 'refused' -and $pp) { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture pour le lecteur cible {3} non atteinte (elle serait refusée sans courbe croisée standard {4} → {3}).") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$rtg", "$($r.Drive)" }
     elseif ($pk -eq 'refused') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture pour le lecteur cible {3} refusée, rien n'a été écrit.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$rtg" }
@@ -31943,7 +31974,10 @@ $cmbWCalMode.Add_SelectedIndexChanged({ Update-SlowUi })
 $tip.SetToolTip($cmbWCalMode, (T "Test standard (un cylindre sur 10) ou test fin (tous les cylindres) : calibration complète, qui mesure la courbe de précompensation du lecteur ; elle est faite une fois, puis réutilisée.`nTest rapide : la forme de la courbe vient de la dernière calibration complète du lecteur (la référence). Avant chaque écriture (bouton ÉCRIRE, Bibliothèque, restauration), et avec « Calibrer », son niveau est mesuré sur la disquette insérée, et sa forme aussi si elle diffère de la référence : 4 à 9 cylindres par tête (2 de plus si la forme est adaptée), 1 à 3 écritures du motif par piste. Sans référence utilisable, l'écriture est refusée (bouton ÉCRIRE, Bibliothèque) : calibrez d'abord le lecteur sur une disquette sacrifiée, par la carte « Calibrer le lecteur » de l'Accueil ; « Calibrer » propose alors une calibration complète en test fin, qui devient la référence.`nMême réglage que le test choisi dans la fenêtre de la carte « Calibrer le lecteur » de l'Accueil, retenu quand la calibration y est lancée."))
 # 12.10 (relecture de la RC) : mesure complete d une ecriture lente au « Test rapide » (Get-LevelBeforeWriteKind, 260),
 # lecteur cible avec effet : ni mesure ni calibration rapide (Start-WriteTabWrite, Start-LevelCalibButton)
-$tip.SetToolTip($cmbWCalMode, $tip.GetToolTip($cmbWCalMode) + "`n" + (T "« Test rapide » avant une écriture lente, avec « complète, au motif » dans la liste « Mesure : » : mesure complète de cette disquette, sur tous ses cylindres (26 à 31 min), à la place de la calibration rapide. Lecteur cible choisi (liste « Lecteur cible »), avec effet sur l'écriture : ni mesure de la disquette ni calibration rapide, qui reliraient avec le lecteur du bandeau."))
+# 12.11 (rc2, relecture B3) : lecteur cible avec la courbe propre du lecteur du bandeau (Get-TargetWriteInfo, Xfer) :
+# mesure comme pour le meme lecteur avant l ecriture, puis facteur par cylindre ; « Calibrer » seul refuse
+# (Start-LevelCalibButton) ; sans courbe propre : ni mesure ni calibration rapide
+$tip.SetToolTip($cmbWCalMode, $tip.GetToolTip($cmbWCalMode) + "`n" + (T "« Test rapide » avant une écriture lente, avec « complète, au motif » dans la liste « Mesure : » : mesure complète de cette disquette, sur tous ses cylindres (26 à 31 min), à la place de la calibration rapide. Lecteur cible choisi (liste « Lecteur cible »), avec effet sur l'écriture : la disquette est mesurée de même par le lecteur du bandeau juste avant l'écriture (« Calibrer » seul n'est pas proposé), puis le facteur par cylindre de la calibration croisée est appliqué ; sans courbe du lecteur du bandeau pour la famille de l'image, ni mesure ni calibration rapide (courbe croisée telle quelle)."))
 $btnWCalib = New-Object System.Windows.Forms.Button
 # 12.8 (lot 5) : boutons de 34 px (deux hauteurs, 34 et 40 px), sous les champs de la ligne 2 (bas a 103 px), liste et
 # libelle de la ligne 3 descendus pour rester centres. FIX5 : rangee descendue de 3 px de plus (3 px d ecart avec les

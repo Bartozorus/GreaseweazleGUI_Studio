@@ -199,6 +199,10 @@ function Start-ContentMeasure($chk) {
                  GoText = (T 'Mesurer puis écrire'); GoGlyph = 'Diagnostic'; AltText = (T 'Écrire sans mesure')
                  Combo = @{ Label = (T 'Marque de la disquette insérée :'); Items = $bi.Items; Text = [string]$script:LevelBrand
                             Tip = (T "Nom libre : marque, année ou lot. Le facteur mesuré est mémorisé pour ce lecteur et cette marque ; « Écrire sans mesure » applique celui de la marque choisie (courbe du lecteur telle quelle si la marque n'a pas de mesure).") } }
+        # 12.11 (rc2, relecture B5) : ecriture pour un lecteur cible avec la courbe propre de ce lecteur (Get-TargetWriteInfo,
+        # Xfer) : la courbe obtenue est ensuite multipliee par le facteur par cylindre (Get-TargetTransferPlan, 140)
+        $twc = Get-TargetWriteInfo $img $cmbWFmt.Text $true
+        if ($twc.Xfer) { $cq.Text += "`n`n" + ((T "Écriture pour le lecteur cible {1} : la courbe ainsi obtenue (niveau mesuré, ou facteur de la marque avec « Écrire sans mesure ») est ensuite multipliée, cylindre par cylindre, par le facteur de la calibration croisée {0} → {1} ; sans mesure ni facteur de la marque, la courbe croisée est écrite telle quelle.") -f "$drive", "$($twc.Tgt)") }
         # 12.8.2 (revue) : effacement haute frequence de chaque passe (New-ContentPass), compris dans la duree
         if ((Get-ContentEraseEst) -gt 0) { $cq.Text += "`n`n" + (T "Case « Effacer avant d'écrire » cochée : ces pistes sont effacées en haute fréquence avant chaque passe, durée comprise.") }
         $script:ConfirmChoice = $null

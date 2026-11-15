@@ -18,10 +18,16 @@ $Wt = Get-TestRoot $Wt
 #  D  ligne « Ce qui va se passer », case de la mesure et journal tires de la meme decision (Get-TargetWriteInfo, Xfer) :
 #     rien d annonce que le clic ne fait ; resume du journal recalcule ; francais et anglais, texte affiche entier.
 #  E  aucune mesure ni commande ne fait intervenir le lecteur cible (commandes, mesures simulees, arbre syntaxique).
+#  R  ecriture de la restauration pour un lecteur cible (vraie Start-PresetWrite 'slow' -NoCalib, l appel de
+#     Start-RestoreWrite) : facteur de marque du lecteur qui ecrit puis facteur par cylindre, journal qui le dit.
+# Relecture de la rc2 : borne max(borne, X, D) (C1, C3 : aucun cylindre ecrit sous la courbe du meme lecteur quand X > Sp),
+# cas R1, texte de la vraie fenetre de la mesure sur l image avec un lecteur cible (D5).
 # Harnais de logic-ecriture-plan : fonctions reelles de tous les modules fn, etat, onglet construit par les instructions
 # reelles de 500, 510, 520 et 540, controles jamais affiches, images factices. Aucun gw, aucune fenetre, aucun materiel.
-# Non couvert : les mesures elles-memes (bouchons), la restauration pour un lecteur cible (inchangee : sans mesure), le
-# bouton « Calibrer » et la carte de l Accueil avec un lecteur cible (inchanges), l ecriture reelle sur disquette.
+# Non couvert : les mesures elles-memes (bouchons), la restauration elle-meme (sans mesure de la destination ; son
+# ecriture, avec le facteur de marque, est couverte par le cas R1 ; l enveloppe Start-RestoreWrite n est pas jouee), le
+# bouton « Calibrer » et la carte de l Accueil avec un lecteur cible (logic-cible-textes T1 et T6), l ecriture reelle sur
+# disquette.
 Import-TestWinForms
 $here = Get-TestWorkDir $MyInvocation.MyCommand.Path $Work
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
@@ -73,7 +79,7 @@ function Get-FkExpect([string]$d, [string]$sp, [string]$x, [int]$n, [int]$cap, [
     for ($c = 0; $c -lt $n; $c++) {
         $dv = [double](Get-FkVal $d $c); $sv = [double](Get-FkVal $sp $c); $xv = [double](Get-FkVal $x $c)
         $w = if ($sv -ge $min) { $xv * $dv / $sv } else { $xv + $dv - $sv }
-        $w = [math]::Round($w); if ($w -lt 0) { $w = 0 }; $b = [math]::Max([double]$cap, $xv); if ($w -gt $b) { $w = $b }
+        $w = [math]::Round($w); if ($w -lt 0) { $w = 0 }; $b = [math]::Max([double]$cap, [math]::Max($xv, $dv)); if ($w -gt $b) { $w = $b }
         $o[$c] = [int]$w
     }
     return ,$o
@@ -249,6 +255,8 @@ $scB = @(
     @{ Id = 'B3'; T = 'lente, mesure demandee, sans courbe propre de A'; Fn = 'tab'; Own = $false; Do = { $chkWSlow.Checked = $true; $chkWLevel.Checked = $true } }
     @{ Id = 'B4'; T = 'Bibliotheque, lente, sans mesure'; Fn = 'slow'; Own = $true; Do = { $chkWSlow.Checked = $true; $chkWLevel.Checked = $false } }
 )
+# Restauration pour le lecteur cible 0 : ecriture de Start-RestoreWrite (Start-PresetWrite 'slow' -NoCalib), sans mesure
+$scR = @{ Id = 'R1'; T = 'restauration, facteur de marque 1,25'; Fn = 'restore'; Do = { $chkWSlow.Checked = $true; $chkWLevel.Checked = $false; Set-FkBrand 1.25 } }
 # Empreintes de 62b8ce2 (sortie de ce test lance avec -Before <export de 62b8ce2>) : A, commandes et demandes (T) et
 # journal (J) ; B, commandes (T)
 $fkRef = @{
@@ -275,7 +283,8 @@ function Invoke-FkScenario($sc, [bool]$tgt, [bool]$own, [bool]$withPlan) {
     $script:FkTrace.Clear(); $script:FkLog.Clear()
     $script:WriteQueue.Clear(); $script:Chain.Clear(); $script:WriteArgs = $null; $script:Rep = $null
     try {
-        if ($sc.Fn -eq 'tab') { Start-WriteTabWrite } elseif ($sc.Fn -eq 'slow') { $chkWSlow.Checked = $true; Start-PresetWrite 'slow' } else { Start-PresetWrite 'fast' }
+        if ($sc.Fn -eq 'tab') { Start-WriteTabWrite } elseif ($sc.Fn -eq 'slow') { $chkWSlow.Checked = $true; Start-PresetWrite 'slow' }
+        elseif ($sc.Fn -eq 'restore') { $chkWSlow.Checked = $true; Start-PresetWrite 'slow' -NoCalib } else { Start-PresetWrite 'fast' }
     } catch { [void]$script:FkTrace.Add("ERREUR $($_.Exception.Message)") }
     $tr = @($script:FkTrace | ForEach-Object { & $fkNorm $_ })
     $wr = @{}
@@ -308,6 +317,8 @@ foreach ($pr in $fkRoots) {
     $script:AppDir = $here
     . $g.State
     . $g.Fn
+    # Vraie Start-ContentMeasure gardee avant son bouchon (D5 : texte de sa fenetre)
+    if ($pr.New) { $fkRealCm = ${function:Start-ContentMeasure} }
     Set-FkStubs
     $script:Lang = 'fr'
     $script:UiReady = $false; $script:ScpStatsOk = $true
@@ -325,7 +336,10 @@ foreach ($pr in $fkRoots) {
     $rr = @{}
     foreach ($sc in $scA) { $rr[$sc.Id] = Invoke-FkScenario $sc $false $true $false }
     foreach ($sc in $scB) { $rr[$sc.Id] = Invoke-FkScenario $sc $true ([bool]$sc.Own) $pr.New }
-    if ($pr.New) { foreach ($sc in $scA) { $rr['C' + $sc.Id.Substring(1)] = Invoke-FkScenario $sc $true $true $true } }
+    if ($pr.New) {
+        foreach ($sc in $scA) { $rr['C' + $sc.Id.Substring(1)] = Invoke-FkScenario $sc $true $true $true }
+        $rr['R1'] = Invoke-FkScenario $scR $true $true $false
+    }
     $res[$pr.Tag] = $rr
 }
 $cur = $res['fk']
@@ -349,9 +363,11 @@ $g2 = Get-FkVals $t2.Spec 80
 $df2 = @(Get-FkDiff $g2 $e2)
 Chk 'U2' ($df2.Count -eq 0 -and (@($t2.Added) -join ',') -eq '0,1,2' -and @($t2.Ratio.Keys).Count -eq 77) "facteur uniforme 1,5 : 1,5 X aux cylindres 3 a 79 (Sp >= 10 ns), X + 0,5 Sp aux cylindres 0 a 2 (ecart reporte : $(@($t2.Added) -join ',')) ; ecarts : $(Get-List $df2)"
 # U3 : borne et zero
-$t3a = Get-TargetTransferSpec '0=500' '0=50' '0=100:10=450' 0 $cap
+$t3a = Get-TargetTransferSpec '0=300' '0=50' '0=100:10=450' 0 $cap
 $t3b = Get-TargetTransferSpec '0=0:5=0' '0=5:5=40' '0=3:5=80' 0 $cap
-Chk 'U3' ((Get-FkVal $t3a.Spec 0) -eq $cap -and (Get-FkVal $t3a.Spec 10) -eq 450 -and (Get-FkVal $t3b.Spec 0) -eq 0 -and (Get-FkVal $t3b.Spec 5) -eq 0) "borne : 10 X ramene a $cap ns, et a X quand X la depasse deja (450 ns, jamais reduite) ; zero : X + (D - Sp) negatif (3 + 0 - 5) et facteur nul (Sp 40, D 0) ramenes a 0 ($($t3a.Spec) ; $($t3b.Spec))"
+# Relecture B1 : D au-dessus de la borne (mesure) : la courbe ecrite n est jamais ramenee sous D (X/Sp = 2 : 1000 -> D)
+$t3c = Get-TargetTransferSpec '0=500:10=420' '0=50' '0=100:10=60' 0 $cap
+Chk 'U3' ((Get-FkVal $t3a.Spec 0) -eq $cap -and (Get-FkVal $t3a.Spec 10) -eq 450 -and (Get-FkVal $t3b.Spec 0) -eq 0 -and (Get-FkVal $t3b.Spec 5) -eq 0 -and (Get-FkVal $t3c.Spec 0) -eq 500 -and (Get-FkVal $t3c.Spec 10) -eq 420) "borne max($cap ns, X, D) : 6 X ramene a $cap ns, X deja au-dessus gardee (450 ns), D deja au-dessus gardee (500 ns avec X/Sp = 2 ; 420 ns avec X/Sp = 1,2) ; zero : X + (D - Sp) negatif (3 + 0 - 5) et facteur nul (Sp 40, D 0) ramenes a 0 ($($t3a.Spec) ; $($t3b.Spec) ; $($t3c.Spec))"
 # U4 : cylindres au-dela de la longueur d une courbe (prolongement par la derniere valeur)
 $t4 = Get-TargetTransferSpec '0=22:5=33' '0=20:10=30' '0=40:50=60' 0 $cap
 $t4b = Get-TargetTransferSpec '0=22:5=33' '0=20:10=30' '0=40:50=60' 84 $cap
@@ -375,6 +391,11 @@ $s6 = Get-TargetTransferSummary $t2
 $r6 = @(for ($c = 3; $c -lt 80; $c++) { (20.0 + 2 * $c) / (4 + 2 * $c) })
 $m6 = @($r6 | Sort-Object); $med6 = ($m6[38])
 Chk 'U6' ([math]::Abs($s6.Min - ($m6[0])) -lt 1e-9 -and [math]::Abs($s6.Max - ($m6[-1])) -lt 1e-9 -and [math]::Abs($s6.Med - $med6) -lt 1e-9 -and (@($s6.Added) -join ',') -eq '0,1,2' -and $s6.Text -ceq ((T 'facteur de {0} à {1}, médiane {2}') -f (Format-UiNum $m6[0] '0.00'), (Format-UiNum $m6[-1] '0.00'), (Format-UiNum $med6 '0.00'))) "resume : $($s6.Text) ; ecart reporte aux cylindres $(@($s6.Added) -join ',')"
+# U7 (relecture m2) : courbe propre du lecteur qui ecrit posterieure a la courbe croisee : note au journal, courbe ecrite inchangee
+$noteD = (T 'courbe du lecteur {0} postérieure à la calibration croisée {0} → {1}') -f 'A', '0'
+$tdD = @{ P0 = '0=20:40=60'; P1 = '0=20:40=60'; Kind = @{ 0 = 'own'; 1 = 'own' } }
+$pD = @(foreach ($od in '03/11/2026 10:00', '01/11/2026 10:00') { Get-TargetTransferPlan @{ Src = 'A'; Tgt = '0'; Fam = 'std'; Own = @(@{ Spec = '0=20:40=60'; Date = $od }); Curves = @(@{ Spec = '0=40:40=100'; Date = '02/11/2026 10:00' }) } @{ Apply = $false; Hard = $cap } $tdD $false })
+Chk 'U7' ($pD[0].Line.Contains($noteD) -and -not $pD[1].Line.Contains($noteD) -and $pD[0].P0 -ceq $pD[1].P0) "courbe propre de A du 03/11 apres la courbe croisee du 02/11 : « $noteD » au journal ; du 01/11 : aucune note ; courbe ecrite identique ($($pD[0].P0))"
 
 # =====================================================================================================================
 '--- A : ecriture « meme lecteur » inchangee (62b8ce2)'
@@ -418,18 +439,38 @@ foreach ($sc in $scA) {
         $e = Get-FkExpect ([string]$a.W[$k]) $own[$k] $xs[$k] 84 $cap $min
         $df = @(Get-FkDiff (Get-FkVals ([string]$c.W[$k]) 84) $e)
         if ($df.Count) { $cBad += "$cid tete $k : $(Get-List $df 3)" }
-        $nAt = @(for ($cy = 0; $cy -lt 84; $cy++) { if ($e[$cy] -eq [math]::Max($cap, (Get-FkVal $xs[$k] $cy)) -and $e[$cy] -ne (Get-FkVal $xs[$k] $cy)) { $cy } }).Count
+        $nAt = @(for ($cy = 0; $cy -lt 84; $cy++) { if ($e[$cy] -eq [math]::Max($cap, [math]::Max((Get-FkVal $xs[$k] $cy), (Get-FkVal $a.W[$k] $cy))) -and $e[$cy] -ne (Get-FkVal $xs[$k] $cy)) { $cy } }).Count
         $cInfo += "$cid/$k : D $(Get-FkVal $a.W[$k] 40) ns a c40 -> $(Get-FkVal $c.W[$k] 40) ns (X $(Get-FkVal $xs[$k] 40), Sp $(Get-FkVal $own[$k] 40))$(if ($nAt) { ", $nAt cyl. a la borne" })"
     }
     if ((@($a.W.Values) -join '|') -ceq (@($c.W.Values) -join '|')) { $cBad += "$cid : meme courbe que le meme lecteur" }
 }
 "  $($cInfo -join ' ; ')"
 $cMeas = @(foreach ($sc in $scA) { $cid = 'C' + $sc.Id.Substring(1); "$cid=" + (@($cur[$cid].Trace | Where-Object { $_ -match '^(calibration rapide|mesure complete|mesure sur l image)' }) -join '+') })
-Chk 'C1' ($cBad.Count -eq 0) "$($scA.Count) ecritures pour le lecteur cible 0 (mesure sur l image k 1,10/0,95, test rapide niveau et forme, mesure complete jusqu a +400 ns, facteur de marque 1,25, ecriture rapide, Bibliotheque) : par tete et par cylindre (0 a 83), X x D / Sp (Sp >= 10 ns) ou X + D - Sp, arrondi, borne 0..max($cap ns, X), D = courbe ecrite par le meme lecteur dans le scenario A ; ecarts : $(Get-List $cBad)"
+Chk 'C1' ($cBad.Count -eq 0) "$($scA.Count) ecritures pour le lecteur cible 0 (mesure sur l image k 1,10/0,95, test rapide niveau et forme, mesure complete jusqu a +400 ns, facteur de marque 1,25, ecriture rapide, Bibliotheque) : par tete et par cylindre (0 a 83), X x D / Sp (Sp >= 10 ns) ou X + D - Sp, arrondi, borne 0..max($cap ns, X, D), D = courbe ecrite par le meme lecteur dans le scenario A ; ecarts : $(Get-List $cBad)"
 Chk 'C2' (@($cMeas | Where-Object { $_ -notmatch '=(calibration rapide|mesure complete|mesure sur l image)' -and $_ -notlike 'C4=*' }).Count -eq 0 -and $cMeas[3] -eq 'C4=') "mesures faites comme pour le meme lecteur : $($cMeas -join ' ; ')"
-$c3 = $cur['C3']
-$nb = @(for ($cy = 0; $cy -lt 84; $cy++) { if ((Get-FkVal $c3.W[0] $cy) -eq [math]::Max($cap, (Get-FkVal $xs[0] $cy))) { $cy } }).Count
-Chk 'C3' ($nb -gt 0 -and @(for ($cy = 0; $cy -lt 84; $cy++) { if ((Get-FkVal $c3.W[0] $cy) -gt [math]::Max($cap, (Get-FkVal $xs[0] $cy))) { $cy } }).Count -eq 0) "mesure complete au-dela de la borne (+400 ns aux cylindres 70 a 79, tete 0) : $nb cylindre(s) a la borne max($cap ns, X), aucun au-dessus"
+$c3 = $cur['C3']; $a3 = $cur['A3']
+# Relecture B1 (contre-essai CT1) : D au-dessus de la borne aux cylindres 70 a 79 ; borne max($cap, X, D) ; la ou X > Sp
+# (le lecteur cible demande plus que le lecteur qui ecrit), jamais ecrit sous la courbe du meme lecteur (scenario A3)
+$b3 = @(for ($cy = 0; $cy -lt 84; $cy++) { [math]::Max($cap, [math]::Max((Get-FkVal $xs[0] $cy), (Get-FkVal $a3.W[0] $cy))) })
+$nb = @(for ($cy = 0; $cy -lt 84; $cy++) { if ((Get-FkVal $c3.W[0] $cy) -eq $b3[$cy]) { $cy } }).Count
+$no = @(for ($cy = 0; $cy -lt 84; $cy++) { if ((Get-FkVal $c3.W[0] $cy) -gt $b3[$cy]) { $cy } }).Count
+$un = @(for ($cy = 0; $cy -lt 84; $cy++) { if ((Get-FkVal $xs[0] $cy) -gt (Get-FkVal $own[0] $cy) -and (Get-FkVal $c3.W[0] $cy) -lt (Get-FkVal $a3.W[0] $cy)) { "c$cy" } })
+$hi = @(for ($cy = 70; $cy -lt 80; $cy++) { if ((Get-FkVal $a3.W[0] $cy) -gt $cap) { $cy } }).Count
+Chk 'C3' ($hi -eq 10 -and $nb -gt 0 -and $no -eq 0 -and $un.Count -eq 0) "mesure complete au-dela de la borne (+400 ns aux cylindres 70 a 79, tete 0 : $hi cylindre(s) de D au-dessus de $cap ns) : $nb cylindre(s) a la borne max($cap ns, X, D), aucun au-dessus ; X > Sp : aucun cylindre ecrit sous la courbe du meme lecteur (c70 : D $(Get-FkVal $a3.W[0] 70) ns -> $(Get-FkVal $c3.W[0] 70) ns) ; ecarts : $(Get-List $un)"
+
+'--- R : ecriture de la restauration pour un lecteur cible'
+# Relecture B2 (contre-essai CT2) : Start-PresetWrite 'slow' -NoCalib (appel de Start-RestoreWrite), facteur de marque 1,25 :
+# D = ConvertTo-ScaledSpec(Sp, 1,25), courbe ecrite = formule (D, Sp, X) tete par tete ; aucune mesure ; journal qui le dit
+$r1 = $cur['R1']; $rBad = @()
+foreach ($h in 0, 1) {
+    $e = Get-FkExpect (ConvertTo-ScaledSpec $own[$h] 1.25 $cap) $own[$h] $xs[$h] 84 $cap $min
+    if (-not $r1.W.ContainsKey($h)) { $rBad += "tete $h non ecrite"; continue }
+    $df = @(Get-FkDiff (Get-FkVals ([string]$r1.W[$h]) 84) $e)
+    if ($df.Count) { $rBad += "tete $h : $(Get-List $df 3)" }
+}
+$rMeas = @($r1.Trace | Where-Object { $_ -match '^(calibration rapide|mesure complete|mesure sur l image|calibration complete)' -or $_ -like 'ERREUR*' })
+$rLog = @($r1.Log | Where-Object { $_.StartsWith('Écriture pour le lecteur cible 0 : courbe de cette disquette (lecteur A, tête 0 : courbe du lecteur × 1,25', [System.StringComparison]::Ordinal) -and $_.Contains('tête 1 : courbe du lecteur × 1,25') })
+Chk 'R1' ($rBad.Count -eq 0 -and $rMeas.Count -eq 0 -and $rLog.Count -eq 1) "restauration pour le lecteur cible 0 (Start-PresetWrite 'slow' -NoCalib), facteur de marque 1,25 : par tete et par cylindre, formule appliquee a 1,25 x Sp (c40 tete 0 : X $(Get-FkVal $xs[0] 40) ns -> $(Get-FkVal $r1.W[0] 40) ns) ; aucune mesure ($(Get-List $rMeas)) ; ligne de journal du facteur de marque et du facteur par cylindre : $($rLog.Count) ; ecarts : $(Get-List $rBad)"
 
 # =====================================================================================================================
 '--- D : phrase, case de la mesure et journal tires de la meme decision'
@@ -500,6 +541,29 @@ foreach ($lang in 'fr', 'en') {
 }
 $script:Lang = 'fr'
 Chk 'D4' (@($dW | Where-Object { $_ -eq 'PLUS LARGE' }).Count -eq 0) "case de la mesure, « Test rapide » sans courbe propre : texte au plus aussi large que celui de la rc1 (nom de lecteur le plus large admis) : $($dW -join ' ; ')"
+# D5 (relecture B5) : vraie fenetre « Mesure de la disquette sur l image » (vraie Start-ContentMeasure ; Show-AppConfirm
+# bouchon qui garde le texte et ferme la fenetre : ecriture annulee) : lecteur cible 0 avec la courbe propre de A,
+# paragraphe du facteur par cylindre ; meme lecteur : absent ; anglais
+function script:Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [string]$Check = '', [string]$GoText = '', [string]$GoGlyph = '', [string]$Level = 'warn', [string]$Picto = 'warn', [string]$AltText = '', $Combo = $null) { [void]$script:FkLog.Add("FENETRE $Text"); $script:ConfirmChoice = $null; return $false }
+$d5 = @(); $d5Txt = ''
+foreach ($x in @(@{ L = 'fr'; Tg = $true }, @{ L = 'fr'; Tg = $false }, @{ L = 'en'; Tg = $true })) {
+    $script:Lang = $x.L
+    Reset-FkState; $txtWFile.Text = $imAdf; $cmbWFmt.SelectedItem = 'amiga.amigados'; Set-FkCurves $true $true
+    if ($x.Tg) { $script:TargetDrives['A'] = '0' }
+    $chkWSlow.Checked = $true; $chkWLevel.Checked = $true; $cmbWLevelMode.SelectedIndex = 0
+    $cm = Test-ContentMeasurable $imAdf 'amiga.amigados'
+    $script:FkTrace.Clear(); $script:FkLog.Clear()
+    try { & $fkRealCm $cm } catch { [void]$script:FkLog.Add("ERREUR $($_.Exception.Message)") }
+    $win = @($script:FkLog | Where-Object { $_.StartsWith('FENETRE ') })
+    $par = (T "Écriture pour le lecteur cible {1} : la courbe ainsi obtenue (niveau mesuré, ou facteur de la marque avec « Écrire sans mesure ») est ensuite multipliée, cylindre par cylindre, par le facteur de la calibration croisée {0} → {1} ; sans mesure ni facteur de la marque, la courbe croisée est écrite telle quelle.") -f 'A', '0'
+    $w = if ($win.Count -eq 1) { $win[0] } else { '' }
+    $ok = ($cm.Ok -and $win.Count -eq 1 -and $w.Contains("`n`n" + $par) -eq $x.Tg -and $w.Contains($par) -eq $x.Tg -and ($x.L -eq 'fr' -or -not $w.Contains('lecteur cible')))
+    if ($x.L -eq 'fr' -and $x.Tg -and $w.Contains($par)) { $d5Txt = $par.Substring(0, 60) + '…' }
+    if (-not $ok) { $d5 += "$($x.L)/$(if ($x.Tg) { 'cible' } else { 'meme lecteur' }) : mesurable $($cm.Ok), fenetres $($win.Count), paragraphe $($w.Contains($par)) $(@($script:FkLog | Where-Object { $_ -like 'ERREUR*' }) -join ' ')" }
+}
+$script:Lang = 'fr'
+Set-FkStubs
+Chk 'D5' ($d5.Count -eq 0) "vraie fenetre de la mesure sur l image : paragraphe du facteur par cylindre avec le lecteur cible 0 (francais, anglais), absent pour le meme lecteur : « $d5Txt » ; ecarts : $(Get-List $d5)"
 
 # =====================================================================================================================
 '--- E : le lecteur cible n intervient dans aucune mesure ni commande'
@@ -513,13 +577,22 @@ foreach ($k in @($cur.Keys)) {
 $fnAst = @{}
 foreach ($f in @(Get-ChildItem -LiteralPath $mods -Filter '*.ps1' -File)) { foreach ($d in (Get-Ast $f.FullName).FindAll({ param($x) $x -is $tFnA }, $false)) { $fnAst[$d.Name] = $d } }
 function Get-FkCalls([string]$fn) { if (-not $fnAst.ContainsKey($fn)) { return ,@('ABSENTE') }; return ,@($fnAst[$fn].Body.FindAll({ param($x) $x -is $tCmdA }, $true) | ForEach-Object { [string]$_.GetCommandName() } | Where-Object { $_ } | Sort-Object -Unique) }
+# Relecture B5 : Start-ContentMeasure lit Get-TargetWriteInfo pour le seul texte de sa fenetre (deux lignes : $twc pose,
+# puis ajoute au texte de la confirmation $cq) ; aucune autre lecture du lecteur cible dans les fonctions de mesure
+$cmL = @()
+if ($fnAst.ContainsKey('Start-ContentMeasure')) { $cmL = @(($fnAst['Start-ContentMeasure'].Extent.Text -split "`r?`n") | ForEach-Object { $_.Trim() } | Where-Object { -not $_.StartsWith('#') -and $_ -match '\$twc\b|Get-Target' }) }
+$cmOk = ($cmL.Count -eq 2 -and $cmL[0].StartsWith('$twc = Get-TargetWriteInfo ') -and $cmL[1] -match '^if \(\$twc\.Xfer\) \{ \$cq\.Text \+= ' -and [regex]::Matches($cmL[1], 'Get-Target').Count -eq 0)
+if (-not $cmOk) { $eBad += "Start-ContentMeasure : lecture du lecteur cible hors du texte de la fenetre ($(Get-List $cmL 3))" }
 foreach ($fn in 'Start-LevelBeforeWrite', 'Get-LevelBeforeWritePlan', 'Get-LevelRef', 'Test-ContentMeasurable', 'Start-ContentMeasure', 'Start-LevelCalib', 'Start-DiskMeasure') {
-    foreach ($c in (Get-FkCalls $fn)) { if ($c -match '^(Get-TargetDrive|Get-TargetWriteInfo|Get-TargetCurves|Get-TargetDFields|Get-TargetTransfer\w*|ABSENTE)$') { $eBad += "$fn : $c" } }
+    foreach ($c in (Get-FkCalls $fn)) {
+        if ($fn -eq 'Start-ContentMeasure' -and $c -eq 'Get-TargetWriteInfo' -and $cmOk) { continue }
+        if ($c -match '^(Get-TargetDrive|Get-TargetWriteInfo|Get-TargetCurves|Get-TargetDFields|Get-TargetTransfer\w*|ABSENTE)$') { $eBad += "$fn : $c" }
+    }
 }
 foreach ($fn in 'Get-TargetTransferSpec', 'Get-TargetTransferSummary', 'Get-TargetDFields', 'Get-TargetTransferPlan') {
     foreach ($c in (Get-FkCalls $fn)) { if ($c -match '^(Append-Log|Show-\w+|Start-\w+|Invoke-\w+|Set-\w+|Save-Config|ABSENTE)$') { $eBad += "$fn : $c" } }
 }
-Chk 'E1' ($eBad.Count -eq 0) "commandes gw de tous les scenarios sur le lecteur A seul (--drive=A), mesures simulees lancees pour A sur des references de A ; fonctions de mesure sans lecteur cible ni courbe croisee ; fonctions du facteur par cylindre sans journal, fenetre ni commande (arbre syntaxique) ; ecarts : $(Get-List $eBad)"
+Chk 'E1' ($eBad.Count -eq 0) "commandes gw de tous les scenarios sur le lecteur A seul (--drive=A), mesures simulees lancees pour A sur des references de A ; fonctions de mesure sans lecteur cible ni courbe croisee (Start-ContentMeasure : texte de sa fenetre seulement) ; fonctions du facteur par cylindre sans journal, fenetre ni commande (arbre syntaxique) ; ecarts : $(Get-List $eBad)"
 
 # =====================================================================================================================
 '--- I : textes, CHANGELOG'
