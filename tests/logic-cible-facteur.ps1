@@ -452,7 +452,10 @@ foreach ($g in @('G1', 'G2')) {
     $gx = @($r.Log | Where-Object { $_ -like '*facteur par cylindre de la calibration croisée A → 0 (*' -or $_ -like '*pas de courbe propre*' })
     if ($gl.Count -ne 1 -or $gm.Count -ne 1 -or $gx.Count -ne 0) { $gBad += "$g journal : ligne de l ecriture $($gl.Count), mesure non faite $($gm.Count), formule ou autre raison $($gx.Count)" }
     $segs = @($r.Plan.Segs | ForEach-Object { [string]$_.T })
-    $sg = @($r.Plan.Segs | Where-Object { [string]$_.T -like "pour le lecteur cible 0 : courbe* croisée* A → 0 * telle quelle, sans le facteur par cylindre ($gWhy)" -and $_.Crit })
+    # Relecture rc2.1 : ecriture lente avec courbes croisees par tete (B3) : « courbes croisees ... par tete (...) telles
+    # quelles » (accord) ; sinon « courbe croisee ... telle quelle »
+    $gAgr = if ($r.Slow) { "pour le lecteur cible 0 : courbes croisées A → 0 par tête (*) telles quelles, sans le facteur par cylindre ($gWhy)" } else { "pour le lecteur cible 0 : courbe croisée A → 0 (*) telle quelle, sans le facteur par cylindre ($gWhy)" }
+    $sg = @($r.Plan.Segs | Where-Object { [string]$_.T -clike $gAgr -and $_.Crit })
     if ($sg.Count -ne 1 -or $segs -notcontains 'sans mesure de la disquette (lecteur cible 0)' -or @($segs | Where-Object { $_ -like '*× facteur par cylindre*' }).Count -ne 0) { $gBad += "$g ligne : $($segs -join ' ; ')" }
     if ($r.Chk.Enabled -or $r.Chk.Tip -cne "Mesure de la disquette non disponible pour le lecteur cible 0 : $gWhy. L'image est écrite avec la courbe croisée telle quelle, sans le facteur par cylindre.") { $gBad += "$g case active $($r.Chk.Enabled), infobulle « $($r.Chk.Tip) »" }
 }

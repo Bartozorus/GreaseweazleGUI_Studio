@@ -199,7 +199,11 @@ function Get-WritePlan {
     # par cylindre de la calibration croisee (Get-TargetTransferPlan) ; sans elle, texte de la rc1. Segment critique (la
     # courbe ecrite n est pas celle du lecteur qui ecrit) : jamais retire par la coupe, forme courte sans les lecteurs
     if ($tw.Xfer) { [void]$sg.Add(@{ T = ((T 'pour le lecteur cible {0} : courbe de cette disquette × facteur par cylindre de la calibration croisée {1} → {0}') -f "$($tw.Tgt)", "$($tw.Src)"); Crit = $true; S = ((T 'pour le lecteur cible {0} : facteur par cylindre de la calibration croisée') -f "$($tw.Tgt)") }) }
-    elseif ($tw.Applies -and $tw.ViewWhy) { [void]$sg.Add(@{ T = ((T 'pour le lecteur cible {0} : {1} telle quelle, sans le facteur par cylindre ({2})') -f "$($tw.Tgt)", (Get-TargetCurvesText ([string]$tw.Src) ([string]$tw.Tgt) ([string]$tw.Fam) $tw.Curves), "$($tw.ViewWhy)"); Crit = $true; S = ((T 'pour le lecteur cible {0} : courbe croisée telle quelle') -f "$($tw.Tgt)") }) }   # 12.11 rc2.1 (garde)
+    elseif ($tw.Applies -and $tw.ViewWhy) {
+        # 12.11 rc2.1 (garde ; relecture : accord de « telle quelle » avec « courbes croisees ... par tete », Get-TargetCurvesText)
+        $vt = if (@($tw.Curves | Where-Object { $_ }).Count -ge 2) { (T 'pour le lecteur cible {0} : {1} telles quelles, sans le facteur par cylindre ({2})') } else { (T 'pour le lecteur cible {0} : {1} telle quelle, sans le facteur par cylindre ({2})') }
+        [void]$sg.Add(@{ T = ($vt -f "$($tw.Tgt)", (Get-TargetCurvesText ([string]$tw.Src) ([string]$tw.Tgt) ([string]$tw.Fam) $tw.Curves), "$($tw.ViewWhy)"); Crit = $true; S = ((T 'pour le lecteur cible {0} : courbe croisée telle quelle') -f "$($tw.Tgt)") })
+    }
     elseif ($tw.Applies) { [void]$sg.Add(@{ T = ((T 'pour le lecteur cible {0} : {1}') -f "$($tw.Tgt)", (Get-TargetCurvesText ([string]$tw.Src) ([string]$tw.Tgt) ([string]$tw.Fam) $tw.Curves)); Crit = $false }) }
     elseif ($tw.Tgt -and $tw.Why) {
         $x = (T "Lecteur cible {0} sans effet sur cette écriture : {1}.") -f "$($tw.Tgt)", "$($tw.Why)"

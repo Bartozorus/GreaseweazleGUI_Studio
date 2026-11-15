@@ -94,6 +94,10 @@ if ($rr -notmatch '\$script:RestoreRules = @\{ ReadRevs = (\d+); ReadRetries = (
 $script:RestoreRules = @{ ReadRevs = [int]$Matches[1]; ReadRetries = [int]$Matches[2]; SeekRetries = [int]$Matches[3]; WriteRetries = [int]$Matches[4]; RepairPasses = [int]$Matches[5] }
 $RR = $script:RestoreRules
 $script:Version = '12.10'
+# 12.11 rc2.1 (relecture) : version montree a l utilisateur ($script:VersionLabel, 000), relue dans le module : en-tete du
+# rapport (R5) ; vide pour une source qui ne l a pas
+$e000 = Get-Content -LiteralPath (Join-Path $m '000-entete.ps1') -Encoding UTF8 -Raw
+$script:VersionLabel = if ($e000 -match "(?m)^\`$script:VersionLabel = '([^']+)'") { $Matches[1] } else { '' }
 "source : $Wt ; Get-RestorePlan $(if ($hasPlan) { 'presente' } else { 'ABSENTE' }) ; decision de l ecriture (Start-RestoreWrite) $(if ($sPlan) { 'presente' } else { 'ABSENTE' }) ; formats de la liste : $($codes -join ', ')"
 
 # --- Controles et bouchons ---------------------------------------------------------------------------------------------
@@ -330,7 +334,7 @@ foreach ($lg in 'fr', 'en') {
         $lines = if (Test-Path -LiteralPath $script:Restore.Report) { @(Get-Content -LiteralPath $script:Restore.Report -Encoding UTF8) } else { @() }
         $got = @($lines | Where-Object { $_ -match '^(Règles|Rules) ' })
         $exp = Get-ExpRep $lg $c.K 'A' $c.Tg
-        $rep += [pscustomobject]@{ Lang = $lg; Id = $c.Id; K = $c.K; Ok = ($got.Count -eq 1 -and $got[0] -ceq $exp -and -not $e); Got = $(if ($got.Count) { $got[0] } else { "(aucune ligne ; $e)" }); Exp = $exp }
+        $rep += [pscustomobject]@{ Lang = $lg; Id = $c.Id; K = $c.K; Ok = ($got.Count -eq 1 -and $got[0] -ceq $exp -and -not $e); Got = $(if ($got.Count) { $got[0] } else { "(aucune ligne ; $e)" }); Exp = $exp; Head = $(if ($lines.Count) { [string]$lines[0] } else { '' }) }
     }
 }
 $script:Lang = 'fr'; $script:Restore = $null
@@ -341,6 +345,9 @@ Chk 'R1' (& $rOk @('R-flux', 'R-flux-cible')) "copie exacte du flux (decision de
 Chk 'R2' (& $rOk @('R-cible', 'R-cible-avant', 'R-refus', 'R-refus-avant')) "lecteur cible : ecriture par le lecteur A avec la courbe croisee A -> 0 et, si A a sa courbe, son facteur de marque, sans calibration ni mesure de la destination, relecture finale par le lecteur A (decision de l ecriture, ou du lancement avant l ecriture) ; refus de l ecriture pour le lecteur cible (haute densite reconnue a la lecture) : « ecriture pour le lecteur cible 0 refusee, rien n a ete ecrit »"
 Chk 'R3' (& $rOk @('R-hd', 'R-hd-avant')) "haute densite : « ... courbe haute densite existante du lecteur, sinon le profil d origine, sans calibration ni mesure de la destination (jamais en haute densite), pre-effacement ..., pas de controle des pistes ... ; relecture finale sans nouvel essai. »"
 Chk 'R4' (& $rOk @('R-secteur', 'R-secteur-avant')) "copie secteur double densite sans lecteur cible, et detection automatique avant la fin de la detection : ligne d origine, inchangee"
+$hExp = @{ fr = "Greaseweazle Studio v$($script:VersionLabel) - rapport de restauration"; en = "Greaseweazle Studio v$($script:VersionLabel) - restore report" }
+$hBad = @($rep | Where-Object { $_.Head -cne $hExp[$_.Lang] })
+Chk 'R5' ($script:VersionLabel -and $script:VersionLabel -cne $script:Version -and $hBad.Count -eq 0) "en-tete du rapport : version montree (`$script:VersionLabel de 000 : « $($script:VersionLabel) »), pas `$script:Version (fixe a $($script:Version) ici), en francais et en anglais ; ecarts : $(if ($hBad.Count) { @($hBad | Select-Object -First 3 | ForEach-Object { "$($_.Lang) $($_.Id) « $($_.Head) »" }) -join ' ; ' } else { 'aucun' })"
 
 # --- J. Decision et ligne de journal de Start-RestoreWrite (instructions reelles) ---------------------------------------
 "--- J : decision de l ecriture et ligne de journal (instructions reelles de Start-RestoreWrite)"

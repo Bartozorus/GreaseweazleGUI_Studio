@@ -3050,6 +3050,8 @@ $script:I18n["Mesure de la disquette avant l'écriture non faite : écriture pou
 $script:I18n["Écriture pour le lecteur cible {0} : ni calibration automatique ni mesure de la disquette ({1}) ; écriture avec la courbe croisée telle quelle."] = 'Write for target drive {0}: neither automatic calibration nor disk measurement ({1}); write with the cross curve as is.'
 $script:I18n["Mesure de la disquette non disponible pour le lecteur cible {0} : {1}. L'image est écrite avec la courbe croisée telle quelle, sans le facteur par cylindre."] = 'Disk measurement not available for target drive {0}: {1}. The image is written with the cross curve as is, without the per-cylinder factor.'
 $script:I18n['pour le lecteur cible {0} : {1} telle quelle, sans le facteur par cylindre ({2})'] = 'for target drive {0}: {1} as is, without the per-cylinder factor ({2})'
+# Relecture rc2.1 : courbes croisees par tete (Get-TargetCurvesText : « courbes croisees ... par tete »), accord au pluriel
+$script:I18n['pour le lecteur cible {0} : {1} telles quelles, sans le facteur par cylindre ({2})'] = 'for target drive {0}: {1} as is, without the per-cylinder factor ({2})'
 $script:I18n['pour le lecteur cible {0} : courbe croisée telle quelle'] = 'for target drive {0}: cross curve as is'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -12527,7 +12529,11 @@ function Get-WritePlan {
     # par cylindre de la calibration croisee (Get-TargetTransferPlan) ; sans elle, texte de la rc1. Segment critique (la
     # courbe ecrite n est pas celle du lecteur qui ecrit) : jamais retire par la coupe, forme courte sans les lecteurs
     if ($tw.Xfer) { [void]$sg.Add(@{ T = ((T 'pour le lecteur cible {0} : courbe de cette disquette × facteur par cylindre de la calibration croisée {1} → {0}') -f "$($tw.Tgt)", "$($tw.Src)"); Crit = $true; S = ((T 'pour le lecteur cible {0} : facteur par cylindre de la calibration croisée') -f "$($tw.Tgt)") }) }
-    elseif ($tw.Applies -and $tw.ViewWhy) { [void]$sg.Add(@{ T = ((T 'pour le lecteur cible {0} : {1} telle quelle, sans le facteur par cylindre ({2})') -f "$($tw.Tgt)", (Get-TargetCurvesText ([string]$tw.Src) ([string]$tw.Tgt) ([string]$tw.Fam) $tw.Curves), "$($tw.ViewWhy)"); Crit = $true; S = ((T 'pour le lecteur cible {0} : courbe croisée telle quelle') -f "$($tw.Tgt)") }) }   # 12.11 rc2.1 (garde)
+    elseif ($tw.Applies -and $tw.ViewWhy) {
+        # 12.11 rc2.1 (garde ; relecture : accord de « telle quelle » avec « courbes croisees ... par tete », Get-TargetCurvesText)
+        $vt = if (@($tw.Curves | Where-Object { $_ }).Count -ge 2) { (T 'pour le lecteur cible {0} : {1} telles quelles, sans le facteur par cylindre ({2})') } else { (T 'pour le lecteur cible {0} : {1} telle quelle, sans le facteur par cylindre ({2})') }
+        [void]$sg.Add(@{ T = ($vt -f "$($tw.Tgt)", (Get-TargetCurvesText ([string]$tw.Src) ([string]$tw.Tgt) ([string]$tw.Fam) $tw.Curves), "$($tw.ViewWhy)"); Crit = $true; S = ((T 'pour le lecteur cible {0} : courbe croisée telle quelle') -f "$($tw.Tgt)") })
+    }
     elseif ($tw.Applies) { [void]$sg.Add(@{ T = ((T 'pour le lecteur cible {0} : {1}') -f "$($tw.Tgt)", (Get-TargetCurvesText ([string]$tw.Src) ([string]$tw.Tgt) ([string]$tw.Fam) $tw.Curves)); Crit = $false }) }
     elseif ($tw.Tgt -and $tw.Why) {
         $x = (T "Lecteur cible {0} sans effet sur cette écriture : {1}.") -f "$($tw.Tgt)", "$($tw.Why)"
