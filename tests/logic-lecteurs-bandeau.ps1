@@ -30,7 +30,8 @@ $Wt = Get-TestRoot $Wt
 #     affichee) et le clic sur un element est rejoue par les messages natifs que la liste recoit alors (CB_SETCURSEL, puis
 #     CBN_SELENDOK et CBN_SELCHANGE reflechis, passes a sa methode WndProc) : vue, libelle du bandeau, libelle « Lecteur qui
 #     ecrit », sonde de la case et de la ligne, garde de l ecriture pour un lecteur cible, dernier lecteur, journal ; choix
-#     par le code avec poignee (gestionnaire execute une fois) ; corps des deux gestionnaires de 520 identiques.
+#     par le code avec poignee (gestionnaire execute une fois) ; corps des deux gestionnaires de 520 identiques ; fleches
+#     sur la liste fermee et clic liste ouverte, avant ou apres CBN_SELCHANGE : lecteur a confirmer (W6).
 # Fonctions et instructions reelles extraites par l arbre syntaxique, ecrites dans des fichiers de travail puis chargees
 # par dot-source. Aucun gw, aucune fenetre affichee, aucune compilation. Non couvert ici : les evenements reels d une
 # liste WinForms affichee autres que ceux rejoues en W (ordre exact des messages d un clic reel, molette, clavier,
@@ -1338,11 +1339,11 @@ Chk 'W0' ($w0 -ceq "bandeau $nV, « Lecteur qui écrit : $nV (A) »" -and $cmbDr
 $script:LbSlow.Clear(); $script:Log.Clear(); $script:LbTc.Clear()
 Select-LbUser $nO
 $w1 = Get-LbW; $w1l = @(Get-LbLog 'Lecteur choisi*'); $w1tc = $script:LbTc.Count
-Chk 'W1' ($w1 -ceq "bandeau $nO, libelle Lecteur (0) :, vue [std=0=20:40=60], sonde [$nO : std=0=20:40=60], « Lecteur qui écrit : $nO (0) », dernier lecteur [0=$nO,A=$nV], lecteur cible [], facteur par cylindre False, garde []" -and $w1l.Count -eq 1 -and $w1l[0] -ceq "Lecteur choisi : $nO (0) (avant : $nV (A)).") "clic sur $nO dans la liste deroulee (TextChanged leve $w1tc fois) : vue, libelle du bandeau, libelle « Lecteur qui ecrit », case et ligne (sonde), dernier lecteur et journal de ce lecteur ($w1 ; journal : $($w1l -join ' / '))"
+Chk 'W1' ($w1 -ceq "bandeau $nO, libelle Lecteur (0) :, vue [std=0=20:40=60], sonde [$nO : std=0=20:40=60], « Lecteur qui écrit : $nO (0) », dernier lecteur [0=$nO,A=$nV], lecteur cible [], facteur par cylindre False, garde []" -and $w1l.Count -eq 1 -and $w1l[0] -ceq "Lecteur choisi : $nO (0) (avant : $nV (A))." -and $w1tc -eq 0) "clic sur $nO dans la liste deroulee (TextChanged leve $w1tc fois) : vue, libelle du bandeau, libelle « Lecteur qui ecrit », case et ligne (sonde), dernier lecteur et journal de ce lecteur ($w1 ; journal : $($w1l -join ' / '))"
 $script:LbSlow.Clear(); $script:Log.Clear(); $script:LbTc.Clear()
 Select-LbUser $nV
 $w2 = Get-LbW; $w2l = @(Get-LbLog 'Lecteur choisi*'); $w2tc = $script:LbTc.Count
-Chk 'W2' ($w2 -ceq "bandeau $nV, libelle Lecteur (A) :, vue [$vView], sonde [$nV : $vView], « Lecteur qui écrit : $nV (A) », dernier lecteur [0=$nO,A=$nV], lecteur cible [$nO], facteur par cylindre True, garde []" -and $w2l.Count -eq 1 -and $w2l[0] -ceq "Lecteur choisi : $nV (A) (avant : $nO (0)).") "clic sur $nV ensuite (TextChanged leve $w2tc fois) : courbes de $nV chargees, garde de l ecriture pour le lecteur cible $nO non declenchee (courbe de cette disquette x facteur par cylindre) ($w2 ; journal : $($w2l -join ' / '))"
+Chk 'W2' ($w2 -ceq "bandeau $nV, libelle Lecteur (A) :, vue [$vView], sonde [$nV : $vView], « Lecteur qui écrit : $nV (A) », dernier lecteur [0=$nO,A=$nV], lecteur cible [$nO], facteur par cylindre True, garde []" -and $w2l.Count -eq 1 -and $w2l[0] -ceq "Lecteur choisi : $nV (A) (avant : $nO (0))." -and $w2tc -eq 0) "clic sur $nV ensuite (TextChanged leve $w2tc fois) : courbes de $nV chargees, garde de l ecriture pour le lecteur cible $nO non declenchee (courbe de cette disquette x facteur par cylindre) ($w2 ; journal : $($w2l -join ' / '))"
 $script:LbSlow.Clear(); $script:LbTc.Clear()
 Select-LbDrive $nO; Select-LbDrive $nV
 $w3 = "sonde [$($script:LbSlow -join ' | ')], TextChanged $($script:LbTc.Count)"
@@ -1361,6 +1362,20 @@ foreach ($s in @($st520)) {
 }
 $w5 = ($tcB.Count -ge 6 -and $sicB.Count -eq $tcB.Count + 1 -and (($sicB | Select-Object -Skip 1) -join "`n") -ceq ($tcB -join "`n") -and ([string]$sicB[0]).Contains('[string]$script:DriveHandled'))
 Chk 'W5' $w5 "520 : gestionnaire de SelectedIndexChanged = garde (texte vide ou deja traite, `$script:DriveHandled) puis les $($tcB.Count) instructions du gestionnaire de TextChanged, a l identique"
+# W6 (relecture de la rc2.2) : lecteur a confirmer apres un choix fait par le seul gestionnaire de SelectedIndexChanged.
+# Fleche sur la liste fermee (CB_SETCURSEL puis CBN_SELCHANGE, sans SelectionChangeCommitted liste ouverte) : vue du
+# lecteur choisi ; la connexion A porte $nV et son lecteur non enregistre (qui a un lecteur cible), la confirmation reste
+# due. Clic dans la liste deroulee : SelectionChangeCommitted liste ouverte (Set-DriveHandChoice $true : DroppedDown ne
+# peut etre vrai sans fenetre affichee), avant ou apres CBN_SELCHANGE : le lecteur clique est confirme (Update-DriveChoice
+# ne vide pas $script:DriveChecked)
+function Get-LbW6 { return "$($cmbDrive.Text) : confirme [$($script:DriveChecked)], due $(Test-DriveCheckDue), vue [$(Get-LbView)]" }
+function Select-LbKey([string]$item) { Send-LbNative 0x014E ($cmbDrive.Items.IndexOf($item)) 0; Send-LbNative 0x2111 (1 -shl 16) ([long]$hW) }
+$w6 = @()
+Select-LbKey $nO; $w6 += Get-LbW6; Select-LbKey $nV; $w6 += Get-LbW6
+Select-LbKey $nO; Send-LbNative 0x014E ($cmbDrive.Items.IndexOf($nV)) 0; Set-DriveHandChoice $true; Send-LbNative 0x2111 (1 -shl 16) ([long]$hW); $w6 += Get-LbW6
+Select-LbKey $nO; Send-LbNative 0x014E ($cmbDrive.Items.IndexOf($nV)) 0; Send-LbNative 0x2111 (1 -shl 16) ([long]$hW); Set-DriveHandChoice $true; $w6 += Get-LbW6
+$w6t = $w6 -join ' | '
+Chk 'W6' ($w6t -ceq "$nO : confirme [], due False, vue [std=0=20:40=60] | $nV : confirme [], due True, vue [$vView] | $nV : confirme [$nV], due False, vue [$vView] | $nV : confirme [$nV], due False, vue [$vView]") "fleches sur la liste fermee : vue du lecteur choisi, confirmation due sur A (deux lecteurs) ; clic, SelectionChangeCommitted avant puis apres CBN_SELCHANGE : lecteur clique confirme ($w6t)"
 
 "=== bilan logic-lecteurs-bandeau : $($script:NChk - $script:Fail) conformes sur $($script:NChk)$(if ($script:Fail) { ' ; NON CONFORMES : ' + ($script:FailIds -join ', ') }) ; $([int]$sw.Elapsed.TotalSeconds) s"
 if ($script:Fail) { exit 1 }
