@@ -411,11 +411,13 @@ Register-SettingCtl 'levelBeforeWrite' $chkWLevel
 Register-SettingCtl 'levelBeforeWriteMode' $cmbWLevelMode
 # 12.10 : courbes par lecteur : vue du lecteur choisi (Sync-PrecompCurves), liste « Lecteur cible » de ce lecteur
 # (Update-TargetDriveUi, puis case de la mesure : Update-SlowUi), fenetre Courbe fermee (elle dessinait l autre lecteur),
-# profil de l image recalcule une fois la fenetre affichee (avant : Set-Defaults et Load-Config, puis Shown le fait)
+# profil de l image recalcule une fois la fenetre affichee (avant : Set-Defaults et Load-Config, puis Shown le fait).
+# 12.11 rc2.1 : vue d abord : la case de la mesure et la ligne « Ce qui va se passer » (Update-SlowUi) se calculaient sur la
+# vue du lecteur precedent, et rien ne les refaisait tant que la fenetre n etait pas affichee
 $cmbDrive.Add_TextChanged({
-    Update-TargetDriveUi; Update-SlowUi
     Sync-PrecompCurves
-    Update-DriveChoice                         # 12.11 (lot LN-b) : lecteur a confirmer, dernier lecteur de la connexion, bandeau (112)
+    Update-TargetDriveUi; Update-SlowUi
+    Update-DriveChoice                        # 12.11 (lot LN-b) : lecteur a confirmer, dernier lecteur de la connexion, bandeau (112)
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
     if ($form.Visible) { Update-PrecompForImage $txtWFile.Text }
 })

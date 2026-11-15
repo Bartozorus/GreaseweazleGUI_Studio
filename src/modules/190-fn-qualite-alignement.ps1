@@ -900,7 +900,7 @@ function Get-AlignTableExport {
     $v = $script:QualView
     $r = $v.Res
     $head = New-Object System.Collections.Generic.List[object]
-    $head.Add(@((T 'Application'), "Greaseweazle Studio $($script:Version)"))
+    $head.Add(@((T 'Application'), "Greaseweazle Studio $($script:VersionLabel)"))
     $head.Add(@((T 'Export'), (Get-Date -Format 'dd/MM/yyyy HH:mm:ss')))
     $at = if ($v.At) { ([datetime]$v.At).ToString('dd/MM/yyyy HH:mm:ss') } else { '' }
     $kind = switch ([string]$v.Kind) { 'measure' { (T 'Mesure de la disquette') } 'check' { (T 'Contrôle après écriture') } default { '' } }

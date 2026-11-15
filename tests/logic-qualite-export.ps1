@@ -6,7 +6,7 @@ $Wt = Get-TestRoot $Wt
 # 12.10 (v1210\export) : export du tableau de l onglet « Qualite & alignement » (demande du 01/11/2026). Fonctions reelles
 # extraites par l arbre syntaxique (texte tel quel, fichier de travail gen-1210-export.ps1, dot-source) : 190 New-AlignRow,
 # Get-AlLevel, Get-AlignTableExport, Format-CsvField, ConvertTo-AlignTableText, Get-AlignTableSep, Export-AlignTable ;
-# 195 Get-QualStaleText ; affectations $script:Version (000) et $script:QualView (040). Remplacants nommes : T, Append-Log
+# 195 Get-QualStaleText ; affectations $script:VersionLabel (000) et $script:QualView (040). Remplacants nommes : T, Append-Log
 # (journal en memoire), Get-JitterRedBound, seuils, couleurs, police, $cmbDrive. Tableau : ListView reel cree en memoire,
 # aucune fenetre affichee (System.Windows.Forms charge par Import-TestWinForms, aucun Add-Type). Copy-AlignTable (presse-papiers)
 # n est pas appelee. Culture fr-FR par defaut (virgule decimale, separateur de liste « ; »), en-US pour un cas.
@@ -54,7 +54,7 @@ foreach ($p in @(@($d190, '190', @('New-AlignRow', 'Get-AlLevel', 'Get-AlignTabl
         $parts.Add($p[0][$n].Extent.Text); $found[$n] = "$($p[1]):$($p[0][$n].Extent.StartLineNumber)"
     }
 }
-$parts.Add((Get-ExAssign (Join-Path $mods '000-entete.ps1') '$script:Version'))
+$parts.Add((Get-ExAssign (Join-Path $mods '000-entete.ps1') '$script:VersionLabel'))
 $parts.Add((Get-ExAssign (Join-Path $mods '040-etat-formats.ps1') '$script:QualView'))
 foreach ($k in '$script:ScoreAsymK', '$script:AsymSignPct') { $parts.Add((Get-ExAssign (Join-Path $mods '040-etat-formats.ps1') $k)) }   # 12.11
 $gen = Join-Path $here 'gen-1210-export.ps1'
@@ -107,7 +107,7 @@ function Chk([string]$id, [bool]$ok, [string]$d) {
 }
 
 "logic-1210-export : $(@($found.Keys).Count) fonctions ($(@($found.GetEnumerator() | Sort-Object Name | ForEach-Object { "$($_.Name) $($_.Value)" }) -join ' ; ')) ; PowerShell $($PSVersionTable.PSVersion)"
-"Version $($script:Version) ; culture $([System.Globalization.CultureInfo]::CurrentCulture.Name), separateur de liste « $([System.Globalization.CultureInfo]::CurrentCulture.TextInfo.ListSeparator) »"
+"Version $($script:VersionLabel) ; culture $([System.Globalization.CultureInfo]::CurrentCulture.Name), separateur de liste « $([System.Globalization.CultureInfo]::CurrentCulture.TextInfo.ListSeparator) »"
 
 # ---------------------------------------------------------------- A : structure de l export (mesure)
 "--- A : structure (mesure, 4 pistes)"
@@ -117,7 +117,7 @@ $labels = @($x.Head | ForEach-Object { [string]$_[0] })
 $vals = @{}; foreach ($h in $x.Head) { $vals[[string]$h[0]] = [string]$h[1] }
 Chk 'A1' (@($x.Rows).Count -eq 4 -and @($x.Cols).Count -eq 12 -and @($x.Rows | Where-Object { @($_).Count -ne 12 }).Count -eq 0) "$(@($x.Rows).Count) ligne(s) de $(@($x.Cols).Count) colonnes"
 Chk 'A2' (($labels -join '|') -eq 'Application|Export|Résultat|Heure du résultat|Lecteur|Têtes|Tours|État du support|Score|Référence|Asymétrie|Pistes') "en-tete : $($labels -join ' | ')"
-Chk 'A3' ($vals['Application'] -eq "Greaseweazle Studio $($script:Version)" -and $vals['Résultat'] -eq 'Mesure de la disquette' -and $vals['Heure du résultat'] -eq '01/11/2026 17:49:00' -and $vals['Lecteur'] -eq 'Sony MPF920; A' -and $vals['Têtes'] -eq '0+1' -and $vals['Tours'] -eq '3' -and $vals['Pistes'] -eq '4' -and $vals['Référence'] -eq 'lecteur A, tête 0, 01/11 17:49') "valeurs : $($vals['Application']) ; $($vals['Résultat']) ; $($vals['Heure du résultat']) ; $($vals['Lecteur']) ; $($vals['Têtes']) ; $($vals['Tours']) ; $($vals['Pistes'])"
+Chk 'A3' ($vals['Application'] -eq "Greaseweazle Studio $($script:VersionLabel)" -and $vals['Résultat'] -eq 'Mesure de la disquette' -and $vals['Heure du résultat'] -eq '01/11/2026 17:49:00' -and $vals['Lecteur'] -eq 'Sony MPF920; A' -and $vals['Têtes'] -eq '0+1' -and $vals['Tours'] -eq '3' -and $vals['Pistes'] -eq '4' -and $vals['Référence'] -eq 'lecteur A, tête 0, 01/11 17:49') "valeurs : $($vals['Application']) ; $($vals['Résultat']) ; $($vals['Heure du résultat']) ; $($vals['Lecteur']) ; $($vals['Têtes']) ; $($vals['Tours']) ; $($vals['Pistes'])"
 Chk 'A4' ($vals['Export'] -match '^\d\d/\d\d/\d{4} \d\d:\d\d:\d\d$') "date d export : $($vals['Export'])"
 Chk 'A5' ($lvAl.Items[0].Tag.M.Score -eq 74 -and $lvAl.Items[1].Tag.M.Weak -and $lvAl.Items[2].Tag.M.Bad) "Tag.M present sur les lignes (score piste 1 : $($lvAl.Items[0].Tag.M.Score))"
 # 12.11 : asymetries 0,025, 0,150 et 0 (ecarts de sens opposes ou nuls) : pas de signe commun, forme courte

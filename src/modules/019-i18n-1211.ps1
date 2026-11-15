@@ -358,3 +358,14 @@ $script:I18n["Calibration rapide depuis l'Accueil : lecteur cible {0} choisi pou
 $script:I18n["Écriture pour le lecteur cible {1} : la courbe ainsi obtenue (niveau mesuré, ou facteur de la marque avec « Écrire sans mesure ») est ensuite multipliée, cylindre par cylindre, par le facteur de la calibration croisée {0} → {1} ; sans mesure ni facteur de la marque, la courbe croisée est écrite telle quelle."] = 'Write for target drive {1}: the curve so obtained (measured level, or brand factor with "Write without measuring") is then multiplied, cylinder by cylinder, by the factor of the cross calibration {0} → {1}; without measurement or brand factor, the cross curve is written as is.'
 # Journal de l ecriture (Get-TargetTransferPlan, 140) : courbe propre du lecteur plus recente que la courbe croisee
 $script:I18n['courbe du lecteur {0} postérieure à la calibration croisée {0} → {1}'] = 'curve of drive {0} newer than the cross calibration {0} → {1}'
+
+# --- rc2.1 : garde de l ecriture pour un lecteur cible (140, 145) -------------------------------------------------------
+# Raison (Get-TargetWriteInfo, ViewWhy) : les courbes chargees pour l ecriture « meme lecteur » ne sont pas les courbes
+# propres du lecteur qui ecrit ; courbe croisee telle quelle (rc1), dit au journal, dans la case et dans la ligne
+$script:I18n['les courbes chargées ne sont pas celles du lecteur {0} pour cette famille'] = 'the loaded curves are not those of drive {0} for this family'
+$script:I18n["Écriture pour le lecteur cible {0} : {1}, facteur 1,00 ; {2} : courbe croisée telle quelle, sans le facteur par cylindre."] = 'Write for target drive {0}: {1}, factor 1.00; {2}: cross curve as is, without the per-cylinder factor.'
+$script:I18n["Mesure de la disquette avant l'écriture non faite : écriture pour le lecteur cible {0} ({1}). Écriture avec la courbe croisée telle quelle."] = 'Disk measurement before the write not done: write for target drive {0} ({1}). Write with the cross curve as is.'
+$script:I18n["Écriture pour le lecteur cible {0} : ni calibration automatique ni mesure de la disquette ({1}) ; écriture avec la courbe croisée telle quelle."] = 'Write for target drive {0}: neither automatic calibration nor disk measurement ({1}); write with the cross curve as is.'
+$script:I18n["Mesure de la disquette non disponible pour le lecteur cible {0} : {1}. L'image est écrite avec la courbe croisée telle quelle, sans le facteur par cylindre."] = 'Disk measurement not available for target drive {0}: {1}. The image is written with the cross curve as is, without the per-cylinder factor.'
+$script:I18n['pour le lecteur cible {0} : {1} telle quelle, sans le facteur par cylindre ({2})'] = 'for target drive {0}: {1} as is, without the per-cylinder factor ({2})'
+$script:I18n['pour le lecteur cible {0} : courbe croisée telle quelle'] = 'for target drive {0}: cross curve as is'

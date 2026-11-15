@@ -120,7 +120,7 @@ $parts = New-Object System.Collections.Generic.List[string]
 foreach ($n in 'Get-CrossSwapEstimate', 'Get-CrossTargetIndex', 'Get-CrossCalibTargets', 'Get-DriveIds', 'Get-TargetDrive', 'Start-CrossCalib', 'Get-CalibFamilyName',
                'Limit-LogText', 'Get-LogExportHeader', 'Export-LogFile', 'Append-Log', 'Get-LogColor') { $parts.Add([string]$fns[$n].Extent.Text) }
 # Constantes : versions (000), passes de la calibration (560), journal borne et couleurs du journal (540), lecteurs (040)
-foreach ($l in '$script:Version', '$script:CalibCalc', '$script:ContentCalc') { $parts.Add((Get-TopAssign '000-entete.ps1' $l)) }
+foreach ($l in '$script:VersionLabel', '$script:CalibCalc', '$script:ContentCalc') { $parts.Add((Get-TopAssign '000-entete.ps1' $l)) }
 foreach ($l in '$script:CalCoarse', '$script:CalMaxVerify', '$script:CalMaxRetest') { $parts.Add((Get-TopAssign '560-etat-calibration.ps1' $l)) }
 foreach ($l in '$script:LogColors', '$script:LogMaxChars', '$script:LogKeepChars', '$script:LogCut') { $parts.Add((Get-TopAssign $f540 $l)) }
 $parts.Add('$script:SettingDefs = @{ drive = @{ Codes = ' + (Get-DriveCodesText) + ' } }')
@@ -151,7 +151,7 @@ $gen = Join-Path $here 'gen-croisee-journal.ps1'
 foreach ($f in @(Get-ChildItem -LiteralPath $mods -Filter '01*-i18n*.ps1' -File | Sort-Object Name)) { . $f.FullName }
 . $gen
 $script:Lang = 'fr'
-$real = @{ Version = [string]$script:Version; CalibCalc = [string]$script:CalibCalc; ContentCalc = [string]$script:ContentCalc }
+$real = @{ Version = [string]$script:VersionLabel; CalibCalc = [string]$script:CalibCalc; ContentCalc = [string]$script:ContentCalc }
 $logCut0 = "$([int]$script:LogCut.N)|$([string]$script:LogCut.Mark)"      # etat initial du journal borne, tel que 540 le pose
 $ids = Get-DriveIds
 "logic-croisee-journal-echanges : $($parts.Count) fonctions et instructions reelles ; lecteurs de 040 : $($ids -join ',') ; $($calls.Count) appels releves ; PowerShell $($PSVersionTable.PSVersion)"
@@ -292,7 +292,7 @@ function Set-LogVisible([bool]$on) { }
 $txtLog = New-Object System.Windows.Forms.RichTextBox
 $txtLog.ReadOnly = $true; $txtLog.DetectUrls = $false; $txtLog.WordWrap = $false
 $when = New-Object System.DateTime(2026, 11, 13, 14, 5, 9)
-$script:Version = '12.11'; $script:CalibCalc = '12.10'; $script:ContentCalc = '12.9'
+$script:VersionLabel = '12.11'; $script:CalibCalc = '12.10'; $script:ContentCalc = '12.9'
 $script:TargetDrives = @{ A = '0' }
 $hT = Get-LogExportHeader $when
 $script:TargetDrives = @{}
@@ -307,9 +307,9 @@ try {
 } finally { $script:Lang = 'fr'; Set-TestCulture 'fr-FR' }
 $en1 = 'Log exported on 13/11/2026 14:05:09 by Greaseweazle Studio v12.11; calibration calculation v12.10, on-image measurement v12.9.'
 Chk 'J3' ([string]$hTe[0] -ceq $en1 -and [string]$hTe[1] -ceq 'Drive in the banner: A; target drive for its writes: 0.' -and [string]$hNe[0] -ceq $en1 -and [string]$hNe[1] -ceq 'Drive in the banner: A; target drive for its writes: (same drive).') "en anglais, culture en-US : « $($hTe[0]) » / « $($hTe[1]) » / « $($hNe[1]) » ; date au meme format"
-$script:Version = 'VV'; $script:CalibCalc = 'CC'; $script:ContentCalc = 'MM'; $cmbDrive.Text = [string]$tgA[0]
+$script:VersionLabel = 'VV'; $script:CalibCalc = 'CC'; $script:ContentCalc = 'MM'; $cmbDrive.Text = [string]$tgA[0]
 $hS = Get-LogExportHeader $when
-$script:Version = $real.Version; $script:CalibCalc = $real.CalibCalc; $script:ContentCalc = $real.ContentCalc; $cmbDrive.Text = 'A'
+$script:VersionLabel = $real.Version; $script:CalibCalc = $real.CalibCalc; $script:ContentCalc = $real.ContentCalc; $cmbDrive.Text = 'A'
 $hR = Get-LogExportHeader $when
 Chk 'J4' ([string]$hS[0] -ceq 'Journal exporté le 13/11/2026 14:05:09 par Greaseweazle Studio vVV ; calcul de calibration vCC, mesure sur l''image vMM.' -and [string]$hS[1] -ceq "Lecteur du bandeau : $($tgA[0]) ; lecteur cible de ses écritures : (même lecteur)." -and [string]$hR[0] -ceq ($kH1 -f '13/11/2026 14:05:09', $real.Version, $real.CalibCalc, $real.ContentCalc) -and $real.Version -match '^\d+\.\d+') "l en-tete lit les variables de l application : valeurs factices rendues telles quelles ; avec les versions reelles de 000 : « $($hR[0]) »"
 $t0 = Get-Date; $hD = Get-LogExportHeader; $dOk = $false; $dTxt = ''
@@ -321,7 +321,7 @@ Chk 'J5' ($dOk) "sans argument : date et heure de l export, au format JJ/MM/AAAA
 # sous chacune, la premiere ligne reste celle du cas J1, au caractere pres ; le meme format sans culture invariante
 # differe sous au moins une de ces cultures (sinon le cas ne prouverait rien)
 $script:TargetDrives = @{ A = '0' }; $cmbDrive.Text = 'A'
-$script:Version = '12.11'; $script:CalibCalc = '12.10'; $script:ContentCalc = '12.9'
+$script:VersionLabel = '12.11'; $script:CalibCalc = '12.10'; $script:ContentCalc = '12.9'
 $badCu = @(); $difCu = @(); $cuList = @('de-DE', 'fr-CH', 'fr-CA', 'nl-NL', 'fi-FI')
 try {
     foreach ($cu in $cuList) {
@@ -331,7 +331,7 @@ try {
         if ($when.ToString('dd/MM/yyyy HH:mm:ss') -cne '13/11/2026 14:05:09') { $difCu += $cu }
     }
 } finally { Set-TestCulture 'fr-FR' }
-$script:TargetDrives = @{}; $script:Version = $real.Version; $script:CalibCalc = $real.CalibCalc; $script:ContentCalc = $real.ContentCalc
+$script:TargetDrives = @{}; $script:VersionLabel = $real.Version; $script:CalibCalc = $real.CalibCalc; $script:ContentCalc = $real.ContentCalc
 Chk 'J5b' ($badCu.Count -eq 0 -and $difCu.Count -ge 1) "date de l en-tete independante de la culture du poste : meme premiere ligne sous $($cuList -join ', ') (ecarts : $(if ($badCu.Count) { $badCu -join ' | ' } else { 'aucun' })) ; sans culture invariante, le meme format differe sous : $($difCu -join ', ')"
 $allH = (@($hT) + @($hN) + @($hTe) + @($hNe) + @($hR) + @($hD)) -join "`n"
 $priv = @()
@@ -345,7 +345,7 @@ $gh = $fns['Get-LogExportHeader']
 $ghVars = @($gh.FindAll({ param($n) $n -is $tVar }, $true) | ForEach-Object { [string]$_.VariablePath.UserPath } | Sort-Object -Unique)
 # 12.11 (lot LN-b) : listes adaptees a dessein : avec des lecteurs enregistres, les deux lecteurs sont mis en forme par
 # Get-DriveLabel ($src, garde « registre non vide » : $script:DriveReg) ; sans lecteur enregistre, J1 a J4 inchanges
-$ghVarBad = @($ghVars | Where-Object { @('when', 'tgt', 'src', 'l1', 'l2', 'script:Version', 'script:CalibCalc', 'script:ContentCalc', 'script:DriveReg', 'cmbDrive') -cnotcontains $_ })
+$ghVarBad = @($ghVars | Where-Object { @('when', 'tgt', 'src', 'l1', 'l2', 'script:VersionLabel', 'script:CalibCalc', 'script:ContentCalc', 'script:DriveReg', 'cmbDrive') -cnotcontains $_ })
 $ghCmdBad = @((Get-CmdNames $gh) | Where-Object { @('T', 'Get-TargetDrive', 'Get-Date', 'Get-DriveLabel') -cnotcontains $_ })
 Chk 'J6' ($priv.Count -eq 0 -and $ghVarBad.Count -eq 0 -and $ghCmdBad.Count -eq 0) "ni chemin, ni nom de compte, ni nom de poste dans les lignes de l en-tete ($($priv.Count) trouve) ; Get-LogExportHeader ne lit que la date, les trois versions, le lecteur du bandeau et son lecteur cible (autres variables : $($ghVarBad -join ',') ; autres commandes : $($ghCmdBad -join ','))"
 # Export reel : le fichier commence par les deux lignes de Get-LogExportHeader, le journal affiche ne les recoit pas

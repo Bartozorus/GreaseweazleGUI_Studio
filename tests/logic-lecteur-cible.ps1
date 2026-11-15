@@ -697,8 +697,9 @@ Chk 'S3' ($miss.Count -eq 0) "textes T(...) du lecteur cible, de la restauration
 $s520 = [System.IO.File]::ReadAllText((Get-TgMod '520'))
 # 12.11 (lot L9, onglet Ecriture en trois etapes) : libelle et liste « Lecteur cible » dans le cadre « 2. Disquette et
 # lecteur » ($grpWOpt), sur la rangee de la liste « Mesure : », et non plus sur l onglet ($tabW) ; adapte a dessein
+# 12.11 rc2.1 : gestionnaire du bandeau, vue d abord (Sync-PrecompCurves), puis liste et case de la mesure ; adapte a dessein
 $tgtIn2 = [regex]::IsMatch($s520, '(?s)\$grpWOpt\.Controls\.AddRange\(@\([^)]*\$lblWLevelMode, \$cmbWLevelMode, \$lblWTarget, \$cmbWTarget,') -and -not $s520.Contains('$tabW.Controls.AddRange(@($lblWTarget, $cmbWTarget))')
-Chk 'S4' ($s520.Contains('$cmbWTarget.Add_SelectedIndexChanged({ if ($script:UiReady) { Set-TargetDriveFromUi } })') -and $s520.Contains("`$cmbDrive.Add_TextChanged({`r`n    Update-TargetDriveUi; Update-SlowUi`r`n    Sync-PrecompCurves`r`n") -and $s520.Contains('$script:WLevelTip = $tip.GetToolTip($chkWLevel)') -and $tgtIn2 -and -not $s520.Contains('numWTgt')) "520 : liste sous UiReady, changement de lecteur du bandeau (liste, case de la mesure, vue), infobulle d origine gardee, champs Dk retires ; libelle et liste dans le cadre 2, apres la liste « Mesure : » (lot L9)"
+Chk 'S4' ($s520.Contains('$cmbWTarget.Add_SelectedIndexChanged({ if ($script:UiReady) { Set-TargetDriveFromUi } })') -and $s520.Contains("`$cmbDrive.Add_TextChanged({`r`n    Sync-PrecompCurves`r`n    Update-TargetDriveUi; Update-SlowUi`r`n") -and $s520.Contains('$script:WLevelTip = $tip.GetToolTip($chkWLevel)') -and $tgtIn2 -and -not $s520.Contains('numWTgt')) "520 : liste sous UiReady, changement de lecteur du bandeau (liste, case de la mesure, vue), infobulle d origine gardee, champs Dk retires ; libelle et liste dans le cadre 2, apres la liste « Mesure : » (lot L9)"
 $sIw = Get-TgFn '140' 'Start-ImageWrite'
 # 12.11 (lot L10) : les champs --precomp sont lus par Get-WriteSpecPlan (140), qu appelle Start-ImageWrite ($sp = ...),
 # et non plus par l instruction $pc0 = if (...) de Start-ImageWrite, que garde une source d avant le lot ; adapte a dessein

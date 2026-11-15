@@ -1,6 +1,6 @@
 ﻿# --- Fenetre -------------------------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "Greaseweazle Studio v$($script:Version)"
+$form.Text = "Greaseweazle Studio v$($script:VersionLabel)"
 # Largeur : cartes de l Accueil (colonne de droite jusqu a 770 px) sans defilement horizontal avec la barre verticale,
 # a la taille par defaut comme a la taille minimale (12.6 : 790 et 800 px auparavant, 5 et 11 px de defilement)
 $form.ClientSize = New-Object System.Drawing.Size(800, 682)

@@ -591,6 +591,65 @@ $script:DriveCurves = @{}; Sync-PrecompCurves; $script:Log.Clear()
 [void](Load-Config)
 $d8b = "bandeau $($cmbDrive.Text), mises de cote : $(if ($script:OldCalib) { (@($script:OldCalib.Curves.Keys) -join ',') + ' ; profil ' + [string]$script:OldCalib.Std } else { 'aucune' })"
 Chk 'D8b' ($d8b -ceq 'bandeau Sony MPF920, mises de cote : Sony MPF920|std ; profil 0=33:40=77:65=99') "configuration avec last.A = Sony MPF920 et sa courbe d un autre calcul : lecteur retenu avant la mise de cote, profil de famille de la configuration mis de cote avec sa courbe ($d8b)"
+# V (12.11 rc2.1) : configuration de la forme relevee sur une rc2 (noms de lecteurs factices) : un lecteur enregistre sur
+# A (courbes par tete), un sur 0 (courbe commune), courbes croisees du premier vers le second, son lecteur cible, dernier
+# lecteur par connexion vide, vue enregistree vide. Sonde : Update-SlowUi (case de la mesure et ligne « Ce qui va se
+# passer », 140) releve le lecteur du bandeau et la vue au moment ou le gestionnaire reel du bandeau (520) l appelle
+$nV = 'Vega FD-2'; $nO = 'Orion FD-1'
+function Reset-LbMemory {
+    # Demarrage suivant : memoire neuve, liste de six elements sur A (Set-Defaults), vue vide
+    $script:DriveCurves = @{}; $script:DriveReg = [ordered]@{}; $script:DriveLast = @{}; $script:TargetDrives = @{}; $script:DriveChecked = ''
+    Update-DriveList; Select-LbDrive 'A'; Reset-Settings; $script:DriveCur = 'A'
+    foreach ($k in $script:CurveKeys) { $script:PrecompCurves[$k] = $null }
+    $script:Log.Clear(); $script:LbSlow.Clear()
+}
+$script:LbSlow = New-Object System.Collections.Generic.List[string]
+function Update-SlowUi { $script:LbSlow.Add("$($cmbDrive.Text) : $(Get-LbView)") }
+Reset-LbWorld 'v1'
+Set-DriveCurve $nV 'std_h0' (New-Cv $nV 'std' 0 '10/11/2026 09:00' '0=30:40=70')
+Set-DriveCurve $nV 'std_h1' (New-Cv $nV 'std' 1 '10/11/2026 09:00' '0=32:40=72')
+Set-DriveCurve "$nV>$nO" 'std_h0' (New-Cv $nV 'std' 0 '11/11/2026 09:00' '0=40:40=80' $nO)
+Set-DriveCurve "$nV>$nO" 'std_h1' (New-Cv $nV 'std' 1 '11/11/2026 09:00' '0=42:40=82' $nO)
+Set-DriveCurve $nO 'std' (New-Cv $nO 'std' $null '09/11/2026 09:00' '0=20:40=60')
+$jv = [ordered]@{
+    global = [ordered]@{ drive = 'A' }
+    write = [ordered]@{ eraseMode = 'hfreq'; contentCalc = '12.9'; calibCalc = [string]$script:CalibCalc; precompCurves = (Export-CurveView $null); driveCurves = (Export-DriveCurves $null); targetDrive = [ordered]@{ $nV = $nO } }
+    drives = [ordered]@{ list = @([ordered]@{ id = 'L20261110090000-01'; name = $nO; conn = '0'; created = '2026-11-10 09:00:00'; from = ''; at = '' },
+                                  [ordered]@{ id = 'L20261110090000-02'; name = $nV; conn = 'A'; created = '2026-11-10 09:00:00'; from = ''; at = '' }); last = [ordered]@{} }
+}
+[System.IO.File]::WriteAllText($script:ConfigFile, ($jv | ConvertTo-Json -Depth 8), $utf8)
+Reset-LbMemory
+[void](Load-Config)
+$v1 = "bandeau $($cmbDrive.Text), liste $(Get-LbItems), vue [$(Get-LbView)], dernier lecteur [$(@($script:DriveLast.Keys) -join ',')], cible de $nV : $(Get-TargetDrive $nV)"
+Chk 'V1' ($v1 -ceq "bandeau A, liste A,B,0,1,2,3,$nO,$nV, vue [], dernier lecteur [], cible de ${nV} : $nO") "configuration de la forme relevee sur la rc2 (dernier lecteur par connexion vide) : la connexion A reste son lecteur non enregistre, vue de ce lecteur ($v1)"
+$script:LbSlow.Clear()
+Select-LbDrive $nV
+$vView = 'std_h0=0=30:40=70,std_h1=0=32:40=72'
+$v2 = "sonde [$($script:LbSlow -join ' | ')], vue [$(Get-LbView)], dernier lecteur A = $($script:DriveLast['A'])"
+Chk 'V2' ($v2 -ceq "sonde [$nV : $vView], vue [$vView], dernier lecteur A = $nV") "choix de $nV dans le bandeau : la case de la mesure et la ligne sont calculees apres la vue de ce lecteur, retenu pour A ($v2)"
+[void](Save-Config)
+$cv3 = Get-Content -LiteralPath $script:ConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json
+$v3a = "last.A $($cv3.drives.last.A), vue enregistree [$(@($cv3.write.precompCurves.PSObject.Properties | Where-Object { $_.Value } | ForEach-Object { $_.Name }) -join ',')], global.drive $($cv3.global.drive)"
+Reset-LbMemory
+[void](Load-Config)
+$v3b = "bandeau $($cmbDrive.Text), vue [$(Get-LbView)], derniere sonde [$(@($script:LbSlow)[-1])], lignes « Lecteur choisi » $(@(Get-LbLog 'Lecteur choisi*').Count)"
+Chk 'V3' ($v3a -ceq "last.A $nV, vue enregistree [std_h0,std_h1], global.drive A" -and $v3b -ceq "bandeau $nV, vue [$vView], derniere sonde [$nV : $vView], lignes « Lecteur choisi » 0") "enregistre puis relu par la vraie Load-Config : $v3a ; $v3b"
+# V4 : configuration 12.10 (aucun bloc drives) : chargement, choix d un autre lecteur, enregistrement comme avant
+Reset-LbWorld 'v4'
+Set-DriveCurve 'A' 'std' (New-Cv 'A' 'std' $null '30/10/2026 09:00' '0=20:40=60')
+Set-DriveCurve '0' 'std' (New-Cv '0' 'std' $null '02/11/2026 10:00' '0=23:40=63')
+$j4 = [ordered]@{ global = [ordered]@{ drive = 'A' }; write = [ordered]@{ eraseMode = 'hfreq'; contentCalc = '12.9'; calibCalc = [string]$script:CalibCalc; precompCurves = (Export-CurveView $null); driveCurves = (Export-DriveCurves $null) } }
+[System.IO.File]::WriteAllText($script:ConfigFile, ($j4 | ConvertTo-Json -Depth 8), $utf8)
+Reset-LbMemory
+[void](Load-Config)
+$v4a = "bandeau $($cmbDrive.Text), liste $(Get-LbItems), vue [$(Get-LbView)], registre $($script:DriveReg.Count)"
+$script:LbSlow.Clear(); Select-LbDrive '0'
+$v4b = "sonde [$($script:LbSlow -join ' | ')], vue [$(Get-LbView)], dernier lecteur [$(@($script:DriveLast.Keys) -join ',')]"
+[void](Save-Config)
+$cv4 = Get-Content -LiteralPath $script:ConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json
+$v4c = "global.drive $($cv4.global.drive), bloc drives $(@($cv4.PSObject.Properties | Where-Object { $_.Name -eq 'drives' }).Count), journal $($script:Log.Count)"
+Chk 'V4' ($v4a -ceq 'bandeau A, liste A,B,0,1,2,3, vue [std=0=20:40=60], registre 0' -and $v4b -ceq 'sonde [0 : std=0=23:40=63], vue [std=0=23:40=63], dernier lecteur []' -and $v4c -ceq 'global.drive 0, bloc drives 0, journal 0') "configuration 12.10 sans registre : $v4a ; $v4b ; $v4c"
+function Update-SlowUi { }
 # D9 : en-tete du journal exporte (lot L6), deux lecteurs sur A
 Reset-LbWorld 'd9'
 $h0 = Get-LogExportHeader
@@ -1054,9 +1113,9 @@ foreach ($n in $i2Want) {
     if ($n -eq 'Start-ImageWrite' -and -not $c.Extent.Text.Contains('-Write')) { $i2 += 'Start-ImageWrite sans -Write' }
 }
 Chk 'I2' ($i2.Count -eq 0 -and ($i2Found -join ',') -ceq ($i2Want -join ',')) "fonctions qui creent `$script:Cal ou `$script:Restore, et Start-ImageWrite : $($i2Found -join ', ') ; chacune appelle Confirm-DriveIdentity une fois, sous la garde « registre non vide », avant la creation de l etat ou le lancement de gw ; ecarts : $(if ($i2.Count) { $i2 -join ' ; ' } else { 'aucun' })"
-# I4 : gestionnaire du bandeau : debut inchange, Update-DriveChoice apres Sync-PrecompCurves
+# I4 : gestionnaire du bandeau : vue d abord (12.11 rc2.1), puis liste « Lecteur cible » et case de la mesure, puis Update-DriveChoice
 $s520 = [System.IO.File]::ReadAllText((Get-LbModule $mods '520'), [System.Text.Encoding]::UTF8)
-Chk 'I4' ($s520.Contains("`$cmbDrive.Add_TextChanged({`r`n    Update-TargetDriveUi; Update-SlowUi`r`n    Sync-PrecompCurves`r`n    Update-DriveChoice ") -and $s520.Contains('if ($form.Visible) { Update-PrecompForImage $txtWFile.Text }')) "gestionnaire du bandeau (520) : debut contrôle par logic-courbes-par-lecteur S3 inchange, puis Update-DriveChoice"
+Chk 'I4' ($s520.Contains("`$cmbDrive.Add_TextChanged({`r`n    Sync-PrecompCurves`r`n    Update-TargetDriveUi; Update-SlowUi`r`n    Update-DriveChoice ") -and $s520.Contains('if ($form.Visible) { Update-PrecompForImage $txtWFile.Text }')) "gestionnaire du bandeau (520) : debut contrôle par logic-courbes-par-lecteur S3 inchange, puis Update-DriveChoice"
 # I5 : invariant 9 : sans lecteur enregistre, le code de la 12.10 : toute ligne ajoutee a une fonction existante qui appelle
 # une fonction du module 112 est gardee par « $script:DriveReg.Count -gt 0 », sauf les conversions de --drive=, les
 # lignes du socle (configuration, LN-a), la fonction nouvelle du retour a une calibration precedente (L7, absente de la

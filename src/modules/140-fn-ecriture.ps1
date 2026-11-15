@@ -64,13 +64,14 @@ function Update-WLevelUi {
     $lk = Get-LevelBeforeWriteKind $(if ($on) { 'slow' } else { 'fast' }) $false $false
     # 12.11 (lot LN-b) : un lecteur enregistre en jeu (lecteur qui ecrit ou lecteur cible) : texte court, sans les deux
     # lecteurs (avec un nom, le texte a deux lecteurs depasserait la case) ; l infobulle les nomme
-    $chkWLevel.Text = if ($quick -and $ta -and $script:DriveReg.Count -gt 0 -and ((Test-DriveRegistered ([string]$tw.Tgt)) -or (Test-DriveRegistered ([string]$tw.Src)))) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide », sauf pour un lecteur cible") } elseif ($quick -and $ta) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide », sauf pour le lecteur cible {0} (sans courbe du lecteur {1})") -f "$($tw.Tgt)", "$($tw.Src)" } elseif ($quick -and $lk -eq 'complete') { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (mesure complète de cette disquette en écriture lente)") } elseif ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } elseif ($lm -eq 'content') { (T "Mesurer la disquette avant l'écriture lente : précompensation mesurée sur l'image (environ 12 min)") } elseif ($full) { (T "Mesurer la disquette avant l'écriture lente : précompensation et état de la surface") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
+    $chkWLevel.Text = if ($quick -and $ta -and ($tw.ViewWhy -or $script:DriveReg.Count -gt 0) -and ($tw.ViewWhy -or (Test-DriveRegistered ([string]$tw.Tgt)) -or (Test-DriveRegistered ([string]$tw.Src)))) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide », sauf pour un lecteur cible") } elseif ($quick -and $ta) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide », sauf pour le lecteur cible {0} (sans courbe du lecteur {1})") -f "$($tw.Tgt)", "$($tw.Src)" } elseif ($quick -and $lk -eq 'complete') { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (mesure complète de cette disquette en écriture lente)") } elseif ($quick) { (T "Mesurer la disquette avant l'écriture : toujours en « Test rapide » (niveau de précompensation et état de la surface)") } elseif ($lm -eq 'content') { (T "Mesurer la disquette avant l'écriture lente : précompensation mesurée sur l'image (environ 12 min)") } elseif ($full) { (T "Mesurer la disquette avant l'écriture lente : précompensation et état de la surface") } else { (T "Mesurer la disquette avant l'écriture lente : niveau de précompensation et état de la surface (environ 1 min)") }
     $chkWLevel.Enabled = ($on -and -not $quick -and -not $ta)
     # 12.8 (S3) : liste du mode de la mesure (rapide ou complete) : active en ecriture lente quand la disquette est mesuree
     # (case cochee, ou verrouillee au « Test rapide »)
     if ($cmbWLevelMode) { $cmbWLevelMode.Enabled = ($on -and $chkWLevel.Checked -and -not $ta); $lblWLevelMode.Enabled = $cmbWLevelMode.Enabled }
     if ($script:WLevelTip) {
         $tt = if ($ta -and $tw.Block) { (T "Mesure de la disquette non disponible pour un lecteur cible : elle relirait avec le lecteur {0}, pas avec le lecteur cible {1}. Écriture refusée : {2}") -f "$($tw.Src)", "$($tw.Tgt)", "$($tw.Block)" }
+              elseif ($ta -and $tw.ViewWhy) { (T "Mesure de la disquette non disponible pour le lecteur cible {0} : {1}. L'image est écrite avec la courbe croisée telle quelle, sans le facteur par cylindre.") -f "$($tw.Tgt)", "$($tw.ViewWhy)" }
               elseif ($ta) { (T "Mesure de la disquette non disponible pour le lecteur cible {1} : pas de courbe propre du lecteur {0} pour cette famille, à laquelle la calibration croisée rapporte son facteur. L'image est écrite avec la courbe croisée telle quelle.") -f "$($tw.Src)", "$($tw.Tgt)" }
               elseif ($tw.Xfer) { ((T "Écriture pour le lecteur cible {1} : la disquette est mesurée par le lecteur {0}, celui qui écrit, comme pour une écriture ordinaire ; le facteur de la calibration croisée {0} → {1} est ensuite appliqué à la courbe de cette disquette, cylindre par cylindre.") -f "$($tw.Src)", "$($tw.Tgt)") + "`n" + [string]$script:WLevelTip }
               elseif ($tw.Tgt -and $tw.Why) { ((T "Lecteur cible {0} sans effet sur cette écriture : {1}.") -f "$($tw.Tgt)", "$($tw.Why)") + "`n" + [string]$script:WLevelTip }
@@ -868,6 +869,7 @@ function Start-PresetWrite([string]$mode, [switch]$NoCalib, [switch]$LevelOnly) 
     # quelle (refus : plus haut, $tw)
     # 12.11 (rc2) : seulement sans courbe propre du lecteur qui ecrit (Xfer faux) ; avec elle (Xfer), test rapide et mesure
     # de la disquette comme pour le meme lecteur (lecteur du bandeau seul), jamais de calibration automatique (plus bas)
+    if ($tw.Applies -and -not $tw.Xfer -and $tw.ViewWhy) { Append-Log ((T "Écriture pour le lecteur cible {0} : ni calibration automatique ni mesure de la disquette ({1}) ; écriture avec la courbe croisée telle quelle.") -f "$($tw.Tgt)", "$($tw.ViewWhy)"); Start-ImageWrite; return }   # 12.11 rc2.1 (garde)
     if ($tw.Applies -and -not $tw.Xfer) { Append-Log ((T "Écriture pour le lecteur cible {0} : ni calibration automatique ni mesure de la disquette (pas de courbe propre du lecteur {1} pour cette famille) ; écriture avec la courbe croisée telle quelle.") -f "$($tw.Tgt)", "$($cmbDrive.Text)"); Start-ImageWrite; return }
     if ($NoCalib) {
         if ($LevelOnly) {
@@ -1056,7 +1058,8 @@ function Start-WriteTabWrite {
     # 12.11 (rc2) : Skip 'target' : lecteur cible sans courbe propre du lecteur qui ecrit (courbe croisee telle quelle) ;
     # avec elle, mesure comme pour le meme lecteur (Get-WriteLevelPlan)
     if ($wp.Skip -eq 'target') {
-        if ($wp.Asked) { Append-Log ((T "Mesure de la disquette avant l'écriture non faite : écriture pour le lecteur cible {0}, sans courbe propre du lecteur {1} pour cette famille. Écriture avec la courbe croisée telle quelle.") -f "$tgt", "$($cmbDrive.Text)") }
+        if ($wp.Asked -and $wp.ViewWhy) { Append-Log ((T "Mesure de la disquette avant l'écriture non faite : écriture pour le lecteur cible {0} ({1}). Écriture avec la courbe croisée telle quelle.") -f "$tgt", "$($wp.ViewWhy)") }   # 12.11 rc2.1 (garde)
+        elseif ($wp.Asked) { Append-Log ((T "Mesure de la disquette avant l'écriture non faite : écriture pour le lecteur cible {0}, sans courbe propre du lecteur {1} pour cette famille. Écriture avec la courbe croisée telle quelle.") -f "$tgt", "$($cmbDrive.Text)") }
         Start-ImageWrite; return
     }
     if ($wp.Kind -eq 'none' -and -not $wp.Skip) { Start-ImageWrite; return }
@@ -1095,14 +1098,14 @@ function Get-WriteLevelPlan([string]$img, [string]$fmt, [string]$mode) {
     #    Get-WriteLevelKind), 'hd' (HdNote : ligne de la courbe HD, Hf sa famille), 'profile' (profil autre qu Auto),
     #    'precomp' (case --precomp decochee), 'tracks', 'faces' ou 'face' (Get-LevelWriteSkip : Code, Why, ligne de
     #    journal) ; '' avec Kind 'none' : mesure non demandee, ou fichier absent
-    $r = @{ Kind = 'none'; Skip = ''; Asked = $false; Tgt = ''; Why = ''; HdNote = $false; Hf = ''; LbMode = $mode; LbMeasure = $false }
+    $r = @{ Kind = 'none'; Skip = ''; Asked = $false; Tgt = ''; Why = ''; HdNote = $false; Hf = ''; LbMode = $mode; LbMeasure = $false; ViewWhy = '' }
     $quick = ((Get-Setting 'calMode') -eq 'level')
     $r.Asked = [bool]($quick -or (Test-WriteLevelWanted $mode))
     # 12.11 (rc2) : 'target' seulement sans courbe propre du lecteur qui ecrit (Get-TargetWriteInfo : Applies sans Xfer) ;
     # avec elle, la mesure suit les regles du meme lecteur (lecteur qui ecrit seul), puis Start-ImageWrite applique le
     # facteur par cylindre de la calibration croisee
     $tgt = Get-TargetDrive
-    if ($tgt) { $ti = Get-TargetWriteInfo $img $fmt ($mode -eq 'slow'); if ($ti.Applies -and -not $ti.Xfer) { $r.Skip = 'target'; $r.Tgt = $tgt; return $r } }
+    if ($tgt) { $ti = Get-TargetWriteInfo $img $fmt ($mode -eq 'slow'); if ($ti.Applies -and -not $ti.Xfer) { $r.Skip = 'target'; $r.Tgt = $tgt; $r.ViewWhy = [string]$ti.ViewWhy; return $r } }
     if (-not $r.Asked -or -not $img -or -not (Test-Path -LiteralPath $img)) { return $r }
     if (Test-FluxImage $img) { $r.Skip = 'flux'; return $r }
     if (Test-NonMfmWrite $img $fmt) { $r.Skip = 'nonmfm'; return $r }
@@ -1238,6 +1241,8 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
         if (-not $tw.Xfer) {
             if ($Peek) { return $r }
             $r.Line = (T "Écriture pour le lecteur cible {0} : {1}, facteur 1,00 ; pas de courbe propre du lecteur {2} pour cette famille : courbe croisée telle quelle.") -f "$($tw.Tgt)", (Get-TargetCurvesText $drive ([string]$tw.Tgt) ([string]$tw.Fam) $tc), "$drive"
+            # 12.11 rc2.1 (garde) : courbes propres presentes, mais les courbes chargees ne sont pas les leurs
+            if ($tw.ViewWhy) { $r.Line = (T "Écriture pour le lecteur cible {0} : {1}, facteur 1,00 ; {2} : courbe croisée telle quelle, sans le facteur par cylindre.") -f "$($tw.Tgt)", (Get-TargetCurvesText $drive ([string]$tw.Tgt) ([string]$tw.Fam) $tc), "$($tw.ViewWhy)" }
             $r.Lines = @($r.Line)
             return $r
         }
@@ -1489,7 +1494,7 @@ function Get-TargetWriteInfo([string]$img, [string]$fmt, [bool]$slow) {
     # Start-WriteTabWrite par Get-WriteLevelPlan, Start-PresetWrite), la case de la mesure (Update-WLevelUi) et la ligne
     # « Ce qui va se passer » (Get-WritePlan, 145)
     $src = [string]$cmbDrive.Text
-    $r = @{ Src = $src; Tgt = (Get-TargetDrive $src); Applies = $false; Why = ''; Fam = ''; Curves = @(); Block = ''; BlockKind = ''; Own = @(); Xfer = $false }
+    $r = @{ Src = $src; Tgt = (Get-TargetDrive $src); Applies = $false; Why = ''; Fam = ''; Curves = @(); Block = ''; BlockKind = ''; Own = @(); Xfer = $false; ViewWhy = '' }
     if (-not $r.Tgt) { return $r }
     if ($cmbWProfile.SelectedIndex -eq 3) { $r.Why = (T 'profil Manuel, champ --precomp transmis tel quel'); return $r }
     if (-not $chkWPrecomp.Checked) { $r.Why = (T 'précompensation désactivée'); return $r }
@@ -1515,6 +1520,19 @@ function Get-TargetWriteInfo([string]$img, [string]$fmt, [bool]$slow) {
         # Tableau protege par la virgule : pas de @() autour de l appel
         $r.Own = Get-DriveFamilyCurves $src $r.Fam $slow
         $r.Xfer = (@($r.Own).Count -gt 0)
+        # 12.11 rc2.1 (garde) : la courbe de cette disquette (D, Get-TargetDFields) part des courbes chargees pour l ecriture
+        # « meme lecteur » (vue, $script:PrecompCurves) ; la formule n a de sens que si ce sont les courbes propres du lecteur
+        # qui ecrit (Sp, magasin). Vue d un autre lecteur, courbe absente ou de trop, profil non calibre : aucune formule,
+        # courbe croisee telle quelle (comme sans courbe propre, rc1), raison dans ViewWhy (journal, case, ligne)
+        if ($r.Xfer) {
+            foreach ($k in @($r.Fam, "$($r.Fam)_h0", "$($r.Fam)_h1")) {
+                $v = $script:PrecompCurves[$k]; $o = Get-DriveCurve $src $k
+                if ($null -eq $v -and $null -eq $o) { continue }
+                if ($null -ne $v -and $null -ne $o -and ([object]::ReferenceEquals($v, $o) -or ([string]$v.Drive -ceq [string]$o.Drive -and [string]$v.Spec -ceq [string]$o.Spec -and [string]$v.Date -ceq [string]$o.Date))) { continue }
+                $r.Xfer = $false; $r.ViewWhy = (T 'les courbes chargées ne sont pas celles du lecteur {0} pour cette famille') -f "$src"
+                break
+            }
+        }
     }
     return $r
 }

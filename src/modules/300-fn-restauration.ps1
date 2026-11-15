@@ -1088,7 +1088,7 @@ function Complete-RestoreCompare {
 function Write-RestoreReport([bool]$ok, [string]$verdict) {
     $r = $script:Restore
     $L = New-Object System.Collections.Generic.List[string]
-    $L.Add(((T "Greaseweazle Studio v{0} - rapport de restauration") -f "$($script:Version)"))
+    $L.Add(((T "Greaseweazle Studio v{0} - rapport de restauration") -f "$($script:VersionLabel)"))
     $L.Add(((T "Date        : {0}, durée {1} min") -f (Get-Date -Format 'dd/MM/yyyy HH:mm'), "$([math]::Round(((Get-Date) - $r.Start).TotalMinutes, 1))"))
     $L.Add(((T "Disquette   : {0}") -f "$($r.Name)"))
     $L.Add(((T "Mode        : {0}") -f $(if ($r.Mode -eq 'sector') { (T "secteur par secteur, format {0}") -f "$($r.Fmt)" } elseif ($r.Mode -eq 'flux') { (T 'copie exacte du flux') } else { (T 'format détecté à la lecture') })))

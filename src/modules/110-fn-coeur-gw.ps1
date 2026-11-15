@@ -577,7 +577,7 @@ function Get-LogExportHeader([datetime]$when = (Get-Date)) {
     # 12.11 (lot LN-b) : avec des lecteurs enregistres, les deux lecteurs avec leur connexion (Get-DriveLabel, 112 :
     # « Sony MPF920 (A) ») : deux journaux faits sur A avec deux lecteurs n ont pas le meme en-tete
     if ($script:DriveReg.Count -gt 0) { $src = Get-DriveLabel $src; if ($tgt) { $tgt = Get-DriveLabel $tgt } }
-    $l1 = (T "Journal exporté le {0} par Greaseweazle Studio v{1} ; calcul de calibration v{2}, mesure sur l'image v{3}.") -f $when.ToString('dd/MM/yyyy HH:mm:ss', [System.Globalization.CultureInfo]::InvariantCulture), "$($script:Version)", "$($script:CalibCalc)", "$($script:ContentCalc)"
+    $l1 = (T "Journal exporté le {0} par Greaseweazle Studio v{1} ; calcul de calibration v{2}, mesure sur l'image v{3}.") -f $when.ToString('dd/MM/yyyy HH:mm:ss', [System.Globalization.CultureInfo]::InvariantCulture), "$($script:VersionLabel)", "$($script:CalibCalc)", "$($script:ContentCalc)"
     $l2 = (T "Lecteur du bandeau : {0} ; lecteur cible de ses écritures : {1}.") -f $src, $(if ($tgt) { $tgt } else { (T '(même lecteur)') })
     return ,@($l1, $l2)
 }

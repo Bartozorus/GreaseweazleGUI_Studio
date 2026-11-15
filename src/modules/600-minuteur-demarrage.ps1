@@ -228,7 +228,7 @@ $loaded = Load-Config
 Update-TabSet
 Update-CurveButton ''
 
-Append-Log "Greaseweazle Studio v$($script:Version)"
+Append-Log "Greaseweazle Studio v$($script:VersionLabel)"
 Append-Log ((T "Répertoire  : {0}") -f "$($script:AppDir)")
 if (Test-Path -LiteralPath $script:GwExe) { Append-Log (T 'gw.exe      : trouvé') }
 else { Append-Log (T 'gw.exe      : ABSENT - placez ce script dans le répertoire de gw.exe') }

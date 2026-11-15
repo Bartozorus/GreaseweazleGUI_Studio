@@ -4,7 +4,7 @@
 # release existante depuis le CHANGELOG de la branche courante, sans toucher aux
 # fichiers attachés. Tag visé : celui saisi dans le formulaire, sinon le dernier
 # tag de la branche. Sans aucun tag : simple compilation de test (artefact).
-# Un tag vX.Y-rcN publie une préversion (« Pre-release », jamais « Latest ») : même
+# Un tag vX.Y-rcN ou vX.Y-rcN.M publie une préversion (« Pre-release », jamais « Latest ») : même
 # compilation, version du script X.Y, notes de la section X.Y du CHANGELOG précédées
 # d'un avertissement. En lancement manuel, saisissez le tag : après une préversion,
 # le dernier tag de la branche peut être un tag rc.
@@ -54,7 +54,7 @@ jobs:
             if ($tag) { $mode = 'notes' }
           }
           $ver = "$tag".TrimStart('v'); $pre = 'false'
-          if ("$tag" -match '^v([0-9]+(\.[0-9]+)*)-rc[0-9]+$') { $ver = $Matches[1]; $pre = 'true' }
+          if ("$tag" -match '^v([0-9]+(\.[0-9]+)*)-rc[0-9]+(\.[0-9]+)?$') { $ver = $Matches[1]; $pre = 'true' }
           "mode=$mode" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "tag=$tag"   | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "ver=$ver"   | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8

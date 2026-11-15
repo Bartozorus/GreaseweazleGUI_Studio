@@ -265,12 +265,15 @@ $fkRef = @{
     B1 = 'c3d3d1e0a1de683d'; B2 = '137929dfbaab410b'; B3 = 'c3d3d1e0a1de683d'; B4 = 'c3d3d1e0a1de683d'
 }
 
-function Invoke-FkScenario($sc, [bool]$tgt, [bool]$own, [bool]$withPlan) {
+function Invoke-FkScenario($sc, [bool]$tgt, [bool]$own, [bool]$withPlan, [scriptblock]$Desync = $null) {
     Reset-FkState
     $txtWFile.Text = $imAdf; $cmbWFmt.SelectedItem = 'amiga.amigados'
     Set-FkCurves $own $true
     if ($tgt) { $script:TargetDrives['A'] = '0' }
     & $sc.Do
+    # 12.11 rc2.1 (cas G) : vue de travail desaccordee du magasin apres la mise en place ; decision relevee avant l ecriture
+    if ($Desync) { & $Desync }
+    $twx = Get-TargetWriteInfo ([string]$txtWFile.Text) ([string]$cmbWFmt.Text) ([bool]$chkWSlow.Checked)
     # Case de la mesure et ligne accordees au lecteur cible pose dans l etat (comme en sortie d Update-PrecompForImage)
     Update-WLevelUi
     $plan = $null; $chk = $null; $side = 0
@@ -295,7 +298,7 @@ function Invoke-FkScenario($sc, [bool]$tgt, [bool]$own, [bool]$withPlan) {
         $k = if ($hm.Success) { [int]$hm.Groups[1].Value } else { 'r' }
         $wr[$k] = $m.Groups[1].Value
     }
-    return @{ Trace = $tr; Log = @($script:FkLog | ForEach-Object { & $fkNorm $_ }); Plan = $plan; Chk = $chk; Side = $side; W = $wr; Slow = [bool]$chkWSlow.Checked }
+    return @{ Trace = $tr; Log = @($script:FkLog | ForEach-Object { & $fkNorm $_ }); Plan = $plan; Chk = $chk; Side = $side; W = $wr; Slow = [bool]$chkWSlow.Checked; Tw = $twx }
 }
 function Get-FkPrint($r, [switch]$TOnly) {
     $t = Get-FkSha (@($r.Trace) -join "`n")
@@ -339,6 +342,11 @@ foreach ($pr in $fkRoots) {
     if ($pr.New) {
         foreach ($sc in $scA) { $rr['C' + $sc.Id.Substring(1)] = Invoke-FkScenario $sc $true $true $true }
         $rr['R1'] = Invoke-FkScenario $scR $true $true $false
+        # 12.11 rc2.1 (cas G) : courbes propres de A au magasin, vue de travail vide (profil non calibre) ou portant les
+        # courbes d un autre lecteur (memes valeurs, lecteur 0) ; G3 : vue accordee. Ecriture lente, mesure demandee (B3)
+        $rr['G1'] = Invoke-FkScenario $scB[2] $true $true $true { foreach ($k in $script:CurveKeys) { $script:PrecompCurves[$k] = $null }; $script:PrecompStd = $script:PrecompStdDefault }
+        $rr['G2'] = Invoke-FkScenario $scB[2] $true $true $true { foreach ($k in @('std', 'std_h0', 'std_h1')) { $o = $script:PrecompCurves[$k].Clone(); $o.Drive = '0'; $script:PrecompCurves[$k] = $o } }
+        $rr['G3'] = Invoke-FkScenario $scB[2] $true $true $true
     }
     $res[$pr.Tag] = $rr
 }
@@ -427,6 +435,30 @@ $bX = ($b1.W[0] -ceq $xs[0] -and $b1.W[1] -ceq $xs[1] -and $b2.W['r'] -ceq $xs['
 Chk 'B1' ($bBad.Count -eq 0 -and $bX) "lecteur cible sans mesure, facteur 1 (ecriture lente, rapide, Bibliotheque) et sans courbe propre de A : memes commandes gw qu en 62b8ce2, courbe croisee transmise a la chaine pres ; ecarts : $(Get-List $bBad)"
 $l3 = @($b3.Log | Where-Object { $_ -like 'Écriture pour le lecteur cible 0*' })
 Chk 'B2' (@($b3.Trace | Where-Object { $_ -match '^(calibration rapide|mesure complete|mesure sur l image)' }).Count -eq 0 -and $l3.Count -eq 1 -and $l3[0] -like '*, facteur 1,00 ; pas de courbe propre du lecteur A pour cette famille : courbe croisée telle quelle.' -and @($b3.Log | Where-Object { $_ -like "Mesure de la disquette avant l'écriture non faite : écriture pour le lecteur cible 0, sans courbe propre du lecteur A*" }).Count -eq 1) "sans courbe propre de A, mesure demandee : aucune mesure, courbe croisee telle quelle, deux lignes qui en donnent la raison"
+
+'--- G : garde (12.11 rc2.1) : courbes chargees qui ne sont pas les courbes propres du lecteur qui ecrit'
+# Courbe croisee telle quelle (commandes du scenario B3, rc1), aucune mesure, ligne de journal, case, ligne et infobulle
+# qui le disent ; G3 : courbes chargees accordees, decision de la rc2 inchangee (mesure, facteur par cylindre)
+$gWhy = 'les courbes chargées ne sont pas celles du lecteur A pour cette famille'
+$gBad = @()
+foreach ($g in @('G1', 'G2')) {
+    $r = $cur[$g]
+    if (-not ($r.Tw.Applies -and -not $r.Tw.Xfer -and [string]$r.Tw.ViewWhy -ceq $gWhy)) { $gBad += "$g decision Applies $($r.Tw.Applies) Xfer $($r.Tw.Xfer) « $($r.Tw.ViewWhy) »" }
+    $pg = Get-FkPrint $r -TOnly
+    if ($pg -ne $fkRef['B3'] -or $r.W[0] -cne $xs[0] -or $r.W[1] -cne $xs[1]) { $gBad += "$g commandes $pg (attendu $($fkRef['B3']), courbes croisees transmises telles quelles)" }
+    if (@($r.Trace | Where-Object { $_ -match '^(calibration rapide|mesure complete|mesure sur l image)' }).Count -ne 0) { $gBad += "$g mesure faite" }
+    $gl = @($r.Log | Where-Object { $_ -like "Écriture pour le lecteur cible 0 : *, facteur 1,00 ; $gWhy : courbe croisée telle quelle, sans le facteur par cylindre." })
+    $gm = @($r.Log | Where-Object { $_ -ceq "Mesure de la disquette avant l'écriture non faite : écriture pour le lecteur cible 0 ($gWhy). Écriture avec la courbe croisée telle quelle." })
+    $gx = @($r.Log | Where-Object { $_ -like '*facteur par cylindre de la calibration croisée A → 0 (*' -or $_ -like '*pas de courbe propre*' })
+    if ($gl.Count -ne 1 -or $gm.Count -ne 1 -or $gx.Count -ne 0) { $gBad += "$g journal : ligne de l ecriture $($gl.Count), mesure non faite $($gm.Count), formule ou autre raison $($gx.Count)" }
+    $segs = @($r.Plan.Segs | ForEach-Object { [string]$_.T })
+    $sg = @($r.Plan.Segs | Where-Object { [string]$_.T -like "pour le lecteur cible 0 : courbe* croisée* A → 0 * telle quelle, sans le facteur par cylindre ($gWhy)" -and $_.Crit })
+    if ($sg.Count -ne 1 -or $segs -notcontains 'sans mesure de la disquette (lecteur cible 0)' -or @($segs | Where-Object { $_ -like '*× facteur par cylindre*' }).Count -ne 0) { $gBad += "$g ligne : $($segs -join ' ; ')" }
+    if ($r.Chk.Enabled -or $r.Chk.Tip -cne "Mesure de la disquette non disponible pour le lecteur cible 0 : $gWhy. L'image est écrite avec la courbe croisée telle quelle, sans le facteur par cylindre.") { $gBad += "$g case active $($r.Chk.Enabled), infobulle « $($r.Chk.Tip) »" }
+}
+$g3 = $cur['G3']
+if (-not ($g3.Tw.Xfer -and -not $g3.Tw.ViewWhy) -or @($g3.Trace | Where-Object { $_ -match '^mesure sur l image' }).Count -ne 1 -or @($g3.Log | Where-Object { $_ -like 'Écriture pour le lecteur cible 0 : courbe de cette disquette (lecteur A, *' }).Count -ne 1) { $gBad += "G3 Xfer $($g3.Tw.Xfer), « $($g3.Tw.ViewWhy) »" }
+Chk 'G1' ($gBad.Count -eq 0) "courbes propres de A au magasin, courbes chargees vides (G1) ou d un autre lecteur aux memes valeurs (G2) : aucune formule, courbe croisee telle quelle (commandes de B3), journal, ligne, case et infobulle qui le disent ; accordees (G3) : mesure et facteur par cylindre ; ecarts : $(Get-List $gBad)"
 
 '--- C : lecteur cible avec mesure : formule de la specification, tete par tete, cylindre par cylindre'
 $own = @{ 0 = [string]$script:DriveCurves['A|std_h0'].Spec; 1 = [string]$script:DriveCurves['A|std_h1'].Spec; 'r' = [string]$script:DriveCurves['A|std'].Spec }
