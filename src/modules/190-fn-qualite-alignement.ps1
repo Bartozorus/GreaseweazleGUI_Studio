@@ -1010,6 +1010,21 @@ function Get-UnstableClusters([string[]]$keys, [int]$minRun = 3) {
     return $out
 }
 
+function New-AlignLastInfo($last, [string]$drive) {
+    # 12.11 rc3 (R7) : lecteur, tetes et heure d une mesure memorisee dans AlignLast (mesure de l onglet Qualite, controle
+    # apres ecriture), pour l etiquette de « Fixer comme reference » : tetes des cles 'cyl.tete' du resultat (« 0+1 » pour
+    # les deux, comme la liste « Tetes »), heure de la fin de la mesure
+    $hs = @(@($last.Keys) | ForEach-Object { @(([string]$_) -split '\.')[-1] } | Sort-Object -Unique)
+    return @{ Drive = $drive; Heads = ($hs -join '+'); At = (Get-Date) }
+}
+
+function Get-AlignRefLabel($info) {
+    # 12.11 rc3 (R7) : etiquette de la reference, tiree de la mesure memorisee (New-AlignLastInfo) et non plus du lecteur
+    # du bandeau, de la liste « Tetes » et de l heure du clic ; sans elle (defensif) : ces trois-la, comme avant
+    if (-not $info) { $info = @{ Drive = [string]$cmbDrive.Text; Heads = [string]$cmbAlHead.Text; At = (Get-Date) } }
+    return ((T "lecteur {0}, tête {1}, {2}") -f "$($info.Drive)", "$($info.Heads)", "$(Get-Date -Date $info.At -Format 'dd/MM HH:mm')")
+}
+
 function Invoke-AlignAnalysis {
     # 12.8 (lot 3a) : analyse impossible : resultat affiche declare perime (ou carte vide avec la raison)
     if (-not $script:AlignTmp -or -not (Test-Path -LiteralPath $script:AlignTmp)) {
@@ -1059,6 +1074,7 @@ function Invoke-AlignAnalysis {
             $total += $sc; $count++
         }
         $script:AlignLast = $last
+        $script:AlignLastInfo = New-AlignLastInfo $last $(if ($script:QualView.Drive) { [string]$script:QualView.Drive } else { [string]$cmbDrive.Text })   # 12.11 rc3 (R7) : lecteur au lancement de la mesure (Start-AlignCycle)
         # 12.11 : resume de l asymetrie (Get-AsymSummary : signe commun, part du score moyen) pour l infobulle de la carte et
         # le journal (apres le score moyen) ; l en-tete de l export le recalcule sur les lignes du tableau, meme fonction
         $res.AsymText = Get-AsymSummaryText (Get-AsymSummary $ams)

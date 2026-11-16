@@ -284,7 +284,7 @@ $tip.SetToolTip($btnAlRef, (T "Mémorise la dernière mesure comme référence (
 $btnAlRef.Add_Click({
     if (-not $script:AlignLast) { [void](Show-AppMessage (T 'Faites d''abord une mesure.') (T 'Référence') 'OK' 'Information'); return }
     $script:AlignRef = $script:AlignLast.Clone()
-    $script:AlignRefLabel = ((T "lecteur {0}, tête {1}, {2}") -f "$($cmbDrive.Text)", "$($cmbAlHead.Text)", "$(Get-Date -Format 'dd/MM HH:mm')")
+    $script:AlignRefLabel = Get-AlignRefLabel $script:AlignLastInfo   # 12.11 rc3 (R7) : lecteur, tetes et heure de la mesure memorisee
     $lblAlRef.Text = ((T "Référence : {0} ({1} piste(s))") -f "$($script:AlignRefLabel)", "$($script:AlignRef.Count)")
     Append-Log ((T "Mesure : référence fixée ({0}).") -f "$($script:AlignRefLabel)")
     [void](Save-Config)
@@ -294,7 +294,7 @@ $btnAlReset = New-Object System.Windows.Forms.Button
 $btnAlReset.Text = (T 'Réinitialiser'); $btnAlReset.Location = '424,40'; $btnAlReset.Size = '120,40'
 $tip.SetToolTip($btnAlReset, (T 'Efface le meilleur score, la tendance, la référence et le guide.'))
 $btnAlReset.Add_Click({
-    $script:AlignBest = @{}; $script:AlignPrev = $null; $script:AlignRef = $null; $script:AlignLast = $null
+    $script:AlignBest = @{}; $script:AlignPrev = $null; $script:AlignRef = $null; $script:AlignLast = $null; $script:AlignLastInfo = $null
     $script:AlPos = $null; $script:AlLastMove = 0; $script:AlPosScores = @{}; $script:AlignRefLabel = ''
     $lblAlRef.Text = (T 'Aucune référence')
     $lblAlPos.Text = ''; $lblAlReco.Text = ''

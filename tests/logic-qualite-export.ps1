@@ -47,7 +47,7 @@ $d190 = Get-ExFnDefs (Join-Path $mods '190-fn-qualite-alignement.ps1')
 $d195 = Get-ExFnDefs (Join-Path $mods '195-fn-qualite-affichage.ps1')
 $d230 = Get-ExFnDefs (Join-Path $mods '230-fn-calib-courbe.ps1')
 $d010 = Get-ExFnDefs (Join-Path $mods '010-i18n.ps1')
-foreach ($p in @(@($d190, '190', @('New-AlignRow', 'Get-AlLevel', 'Get-AlignTableExport', 'Format-CsvField', 'ConvertTo-AlignTableText', 'Get-AlignTableSep', 'Export-AlignTable', 'Get-AsymSign', 'Format-AsymCell', 'Get-AsymSummary', 'Get-AsymSummaryText')),
+foreach ($p in @(@($d190, '190', @('New-AlignRow', 'New-AlignLastInfo', 'Get-AlignRefLabel', 'Get-AlLevel', 'Get-AlignTableExport', 'Format-CsvField', 'ConvertTo-AlignTableText', 'Get-AlignTableSep', 'Export-AlignTable', 'Get-AsymSign', 'Format-AsymCell', 'Get-AsymSummary', 'Get-AsymSummaryText')),
                  @($d195, '195', @('Get-QualStaleText')), @($d230, '230', @('Get-Median')), @($d010, '010', @('Format-UiNum')))) {
     foreach ($n in $p[2]) {
         if (-not $p[0].ContainsKey($n)) { throw "fonction $n introuvable dans $($p[1]) (correctif pas encore applique ?)" }
@@ -55,6 +55,10 @@ foreach ($p in @(@($d190, '190', @('New-AlignRow', 'Get-AlLevel', 'Get-AlignTabl
     }
 }
 $parts.Add((Get-ExAssign (Join-Path $mods '000-entete.ps1') '$script:VersionLabel'))
+# 12.11 rc3 (R7) : gestionnaire reel de « Fixer comme reference » (530), extrait par l arbre syntaxique (cas I2)
+$refClick = @((Get-ExAst (Join-Path $mods '530-ui-onglets-techniques.ps1')).FindAll({ param($x) $x -is [System.Management.Automation.Language.InvokeMemberExpressionAst] -and $x.Expression.Extent.Text -eq '$btnAlRef' -and $x.Member.Extent.Text -eq 'Add_Click' }, $true))
+if ($refClick.Count -ne 1) { throw "gestionnaire de « Fixer comme reference » : $($refClick.Count) (1 attendu)" }
+$parts.Add("function Invoke-AlRefClick {`r`n" + $refClick[0].Arguments[0].ScriptBlock.EndBlock.Extent.Text + "`r`n}")
 $parts.Add((Get-ExAssign (Join-Path $mods '040-etat-formats.ps1') '$script:QualView'))
 foreach ($k in '$script:ScoreAsymK', '$script:AsymSignPct') { $parts.Add((Get-ExAssign (Join-Path $mods '040-etat-formats.ps1') $k)) }   # 12.11
 $gen = Join-Path $here 'gen-1210-export.ps1'
@@ -219,6 +223,25 @@ foreach ($mm in [regex]::Matches($newCode, "\(T '((?:[^']|'')*)'\)")) { [void]$u
 foreach ($mm in [regex]::Matches($newCode, "\(T `"([^`"]*)`"\)")) { [void]$used.Add($mm.Groups[1].Value) }
 $missing = @($used | Where-Object { -not $keys.Contains($_) })
 Chk 'H3' ($used.Count -ge 25 -and $missing.Count -eq 0) "$($used.Count) cles T() dans le nouveau code, $($missing.Count) sans traduction$(if ($missing.Count) { ' : ' + ($missing -join ' ; ') })"
+
+# ================================================================ I. 12.11 rc3 (R7) : etiquette de la reference
+# I1 lecteur, tetes et heure de la mesure memorisee (vraie New-AlignLastInfo) ; I2 vrai gestionnaire de « Fixer comme
+# reference » (530) apres un changement du lecteur du bandeau et de la liste « Tetes » : etiquette de la mesure (la rc2.2
+# prenait le bandeau, la liste et l heure du clic) ; I3 les deux mesures memorisees (190, 170) posent l information,
+# « Reinitialiser » l efface
+function Save-Config { return $true }
+function Show-AppMessage { }
+$i1a = New-AlignLastInfo @{ '2.0' = 1; '2.1' = 1; '40.1' = 1 } 'Sony (A)'; $i1b = New-AlignLastInfo @{ '3.1' = 1 } 'Teac (0)'
+Chk 'I1' ($i1a.Drive -ceq 'Sony (A)' -and $i1a.Heads -ceq '0+1' -and $i1b.Heads -ceq '1' -and $i1a.At -is [datetime] -and ((Get-Date) - $i1a.At).TotalSeconds -lt 60) "mesure de 2.0, 2.1, 40.1 : tetes « $($i1a.Heads) » ; de 3.1 : « $($i1b.Heads) »"
+$script:AlignLast = @{ '0.0' = @{ Score = 169 }; '0.1' = @{ Score = 170 } }
+$script:AlignLastInfo = New-AlignLastInfo $script:AlignLast 'Sony (A)'; $script:AlignLastInfo.At = [datetime]'2026-11-15T18:48:00'
+$cmbDrive.Text = 'Teac (0)'; $cmbAlHead = [pscustomobject]@{ Text = '0' }; $lblAlRef = [pscustomobject]@{ Text = '' }
+$script:RLog.Clear()
+Invoke-AlRefClick
+Chk 'I2' ($script:AlignRefLabel -ceq 'lecteur Sony (A), tête 0+1, 15/11 18:48' -and $lblAlRef.Text -ceq 'Référence : lecteur Sony (A), tête 0+1, 15/11 18:48 (2 piste(s))' -and $script:RLog.Count -eq 1 -and $script:RLog[0] -ceq 'Mesure : référence fixée (lecteur Sony (A), tête 0+1, 15/11 18:48).') "bandeau passe a Teac (0), liste Tetes a 0, clic apres la mesure : « $($script:AlignRefLabel) »"
+$s170 = [System.IO.File]::ReadAllText((Join-Path $mods '170-fn-controle-ecriture.ps1')); $s190 = [System.IO.File]::ReadAllText((Join-Path $mods '190-fn-qualite-alignement.ps1'))
+$rxL = '\$script:AlignLast = \$last\r?\n\s*\$script:AlignLastInfo = New-AlignLastInfo \$last '
+Chk 'I3' ([regex]::Matches($s170, '\$script:AlignLast = ').Count -eq 1 -and [regex]::IsMatch($s170, $rxL) -and [regex]::Matches($s190, '\$script:AlignLast = ').Count -eq 1 -and [regex]::IsMatch($s190, $rxL) -and $s530.Contains('$script:AlignLast = $null; $script:AlignLastInfo = $null')) 'controle apres ecriture (170) et mesure (190) : AlignLastInfo pose avec AlignLast ; Reinitialiser (530) l efface'
 
 $lvAl.Dispose(); $bold.Dispose()
 $nk = if ($script:Fail) { ' ; non conformes : ' + (@($script:FailIds) -join ', ') } else { '' }

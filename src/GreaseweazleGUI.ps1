@@ -3662,6 +3662,7 @@ $script:AlignBest   = @{}
 $script:AlignPrev   = $null
 $script:AlignTmp    = $null
 $script:AlignLast   = $null     # derniere mesure : cle 'cyl.tete' -> @{Score;Jitter;Asym;Err;Stab;Cell}
+$script:AlignLastInfo = $null   # 12.11 rc3 (R7) : lecteur, tetes et heure de la derniere mesure (New-AlignLastInfo, 190)
 $script:GwIsWrite   = $false    # le gw en cours est un 'write' : on capture les retries de verification
 $script:GwIsErase   = $false    # 12.8.2 : le gw en cours est un 'erase' (pistes effacees, « Command Failed » avec le code 0)
 $script:GwCmdFailed = $false    # 12.8.2 : « Command Failed » d un gw erase en cours (Get-GwEndRule)
@@ -13994,6 +13995,7 @@ function Show-WriteCheckTable($rep) {
         $(if ($crtK.Count -gt 0) { (T "Zone instable sur une piste déjà critique dans la source : {0}") -f "$(Format-TrackList $crtK)" }),
         $(if ($unkK.Count -gt 0) { (T "Zone instable non jugée (la source peut contenir une protection) : {0}") -f "$(Format-TrackList $unkK)" }))
     $script:AlignLast = $last
+    $script:AlignLastInfo = New-AlignLastInfo $last ([string]$cmbDrive.Text)   # 12.11 rc3 (R7) : lecteur qui a relu (liste du bandeau inactive pendant le controle)
     # 12.8 (lot 3) : resultat du controle sur la carte de l onglet Qualite ; son etat (COPIE SAINE, pistes faibles) suit
     # dans Complete-WriteCheck (Set-QualityCheckState)
     $res = @{ Kind = 'check'; Score = $null; Lvl = 3; Count = $count; Bad = $nBad; Health = -1; CheckLvl = -1; Weak = 0; HealthText = ''; HealthSub = '' }
@@ -16017,6 +16019,21 @@ function Get-UnstableClusters([string[]]$keys, [int]$minRun = 3) {
     return $out
 }
 
+function New-AlignLastInfo($last, [string]$drive) {
+    # 12.11 rc3 (R7) : lecteur, tetes et heure d une mesure memorisee dans AlignLast (mesure de l onglet Qualite, controle
+    # apres ecriture), pour l etiquette de « Fixer comme reference » : tetes des cles 'cyl.tete' du resultat (« 0+1 » pour
+    # les deux, comme la liste « Tetes »), heure de la fin de la mesure
+    $hs = @(@($last.Keys) | ForEach-Object { @(([string]$_) -split '\.')[-1] } | Sort-Object -Unique)
+    return @{ Drive = $drive; Heads = ($hs -join '+'); At = (Get-Date) }
+}
+
+function Get-AlignRefLabel($info) {
+    # 12.11 rc3 (R7) : etiquette de la reference, tiree de la mesure memorisee (New-AlignLastInfo) et non plus du lecteur
+    # du bandeau, de la liste « Tetes » et de l heure du clic ; sans elle (defensif) : ces trois-la, comme avant
+    if (-not $info) { $info = @{ Drive = [string]$cmbDrive.Text; Heads = [string]$cmbAlHead.Text; At = (Get-Date) } }
+    return ((T "lecteur {0}, tête {1}, {2}") -f "$($info.Drive)", "$($info.Heads)", "$(Get-Date -Date $info.At -Format 'dd/MM HH:mm')")
+}
+
 function Invoke-AlignAnalysis {
     # 12.8 (lot 3a) : analyse impossible : resultat affiche declare perime (ou carte vide avec la raison)
     if (-not $script:AlignTmp -or -not (Test-Path -LiteralPath $script:AlignTmp)) {
@@ -16066,6 +16083,7 @@ function Invoke-AlignAnalysis {
             $total += $sc; $count++
         }
         $script:AlignLast = $last
+        $script:AlignLastInfo = New-AlignLastInfo $last $(if ($script:QualView.Drive) { [string]$script:QualView.Drive } else { [string]$cmbDrive.Text })   # 12.11 rc3 (R7) : lecteur au lancement de la mesure (Start-AlignCycle)
         # 12.11 : resume de l asymetrie (Get-AsymSummary : signe commun, part du score moyen) pour l infobulle de la carte et
         # le journal (apres le score moyen) ; l en-tete de l export le recalcule sur les lignes du tableau, meme fonction
         $res.AsymText = Get-AsymSummaryText (Get-AsymSummary $ams)
@@ -32504,7 +32522,7 @@ $tip.SetToolTip($btnAlRef, (T "Mémorise la dernière mesure comme référence (
 $btnAlRef.Add_Click({
     if (-not $script:AlignLast) { [void](Show-AppMessage (T 'Faites d''abord une mesure.') (T 'Référence') 'OK' 'Information'); return }
     $script:AlignRef = $script:AlignLast.Clone()
-    $script:AlignRefLabel = ((T "lecteur {0}, tête {1}, {2}") -f "$($cmbDrive.Text)", "$($cmbAlHead.Text)", "$(Get-Date -Format 'dd/MM HH:mm')")
+    $script:AlignRefLabel = Get-AlignRefLabel $script:AlignLastInfo   # 12.11 rc3 (R7) : lecteur, tetes et heure de la mesure memorisee
     $lblAlRef.Text = ((T "Référence : {0} ({1} piste(s))") -f "$($script:AlignRefLabel)", "$($script:AlignRef.Count)")
     Append-Log ((T "Mesure : référence fixée ({0}).") -f "$($script:AlignRefLabel)")
     [void](Save-Config)
@@ -32514,7 +32532,7 @@ $btnAlReset = New-Object System.Windows.Forms.Button
 $btnAlReset.Text = (T 'Réinitialiser'); $btnAlReset.Location = '424,40'; $btnAlReset.Size = '120,40'
 $tip.SetToolTip($btnAlReset, (T 'Efface le meilleur score, la tendance, la référence et le guide.'))
 $btnAlReset.Add_Click({
-    $script:AlignBest = @{}; $script:AlignPrev = $null; $script:AlignRef = $null; $script:AlignLast = $null
+    $script:AlignBest = @{}; $script:AlignPrev = $null; $script:AlignRef = $null; $script:AlignLast = $null; $script:AlignLastInfo = $null
     $script:AlPos = $null; $script:AlLastMove = 0; $script:AlPosScores = @{}; $script:AlignRefLabel = ''
     $lblAlRef.Text = (T 'Aucune référence')
     $lblAlPos.Text = ''; $lblAlReco.Text = ''

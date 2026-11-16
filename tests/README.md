@@ -83,7 +83,7 @@ Vingt tests viennent de la campagne hors dépôt des versions 12.9 et 12.10 ; le
 | `logic-ecriture-format-profil` | `logic-1210-fix1-c` | Gestionnaires du format et de la case `--precomp` |
 | `logic-ecriture-profil-facteur` | `logic-1210-final-ac` | Libellé du profil, refus de la Bibliothèque, facteur de marque |
 | `logic-lecteur-cible` | `logic-1210-target-n` | Écriture pour un lecteur cible |
-| `logic-qualite-export` | `logic-1210-export` | Export du tableau « Qualité & alignement », cultures fr-FR et en-US |
+| `logic-qualite-export` | `logic-1210-export` | Export du tableau « Qualité & alignement », cultures fr-FR et en-US ; 12.11 rc3 : étiquette de « Fixer comme référence » tirée de la mesure mémorisée, gestionnaire réel du bouton (I1 à I3) |
 | `logic-qualite-hors-classe` | `logic-1210-struct-r` | Intervalles hors classe reproductibles (cas sur lectures réelles avec `-Reads` seulement) |
 | `logic-restauration-rapport` | `logic-1210-fixA-e` | Restauration : cadre, règles et rapport |
 | `logic-restauration-regles` | `logic-1210-fix2-e` | Restauration : règles et cadre, mesures de texte |

@@ -71,7 +71,7 @@ $fnCommon = @{
     '110-fn-coeur-gw.ps1'           = @('Get-LogColor')
     '150-fn-pistes-densite.ps1'     = @('Get-TrackKeyOrder', 'Sort-TrackKeys', 'Format-TrackList', 'Get-TSpecExtras', 'Get-TrackGroups', 'Format-EraseTracks')
     '170-fn-controle-ecriture.ps1'  = @('Test-RepFakeIndex', 'Set-CopyUnstable', 'Merge-RepRetries', 'Add-RepReads', 'Invoke-WriteCheckAnalysis', 'Show-WriteCheckTable', 'Update-RepPartial')
-    '190-fn-qualite-alignement.ps1' = @('Get-AlLevel', 'Get-HealthLevel', 'Get-JitterRedBound', 'Update-QualityTip', 'Get-TrackMetrics', 'Get-TrackScore', 'New-AlignRow', 'Get-AlignTableExport', 'Get-UnstableClusters', 'Invoke-AlignAnalysis')
+    '190-fn-qualite-alignement.ps1' = @('Get-AlLevel', 'Get-HealthLevel', 'Get-JitterRedBound', 'Update-QualityTip', 'Get-TrackMetrics', 'Get-TrackScore', 'New-AlignRow', 'New-AlignLastInfo', 'Get-AlignTableExport', 'Get-UnstableClusters', 'Invoke-AlignAnalysis')
     '195-fn-qualite-affichage.ps1'  = @('Get-QualSf', 'Get-QualityCardModel', 'Get-QualStateTitle', 'Get-QualStaleText', 'Get-QualLevelColor', 'Get-QualInk', 'Get-QualDimInk', 'Get-AlName')
     '230-fn-calib-courbe.ps1'       = @('Format-CylList', 'Get-Median')
 }

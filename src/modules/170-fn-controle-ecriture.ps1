@@ -375,6 +375,7 @@ function Show-WriteCheckTable($rep) {
         $(if ($crtK.Count -gt 0) { (T "Zone instable sur une piste déjà critique dans la source : {0}") -f "$(Format-TrackList $crtK)" }),
         $(if ($unkK.Count -gt 0) { (T "Zone instable non jugée (la source peut contenir une protection) : {0}") -f "$(Format-TrackList $unkK)" }))
     $script:AlignLast = $last
+    $script:AlignLastInfo = New-AlignLastInfo $last ([string]$cmbDrive.Text)   # 12.11 rc3 (R7) : lecteur qui a relu (liste du bandeau inactive pendant le controle)
     # 12.8 (lot 3) : resultat du controle sur la carte de l onglet Qualite ; son etat (COPIE SAINE, pistes faibles) suit
     # dans Complete-WriteCheck (Set-QualityCheckState)
     $res = @{ Kind = 'check'; Score = $null; Lvl = 3; Count = $count; Bad = $nBad; Health = -1; CheckLvl = -1; Weak = 0; HealthText = ''; HealthSub = '' }

@@ -77,6 +77,7 @@ $script:AlignBest   = @{}
 $script:AlignPrev   = $null
 $script:AlignTmp    = $null
 $script:AlignLast   = $null     # derniere mesure : cle 'cyl.tete' -> @{Score;Jitter;Asym;Err;Stab;Cell}
+$script:AlignLastInfo = $null   # 12.11 rc3 (R7) : lecteur, tetes et heure de la derniere mesure (New-AlignLastInfo, 190)
 $script:GwIsWrite   = $false    # le gw en cours est un 'write' : on capture les retries de verification
 $script:GwIsErase   = $false    # 12.8.2 : le gw en cours est un 'erase' (pistes effacees, « Command Failed » avec le code 0)
 $script:GwCmdFailed = $false    # 12.8.2 : « Command Failed » d un gw erase en cours (Get-GwEndRule)
