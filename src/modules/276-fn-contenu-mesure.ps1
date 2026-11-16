@@ -98,8 +98,8 @@ function Test-ContentMeasurable([string]$img, [string]$fmt) {
 }
 
 function Get-ContentWriteArgs($cal, $w) {
-    # Commande gw write d une tete a la passe en cours (A.5) : memes options que l ecriture lente (Start-ImageWrite,
-    # 140:135-162 : --pre-erase, --erase-empty et --no-verify selon les cases, --retries, Get-WriteFormatArgs), puis le
+    # Commande gw write d une tete a la passe en cours (A.5) : options de l ecriture lente (Start-ImageWrite,
+    # 140:135-162 : --pre-erase et --erase-empty selon les cases, Get-WriteFormatArgs), --no-verify toujours, puis le
     # --precomp du plan de la passe et de la tete restreint aux cylindres de la commande ($w = @{ H ; Cyls ; Resume } :
     # commande complete, ou reprise apres un arret de gw), --tracks=c=<cylindres>:h=<tete> et l image. Jamais --tracks=h=
     # seul : ces commandes ne se confondent pas avec l ecriture finale (regex de rpm_analyse.precomp_journal).
@@ -112,8 +112,11 @@ function Get-ContentWriteArgs($cal, $w) {
     $a = @('write') + (Get-CommonArgs)
     if ($chkWPreErase.Checked -and [string]$ct.EraseMode -ne 'hfreq') { $a += '--pre-erase' }
     if ($chkWEraseEmpty.Checked) { $a += '--erase-empty' }
-    if ($chkWNoVerify.Checked)   { $a += '--no-verify' }
-    $a += "--retries=$($numWRetries.Value)"
+    # 12.11 rc3 (R8) : toujours --no-verify, quelle que soit la case « Sans verification » : la relecture en flux qui suit
+    # la passe est la mesure ; la verification de gw relisait chaque piste et reecrivait celle d un niveau bas qu elle ne
+    # decodait pas (piste mesuree biaisee). Sans --retries : gw ne reecrit une piste que sur un echec de sa verification,
+    # comme les ecritures de la calibration (Add-CalibWriteCmds, 270). L ecriture finale de l image garde la case (140)
+    $a += '--no-verify'
     $a += Get-WriteFormatArgs
     $a += @('--precomp', (Get-BracketSpec $sel), "--tracks=c=$(Format-CylRanges ([int[]]@($w.Cyls))):h=$([int]$w.H)", "`"$($cal.Image)`"")
     return ,([string[]]$a)
@@ -121,7 +124,7 @@ function Get-ContentWriteArgs($cal, $w) {
 
 function Get-ContentMeasureMinutes([int]$nTracks, [int]$passes = 3, [switch]$NoWarmup) {
     # Duree estimee de la mesure avant l ecriture de l image (A.6) : 3 passes de nTracks pistes ecrites (ContentEstWrite,
-    # 1,25 s par piste, ecriture verifiee) et relues (ContentEstRead, 0,85 s par piste, 3 tours), plus le prechauffage du
+    # 0,67 s par piste, ecriture sans verification depuis la 12.11 rc3) et relues (ContentEstRead, 0,85 s par piste, 3 tours), plus le prechauffage du
     # reglage warmFullCalib (borne haute : reduit ou saute si le lecteur vient de servir). 12.8.2 (revue) : effacement haute
     # frequence de chaque passe compris (Get-ContentEraseEst). 12.9 : $passes (1 : 4e passe adaptative), NoWarmup : sans
     # le prechauffage

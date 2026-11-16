@@ -93,7 +93,8 @@ $want = @('Get-SpecCount', 'Start-Progress', 'Update-Progress', 'Stop-Progress',
           # 12.11 (lot L11) : barre de l onglet Ecriture pendant l ecriture et son controle (serie W)
           'Get-WriteProgUnits', 'Get-WriteProgText', 'Start-WriteProgress', 'Step-WriteProgress', 'Get-WriteProgPct', 'Update-WriteProgress', 'Get-WriteProgEnd', 'Complete-WriteProgress',
           'Update-WriteWarmupProgress', 'Start-WriteWarmup', 'Invoke-WriteWarmup', 'Stop-WriteWarmup', 'Invoke-WriteQueueNext', 'Invoke-NextChainStep', 'Get-GwDriveKey', 'Reset-GwSequence',
-          'New-WriteCheck', 'Test-SourceMayHaveWeak', 'Start-RepPending', 'Invoke-RepNextCmd', 'Merge-RepRetries', 'Stop-WriteCheck')
+          'New-WriteCheck', 'Test-SourceMayHaveWeak', 'Start-RepPending', 'Invoke-RepNextCmd', 'Merge-RepRetries', 'Stop-WriteCheck',
+          'Get-ContentMeasureMinutes', 'Get-ContentEraseEst')   # 12.11 rc3 (R8) : cas C11
 $miss = @($want | Where-Object { -not $src.Text.ContainsKey($_) })
 if ($miss.Count) { throw "fonctions introuvables dans les modules : $($miss -join ', ')" }
 $parts = New-Object System.Collections.Generic.List[string]
@@ -101,6 +102,10 @@ $parts = New-Object System.Collections.Generic.List[string]
 $snd = '[System.Media.SystemSounds]::Exclamation.Play()'
 if (([regex]::Matches([string]$src.Text['Enter-RestoreWait'], [regex]::Escape($snd))).Count -ne 1) { throw 'son de Enter-RestoreWait introuvable' }
 foreach ($n in $want) { $parts.Add($(if ($n -eq 'Enter-RestoreWait') { ([string]$src.Text[$n]).Replace($snd, '$script:Sound++') } else { $src.Text[$n] })) }
+# 12.11 rc3 (R8) : estimations reelles de la mesure sur l image (565), rejouees par le cas C11
+$ceState = @($src.Ast['565-etat-contenu.ps1'].EndBlock.Statements | Where-Object { $_ -is $tAsg -and $_.Left.Extent.Text -match '^\$script:(ContentEstWrite|ContentEstRead|EraseEstTrack)$' } | ForEach-Object { [string]$_.Extent.Text })
+if ($ceState.Count -ne 3) { throw "estimations de la mesure sur l image (565) : $($ceState.Count)" }
+$parts.Add("function Reset-ContentEst {`r`n" + ($ceState -join "`r`n") + "`r`n}")
 # Etat initial reel de la progression (040) : affectations du niveau du script, rejouees avant chaque scenario
 $stState = @($src.Ast['040-etat-formats.ps1'].EndBlock.Statements | Where-Object { $_ -is $tAsg -and $_.Left.Extent.Text -match '^\$script:(Prog[A-Za-z]+|SeqEnd|SeqCmds)$' } | ForEach-Object { [string]$_.Extent.Text })
 $parts.Add("function Reset-ProgState {`r`n" + ($stState -join "`r`n") + "`r`n}")
@@ -615,7 +620,16 @@ $calT = @{ Content = $ctT; Image = 'image.ipf'; ReadArgs = @('read', '--drive=A'
 Invoke-ContentPlanStmt $calT $ctT
 $plc = $script:ProgPlan; $w0Args = (Get-ContentWriteArgs $calT $ctT.Todo[1]) -join ' '
 $uPl = @($plc.Cmds | ForEach-Object { Num $_.Units })
-Chk 'C10' (@($plc.Cmds).Count -eq 4 -and ($uPl -join ' ; ') -eq '23.4 ; 44.2 ; 44.2 ; 69' -and [math]::Abs([double]$plc.Units - 180.8) -lt 1e-9 -and $ctT.Todo.Count -eq 3 -and $w0Args -eq 'write --drive=A --retries=3 --precomp 0=100 --tracks=c=0-39:h=0 "image.ipf"' -and [int]$plc.Got -eq 0) "mesure sur l image, plan pose par l instruction reelle de New-ContentPass : effacement, ecriture de chaque tete (« $w0Args »), relecture : poids $($uPl -join ' ; '), total $(Num $plc.Units) ; file de la passe intacte ($($ctT.Todo.Count) commandes)"
+Chk 'C10' (@($plc.Cmds).Count -eq 4 -and ($uPl -join ' ; ') -eq '23.4 ; 21 ; 21 ; 69' -and [math]::Abs([double]$plc.Units - 134.4) -lt 1e-9 -and $ctT.Todo.Count -eq 3 -and $w0Args -eq 'write --drive=A --no-verify --precomp 0=100 --tracks=c=0-39:h=0 "image.ipf"' -and [int]$plc.Got -eq 0) "mesure sur l image, plan pose par l instruction reelle de New-ContentPass : effacement, ecriture de chaque tete sans verification (« $w0Args »), relecture : poids $($uPl -join ' ; '), total $(Num $plc.Units) ; file de la passe intacte ($($ctT.Todo.Count) commandes)"
+# 12.11 rc3 (R8) : --no-verify une seule fois et aucun --retries, case « Sans verification » cochee ou non, autres
+# cases inchangees (pre-effacement hors mode hfreq, pistes vides) ; duree annoncee de la mesure (vraie
+# Get-ContentMeasureMinutes, estimations reelles de 565) : 3 passes de 100 pistes a (ecriture sans verification + relecture)
+$chkWNoVerify = [pscustomobject]@{ Checked = $true }; $chkWEraseEmpty = [pscustomobject]@{ Checked = $true }; $numWRetries = [pscustomobject]@{ Value = 7 }; $ctT.EraseMode = 'pre'
+$w1Args = (Get-ContentWriteArgs $calT $ctT.Todo[2]) -join ' '
+Reset-ContentEst
+$chkWPreErase = [pscustomobject]@{ Checked = $false }
+$min100 = Get-ContentMeasureMinutes 100 3 -NoWarmup
+Chk 'C11' ($w1Args -eq 'write --drive=A --pre-erase --erase-empty --no-verify --precomp 0=100 --tracks=c=0-39:h=1 "image.ipf"' -and [math]::Abs([double]$script:ContentEstWrite + [double]$script:ProgCost.Verify - 1.25) -lt 1e-9 -and $min100 -eq 8) "case « Sans verification » cochee, 7 essais : « $w1Args » ; ecriture de mesure estimee a $($script:ContentEstWrite) s par piste, mesure de 100 pistes annoncee $min100 min (10 avec la verification)"
 $script:Cal = $null
 
 # ================================================================ E. la barre d etat en fin de sequence
