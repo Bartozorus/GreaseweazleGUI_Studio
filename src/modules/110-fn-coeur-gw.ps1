@@ -55,6 +55,7 @@ function Get-AppBusy([switch]$Text) {
     elseif ($script:WriteWarm) { $k = 'warmup' }
     elseif ($script:Detect) { $k = 'detect' }
     elseif ($script:GwProc -and -not $script:GwProc.HasExited) { $k = 'gw' }
+    elseif ($script:GwPortRetry) { $k = 'gw' }              # 12.11 rc3 (R5) : nouvelle tentative de gw en attente
     elseif ($script:Chain.Count -gt 0) { $k = 'chain' }
     elseif ($script:AlignLoop) { $k = 'quality' }
     if (-not $Text -or -not $k) { return $k }
@@ -222,7 +223,7 @@ function Stop-Progress([int]$code) {
 function Reset-GwSequence {
     # gw n a pas pu etre lance : la sequence en cours (ecriture controlee, calibration, comparaison)
     # est abandonnee, sinon le prochain gw termine avec le code 0 reprendrait ses etapes, ecritures comprises.
-    $script:Chain.Clear(); $script:WriteQueue.Clear(); $script:Detect = $null
+    $script:Chain.Clear(); $script:WriteQueue.Clear(); $script:Detect = $null; $script:GwPortRetry = $null   # 12.11 rc3 (R5)
     Stop-WriteWarmup
     if ($script:Rep) { Stop-WriteCheck }
     if ($script:Cal) { Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
@@ -230,6 +231,42 @@ function Reset-GwSequence {
     if ($script:Restore) { Stop-Restore (T 'gw n''a pas pu être lancé') }
     # 12.8 (lot 3a) : mesure de qualite sans lecture : erreur gw, resultat affiche perime
     if ($script:QualView.State -eq 'run' -and $script:QualView.Kind -eq 'measure') { $script:AlignLoop = $false; $script:AlignNextAt = $null; Set-QualityStale 'gwerror' }
+}
+
+function Test-GwPortRetry([int]$code) {
+    # 12.11 rc3 (R5, partie 1) : fin d une commande gw, appele par le minuteur principal (600) apres la lecture de sa sortie.
+    # gw n a pas pu ouvrir le port du Greaseweazle (« could not open port », Read-GwOutput) : la commande n a rien lu ni
+    # ecrit. Premiere fois : une seule nouvelle tentative de la meme commande apres GwPortRetryMs, posee ici et lancee par le
+    # minuteur (Invoke-GwPortRetry : aucune attente sur le fil de l interface) ; la fin de la commande n est pas traitee
+    # (sequence, chaine et operation gardees) : $true. Seconde fois de suite : cause et etape atteinte au journal, puis la
+    # regle commune arrete la sequence : $false. Toute autre fin, et la detection des lecteurs (regle propre,
+    # Complete-DriveProbe) : $false, rien n est touche
+    if ($code -eq 0 -or -not $script:GwPortLost -or $script:Detect) { return $false }
+    $cmd = 'gw ' + (@($script:GwLastArgs) -join ' ')
+    if ($script:GwPortRetried) {
+        $step = if ($script:Cal -and $lblWCal.Visible -and [string]$lblWCal.Text) { "$($lblWCal.Text) ; $cmd" } else { $cmd }
+        Append-Log ((T "ERREUR : Greaseweazle déconnecté : gw n'a pas pu ouvrir son port, ni à la commande ni à la nouvelle tentative. Vérifiez le câble USB, le concentrateur USB et l'alimentation des lecteurs, puis relancez l'opération. Étape atteinte : {0}") -f "$step")
+        return $false
+    }
+    $el = if ($script:GwStart -is [datetime]) { [math]::Round(((Get-Date) - $script:GwStart).TotalSeconds, 1) } else { 0 }
+    Append-Log ((T "<<< Terminé (code retour : {0}, {1} s, {2} ligne(s) reçues)") -f "$code", "$el", "$($script:GwLines)")
+    Append-Log ((T "gw n'a pas pu ouvrir le port du Greaseweazle (carte déconnectée ou réinitialisée ?) : rien n'a été lu ni écrit. Nouvelle tentative de la même commande dans {0} s.") -f "$([math]::Round([double]$script:GwPortRetryMs / 1000, 0))")
+    # Suivi de la commande defait comme a une fin ordinaire, sans activite du lecteur (moteur arrete) ; commande decomptee
+    # du plan de l etape, que Start-Progress recompte a la relance
+    $script:GwProc = $null; $script:GwDriveKey = $null; $script:GwIsWrite = $false; $script:GwIsErase = $false
+    $script:OutStdoutReader = $null; $script:OutStderrReader = $null; $script:OutStdoutTask = $null; $script:OutStderrTask = $null
+    if ($script:ProgCmd -and $script:ProgPlan -and [int]$script:ProgPlan.Got -gt 0) { $script:ProgPlan.Got = [int]$script:ProgPlan.Got - 1 }
+    $script:GwPortRetry = @{ Args = [string[]]@($script:GwLastArgs); Soft = [bool]$script:GwLastSoft; At = (Get-Date).AddMilliseconds([double]$script:GwPortRetryMs) }
+    return $true
+}
+
+function Invoke-GwPortRetry {
+    # 12.11 rc3 (R5) : nouvelle tentative posee par Test-GwPortRetry, lancee par le minuteur principal (600) a son heure,
+    # aucun gw en cours. Une seule : GwPortRetried pose apres Start-Gw, qui le remet a faux
+    $r = $script:GwPortRetry; $script:GwPortRetry = $null
+    if (-not $r) { return }
+    Start-Gw ([string[]]$r.Args) -Soft:([bool]$r.Soft)
+    $script:GwPortRetried = $true
 }
 
 function Start-DriveDetect {
@@ -334,6 +371,10 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
         if ($script:Chain.Count -gt 0 -or $script:Rep -or $script:Cal -or $script:WriteWarm) { Reset-GwSequence }
         return
     }
+
+    # 12.11 rc3 (R5) : commande gardee pour une nouvelle tentative si gw ne peut pas ouvrir le port (Test-GwPortRetry), avant
+    # l ajout de --time ; GwPortRetried remis a faux ici, pose par Invoke-GwPortRetry apres la relance
+    $script:GwLastArgs = [string[]]@($gwArgs); $script:GwLastSoft = [bool]$Soft; $script:GwPortLost = $false; $script:GwPortRetried = $false
 
     # 12.10 (lot 1, R1-corrections-revue, constat d) : premier gw write de l image d une operation de la Bibliotheque
     # (Set-LibImageWritten) : pose avant Save-Config (configuration de la fin de l operation, E9-3), retire si gw ne demarre pas
@@ -475,6 +516,9 @@ function Read-GwOutput([bool]$flush) {
     }
     if ($lines.Count -eq 0) { return }
     $script:GwLines += $lines.Count
+    # 12.11 rc3 (R5) : port du Greaseweazle introuvable a l ouverture (carte deconnectee ou reinitialisee cote USB), lu par
+    # Test-GwPortRetry a la fin de la commande
+    if (@($lines | Where-Object { $_ -match 'could not open port' }).Count -gt 0) { $script:GwPortLost = $true }
     # 12.11 : etat de la progression mis a jour ligne par ligne, barre d etat peinte une seule fois pour le lot
     foreach ($l in $lines) { Update-Progress $l -Defer }
     Show-GwProgress

@@ -8,6 +8,8 @@ $timer.Add_Tick({
             $gwDoneTick = $true
             Read-GwOutput $true
             $code = $script:GwProc.ExitCode
+            # 12.11 rc3 (R5) : port du Greaseweazle introuvable : nouvelle tentative posee, fin de la commande non traitee
+            if (Test-GwPortRetry $code) { return }
             # Lecture de prechauffage : code retour et pistes manquantes sans effet, l etape suivante a toujours lieu
             $soft = [bool]$script:GwSoft; $script:GwSoft = $false; $script:GwLastCode = $code
             # 12.8.1 (spec-1281.md § A.7) : mesure de la disquette sur l image, gw arrete sur une piste refusee a la
@@ -90,9 +92,11 @@ $timer.Add_Tick({
             Read-GwOutput $false
         }
     }
+    # 12.11 rc3 (R5) : nouvelle tentative de la commande gw sans port, a son heure (Test-GwPortRetry, 110)
+    if ($script:GwPortRetry -and -not $script:GwProc -and (Get-Date) -ge $script:GwPortRetry.At) { Invoke-GwPortRetry }
     # Ecriture apres une calibration rapide de la Bibliotheque, terminee (gw, etapes, controle et calibration finis) :
     # champs --precomp remis au profil de la reference, le profil decale ne valait que pour la disquette ecrite
-    if ($script:LevelFieldsPending -and -not $script:GwProc -and $script:Chain.Count -eq 0 -and -not $script:Rep -and -not $script:Cal -and -not $script:WriteWarm) {
+    if ($script:LevelFieldsPending -and -not $script:GwProc -and -not $script:GwPortRetry -and $script:Chain.Count -eq 0 -and -not $script:Rep -and -not $script:Cal -and -not $script:WriteWarm) {
         $script:LevelFieldsPending = $false
         if ($cmbWProfile.SelectedIndex -eq 0 -and -not $script:Restore) {
             Update-PrecompForImage $txtWFile.Text
@@ -119,7 +123,7 @@ $timer.Add_Tick({
     # 12.8 (VAL01) : erreur gw pendant la passe du nouvel essai (Stop-PrecompCalib -GwError) : fin de la calibration sur le
     # jugement de la derniere verification, ici une fois gw fini, sans etape en attente ni autre fenetre modale (la fin peut
     # ouvrir la fenetre de decision, jamais pendant le traitement de la fin de gw). Bouton Arreter entre-temps : abandon
-    if ($script:Cal -and $script:Cal.RetestEnd -and -not $script:GwProc -and $script:Chain.Count -eq 0 -and @([System.Windows.Forms.Application]::OpenForms | Where-Object { $_.Modal -and $_.Visible -and -not [object]::ReferenceEquals($_, $form) }).Count -eq 0) { Complete-CalibRetestEnd }
+    if ($script:Cal -and $script:Cal.RetestEnd -and -not $script:GwProc -and -not $script:GwPortRetry -and $script:Chain.Count -eq 0 -and @([System.Windows.Forms.Application]::OpenForms | Where-Object { $_.Modal -and $_.Visible -and -not [object]::ReferenceEquals($_, $form) }).Count -eq 0) { Complete-CalibRetestEnd }
     Update-HomeProgress                                   # 12.7 : zone de progression de l Accueil, puis bilan
     # Bouton « Passer le prechauffage » : visible pendant tout prechauffage (ecriture lente, calibration), inactif une fois
     # clique ; Enregistrer et Reinitialiser (inactifs pendant une operation) lui cedent leur place dans la barre
@@ -134,7 +138,7 @@ $timer.Add_Tick({
     Update-SeqEnd
     # 12.11 rc3 (R3) : plus de detection des lecteurs au demarrage (seule la carte « Tester le Greaseweazle » en lance une)
     # Alignement : passe suivante en mode continu
-    if ($script:AlignLoop -and $script:AlignNextAt -and -not $script:GwProc -and -not $script:Cal -and -not $script:Rep -and -not $script:Restore -and $script:Chain.Count -eq 0 -and (Get-Date) -ge $script:AlignNextAt) {
+    if ($script:AlignLoop -and $script:AlignNextAt -and -not $script:GwProc -and -not $script:GwPortRetry -and -not $script:Cal -and -not $script:Rep -and -not $script:Restore -and $script:Chain.Count -eq 0 -and (Get-Date) -ge $script:AlignNextAt) {
         $script:AlignNextAt = $null
         Start-AlignCycle
     }

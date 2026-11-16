@@ -94,7 +94,8 @@ $want = @('Get-SpecCount', 'Start-Progress', 'Update-Progress', 'Stop-Progress',
           'Get-WriteProgUnits', 'Get-WriteProgText', 'Start-WriteProgress', 'Step-WriteProgress', 'Get-WriteProgPct', 'Update-WriteProgress', 'Get-WriteProgEnd', 'Complete-WriteProgress',
           'Update-WriteWarmupProgress', 'Start-WriteWarmup', 'Invoke-WriteWarmup', 'Stop-WriteWarmup', 'Invoke-WriteQueueNext', 'Invoke-NextChainStep', 'Get-GwDriveKey', 'Reset-GwSequence',
           'New-WriteCheck', 'Test-SourceMayHaveWeak', 'Start-RepPending', 'Invoke-RepNextCmd', 'Merge-RepRetries', 'Stop-WriteCheck',
-          'Get-ContentMeasureMinutes', 'Get-ContentEraseEst')   # 12.11 rc3 (R8) : cas C11
+          'Get-ContentMeasureMinutes', 'Get-ContentEraseEst',   # 12.11 rc3 (R8) : cas C11
+          'Test-GwPortRetry', 'Invoke-GwPortRetry')             # 12.11 rc3 (R5) : serie G
 $miss = @($want | Where-Object { -not $src.Text.ContainsKey($_) })
 if ($miss.Count) { throw "fonctions introuvables dans les modules : $($miss -join ', ')" }
 $parts = New-Object System.Collections.Generic.List[string]
@@ -1339,8 +1340,9 @@ $expUse = @{
     # 12.11 (lot L11) : adapte a dessein : fin de la barre de l onglet Ecriture (Get-WriteProgEnd lit ProgFailed pour dire
     # « Ecriture interrompue », Complete-WriteProgress remet le plan a $null, 160)
     ProgFailed = '(040), Get-WriteProgEnd, Set-GwLaunchFailedStatus, Start-Progress, Stop-Progress, Update-SeqEnd'
-    ProgCmd    = '(040), Get-ProgPlanFrac, New-ProgPlan, Set-GwLaunchFailedStatus, Start-Progress, Stop-Progress, Update-Progress, Update-SeqEnd'
-    ProgPlan   = '(040), Complete-WriteProgress, Get-ProgPlanFrac, Invoke-CalibAnalysis, Invoke-ContentAnalysis, New-ProgPlan, Start-Progress, Stop-PrecompCalib, Stop-Progress, Update-CalibProgress, Update-Progress, Update-SeqEnd'
+    # 12.11 rc3 (R5, adapte a dessein) : Test-GwPortRetry decompte du plan la commande gw qui n a pas pu ouvrir le port
+    ProgCmd    = '(040), Get-ProgPlanFrac, New-ProgPlan, Set-GwLaunchFailedStatus, Start-Progress, Stop-Progress, Test-GwPortRetry, Update-Progress, Update-SeqEnd'
+    ProgPlan   = '(040), Complete-WriteProgress, Get-ProgPlanFrac, Invoke-CalibAnalysis, Invoke-ContentAnalysis, New-ProgPlan, Start-Progress, Stop-PrecompCalib, Stop-Progress, Test-GwPortRetry, Update-CalibProgress, Update-Progress, Update-SeqEnd'
     SeqEnd     = '(040), Clear-SeqEnd, Set-GwLaunchFailedStatus, Set-SeqEnd, Start-Progress, Update-SeqEnd'
     SeqCmds    = '(040), Start-Progress, Update-SeqEnd'
     ProgCost   = '(040), Get-GwCmdUnits'
@@ -1525,6 +1527,66 @@ Chk 'D5' ($en5 -and $en5.Contains('ne recule pas') -and $en5.Contains('« Écrit
 $en6 = Get-Entry $co "Fin d'une écriture réussie."
 Chk 'D6' (-not $en6 -and
           $devEn.Count -eq 1 -and $devEn[0].Contains('`$script:GwProc` est nul') -and $rt.Contains('lot L12b : passage du minuteur entre la sortie de gw et le traitement de sa fin')) "CHANGELOG 12.11 : aucune entree « Fin d'une écriture réussie » en Corrections (defaut jamais publie) ; « Pour les développeurs » : Update-SeqEnd attend que `$script:GwProc soit nul ; README des tests"
+
+# ================================================================ G. 12.11 rc3 (R5) : gw sans port du Greaseweazle
+'--- G. Test-GwPortRetry, Invoke-GwPortRetry : une nouvelle tentative de la commande qui n a pas pu ouvrir le port'
+# G1 vraie Read-GwOutput : « could not open port » pose GwPortLost, une autre erreur fatale non ; G2 premiere fin sans
+# port : tentative posee (memes arguments, delai GwPortRetryMs), suivi defait, commande decomptee du plan, chaine gardee,
+# application occupee (« gw »), deux lignes de journal ; G3 vraie Invoke-GwPortRetry : la meme commande relancee une fois
+# (bouchon de Start-Gw), recomptee dans le plan ; G4 seconde fin sans port : cause et etape au journal (libelle de la
+# calibration et commande), aucune tentative, suivi laisse a la regle commune ; G5 aucune tentative sur une autre erreur,
+# sur le code 0, ni pendant la detection des lecteurs ; G6 instructions du minuteur (600), de Start-Gw et
+# Reset-GwSequence (110) et du bouton « Arreter » (540)
+$gArgs = [string[]]@('read', '--drive=0', '--revs=3', '--tracks=c=0-39:h=0-1', '"precomp-calib.scp"')
+Reset-All
+$script:GwPortRetryMs = 3000; $script:GwPortLost = $false; $script:GwPortRetried = $false; $script:GwPortRetry = $null
+Push-Batch @('** FATAL ERROR:', "could not open port 'COM9': FileNotFoundError(2, 'introuvable')"); $g1a = [bool]$script:GwPortLost
+$script:GwPortLost = $false; Push-Batch @('** FATAL ERROR:', 'Command Failed: Seek: Track 0 not found'); $g1b = [bool]$script:GwPortLost
+Chk 'G1' ($g1a -and -not $g1b) "port introuvable : GwPortLost $g1a ; autre erreur fatale : $g1b"
+Reset-All
+$script:GwPortRetryMs = 3000; $script:GwPortRetried = $false; $script:GwPortRetry = $null
+$gCmds = New-Object System.Collections.ArrayList; [void]$gCmds.Add($gArgs); [void]$gCmds.Add($gArgs)
+$null = New-ProgPlan $gCmds.ToArray()
+Start-Progress (T 'Lecture') $gArgs
+$script:GwLastArgs = $gArgs; $script:GwLastSoft = $false; $script:GwPortLost = $true
+$script:GwProc = [pscustomobject]@{ HasExited = $true }; $script:GwDriveKey = '|0'
+$script:Chain.Enqueue({ 'etape suivante' })
+$g2t0 = Get-Date
+$g2 = Test-GwPortRetry 1
+$g2log = @($script:Calls | Where-Object { $_ -like 'Append-Log *' })
+$g2ok = ($g2 -and $null -eq $script:GwProc -and $null -eq $script:GwDriveKey -and $script:Chain.Count -eq 1 -and [int]$script:ProgPlan.Got -eq 0 -and $null -ne $script:GwPortRetry)
+if ($g2ok) { $g2ok = ((@($script:GwPortRetry.Args) -join ' ') -ceq ($gArgs -join ' ') -and -not $script:GwPortRetry.Soft -and [math]::Abs(($script:GwPortRetry.At - $g2t0).TotalMilliseconds - 3000) -lt 1000) }
+Chk 'G2' ($g2ok -and (Get-AppBusy) -eq 'gw' -and $g2log.Count -eq 2 -and $g2log[0] -like 'Append-Log <<< Terminé (code retour : 1, *' -and $g2log[1] -ceq "Append-Log gw n'a pas pu ouvrir le port du Greaseweazle (carte déconnectée ou réinitialisée ?) : rien n'a été lu ni écrit. Nouvelle tentative de la même commande dans 3 s.") "premiere fin sans port : tentative posee $g2ok, occupation « $(Get-AppBusy) », chaine $($script:Chain.Count), plan $($script:ProgPlan.Got) ; journal : $($g2log -join ' / ')"
+$script:WCmds = New-Object System.Collections.Generic.List[string]; $script:WTest.Mode = ''
+Invoke-GwPortRetry
+Chk 'G3' ($script:WCmds.Count -eq 1 -and $script:WCmds[0] -ceq ($gArgs -join ' ') -and $null -eq $script:GwPortRetry -and [bool]$script:GwPortRetried -and [int]$script:ProgPlan.Got -eq 1 -and $null -ne $script:GwProc -and $script:Chain.Count -eq 1) "relance : $($script:WCmds -join ' / ') ; plan $($script:ProgPlan.Got) ; GwPortRetried $($script:GwPortRetried)"
+$script:GwProc = [pscustomobject]@{ HasExited = $true }; $script:GwPortLost = $true
+$script:Cal = @{ Mode = 'full' }; $lblWCal.Text = 'Calibration : 63 %, reste environ 25 min (lecteur 0, relecture)'; $lblWCal.Visible = $true
+$script:Calls.Clear()
+$g4 = Test-GwPortRetry 1
+$g4log = @($script:Calls | Where-Object { $_ -like 'Append-Log *' })
+$g4exp = "Append-Log ERREUR : Greaseweazle déconnecté : gw n'a pas pu ouvrir son port, ni à la commande ni à la nouvelle tentative. Vérifiez le câble USB, le concentrateur USB et l'alimentation des lecteurs, puis relancez l'opération. Étape atteinte : Calibration : 63 %, reste environ 25 min (lecteur 0, relecture) ; gw " + ($gArgs -join ' ')
+Chk 'G4' (-not $g4 -and $null -eq $script:GwPortRetry -and $null -ne $script:GwProc -and $g4log.Count -eq 1 -and $g4log[0] -ceq $g4exp) "seconde fin sans port : $g4, journal : $($g4log -join ' / ')"
+$script:Cal = $null; $lblWCal.Visible = $false
+$g5 = @()
+foreach ($cs in @(@{ Code = 1; Lost = $false; Det = $null }, @{ Code = 0; Lost = $true; Det = $null }, @{ Code = 1; Lost = $true; Det = @{ Queue = (New-Object System.Collections.Queue) } })) {
+    Reset-All; $script:GwPortRetried = $false; $script:GwPortRetry = $null; $script:GwPortLost = [bool]$cs.Lost; $script:Detect = $cs.Det
+    $script:GwProc = [pscustomobject]@{ HasExited = $true }; $script:GwLastArgs = $gArgs
+    $g5 += "$(Test-GwPortRetry ([int]$cs.Code))|$($null -eq $script:GwPortRetry)|$($script:Calls.Count)|$($null -ne $script:GwProc)"
+}
+Chk 'G5' (($g5 -join ' ; ') -ceq 'False|True|0|True ; False|True|0|True ; False|True|0|True') "autre erreur, code 0, detection : $($g5 -join ' ; ')"
+Reset-All; $script:GwPortLost = $false; $script:GwPortRetried = $false; $script:GwPortRetry = $null
+$t600g = [string]$src.Ast['600-minuteur-demarrage.ps1'].Extent.Text; $t540g = [string]$src.Ast['540-ui-accueil-restauration-barre.ps1'].Extent.Text
+$tSg = [string]$src.Text['Start-Gw']; $iLast = $tSg.IndexOf('$script:GwLastArgs = [string[]]@($gwArgs)'); $iTime = $tSg.IndexOf('@(''--time'') + $gwArgs')
+$g6 = @(
+    [regex]::IsMatch($t600g, '\$code = \$script:GwProc\.ExitCode\r?\n\s*#[^\r\n]*\r?\n\s*if \(Test-GwPortRetry \$code\) \{ return \}'),
+    $t600g.Contains('if ($script:GwPortRetry -and -not $script:GwProc -and (Get-Date) -ge $script:GwPortRetry.At) { Invoke-GwPortRetry }'),
+    ([regex]::Matches($t600g, '-not \$script:GwProc -and -not \$script:GwPortRetry -and').Count -eq 3),
+    ($iLast -gt 0 -and $iTime -gt $iLast),
+    ([string]$src.Text['Reset-GwSequence']).Contains('$script:GwPortRetry = $null'),
+    ($t540g.Contains('$portWait = [bool]$script:GwPortRetry; $script:GwPortRetry = $null') -and $t540g.Contains('if ($portWait -and -not $script:GwProc) { Set-Busy $false }'))
+)
+Chk 'G6' (@($g6 | Where-Object { -not $_ }).Count -eq 0) "minuteur (fin non traitee, relance a son heure, trois attentes du repos), Start-Gw, Reset-GwSequence, Arreter : $($g6 -join ', ')"
 
 # ================================================================ Q. equivalence avec la 12.10 (-Before)
 '--- Q. equivalence avec la 12.10 (-Before)'

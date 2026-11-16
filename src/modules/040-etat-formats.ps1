@@ -84,6 +84,11 @@ $script:GwCmdFailed = $false    # 12.8.2 : « Command Failed » d un gw erase en
 $script:EraseLog    = $null     # 12.8.2 : pistes effacees et ecrites de l operation en cours (Start-ImageWrite, 170)
 $script:GwSoft      = $false    # le gw en cours est une lecture de prechauffage : code retour et piste manquante sans effet
 $script:GwLastCode  = 0         # code retour du dernier gw termine (prechauffage)
+# 12.11 rc3 (R5) : gw sans port (« could not open port » : rien lu ni ecrit) : une nouvelle tentative de la meme commande
+# (Test-GwPortRetry, Invoke-GwPortRetry, 110) : derniere commande lancee par Start-Gw, drapeaux de la commande en cours,
+# tentative en attente (@{ Args ; Soft ; At }) et son delai en ms
+$script:GwLastArgs  = @(); $script:GwLastSoft = $false; $script:GwPortLost = $false; $script:GwPortRetried = $false
+$script:GwPortRetry = $null; $script:GwPortRetryMs = 3000
 $script:GwLastIncomplete = $false   # dernier gw termine avec le code 0 mais incomplet (prechauffage)
 $script:GwDriveKey  = $null     # lecteur du gw en cours s il peut faire tourner le moteur (DriveActivity, mise a jour par le
                                 # minuteur a la fin de la commande, seulement si le moteur a tourne)

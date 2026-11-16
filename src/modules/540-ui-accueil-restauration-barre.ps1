@@ -252,6 +252,9 @@ $btnStop.Add_Click({
     # 12.8 (D20) : Get-AppBusy ; la mesure continue seule (quality) s arrete plus bas, sans « Interrompu ». $script:GwProc
     # seul : gw termine mais pas encore traite par le minuteur, chaine et operations arretees quand meme
     $busy = Get-AppBusy
+    # 12.11 rc3 (R5) : nouvelle tentative de gw en attente (Test-GwPortRetry) abandonnee ; aucun gw ne finira pour remettre
+    # la barre de boutons au repos : Set-Busy plus bas
+    $portWait = [bool]$script:GwPortRetry; $script:GwPortRetry = $null
     if ($script:GwProc -or ($busy -and $busy -ne 'quality')) {
         if ($script:GwProc -and -not $script:GwProc.HasExited) {
             try { $script:GwProc.Kill($true) } catch { try { $script:GwProc.Kill() } catch { } }
@@ -268,6 +271,7 @@ $btnStop.Add_Click({
         if ($script:QualView.State -eq 'run') { Set-QualityStale $(if ($script:QualView.Kind -eq 'check') { 'checkabort' } else { 'stop' }) }
     }
     if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; Append-Log (T 'Mesure continue arrêtée.') }
+    if ($portWait -and -not $script:GwProc) { Set-Busy $false }
 })
 
 $btnLogToggle = New-BarButton (T 'Masquer journal') 140
