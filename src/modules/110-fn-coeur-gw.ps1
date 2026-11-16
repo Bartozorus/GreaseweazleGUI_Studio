@@ -246,17 +246,23 @@ function Test-GwPortRetry([int]$code) {
     if ($script:GwPortRetried) {
         $step = if ($script:Cal -and $lblWCal.Visible -and [string]$lblWCal.Text) { "$($lblWCal.Text) ; $cmd" } else { $cmd }
         Append-Log ((T "ERREUR : Greaseweazle déconnecté : gw n'a pas pu ouvrir son port, ni à la commande ni à la nouvelle tentative. Vérifiez le câble USB, le concentrateur USB et l'alimentation des lecteurs, puis relancez l'opération. Étape atteinte : {0}") -f "$step")
+        # Corrections de relecture : lecture de prechauffage (GwSoft) comprise : la regle commune arrete la sequence, au lieu
+        # de passer a l etape suivante, qui se heurterait au meme port
+        $script:GwSoft = $false
         return $false
     }
     $el = if ($script:GwStart -is [datetime]) { [math]::Round(((Get-Date) - $script:GwStart).TotalSeconds, 1) } else { 0 }
     Append-Log ((T "<<< Terminé (code retour : {0}, {1} s, {2} ligne(s) reçues)") -f "$code", "$el", "$($script:GwLines)")
     Append-Log ((T "gw n'a pas pu ouvrir le port du Greaseweazle (carte déconnectée ou réinitialisée ?) : rien n'a été lu ni écrit. Nouvelle tentative de la même commande dans {0} s.") -f "$([math]::Round([double]$script:GwPortRetryMs / 1000, 0))")
     # Suivi de la commande defait comme a une fin ordinaire, sans activite du lecteur (moteur arrete) ; commande decomptee
-    # du plan de l etape, que Start-Progress recompte a la relance
+    # du plan de l etape, que Start-Progress recompte a la relance ; corrections de relecture : de meme du compte des
+    # commandes de la sequence (SeqCmds : une commande isolee relancee garde l affichage d une commande isolee, Update-SeqEnd),
+    # et code retour garde pour la barre d etat si « Arreter » abandonne la tentative (540)
     $script:GwProc = $null; $script:GwDriveKey = $null; $script:GwIsWrite = $false; $script:GwIsErase = $false
     $script:OutStdoutReader = $null; $script:OutStderrReader = $null; $script:OutStdoutTask = $null; $script:OutStderrTask = $null
     if ($script:ProgCmd -and $script:ProgPlan -and [int]$script:ProgPlan.Got -gt 0) { $script:ProgPlan.Got = [int]$script:ProgPlan.Got - 1 }
-    $script:GwPortRetry = @{ Args = [string[]]@($script:GwLastArgs); Soft = [bool]$script:GwLastSoft; At = (Get-Date).AddMilliseconds([double]$script:GwPortRetryMs) }
+    if ([int]$script:SeqCmds -gt 0) { $script:SeqCmds = [int]$script:SeqCmds - 1 }
+    $script:GwPortRetry = @{ Args = [string[]]@($script:GwLastArgs); Soft = [bool]$script:GwLastSoft; At = (Get-Date).AddMilliseconds([double]$script:GwPortRetryMs); Code = $code }
     return $true
 }
 

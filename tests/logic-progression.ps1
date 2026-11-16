@@ -133,6 +133,10 @@ $tkWarm = @($tkW | Where-Object { $_ -ceq 'if ($script:Cal) { Update-CalibProgre
 $tkWrite = @($tkW | Where-Object { $_ -ceq 'if ($script:WriteProg) { Update-WriteProgress }' })
 if ($tkWarm.Count -ne 1 -or $tkWrite.Count -ne 1) { throw "instructions des barres de l onglet Ecriture dans le minuteur : $($tkWarm.Count), $($tkWrite.Count)" }
 $parts.Add("function Invoke-WTimer {`r`n" + $tkWarm[0] + "`r`n" + $tkWrite[0] + "`r`n}")
+# 12.11 rc3 (corrections de relecture, R5) : gestionnaire reel du bouton « Arreter » (540), rejoue par le cas G7
+$stopClick = @($src.Ast['540-ui-accueil-restauration-barre.ps1'].FindAll({ param($x) $x -is [System.Management.Automation.Language.InvokeMemberExpressionAst] -and [string]$x.Expression -eq '$btnStop' -and [string]$x.Member -eq 'Add_Click' }, $true))
+if ($stopClick.Count -ne 1) { throw "gestionnaire du bouton Arreter (540) : $($stopClick.Count) (1 attendu)" }
+$parts.Add("function Invoke-StopClick {`r`n" + [string]$stopClick[0].Arguments[0].ScriptBlock.EndBlock.Extent.Text + "`r`n}")
 $gen = Join-Path $here 'gen-progression.ps1'
 [System.IO.File]::WriteAllText($gen, (($parts -join "`r`n`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($true)))
 
@@ -1344,7 +1348,8 @@ $expUse = @{
     ProgCmd    = '(040), Get-ProgPlanFrac, New-ProgPlan, Set-GwLaunchFailedStatus, Start-Progress, Stop-Progress, Test-GwPortRetry, Update-Progress, Update-SeqEnd'
     ProgPlan   = '(040), Complete-WriteProgress, Get-ProgPlanFrac, Invoke-CalibAnalysis, Invoke-ContentAnalysis, New-ProgPlan, Start-Progress, Stop-PrecompCalib, Stop-Progress, Test-GwPortRetry, Update-CalibProgress, Update-Progress, Update-SeqEnd'
     SeqEnd     = '(040), Clear-SeqEnd, Set-GwLaunchFailedStatus, Set-SeqEnd, Start-Progress, Update-SeqEnd'
-    SeqCmds    = '(040), Start-Progress, Update-SeqEnd'
+    # 12.11 rc3 (corrections de relecture, adapte a dessein) : Test-GwPortRetry decompte aussi la commande sans port
+    SeqCmds    = '(040), Start-Progress, Test-GwPortRetry, Update-SeqEnd'
     ProgCost   = '(040), Get-GwCmdUnits'
 }
 $badUse = @()
@@ -1556,10 +1561,12 @@ $g2 = Test-GwPortRetry 1
 $g2log = @($script:Calls | Where-Object { $_ -like 'Append-Log *' })
 $g2ok = ($g2 -and $null -eq $script:GwProc -and $null -eq $script:GwDriveKey -and $script:Chain.Count -eq 1 -and [int]$script:ProgPlan.Got -eq 0 -and $null -ne $script:GwPortRetry)
 if ($g2ok) { $g2ok = ((@($script:GwPortRetry.Args) -join ' ') -ceq ($gArgs -join ' ') -and -not $script:GwPortRetry.Soft -and [math]::Abs(($script:GwPortRetry.At - $g2t0).TotalMilliseconds - 3000) -lt 1000) }
+# Corrections de relecture : commande aussi decomptee de la sequence (SeqCmds, Update-SeqEnd), code garde pour « Arreter »
+if ($g2ok) { $g2ok = ([int]$script:SeqCmds -eq 0 -and [int]$script:GwPortRetry.Code -eq 1) }
 Chk 'G2' ($g2ok -and (Get-AppBusy) -eq 'gw' -and $g2log.Count -eq 2 -and $g2log[0] -like 'Append-Log <<< Terminé (code retour : 1, *' -and $g2log[1] -ceq "Append-Log gw n'a pas pu ouvrir le port du Greaseweazle (carte déconnectée ou réinitialisée ?) : rien n'a été lu ni écrit. Nouvelle tentative de la même commande dans 3 s.") "premiere fin sans port : tentative posee $g2ok, occupation « $(Get-AppBusy) », chaine $($script:Chain.Count), plan $($script:ProgPlan.Got) ; journal : $($g2log -join ' / ')"
 $script:WCmds = New-Object System.Collections.Generic.List[string]; $script:WTest.Mode = ''
 Invoke-GwPortRetry
-Chk 'G3' ($script:WCmds.Count -eq 1 -and $script:WCmds[0] -ceq ($gArgs -join ' ') -and $null -eq $script:GwPortRetry -and [bool]$script:GwPortRetried -and [int]$script:ProgPlan.Got -eq 1 -and $null -ne $script:GwProc -and $script:Chain.Count -eq 1) "relance : $($script:WCmds -join ' / ') ; plan $($script:ProgPlan.Got) ; GwPortRetried $($script:GwPortRetried)"
+Chk 'G3' ($script:WCmds.Count -eq 1 -and $script:WCmds[0] -ceq ($gArgs -join ' ') -and $null -eq $script:GwPortRetry -and [bool]$script:GwPortRetried -and [int]$script:ProgPlan.Got -eq 1 -and [int]$script:SeqCmds -eq 1 -and $null -ne $script:GwProc -and $script:Chain.Count -eq 1) "relance : $($script:WCmds -join ' / ') ; plan $($script:ProgPlan.Got) ; sequence $($script:SeqCmds) commande(s) ; GwPortRetried $($script:GwPortRetried)"
 $script:GwProc = [pscustomobject]@{ HasExited = $true }; $script:GwPortLost = $true
 $script:Cal = @{ Mode = 'full' }; $lblWCal.Text = 'Calibration : 63 %, reste environ 25 min (lecteur 0, relecture)'; $lblWCal.Visible = $true
 $script:Calls.Clear()
@@ -1567,6 +1574,12 @@ $g4 = Test-GwPortRetry 1
 $g4log = @($script:Calls | Where-Object { $_ -like 'Append-Log *' })
 $g4exp = "Append-Log ERREUR : Greaseweazle déconnecté : gw n'a pas pu ouvrir son port, ni à la commande ni à la nouvelle tentative. Vérifiez le câble USB, le concentrateur USB et l'alimentation des lecteurs, puis relancez l'opération. Étape atteinte : Calibration : 63 %, reste environ 25 min (lecteur 0, relecture) ; gw " + ($gArgs -join ' ')
 Chk 'G4' (-not $g4 -and $null -eq $script:GwPortRetry -and $null -ne $script:GwProc -and $g4log.Count -eq 1 -and $g4log[0] -ceq $g4exp) "seconde fin sans port : $g4, journal : $($g4log -join ' / ')"
+# G4b (corrections de relecture) : seconde fin sans port d une lecture de prechauffage (GwSoft) : plus « soft », la vraie
+# regle de fin (Get-GwEndRule, arguments du minuteur) arrete la sequence au lieu de passer a l etape suivante
+$script:GwSoft = $true; $script:GwPortLost = $true
+$g4b = Test-GwPortRetry 1
+$g4bEnd = Get-GwEndRule 1 ([bool]$script:GwSoft) $false $false 0 0 $null 'full' $false
+Chk 'G4b' (-not $g4b -and -not $script:GwSoft -and -not $g4bEnd.Soft -and -not $g4bEnd.Next) "prechauffage, seconde fin sans port : GwSoft $($script:GwSoft), regle de fin Soft $($g4bEnd.Soft) Next $($g4bEnd.Next)"
 $script:Cal = $null; $lblWCal.Visible = $false
 $g5 = @()
 foreach ($cs in @(@{ Code = 1; Lost = $false; Det = $null }, @{ Code = 0; Lost = $true; Det = $null }, @{ Code = 1; Lost = $true; Det = @{ Queue = (New-Object System.Collections.Queue) } })) {
@@ -1584,9 +1597,25 @@ $g6 = @(
     ([regex]::Matches($t600g, '-not \$script:GwProc -and -not \$script:GwPortRetry -and').Count -eq 3),
     ($iLast -gt 0 -and $iTime -gt $iLast),
     ([string]$src.Text['Reset-GwSequence']).Contains('$script:GwPortRetry = $null'),
-    ($t540g.Contains('$portWait = [bool]$script:GwPortRetry; $script:GwPortRetry = $null') -and $t540g.Contains('if ($portWait -and -not $script:GwProc) { Set-Busy $false }'))
+    ($t540g.Contains('$portWait = $script:GwPortRetry; $script:GwPortRetry = $null') -and $t540g.Contains('if ($portWait -and -not $script:GwProc) { Stop-Progress ([int]$portWait.Code); Set-Busy $false }'))
 )
 Chk 'G6' (@($g6 | Where-Object { -not $_ }).Count -eq 0) "minuteur (fin non traitee, relance a son heure, trois attentes du repos), Start-Gw, Reset-GwSequence, Arreter : $($g6 -join ', ')"
+# G7 (corrections de relecture) : vrai gestionnaire du bouton « Arreter » (540) pendant l attente d une nouvelle tentative
+# d une commande isolee : tentative abandonnee (rien relance au tick suivant), barre de boutons au repos, barre d etat
+# « Lecture en echec (code 1) » et non plus « Lecture en cours... », gardee par la fin de sequence (vraie Update-SeqEnd)
+function Set-Busy([bool]$b) { $script:Calls.Add("Set-Busy $b") }
+Reset-All; $script:GwPortRetryMs = 3000; $script:GwPortRetried = $false; $script:GwPortRetry = $null; $script:QualView = @{ State = '' }
+$null = New-ProgPlan @(, $gArgs)
+Start-Progress (T 'Lecture') $gArgs
+$script:GwLastArgs = $gArgs; $script:GwLastSoft = $false; $script:GwPortLost = $true; $script:GwProc = [pscustomobject]@{ HasExited = $true }
+$g7a = Test-GwPortRetry 1
+$g7run = [string]$stOp.Text
+$script:Calls.Clear(); $script:WCmds = New-Object System.Collections.Generic.List[string]
+Invoke-StopClick
+Invoke-GwPortRetry; Update-SeqEnd
+$g7st = [string]$stOp.Text -replace '\d\d:\d\d:\d\d$', 'HH:mm:ss'
+Chk 'G7' ($g7a -and $g7run -ceq 'Lecture en cours...' -and $null -eq $script:GwPortRetry -and $script:WCmds.Count -eq 0 -and $script:Calls.Contains('Set-Busy False') -and $script:Calls.Contains('Append-Log *** Interrompu par l''utilisateur ***') -and $g7st -ceq 'Lecture en échec (code 1)  -  HH:mm:ss' -and -not $stBar.Available -and (Get-AppBusy) -eq '') "Arreter pendant l attente : barre d etat « $g7st » (avant : « $g7run ») ; relances $($script:WCmds.Count) ; occupation « $(Get-AppBusy) » ; appels : $($script:Calls -join ' / ')"
+Reset-All; $script:GwPortLost = $false; $script:GwPortRetried = $false; $script:GwPortRetry = $null
 
 # ================================================================ Q. equivalence avec la 12.10 (-Before)
 '--- Q. equivalence avec la 12.10 (-Before)'

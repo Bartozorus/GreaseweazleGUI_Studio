@@ -253,8 +253,9 @@ $btnStop.Add_Click({
     # seul : gw termine mais pas encore traite par le minuteur, chaine et operations arretees quand meme
     $busy = Get-AppBusy
     # 12.11 rc3 (R5) : nouvelle tentative de gw en attente (Test-GwPortRetry) abandonnee ; aucun gw ne finira pour remettre
-    # la barre de boutons au repos : Set-Busy plus bas
-    $portWait = [bool]$script:GwPortRetry; $script:GwPortRetry = $null
+    # la barre de boutons au repos : Set-Busy plus bas ; corrections de relecture : ni la barre d etat (« ... en cours ») :
+    # Stop-Progress avec le code de la commande sans port, comme a la fin d un gw arrete
+    $portWait = $script:GwPortRetry; $script:GwPortRetry = $null
     if ($script:GwProc -or ($busy -and $busy -ne 'quality')) {
         if ($script:GwProc -and -not $script:GwProc.HasExited) {
             try { $script:GwProc.Kill($true) } catch { try { $script:GwProc.Kill() } catch { } }
@@ -271,7 +272,7 @@ $btnStop.Add_Click({
         if ($script:QualView.State -eq 'run') { Set-QualityStale $(if ($script:QualView.Kind -eq 'check') { 'checkabort' } else { 'stop' }) }
     }
     if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; Append-Log (T 'Mesure continue arrêtée.') }
-    if ($portWait -and -not $script:GwProc) { Set-Busy $false }
+    if ($portWait -and -not $script:GwProc) { Stop-Progress ([int]$portWait.Code); Set-Busy $false }
 })
 
 $btnLogToggle = New-BarButton (T 'Masquer journal') 140
