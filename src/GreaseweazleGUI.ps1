@@ -814,7 +814,6 @@ $script:I18n["Plafond atteint alors que la calibration précédente du même lec
 $script:I18n["Calibration faite sur une disquette sacrifiée dont le besoin dépasse {0} ns : si elle est fatiguée, la courbe surestime le besoin de la disquette à écrire. Préférez une disquette sacrifiée en bon état."] = 'Calibration made on a sacrificial disk whose need exceeds {0} ns: if that disk is worn, the curve overestimates the need of the disk to write. Prefer a sacrificial disk in good condition.'
 $script:I18n["Lecteur {0} : non pris en charge par cette carte (ligne de sélection absente)."] = 'Drive {0}: not supported by this board (select line missing).'
 $script:I18n["{0} et {1} utilisent la même ligne de sélection : la détection ne peut pas les distinguer (A ou B : nappe PC avec twist ; 0 à 3 : nappe droite)."] = '{0} and {1} use the same select line: the detection cannot tell them apart (A or B: PC cable with twist; 0 to 3: straight cable).'
-$script:I18n["Détection des lecteurs : aucun lecteur au dernier démarrage, seul le lecteur {0} est testé (carte « Tester le Greaseweazle » de l'Accueil : tous les lecteurs)."] = 'Drive detection: no drive at the last startup, only drive {0} is tested ("Test the Greaseweazle" card on the Home tab: all drives).'
 $script:I18n["Détection des lecteurs interrompue : {0}"] = 'Drive detection aborted: {0}'
 $script:I18n[' (zone instable)'] = ' (unstable zone)'
 $script:I18n["Mesure : zone instable d'un tour à l'autre sur {0} piste(s) : {1}. Bits faibles d'une protection contre la copie probable, ou défaut localisé du support : une copie faite depuis un flux n'en écrit qu'un tour et ne les reproduit pas fidèlement."] = 'Measurement: zone changing from one revolution to the next on {0} track(s): {1}. Weak bits of a probable copy protection, or a localised media defect: a copy made from a flux image writes only one revolution of them and cannot reproduce them faithfully.'
@@ -843,9 +842,6 @@ $script:I18n["Contrôle : {0} piste(s) non reproductible(s) ou déjà critique(s
 $script:I18n["Calibration {0} de la famille {1} non convergée ({2}) : écriture avec cette courbe. Pour la refaire, bouton « Calibrer » de l'onglet Écriture, de préférence en test fin."] = 'Calibration {0} of the {1} family not converged ({2}): writing with this curve. To redo it, use the Write tab Calibrate button, preferably with the fine test.'
 $script:I18n["Détection des lecteurs : recherche de la piste 0 sur {0} (gw seek : la tête se déplace, sans rotation ni écriture)."] = 'Drive detection: looking for track 0 on {0} (gw seek: the head moves, no spinning and no writing).'
 $script:I18n["Aucun lecteur détecté : vérifiez l'alimentation du lecteur, la nappe et son sens, puis le type de nappe (A ou B : nappe PC avec twist ; 0 à 3 : nappe droite)."] = 'No drive detected: check the drive power supply, the cable and its orientation, then the cable type (A or B: PC cable with twist; 0 to 3: straight cable).'
-$script:I18n["Lecteur(s) détecté(s) : {0}."] = 'Drive(s) detected: {0}.'
-$script:I18n["Lecteur {0} sélectionné : le lecteur {1} ne répond pas."] = 'Drive {0} selected: drive {1} does not respond.'
-$script:I18n["Lecteur {0} détecté."] = 'Drive {0} detected.'
 $script:I18n['Vérifier que la carte répond (gw info), puis détecter les lecteurs branchés (A, B, 0 à 3).'] = 'Check that the board responds (gw info), then detect the connected drives (A, B, 0 to 3).'
 $script:I18n["Écrire l'image"] = 'Write the image'
 $script:I18n["Calibration terminée.`n`nRetirez la disquette sacrifiée du lecteur {0} et insérez la disquette à écrire, puis cliquez sur « Écrire l'image ».`nAnnuler : l'image n'est pas écrite."] = "Calibration complete.`n`nRemove the sacrificial disk from drive {0} and insert the disk to write, then click `"Write the image`".`nCancel: the image is not written."
@@ -2895,11 +2891,9 @@ $script:I18n['Le lecteur branché sur la connexion {0} est bien « {1} »'] = 'T
 $script:I18n["Le lecteur branché sur la connexion {0} n'est aucun des lecteurs enregistrés"] = 'The drive plugged into connection {0} is none of the registered drives'
 $script:I18n["Lecteur cible de cette calibration croisée : {0}`nLa courbe mesurée servira aux écritures du lecteur {1} destinées à ce lecteur. Si un autre lecteur est branché sur la connexion {2}, fermez cette fenêtre et relancez la calibration croisée avec le bon lecteur cible : mesurée avec un autre lecteur, la courbe serait fausse, sans aucun message d'erreur."] = "Target drive of this cross calibration: {0}`nThe measured curve will be used for the writes of drive {1} intended for this drive. If another drive is plugged into connection {2}, close this window and start the cross calibration again with the right target drive: measured with another drive, the curve would be wrong, without any error message."
 $script:I18n['Opération annulée : lecteur branché non confirmé.'] = 'Operation cancelled: plugged-in drive not confirmed.'
-# Journal : lecteur choisi (Update-DriveChoice), lecteur qui ecrit (Get-WriteSourceText), lecteur retenu par la detection
-# (Complete-DriveDetect, 110)
+# Journal : lecteur choisi (Update-DriveChoice), lecteur qui ecrit (Get-WriteSourceText)
 $script:I18n['Lecteur choisi : {0} (avant : {1}).'] = 'Drive selected: {0} (before: {1}).'
 $script:I18n['Lecteur qui écrit : {0}'] = 'Writing drive: {0}'
-$script:I18n['Connexion {0} : lecteur retenu « {1} », le dernier choisi sur cette connexion. La détection ne reconnaît pas le lecteur branché : vérifiez la liste « Lecteur : » du bandeau.'] = 'Connection {0}: drive "{1}" kept, the last one selected on this connection. Detection cannot recognise the drive that is plugged in: check the "Drive:" list of the banner.'
 # Textes existants completes, pour un lecteur enregistre en jeu seulement : case de la mesure (140), fenetre de decision
 # (250), cibles ecartees d une calibration croisee (270), ligne d etat de l echange et du controle de surface (270),
 # libelle du lecteur de la restauration (300)
@@ -3053,6 +3047,11 @@ $script:I18n['pour le lecteur cible {0} : {1} telle quelle, sans le facteur par 
 # Relecture rc2.1 : courbes croisees par tete (Get-TargetCurvesText : « courbes croisees ... par tete »), accord au pluriel
 $script:I18n['pour le lecteur cible {0} : {1} telles quelles, sans le facteur par cylindre ({2})'] = 'for target drive {0}: {1} as is, without the per-cylinder factor ({2})'
 $script:I18n['pour le lecteur cible {0} : courbe croisée telle quelle'] = 'for target drive {0}: cross curve as is'
+
+# --- rc3 : retours sur la rc2.2 (110, 530, 270, 230) ----------------------------------------------------------------------
+# R3 : detection des lecteurs de la carte « Tester le Greaseweazle », diagnostic seulement (Complete-DriveDetect, 110)
+$script:I18n['Connexions qui répondent : {0}.'] = 'Connections that respond: {0}.'
+$script:I18n['La connexion {0} du lecteur du bandeau ne répond pas. Le lecteur du bandeau reste « {1} » : branchez-le, ou choisissez le lecteur branché dans la liste « Lecteur : ».'] = 'Connection {0} of the banner drive does not respond. The banner drive stays "{1}": plug it in, or choose the plugged-in drive in the "Drive:" list.'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 try { Add-Type -AssemblyName System.IO.Compression.FileSystem } catch { }
@@ -4859,17 +4858,14 @@ function Reset-GwSequence {
     if ($script:QualView.State -eq 'run' -and $script:QualView.Kind -eq 'measure') { $script:AlignLoop = $false; $script:AlignNextAt = $null; Set-QualityStale 'gwerror' }
 }
 
-function Start-DriveDetect([string]$mode) {
+function Start-DriveDetect {
+    # Carte « Tester le Greaseweazle » (540), seule a lancer une detection depuis la 12.11 rc3 (R3 : plus de detection
+    # au demarrage) : toutes les connexions, celle du lecteur du bandeau d abord ; diagnostic seulement (Complete-DriveDetect)
     if (-not (Test-Path -LiteralPath $script:GwExe)) { return }
     if (Get-AppBusy) { return }                           # 12.8 (D20) : aussi pendant un prechauffage ou la mesure continue
-    $script:DetectAt = $null
     $cur = Get-DriveConn ([string]$cmbDrive.Text)         # 12.11 : la detection sonde des connexions (celle du lecteur du bandeau d abord)
     $order = @(@($cur) + @($script:DriveIds | Where-Object { $_ -ne $cur }) | Where-Object { $_ })
-    if ($mode -eq 'auto' -and $script:DetectNone) {
-        $order = @($cur)
-        Append-Log ((T "Détection des lecteurs : aucun lecteur au dernier démarrage, seul le lecteur {0} est testé (carte « Tester le Greaseweazle » de l'Accueil : tous les lecteurs).") -f "$cur")
-    }
-    $script:Detect = @{ Mode = $mode; Queue = (New-Object System.Collections.Queue); Found = @(); Tried = @(); Cur = $cur; Drive = '' }
+    $script:Detect = @{ Queue = (New-Object System.Collections.Queue); Found = @(); Tried = @(); Cur = $cur; Drive = '' }
     foreach ($d in $order) { $script:Detect.Queue.Enqueue($d) }
     Append-Log ((T "Détection des lecteurs : recherche de la piste 0 sur {0} (gw seek : la tête se déplace, sans rotation ni écriture).") -f "$($order -join ', ')")
     Invoke-DriveProbe
@@ -4896,7 +4892,6 @@ function Complete-DriveProbe([int]$code) {
     $txt = $lines -join "`n"
     if ($code -eq 0 -and $txt -notmatch 'Command Failed|FATAL|Track ?0') {
         $dt.Found += $dt.Drive
-        if ($dt.Mode -eq 'auto') { Complete-DriveDetect; return }
     } elseif ($txt -match 'Invalid unit number') {
         # Firmware ACK_BAD_UNIT : ligne de selection non cablee sur cette carte (V4 Slim, F7 Slim, F1 de base, F7 v1)
         Append-Log ((T "Lecteur {0} : non pris en charge par cette carte (ligne de sélection absente).") -f "$($dt.Drive)")
@@ -4915,7 +4910,6 @@ function Complete-DriveDetect {
     if (-not $dt) { return }
     # 12.11 : barre d etat apres la recherche des lecteurs : « Pret. », sans heure (avant : « gw seek termine(e) »)
     Set-SeqEnd (T 'Prêt.') 'idle' -NoTime
-    $script:DetectNone = ($dt.Found.Count -eq 0)
     # A et 2 (broche 14), B et 1 (broche 12) partagent une ligne de selection : gw seek, sans moteur, ne les distingue
     # pas. Une seule entree par paire : A ou B, sauf si 2 ou 1 etait deja le reglage ; l identifiant prefere qui a ete
     # sonde sans repondre cede la place a celui de la paire qui a repondu
@@ -4927,25 +4921,19 @@ function Complete-DriveDetect {
         if ($found -notcontains $keepId -and @($dt.Tried) -contains $keepId) { $sw = $keepId; $keepId = $other; $other = $sw }
         $found = @($found | Where-Object { $_ -ne $other })
         if ($found -notcontains $keepId) { $found += $keepId }
-        if ($dt.Mode -ne 'auto') { Append-Log ((T "{0} et {1} utilisent la même ligne de sélection : la détection ne peut pas les distinguer (A ou B : nappe PC avec twist ; 0 à 3 : nappe droite).") -f $pp[0], $pp[1]) }
+        Append-Log ((T "{0} et {1} utilisent la même ligne de sélection : la détection ne peut pas les distinguer (A ou B : nappe PC avec twist ; 0 à 3 : nappe droite).") -f $pp[0], $pp[1])
     }
     $dt.Found = $found
     if ($dt.Found.Count -eq 0) {
         Append-Log (T "Aucun lecteur détecté : vérifiez l'alimentation du lecteur, la nappe et son sens, puis le type de nappe (A ou B : nappe PC avec twist ; 0 à 3 : nappe droite).")
         return
     }
-    $pick = if ($dt.Found -contains $dt.Cur) { $dt.Cur } else { [string]$dt.Found[0] }
-    if ($dt.Mode -ne 'auto') { Append-Log ((T "Lecteur(s) détecté(s) : {0}.") -f "$($dt.Found -join ', ')") }
-    if ($pick -ne $dt.Cur) {
-        # 12.8 (D10) : la restauration suit le lecteur du bandeau, sans reglage propre a recaler
-        # 12.11 (lot LN-b) : avec des lecteurs enregistres, le lecteur retenu pour la connexion qui repond, le dernier choisi
-        # sur elle (Get-DriveForConn, 112) : la detection ne reconnait pas le lecteur branche, une ligne le dit
-        $pickD = $pick
-        if ($script:DriveReg.Count -gt 0) { $pickD = Get-DriveForConn $pick }
-        Set-Combo $cmbDrive $pickD
-        Append-Log ((T "Lecteur {0} sélectionné : le lecteur {1} ne répond pas.") -f "$pick", "$($dt.Cur)")
-        if ($pickD -cne $pick) { Append-Log ((T 'Connexion {0} : lecteur retenu « {1} », le dernier choisi sur cette connexion. La détection ne reconnaît pas le lecteur branché : vérifiez la liste « Lecteur : » du bandeau.') -f "$pick", "$pickD") }
-    } else { Append-Log ((T "Lecteur {0} détecté.") -f "$pick") }
+    # 12.11 rc3 (R3) : diagnostic seulement : les connexions qui repondent, et si celle du lecteur du bandeau n en est pas ;
+    # le lecteur du bandeau ne change pas (gw seek ne reconnait pas le lecteur branche, ni A de 2 ni B de 1)
+    Append-Log ((T 'Connexions qui répondent : {0}.') -f "$($dt.Found -join ', ')")
+    if ($dt.Found -notcontains $dt.Cur) {
+        Append-Log ((T 'La connexion {0} du lecteur du bandeau ne répond pas. Le lecteur du bandeau reste « {1} » : branchez-le, ou choisissez le lecteur branché dans la liste « Lecteur : ».') -f "$($dt.Cur)", "$($cmbDrive.Text)")
+    }
 }
 
 function Get-GwDriveKey([string[]]$gwArgs) {
@@ -7635,7 +7623,7 @@ function Save-Config {
             split = $split.SplitterDistance; maximized = ($form.WindowState -eq 'Maximized')
             logVisible = -not $split.Panel2Collapsed
         }
-        global   = @{ device = $txtDev.Text; time = [bool]$chkTime.Checked; detectNone = [bool]$script:DetectNone }
+        global   = @{ device = $txtDev.Text; time = [bool]$chkTime.Checked }   # 12.11 rc3 (R3) : detectNone retire (plus de detection au demarrage)
         library  = @{ root = $txtLibRoot.Text; imagesOnly = [bool]$chkLibImgOnly.Checked }
         write    = @{
             file = $txtWFile.Text; format = $cmbWFmt.Text
@@ -7749,7 +7737,6 @@ function Load-Config {
     $g = Get-Cfg $cfg 'global' $null
     $txtDev.Text = [string](Get-Cfg $g 'device' '')
     $chkTime.Checked = [bool](Get-Cfg $g 'time' $false)
-    $script:DetectNone = [bool](Get-Cfg $g 'detectNone' $false)
 
     $l = Get-Cfg $cfg 'library' $null
     $txtLibRoot.Text = [string](Get-Cfg $l 'root' '')
@@ -32868,11 +32855,10 @@ $cardCheck   = New-HomeCard 'Diagnostic' (T 'Vérifier une disquette ou un lecte
 $cardCalib   = New-HomeCard 'Stopwatch' (T 'Calibrer le lecteur') (T 'Choisir un type de disquette, voir sa courbe et calibrer le lecteur : complète ou rapide.') '14,248' { Show-HomeCalib }
 $cardTest    = New-HomeCard 'Usb' (T 'Tester le Greaseweazle') (T 'Vérifier que la carte répond (gw info), puis détecter les lecteurs branchés (A, B, 0 à 3).') '14,340' {
     if (Get-AppBusy) { return }                           # 12.8 (D20) : aussi pendant un prechauffage ou la mesure continue
-    $script:DetectAt = $null                              # la detection complete remplace la detection automatique en attente
     $script:InfoArgs = @('info'); if ($txtDev.Text.Trim()) { $script:InfoArgs += "--device=$($txtDev.Text.Trim())" }
     $script:Chain.Clear()
     $script:Chain.Enqueue({ Start-Gw $script:InfoArgs })
-    $script:Chain.Enqueue({ Start-DriveDetect 'full' })
+    $script:Chain.Enqueue({ Start-DriveDetect })
     Invoke-NextChainStep
 }
 $cardHelp    = New-HomeCard 'Help' (T 'Guide pas à pas') (T 'Ouvrir l''aide en ligne : premiers pas, glossaire des termes, dépannage.') '397,340' { Open-Help 'Premiers-pas' }
@@ -33073,7 +33059,7 @@ $flowButtons.BackColor = $script:Theme.Window; $flowButtons.Dock = 'Bottom'; $fl
 $btnStop = New-BarButton (T 'Arrêter') 105
 $btnStop.Enabled = $false; $btnStop.Font = $bold
 $btnStop.Add_Click({
-    $script:Detect = $null; $script:DetectAt = $null
+    $script:Detect = $null
     # 12.8 (D20) : Get-AppBusy ; la mesure continue seule (quality) s arrete plus bas, sans « Interrompu ». $script:GwProc
     # seul : gw termine mais pas encore traite par le minuteur, chaine et operations arretees quand meme
     $busy = Get-AppBusy
@@ -33701,12 +33687,10 @@ $script:RestoreRules = @{ ReadRevs = 5; ReadRetries = 10; SeekRetries = 2; Write
 # --- Detection des lecteurs -------------------------------------------------------------------------------------
 # gw seek <lecteur> 0 : sans moteur ni ecriture, la tete revient au cylindre 0 ; un lecteur absent ou mal cable ne
 # signale jamais la piste 0 (« Command Failed: Seek: Track 0 not found », code 0, ou « Track0 signal absent », code 1).
-# Au demarrage : lecteur memorise d abord, puis A, B, 0 a 3, arret au premier qui repond. Carte « Tester » : tous.
+# Carte « Tester le Greaseweazle » : connexion du lecteur du bandeau d abord, puis les autres de A, B, 0 a 3. 12.11 rc3
+# (R3) : plus de detection au demarrage, et la detection ne change plus le lecteur du bandeau
 $script:Detect = $null
-$script:DetectAt = $null
 $script:DriveIds = @('A', 'B', '0', '1', '2', '3')
-
-$script:DetectNone = $false     # aucun lecteur au dernier demarrage : seul le lecteur memorise est teste (configuration)
 
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 200
@@ -33842,12 +33826,7 @@ $timer.Add_Tick({
     # 12.11 : fin de sequence : une fois l application au repos, la barre d etat annonce le resultat de l operation
     # (Set-SeqEnd), sans compteur ni barre ; jamais sur l echec de la derniere commande gw (110)
     Update-SeqEnd
-    # Detection des lecteurs au demarrage, fenetre affichee et aucune operation en cours (12.8, D20 : Get-AppBusy, comme
-    # Start-DriveDetect ; detection gardee en attente, et non abandonnee, pendant un prechauffage ou la mesure continue)
-    if ($script:DetectAt -and (Get-Date) -ge $script:DetectAt -and -not $script:GwProc -and -not (Get-AppBusy)) {
-        $script:DetectAt = $null
-        Start-DriveDetect 'auto'
-    }
+    # 12.11 rc3 (R3) : plus de detection des lecteurs au demarrage (seule la carte « Tester le Greaseweazle » en lance une)
     # Alignement : passe suivante en mode continu
     if ($script:AlignLoop -and $script:AlignNextAt -and -not $script:GwProc -and -not $script:Cal -and -not $script:Rep -and -not $script:Restore -and $script:Chain.Count -eq 0 -and (Get-Date) -ge $script:AlignNextAt) {
         $script:AlignNextAt = $null
@@ -33923,9 +33902,8 @@ $form.Add_Shown({
     # Bibliotheque chargee une fois la fenetre visible (racine reseau possible)
     $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
     try { Update-Library; if ($txtWFile.Text) { Update-PrecompForImage $txtWFile.Text } else { Update-CurveButton '' } } finally { $form.Cursor = [System.Windows.Forms.Cursors]::Default }
-    # Calibrations d un autre calcul : choix de l utilisateur, puis detection des lecteurs (qui lance gw)
+    # Calibrations d un autre calcul : choix de l utilisateur. 12.11 rc3 (R3) : plus de detection des lecteurs ensuite
     Resolve-OldCalibrations
-    if (Test-Path -LiteralPath $script:GwExe) { $script:DetectAt = (Get-Date).AddSeconds(1) }   # detection des lecteurs
 })
 Fit-ControlText $form
 # 12.11 (L9) : onglet Ecriture : controles a la suite de leur libelle ou de la case qui les precede, cadre des options

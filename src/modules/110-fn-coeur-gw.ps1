@@ -232,17 +232,14 @@ function Reset-GwSequence {
     if ($script:QualView.State -eq 'run' -and $script:QualView.Kind -eq 'measure') { $script:AlignLoop = $false; $script:AlignNextAt = $null; Set-QualityStale 'gwerror' }
 }
 
-function Start-DriveDetect([string]$mode) {
+function Start-DriveDetect {
+    # Carte « Tester le Greaseweazle » (540), seule a lancer une detection depuis la 12.11 rc3 (R3 : plus de detection
+    # au demarrage) : toutes les connexions, celle du lecteur du bandeau d abord ; diagnostic seulement (Complete-DriveDetect)
     if (-not (Test-Path -LiteralPath $script:GwExe)) { return }
     if (Get-AppBusy) { return }                           # 12.8 (D20) : aussi pendant un prechauffage ou la mesure continue
-    $script:DetectAt = $null
     $cur = Get-DriveConn ([string]$cmbDrive.Text)         # 12.11 : la detection sonde des connexions (celle du lecteur du bandeau d abord)
     $order = @(@($cur) + @($script:DriveIds | Where-Object { $_ -ne $cur }) | Where-Object { $_ })
-    if ($mode -eq 'auto' -and $script:DetectNone) {
-        $order = @($cur)
-        Append-Log ((T "Détection des lecteurs : aucun lecteur au dernier démarrage, seul le lecteur {0} est testé (carte « Tester le Greaseweazle » de l'Accueil : tous les lecteurs).") -f "$cur")
-    }
-    $script:Detect = @{ Mode = $mode; Queue = (New-Object System.Collections.Queue); Found = @(); Tried = @(); Cur = $cur; Drive = '' }
+    $script:Detect = @{ Queue = (New-Object System.Collections.Queue); Found = @(); Tried = @(); Cur = $cur; Drive = '' }
     foreach ($d in $order) { $script:Detect.Queue.Enqueue($d) }
     Append-Log ((T "Détection des lecteurs : recherche de la piste 0 sur {0} (gw seek : la tête se déplace, sans rotation ni écriture).") -f "$($order -join ', ')")
     Invoke-DriveProbe
@@ -269,7 +266,6 @@ function Complete-DriveProbe([int]$code) {
     $txt = $lines -join "`n"
     if ($code -eq 0 -and $txt -notmatch 'Command Failed|FATAL|Track ?0') {
         $dt.Found += $dt.Drive
-        if ($dt.Mode -eq 'auto') { Complete-DriveDetect; return }
     } elseif ($txt -match 'Invalid unit number') {
         # Firmware ACK_BAD_UNIT : ligne de selection non cablee sur cette carte (V4 Slim, F7 Slim, F1 de base, F7 v1)
         Append-Log ((T "Lecteur {0} : non pris en charge par cette carte (ligne de sélection absente).") -f "$($dt.Drive)")
@@ -288,7 +284,6 @@ function Complete-DriveDetect {
     if (-not $dt) { return }
     # 12.11 : barre d etat apres la recherche des lecteurs : « Pret. », sans heure (avant : « gw seek termine(e) »)
     Set-SeqEnd (T 'Prêt.') 'idle' -NoTime
-    $script:DetectNone = ($dt.Found.Count -eq 0)
     # A et 2 (broche 14), B et 1 (broche 12) partagent une ligne de selection : gw seek, sans moteur, ne les distingue
     # pas. Une seule entree par paire : A ou B, sauf si 2 ou 1 etait deja le reglage ; l identifiant prefere qui a ete
     # sonde sans repondre cede la place a celui de la paire qui a repondu
@@ -300,25 +295,19 @@ function Complete-DriveDetect {
         if ($found -notcontains $keepId -and @($dt.Tried) -contains $keepId) { $sw = $keepId; $keepId = $other; $other = $sw }
         $found = @($found | Where-Object { $_ -ne $other })
         if ($found -notcontains $keepId) { $found += $keepId }
-        if ($dt.Mode -ne 'auto') { Append-Log ((T "{0} et {1} utilisent la même ligne de sélection : la détection ne peut pas les distinguer (A ou B : nappe PC avec twist ; 0 à 3 : nappe droite).") -f $pp[0], $pp[1]) }
+        Append-Log ((T "{0} et {1} utilisent la même ligne de sélection : la détection ne peut pas les distinguer (A ou B : nappe PC avec twist ; 0 à 3 : nappe droite).") -f $pp[0], $pp[1])
     }
     $dt.Found = $found
     if ($dt.Found.Count -eq 0) {
         Append-Log (T "Aucun lecteur détecté : vérifiez l'alimentation du lecteur, la nappe et son sens, puis le type de nappe (A ou B : nappe PC avec twist ; 0 à 3 : nappe droite).")
         return
     }
-    $pick = if ($dt.Found -contains $dt.Cur) { $dt.Cur } else { [string]$dt.Found[0] }
-    if ($dt.Mode -ne 'auto') { Append-Log ((T "Lecteur(s) détecté(s) : {0}.") -f "$($dt.Found -join ', ')") }
-    if ($pick -ne $dt.Cur) {
-        # 12.8 (D10) : la restauration suit le lecteur du bandeau, sans reglage propre a recaler
-        # 12.11 (lot LN-b) : avec des lecteurs enregistres, le lecteur retenu pour la connexion qui repond, le dernier choisi
-        # sur elle (Get-DriveForConn, 112) : la detection ne reconnait pas le lecteur branche, une ligne le dit
-        $pickD = $pick
-        if ($script:DriveReg.Count -gt 0) { $pickD = Get-DriveForConn $pick }
-        Set-Combo $cmbDrive $pickD
-        Append-Log ((T "Lecteur {0} sélectionné : le lecteur {1} ne répond pas.") -f "$pick", "$($dt.Cur)")
-        if ($pickD -cne $pick) { Append-Log ((T 'Connexion {0} : lecteur retenu « {1} », le dernier choisi sur cette connexion. La détection ne reconnaît pas le lecteur branché : vérifiez la liste « Lecteur : » du bandeau.') -f "$pick", "$pickD") }
-    } else { Append-Log ((T "Lecteur {0} détecté.") -f "$pick") }
+    # 12.11 rc3 (R3) : diagnostic seulement : les connexions qui repondent, et si celle du lecteur du bandeau n en est pas ;
+    # le lecteur du bandeau ne change pas (gw seek ne reconnait pas le lecteur branche, ni A de 2 ni B de 1)
+    Append-Log ((T 'Connexions qui répondent : {0}.') -f "$($dt.Found -join ', ')")
+    if ($dt.Found -notcontains $dt.Cur) {
+        Append-Log ((T 'La connexion {0} du lecteur du bandeau ne répond pas. Le lecteur du bandeau reste « {1} » : branchez-le, ou choisissez le lecteur branché dans la liste « Lecteur : ».') -f "$($dt.Cur)", "$($cmbDrive.Text)")
+    }
 }
 
 function Get-GwDriveKey([string[]]$gwArgs) {

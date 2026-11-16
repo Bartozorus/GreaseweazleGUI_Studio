@@ -44,11 +44,10 @@ $cardCheck   = New-HomeCard 'Diagnostic' (T 'Vérifier une disquette ou un lecte
 $cardCalib   = New-HomeCard 'Stopwatch' (T 'Calibrer le lecteur') (T 'Choisir un type de disquette, voir sa courbe et calibrer le lecteur : complète ou rapide.') '14,248' { Show-HomeCalib }
 $cardTest    = New-HomeCard 'Usb' (T 'Tester le Greaseweazle') (T 'Vérifier que la carte répond (gw info), puis détecter les lecteurs branchés (A, B, 0 à 3).') '14,340' {
     if (Get-AppBusy) { return }                           # 12.8 (D20) : aussi pendant un prechauffage ou la mesure continue
-    $script:DetectAt = $null                              # la detection complete remplace la detection automatique en attente
     $script:InfoArgs = @('info'); if ($txtDev.Text.Trim()) { $script:InfoArgs += "--device=$($txtDev.Text.Trim())" }
     $script:Chain.Clear()
     $script:Chain.Enqueue({ Start-Gw $script:InfoArgs })
-    $script:Chain.Enqueue({ Start-DriveDetect 'full' })
+    $script:Chain.Enqueue({ Start-DriveDetect })
     Invoke-NextChainStep
 }
 $cardHelp    = New-HomeCard 'Help' (T 'Guide pas à pas') (T 'Ouvrir l''aide en ligne : premiers pas, glossaire des termes, dépannage.') '397,340' { Open-Help 'Premiers-pas' }
@@ -249,7 +248,7 @@ $flowButtons.BackColor = $script:Theme.Window; $flowButtons.Dock = 'Bottom'; $fl
 $btnStop = New-BarButton (T 'Arrêter') 105
 $btnStop.Enabled = $false; $btnStop.Font = $bold
 $btnStop.Add_Click({
-    $script:Detect = $null; $script:DetectAt = $null
+    $script:Detect = $null
     # 12.8 (D20) : Get-AppBusy ; la mesure continue seule (quality) s arrete plus bas, sans « Interrompu ». $script:GwProc
     # seul : gw termine mais pas encore traite par le minuteur, chaine et operations arretees quand meme
     $busy = Get-AppBusy

@@ -204,7 +204,7 @@ function Reset-All {
     Reset-ProgState
     $script:GwStart = Get-Date; $script:GwLines = 0; $script:OutQueue = $null; $script:OutPending = ''
     $script:OutStdoutReader = $null; $script:OutStderrReader = $null; $script:OutStdoutTask = $null; $script:OutStderrTask = $null
-    $script:CleanRun = $null; $script:GwCapture = $null; $script:Detect = $null; $script:DetectNone = $false
+    $script:CleanRun = $null; $script:GwCapture = $null; $script:Detect = $null
     $script:GwIsWrite = $false; $script:GwIsErase = $false; $script:GwCmdFailed = $false; $script:GwWriteSummary = $false; $script:GwVerifyFail = $null
     $script:EraseLog = $null; $script:WriteRetries = @{}; $script:WriteTracks = @{}
     $script:Restore = $null; $script:Cal = $null; $script:Rep = $null; $script:WriteWarm = $null; $script:GwProc = $null; $script:AlignLoop = $false
@@ -770,12 +770,12 @@ $st17a = Get-St
 Complete-DriveDetect
 $st17b = "$(Get-St)|$($null -ne $script:SeqEnd)"
 Update-SeqEnd
-Chk 'E17' ($st17a -eq 'gw seek terminé(e)  -  HH:mm:ss||False' -and $st17b -eq "$st17a|True" -and [string]$stOp.Text -eq 'Prêt.' -and (Test-Icon 'idle') -and $null -eq $script:Detect -and @($script:Calls | Where-Object { $_ -eq 'Append-Log Lecteur A détecté.' }).Count -eq 1) "recherche des lecteurs (vraie Complete-DriveDetect) : la barre d etat gardait « $($st17a.Split('|')[0]) » ; au repos : « $($stOp.Text) », sans heure, icone neutre"
+Chk 'E17' ($st17a -eq 'gw seek terminé(e)  -  HH:mm:ss||False' -and $st17b -eq "$st17a|True" -and [string]$stOp.Text -eq 'Prêt.' -and (Test-Icon 'idle') -and $null -eq $script:Detect -and @($script:Calls | Where-Object { $_ -eq 'Append-Log Connexions qui répondent : A.' }).Count -eq 1 -and @($script:Calls | Where-Object { $_ -like 'Append-Log La connexion * ne répond pas*' }).Count -eq 0) "recherche des lecteurs (vraie Complete-DriveDetect) : la barre d etat gardait « $($st17a.Split('|')[0]) » ; au repos : « $($stOp.Text) », sans heure, icone neutre"
 Reset-All
 $script:Detect = @{ Mode = 'auto'; Queue = (New-Object System.Collections.Queue); Found = @(); Tried = @('A'); Cur = 'A'; Drive = 'A' }
 Start-Progress 'gw seek'; Stop-Progress 1; Stop-Progress 0
 Complete-DriveDetect; Update-SeqEnd
-Chk 'E18' ([string]$stOp.Text -eq 'Prêt.' -and [bool]$script:DetectNone) "aucun lecteur detecte : « $($stOp.Text) » aussi (la cause est au journal)"
+Chk 'E18' ([string]$stOp.Text -eq 'Prêt.' -and @($script:Calls | Where-Object { $_ -like 'Append-Log Aucun lecteur détecté : *' }).Count -eq 1 -and @($script:Calls | Where-Object { $_ -like 'Append-Log Connexions qui répondent*' }).Count -eq 0) "aucun lecteur detecte : « $($stOp.Text) » aussi (la cause est au journal)"
 # Controle apres ecriture : bilan court du controle
 function Invoke-CheckEnd([int]$nWeak, [int]$max, [string]$lang = 'fr') {
     Reset-All; $script:Lang = $lang

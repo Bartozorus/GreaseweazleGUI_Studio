@@ -132,12 +132,7 @@ $timer.Add_Tick({
     # 12.11 : fin de sequence : une fois l application au repos, la barre d etat annonce le resultat de l operation
     # (Set-SeqEnd), sans compteur ni barre ; jamais sur l echec de la derniere commande gw (110)
     Update-SeqEnd
-    # Detection des lecteurs au demarrage, fenetre affichee et aucune operation en cours (12.8, D20 : Get-AppBusy, comme
-    # Start-DriveDetect ; detection gardee en attente, et non abandonnee, pendant un prechauffage ou la mesure continue)
-    if ($script:DetectAt -and (Get-Date) -ge $script:DetectAt -and -not $script:GwProc -and -not (Get-AppBusy)) {
-        $script:DetectAt = $null
-        Start-DriveDetect 'auto'
-    }
+    # 12.11 rc3 (R3) : plus de detection des lecteurs au demarrage (seule la carte « Tester le Greaseweazle » en lance une)
     # Alignement : passe suivante en mode continu
     if ($script:AlignLoop -and $script:AlignNextAt -and -not $script:GwProc -and -not $script:Cal -and -not $script:Rep -and -not $script:Restore -and $script:Chain.Count -eq 0 -and (Get-Date) -ge $script:AlignNextAt) {
         $script:AlignNextAt = $null
@@ -213,9 +208,8 @@ $form.Add_Shown({
     # Bibliotheque chargee une fois la fenetre visible (racine reseau possible)
     $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
     try { Update-Library; if ($txtWFile.Text) { Update-PrecompForImage $txtWFile.Text } else { Update-CurveButton '' } } finally { $form.Cursor = [System.Windows.Forms.Cursors]::Default }
-    # Calibrations d un autre calcul : choix de l utilisateur, puis detection des lecteurs (qui lance gw)
+    # Calibrations d un autre calcul : choix de l utilisateur. 12.11 rc3 (R3) : plus de detection des lecteurs ensuite
     Resolve-OldCalibrations
-    if (Test-Path -LiteralPath $script:GwExe) { $script:DetectAt = (Get-Date).AddSeconds(1) }   # detection des lecteurs
 })
 Fit-ControlText $form
 # 12.11 (L9) : onglet Ecriture : controles a la suite de leur libelle ou de la case qui les precede, cadre des options

@@ -124,7 +124,6 @@ $wantState = [ordered]@{
     '560' = @('$script:CalRedo', '$script:CalHardNsDefault', '$script:CalHardMinNs', '$script:CalHardMaxNs', '$script:CalHardNs', '$script:CalWarmupDefault', '$script:CalWarmupMinutes', '$script:DriveCurves', '$script:PrecompCurves',
               '$script:CurveKeys', '$script:LevelFormat', '$script:LevelShifts', '$script:LevelBrand', '$script:LevelBrands', '$script:ConfigRefBackupKeep', '$script:TargetDrives', '$script:CalHardNsUser')
     '565' = @('$script:ContentKMax', '$script:ContentMeasures')
-    '590' = @('$script:DetectNone')
 }
 $stateParts = New-Object System.Collections.Generic.List[string]
 $stateMissing = @()

@@ -213,11 +213,9 @@ $script:I18n['Le lecteur branché sur la connexion {0} est bien « {1} »'] = 'T
 $script:I18n["Le lecteur branché sur la connexion {0} n'est aucun des lecteurs enregistrés"] = 'The drive plugged into connection {0} is none of the registered drives'
 $script:I18n["Lecteur cible de cette calibration croisée : {0}`nLa courbe mesurée servira aux écritures du lecteur {1} destinées à ce lecteur. Si un autre lecteur est branché sur la connexion {2}, fermez cette fenêtre et relancez la calibration croisée avec le bon lecteur cible : mesurée avec un autre lecteur, la courbe serait fausse, sans aucun message d'erreur."] = "Target drive of this cross calibration: {0}`nThe measured curve will be used for the writes of drive {1} intended for this drive. If another drive is plugged into connection {2}, close this window and start the cross calibration again with the right target drive: measured with another drive, the curve would be wrong, without any error message."
 $script:I18n['Opération annulée : lecteur branché non confirmé.'] = 'Operation cancelled: plugged-in drive not confirmed.'
-# Journal : lecteur choisi (Update-DriveChoice), lecteur qui ecrit (Get-WriteSourceText), lecteur retenu par la detection
-# (Complete-DriveDetect, 110)
+# Journal : lecteur choisi (Update-DriveChoice), lecteur qui ecrit (Get-WriteSourceText)
 $script:I18n['Lecteur choisi : {0} (avant : {1}).'] = 'Drive selected: {0} (before: {1}).'
 $script:I18n['Lecteur qui écrit : {0}'] = 'Writing drive: {0}'
-$script:I18n['Connexion {0} : lecteur retenu « {1} », le dernier choisi sur cette connexion. La détection ne reconnaît pas le lecteur branché : vérifiez la liste « Lecteur : » du bandeau.'] = 'Connection {0}: drive "{1}" kept, the last one selected on this connection. Detection cannot recognise the drive that is plugged in: check the "Drive:" list of the banner.'
 # Textes existants completes, pour un lecteur enregistre en jeu seulement : case de la mesure (140), fenetre de decision
 # (250), cibles ecartees d une calibration croisee (270), ligne d etat de l echange et du controle de surface (270),
 # libelle du lecteur de la restauration (300)
@@ -371,3 +369,8 @@ $script:I18n['pour le lecteur cible {0} : {1} telle quelle, sans le facteur par 
 # Relecture rc2.1 : courbes croisees par tete (Get-TargetCurvesText : « courbes croisees ... par tete »), accord au pluriel
 $script:I18n['pour le lecteur cible {0} : {1} telles quelles, sans le facteur par cylindre ({2})'] = 'for target drive {0}: {1} as is, without the per-cylinder factor ({2})'
 $script:I18n['pour le lecteur cible {0} : courbe croisée telle quelle'] = 'for target drive {0}: cross curve as is'
+
+# --- rc3 : retours sur la rc2.2 (110, 530, 270, 230) ----------------------------------------------------------------------
+# R3 : detection des lecteurs de la carte « Tester le Greaseweazle », diagnostic seulement (Complete-DriveDetect, 110)
+$script:I18n['Connexions qui répondent : {0}.'] = 'Connections that respond: {0}.'
+$script:I18n['La connexion {0} du lecteur du bandeau ne répond pas. Le lecteur du bandeau reste « {1} » : branchez-le, ou choisissez le lecteur branché dans la liste « Lecteur : ».'] = 'Connection {0} of the banner drive does not respond. The banner drive stays "{1}": plug it in, or choose the plugged-in drive in the "Drive:" list.'

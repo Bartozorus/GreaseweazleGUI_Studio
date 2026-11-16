@@ -143,7 +143,6 @@ $wantState = [ordered]@{
     '560' = @('$script:CalRedo', '$script:CalHardNsDefault', '$script:CalHardMinNs', '$script:CalHardMaxNs', '$script:CalHardNs', '$script:CalWarmupDefault', '$script:CalWarmupMinutes', '$script:DriveActivity', '$script:DriveCurves',
               '$script:PrecompCurves', '$script:CurveKeys', '$script:LevelFormat', '$script:LevelShifts', '$script:LevelBrand', '$script:LevelBrands', '$script:ConfigRefBackupKeep', '$script:TargetDrives', '$script:CalHardNsUser')
     '565' = @('$script:ContentKMax', '$script:ContentMeasures')
-    '590' = @('$script:DetectNone')
 }
 $stateParts = New-Object System.Collections.Generic.List[string]
 $stateMissing = @()
@@ -536,17 +535,26 @@ Reset-Settings; $d5c = "$(Get-Setting 'drive')/$($cmbDrive.Text)"
 [void](Load-Config); $d5d = "$(Get-Setting 'drive')/$($cmbDrive.Text)"
 $d5n = @($script:SettingCtl['drive']).Count
 Chk 'D5' ($d5a -ceq 'B' -and $d5b -ceq '1' -and $d5j -ceq '1' -and $d5c -ceq 'A/A' -and $d5d -ceq '1/1' -and $d5n -eq $nCtlDrive1 -and $script:Log.Count -eq 0 -and (Get-LbItems) -ceq 'A,B,0,1,2,3') "registre vide, sequence ST1 : bandeau B -> reglage $d5a ; reglage 1 -> bandeau $d5b ; enregistre $d5j ; Reset-Settings $d5c ; Load-Config $d5d ; liaisons du reglage drive inchangees ($d5n) ; aucune ligne de journal"
-# D6 : detection qui bascule de connexion
+# D6 : detection de la carte « Tester le Greaseweazle » dont la connexion du bandeau ne repond pas. 12.11 rc3 (R3, adapte
+# a dessein) : diagnostic seulement, le lecteur du bandeau ne change plus (la rc2.2 passait au lecteur retenu de 0)
 Reset-LbWorld 'd6'
 Set-LbTwoOnA
 [void](Add-LbDrive 'Mitsumi D359' '0')
 Select-LbDrive 'Mitsumi D359'; Select-LbDrive 'Sony MPF920'
 $script:Log.Clear()
 function Set-SeqEnd { }
-$script:Detect = @{ Found = @('0'); Cur = 'A'; Tried = @('A', '0'); Mode = 'auto' }
+$d6due = Test-DriveCheckDue
+$script:Detect = @{ Found = @('0'); Cur = 'A'; Tried = @('A', '0') }
 Complete-DriveDetect
-$d6 = @(Get-LbLog 'Connexion 0 : lecteur retenu*')
-Chk 'D6' ([string]$cmbDrive.Text -ceq 'Mitsumi D359' -and [string](Get-Setting 'drive') -ceq '0' -and $d6.Count -eq 1 -and $d6[0] -ceq 'Connexion 0 : lecteur retenu « Mitsumi D359 », le dernier choisi sur cette connexion. La détection ne reconnaît pas le lecteur branché : vérifiez la liste « Lecteur : » du bandeau.' -and (Test-DriveCheckDue)) "Complete-DriveDetect reelle, A ne repond pas, 0 repond : lecteur retenu de 0 ($($cmbDrive.Text)), reglage 0, ligne T56, confirmation due"
+$d6 = @($script:Log)
+Chk 'D6' ([string]$cmbDrive.Text -ceq 'Sony MPF920' -and [string](Get-Setting 'drive') -ceq 'A' -and $d6.Count -eq 2 -and $d6[0] -ceq 'Connexions qui répondent : 0.' -and $d6[1] -ceq 'La connexion A du lecteur du bandeau ne répond pas. Le lecteur du bandeau reste « Sony MPF920 » : branchez-le, ou choisissez le lecteur branché dans la liste « Lecteur : ».' -and (Test-DriveCheckDue) -eq $d6due -and $null -eq $script:Detect) "Complete-DriveDetect reelle, A ne repond pas, 0 repond : bandeau $($cmbDrive.Text), reglage $(Get-Setting 'drive'), journal « $($d6 -join ' / ') », confirmation due inchangee ($d6due)"
+# D6b (12.11 rc3, R3) : plus de detection au demarrage : ni DetectAt ni DetectNone dans les modules, Start-DriveDetect
+# appele par la seule carte « Tester le Greaseweazle » (540), aucun Set-Combo ni SelectedItem dans Complete-DriveDetect
+$d6src = @(Get-ChildItem -LiteralPath $mods -Filter '*.ps1' -File | Where-Object { $_.Name -notmatch '^0' } | ForEach-Object { $tx = [System.IO.File]::ReadAllText($_.FullName, [System.Text.Encoding]::UTF8); foreach ($mm in [regex]::Matches($tx, '\$script:Detect(At|None)\b|Start-DriveDetect\b[^\r\n]*')) { "$($_.Name.Substring(0, 3)) $($mm.Value)" } })
+$d6call = @($d6src | Where-Object { $_ -match '^\d{3} Start-DriveDetect' -and $_ -notmatch '^110 Start-DriveDetect \{' })
+$d6f = @(Get-ChildItem -LiteralPath $mods -Filter '110-*.ps1' -File)[0].FullName
+$d6det = [regex]::Match([System.IO.File]::ReadAllText($d6f, [System.Text.Encoding]::UTF8), '(?s)function Complete-DriveDetect \{.*?\r?\n\}').Value
+Chk 'D6b' (@($d6src | Where-Object { $_ -match 'Detect(At|None)' }).Count -eq 0 -and $d6call.Count -eq 1 -and $d6call[0] -ceq '540 Start-DriveDetect })' -and $d6det.Length -gt 100 -and $d6det -notmatch 'Set-Combo|cmbDrive\.(SelectedItem|SelectedIndex|Text)\s*=') "references : $(@($d6src | Where-Object { $_ -match 'Detect(At|None)' }).Count) a DetectAt ou DetectNone ; appels de Start-DriveDetect : $($d6call -join ' ; ')"
 # D7 : lecteur du bandeau deplace de A vers 0, enregistre, puis instructions reelles de Load-Config
 Reset-LbWorld 'd7'
 Set-LbTwoOnA
@@ -1223,7 +1231,9 @@ $TX = [ordered]@{
     T53b = @("Le lecteur branché sur la connexion {0} n'est aucun des lecteurs enregistrés", 'The drive plugged into connection {0} is none of the registered drives')
     T75 = @("Lecteur cible de cette calibration croisée : {0}`nLa courbe mesurée servira aux écritures du lecteur {1} destinées à ce lecteur. Si un autre lecteur est branché sur la connexion {2}, fermez cette fenêtre et relancez la calibration croisée avec le bon lecteur cible : mesurée avec un autre lecteur, la courbe serait fausse, sans aucun message d'erreur.", "Target drive of this cross calibration: {0}`nThe measured curve will be used for the writes of drive {1} intended for this drive. If another drive is plugged into connection {2}, close this window and start the cross calibration again with the right target drive: measured with another drive, the curve would be wrong, without any error message.")
     T54 = @('Lecteur choisi : {0} (avant : {1}).', 'Drive selected: {0} (before: {1}).'); T55 = @('Lecteur qui écrit : {0}', 'Writing drive: {0}')
-    T56 = @('Connexion {0} : lecteur retenu « {1} », le dernier choisi sur cette connexion. La détection ne reconnaît pas le lecteur branché : vérifiez la liste « Lecteur : » du bandeau.', 'Connection {0}: drive "{1}" kept, the last one selected on this connection. Detection cannot recognise the drive that is plugged in: check the "Drive:" list of the banner.')
+    # 12.11 rc3 (R3, adapte a dessein) : T56 retire avec le changement de lecteur par la detection ; T56b et T56c a sa place
+    T56b = @('Connexions qui répondent : {0}.', 'Connections that respond: {0}.')
+    T56c = @('La connexion {0} du lecteur du bandeau ne répond pas. Le lecteur du bandeau reste « {1} » : branchez-le, ou choisissez le lecteur branché dans la liste « Lecteur : ».', 'Connection {0} of the banner drive does not respond. The banner drive stays "{1}": plug it in, or choose the plugged-in drive in the "Drive:" list.')
     T68 = @('Opération annulée : lecteur branché non confirmé.', 'Operation cancelled: plugged-in drive not confirmed.')
     T64 = @("Mesurer la disquette avant l'écriture : toujours en « Test rapide », sauf pour un lecteur cible", 'Measure the disk before the write: always with "Quick test", except for a target drive')
     T65 = @("Conserver la courbe : elle est enregistrée pour le lecteur {0} et appliquée à ses prochaines écritures.`nAbandonner la courbe : la calibration précédente est rétablie.", "Keep the curve: it is saved for drive {0} and applied to its next writes.`nDiscard the curve: the previous calibration is restored.")

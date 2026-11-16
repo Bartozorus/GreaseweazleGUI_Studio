@@ -624,7 +624,7 @@ function Save-Config {
             split = $split.SplitterDistance; maximized = ($form.WindowState -eq 'Maximized')
             logVisible = -not $split.Panel2Collapsed
         }
-        global   = @{ device = $txtDev.Text; time = [bool]$chkTime.Checked; detectNone = [bool]$script:DetectNone }
+        global   = @{ device = $txtDev.Text; time = [bool]$chkTime.Checked }   # 12.11 rc3 (R3) : detectNone retire (plus de detection au demarrage)
         library  = @{ root = $txtLibRoot.Text; imagesOnly = [bool]$chkLibImgOnly.Checked }
         write    = @{
             file = $txtWFile.Text; format = $cmbWFmt.Text
@@ -738,7 +738,6 @@ function Load-Config {
     $g = Get-Cfg $cfg 'global' $null
     $txtDev.Text = [string](Get-Cfg $g 'device' '')
     $chkTime.Checked = [bool](Get-Cfg $g 'time' $false)
-    $script:DetectNone = [bool](Get-Cfg $g 'detectNone' $false)
 
     $l = Get-Cfg $cfg 'library' $null
     $txtLibRoot.Text = [string](Get-Cfg $l 'root' '')
