@@ -374,7 +374,7 @@ function Set-DiskHardNs($x) {
 function Reset-DiskHardNs {
     # 12.8 (S3) : borne de precompMaxNs retablie a la fin de la mesure complete de cette disquette (fin, arret, aucune
     # mesure exploitable) : bareme de la famille en cours
-    Set-CalibScale $(if ([string]$script:CalScaleFam -eq 'hd') { 'hd' } else { '' })
+    Set-CalibScale $(if (@('hd', 'long') -contains [string]$script:CalScaleFam) { [string]$script:CalScaleFam } else { '' })   # 12.11 rc3 (R2) : bareme long track garde
 }
 
 function Start-DiskReach($cal) {

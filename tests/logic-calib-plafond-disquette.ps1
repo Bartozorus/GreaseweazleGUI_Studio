@@ -500,7 +500,8 @@ foreach ($f in @(Get-ChildItem -LiteralPath $mods -Filter '*.ps1' -File | Sort-O
 $usesTxt = (@($uses.Keys | Sort-Object) | ForEach-Object { "$_ x$($uses[$_])" }) -join ', '
 # Lot L12a (adapte a dessein) : les trois conditions du conseil de relever la borne (260:Get-LevelUnitResults,
 # 265:Get-LevelAdaptOutcome x2) lisent Get-BoundAdviceNs, seule a lire CalHardMaxNs pour ce conseil
-$usesExp = '120:Load-Config x2, 265:Get-BoundAdviceNs x1, 265:Get-DiskCapNs x1, 560:(script) x1'
+# 12.11 rc3 (R2, adapte a dessein) : Set-CalibScale lit CalHardMaxNs, borne par defaut du long track
+$usesExp = '120:Load-Config x2, 230:Set-CalibScale x1, 265:Get-BoundAdviceNs x1, 265:Get-DiskCapNs x1, 560:(script) x1'
 function Get-Callers([string]$name) { return ((@($calls[$name]) | Sort-Object) -join ', ') }
 $f270 = Join-Path $mods '270-fn-calib-complete.ps1'
 $spAst = Get-FnAst $f270 'Start-PrecompCalib'
@@ -1074,6 +1075,24 @@ $sig1210 = @{
 $bad = @()
 foreach ($k in @($gridNew.None.Keys | Sort-Object)) { $sg = Get-TSig $gridNew.None[$k]; if ([string]$sig1210[$k] -cne $sg) { $bad += "$k : $sg au lieu de $($sig1210[$k])" } }
 Chk 'N1' ($bad.Count -eq 0 -and $gridNew.None.Count -eq 32 -and $sig1210.Count -eq 32) "$($gridNew.None.Count) calibrations factices sans densite : plafonds, plus fortes valeurs, sommes des courbes, cylindres satures et au-dela de la borne egaux a ceux de la source de la 12.10 ; ecarts : $(Get-List $bad)"
+
+# ---------------------------------------------------------------- R : borne de la reference par famille (12.11 rc3, R2)
+'--- R : borne de la reference par famille (12.11 rc3, R2)'
+# R1 vraie Set-CalibScale, precompMaxNs a sa valeur par defaut (400 ns, celle qu ecrit la configuration) : long track au
+# quart de cellule (CalHardMaxNs, 470 ns), standard et sans famille a 400 ns, haute densite a 200 ns (la rc2.2 : 400 ns en
+# long track) ; R2 borne reglee a 430 puis 350 ns : prioritaire dans toutes les familles, comme avant ; R3 vraies
+# Set-DiskHardNs puis Reset-DiskHardNs en long track : borne de la famille retablie ; seuil du controle impose (vraie
+# Get-DiskOverNs) inchange, 400 ns
+$rSave = [int]$script:CalHardNsUser
+function Get-RBound([int]$user, [string]$fam) { $script:CalHardNsUser = $user; Set-CalibScale $fam; return "$($script:CalHardNs)/$($script:CalScaleFam)" }
+$r1 = @(foreach ($f in 'long', 'std', '', 'hd') { Get-RBound 400 $f })
+Chk 'R1' (($r1 -join ' ; ') -ceq '470/long ; 400/dd ; 400/dd ; 200/hd') "precompMaxNs par defaut, long, std, sans famille, hd : $($r1 -join ' ; ')"
+$r2 = @(foreach ($uu in 430, 350) { foreach ($f in 'long', 'std', 'hd') { Get-RBound $uu $f } })
+Chk 'R2' (($r2 -join ' ; ') -ceq '430/dd ; 430/dd ; 215/hd ; 350/dd ; 350/dd ; 175/hd') "precompMaxNs reglee a 430 puis 350 ns, long, std, hd : $($r2 -join ' ; ')"
+[void](Get-RBound 400 'long'); Set-DiskHardNs @{ DiskOnly = $true; HardNs = 472 }; $r3a = [int]$script:CalHardNs
+Reset-DiskHardNs; $r3b = "$($script:CalHardNs)/$($script:CalScaleFam)"; $r3c = Get-DiskOverNs
+Chk 'R3' ($r3a -eq 472 -and $r3b -ceq '470/long' -and $r3c -eq 400) "mesure complete en long track : borne $r3a pendant, $r3b apres Reset-DiskHardNs ; controle impose au-dela de $r3c ns"
+$script:CalHardNsUser = $rSave; Set-CalibScale ''
 
 # ---------------------------------------------------------------- Q : equivalence avec la 12.10 (-Before)
 '--- Q : equivalence avec la 12.10 (-Before)'

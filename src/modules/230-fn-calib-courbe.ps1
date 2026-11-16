@@ -19,8 +19,14 @@ function Set-CalibScale([string]$fam) {
     # Get-VerifyOffset) : vrais en double densite, faux en haute densite (calcul HD inchange)
     $script:CalCondPass = [bool]$t.CalCondPass; $script:CalLatin = [bool]$t.CalLatin; $script:CalDentOn = [bool]$t.CalDentOn
     $script:CalVOffOn = [bool]$t.CalVOffOn
-    $script:CalHardNs = if ($hd) { [int][math]::Round([double]$script:CalHardNsUser * $script:CalHdK) } else { $script:CalHardNsUser }
-    $script:CalScaleFam = if ($hd) { 'hd' } else { 'dd' }
+    # 12.11 rc3 (R2) : borne par defaut propre a la famille. Long track : CalHardMaxNs (470 ns, un quart de cellule long
+    # track) quand precompMaxNs vaut sa valeur par defaut (CalHardNsDefault, 400 ns, que la configuration ecrit toujours) ;
+    # une autre valeur reglee garde la priorite, comme avant. Standard et haute densite inchanges. Bareme 'long' : remis a
+    # la double densite au repos (filet du minuteur, 600), retabli par Reset-DiskHardNs (270). Une courbe deja calculee
+    # garde la borne de son calcul (MaxNs, Get-CurveMaxNs)
+    $lt = ($fam -eq 'long' -and [int]$script:CalHardNsUser -eq [int]$script:CalHardNsDefault)
+    $script:CalHardNs = if ($hd) { [int][math]::Round([double]$script:CalHardNsUser * $script:CalHdK) } elseif ($lt) { [int]$script:CalHardMaxNs } else { $script:CalHardNsUser }
+    $script:CalScaleFam = if ($hd) { 'hd' } elseif ($lt) { 'long' } else { 'dd' }
 }
 
 function Test-CurveHd($cv) {
