@@ -1369,7 +1369,9 @@ function Get-DriveGesturePlan([string]$mode, $row, $a) {
     }
     if ($a.Adopt) {
         $p = Get-DriveEditPlan @{ Kind = 'conn'; Drive = [string]$a.Conn } ([string]$a.Name) ([string]$a.Conn)
-        $p.Ask = ''
+        # Relecture rc4 : seule la confirmation des courbes (check) a deja ete posee par la fenetre du geste ; la question
+        # des donnees sans courbe (yesno : lecteur cible, niveaux...) reste posee
+        if ($p.Ask -eq 'check') { $p.Ask = '' }
         return $p
     }
     return (Get-DriveEditPlan $null ([string]$a.Name) ([string]$a.Conn))
@@ -1950,9 +1952,13 @@ function Update-DriveEditDialog($e) {
 }
 
 function Get-DriveEditDialogAnswer($e) {
-    # 12.11 rc4 (R1) : reponse de la fenetre d un geste : @{ Name ; Conn ; Adopt (question montree et « Oui ») ; Pick }
+    # 12.11 rc4 (R1) : reponse de la fenetre d un geste : @{ Name ; Conn ; Adopt (question montree et « Oui ») ; Pick }.
+    # Relecture rc4 : « Donner un nom » sans question (aucune courbe sans nom sur la connexion) : le lecteur sans nom recoit
+    # le nom (adopt : son lecteur cible, ses niveaux, sa memoire par marque et ses facteurs le suivent), jamais une fiche
+    # nouvelle a cote
+    $ad = if ($e.Ask -and $e.AskOn) { [bool]$e.Yes.Checked } else { ($e.Mode -eq 'name') }
     return @{ Name = $(if ($e.Name) { [string]$e.Name.Text } else { '' }); Conn = (Get-DriveEditDialogConn $e)
-              Adopt = [bool]($e.Ask -and $e.AskOn -and $e.Yes.Checked); Pick = [bool]($e.Pick -and $e.Pick.Checked) }
+              Adopt = [bool]$ad; Pick = [bool]($e.Pick -and $e.Pick.Checked) }
 }
 
 function Confirm-DriveEditDialog($e) {

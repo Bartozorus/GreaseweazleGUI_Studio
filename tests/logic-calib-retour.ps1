@@ -670,7 +670,7 @@ Reset-Rt 'a3'
 $i3 = Find-RtItem (Get-RtItems) 'Sony MPF920' '10/11/2026 10:00'
 $fa = Get-CalibBackInfo $i3
 $st3 = Get-RtStore
-Chk 'A3a' (-not $fa.Ok -and $fa.DriveText -ceq 'Sony MPF920 (lecteur supprimé depuis)' -and $fa.Text.Contains("Le lecteur « Sony MPF920 » de cette copie n'est plus enregistré : cette calibration ne peut pas être rétablie.") -and -not $fa.Text.Contains('Les niveaux de la calibration rapide') -and -not (Restore-CalibBack $i3 -Confirmed) -and (Get-RtStore) -ceq $st3) 'lecteur supprime depuis : ligne listee, non retablissable (meme avec -Confirmed), rien modifie'
+Chk 'A3a' (-not $fa.Ok -and $fa.DriveText -ceq 'Sony MPF920 (lecteur supprimé depuis)' -and $fa.Text.Contains("Le lecteur « Sony MPF920 » de cette copie n'existe plus : cette calibration ne peut pas être rétablie.") -and -not $fa.Text.Contains('Les niveaux de la calibration rapide') -and -not (Restore-CalibBack $i3 -Confirmed) -and (Get-RtStore) -ceq $st3) 'lecteur supprime depuis : ligne listee, non retablissable (meme avec -Confirmed), rien modifie'
 Set-RtReg @(New-RtRec 'Sony MPF920' 'A' 'L20261115100000-01' '2026-11-15 10:00:00')
 $fa = Get-CalibBackInfo (Find-RtItem (Get-RtItems) 'Sony MPF920' '10/11/2026 10:00')
 Chk 'A3b' (-not $fa.Ok -and $fa.DriveText -ceq 'Sony MPF920 (lecteur supprimé depuis)') 'lecteur supprime puis recree sous le meme nom (fiche « L... » d un autre identifiant) : non retablissable avec la fiche de l epoque'
@@ -690,7 +690,7 @@ Reset-Rt 'a6'
 [void](Write-RtEraCopy 'ref-std-20261010-1000.bak' ([ordered]@{ 'Sony MPF920|std' = (New-Cv 'Sony MPF920' 'std' '10/10/2026 10:00' 1) }) $null (New-Object datetime(2026, 10, 12, 10, 0, 0)))
 Set-RtReg @(New-RtRec 'Sony MPF920' 'A' 'L20261115100000-01' '2026-11-15 10:00:00')
 $fa = Get-CalibBackInfo (Find-RtItem (Get-RtItems) 'Sony MPF920' '10/10/2026 10:00')
-Chk 'A6a' ($fa.Ok -and $fa.NeedCheck -and $fa.Drive -eq 'Sony MPF920' -and $fa.DriveText -eq 'Sony MPF920' -and $fa.Text.Contains("Cette calibration porte le nom « Sony MPF920 », mais le lecteur enregistré aujourd'hui sous ce nom l'a été après elle : ne la rétablissez que si elle a été faite avec ce lecteur.")) 'nom sans fiche dans la copie, fiche creee apres la courbe (supprime puis recree) : lien incertain, phrase propre, confirmation demandee'
+Chk 'A6a' ($fa.Ok -and $fa.NeedCheck -and $fa.Drive -eq 'Sony MPF920' -and $fa.DriveText -eq 'Sony MPF920' -and $fa.Text.Contains("Cette calibration porte le nom « Sony MPF920 », mais le lecteur qui porte aujourd'hui ce nom l'a reçu après elle : ne la rétablissez que si elle a été faite avec ce lecteur.")) 'nom sans fiche dans la copie, fiche creee apres la courbe (supprime puis recree) : lien incertain, phrase propre, confirmation demandee'
 Set-RtReg @(New-RtRec 'Sony MPF920' 'A' 'L20260915100000-01' '2026-09-15 10:00:00')
 $fa = Get-CalibBackInfo (Find-RtItem (Get-RtItems) 'Sony MPF920' '10/10/2026 10:00')
 Chk 'A6b' ($fa.Ok -and $fa.Sure -and -not $fa.NeedCheck) 'fiche creee avant la courbe : lien certain'

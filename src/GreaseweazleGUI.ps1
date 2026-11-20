@@ -2769,9 +2769,9 @@ $script:I18n['Copie lue : {0}, du {1}.'] = 'Copy read: {0}, dated {1}.'
 $script:I18n["{0} (à l'époque : {1})"] = '{0} (at the time: {1})'
 $script:I18n['{0} (lecteur supprimé depuis)'] = '{0} (drive deleted since)'
 $script:I18n['Cette calibration a été faite sur la connexion {0}, avant que son lecteur soit enregistré sous le nom « {1} » : ne la rétablissez que si elle a été faite avec ce lecteur.'] = 'This calibration was made on connection {0}, before its drive was registered under the name "{1}": restore it only if it was made with this drive.'
-$script:I18n["Le lecteur « {0} » de cette copie n'est plus enregistré : cette calibration ne peut pas être rétablie."] = 'Drive "{0}" of this copy is no longer registered: this calibration cannot be restored.'
+$script:I18n["Le lecteur « {0} » de cette copie n'existe plus : cette calibration ne peut pas être rétablie."] = 'Drive "{0}" of this copy no longer exists: this calibration cannot be restored.'
 $script:I18n["Le lecteur « {0} » de cette copie ne peut pas être relié avec certitude à un lecteur d'aujourd'hui."] = 'Drive "{0}" of this copy cannot be linked with certainty to a drive of today.'
-$script:I18n["Cette calibration porte le nom « {0} », mais le lecteur enregistré aujourd'hui sous ce nom l'a été après elle : ne la rétablissez que si elle a été faite avec ce lecteur."] = 'This calibration bears the name "{0}", but the drive registered under this name today was registered after it: restore it only if it was made with this drive.'
+$script:I18n["Cette calibration porte le nom « {0} », mais le lecteur qui porte aujourd'hui ce nom l'a reçu après elle : ne la rétablissez que si elle a été faite avec ce lecteur."] = 'This calibration bears the name "{0}", but the drive that bears this name today received it after it: restore it only if it was made with this drive.'
 $script:I18n['Rétablir cette calibration pour le lecteur « {0} » ?'] = 'Restore this calibration for drive "{0}"?'
 $script:I18n["Cette calibration a bien été faite avec le lecteur « {0} » (à l'époque : {1})"] = 'This calibration was indeed made with drive "{0}" (at the time: {1})'
 # Messages, onglet et journal (Start-CalibBack, Restore-CalibBack, 240 ; Backup-ConfigBeforeRef, motif back, 120)
@@ -7008,7 +7008,9 @@ function Get-DriveGesturePlan([string]$mode, $row, $a) {
     }
     if ($a.Adopt) {
         $p = Get-DriveEditPlan @{ Kind = 'conn'; Drive = [string]$a.Conn } ([string]$a.Name) ([string]$a.Conn)
-        $p.Ask = ''
+        # Relecture rc4 : seule la confirmation des courbes (check) a deja ete posee par la fenetre du geste ; la question
+        # des donnees sans courbe (yesno : lecteur cible, niveaux...) reste posee
+        if ($p.Ask -eq 'check') { $p.Ask = '' }
         return $p
     }
     return (Get-DriveEditPlan $null ([string]$a.Name) ([string]$a.Conn))
@@ -7589,9 +7591,13 @@ function Update-DriveEditDialog($e) {
 }
 
 function Get-DriveEditDialogAnswer($e) {
-    # 12.11 rc4 (R1) : reponse de la fenetre d un geste : @{ Name ; Conn ; Adopt (question montree et « Oui ») ; Pick }
+    # 12.11 rc4 (R1) : reponse de la fenetre d un geste : @{ Name ; Conn ; Adopt (question montree et « Oui ») ; Pick }.
+    # Relecture rc4 : « Donner un nom » sans question (aucune courbe sans nom sur la connexion) : le lecteur sans nom recoit
+    # le nom (adopt : son lecteur cible, ses niveaux, sa memoire par marque et ses facteurs le suivent), jamais une fiche
+    # nouvelle a cote
+    $ad = if ($e.Ask -and $e.AskOn) { [bool]$e.Yes.Checked } else { ($e.Mode -eq 'name') }
     return @{ Name = $(if ($e.Name) { [string]$e.Name.Text } else { '' }); Conn = (Get-DriveEditDialogConn $e)
-              Adopt = [bool]($e.Ask -and $e.AskOn -and $e.Yes.Checked); Pick = [bool]($e.Pick -and $e.Pick.Checked) }
+              Adopt = [bool]$ad; Pick = [bool]($e.Pick -and $e.Pick.Checked) }
 }
 
 function Confirm-DriveEditDialog($e) {
@@ -21049,10 +21055,10 @@ function Get-CalibBackInfo($item) {
     foreach ($r in $rs) {
         $e = [string]$r.Era; $d = [string]$r.Drive
         switch ([string]$r.Why) {
-            'deleted' { $txts += ((T '{0} (lecteur supprimé depuis)') -f $e); $why += ((T "Le lecteur « {0} » de cette copie n'est plus enregistré : cette calibration ne peut pas être rétablie.") -f $e) }
+            'deleted' { $txts += ((T '{0} (lecteur supprimé depuis)') -f $e); $why += ((T "Le lecteur « {0} » de cette copie n'existe plus : cette calibration ne peut pas être rétablie.") -f $e) }
             'ambiguous' { $txts += $e; $why += ((T "Le lecteur « {0} » de cette copie ne peut pas être relié avec certitude à un lecteur d'aujourd'hui.") -f $e) }
             'conn-named' { $txts += ((T "{0} (à l'époque : {1})") -f $d, $e); $why += ((T "Cette calibration a été faite sur la connexion {0}, avant que son lecteur soit enregistré sous le nom « {1} » : ne la rétablissez que si elle a été faite avec ce lecteur.") -f $e, $d) }
-            'name-after' { $txts += $d; $why += ((T "Cette calibration porte le nom « {0} », mais le lecteur enregistré aujourd'hui sous ce nom l'a été après elle : ne la rétablissez que si elle a été faite avec ce lecteur.") -f $e) }
+            'name-after' { $txts += $d; $why += ((T "Cette calibration porte le nom « {0} », mais le lecteur qui porte aujourd'hui ce nom l'a reçu après elle : ne la rétablissez que si elle a été faite avec ce lecteur.") -f $e) }
             default { if ($d -and $d -cne $e) { $txts += ((T "{0} (à l'époque : {1})") -f $d, $e) } elseif ($d) { $txts += $d } else { $txts += $e } }
         }
         if ($d -and -not $r.Sure) { $now += $d; $era += $e }

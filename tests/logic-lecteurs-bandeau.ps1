@@ -1202,6 +1202,14 @@ $e = New-DriveEditDialog 'name' (Get-LbRow '2')
 $en = @($e.Conns | Where-Object { $_.Enabled } | ForEach-Object { [string]$_.Tag })
 $p5.nameDlg = ($e.Yes.Checked -and ($en -join ',') -ceq '2' -and $e.AskOn)
 Clear-DlgGdi $e.Dlg $e.Gdi
+# Relecture rc4 : « Donner un nom » a un lecteur sans nom sans courbe (connexion 3, aucune donnee) : pas de question, et
+# c est bien lui qui recoit le nom (adopt), pas une fiche nouvelle a cote
+$e = New-DriveEditDialog 'name' (Get-LbRow '3')
+$e.Name.Text = 'Atelier 3'
+$a3 = Get-DriveEditDialogAnswer $e
+$pg3 = Get-DriveGesturePlan 'name' (Get-LbRow '3') $a3
+$p5.nameNoAsk = (-not $e.AskOn -and $a3.Adopt -and [string]$pg3.Kind -ceq 'adopt' -and [string]$pg3.From -ceq '3' -and -not $pg3.Error)
+Clear-DlgGdi $e.Dlg $e.Gdi
 $p5t = (@($p5.Keys | Where-Object { -not $p5[$_] }) -join ', ')
 if ($p5t) { $p5t += " [rows A : $((@(Get-DriveRows | Where-Object { $_.Conn -ceq 'A' } | ForEach-Object { $_.Text }) -join ','))] [gA : $(Get-DriveConnGroupText 'A')] [g0 : $(Get-DriveConnGroupText '0')] [view : $v5 / $($script:CurveShown.Count) / $(@($script:CurveShown | ForEach-Object { @($_ | ForEach-Object { [string]$_.Target }) -join '+' }) -join '|')]" }
 Chk 'P5' ($p5t -eq '') "rc4 (R1) : lignes par connexion (deux lecteurs nommes et « A (sans nom) » sur A), en-tetes de connexion, detail des courbes d un jeu fictif (propres, croisees dans les deux sens, non convergee), textes du detail, « Voir la courbe » d un autre lecteur sans changer le bandeau, « Supprimer ses calibrations... » (refus puis copie), renommer, changer de connexion, supprimer, ajouter avec « Oui », ajouter et choisir dans le bandeau, refus pendant une operation sans fenetre, fenetre d un geste (refus, question, « Non » par defaut, « Donner un nom ») ; en defaut : $(if ($p5t) { $p5t } else { 'aucun' })"

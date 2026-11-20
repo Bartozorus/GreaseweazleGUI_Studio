@@ -431,10 +431,10 @@ function Get-CalibBackInfo($item) {
     foreach ($r in $rs) {
         $e = [string]$r.Era; $d = [string]$r.Drive
         switch ([string]$r.Why) {
-            'deleted' { $txts += ((T '{0} (lecteur supprimé depuis)') -f $e); $why += ((T "Le lecteur « {0} » de cette copie n'est plus enregistré : cette calibration ne peut pas être rétablie.") -f $e) }
+            'deleted' { $txts += ((T '{0} (lecteur supprimé depuis)') -f $e); $why += ((T "Le lecteur « {0} » de cette copie n'existe plus : cette calibration ne peut pas être rétablie.") -f $e) }
             'ambiguous' { $txts += $e; $why += ((T "Le lecteur « {0} » de cette copie ne peut pas être relié avec certitude à un lecteur d'aujourd'hui.") -f $e) }
             'conn-named' { $txts += ((T "{0} (à l'époque : {1})") -f $d, $e); $why += ((T "Cette calibration a été faite sur la connexion {0}, avant que son lecteur soit enregistré sous le nom « {1} » : ne la rétablissez que si elle a été faite avec ce lecteur.") -f $e, $d) }
-            'name-after' { $txts += $d; $why += ((T "Cette calibration porte le nom « {0} », mais le lecteur enregistré aujourd'hui sous ce nom l'a été après elle : ne la rétablissez que si elle a été faite avec ce lecteur.") -f $e) }
+            'name-after' { $txts += $d; $why += ((T "Cette calibration porte le nom « {0} », mais le lecteur qui porte aujourd'hui ce nom l'a reçu après elle : ne la rétablissez que si elle a été faite avec ce lecteur.") -f $e) }
             default { if ($d -and $d -cne $e) { $txts += ((T "{0} (à l'époque : {1})") -f $d, $e) } elseif ($d) { $txts += $d } else { $txts += $e } }
         }
         if ($d -and -not $r.Sure) { $now += $d; $era += $e }
