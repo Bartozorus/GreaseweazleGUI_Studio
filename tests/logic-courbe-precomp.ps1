@@ -55,7 +55,7 @@ $want = @('Update-SlowUi', 'Get-WarmMinutesText', 'Get-TargetDrive', 'Set-Target
 $code = (@($want | ForEach-Object { if (-not $all.ContainsKey($_)) { throw "fonction $_ introuvable" }; $all[$_] }) -join "`r`n`r`n")
 # 12.11 (lot L10) : decisions extraites de Start-WriteTabWrite, Start-LevelBeforeWrite et Start-ImageWrite (140, 260),
 # chargees quand la source les a (une source d avant le lot n en a pas)
-$code += "`r`n`r`n" + (@(@('Get-WriteLevelPlan', 'Get-LevelBeforeWritePlan', 'Get-WriteHeads', 'Get-WriteErasePlan', 'Get-WriteSpecPlan', 'Get-WriteHeadSpecs', 'Get-WriteCheckPlan') | Where-Object { $all.ContainsKey($_) } | ForEach-Object { $all[$_] }) -join "`r`n`r`n")
+$code += "`r`n`r`n" + (@(@('Get-WriteLevelPlan', 'Get-LevelBeforeWritePlan', 'Get-WriteHeads', 'Get-WriteErasePlan', 'Get-WriteSpecPlan', 'Get-WriteHeadSpecs', 'Get-WriteCheckPlan', 'Get-WriteVerifyPlan', 'Get-WriteVerifyText') | Where-Object { $all.ContainsKey($_) } | ForEach-Object { $all[$_] }) -join "`r`n`r`n")
 # 12.11 (rc2) : ecriture pour un lecteur cible avec le facteur par cylindre de la calibration croisee (140) et ses
 # fonctions (230, 274), chargees quand la source les a ; seuil XferMinNs (040)
 $code += "`r`n`r`n" + (@(@('Get-TargetDFields', 'Get-TargetTransferPlan', 'Get-TargetTransferSpec', 'Get-TargetTransferSummary', 'Get-TargetCurvesText', 'Get-SpecValue', 'Build-CurveProfile', 'ConvertTo-ScaledSpec', 'Get-Median', 'Format-CylList') | Where-Object { $all.ContainsKey($_) } | ForEach-Object { $all[$_] }) -join "`r`n`r`n")

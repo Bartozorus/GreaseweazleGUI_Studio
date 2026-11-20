@@ -88,7 +88,7 @@ function Get-PlCalls([string]$fn) {
 $s1Want = [ordered]@{
     'Start-WriteTabWrite' = @{ In = @('Get-WriteLevelPlan', 'Start-LevelBeforeWrite', 'Start-ImageWrite'); Out = @('Get-WriteLevelKind', 'Get-LevelWriteSkip', 'Test-WriteLevelWanted', 'Get-TargetWriteInfo', 'Test-FluxImage', 'Test-NonMfmWrite', 'Get-HdCalibFamily') }
     'Start-LevelBeforeWrite' = @{ In = @('Get-LevelBeforeWritePlan'); Out = @('Get-LevelRef', 'Test-ContentMeasurable', 'Get-LevelBeforeWriteKind', 'Get-ImageFamily', 'Get-CalibCylinders') }
-    'Start-ImageWrite' = @{ In = @('Get-WriteHeads', 'Get-WriteErasePlan', 'Get-WriteSpecPlan', 'Get-WriteHeadSpecs', 'Get-WriteCheckPlan'); Out = @('Get-TSpecHeads', 'Get-ImageTrackSet', 'Test-ImageHighDensity', 'Get-EraseMode', 'Get-WriteEraseKeys', 'Test-ScpDensityUnknown', 'Get-EraseFallbackNote', 'Test-RawFluxWrite', 'Test-LevelAdaptedSpec', 'Get-WriteCheckBlocker') }
+    'Start-ImageWrite' = @{ In = @('Get-WriteHeads', 'Get-WriteErasePlan', 'Get-WriteSpecPlan', 'Get-WriteHeadSpecs', 'Get-WriteCheckPlan', 'Get-WriteVerifyPlan', 'Get-WriteVerifyText'); Out = @('Get-TSpecHeads', 'Get-ImageTrackSet', 'Test-ImageHighDensity', 'Get-EraseMode', 'Get-WriteEraseKeys', 'Test-ScpDensityUnknown', 'Get-EraseFallbackNote', 'Test-RawFluxWrite', 'Test-LevelAdaptedSpec', 'Get-WriteCheckBlocker') }
 }
 $s1Bad = @()
 foreach ($k in @($s1Want.Keys)) {
@@ -98,12 +98,12 @@ foreach ($k in @($s1Want.Keys)) {
 }
 Chk 'S1' ($s1Bad.Count -eq 0) "les fonctions qui agissent appellent les decisions extraites (Get-WriteLevelPlan, Get-LevelBeforeWritePlan, Get-WriteHeads, Get-WriteErasePlan, Get-WriteSpecPlan, Get-WriteHeadSpecs, Get-WriteCheckPlan) et plus les fonctions qu elles appellent : une seule source de chaque decision ; ecarts : $(Get-List $s1Bad)"
 $planCalls = Get-PlCalls 'Get-WritePlan'
-$s2Need = @('Get-WriteSourceText', 'Get-TargetWriteInfo', 'Get-WriteLevelPlan', 'Get-LevelBeforeWritePlan', 'Get-WriteHeads', 'Get-WriteErasePlan', 'Get-WriteSpecPlan', 'Get-WriteHeadSpecs', 'Get-WriteCheckPlan', 'Get-TargetCurvesText', 'Get-WriteAdvChanges', 'Get-SettingText')
+$s2Need = @('Get-WriteSourceText', 'Get-TargetWriteInfo', 'Get-WriteLevelPlan', 'Get-LevelBeforeWritePlan', 'Get-WriteHeads', 'Get-WriteErasePlan', 'Get-WriteSpecPlan', 'Get-WriteHeadSpecs', 'Get-WriteCheckPlan', 'Get-WriteVerifyPlan', 'Get-WriteVerifyText', 'Get-TargetCurvesText', 'Get-WriteAdvChanges', 'Get-SettingText')
 $s2Miss = @($s2Need | Where-Object { $planCalls -notcontains $_ })
 # Aucune decision recopiee : la phrase n appelle aucune des fonctions que les decisions appellent elles-memes
 $s2Own = @(@('Get-WriteLevelKind', 'Get-LevelWriteSkip', 'Get-LevelRef', 'Test-ContentMeasurable', 'Get-TSpecHeads', 'Get-ImageTrackSet', 'Get-EraseMode', 'Test-LevelAdaptedSpec', 'Get-WriteCheckBlocker', 'Test-WriteLevelWanted', 'Get-LevelBeforeWriteKind') | Where-Object { $planCalls -contains $_ })
 Chk 'S2' ($s2Miss.Count -eq 0 -and $s2Own.Count -eq 0) "Get-WritePlan tire ses segments des fonctions de decision (lecteur qui ecrit, lecteur cible, mesure, tetes, effacement, profils, controle, options avancees) et ne recopie aucune regle (aucun appel aux fonctions qu elles appellent) ; absentes : $(Get-List $s2Miss) ; recopiees : $(Get-List $s2Own)"
-$s3Fns = @('Get-WritePlan', 'Get-WritePlanSig', 'Get-WritePlanCached', 'Format-WritePlan', 'Get-WPlanHeight', 'Show-WritePlan', 'Update-WritePlanUi', 'Get-WriteLevelPlan', 'Get-LevelBeforeWritePlan', 'Get-WriteHeads', 'Get-WriteErasePlan', 'Get-WriteSpecPlan', 'Get-WriteHeadSpecs', 'Get-WriteCheckPlan')
+$s3Fns = @('Get-WritePlan', 'Get-WritePlanSig', 'Get-WritePlanCached', 'Format-WritePlan', 'Get-WPlanHeight', 'Show-WritePlan', 'Update-WritePlanUi', 'Get-WriteLevelPlan', 'Get-LevelBeforeWritePlan', 'Get-WriteHeads', 'Get-WriteErasePlan', 'Get-WriteSpecPlan', 'Get-WriteHeadSpecs', 'Get-WriteCheckPlan', 'Get-WriteVerifyPlan', 'Get-WriteVerifyText', 'Update-WVerifyUi')
 $s3Bad = @()
 foreach ($fn in $s3Fns) {
     if (-not $fnAst.ContainsKey($fn)) { $s3Bad += "$fn absente"; continue }
@@ -338,22 +338,31 @@ $scP2 = @(
 # A), J seul : la ligne de la courbe croisee telle quelle en donne la raison (003107d7bbcb5f61 devient f35c14eaaf49f024),
 # T (commandes) inchangee. Avec -Before <export de 62b8ce2>, P1b releve ces deux ecarts voulus, plus S20 et W06,
 # artefacts de la consigne L12a ramenee a son texte d avant (P1b ne vaut sans artefact qu avec -Before d8d80d6)
+# 12.11 rc4 (R9, adapte a dessein) : le controle de toutes les pistes qui s applique remplace la verification de gw : dans
+# les 27 scenarios ou l ecriture est suivie du controle, les commandes gw write et la base des reecritures du controle
+# portent --no-verify sans --retries (avant : --retries=10, ou --no-verify --retries=4 pour W20), et le journal gagne la
+# ligne « Ecriture sans verification de gw (--no-verify, sans --retries) : ... » ; rien d autre ne change (releves d avant
+# et d apres compares ligne a ligne, ces options et cette ligne mises a part). Empreintes inchangees : les 29 scenarios
+# sans ecriture (mesure qui precede, refus), au controle non applicable (S13, S14, W08, W12, W13, W14, W22) ou au
+# module d analyse SCP indisponible (S12, W10 : le controle serait ignore apres l ecriture) : --retries=10 garde.
+# tests/logic-ecriture-verification.ps1 porte les commandes exactes, controle decoche compris, et,
+# avec -Before, cette comparaison ; avec -Before d une source d avant la rc4, P1b releve ces ecarts voulus
 $plRef = @{
-    S01 = 'e624a56728551b44/f6f818805418477f'; S02 = 'f40a6d209d3a2a39/e3b0c44298fc1c14'; S03 = '968e88fda3a51d8b/e3b0c44298fc1c14'; S04 = '23c1adced9b9ae13/e3b0c44298fc1c14'
-    S05 = '2cd3a03cd88b533c/5b814566e5ebaa3e'; S06 = 'f7728a08a4f467ef/bafd5731497abed4'; S07 = '582191f22046c9b1/e3c8c2f2a41f0391'; S08 = '968e88fda3a51d8b/84382efb09734831'
-    S09 = 'f40a6d209d3a2a39/e3b0c44298fc1c14'; S10 = '92a3341d42f81092/1634b78d65c527f7'; S11 = 'b7bf5f6845004cfa/f42f0a5eafa1c47a'; S12 = '7b68ef52a893307b/e086a6737fbfc731'
-    S13 = '0ff1729b6eb66c48/a7bb4bdeb3cdc1cb'; S14 = 'f1ce6b44d56f0d8b/6ff328e433b75cae'; S15 = '582191f22046c9b1/8f61a5a7ddbe748b'; S16 = '3523cf60b9ba0ae6/19da9c3fc1b061df'
-    S17 = '8a880c566d208a41/389d2fa657c4b469'; S18 = 'feaff7b1bfe8cd05/01c2e762a616aa39'; S19 = '4512b35f0a0fe8ea/85f77b15dba62aee'; S20 = '6d55d92b00395b21/42f903eeeb3050be'
-    S21 = '23c1adced9b9ae13/e3b0c44298fc1c14'; S22 = '2cd3a03cd88b533c/1a467b75756caa51'; S23 = '968e88fda3a51d8b/5b814566e5ebaa3e'; S24 = '4e59ff6e2740cda2/9878de4f89dfd731'
-    S25 = '063cf1106f68eb1e/80ef31cbde4c622b'; S26 = '2cd3a03cd88b533c/5b814566e5ebaa3e'; S27 = 'f7728a08a4f467ef/d879a545c51c9f65'; S28 = '582191f22046c9b1/bd374b7b4cea8134'
-    W01 = '4e59ff6e2740cda2/d91545fc0d919c4c'; W02 = '582191f22046c9b1/e6ee499cd7f76208'; W03 = '425749e6b9487375/e76c080455586978'; W04 = 'a450c9ef2015e382/82edac566160419d'
-    W05 = '6a04d07d425ab285/8580e0c719eed7d4'; W06 = '6d55d92b00395b21/42f903eeeb3050be'; W07 = '6d55d92b00395b21/54ccdbaeb3d51156'; W08 = 'a44563feaafaef93/75c5cb21d5795c23'
-    W09 = '987bf20fc91b5ea8/72a8a435aff7675d'; W10 = '2fa1cb915576554b/4cac8bbd5a99794b'; W11 = 'f0cb9b7c4d43e004/ab11bfe34801aca8'; W12 = 'c3f776a698bd39b8/45acba1492f3302e'
-    W13 = 'a4536535963d9f2e/c6892cfe17a87002'; W14 = '05dbbd27c6d38abe/90659da571963047'; W15 = '9650771b5d762b87/441ec90c93b63b50'; W16 = 'e624a56728551b44/d91545fc0d919c4c'
-    W17 = '631ffd0518b95c25/e3b0c44298fc1c14'; W18 = '16775819cacfcd08/f35c14eaaf49f024'; W19 = '00c2c1d301a051bd/14c560e888fadc45'; W20 = '2c592b23d3f7552e/b1fcd512270daf7a'
-    W21 = '6540067d6f40bfc7/3ced2d52945403b0'
-    S29 = 'f7728a08a4f467ef/1668d9ade2f6b50f'; S30 = '6d55d92b00395b21/1f4b7b28e2112e12'; S31 = 'e165044055d3712d/49d2313f53684812'; S32 = '968e88fda3a51d8b/5b814566e5ebaa3e'
-    W22 = 'f4bee6cfa440639f/75c5cb21d5795c23'; W23 = '9650771b5d762b87/d91545fc0d919c4c'; W24 = 'e6be3a723ef94bfe/e3b0c44298fc1c14'
+    S01 = 'f1086aa26b5aa9d2/40db65da0b865906'; S02 = 'f40a6d209d3a2a39/e3b0c44298fc1c14'; S03 = '968e88fda3a51d8b/e3b0c44298fc1c14'; S04 = '23c1adced9b9ae13/e3b0c44298fc1c14'
+    S05 = '2cd3a03cd88b533c/5b814566e5ebaa3e'; S06 = 'f7728a08a4f467ef/bafd5731497abed4'; S07 = '4264e5a894649ae0/8d4fd0572a57a798'; S08 = '968e88fda3a51d8b/84382efb09734831'
+    S09 = 'f40a6d209d3a2a39/e3b0c44298fc1c14'; S10 = 'da2ab98beb44b267/1b3c971b158b668e'; S11 = 'b7bf5f6845004cfa/f42f0a5eafa1c47a'; S12 = '7b68ef52a893307b/e086a6737fbfc731'
+    S13 = '0ff1729b6eb66c48/a7bb4bdeb3cdc1cb'; S14 = 'f1ce6b44d56f0d8b/6ff328e433b75cae'; S15 = '4264e5a894649ae0/3af51b4c05e1cc55'; S16 = '6b8a641bfe821a31/e26e0768b827bf2b'
+    S17 = 'd27150aaff6556e3/2f9327942c272047'; S18 = '91a7527881bf8cb8/b0d0820000150d8d'; S19 = 'e99691bb51ef1f65/446bf5ec8275b54d'; S20 = '6d55d92b00395b21/42f903eeeb3050be'
+    S21 = '23c1adced9b9ae13/e3b0c44298fc1c14'; S22 = '2cd3a03cd88b533c/1a467b75756caa51'; S23 = '968e88fda3a51d8b/5b814566e5ebaa3e'; S24 = '8fbb925ac54f2725/9650fe70adb1aedf'
+    S25 = '063cf1106f68eb1e/80ef31cbde4c622b'; S26 = '2cd3a03cd88b533c/5b814566e5ebaa3e'; S27 = 'f7728a08a4f467ef/d879a545c51c9f65'; S28 = '4264e5a894649ae0/cfcdc6a7a59f6c89'
+    W01 = '8fbb925ac54f2725/ec31ad189b643af7'; W02 = '4264e5a894649ae0/cc349f63f0810cba'; W03 = 'f837a40b96b449c3/e669b6a6ae4e5c3c'; W04 = '509616b1a0a595aa/bd3bb521f01e8bd1'
+    W05 = '89a6e2ce06aaf8a4/5304d2abb4b7b842'; W06 = '6d55d92b00395b21/42f903eeeb3050be'; W07 = '6d55d92b00395b21/54ccdbaeb3d51156'; W08 = 'a44563feaafaef93/75c5cb21d5795c23'
+    W09 = 'fc8b71c99110e93f/a53eeb2a309ef555'; W10 = '2fa1cb915576554b/4cac8bbd5a99794b'; W11 = '50f5bcaa63f588b7/3289c350eb87fb52'; W12 = 'c3f776a698bd39b8/45acba1492f3302e'
+    W13 = 'a4536535963d9f2e/c6892cfe17a87002'; W14 = '05dbbd27c6d38abe/90659da571963047'; W15 = '4f25ac02d2f7cf49/0b8ad2cad2ad53bd'; W16 = 'f1086aa26b5aa9d2/ec31ad189b643af7'
+    W17 = '986cd7e873f9f830/d2c793fea352a1a0'; W18 = '1cfe42640f288722/bf23c07104eed56d'; W19 = '9cef2045e157f33b/496bebe33943c410'; W20 = 'ea9c27bdafaa85fb/b54dc77b09448230'
+    W21 = '18053129b93c7c6c/867d000041a8e3e9'
+    S29 = 'f7728a08a4f467ef/1668d9ade2f6b50f'; S30 = '6d55d92b00395b21/1f4b7b28e2112e12'; S31 = '95b4272ec1a1b98b/d845c43ec68cf613'; S32 = '968e88fda3a51d8b/5b814566e5ebaa3e'
+    W22 = 'f4bee6cfa440639f/75c5cb21d5795c23'; W23 = '4f25ac02d2f7cf49/ec31ad189b643af7'; W24 = '5a6cfeb2d4e5c3d0/d2c793fea352a1a0'
 }
 
 function Invoke-PlScenario($sc, [string]$fn, [bool]$withPlan) {
@@ -420,6 +429,13 @@ function Test-PlAgree($r) {
     $cs = (@($segs | Where-Object { $_.StartsWith($cPre) -and -not $_.StartsWith($cNa) }).Count -gt 0)
     if ($cw -ne $cs) { $bad += "controle annonce $cs, fait $cw" }
     if ($cw -and -not ($ctl[0] -match " ; passes $($r.Repair) ;")) { $bad += "passes de reecriture : $($ctl[0])" }
+    # 12.11 rc4 (R9) : verification de gw annoncee = options des commandes gw write (--no-verify ; sinon --retries=N)
+    if ($write.Count -gt 0) {
+        $nvW = (@($write | Where-Object { $_ -match ' --no-verify( |$)' }).Count -eq $write.Count)
+        $nvP = ($segs -contains (T 'sans vérification gw'))
+        if ($nvW -ne $nvP) { $bad += "verification de gw : commandes sans verification $nvW, annonce $nvP" }
+        if (-not $nvW) { $rm = [regex]::Match($write[0], ' --retries=(\d+)'); if (-not $rm.Success -or $segs -notcontains ((T 'vérification gw, {0} essai(s) au plus') -f $rm.Groups[1].Value)) { $bad += "essais de gw : commande « $($rm.Value.Trim()) », phrase « $all »" } }
+    }
     $tgtW = @($lg | Where-Object { $_.StartsWith(((T "Écriture pour le lecteur cible {0} : {1}, facteur 1,00.") -f 'X', 'Y').Split('X')[0]) }).Count -gt 0
     $tgtP = $all.Contains(((T 'pour le lecteur cible {0} : {1}') -f 'X', 'Y').Split('X')[0])
     if ($tgtW -ne $tgtP) { $bad += "lecteur cible : ecrit $tgtW, annonce $tgtP" }
@@ -479,11 +495,13 @@ foreach ($pr in $plRoots) {
         }
         $script:PlSide = 0
         $want3 = if ($L -eq 'fr') {
-            @{ S01 = "Ce qui va se passer : Lecteur qui écrit : A ; effacement haute fréquence des pistes ; écriture des deux têtes ensemble ; contrôle de toutes les pistes, 3 passe(s) de réécriture au plus."
-               S02 = "Ce qui va se passer : Lecteur qui écrit : A ; effacement haute fréquence des pistes ; mesure de la disquette : sur l'image à écrire (environ 12 min) ; écriture tête 0 puis tête 1 ; contrôle de toutes les pistes, 3 passe(s) de réécriture au plus." }
+            # 12.11 rc4 (R9) : segment de la verification de gw apres celui du controle (« sans verification gw » : le
+            # controle la remplace) ; l exemple de la specification tient encore dans ses trois lignes
+            @{ S01 = "Ce qui va se passer : Lecteur qui écrit : A ; effacement haute fréquence des pistes ; écriture des deux têtes ensemble ; contrôle de toutes les pistes, 3 passe(s) de réécriture au plus ; sans vérification gw."
+               S02 = "Ce qui va se passer : Lecteur qui écrit : A ; effacement haute fréquence des pistes ; mesure de la disquette : sur l'image à écrire (environ 12 min) ; écriture tête 0 puis tête 1 ; contrôle de toutes les pistes, 3 passe(s) de réécriture au plus ; sans vérification gw." }
         } else {
-            @{ S01 = 'What will happen: Writing drive: A; high-frequency erase of the tracks; write of both heads together; full track check, up to 3 rewrite pass(es).'
-               S02 = 'What will happen: Writing drive: A; high-frequency erase of the tracks; disk measurement: on the image to write (about 12 min); write of head 0 then head 1; full track check, up to 3 rewrite pass(es).' }
+            @{ S01 = 'What will happen: Writing drive: A; high-frequency erase of the tracks; write of both heads together; full track check, up to 3 rewrite pass(es); no gw verification.'
+               S02 = 'What will happen: Writing drive: A; high-frequency erase of the tracks; disk measurement: on the image to write (about 12 min); write of head 0 then head 1; full track check, up to 3 rewrite pass(es); no gw verification.' }
         }
         $p3 = @()
         foreach ($id in 'S01', 'S02') {
@@ -502,7 +520,7 @@ foreach ($pr in $plRoots) {
                 foreach ($x in (Test-PlAgree $r)) { $p4 += "$($sc.Id) $x" }
             }
             foreach ($x in @($p4 | Select-Object -First 6)) { "  P4 ECART $x" }
-            Chk 'P4' ($p4.Count -eq 0 -and $p4n -eq ($scP1.Count + $scP2.Count)) "$p4n scenarios (bouton ECRIRE et ecriture seule) : refus annonce si et seulement si le clic ne lance rien ; mesure annoncee (sur l image, au motif, complete) = mesure lancee ; ecriture sans mesure : effacement, tetes ecrites, controle et ses passes, lecteur cible annonces = commandes et journal du clic ; ecarts : $(Get-List $p4 3)"
+            Chk 'P4' ($p4.Count -eq 0 -and $p4n -eq ($scP1.Count + $scP2.Count)) "$p4n scenarios (bouton ECRIRE et ecriture seule) : refus annonce si et seulement si le clic ne lance rien ; mesure annoncee (sur l image, au motif, complete) = mesure lancee ; ecriture sans mesure : effacement, tetes ecrites, controle et ses passes, verification de gw (--no-verify, ou --retries et ses essais), lecteur cible annonces = commandes et journal du clic ; ecarts : $(Get-List $p4 3)"
             # ----------------------------------------------------------------- P5 : refus en tete, sans image, image absente
             $s11 = Get-PlShown @($scP1 | Where-Object { $_.Id -eq 'S11' })[0]
             $s20 = Get-PlShown @($scP1 | Where-Object { $_.Id -eq 'S20' })[0]

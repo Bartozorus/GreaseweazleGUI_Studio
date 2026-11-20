@@ -122,11 +122,13 @@ function Get-WritePlan {
     # (sans mesure, avec sa raison), mesure autre que celle de la liste (repli), controle impose ou non applicable, lecteur
     # cible sans effet : jamais retires par la coupe ; S, leur forme courte (le fait sans sa raison). Aucune ligne de
     # journal, aucune fenetre ; lit l image (appelant : Get-WritePlanCached)
+    # 12.11 rc4 (R9) : Verify, decision de la verification de gw (Get-WriteVerifyPlan, 140), et son segment apres celui
+    # du controle ; $null avec un refus
     $img = [string]$txtWFile.Text; $fmt = [string]$cmbWFmt.Text
     $slow = [bool]$chkWSlow.Checked
     $mode = if ($slow) { 'slow' } else { 'fast' }
     $userTs = ([string]$txtWTracks.Text).Trim()
-    $r = @{ Refuse = ''; Segs = @() }
+    $r = @{ Refuse = ''; Segs = @(); Verify = $null }
     $ex = $false; try { $ex = [bool](Test-Path -LiteralPath $img) } catch { }
     if (-not $ex) { $r.Refuse = (T 'Fichier image introuvable.'); return $r }
     $tw = Get-TargetWriteInfo $img $fmt $slow
@@ -194,6 +196,11 @@ function Get-WritePlan {
     elseif ($cp.Forced -and -not $chkWPostCheck.Checked) { [void]$sg.Add(@{ T = $(if ($rep -gt 0) { (T 'contrôle de toutes les pistes imposé par la courbe adaptée à cette disquette, {0} passe(s) de réécriture au plus') -f "$rep" } else { (T 'contrôle de toutes les pistes imposé par la courbe adaptée à cette disquette, sans réécriture') }); Crit = $true; S = (T 'contrôle de toutes les pistes imposé') }) }
     elseif ($cp.Post) { [void]$sg.Add(@{ T = $(if ($rep -gt 0) { (T 'contrôle de toutes les pistes, {0} passe(s) de réécriture au plus') -f "$rep" } else { (T 'contrôle de toutes les pistes, sans réécriture') }); Crit = $false }) }
     else { [void]$sg.Add(@{ T = (T 'contrôle complet non demandé'); Crit = $false }) }
+    # 12.11 rc4 (R9) : verification de gw (Get-WriteVerifyPlan, sur le meme controle $cp : celle de Start-ImageWrite), apres
+    # le segment du controle : si la phrase ne tient pas, la coupe le retire avant lui. Plan garde ($r.Verify) : etat et
+    # infobulle de la case « Sans verification » et du champ « Essais » (Update-WVerifyUi)
+    $r.Verify = Get-WriteVerifyPlan $cp
+    [void]$sg.Add(@{ T = (Get-WriteVerifyText $r.Verify 'seg'); Crit = $false })
     # Lecteur cible : courbes croisees ecrites (texte du journal de Start-ImageWrite), ou sans effet (meme texte). 12.11
     # (rc2) : avec la courbe propre du lecteur qui ecrit (Xfer, Get-TargetWriteInfo) : courbe de cette disquette x facteur
     # par cylindre de la calibration croisee (Get-TargetTransferPlan) ; sans elle, texte de la rc1. Segment critique (la
@@ -328,9 +335,10 @@ function Update-WritePlanUi([switch]$Typing) {
         if (($Typing -or $script:WProfileBuilding) -and $script:WPlanCur) { return }
         $p = $null
         try { $p = Get-WritePlanCached; $script:WPlanError = '' } catch { $script:WPlanError = [string]$_.Exception.Message; $script:WPlanMemo = $null }
-        if ($p) { $script:WPlanCur = $p; Show-WritePlan; return }
+        if ($p) { $script:WPlanCur = $p; Update-WVerifyUi $p.Verify; Show-WritePlan; return }
     }
     $script:WPlanCur = $null; $script:WPlanFull = ''
+    Update-WVerifyUi
     $ch = @(Get-WriteAdvChanges)
     $t = ''
     if ($ch.Count -gt 0) {
@@ -339,6 +347,24 @@ function Update-WritePlanUi([switch]$Typing) {
     }
     $lblWPlan.ResetForeColor()
     if ($lblWPlan.Text -cne $t) { $lblWPlan.Text = $t } else { Update-WPlanTip }
+}
+
+function Update-WVerifyUi($vp = $null) {
+    # 12.11 rc4 (R9) : case « Sans verification », libelle et champ « Essais » des options avancees, d apres la decision de
+    # l ecriture (Get-WriteVerifyPlan, 140) : $vp, celle du plan de la ligne « Ce qui va se passer » ; sans plan (avant
+    # l affichage de la fenetre, sans image, ecriture refusee) : d apres la case « Controler toutes les pistes » seule, sans
+    # acces au fichier. Controle applique (gw ecrit sans verification, --retries non transmis) : case, libelle et champ
+    # inactifs (sans objet ; leurs valeurs, gardees, reprennent leur effet avec une ecriture sans controle), infobulle qui
+    # le dit ; sinon actifs, infobulles de 520. Une case inactive n affiche pas son infobulle : la regle se lit aussi dans
+    # celle de « Controler toutes les pistes » (520) et dans la ligne. Appel : Update-WritePlanUi ; affichage seulement
+    if (-not $chkWNoVerify -or -not $numWRetries) { return }
+    if ($null -eq $vp) { $vp = Get-WriteVerifyPlan }
+    $on = -not [bool]$vp.ByCheck
+    foreach ($c in @($chkWNoVerify, $lblWRetries, $numWRetries)) { if ($c -and [bool]$c.Enabled -ne $on) { $c.Enabled = $on } }
+    $t = Get-WriteVerifyText $vp 'tip'
+    if ([string]$tip.GetToolTip($chkWNoVerify) -cne $t) { $tip.SetToolTip($chkWNoVerify, $t) }
+    $t = Get-WriteVerifyText $vp 'tipn'
+    if ([string]$tip.GetToolTip($numWRetries) -cne $t) { $tip.SetToolTip($numWRetries, $t) }
 }
 
 function Switch-WAdvView {

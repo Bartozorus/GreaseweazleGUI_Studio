@@ -259,10 +259,15 @@ $scB = @(
 $scR = @{ Id = 'R1'; T = 'restauration, facteur de marque 1,25'; Fn = 'restore'; Do = { $chkWSlow.Checked = $true; $chkWLevel.Checked = $false; Set-FkBrand 1.25 } }
 # Empreintes de 62b8ce2 (sortie de ce test lance avec -Before <export de 62b8ce2>) : A, commandes et demandes (T) et
 # journal (J) ; B, commandes (T)
+# 12.11 rc4 (R9, adapte a dessein) : toutes ces ecritures sont suivies du controle de toutes les pistes (demande, ou impose
+# par la courbe adaptee du test rapide) : leurs commandes gw write et la base des reecritures portent --no-verify sans
+# --retries (avant : --retries=10), et le journal gagne la ligne « Ecriture sans verification de gw ... » ; les egalites
+# d avant restent (A6 = A1 ; B3 = B4 = B1). Commandes exactes : tests/logic-ecriture-verification.ps1 ; avec -Before d une
+# source d avant la rc4, A1 et B1 relevent ces ecarts voulus
 $fkRef = @{
-    A1 = '4fb4b9d6954e1bb2/34203896f563c2e4'; A2 = 'a309db8b952605a3/4d8bf2d5443cd811'; A3 = '4d91118d53887648/49348136c0b46c21'; A4 = 'e87f0d2f37f00e33/00033c8c0c7ef24e'
-    A5 = '2c1217c5a7aaaf6f/dbd4f275b33fea04'; A6 = '4fb4b9d6954e1bb2/34203896f563c2e4'
-    B1 = 'c3d3d1e0a1de683d'; B2 = '137929dfbaab410b'; B3 = 'c3d3d1e0a1de683d'; B4 = 'c3d3d1e0a1de683d'
+    A1 = '49da47cc2c13219f/d9bd0f3924431e76'; A2 = 'fb5bd7ff478f9c7c/edb94cb55b64fac8'; A3 = '395461e032852bbd/ac3fc32b7eaa1001'; A4 = 'a56f0dab51b8190f/214b40dce09f65f5'
+    A5 = 'dd30bbda45eb5ba2/517a878cd0d617be'; A6 = '49da47cc2c13219f/d9bd0f3924431e76'
+    B1 = 'cfe5c21e858255c1'; B2 = 'fef06828062718c0'; B3 = 'cfe5c21e858255c1'; B4 = 'cfe5c21e858255c1'
 }
 
 function Invoke-FkScenario($sc, [bool]$tgt, [bool]$own, [bool]$withPlan, [scriptblock]$Desync = $null) {

@@ -223,6 +223,9 @@ $chkWSlow.Add_CheckedChanged({ Update-SlowUi; if ($script:UiReady) { Update-Prec
 $chkWPostCheck = New-Object System.Windows.Forms.CheckBox
 $chkWPostCheck.Text = (T 'Contrôler toutes les pistes'); $chkWPostCheck.Location = '308,22'; $chkWPostCheck.Width = 255
 $tip.SetToolTip($chkWPostCheck, (T "Après une écriture réussie, relit en flux toutes les pistes écrites et classe chacune avec les critères de l'onglet Qualité & alignement.`nUne piste À SURVEILLER, CRITIQUE ou illisible est réécrite seule (après un effacement haute fréquence de la piste en double densité, avec pré-effacement en haute densité), puis seule remesurée,`njusqu'au nombre de passes de réécriture choisi. Résultat dans l'onglet Qualité & alignement."))
+# 12.11 rc4 (R9) : ce controle remplace la verification de gw (Get-WriteVerifyPlan, 140) : son infobulle le dit ; la case
+# « Sans verification » et le champ « Essais », inactifs quand il s applique (Update-WVerifyUi, 145), n affichent pas la leur
+$tip.SetToolTip($chkWPostCheck, $tip.GetToolTip($chkWPostCheck) + "`n" + (T "Quand ce contrôle s'applique à l'écriture, gw écrit sans vérification (--no-verify, sans --retries) : la relecture du contrôle la remplace, et une piste mal écrite est réécrite par les passes de réécriture, non plus tout de suite par gw."))
 
 $lblWRepair = New-Label (T 'Passes de réécriture :') '466,25'
 $numWRepair = New-Object System.Windows.Forms.NumericUpDown
