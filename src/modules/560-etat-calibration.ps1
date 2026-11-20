@@ -22,6 +22,12 @@
 # qu aux pistes a bits (images secteur ou bitcell), jamais aux flux SCP/RAW.
 $script:Cal = $null
 $script:CalRedo = $null   # calibration B (« Refaire sur une autre disquette ») : courbe A en memoire ; Stage 'confirm', 'running' ou 'interrupted'
+# 12.11 rc4 (R5, partie 2) : calibration complete ou croisee interrompue par une erreur de gw ou par « Arreter », gardee en
+# memoire pour etre reprise a la passe interrompue : @{ Cal (etat a l entree de cette passe) ; At ; Cause ; Sig (reglages,
+# Get-CalibResumeSig) }. Posee par Set-CalibResume (Stop-PrecompCalib, 270), proposee au lancement suivant de la meme
+# calibration (Start-PrecompCalib), abandonnee des qu une autre calibration commence ; jamais enregistree : perdue a la
+# fermeture de l application
+$script:CalResume = $null
 $script:CalCoarse    = @(0, 30, 100)   # passes de mesure : trois niveaux, repartis par cylindre (12.9, correction 2)
 # 12.10 : niveaux proportionnes a la famille (Get-CalLevels) : en long track (cellule 1,89 us) le besoin vaut 1,4 a 1,7 fois
 # celui du standard (TEAC du 02/11/2026 : 105 a 439 ns) et tous les cylindres depassaient 100 ns : plus aucun zero interpole,

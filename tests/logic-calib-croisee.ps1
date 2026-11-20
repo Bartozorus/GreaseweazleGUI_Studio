@@ -36,6 +36,13 @@ $Wt = Get-TestRoot $Wt
 # remplace dans la campagne : Start-CrossCalib (270) tire les reglages refuses de Get-CalibSettingBlock (260, remplacant
 # selon le scenario : SetBlock), avant le controle de l image. C12 joue le refus par SetBlock ; ajoute : C13 (secteurs
 # durs et image refusee : refus avant la fenetre, sans controle de l image). Autres cas inchanges.
+# 12.11 rc4 (R5, partie 2) : bloc Y, reprise d une calibration interrompue. Invoke-CrossCase garde ses cas et recoit en plus,
+# a la demande : la vraie Stop-PrecompCalib (RealStop), des interruptions simulees a une commande gw d une passe (Breaks,
+# Invoke-SimBreak : fins du minuteur principal, du lancement de gw et du bouton « Arreter », imitees d apres leurs
+# instructions), les relances par le bloc reel de Start-PrecompCalib (Relaunch, AutoResume ; Invoke-Cal2ResumeOffer et
+# Set-Cal2ResumeStart, extraites par l arbre syntaxique), un lecteur a fort besoin (Need0) ; New-SimPass simule aussi les
+# mesures complementaires du test standard. Remplacants ajoutes : Show-AppConfirm (fenetre de reprise), Get-PatternBits et
+# New-CalibPattern (motif sans fichier). Aucun gw, aucune fenetre.
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 # Correction tour 2 de la relecture des captures (10/11/2026, v1210\rc2\fix2) : copie adaptee de v1210\doc\logic-1210-cross-g,
@@ -59,6 +66,26 @@ function Get-CrossBlockFn([string]$m, [string]$kind) {
     if ($kind -eq 'state') { return ('function Set-Cal2CrossState($cx, $do, $Geom, $chk, $famTxt, $modeTxt, $img, $pat, $cylList, $cylSrc, $nCyl) {' + "`r`n" + $sel[0].Extent.Text + "`r`n}") }
     return ('function Get-Cal2CrossConfirm($cx, $redo, $do, $fb, $Intro, $body, $wear, $nPassEst, $fine, $toWrite, $target, $cfSec, $swapLabel, $auto, $choice, $family, $minutes, $nCyl, $minDisk, $mxDisk) {' + "`r`n" + $sel[0].Extent.Text + "`r`n" + 'return $ans' + "`r`n}")
 }
+function Get-ResumeBlockFn([string]$m, [string]$kind) {
+    # 12.11 rc4 (R5, partie 2) : instructions reelles de Start-PrecompCalib (270), recopiees telles quelles dans une fonction
+    # de travail. 'offer' : bloc « if ($script:CalResume) » qui propose la reprise avant l avertissement (la fonction rend
+    # $null quand le bloc sort de Start-PrecompCalib, sinon @{ Next = 'suite' ; Intro }) ; 'start' : instructions qui suivent
+    # le litteral de l etat (abandon des passes gardees, ResumeKind, PassLog)
+    $ast = Get-Cal2Ast (Join-Path $m '270-fn-calib-complete.ps1')
+    $fd = @($ast.FindAll({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq 'Start-PrecompCalib' }, $false))
+    if ($fd.Count -ne 1) { throw 'Start-PrecompCalib introuvable' }
+    $sts = @($fd[0].Body.EndBlock.Statements)
+    $ifs = @($sts | Where-Object { $_ -is [System.Management.Automation.Language.IfStatementAst] -and $_.Clauses[0].Item1.Extent.Text -eq '$script:CalResume' })
+    if ($kind -eq 'offer') {
+        $sel = @($ifs | Where-Object { $_.Extent.Text -like '*Show-CalibResumeDialog*' })
+        if ($sel.Count -ne 1) { throw "bloc de reprise de Start-PrecompCalib : $($sel.Count) trouve(s) (reprise pas encore implementee ?)" }
+        return ('function Invoke-Cal2ResumeOffer($family, $cyls, $maxCyl, $slow, $fine, $img, $Geom, $cx, $redo, $do, $fb, $LevelAfter, $nCyl, $noWarm, [string]$Intro) {' + "`r`n" + $sel[0].Extent.Text + "`r`n" + 'return @{ Next = ''suite''; Intro = $Intro }' + "`r`n}")
+    }
+    $c = @($ifs | Where-Object { $_.Extent.Text -notlike '*Show-CalibResumeDialog*' -and $_.Extent.Text -like '*Clear-CalibResume*' })
+    $k = @($sts | Where-Object { $_ -is [System.Management.Automation.Language.AssignmentStatementAst] -and @('$script:Cal.ResumeKind', '$script:Cal.PassLog') -contains $_.Left.Extent.Text })
+    if ($c.Count -ne 1 -or $k.Count -ne 2) { throw "instructions de la reprise apres l etat de Start-PrecompCalib : $($c.Count) et $($k.Count) trouvee(s) (reprise pas encore implementee ?)" }
+    return ('function Set-Cal2ResumeStart($redo, $do, $LevelAfter, $ans) {' + "`r`n" + $c[0].Extent.Text + "`r`n" + $k[0].Extent.Text + "`r`n" + $k[1].Extent.Text + "`r`n}")
+}
 function New-CrossGen([string]$m, [string]$out) {
     $parts = New-Object System.Collections.Generic.List[string]; $found = @{}
     foreach ($f in '150-fn-pistes-densite.ps1', '220-fn-profil-precomp.ps1', '230-fn-calib-courbe.ps1', '240-fn-calib-mesure.ps1', '250-fn-calib-fenetres.ps1', '270-fn-calib-complete.ps1', '280-fn-calib-surface.ps1') { Add-Cal2Fns $parts (Get-Cal2FnDefs (Join-Path $m $f)) @('*') $found $f }
@@ -76,6 +103,7 @@ function New-CrossGen([string]$m, [string]$out) {
     $parts.Add((Get-Cal2Renamed (Get-Cal2FnDefs (Join-Path $m '270-fn-calib-complete.ps1')) 'Update-CalibProgress' 'Update-CalibProgressReal'))
     $parts.Add((Get-Cal2CalStateFn $m))
     $parts.Add((Get-CrossBlockFn $m 'state')); $parts.Add((Get-CrossBlockFn $m 'confirm'))
+    $parts.Add((Get-ResumeBlockFn $m 'offer')); $parts.Add((Get-ResumeBlockFn $m 'start'))   # 12.11 rc4 (R5, partie 2), bloc Y
     foreach ($s in (Get-Cal2Consts $m)) { $parts.Add($s) }
     foreach ($s in (Get-Cal2Assign (Join-Path $m '565-etat-contenu.ps1') @('$script:EraseEstTrack'))) { $parts.Add($s) }
     foreach ($s in (Get-Cal2Assign (Join-Path $m '560-etat-calibration.ps1') @('$script:CurveKeys', '$script:DriveActivity', '$script:DriveCurves', '$script:PrecompCurves', '$script:LevelShifts'))) { $parts.Add($s) }
@@ -87,6 +115,8 @@ $mods = Get-Cal2Modules $Wt
 $gen = Join-Path $here 'gen-1210-cross-k.ps1'
 $fn = New-CrossGen $mods $gen
 Test-Cal2Missing @('Get-CalibDriveArgsFor', 'Get-CalibStoreDrive', 'Split-CrossDrive', 'Get-CrossCalibTargets', 'Get-CrossSwapEstimate', 'Invoke-CalibSwap', 'Start-CrossCalib', 'Show-CrossCalibDialog', 'Get-DriveFamilyCurves', 'Show-CurvesWindow', 'Get-DriveCurveLabel', 'Set-DriveCurve', 'Get-CalibSnapshot') $fn
+# 12.11 rc4 (R5, partie 2) : fonctions de la reprise d une calibration interrompue (bloc Y)
+Test-Cal2Missing @('Get-CalibStepInfo', 'Add-CalibPassDone', 'Get-CalibStopCause', 'Get-CalibResumeLabel', 'Get-CalibResumeDisk', 'Get-CalibResumeSig', 'Get-CalibResumeMismatch', 'Get-CalibResumeOffer', 'Get-CalibResumeText', 'Show-CalibResumeDialog', 'Clear-CalibResume', 'Set-CalibResume', 'Resume-PrecompCalib') $fn
 $genCf = Join-Path $here 'gen-1210-cross-cf.ps1'
 Write-Cal2Gen $genCf @((Get-Cal2CurveFit $mods))
 . $genCf
@@ -96,7 +126,11 @@ function Get-LogIdx($log, [string]$like) { for ($i = 0; $i -lt @($log).Count; $i
 function Get-LogN($log, [string]$like) { return @(@($log) | Where-Object { $_ -like $like }).Count }
 
 # ---------------------------------------------------------------- gw simule (modele de logic-129-cal2-e2e : besoin du lecteur A, dent)
-function Get-SimZ([int]$c, [int]$h) { $z = Get-NeedA $c $h $true; if ($script:SimHd) { $z = 0.5 * $z }; return $z }
+function Get-SimZ([int]$c, [int]$h) {
+    # 12.11 rc4 (bloc Y) : SimNeed0, lecteur a fort besoin (Get-Need0 : passe d encadrement) ; sinon lecteur A, comme avant
+    if ($script:SimNeed0) { return (Get-Need0 $c) + 3.0 * $h }
+    $z = Get-NeedA $c $h $true; if ($script:SimHd) { $z = 0.5 * $z }; return $z
+}
 function New-SimTrack([double]$w, [double]$z, [int]$h, [double]$extra) {
     $kap = 6.4; $lam = 40.0
     if ($script:SimHd) { $kap = 3.2; $lam = 20.0 }
@@ -131,6 +165,13 @@ function New-SimPass {
             foreach ($c in $rc) { $w = [double](Get-SpecValue $u.Profile ([int]$c)); foreach ($h in (Get-UnitHeads $u)) { $tr[2 * [int]$c + $h] = New-SimTrack $w (Get-SimZ ([int]$c) $h) $h $aV } }
         }
     }
+    elseif ($cal.Stage -eq 'densify') {
+        # 12.11 rc4 (bloc Y) : mesures complementaires du test standard, simulees comme une passe d encadrement
+        foreach ($u in @($cal.Units)) {
+            $a = Get-N01
+            foreach ($c in @($u.Dense.Keys)) { foreach ($h in (Get-UnitHeads $u)) { $tr[2 * [int]$c + $h] = New-SimTrack ([double]$u.Dense[$c]) (Get-SimZ ([int]$c) $h) $h $a } }
+        }
+    }
     else { throw "etape non simulee : $($cal.Stage)" }
     $script:SimTracks = $tr
 }
@@ -155,7 +196,7 @@ function Invoke-CrossCase($o) {
     function Append-Log([string]$text) { $script:CLog.Add($text) }
     function Get-CommonArgs { return @('--drive=A') }
     function Get-CalibDriveArgs { return @() }
-    function Get-DriveReadArgs { return @() }
+    function Get-DriveReadArgs { if ($script:CReadThrow) { throw 'options de relecture illisibles' }; return @($script:CReadArgs) }   # 12.11 rc4 (bloc Y) : options de relecture changees par un scenario (vide sinon, comme avant) ; erreur provoquee (cas Y7c)
     function Get-EraseDriveArgs { return @() }
     function Get-EraseMode([bool]$hd) { if ($hd) { return 'pre' }; return 'hfreq' }
     function Update-CalibProgress { $script:NProg++ }
@@ -174,7 +215,37 @@ function Invoke-CrossCase($o) {
     function Show-PrecompCurve([string]$family, [bool]$preferHeads, $Owner = $null) { $script:CShown.Add(@{ Kind = 'view'; Curves = @(Get-FamilyCurves $family $preferHeads) }) }
     function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerFull = $false, [bool]$noFields = $false, [bool]$offerRedo = $false, $compare = $null, [bool]$warnKeep = $false, $lvl2 = $null) { $script:CReview.Add(@{ Issues = @($issues); OfferRedo = $offerRedo }); return 'keep' }
     function Restore-CalibState($prev) { $script:NRestore++ }
-    function Stop-PrecompCalib([switch]$GwError) { $script:CStop.Add(@{ GwError = [bool]$GwError; Swaps = $(if ($script:Cal) { [int]$script:Cal.Swaps } else { -1 }); DiskAt = $(if ($script:Cal) { [string]$script:Cal.DiskAt } else { '' }) }); $script:Cal = $null }
+    # 12.11 rc4 (R5, partie 2), bloc Y : RealStop : vraie Stop-PrecompCalib (270), qui garde les passes faites pour la reprise
+    if (-not $o.RealStop) {
+        function Stop-PrecompCalib([switch]$GwError) { $script:CStop.Add(@{ GwError = [bool]$GwError; Swaps = $(if ($script:Cal) { [int]$script:Cal.Swaps } else { -1 }); DiskAt = $(if ($script:Cal) { [string]$script:Cal.DiskAt } else { '' }) }); $script:Cal = $null }
+    }
+    # Fenetre de reprise (frmConfirm) repondue selon le scenario ('go', 'alt', 'close') ; motif de test et densite sans fichier
+    function Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [string]$Check = '', [string]$GoText = '', [string]$GoGlyph = '', [string]$Level = 'warn', [string]$Picto = 'warn', [string]$AltText = '', $Combo = $null) {
+        $a = [string]$script:CConfirmAns
+        $script:CConfirm.Add(@{ Title = $Title; Heading = $Heading; Text = $Text; Check = $Check; Go = $GoText; Glyph = $GoGlyph; Level = $Level; Picto = $Picto; Alt = $AltText; Answer = $a; CmdIdx = $script:CCmds.Count })
+        $script:ConfirmChoice = $a
+        return ($a -eq 'go')
+    }
+    function Get-PatternBits([string]$family, [string]$img) { return @{ Bits = [int]$script:CPatBits; Source = 'image'; Known = $true; CapBits = [int]$script:CPatBits } }
+    function New-CalibPattern([string]$family, [string]$img, [int]$nCyl, [int]$Rpm = 300) { $script:CPatN++; return @{ Path = 'C:\x\precomp-pattern.hfe'; Bits = [int]$script:CPatBits; CellNs = 1973.5; Source = 'image' } }
+    function Invoke-SimBreak([string]$kind) {
+        # Fin d une commande gw en echec comme la traitent le minuteur principal (600 : sequence videe, Stop-PrecompCalib
+        # -GwError), le lancement de gw (110, Reset-GwSequence) et une etape en erreur (110, Invoke-NextChainStep : sans
+        # cause) ; bouton « Arreter » (540 : sequence videe, StopBy 'user', Stop-PrecompCalib)
+        $script:CBreakLog.Add(@{ Kind = $kind; Cmd = $script:CCmds.Count; Pass = 1 + [int]$script:Cal.PassesDone; Stage = [string]$script:Cal.Stage; DiskAt = [string]$script:Cal.DiskAt; LogAt = $script:CLog.Count })
+        $script:Chain.Clear()
+        switch ($kind) {
+            'port'       { $script:GwPortLost = $true; $script:GwLastCode = 1; $script:GwLastIncomplete = $false; Stop-PrecompCalib -GwError }
+            'code'       { $script:GwLastCode = 1; $script:GwLastIncomplete = $false; Stop-PrecompCalib -GwError }
+            'incomplete' { $script:GwLastCode = 0; $script:GwLastIncomplete = $true; Stop-PrecompCalib -GwError }
+            'launch'     { Stop-PrecompCalib -GwError }
+            'stop'       { $script:Cal.StopBy = 'user'; Stop-PrecompCalib }
+            'error'      { Stop-PrecompCalib }
+            'throw'      { $script:CReadThrow = $true; $script:Cal.StopBy = 'user'; try { Stop-PrecompCalib } finally { $script:CReadThrow = $false } }
+            default      { throw "interruption inconnue : $kind" }
+        }
+        $script:CBreakLog[$script:CBreakLog.Count - 1].Lbl = [string]$lblWCal.Text
+    }
     function Show-TimedConfirm([string]$name, [string]$title, [string]$text, [string]$okText, [string]$okGlyph, [string]$countFmt, [string]$checkLabel, [string]$stopOn, [string]$stopOff, [int]$Seconds = 0, [switch]$NeedCheck, $Combo = $null, [string]$Heading = '', [string]$Level = 'warn', [string]$Picto = 'warn') {
         $n = $script:CPrompts.Count
         $hold = if ($script:Cal -and $script:Cal.SwapHold) { @{ From = [string]$script:Cal.SwapHold.From; To = [string]$script:Cal.SwapHold.To } } else { $null }
@@ -187,6 +258,16 @@ function Invoke-CrossCase($o) {
         $script:CCmds.Add((@($gwArgs) -join ' ')); $script:CSteps.Add('gw ' + [string]@($gwArgs)[0])
         $script:CAt.Add($(if ($script:Cal -and $script:Cal.ContainsKey('DiskAt')) { [string]$script:Cal.DiskAt } else { '-' }))
         $script:CPlanOf.Add($script:ProgPlan)    # 12.11 (lot L8) : plan de l etape pose au lancement de la commande (cas E10)
+        # 12.11 rc4 (R5, partie 2), bloc Y : interruption simulee a la premiere commande de ce verbe de la passe indiquee
+        # (Breaks : 'passe|verbe' -> nature) ; 'scp' : la relecture se termine sans releve (analyse reelle : fichier absent).
+        # Une commande interrompue ne tire aucun nombre : la passe rejouee relit les memes mesures que sans interruption
+        $script:GwPortLost = $false; $script:GwLastCode = 0; $script:GwLastIncomplete = $false
+        $bkKey = "$(1 + [int]$script:Cal.PassesDone)|$([string]@($gwArgs)[0])"
+        if ($script:CBreaks -and $script:CBreaks.ContainsKey($bkKey)) {
+            $bk = [string]$script:CBreaks[$bkKey]; $script:CBreaks.Remove($bkKey)
+            if ($bk -eq 'scp') { $script:CBreakLog.Add(@{ Kind = $bk; Cmd = $script:CCmds.Count; Pass = 1 + [int]$script:Cal.PassesDone; Stage = [string]$script:Cal.Stage; DiskAt = [string]$script:Cal.DiskAt; LogAt = $script:CLog.Count }); return }
+            Invoke-SimBreak $bk; return
+        }
         if ([string]@($gwArgs)[0] -eq 'read' -and -not $script:CFake) { [System.IO.File]::WriteAllText([string]$script:Cal.Scp, 'x'); New-SimPass }
     }
     function Invoke-NextChainStep {
@@ -208,6 +289,11 @@ function Invoke-CrossCase($o) {
     function Invoke-Drive { $g = 0; while ($script:Chain.Count -gt 0 -and $script:Cal -and -not $script:Analysed -and $g -lt 900) { $g++; Invoke-NextChainStep }; $script:CGuard = $g }
     Set-Cal2Rng $Seed
     $script:SimHd = ([string]$o.Fam -eq 'hd'); $script:SimTracks = @{}; $script:CFake = [bool]$o.Fake; $script:CAnswers = @(@($o.Answers) | Where-Object { $null -ne $_ })
+    # 12.11 rc4 (R5, partie 2), bloc Y : interruptions simulees, fenetre de reprise, etat de gw lu par Get-CalibStopCause
+    $script:SimNeed0 = [bool]$o.Need0; $script:CBreaks = @{}; if ($o.Breaks) { foreach ($bkK in @($o.Breaks.Keys)) { $script:CBreaks[[string]$bkK] = [string]$o.Breaks[$bkK] } }
+    $script:CBreakLog = New-Object System.Collections.Generic.List[object]; $script:CConfirm = New-Object System.Collections.Generic.List[object]; $script:CConfirmAns = 'close'; $script:ConfirmChoice = ''
+    $script:CPatBits = $(if ([string]$o.Fam -eq 'hd') { 200000 } else { 101344 }); $script:CPatN = 0; $script:CReadArgs = @(); $script:CReadThrow = $false
+    $script:GwPortLost = $false; $script:GwLastCode = 0; $script:GwLastIncomplete = $false; $script:GwProc = $null; $script:AlignLoop = $false; $script:AlignNextAt = $null
     $script:TempDir = $simDir; $script:Chain = New-Object System.Collections.Queue; $script:Restore = $null; $script:CalRedo = $null; $script:AfterCalib = ''
     $script:CurveForm = $null; $script:OldCalib = $null; $script:CurveFitOk = $true; $script:Lang = 'fr'; $script:CalWarmupMinutes = 0.0
     $script:CCmds = New-Object System.Collections.Generic.List[string]; $script:CSteps = New-Object System.Collections.Generic.List[string]; $script:CAt = New-Object System.Collections.Generic.List[string]
@@ -241,14 +327,53 @@ function Invoke-CrossCase($o) {
     if ($slow) { $modeTxt += ', une courbe par tête (écriture lente)' }
     if ($o.Cross) { Set-Cal2CrossState @{ Src = 'A'; Tgt = '0' } $null $geom @{ Label = $(if ($geom) { [string]$geom.Label } else { 'image.adf' }) } (Get-CalibFamilyName $fam) $modeTxt 'C:\x\image.adf' $pat $cylList $(if ($geom) { [string]$geom.CylSrc } else { "cylindres de l'image" }) ($maxCyl + 1) }
     $script:Cal.SurfDone = $true
+    # 12.11 rc4 (R5, partie 2), bloc Y : instructions reelles qui suivent le litteral de l etat (ResumeKind, PassLog)
+    if ($o.RealStop) { $script:AfterCalib = [string]$o.After; Set-Cal2ResumeStart ([bool]$o.Redo) $null $false @{ Ok = $true; Swap = $false; Auto = $false }; $script:AfterCalib = '' }
     $st0 = @{ Cross = $script:Cal.Cross; DiskAt = $script:Cal.DiskAt; Swaps = $script:Cal.Swaps; Home = $script:Cal.Home; HasSwapHold = $script:Cal.ContainsKey('SwapHold'); Latin = $script:Cal.Latin; Cond = $script:Cal.Cond; Value = $script:Cal.Value; ValueTxt = $script:Cal.ValueTxt; Spec = $script:Cal.Spec; HasValue = $script:Cal.ContainsKey('Value'); Drive = $script:Cal.Drive }
     Start-CalibWarmup
     Invoke-Drive
+    # 12.11 rc4 (R5, partie 2), bloc Y : relances apres une interruption, par le bloc reel de Start-PrecompCalib
+    # (Invoke-Cal2ResumeOffer). Relaunch : une table par relance (reponse a la fenetre : Choice ; lancement different : Fam,
+    # Fine, Slow, Tgt, Img, MaxCyl, Drive, Other ; reglage change avant : Bound, ReadArgs, Bits ; Start : le lancement va
+    # jusqu a la creation d un etat) ; AutoResume : la meme calibration est relancee et reprise tant qu un etat est garde
+    $rounds = New-Object System.Collections.Generic.List[object]
+    $rl = @(@($o.Relaunch) | Where-Object { $null -ne $_ }); $ri = 0
+    while ($o.RealStop -and -not $script:Cal -and ($ri -lt $rl.Count -or ($o.AutoResume -and $script:CalResume -and $rounds.Count -lt 40))) {
+        $sp = if ($ri -lt $rl.Count) { $rl[$ri] } else { @{ Choice = 'go' } }; $ri++
+        $kept = $script:CalResume
+        $rd = @{ Kept = [bool]$kept; KeptCal = $(if ($kept) { $kept.Cal } else { $null }); LogAt = $script:CLog.Count; CmdAt = $script:CCmds.Count; PromptAt = $script:CPrompts.Count; ConfAt = $script:CConfirm.Count; StepAt = $script:CSteps.Count; PatAt = $script:CPatN }
+        $lf = if ($sp.ContainsKey('Fam')) { [string]$sp.Fam } else { $fam }; $lfine = if ($sp.ContainsKey('Fine')) { [bool]$sp.Fine } else { $fine }; $lslow = if ($sp.ContainsKey('Slow')) { [bool]$sp.Slow } else { $slow }
+        $lmax = if ($sp.ContainsKey('MaxCyl')) { [int]$sp.MaxCyl } else { $maxCyl }
+        if ($lfine) { $lcyls = @(0..$lmax) } else { $lcyls = @(0..$lmax | Where-Object { $_ % 10 -eq 0 }); if ($lcyls -notcontains $lmax) { $lcyls += $lmax } }
+        $limg = if ($sp.ContainsKey('Img')) { [string]$sp.Img } else { 'C:\x\image.adf' }
+        $lcx = if ($sp.ContainsKey('Tgt')) { $(if ($sp.Tgt) { @{ Src = 'A'; Tgt = [string]$sp.Tgt } } else { $null }) } elseif ($o.Cross) { @{ Src = 'A'; Tgt = '0' } } else { $null }
+        $lgeom = if ($sp.ContainsKey('Geom')) { $sp.Geom } else { $geom }
+        if ($sp.ContainsKey('Drive')) { $cmbDrive.Text = [string]$sp.Drive }
+        $svAuto = $script:CalHardAuto; $svUser = $script:CalHardNsUser
+        if ($sp.ContainsKey('Bound')) { $script:CalHardAuto = $false; $script:CalHardNsUser = [int]$sp.Bound }
+        if ($sp.ContainsKey('ReadArgs')) { $script:CReadArgs = @($sp.ReadArgs) }
+        if ($sp.ContainsKey('Bits')) { $script:CPatBits = [int]$sp.Bits }
+        if ($sp.Other -eq 'after') { $script:AfterCalib = 'write' }
+        $script:CConfirmAns = if ($sp.Choice) { [string]$sp.Choice } else { 'close' }
+        $ret = Invoke-Cal2ResumeOffer $lf $lcyls $lmax $lslow $lfine $limg $lgeom $lcx ([bool]($sp.Other -eq 'redo')) $(if ($sp.Other -eq 'disk') { @{ Brand = '' } } else { $null }) $(if ($sp.Other -eq 'fallback') { @{ Swap = $false } } else { $null }) ([bool]($sp.Other -eq 'level')) ($lmax + 1) $true ''
+        $rd.Ret = $ret; $rd.Resumed = [bool]$script:Cal; $rd.StateAfterOffer = [bool]$script:CalResume
+        # Start : le lancement, non repris, va jusqu a la creation d un etat (instructions reelles qui suivent le litteral)
+        if ($ret -and $sp.Start) { $script:Cal = @{}; Set-Cal2ResumeStart $false $null $false @{ Ok = $true; Swap = $false; Auto = $false }; $script:Cal = $null }
+        # Reglages remis comme a l interruption : la relance suivante retrouve la meme calibration
+        $cmbDrive.Text = 'A'; $script:AfterCalib = ''; $script:CReadArgs = @(); $script:CPatBits = $(if ($fam -eq 'hd') { 200000 } else { 101344 })
+        $script:CalHardAuto = $svAuto; $script:CalHardNsUser = $svUser
+        $rd.StateAfter = [bool]$script:CalResume
+        Invoke-Drive
+        $rd.Log = @($script:CLog.ToArray() | Select-Object -Skip $rd.LogAt); $rd.Cmds = @($script:CCmds.ToArray() | Select-Object -Skip $rd.CmdAt); $rd.Prompts = @($script:CPrompts.ToArray() | Select-Object -Skip $rd.PromptAt)
+        $rd.Confirm = @($script:CConfirm.ToArray() | Select-Object -Skip $rd.ConfAt); $rd.Steps = @($script:CSteps.ToArray() | Select-Object -Skip $rd.StepAt); $rd.PatN = $script:CPatN - $rd.PatAt
+        $rounds.Add($rd)
+    }
     $r = @{ Cmds = $script:CCmds.ToArray(); At = $script:CAt.ToArray(); Steps = $script:CSteps.ToArray(); Log = $script:CLog.ToArray(); Prompts = $script:CPrompts.ToArray(); State0 = $st0
             Backup = $script:CBackup.ToArray(); Shown = $script:CShown.ToArray(); Review = $script:CReview.ToArray(); Stop = $script:CStop.ToArray(); NSave = $script:NSave; NUpd = $script:NUpd; NRestore = $script:NRestore; Guard = $script:CGuard; NAna = $script:NAna
             Done = (-not $script:Cal); Cal = $script:Cal; LblCal = [string]$lblWCal.Text; LblInfo = [string]$lblWProfileInfo.Text
             End = $(if ($script:Cal) { @{ Swaps = [int]$script:Cal.Swaps; DiskAt = [string]$script:Cal.DiskAt; HoldNull = ($null -eq $script:Cal.SwapHold) } } else { $null })
-            Store = @{}; View = @{}; Levels = @($script:LevelShifts.Keys); PrecompStd = $script:PrecompStd; PlanOf = $script:CPlanOf.ToArray() }
+            Store = @{}; View = @{}; Levels = @($script:LevelShifts.Keys); PrecompStd = $script:PrecompStd; PlanOf = $script:CPlanOf.ToArray()
+            Rounds = $rounds.ToArray(); Breaks = $script:CBreakLog.ToArray(); Confirm = $script:CConfirm.ToArray(); Resume = $script:CalResume; BreaksLeft = @($script:CBreaks.Keys); PatN = $script:CPatN }
     foreach ($k in @($script:DriveCurves.Keys)) { $r.Store[$k] = $script:DriveCurves[$k] }
     foreach ($k in @($script:PrecompCurves.Keys)) { $r.View[$k] = $script:PrecompCurves[$k] }
     if ($o.Restart -and $script:Cal) {
@@ -718,6 +843,209 @@ Chk 'D1' ($sn.SnapDrive -eq 'A>0' -and $sn.SnapH0 -eq '0=20' -and $sn.SnapH1Null
 Chk 'D2' ($sn.AfterSet.H0 -eq '0=25' -and $sn.AfterSet.H1 -eq '0=27' -and $sn.AfterSet.ViewH0 -eq '0=50' -and $sn.AfterSet.Keys -eq ((@('A>0|std_h0', 'A>0|std_h1', 'A|std_h0', 'A|std_h1') | Sort-Object) -join ',')) "nouvelles courbes croisees en magasin, vue du lecteur A inchangee (courbe propre 0=50), 4 cles"
 Chk 'D3' ($sn.AfterRestore.H0 -eq '0=20' -and $sn.AfterRestore.H1Null -and $sn.AfterRestore.Keys -eq ((@('A>0|std_h0', 'A|std_h0', 'A|std_h1') | Sort-Object) -join ',') -and $sn.AfterRestore.ViewH0 -eq '0=50' -and $sn.AfterRestore.Std -eq '0=99' -and $sn.AfterRestore.Levels -eq 1 -and $sn.AfterRestore.NUpd -eq 1 -and $sn.AfterRestore.NSave -eq 1 -and $sn.AfterRestore.P0 -eq '0=10') "refus : courbe croisee precedente retablie (tete 0), entree de la tete 1 retiree, vue et profil de famille du lecteur du bandeau non touches, niveaux gardes, profil de l image recalcule, configuration enregistree"
 Chk 'D4' ($null -eq $sn.NoCurve -and $null -eq $sn.NoCurveNull -and $sn.NoForm) "Show-CurvesWindow sans courbe (lecteur B>0 sans courbe, liste nulle) : rien, aucune fenetre"
+
+# ================================================================ Y. reprise d une calibration interrompue (12.11 rc4, R5 partie 2)
+"--- Y. Reprise d une calibration interrompue : vraies Stop-PrecompCalib, Set-CalibResume, Resume-PrecompCalib et bloc reel de Start-PrecompCalib ; gw simule"
+# Deroule par la file reelle, comme le bloc E, avec la vraie Stop-PrecompCalib (RealStop). Une commande gw de la passe
+# indiquee echoue, ou « Arreter » est demande pendant elle (Invoke-SimBreak) ; la meme calibration est relancee par le bloc
+# reel de Start-PrecompCalib (Invoke-Cal2ResumeOffer), la fenetre de reprise recoit la reponse du scenario. Preuve du calcul
+# inchange : memes tirages (une commande interrompue n en consomme aucun), et courbes enregistrees egales champ par champ,
+# hors la date, a celles de la meme calibration menee d un seul trait.
+function ConvertTo-CmpText($v) {
+    # Texte de comparaison d une valeur d une courbe : nombres au format invariant aller-retour, tables par cles triees
+    if ($null -eq $v) { return 'null' }
+    if ($v -is [double] -or $v -is [single]) { return ([double]$v).ToString('R', [System.Globalization.CultureInfo]::InvariantCulture) }
+    if ($v -is [string] -or $v -is [bool] -or $v -is [int] -or $v -is [long]) { return [string]$v }
+    if ($v -is [System.Collections.IDictionary]) { return '{' + ((@($v.Keys | Sort-Object { [string]$_ }) | ForEach-Object { "$_=" + (ConvertTo-CmpText $v[$_]) }) -join ';') + '}' }
+    if ($v -is [System.Collections.IEnumerable]) { return '[' + ((@($v) | ForEach-Object { ConvertTo-CmpText $_ }) -join ',') + ']' }
+    return [string]$v
+}
+function Get-CurveCmp($store, [string[]]$keys) {
+    # Courbes du magasin sous ces cles, tous leurs champs sauf la date (minute de la fin de la calibration)
+    $out = @()
+    foreach ($k in $keys) {
+        $cv = $store[$k]
+        if (-not $cv) { $out += "${k}:absente"; continue }
+        $out += "${k}:" + ((@($cv.Keys | Where-Object { $_ -ne 'Date' } | Sort-Object) | ForEach-Object { "$_=" + (ConvertTo-CmpText $cv[$_]) }) -join ';')
+    }
+    return ($out -join "`n")
+}
+function Get-PassSeq($log) {
+    # Passes annoncees au journal, dans l ordre : m (mesure), e (encadrement), c (mesure complementaire), v (verification), n (nouvel essai)
+    return (@(@($log) | ForEach-Object { if ($_ -like 'Calibration : passe de mesure */*') { 'm' } elseif ($_ -like "Calibration : passe d'encadrement*") { 'e' } elseif ($_ -like 'Calibration : mesure complémentaire*') { 'c' } elseif ($_ -like 'Calibration : passe de vérification */* du nouvel essai*') { 'n' } elseif ($_ -like 'Calibration : passe de vérification */*') { 'v' } }) -join '')
+}
+$yKeysX = @('A>0|std_h0', 'A>0|std_h1')
+$yBase = @{ Cross = $true; Fam = 'std'; Fine = $true; Slow = $true; MaxCyl = 79; Fake = $false; RealStop = $true }
+$yRef = Invoke-CrossCase $yBase
+$yRefCmp = Get-CurveCmp $yRef.Store $yKeysX
+"    | reference croisee : $($yRef.Cmds.Count) commandes, passes $(Get-PassSeq $yRef.Log), $($yRef.Prompts.Count) invites ; champs d une courbe : $((@($yRef.Store['A>0|std_h0'].Keys) | Sort-Object) -join ',')"
+Chk 'Y1' ($yRef.Done -and $yRef.Rounds.Count -eq 0 -and $yRef.Confirm.Count -eq 0 -and $null -eq $yRef.Resume -and $yRef.Breaks.Count -eq 0 -and $yRefCmp -eq (Get-CurveCmp $eX.Store $yKeysX) -and ($yRef.Cmds -join "`n") -eq ($eX.Cmds -join "`n") -and $yRefCmp -notlike '*absente*') "calibration croisee d un seul trait avec le suivi de la reprise (ResumeKind, PassLog) : memes commandes et memes courbes, champ par champ, que le cas E sans ce suivi ; rien de garde a la fin, aucune fenetre"
+
+# --- Y2 : le cas du retour R5 : port du Greaseweazle introuvable a la relecture de la verification 1
+$y2 = Invoke-CrossCase (Merge-Opt $yBase @{ Breaks = @{ '4|read' = 'port' }; Relaunch = @(@{ Choice = 'go' }) })
+$y2b = @($y2.Breaks); $y2r = @($y2.Rounds)
+$y2msg = "Calibration interrompue à l'étape 4 (vérification 1) : Greaseweazle déconnecté, gw n'a pas pu ouvrir son port, même à la nouvelle tentative. Passes faites, gardées en mémoire : passe de mesure 1/3, passe de mesure 2/3, passe de mesure 3/3. Reprise possible tant que l'application reste ouverte : relancez la même calibration (mêmes lecteurs, même famille, même test, même image ou même type de disquette, mêmes options de lecteur), avec la même disquette ; une fenêtre proposera de reprendre à l'étape 4, rejouée en entier. La disquette est dans le lecteur 0, celui qui relit."
+$y2i = Get-LogIdx $y2.Log 'Calibration precomp interrompue.'
+Chk 'Y2a' ($y2b.Count -eq 1 -and [int]$y2b[0].Pass -eq 4 -and $y2b[0].Stage -eq 'verify' -and $y2b[0].DiskAt -eq 'T' -and $y2i -ge 0 -and [string]$y2.Log[$y2i + 1] -ceq $y2msg -and (Get-LogN $y2.Log 'Calibration precomp interrompue.') -eq 1) "interruption a la relecture de la verification 1 (passe 4, disquette dans la cible) : apres « Calibration precomp interrompue. », le journal dit la cause, l etape, les passes gardees, comment reprendre et ou est la disquette"
+# Libelle de l onglet Ecriture (repris par le bilan de l Accueil) : court, pas plus long que le libelle de l attente d un
+# echange (cas P2), qui tient sur une ligne a la taille minimale de la fenetre ; en anglais aussi (entree de 019), etape 10
+$yLblFr = "Calibration interrompue : relancez-la pour reprendre à l'étape {0}."
+$y019 = [System.IO.File]::ReadAllText((Join-Path $mods '019-i18n-1211.ps1'))
+$yLblEn = if ($y019 -match "(?m)^\`$script:I18n\[`"Calibration interrompue : relancez-la pour reprendre à l'étape \{0\}\.`"\] = '([^']+)'") { [string]$Matches[1] } else { '' }
+$yLblMax = ("Calibration croisée : déplacez la disquette du lecteur A vers le lecteur 0").Length
+Chk 'Y2a2' ([string]$y2b[0].Lbl -ceq ($yLblFr -f '4') -and $yLblEn -like '*{0}*' -and ($yLblFr -f '10').Length -le $yLblMax -and ($yLblEn -f '10').Length -le $yLblMax) "libelle de l onglet a l interruption : « $($y2b[0].Lbl) » ; anglais : « $($yLblEn -f '4') » ; $(($yLblFr -f '10').Length) et $(($yLblEn -f '10').Length) caracteres a l etape 10, pour $yLblMax au libelle de l attente d un echange (longueur en caracteres, largeur non mesuree)"
+$y2c = @($y2r[0].Confirm)
+$y2txt = "La calibration croisée A → 0, Standard 2 us, test fin a été interrompue à l'étape 4 (vérification 1) : Greaseweazle déconnecté, gw n'a pas pu ouvrir son port, même à la nouvelle tentative.`nPasses faites, gardées en mémoire : passe de mesure 1/3, passe de mesure 2/3, passe de mesure 3/3.`n`nReprendre : l'étape 4 (vérification 1) est rejouée en entier, ses pistes de nouveau effacées, écrites puis relues (une écriture de plus que prévu sur ces pistes). La calibration continue ensuite avec les mesures gardées : son résultat est calculé comme sans interruption.`nUtilisez la même disquette. Elle doit se trouver dans le lecteur 0, celui qui relit : c'est là que le journal l'annonçait à l'interruption. Si vous l'avez déplacée, remettez-la dans ce lecteur avant de reprendre ; l'application demandera ensuite chaque échange, comme avant.`n`nRecommencer : les mesures gardées sont abandonnées, et la calibration repart de son avertissement.`nFermer : rien n'est lancé ; la calibration reste à reprendre tant que l'application est ouverte et qu'aucune autre calibration ne commence."
+Chk 'Y2b' ($y2r.Count -eq 1 -and $y2r[0].Kept -and $y2c.Count -eq 1 -and $y2c[0].Title -eq 'Calibration precomp' -and $y2c[0].Heading -ceq 'Reprendre la calibration interrompue ?' -and $y2c[0].Go -ceq "Reprendre à l'étape 4" -and $y2c[0].Alt -ceq 'Recommencer' -and $y2c[0].Level -eq 'info' -and $y2c[0].Picto -eq 'data' -and $y2c[0].Check -eq '' -and [string]$y2c[0].Text -ceq $y2txt -and [int]$y2c[0].CmdIdx -eq $yRef.Cmds.Count) "relance de la meme calibration : fenetre « $($y2c[0].Heading) », boutons « $($y2c[0].Go) » et « $($y2c[0].Alt) », sans case, avant toute commande ; texte : cause, etape, passes gardees, meme disquette, lecteur 0 (celui qui relit), effet de chaque bouton"
+$y2st = (@($y2r[0].Steps) -join ' > ')
+$y2log = @($y2r[0].Log)
+$y2pr = @($y2r[0].Prompts)
+Chk 'Y2c' ($null -eq $y2r[0].Ret -and $y2r[0].Resumed -and -not $y2r[0].StateAfter -and [int]$y2r[0].PatN -eq 1 -and
+           [string]$y2log[0] -ceq "=== Calibration reprise à l'étape 4 (vérification 1) : 3 passe(s) gardée(s) (passe de mesure 1/3, passe de mesure 2/3, passe de mesure 3/3) ; l'étape interrompue est rejouée en entier ===" -and
+           [string]$y2log[1] -ceq "Calibration croisée reprise : disquette attendue dans le lecteur 0, celui qui relit, là où le journal l'annonçait à l'interruption." -and
+           $y2st -like "Invoke-CalibSwap 'S' > Start-CalibWarmup > Invoke-CalibSwap 'S' > gw erase > gw write > gw write > Invoke-CalibSwap 'T' > gw read > Invoke-CalibAnalysis*" -and
+           $y2pr.Count -eq 2 -and $y2pr[0].Text -like 'Échange 8 : retirez la disquette du lecteur 0 et insérez-la dans le lecteur A, celui qui écrit,*' -and $y2pr[1].Text -like 'Échange 9 : retirez la disquette du lecteur A et insérez-la dans le lecteur 0, celui qui relit,*') "« Reprendre » : Start-PrecompCalib s arrete la (pas d avertissement), etat garde consomme, motif regenere ; journal de la reprise ; la disquette revient d abord dans le lecteur qui ecrit (echange 8), puis la passe est rejouee : $y2st"
+$yRefV = @($yRef.Cmds | Select-Object -Last 4)
+Chk 'Y2d' ((@($y2r[0].Cmds) -join "`n") -ceq ($yRefV -join "`n") -and $yRefV[0] -like 'erase *' -and $yRefV[3] -like 'read --drive=0 *' -and $y2.Cmds.Count -eq ($yRef.Cmds.Count + 4)) "passe interrompue rejouee en entier : apres la reprise, les 4 commandes de la verification 1 de la calibration d un seul trait, a l identique (effacement, ecriture de chaque tete, relecture) ; $($y2.Cmds.Count) commandes en tout pour $($yRef.Cmds.Count) sans interruption"
+Chk 'Y2e' ($y2.Done -and $null -eq $y2.Resume -and (Get-CurveCmp $y2.Store $yKeysX) -ceq $yRefCmp -and $y2.Prompts.Count -eq ($yRef.Prompts.Count + 2) -and $y2.LblCal -like "Calibration croisée terminée en *, $($yRef.Prompts.Count + 2) échange(s) de disquette*" -and (Get-PassSeq $y2.Log) -eq ((Get-PassSeq $yRef.Log) + 'v')) "calibration interrompue puis reprise : courbes « A>0|std_h0 » et « A>0|std_h1 » egales champ par champ (hors la date) a celles de la calibration d un seul trait ; $($y2.Prompts.Count) echanges ; rien de garde a la fin"
+
+# --- Y3 : une interruption a chaque passe a partir de la deuxieme, de toutes natures, deux fois sur la passe 2
+$y3 = Invoke-CrossCase (Merge-Opt $yBase @{ Breaks = @{ '2|write' = 'stop'; '2|read' = 'scp'; '3|erase' = 'code'; '4|write' = 'incomplete'; '4|read' = 'launch' }; AutoResume = $true })
+$y3k = (@($y3.Breaks | ForEach-Object { "$($_.Pass):$($_.Kind)" }) -join ',')
+$y3causes = @($y3.Log | Where-Object { $_ -like "Calibration interrompue à l'étape *" } | ForEach-Object { if ($_ -match "^Calibration interrompue à l'étape (\d+) \(([^)]*)\) : (.*?)\. Passes faites") { "$($Matches[1])|$($Matches[2])|$($Matches[3])" } else { "?|$_" } })
+$y3exp = @('2|passe de mesure 2/3|arrêt à votre demande', '2|passe de mesure 2/3|relevé de la passe absent ou illisible', '3|passe de mesure 3/3|erreur de gw (code retour 1)',
+           '4|vérification 1|commande gw incomplète (disquette protégée en écriture ou absente, lecteur en défaut ?)', "4|vérification 1|gw n'a pas pu être lancé")
+Chk 'Y3a' ($y3k -eq '2:stop,2:scp,3:code,4:incomplete,4:launch' -and $y3.BreaksLeft.Count -eq 0 -and $y3.Rounds.Count -eq 5 -and (@($y3.Rounds | Where-Object { -not $_.Kept -or -not $_.Resumed -or @($_.Confirm).Count -ne 1 }).Count -eq 0) -and ($y3causes -join "`n") -ceq ($y3exp -join "`n")) "cinq interruptions ($y3k) : « Arreter », releve absent, code retour, commande incomplete, gw non lance ; chacune garde les passes faites et dit sa cause et son etape ; cinq fenetres, cinq reprises"
+Chk 'Y3b' ($y3.Done -and $null -eq $y3.Resume -and (Get-CurveCmp $y3.Store $yKeysX) -ceq $yRefCmp -and (@($y3.Cmds | Where-Object { $_ -like 'read *' }).Count -eq (@($yRef.Cmds | Where-Object { $_ -like 'read *' }).Count + 2))) "interrompue cinq fois et reprise cinq fois : courbes egales champ par champ a celles de la calibration d un seul trait"
+$y3go = (@($y3.Rounds | ForEach-Object { @($_.Confirm)[0].Go }) -join ' ; ')
+$y3disk = (@($y3.Rounds | ForEach-Object { if (@($_.Confirm)[0].Text -match 'dans le lecteur (\S+), (celui qui [^ ]+) :') { "$($Matches[1]) $($Matches[2])" } else { '?' } }) -join ' ; ')
+Chk 'Y3c' ($y3go -ceq "Reprendre à l'étape 2 ; Reprendre à l'étape 2 ; Reprendre à l'étape 3 ; Reprendre à l'étape 4 ; Reprendre à l'étape 4" -and $y3disk -ceq 'A celui qui écrit ; 0 celui qui relit ; A celui qui écrit ; A celui qui écrit ; 0 celui qui relit') "boutons : $y3go ; lecteur ou doit se trouver la disquette, celui que le journal annoncait a l interruption : $y3disk"
+
+# --- Y4 : invite d echange annulee pendant la reprise : la calibration reste a reprendre, au meme echange
+$y4 = Invoke-CrossCase (Merge-Opt $yBase @{ Breaks = @{ '4|read' = 'port' }; Answers = @($true, $true, $true, $true, $true, $true, $true, $false); AutoResume = $true })
+$y4r = @($y4.Rounds)
+$y4l0 = @($y4r[0].Log)
+Chk 'Y4' ($y4r.Count -eq 2 -and $y4r[0].Kept -and -not $y4r[0].Resumed -and $y4r[0].StateAfter -and @($y4r[0].Cmds).Count -eq 0 -and [string]$y4l0[0] -like "=== Calibration reprise à l'étape 4 (vérification 1) : 3 passe(s) gardée(s)*" -and (Get-LogIdx $y4l0 'Calibration croisée arrêtée à votre demande (échange 8 annulé) ; la disquette est dans le lecteur 0.') -ge 0 -and (Get-LogIdx $y4l0 "Calibration interrompue à l'étape 4 (vérification 1) : arrêt à votre demande. Passes faites, gardées en mémoire : passe de mesure 1/3, passe de mesure 2/3, passe de mesure 3/3.*La disquette est dans le lecteur 0, celui qui relit.") -ge 0 -and
+          $y4r[1].Kept -and $y4r[1].Resumed -and @($y4r[1].Prompts)[0].Text -like 'Échange 8 : retirez la disquette du lecteur 0 *' -and $y4.Done -and $null -eq $y4.Resume -and (Get-CurveCmp $y4.Store $yKeysX) -ceq $yRefCmp) "echange 8 annule pendant la reprise : aucune commande, calibration de nouveau gardee a l etape 4, disquette toujours dans le lecteur 0 ; seconde reprise : echange 8 redemande, courbes egales a celles de la calibration d un seul trait"
+
+# --- Y5 : lecteur a fort besoin (passe d encadrement et suites), interruption a chaque passe
+$y5ref = Invoke-CrossCase (Merge-Opt $yBase @{ Need0 = $true })
+$y5seq = Get-PassSeq $y5ref.Log
+$y5n = $y5seq.Length
+$y5kinds = @('stop', 'port', 'code', 'incomplete'); $y5verbs = @('write', 'read', 'erase', 'read')
+$y5bk = @{}
+for ($p = 2; $p -le $y5n; $p++) { $y5bk["$p|$($y5verbs[$p % 4])"] = $y5kinds[$p % 4] }
+$y5 = Invoke-CrossCase (Merge-Opt $yBase @{ Need0 = $true; Breaks = $y5bk; AutoResume = $true })
+$y5names = (@($y5.Rounds | ForEach-Object { if (@($_.Confirm)[0].Text -match "interrompue à l'étape (\d+) \(([^)]*)\)") { "$($Matches[1]) $($Matches[2])" } else { '?' } }) -join ' ; ')
+"    | fort besoin : passes $y5seq d un seul trait ; etapes interrompues : $y5names"
+Chk 'Y5' ($y5ref.Done -and $y5seq -match 'e' -and $y5n -ge 5 -and $y5.Done -and $null -eq $y5.Resume -and $y5.Breaks.Count -eq ($y5n - 1) -and $y5.BreaksLeft.Count -eq 0 -and $y5.Rounds.Count -eq ($y5n - 1) -and (Get-CurveCmp $y5.Store $yKeysX) -ceq (Get-CurveCmp $y5ref.Store $yKeysX) -and (Get-CurveCmp $y5ref.Store $yKeysX) -notlike '*absente*' -and $y5names -like '*encadrement*') "lecteur a fort besoin, passes $y5seq : interrompue a chacune des $($y5n - 1) passes qui suivent la premiere (encadrement compris) et reprise autant de fois : courbes egales champ par champ a celles de la calibration d un seul trait"
+
+# --- Y6 : calibration ordinaire (un seul lecteur), test standard, courbe commune : mesures complementaires comprises
+$yKeysO = @('A|std')
+$yOrd = @{ Cross = $false; Fam = 'std'; Fine = $false; Slow = $false; MaxCyl = 79; Fake = $false; RealStop = $true }
+$y6ref = Invoke-CrossCase $yOrd
+$y6seq = Get-PassSeq $y6ref.Log; $y6n = $y6seq.Length
+$y6bk = @{}
+for ($p = 2; $p -le $y6n; $p++) { $y6bk["$p|$($y5verbs[$p % 4])"] = $y5kinds[$p % 4] }
+$y6 = Invoke-CrossCase (Merge-Opt $yOrd @{ Breaks = $y6bk; AutoResume = $true })
+$y6c0 = @(@($y6.Rounds)[0].Confirm)[0]
+$y6names = (@($y6.Rounds | ForEach-Object { if (@($_.Confirm)[0].Text -match "interrompue à l'étape (\d+) \(([^)]*)\)") { "$($Matches[1]) $($Matches[2])" } else { '?' } }) -join ' ; ')
+"    | ordinaire, test standard : passes $y6seq d un seul trait ; etapes interrompues : $y6names"
+Chk 'Y6a' ($y6ref.Done -and $y6n -ge 4 -and $y6.Done -and $null -eq $y6.Resume -and $y6.Rounds.Count -eq ($y6n - 1) -and $y6.BreaksLeft.Count -eq 0 -and $y6.Prompts.Count -eq 0 -and (Get-CurveCmp $y6.Store $yKeysO) -ceq (Get-CurveCmp $y6ref.Store $yKeysO) -and (Get-CurveCmp $y6ref.Store $yKeysO) -notlike '*absente*') "calibration ordinaire, test standard, courbe commune, passes $y6seq : interrompue a chaque passe apres la premiere et reprise : courbe « A|std » egale champ par champ a celle de la calibration d un seul trait, aucune invite d echange"
+Chk 'Y6b' ($y6c0.Text -like 'La calibration du lecteur A, Standard 2 us, test standard a été interrompue à l''étape 2 (*' -and $y6c0.Text -like "*`nUtilisez la même disquette, dans le lecteur A.`n*" -and $y6c0.Text -notlike '*échange*' -and @(@($y6.Rounds)[0].Steps)[0] -notlike 'Invoke-CalibSwap*' -and @(@($y6.Rounds)[0].Log)[1] -notlike 'Calibration croisée reprise*') "calibration ordinaire : fenetre « calibration du lecteur A, Standard 2 us, test standard », meme disquette dans le lecteur A, ni echange ni ligne de calibration croisee"
+
+# --- Y7 : rien a reprendre
+$y7a = Invoke-CrossCase (Merge-Opt $yBase @{ Breaks = @{ '1|read' = 'port' }; Relaunch = @(@{ Choice = 'go' }) })
+$y7b = Invoke-CrossCase (Merge-Opt $yBase @{ Breaks = @{ '1|erase' = 'stop' } })
+$y7c = Invoke-CrossCase (Merge-Opt $yBase @{ Breaks = @{ '3|write' = 'error' } })
+$y7d = Invoke-CrossCase (Merge-Opt $yBase @{ Breaks = @{ '3|read' = 'port' }; Redo = $true })
+$y7e = Invoke-CrossCase (Merge-Opt $yBase @{ Breaks = @{ '3|read' = 'port' }; After = 'write' })
+Chk 'Y7a' ($y7a.Done -and $null -eq $y7a.Resume -and @($y7a.Breaks)[0].Lbl -ceq 'Calibration precomp interrompue.' -and (Get-LogIdx $y7a.Log "Calibration interrompue à l'étape 1 (passe de mesure 1/3) : Greaseweazle déconnecté, gw n'a pas pu ouvrir son port, même à la nouvelle tentative. Aucune passe n'était terminée : rien n'est gardé, la calibration est à recommencer.") -ge 0 -and @($y7a.Rounds)[0].Ret.Next -eq 'suite' -and $y7a.Confirm.Count -eq 0 -and
+           $null -eq $y7b.Resume -and (Get-LogIdx $y7b.Log "Calibration interrompue à l'étape 1 (passe de mesure 1/3, pendant le conditionnement du lecteur) : arrêt à votre demande. Aucune passe n'était terminée : rien n'est gardé, la calibration est à recommencer.") -ge 0) "interruption avant la fin de la premiere passe (relecture de la passe 1 ; conditionnement du lecteur) : rien de garde, le journal le dit ; la relance passe a l avertissement ordinaire, sans fenetre de reprise"
+Chk 'Y7b' ($y7c.Done -and $null -eq $y7c.Resume -and (Get-LogN $y7c.Log "Calibration interrompue à l'étape*") -eq 0 -and (Get-LogN $y7c.Log 'Calibration precomp interrompue.') -eq 1 -and
+           $null -eq $y7d.Resume -and (Get-LogN $y7d.Log "Calibration interrompue à l'étape*") -eq 0 -and $null -eq $y7e.Resume -and (Get-LogN $y7e.Log "Calibration interrompue à l'étape*") -eq 0) "cause non reconnue (etape en erreur), calibration B, calibration suivie d une ecriture : rien de garde, journal d avant (« Calibration precomp interrompue. » seule)"
+
+$y7f = Invoke-CrossCase (Merge-Opt $yBase @{ Breaks = @{ '3|write' = 'throw' } })
+Chk 'Y7c' ($y7f.Done -and $null -eq $y7f.Resume -and (Get-LogIdx $y7f.Log 'Calibration : options de relecture illisibles') -eq ((Get-LogIdx $y7f.Log 'Calibration precomp interrompue.') + 1) -and (Get-LogN $y7f.Log "Calibration interrompue à l'étape*") -eq 0 -and @($y7f.Breaks)[0].Lbl -ceq 'Calibration precomp interrompue.') "erreur pendant la mise en memoire des passes faites (options de relecture illisibles, provoquee) : Stop-PrecompCalib va a son terme, la calibration est arretee, rien n est garde, l erreur est notee au journal"
+
+# --- Y8 : lancement different : pas de fenetre, l avertissement dit que les passes gardees seraient abandonnees ; l etat reste
+$yNote = "Une calibration interrompue est gardée en mémoire (calibration croisée A → 0, Standard 2 us, test fin, à reprendre à l'étape 4) : ce lancement ne peut pas la reprendre ({0}). Si vous lancez cette calibration, ses passes faites seront abandonnées."
+$yOther = "ce lancement n'est pas une calibration du lecteur faite pour elle-même"
+$yDiff = [ordered]@{
+    'famille' = @{ Fam = 'long' }; 'mode de test' = @{ Fine = $false }; 'courbe par tête' = @{ Slow = $false }; 'lecteur cible' = @{ Tgt = '1' }; 'lecteur' = @{ Drive = 'B' }
+    'image' = @{ Img = 'C:\x\autre.adf' }; 'cylindres de test' = @{ MaxCyl = 81 }; 'densité du motif' = @{ Bits = 105808 }; 'type de disquette' = @{ Geom = @{ Fmt = 'amiga.amigados'; Label = 'Amiga' } }
+}
+$yRl = @(); $yWhy = @()
+foreach ($k in @($yDiff.Keys)) { $yRl += $yDiff[$k]; $yWhy += "ce qui diffère : $k" }
+$yRl += @{ Tgt = '' }; $yWhy += 'ce qui diffère : lecteur cible'
+$yRl += @{ Bound = 300 }; $yWhy += "ce qui diffère : options de lecteur de l'onglet Écriture ou borne de précompensation"
+$yRl += @{ ReadArgs = @('--reverse') }; $yWhy += "ce qui diffère : options de lecteur de l'onglet Écriture ou borne de précompensation"
+foreach ($k in 'redo', 'disk', 'fallback', 'level', 'after') { $yRl += @{ Other = $k }; $yWhy += $yOther }
+$yNd = $yRl.Count
+$yRl += @{ Choice = 'close' }; $yRl += @{ Choice = 'go' }
+$y8 = Invoke-CrossCase (Merge-Opt $yBase @{ Breaks = @{ '4|read' = 'port' }; Relaunch = $yRl })
+$y8r = @($y8.Rounds)
+$y8bad = @(for ($i = 0; $i -lt $yNd; $i++) { $rd = $y8r[$i]; $exp = $yNote -f $yWhy[$i]; if (-not $rd.Kept -or $rd.Resumed -or -not $rd.StateAfter -or $null -eq $rd.Ret -or $rd.Ret.Next -ne 'suite' -or [string]$rd.Ret.Intro -cne ($exp + "`n`n") -or @($rd.Confirm).Count -ne 0 -or @($rd.Cmds).Count -ne 0 -or @($rd.Log).Count -ne 1 -or [string]@($rd.Log)[0] -cne $exp) { "$i ($($yWhy[$i]))" } })
+Chk 'Y8a' ($y8r.Count -eq ($yNd + 2) -and $y8bad.Count -eq 0) "$yNd lancements qui ne sont pas la calibration gardee (famille, test, courbe par tete, lecteur cible, lecteur, image, cylindres, densite du motif, type de disquette, calibration non croisee, borne, options de relecture, calibration B, mesure d une disquette, repli, mesure a la suite, ecriture a la suite) : pas de fenetre, la phrase mise en tete de l avertissement et au journal nomme ce qui differe, rien n est lance par le bloc, l etat reste garde ; en defaut : $($y8bad -join ', ')"
+$y8c = $y8r[$yNd]; $y8g = $y8r[$yNd + 1]
+Chk 'Y8b' ($y8c.Kept -and $null -eq $y8c.Ret -and -not $y8c.Resumed -and $y8c.StateAfter -and @($y8c.Confirm).Count -eq 1 -and @($y8c.Cmds).Count -eq 0 -and @($y8c.Prompts).Count -eq 0 -and @($y8c.Log).Count -eq 0 -and [int]$y8c.PatN -eq 0) "fenetre de reprise fermee : Start-PrecompCalib s arrete la, rien n est lance ni ecrit au journal par le bloc, l etat reste garde"
+Chk 'Y8c' ($y8g.Kept -and $y8g.Resumed -and $y8.Done -and $null -eq $y8.Resume -and (Get-CurveCmp $y8.Store $yKeysX) -ceq $yRefCmp) "apres ces $($yNd + 1) relances sans effet, la meme calibration relancee est reprise : courbes egales a celles de la calibration d un seul trait"
+
+# --- Y9 : abandon : « Recommencer », ou une autre calibration qui commence
+$y9a = Invoke-CrossCase (Merge-Opt $yBase @{ Breaks = @{ '4|read' = 'port' }; Relaunch = @(@{ Choice = 'alt' }, @{ Choice = 'go' }) })
+$y9ar = @($y9a.Rounds)
+Chk 'Y9a' ($y9ar[0].Kept -and $y9ar[0].Ret.Next -eq 'suite' -and [string]$y9ar[0].Ret.Intro -eq '' -and -not $y9ar[0].Resumed -and -not $y9ar[0].StateAfter -and @($y9ar[0].Cmds).Count -eq 0 -and (@($y9ar[0].Log) -join '|') -ceq 'Calibration interrompue (calibration croisée A → 0, Standard 2 us, test fin) : passes gardées abandonnées (calibration recommencée à votre demande).' -and
+           -not $y9ar[1].Kept -and $y9ar[1].Ret.Next -eq 'suite' -and @($y9ar[1].Confirm).Count -eq 0 -and $null -eq $y9a.Resume) "« Recommencer » : passes gardees abandonnees, dit au journal, et Start-PrecompCalib continue vers son avertissement ; a la relance suivante, plus de fenetre de reprise"
+$y9b = Invoke-CrossCase (Merge-Opt $yBase @{ Breaks = @{ '4|read' = 'port' }; Relaunch = @(@{ Fam = 'long'; Start = $true }, @{ Choice = 'go' }) })
+$y9br = @($y9b.Rounds)
+Chk 'Y9b' ($y9br[0].Kept -and $y9br[0].StateAfterOffer -and -not $y9br[0].StateAfter -and (Get-LogIdx @($y9br[0].Log) 'Calibration interrompue (calibration croisée A → 0, Standard 2 us, test fin) : passes gardées abandonnées (une autre calibration commence).') -ge 0 -and -not $y9br[1].Kept -and @($y9br[1].Confirm).Count -eq 0 -and $y9br[1].Ret.Next -eq 'suite') "une autre calibration commence (instructions reelles qui suivent la creation de son etat) : passes gardees abandonnees, dit au journal ; la calibration d origine, relancee ensuite, n est plus proposee a la reprise"
+
+# --- Y0 : place des instructions dans la source (arbre syntaxique de 270, 540, 110, 600, 120)
+function Get-ResumeStatic {
+    $tFn = [System.Management.Automation.Language.FunctionDefinitionAst]; $tCmd = [System.Management.Automation.Language.CommandAst]
+    $o = @{}
+    $fd = @{}
+    foreach ($f in @($a270.FindAll({ param($x) $x -is $tFn }, $false))) { $fd[$f.Name] = $f }
+    $sp = @($fd['Start-PrecompCalib'].Body.EndBlock.Statements)
+    $ix = @{ Warm = -1; Offer = -1; Confirm = -1; State = -1; Clear = -1; Kind = -1 }
+    for ($i = 0; $i -lt $sp.Count; $i++) {
+        $t = [string]$sp[$i].Extent.Text
+        if ($t -like '$noWarm = *') { $ix.Warm = $i }
+        if ($t -like 'if ($script:CalResume) {*' -and $t -like '*Show-CalibResumeDialog*') { $ix.Offer = $i }
+        if ($ix.Confirm -lt 0 -and ($t -like "*'frmCalibConfirm'*" -or $t -like '*Show-CalibConfirm*')) { $ix.Confirm = $i }
+        if ($t -like '$script:Cal = @{*') { $ix.State = $i }
+        if ($t -like 'if ($script:CalResume) { Clear-CalibResume *') { $ix.Clear = $i }
+        if ($t -like '$script:Cal.ResumeKind = *') { $ix.Kind = $i }
+    }
+    $o.Ix = $ix
+    $o.Order = ($ix.Warm -ge 0 -and $ix.Offer -eq ($ix.Warm + 1) -and $ix.Confirm -gt $ix.Offer -and $ix.State -gt $ix.Confirm -and $ix.Clear -eq ($ix.State + 1) -and $ix.Kind -eq ($ix.State + 2))
+    # Entree de la passe (New-CalibPass) et debut de l analyse (Invoke-CalibAnalysis) : seuls a poser ResumeOk hors de la reprise
+    $np = @($fd['New-CalibPass'].Body.EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text })
+    $o.PassOk = (@($np | Where-Object { $_ -eq '$cal.ResumeOk = $true' }).Count -eq 1 -and [array]::IndexOf($np, '$cal.ResumeOk = $true') -gt [array]::IndexOf($np, 'Add-CalibWriteCmds $cal $writes') -and [array]::IndexOf($np, '$cal.ResumeOk = $true') -lt [array]::IndexOf($np, '$script:Chain.Clear()'))
+    $an = @($fd['Invoke-CalibAnalysis'].Body.EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text })
+    $iAdd = [array]::IndexOf($an, 'if ($cal.ResumeKind) { Add-CalibPassDone $cal }'); $iCnt = [array]::IndexOf($an, '$cal.PassesDone++')
+    $iRead = -1; for ($i = 0; $i -lt $an.Count; $i++) { if ($an[$i] -like 'try { $tracks = Read-ScpFile *') { $iRead = $i } }
+    $o.AnaOk = ($iAdd -gt $iRead -and $iRead -ge 0 -and $iCnt -gt $iAdd)
+    $stp = @($fd['Stop-PrecompCalib'].Body.EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text })
+    $iSet = [array]::IndexOf($stp, 'if ($cal -and $cal.ResumeKind) { try { Set-CalibResume $cal ([bool]$GwError) } catch { $script:CalResume = $null; Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)") } }')
+    $o.StopOk = ($iSet -gt 0 -and $stp[$iSet - 1] -eq "Append-Log (T 'Calibration precomp interrompue.')")
+    # Rien n est enregistre : aucune fonction de la reprise n appelle Save-Config, et la configuration (120) ne connait pas l etat garde
+    $names = @('Get-CalibStepInfo', 'Add-CalibPassDone', 'Get-CalibStopCause', 'Get-CalibResumeLabel', 'Get-CalibResumeDisk', 'Get-CalibResumeSig', 'Get-CalibResumeMismatch', 'Get-CalibResumeOffer', 'Get-CalibResumeText', 'Show-CalibResumeDialog', 'Clear-CalibResume', 'Set-CalibResume', 'Resume-PrecompCalib')
+    $o.NSave = 0; foreach ($n in $names) { $o.NSave += @($fd[$n].Body.FindAll({ param($x) $x -is $tCmd -and $x.GetCommandName() -eq 'Save-Config' }, $true)).Count }
+    $o.Files = @(Get-ChildItem -LiteralPath $mods -Filter '*.ps1' | Where-Object { $_.Name -notlike '01?-i18n*' -and [System.IO.File]::ReadAllText($_.FullName) -match 'CalResume' } | ForEach-Object { $_.Name.Substring(0, 3) } | Sort-Object)
+    # Ecritures de l etat garde : Set-CalibResume le pose, Clear-CalibResume et Resume-PrecompCalib le retirent, 560 l initialise
+    $tAs = [System.Management.Automation.Language.AssignmentStatementAst]
+    $o.Writers = @(foreach ($n in @($fd.Keys | Sort-Object)) { if (@($fd[$n].Body.FindAll({ param($x) $x -is $tAs -and $x.Left.Extent.Text -eq '$script:CalResume' }, $true)).Count -gt 0) { $n } })
+    # Causes : bouton « Arreter » (540) et invite d echange annulee marquent l arret demande ; minuteur (600) et lancement de gw (110) passent -GwError ; l etape en erreur (110) ne marque rien
+    $t540 = [System.IO.File]::ReadAllText((Join-Path $mods '540-ui-accueil-restauration-barre.ps1')); $t600 = [System.IO.File]::ReadAllText((Join-Path $mods '600-minuteur-demarrage.ps1')); $t110 = [System.IO.File]::ReadAllText((Join-Path $mods '110-fn-coeur-gw.ps1'))
+    $sw = [string]$fd['Invoke-CalibSwap'].Extent.Text
+    $o.Causes = ($t540.Contains('if ($script:Cal) { $script:Cal.StopBy = ''user''; Stop-PrecompCalib }') -and [regex]::Matches($t540, 'Stop-PrecompCalib').Count -eq 1 -and $sw -match "\`$cal\.StopBy = 'user'\s+#[^\r\n]*\r?\n\s+Stop-PrecompCalib" -and
+                 [regex]::Matches($t600, 'if \(\$script:Cal\) \{ Stop-PrecompCalib -GwError \}').Count -eq 2 -and $t110.Contains('if ($script:Cal) { Stop-PrecompCalib -GwError }') -and $t110.Contains('if ($script:Cal) { Stop-PrecompCalib }') -and $t110 -notmatch 'StopBy')
+    return $o
+}
+$ys = Get-ResumeStatic
+Chk 'Y0a' ($ys.Order -and $ys.PassOk -and $ys.AnaOk -and $ys.StopOk) "Start-PrecompCalib : reprise proposee juste apres le choix du prechauffage (rang $($ys.Ix.Offer)), avant l avertissement (rang $($ys.Ix.Confirm)) ; abandon et ResumeKind juste apres la creation de l etat (rangs $($ys.Ix.Clear) et $($ys.Ix.Kind) apres $($ys.Ix.State)) ; New-CalibPass pose ResumeOk une fois ses commandes construites ; Invoke-CalibAnalysis le retire apres la lecture du releve, avant de compter la passe ; Stop-PrecompCalib appelle Set-CalibResume apres « Calibration precomp interrompue. »"
+Chk 'Y0b' ($ys.NSave -eq 0 -and ($ys.Files -join ',') -eq '270,560' -and ($ys.Writers -join ',') -eq 'Clear-CalibResume,Resume-PrecompCalib,Set-CalibResume,Stop-PrecompCalib' -and $ys.Causes) "etat garde en memoire seulement : aucun Save-Config dans les fonctions de la reprise, etat nomme dans 270 et 560 seuls (ni configuration ni fermeture), pose par Set-CalibResume, retire par Clear-CalibResume, par Resume-PrecompCalib et, si sa mise en memoire echoue, par Stop-PrecompCalib ; causes : « Arreter » (540) et echange annule marquent l arret demande, minuteur (600) et lancement de gw (110) signalent l erreur de gw, une etape en erreur (110) ne marque rien"
 
 Get-Cal2Bilan 'logic-1210-cross-j'
 "duree : $(F $sw.Elapsed.TotalSeconds '0') s"

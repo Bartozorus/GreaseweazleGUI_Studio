@@ -832,7 +832,8 @@ function New-RsCal {
 }
 $t600 = [string]$src.Ast['600-minuteur-demarrage.ps1'].Extent.Text; $t540 = [string]$src.Ast['540-ui-accueil-restauration-barre.ps1'].Extent.Text
 $iRsT = $t600.IndexOf('if ($script:Restore -and -not ($script:Rep -and $script:Rep.Round -gt 0)) { Stop-Restore $why }'); $iCalT = $t600.IndexOf('if ($script:Cal) { Stop-PrecompCalib -GwError }')
-$iRsB = $t540.IndexOf("if (`$script:Restore) { Stop-Restore (T 'interrompue par l''utilisateur') }"); $iCalB = $t540.IndexOf('if ($script:Cal) { Stop-PrecompCalib }')
+# 12.11 rc4 (R5, partie 2) : le bouton Arreter marque l arret demande (StopBy 'user') avant Stop-PrecompCalib ; ordre inchange
+$iRsB = $t540.IndexOf("if (`$script:Restore) { Stop-Restore (T 'interrompue par l''utilisateur') }"); $iCalB = $t540.IndexOf('if ($script:Cal) { $script:Cal.StopBy = ''user''; Stop-PrecompCalib }')
 $okOrd23 = ($iRsT -ge 0 -and $iCalT -gt $iRsT -and $iRsB -ge 0 -and $iCalB -gt $iRsB)
 Reset-All
 Invoke-LastRead; New-RsCal
