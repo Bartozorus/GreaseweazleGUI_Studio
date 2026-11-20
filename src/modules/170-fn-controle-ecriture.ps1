@@ -366,10 +366,12 @@ function Show-WriteCheckTable($rep) {
     # attendue et l ecart mesuree - attendue, que le score et la couleur de la case « Asym. » jugent a la place de la
     # valeur mesuree (Set-TrackAsymExpected, 190). Pose ici, a l affichage du resultat : l etat des pistes, les pistes
     # faibles et les reecritures (Invoke-WriteCheckAnalysis) sont decides avant et n en dependent pas. AsymFor : lecteur
-    # cible et lecteur qui a relu, gardes avec le resultat pour sa phrase (journal, infobulle de la carte, export)
+    # cible et lecteur qui a relu, gardes avec le resultat pour sa phrase (journal, infobulle de la carte, export).
+    # AsymHead : tete de la piste qui porte une asymetrie attendue ('0' ou '1', tiree de sa cle), pour le jugement tete
+    # par tete du resume (Get-AsymSummary, 190 : courbe ecrite et facteur de la disquette sont par tete)
     $asymFor = $null
     if ($rep.AsymExcess) {
-        foreach ($k in $keys) { $e = Get-RepAsymExcess $rep $k; if ($null -ne $e) { Set-TrackAsymExpected $rep.State[$k] $e } }
+        foreach ($k in $keys) { $e = Get-RepAsymExcess $rep $k; if ($null -ne $e) { Set-TrackAsymExpected $rep.State[$k] $e; if ($rep.State[$k] -and $null -ne $rep.State[$k].AsymExp) { $rep.State[$k].AsymHead = [string](@($k -split '\.')[1]) } } }
         $asymFor = @{ Target = [string]$rep.Target; Src = [string]$rep.TargetSrc }
     }
     $last = @{}; $total = 0.0; $count = 0; $nBad = 0

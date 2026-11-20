@@ -290,6 +290,8 @@ $wantAuto = @{ fr = 'Automatique (400 ns ; 470 ns en long track)'; en = 'Automat
 $wantLbl = @{ fr = 'Borne de précompensation :'; en = 'Precompensation bound:' }
 $wantLog = @{ fr = 'Borne de précompensation : {0} (avant : {1}).'; en = 'Precompensation bound: {0} (before: {1}).' }
 $wantOver = @{ fr = "dès qu'elle dépasse {0} ns."; en = 'as soon as it exceeds {0} ns.' }
+$wantBusy = @{ fr = 'Borne de précompensation inchangée : une opération est en cours ou une calibration attend votre décision.'; en = 'Precompensation bound unchanged: an operation is running or a calibration awaits your decision.' }
+$wantCap = @{ fr = "À l'écriture, la borne en place plafonne aussi la courbe multipliée par le facteur de précompensation : {0} ns au plus, long track compris ; une valeur déjà au-dessus n'est jamais augmentée."; en = 'At write time, the bound in place also caps the curve multiplied by the precompensation factor: {0} ns at most, long track included; a value already above it is never increased.' }
 $std = @(0) + @(for ($v = 300; $v -le 470; $v += 10) { $v })
 foreach ($L in @('fr', 'en')) {
     "--- onglet construit dans l ordre de l application, langue $L"
@@ -365,16 +367,34 @@ foreach ($L in @('fr', 'en')) {
     $u5c = "$([string]$cmbWBound.Text) ; $(Get-PbSet)"
     Chk "U5$L" ($u5a -ceq "20 elements, « 454 ns » entre « 450 ns » et « 460 ns », choisi : 454 ns, reglage choisie 454, option « $($wantLbl[$L]) 454 ns »" -and $u5b -ceq '20 elements, choisi : 460 ns, reglage choisie 460' -and $u5c -ceq "$($wantAuto[$L]) ; auto 400") "($L) borne de 454 ns posee hors de la liste : $u5a ; puis 460 ns choisi : $u5b ; Set-Defaults : $u5c"
     # U6 : aucun changement pendant une operation (Get-AppBusy) ni avec une calibration B en attente
-    $u6 = @()
+    $u6 = @(); $u6Log = @()
     foreach ($busy in @({ $script:Cal = @{ Mode = 'full' } }, { $script:CalRedo = @{ Wait = $true } })) {
         $script:PbLog.Clear()
         & $busy
         $cmbWBound.SelectedIndex = [array]::IndexOf([int[]]@($cmbWBound.Tag), 430)
-        $u6 += "$(Get-PbSet)/$($cmbWBound.SelectedIndex)/$($script:PbLog.Count)/$(Get-PbFam 'long')"
+        $u6 += "$(Get-PbSet)/$($cmbWBound.SelectedIndex)/$($script:PbLog.Count)/$(Get-PbFam 'long')"; $u6Log += @($script:PbLog.ToArray())
         $script:Cal = $null; $script:CalRedo = $null
     }
     $cmbWBound.SelectedIndex = [array]::IndexOf([int[]]@($cmbWBound.Tag), 430); $u6 += (Get-PbSet)
-    Chk "U6$L" (($u6 -join ' ; ') -ceq 'auto 400/0/0/470/long ; auto 400/0/0/470/long ; choisie 430') "($L) calibration en cours, puis calibration B en attente : reglage, element choisi, lignes de journal et borne du long track inchanges ; au repos, le meme choix s applique : $($u6 -join ' ; ')"
+    Chk "U6$L" (($u6 -join ' ; ') -ceq 'auto 400/0/1/470/long ; auto 400/0/1/470/long ; choisie 430' -and ($u6Log -join ' # ') -ceq (@($wantBusy[$L], $wantBusy[$L]) -join ' # ')) "($L) calibration en cours, puis calibration B en attente : reglage, element choisi et borne du long track inchanges, une ligne de journal qui dit le refus (« $($wantBusy[$L]) ») ; au repos, le meme choix s applique : $($u6 -join ' ; ')"
+    # U6b : molette sur la liste fermee (gestionnaire MouseWheel reel de 520, evenement reel, liste sans poignee :
+    # DroppedDown faux) : evenement marque traite, element et reglage inchanges ; liste deroulee (corps reel du
+    # gestionnaire, $this et $_ poses comme WinForms les pose) : rien, la molette la fait defiler
+    $evW = New-Object System.Windows.Forms.HandledMouseEventArgs([System.Windows.Forms.MouseButtons]::None, 0, 5, 5, -120)
+    $script:PbLog.Clear(); $i430 = [array]::IndexOf([int[]]@($cmbWBound.Tag), 430)
+    [System.Windows.Forms.Control].GetMethod('OnMouseWheel', [System.Reflection.BindingFlags]'Instance,NonPublic').Invoke($cmbWBound, [object[]]@([System.Windows.Forms.MouseEventArgs]$evW)) | Out-Null
+    $u6b = "$($evW.Handled)/$($cmbWBound.SelectedIndex -eq $i430 -and $i430 -gt 0)/$(Get-PbSet)/$($script:PbLog.Count)"
+    $whl = @($top520 | Where-Object { $_.Extent.Text.StartsWith('$cmbWBound.Add_MouseWheel(') })
+    $evO = New-Object System.Windows.Forms.HandledMouseEventArgs([System.Windows.Forms.MouseButtons]::None, 0, 5, 5, -120)
+    $evC = New-Object System.Windows.Forms.HandledMouseEventArgs([System.Windows.Forms.MouseButtons]::None, 0, 5, 5, 120)
+    if ($whl.Count -eq 1) {
+        $whlSb = @($whl[0].FindAll({ param($x) $x -is [System.Management.Automation.Language.ScriptBlockExpressionAst] }, $true))[0]
+        Write-PbGen (Join-Path $here 'gen-molette.ps1') @("function Invoke-PbWheel(`$o, `$e) {`r`n    `$this = `$o; `$_ = `$e`r`n    " + [string]$whlSb.ScriptBlock.EndBlock.Extent.Text + "`r`n}")
+        . (Join-Path $here 'gen-molette.ps1')
+        Invoke-PbWheel ([pscustomobject]@{ DroppedDown = $true }) $evO
+        Invoke-PbWheel ([pscustomobject]@{ DroppedDown = $false }) $evC
+    }
+    Chk "U6b$L" ($whl.Count -eq 1 -and $u6b -ceq 'True/True/choisie 430/0' -and -not $evO.Handled -and $evC.Handled) "($L) molette sur la liste fermee, 430 ns choisi (gestionnaire MouseWheel reel de 520) : evenement marque traite, element, reglage et journal inchanges ($u6b) ; liste deroulee : rien (la molette la fait defiler) ; non couvert : le defilement reel de l onglet dans la fenetre"
     # U7 : « Reinitialiser » (partie Ecriture de Set-Defaults)
     Invoke-PbDefaults
     Chk "U7$L" ((Get-PbSet) -ceq 'auto 400' -and $cmbWBound.SelectedIndex -eq 0 -and (Get-PbFams) -ceq '400/dd 470/long 200/hd 400/dd' -and (Get-PbAdvNames) -ceq '') "($L) Set-Defaults apres une borne choisie : $(Get-PbSet), element $($cmbWBound.SelectedIndex), bornes $(Get-PbFams), aucune option avancee modifiee"
@@ -382,8 +402,11 @@ foreach ($L in @('fr', 'en')) {
     $tipL = [string]$tip.GetToolTip($cmbWBound); $tl = @($tipL -split "`n")
     $need = if ($L -eq 'fr') { @('400 ns pour une image standard', '470 ns pour une image long track', 'le quart de sa cellule', 'de 300 à 470 ns', 'la moitié de la borne', 'la borne ne dépasse pas 470 ns', '(500 ns au plus)', "dès qu'elle dépasse 400 ns", 'garde la borne de son calcul', '(precompMaxNs)') }
             else { @('400 ns for a standard image', '470 ns for a long track image', 'a quarter of its', 'from 300 to 470 ns', 'half the bound', 'the bound does not exceed 470 ns', '(500 ns at most)', 'as soon as it exceeds 400 ns', 'keeps the bound of its computation', '(precompMaxNs)') }
+    # Relecture : la sixieme ligne dit aussi la borne de la courbe ecrite avec un facteur (CalHardNsUser : 400 ns en
+    # automatique, long track compris ; la valeur choisie sinon, cas U4 ; commandes : cas U9)
+    $need += ($wantCap[$L] -f '400')
     $missT = @($need | Where-Object { -not $tipL.Contains($_) })
-    Chk "U8$L" ($tl.Count -eq 7 -and $missT.Count -eq 0 -and $tipL -ceq (Get-PrecompBoundTip)) "($L) infobulle de la liste : $($tl.Count) lignes, tirees des constantes de la borne et de Get-DiskOverNs (borne automatique, plage, quart de cellule, haute densite, plafond d une disquette, controle impose, courbes deja calculees, cle de la configuration) ; absents : $(Get-List $missT)"
+    Chk "U8$L" ($tl.Count -eq 7 -and $missT.Count -eq 0 -and $tipL -ceq (Get-PrecompBoundTip) -and $tl[5].EndsWith(($wantCap[$L] -f '400')) -and $u4a.Tip.Contains(($wantCap[$L] -f '450'))) "($L) infobulle de la liste : $($tl.Count) lignes, tirees des constantes de la borne et de Get-DiskOverNs (borne automatique, plage, quart de cellule, haute densite, plafond d une disquette, controle impose, courbes deja calculees et borne de la courbe ecrite avec un facteur : 400 ns en automatique, 450 ns avec 450 ns choisi, cle de la configuration) ; absents : $(Get-List $missT)"
     if ($L -ne 'fr') { continue }
 
     # ================================================================= F : borne par famille
@@ -418,7 +441,7 @@ foreach ($L in @('fr', 'en')) {
 
     # ================================================================= C : configuration
     '--- C : configuration (instructions reelles de Load-Config, expressions reelles de Save-Config)'
-    $kSet = 'réglée dans la configuration (precompMaxNs) : {0} ns'; $kClamp = 'ramenée à {0} ns'; $kBad = 'illisible'; $kPick = 'Borne de précompensation choisie : 400 ns dans toutes les familles, long track compris (en automatique : 470 ns en long track).'
+    $kSet = 'réglée dans la configuration (precompMaxNs) : {0} ns'; $kClamp = 'ramenée à {0} ns'; $kBad = 'illisible'; $kPick = 'Borne de précompensation choisie : 400 ns en standard comme en long track (en automatique : 470 ns en long track) ; la haute densité en prend la moitié.'
     # C1 : version anterieure (aucune cle precompMaxAuto)
     $c1 = @(
         @('{}', 'auto 400', ''), @('{"precompMaxNs":400}', 'auto 400', ''), @('{"precompMaxNs":400.4}', 'auto 400', ''), @('{"precompMaxNs":"400"}', 'auto 400', ''), @('{"precompMaxNs":null}', 'auto 400', ''),
@@ -497,7 +520,41 @@ foreach ($L in @('fr', 'en')) {
     Invoke-PbDefaults
     $nW = @(@($w0) + @($s0) | Where-Object { $_ -match '^(ecriture|file) write ' }).Count; $nErr = @(@($w0) + @($s0) | Where-Object { $_ -like 'ERREUR*' }).Count
     foreach ($x in @($w0 | Where-Object { $_ -match ' write ' })) { "  U9 rapide : $x" }
-    Chk 'U9' ($u9Bad.Count -eq 0 -and $nW -eq 3 -and $nErr -eq 0) "ecriture rapide puis lente d une image ADF par le bouton ECRIRE (vraie Start-WriteTabWrite) : commandes gw, file d ecriture, controle et demandes identiques avec la borne automatique et avec 400, 450, 300 et 470 ns choisis ($nW commandes gw write, $nErr erreur) ; ecarts : $(Get-List $u9Bad)"
+    Chk 'U9' ($u9Bad.Count -eq 0 -and $nW -eq 3 -and $nErr -eq 0) "ecriture rapide puis lente d une image ADF par le bouton ECRIRE (vraie Start-WriteTabWrite), au facteur 1 : commandes gw, file d ecriture, controle et demandes identiques avec la borne automatique et avec 400, 450, 300 et 470 ns choisis ($nW commandes gw write, $nErr erreur) ; ecarts : $(Get-List $u9Bad)"
+    # U9b (relecture) : ecriture avec un facteur de precompensation (facteur 1,20 mesure sur la disquette, pose comme le
+    # fait la mesure qui precede l ecriture ; courbe du lecteur factice en magasin, champs 0=280:40=350, vraie
+    # Start-ImageWrite) : la borne en place plafonne la courbe ecrite, w = min(round(f x v), max(borne, v)) ; le journal le dit
+    function New-PbCurve {
+        $v = [int[]]@(for ($c = 0; $c -lt 80; $c++) { 120 + [int][math]::Floor($c / 2) })
+        $cy = [int[]]@(for ($c = 0; $c -lt 80; $c += 4) { $c })
+        return @{ Values = $v; Cyls = $cy; Kinds = [string[]]@($cy | ForEach-Object { 'interp' }); Res = [double[]]@($cy | ForEach-Object { 0.5 }); Ys = [double[]]@($cy | ForEach-Object { [double]$v[$_] })
+                  Sig = [double[]]@($cy | ForEach-Object { 1.0 }); Breaks = @(); Date = '01/11/2026 10:00'; Test = 'fine'; Drive = 'A'; Method = 'motif'; Bits = 101344; Slope = -1.0; Converged = $true; MaxNs = 400
+                  Spec = "0=120:79=$($v[79])"; Calc = '12.10' }
+    }
+    function Invoke-PbFactorWrite([bool]$auto, [int]$ns) {
+        Invoke-PbDefaults
+        $script:DriveCurves = @{ 'A|std' = (New-PbCurve) }; Sync-PrecompCurves
+        $txtWFile.Text = $imAdf; $cmbWFmt.SelectedItem = 'amiga.amigados'
+        Set-PrecompBound $auto $ns
+        $txtWPrecomp.Text = '0=280:40=350'; $txtWPrecomp1.Text = '0=280:40=350'; $chkWPostCheck.Checked = $false
+        $script:PbTrace.Clear(); $script:PbLog.Clear()
+        $script:WriteQueue.Clear(); $script:Chain.Clear(); $script:WriteArgs = $null; $script:Rep = $null
+        $script:LevelPostForce = $false; $script:Restore = $null; $script:GwProc = $null
+        $script:WriteFactorNext = @{ Drive = 'A'; Fam = 'std'; Img = $imAdf; K = @{ 0 = 1.2; 1 = 1.2 }; Brand = 'Marque inventee' }
+        try { Start-ImageWrite } catch { [void]$script:PbTrace.Add("ERREUR $($_.Exception.Message)") }
+        $w = @($script:PbTrace | Where-Object { $_ -match '^(ecriture|file|gw) write ' -or $_ -like 'ERREUR*' } | ForEach-Object { ([string]$_).Replace($pbImg, '<img>') })
+        $j = @($script:PbLog | Where-Object { $_ -match 'bornée à 0\.\.\d+ ns' } | ForEach-Object { [regex]::Match([string]$_, 'bornée à 0\.\.\d+ ns').Value })
+        $script:WriteQueue.Clear(); $script:Chain.Clear(); $script:WriteArgs = $null; $script:Rep = $null; $script:WriteFactorNext = $null
+        return "$($w -join ' | ') # $($j -join ' | ')"
+    }
+    $u9f = [ordered]@{}
+    foreach ($c in @(@($true, 0), @($false, 300), @($false, 470))) { $u9f["$(if ($c[0]) { 'automatique' } else { "$($c[1]) ns" })"] = Invoke-PbFactorWrite $c[0] $c[1] }
+    $script:DriveCurves = @{}; Sync-PrecompCurves; Invoke-PbDefaults
+    $u9w = { param($p, $b) "ecriture write --drive=A --erase-empty --retries=10 --precomp $p --format=amiga.amigados `"<img>\jeu.adf`" # bornée à 0..$b ns" }
+    $u9fWant = [ordered]@{ 'automatique' = (& $u9w '0=336:40=400' 400); '300 ns' = (& $u9w '0=300:40=350' 300); '470 ns' = (& $u9w '0=336:40=420' 470) }
+    $u9fBad = @($u9fWant.Keys | Where-Object { [string]$u9f[$_] -cne [string]$u9fWant[$_] } | ForEach-Object { "$_ : « $($u9f[$_]) »" })
+    foreach ($k in @($u9f.Keys)) { "  U9b $k : $($u9f[$k])" }
+    Chk 'U9b' ($u9fBad.Count -eq 0 -and (Get-PbSet) -ceq 'auto 400') "ecriture rapide de la meme image avec un facteur de precompensation de 1,20 (vraie Start-ImageWrite, champs 0=280:40=350) : la borne en place plafonne la courbe ecrite : --precomp 0=336:40=400 en automatique, 0=300:40=350 avec 300 ns choisi (350, deja au-dessus, n est pas augmente), 0=336:40=420 avec 470 ns choisi ; le journal dit « bornée à 0..N ns » ; non couvert : image long track ; ecarts : $(Get-List $u9fBad 2)"
 }
 
 # =====================================================================================================================
@@ -526,7 +583,7 @@ foreach ($k in $keys) {
     $ik = $t019.IndexOf($k, [System.StringComparison]::Ordinal)
     if ($ik -lt $iR2) { $i1Bad += "hors de la section R2 de 019 : $k" }
 }
-Chk 'I1' ($keys.Count -eq 11 -and $i1Bad.Count -eq 0 -and $iRc4 -ge 0 -and $iR2 -gt $iRc4) "$($keys.Count) textes du lot (libelle, element « automatique », sept lignes de l infobulle, deux lignes de journal) : entree anglaise dans la section R2 de 019 (sous « rc4 »), differente du francais, memes {n} ; ecarts : $(Get-List $i1Bad 3)"
+Chk 'I1' ($keys.Count -eq 12 -and $i1Bad.Count -eq 0 -and $iRc4 -ge 0 -and $iR2 -gt $iRc4) "$($keys.Count) textes du lot (libelle, element « automatique », sept lignes de l infobulle, trois lignes de journal, dont celle du choix refuse pendant une operation) : entree anglaise dans la section R2 de 019 (sous « rc4 »), differente du francais, memes {n} ; ecarts : $(Get-List $i1Bad 3)"
 $ch = [System.IO.File]::ReadAllText((Join-Path $Wt 'CHANGELOG.md'), [System.Text.Encoding]::UTF8)
 $m = [regex]::Match($ch, '(?s)## \[12\.11\].*?(?=\n## \[)'); $sec = if ($m.Success) { $m.Value } else { '' }
 $amel = ''; $ma = [regex]::Match($sec, '(?s)### Améliorations.*?(?=\n### )'); if ($ma.Success) { $amel = $ma.Value }
@@ -536,6 +593,8 @@ $d1 = [ordered]@{
     'entree des Améliorations' = $amel.Contains('**Borne de précompensation : 470 ns en long track, réglable dans les options avancées.**')
     'liste nommee' = $amel.Contains('« Borne de précompensation »') -and $amel.Contains('« Automatique (400 ns ; 470 ns en long track) »')
     'courbes deja calculees' = $amel.Contains('garde la borne de son calcul')
+    'borne de la courbe ecrite avec un facteur' = ($amel.Contains('la borne en place plafonne aussi la courbe multipliée par le facteur de précompensation') -and $amel.Contains('400 ns en réglage automatique, long track compris'))
+    'a savoir : haute densite a la moitie' = $sav.Contains('la même en standard et en long track (la haute densité en prend la moitié)')
     'a savoir : configuration existante' = ($sav.Contains('**Borne de précompensation : ce que devient le réglage d''une configuration existante.**') -and $sav.Contains('passe au réglage automatique') -and $sav.Contains('choisissez « 400 ns » dans la liste « Borne de précompensation »'))
     'plus de detour par 399 ns' = (-not $sec.Contains('399 ns'))
     'developpeurs' = ($dev.Contains('`Set-PrecompBound([bool]$auto, [int]$ns)`') -and $dev.Contains('`write.precompMaxAuto`') -and $dev.Contains('`tests/logic-precomp-borne.ps1`'))

@@ -226,7 +226,9 @@ function Reset-GwSequence {
     $script:Chain.Clear(); $script:WriteQueue.Clear(); $script:Detect = $null; $script:GwPortRetry = $null   # 12.11 rc3 (R5)
     Stop-WriteWarmup
     if ($script:Rep) { Stop-WriteCheck }
-    if ($script:Cal) { Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
+    # 12.11 rc4 (R5, partie 2, relecture) : StopBy 'launch' : cause dite par le message d interruption (Get-CalibStopCause,
+    # 270), que l etat de la commande gw precedente (code retour, commande incomplete) ne doit pas remplacer
+    if ($script:Cal) { $script:Cal.StopBy = 'launch'; Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
     if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : {0}") -f (T 'gw n''a pas pu être lancé.')) }
     if ($script:Restore) { Stop-Restore (T 'gw n''a pas pu être lancé') }
     # 12.8 (lot 3a) : mesure de qualite sans lecture : erreur gw, resultat affiche perime

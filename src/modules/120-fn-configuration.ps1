@@ -898,7 +898,7 @@ function Load-Config {
     # 400 ns reste une valeur reglee quoi que dise la cle (fichier modifie a la main, comme avant)
     $hauto = Get-Cfg $w 'precompMaxAuto' $null
     $hset = ($script:CalHardNs -ne $script:CalHardNsDefault -or ($hread -and $null -ne $hauto -and $hauto -isnot [array] -and ([string]$hauto).Trim() -eq 'False'))
-    if ($hset -and $script:CalHardNs -eq $script:CalHardNsDefault) { Append-Log ((T "Borne de précompensation choisie : {0} ns dans toutes les familles, long track compris (en automatique : {1} ns en long track).") -f "$($script:CalHardNs)", "$($script:CalHardMaxNs)") }
+    if ($hset -and $script:CalHardNs -eq $script:CalHardNsDefault) { Append-Log ((T "Borne de précompensation choisie : {0} ns en standard comme en long track (en automatique : {1} ns en long track) ; la haute densité en prend la moitié.") -f "$($script:CalHardNs)", "$($script:CalHardMaxNs)") }
     Set-PrecompBound (-not $hset) ([int]$script:CalHardNs)   # 12.7 : borne configuree, bareme double densite ; 12.11 rc4 : Set-PrecompBound (230)
     # 12.8 (point 7) : reglages de la table, sauf ceux de l ecriture lente lus plus bas, a la place qu ils avaient en 12.7
     # (apres les champs --precomp) : lecteur, mode de calibration, duree du prechauffage (lignes de journal d une valeur

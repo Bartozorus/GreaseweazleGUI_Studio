@@ -3062,6 +3062,7 @@ $script:I18n["ERREUR : Greaseweazle déconnecté : gw n'a pas pu ouvrir son port
 $script:I18n['sans vérification gw'] = 'no gw verification'
 $script:I18n['vérification gw, {0} essai(s) au plus'] = 'gw verification, up to {0} retry(ies)'
 $script:I18n['vérification gw, sans nouvel essai'] = 'gw verification, no retry'
+$script:I18n['sans vérification gw (image flux écrite telle quelle)'] = 'no gw verification (flux image written as is)'
 $script:I18n["Écriture sans vérification de gw (--no-verify, sans --retries) : le contrôle de toutes les pistes relit ensuite chaque piste écrite et réécrit les pistes faibles ({0} passe(s) au plus)."] = 'Write without gw verification (--no-verify, no --retries): the full track check then reads back every written track and rewrites the weak tracks (up to {0} pass(es)).'
 $script:I18n["Écriture sans vérification de gw (--no-verify, sans --retries) : le contrôle de toutes les pistes relit ensuite chaque piste écrite ; avec 0 passe de réécriture, une piste mal écrite est signalée, pas réécrite."] = 'Write without gw verification (--no-verify, no --retries): the full track check then reads back every written track; with 0 rewrite passes, a badly written track is reported, not rewritten.'
 $script:I18n["Sans objet tant que le contrôle de toutes les pistes s'applique à l'écriture : gw écrit alors sans vérification (--no-verify, sans --retries), l'application relit ensuite chaque piste écrite et réécrit les pistes faibles (« Passes de réécriture »).`nLa case « Sans vérification » et le champ « Essais » reprennent leur effet quand ce contrôle n'est pas demandé ou ne s'applique pas à l'image."] = "Not applicable while the full track check applies to the write: gw then writes without verification (--no-verify, no --retries), the application then reads back every written track and rewrites the weak tracks (""Rewrite passes"").`nThe ""No verification"" box and the ""Retries"" field take effect again when this check is not requested or does not apply to the image."
@@ -3097,10 +3098,11 @@ $script:I18n["Automatique : {0} ns pour une image standard (cellule de 2 us), {1
 $script:I18n["Au quart de la cellule, les intervalles écrits atteignent la limite au-delà de laquelle ils seraient lus pour d'autres : la borne ne dépasse pas {0} ns."] = 'At a quarter of the cell, written intervals reach the limit beyond which they would be read as others: the bound does not exceed {0} ns.'
 $script:I18n["Borne d'au moins {0} ns : la courbe d'une seule disquette peut la dépasser quand son besoin est plus fort, jusqu'au quart de la cellule de la piste écrite ({1} ns au plus) ; borne choisie sous {0} ns : elle n'est jamais dépassée."] = 'Bound of at least {0} ns: the curve of a single disk may exceed it when its need is higher, up to a quarter of the cell of the written track ({1} ns at most); bound chosen below {0} ns: it is never exceeded.'
 $script:I18n["Avec le réglage actuel, la courbe d'une mesure complète de la disquette impose le contrôle de toutes les pistes après l'écriture dès qu'elle dépasse {0} ns."] = 'With the current setting, the curve of a full measurement of the disk enforces the full track check after the write as soon as it exceeds {0} ns.'
-$script:I18n["Une courbe déjà calculée garde la borne de son calcul : la nouvelle borne sert aux calibrations suivantes (le test rapide ramène à la borne en place les valeurs d'une référence calculée avec une borne plus haute)."] = 'An already computed curve keeps the bound of its computation: the new bound applies to the following calibrations (the quick test brings the values of a reference computed with a higher bound back to the bound in place).'
+$script:I18n["Une courbe déjà calculée garde la borne de son calcul : la nouvelle borne sert aux calibrations suivantes (le test rapide ramène à la borne en place les valeurs d'une référence calculée avec une borne plus haute). À l'écriture, la borne en place plafonne aussi la courbe multipliée par le facteur de précompensation : {0} ns au plus, long track compris ; une valeur déjà au-dessus n'est jamais augmentée."] = 'An already computed curve keeps the bound of its computation: the new bound applies to the following calibrations (the quick test brings the values of a reference computed with a higher bound back to the bound in place). At write time, the bound in place also caps the curve multiplied by the precompensation factor: {0} ns at most, long track included; a value already above it is never increased.'
 $script:I18n["Enregistrée dans la configuration (precompMaxNs)."] = 'Saved in the configuration (precompMaxNs).'
 $script:I18n['Borne de précompensation : {0} (avant : {1}).'] = 'Precompensation bound: {0} (before: {1}).'
-$script:I18n["Borne de précompensation choisie : {0} ns dans toutes les familles, long track compris (en automatique : {1} ns en long track)."] = 'Precompensation bound chosen: {0} ns for all families, long track included (automatic setting: {1} ns for long track).'
+$script:I18n["Borne de précompensation choisie : {0} ns en standard comme en long track (en automatique : {1} ns en long track) ; la haute densité en prend la moitié."] = 'Precompensation bound chosen: {0} ns for standard and long track alike (automatic setting: {1} ns for long track); high density takes half of it.'
+$script:I18n['Borne de précompensation inchangée : une opération est en cours ou une calibration attend votre décision.'] = 'Precompensation bound unchanged: an operation is running or a calibration awaits your decision.'
 # R5, partie 2 : reprise d une calibration interrompue (270). Etape et cause (Get-CalibStepInfo, Get-CalibStopCause),
 # message d interruption (Set-CalibResume), ce qui differe au lancement suivant (Get-CalibResumeMismatch,
 # Get-CalibResumeOffer), fenetre et journal de la reprise (Get-CalibResumeText), abandon (Clear-CalibResume)
@@ -3115,7 +3117,7 @@ $script:I18n['commande gw incomplète (disquette protégée en écriture ou abse
 $script:I18n['erreur de gw (code retour {0})'] = 'gw error (exit code {0})'
 $script:I18n["Calibration interrompue à l'étape {0} ({1}) : {2}. Aucune passe n'était terminée : rien n'est gardé, la calibration est à recommencer."] = 'Calibration interrupted at step {0} ({1}): {2}. No pass was complete: nothing is kept, the calibration has to be started again.'
 $script:I18n["Calibration interrompue à l'étape {0} ({1}) : {2}. Passes faites, gardées en mémoire : {3}."] = 'Calibration interrupted at step {0} ({1}): {2}. Passes done, kept in memory: {3}.'
-$script:I18n["Reprise possible tant que l'application reste ouverte : relancez la même calibration (mêmes lecteurs, même famille, même test, même image ou même type de disquette, mêmes options de lecteur), avec la même disquette ; une fenêtre proposera de reprendre à l'étape {0}, rejouée en entier."] = 'It can be resumed as long as the application stays open: start the same calibration again (same drives, same family, same test, same image or same disk type, same drive options), with the same disk; a window will offer to resume at step {0}, replayed in full.'
+$script:I18n["Reprise possible tant que l'application reste ouverte : relancez la même calibration (mêmes lecteurs, même famille, même test, même choix d'une courbe par tête, même image ou même type de disquette, mêmes options de lecteur et même borne de précompensation), avec la même disquette ; une fenêtre proposera de reprendre à l'étape {0}, rejouée en entier."] = 'It can be resumed as long as the application stays open: start the same calibration again (same drives, same family, same test, same choice of one curve per head, same image or same disk type, same drive options and same precompensation bound), with the same disk; a window will offer to resume at step {0}, replayed in full.'
 $script:I18n['La disquette est dans le lecteur {0}, {1}.'] = 'The disk is in drive {0}, {1}.'
 $script:I18n["Calibration interrompue : relancez-la pour reprendre à l'étape {0}."] = 'Calibration interrupted: start it again to resume at step {0}.'
 $script:I18n['calibration croisée {0} → {1}, {2}, {3}'] = 'cross calibration {0} → {1}, {2}, {3}'
@@ -3134,7 +3136,7 @@ $script:I18n["Reprendre : l'étape {0} ({1}) est rejouée en entier, ses pistes 
 $script:I18n["Utilisez la même disquette. Elle doit se trouver dans le lecteur {0}, {1} : c'est là que le journal l'annonçait à l'interruption. Si vous l'avez déplacée, remettez-la dans ce lecteur avant de reprendre ; l'application demandera ensuite chaque échange, comme avant."] = 'Use the same disk. It must be in drive {0}, {1}: that is where the log said it was at the interruption. If you moved it, put it back in this drive before resuming; the application will then ask for each swap, as before.'
 $script:I18n['Utilisez la même disquette, dans le lecteur {0}.'] = 'Use the same disk, in drive {0}.'
 $script:I18n['Recommencer : les mesures gardées sont abandonnées, et la calibration repart de son avertissement.'] = 'Start again: the measurements kept are discarded, and the calibration starts over from its warning.'
-$script:I18n["Fermer : rien n'est lancé ; la calibration reste à reprendre tant que l'application est ouverte et qu'aucune autre calibration ne commence."] = 'Close: nothing is started; the calibration can still be resumed as long as the application is open and no other calibration starts.'
+$script:I18n["Fermer : rien n'est lancé ; la calibration reste à reprendre tant que l'application est ouverte et qu'aucune autre calibration du lecteur ni mesure complète d'une disquette ne commence ; une calibration rapide ou une mesure sur l'image ne l'abandonne pas."] = 'Close: nothing is started; the calibration can still be resumed as long as the application is open and no other drive calibration or full measurement of a disk starts; a quick calibration or a measurement on the image does not discard it.'
 $script:I18n["=== Calibration reprise à l'étape {0} ({1}) : {2} passe(s) gardée(s) ({3}) ; l'étape interrompue est rejouée en entier ==="] = '=== Calibration resumed at step {0} ({1}): {2} pass(es) kept ({3}); the interrupted step is replayed in full ==='
 $script:I18n["Calibration croisée reprise : disquette attendue dans le lecteur {0}, {1}, là où le journal l'annonçait à l'interruption."] = 'Cross calibration resumed: disk expected in drive {0}, {1}, where the log said it was at the interruption.'
 $script:I18n['Calibration interrompue ({0}) : passes gardées abandonnées ({1}).'] = 'Interrupted calibration ({0}): passes kept discarded ({1}).'
@@ -4963,7 +4965,9 @@ function Reset-GwSequence {
     $script:Chain.Clear(); $script:WriteQueue.Clear(); $script:Detect = $null; $script:GwPortRetry = $null   # 12.11 rc3 (R5)
     Stop-WriteWarmup
     if ($script:Rep) { Stop-WriteCheck }
-    if ($script:Cal) { Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
+    # 12.11 rc4 (R5, partie 2, relecture) : StopBy 'launch' : cause dite par le message d interruption (Get-CalibStopCause,
+    # 270), que l etat de la commande gw precedente (code retour, commande incomplete) ne doit pas remplacer
+    if ($script:Cal) { $script:Cal.StopBy = 'launch'; Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde
     if ($txtCmpResult.Text -like ((T 'Comparaison en cours') + '*')) { $txtCmpResult.Text = ((T "ÉCHEC : {0}") -f (T 'gw n''a pas pu être lancé.')) }
     if ($script:Restore) { Stop-Restore (T 'gw n''a pas pu être lancé') }
     # 12.8 (lot 3a) : mesure de qualite sans lecture : erreur gw, resultat affiche perime
@@ -8058,7 +8062,7 @@ function Load-Config {
     # 400 ns reste une valeur reglee quoi que dise la cle (fichier modifie a la main, comme avant)
     $hauto = Get-Cfg $w 'precompMaxAuto' $null
     $hset = ($script:CalHardNs -ne $script:CalHardNsDefault -or ($hread -and $null -ne $hauto -and $hauto -isnot [array] -and ([string]$hauto).Trim() -eq 'False'))
-    if ($hset -and $script:CalHardNs -eq $script:CalHardNsDefault) { Append-Log ((T "Borne de précompensation choisie : {0} ns dans toutes les familles, long track compris (en automatique : {1} ns en long track).") -f "$($script:CalHardNs)", "$($script:CalHardMaxNs)") }
+    if ($hset -and $script:CalHardNs -eq $script:CalHardNsDefault) { Append-Log ((T "Borne de précompensation choisie : {0} ns en standard comme en long track (en automatique : {1} ns en long track) ; la haute densité en prend la moitié.") -f "$($script:CalHardNs)", "$($script:CalHardMaxNs)") }
     Set-PrecompBound (-not $hset) ([int]$script:CalHardNs)   # 12.7 : borne configuree, bareme double densite ; 12.11 rc4 : Set-PrecompBound (230)
     # 12.8 (point 7) : reglages de la table, sauf ceux de l ecriture lente lus plus bas, a la place qu ils avaient en 12.7
     # (apres les champs --precomp) : lecteur, mode de calibration, duree du prechauffage (lignes de journal d une valeur
@@ -12768,7 +12772,10 @@ function Get-WritePlan {
     # le segment du controle : si la phrase ne tient pas, la coupe le retire avant lui. Plan garde ($r.Verify) : etat et
     # infobulle de la case « Sans verification » et du champ « Essais » (Update-WVerifyUi)
     $r.Verify = Get-WriteVerifyPlan $cp
-    [void]$sg.Add(@{ T = (Get-WriteVerifyText $r.Verify 'seg'); Crit = $false })
+    # Image flux ecrite telle quelle (Test-RawFluxWrite, 140) : gw ne verifie que les pistes MasterTrack (tools/write.py),
+    # jamais un flux brut, quels que soient la case « Sans verification » et le champ « Essais » : la ligne le dit
+    $vseg = if (-not $r.Verify.NoVerify -and (Test-RawFluxWrite $img $fmt)) { (T 'sans vérification gw (image flux écrite telle quelle)') } else { Get-WriteVerifyText $r.Verify 'seg' }
+    [void]$sg.Add(@{ T = $vseg; Crit = $false })
     # Lecteur cible : courbes croisees ecrites (texte du journal de Start-ImageWrite), ou sans effet (meme texte). 12.11
     # (rc2) : avec la courbe propre du lecteur qui ecrit (Xfer, Get-TargetWriteInfo) : courbe de cette disquette x facteur
     # par cylindre de la calibration croisee (Get-TargetTransferPlan) ; sans elle, texte de la rc1. Segment critique (la
@@ -12939,14 +12946,16 @@ function Get-PrecompBoundTip {
     # 12.11 rc4 (R2) : infobulle de la liste « Borne de precompensation », tiree des fonctions qui decident : bornes du
     # reglage automatique et plage d une valeur choisie (constantes que lisent Set-CalibScale et Set-PrecompBound, 230),
     # plafond d une seule disquette (Get-DiskHardNs, Get-LevelAdaptHard, 265 : jamais sous CalHardNsDefault), seuil du
-    # controle impose a la courbe d une mesure complete de la disquette, avec le reglage en place (Get-DiskOverNs, 265)
+    # controle impose a la courbe d une mesure complete de la disquette, avec le reglage en place (Get-DiskOverNs, 265),
+    # borne de la courbe ecrite avec un facteur (CalHardNsUser, lue par Get-WriteFactorPlan, 140, et la mesure sur l image,
+    # 276 : la meme en standard et en long track, 400 ns en automatique)
     $d = "$($script:CalHardNsDefault)"; $mx = "$($script:CalHardMaxNs)"
     return ((T "Borne de précompensation : la plus forte valeur que la calibration du lecteur retient pour un cylindre.") + "`n" +
             ((T "Automatique : {0} ns pour une image standard (cellule de 2 us), {1} ns pour une image long track (le quart de sa cellule de 1,89 us). Valeur choisie, de {2} à {1} ns : la même pour les deux, {0} ns compris. La haute densité prend la moitié de la borne.") -f $d, $mx, "$($script:CalHardMinNs)") + "`n" +
             ((T "Au quart de la cellule, les intervalles écrits atteignent la limite au-delà de laquelle ils seraient lus pour d'autres : la borne ne dépasse pas {0} ns.") -f $mx) + "`n" +
             ((T "Borne d'au moins {0} ns : la courbe d'une seule disquette peut la dépasser quand son besoin est plus fort, jusqu'au quart de la cellule de la piste écrite ({1} ns au plus) ; borne choisie sous {0} ns : elle n'est jamais dépassée.") -f $d, "$($script:CalDiskCapMaxNs)") + "`n" +
             ((T "Avec le réglage actuel, la courbe d'une mesure complète de la disquette impose le contrôle de toutes les pistes après l'écriture dès qu'elle dépasse {0} ns.") -f "$(Get-DiskOverNs)") + "`n" +
-            (T "Une courbe déjà calculée garde la borne de son calcul : la nouvelle borne sert aux calibrations suivantes (le test rapide ramène à la borne en place les valeurs d'une référence calculée avec une borne plus haute).") + "`n" +
+            ((T "Une courbe déjà calculée garde la borne de son calcul : la nouvelle borne sert aux calibrations suivantes (le test rapide ramène à la borne en place les valeurs d'une référence calculée avec une borne plus haute). À l'écriture, la borne en place plafonne aussi la courbe multipliée par le facteur de précompensation : {0} ns au plus, long track compris ; une valeur déjà au-dessus n'est jamais augmentée.") -f "$($script:CalHardNsUser)") + "`n" +
             (T "Enregistrée dans la configuration (precompMaxNs)."))
 }
 
@@ -12982,12 +12991,12 @@ function Set-PrecompBoundFromUi {
     # 12.11 rc4 (R2) : gestionnaire SelectedIndexChanged de la liste « Borne de precompensation » (520) : reglage pose par
     # Set-PrecompBound (230), ligne de journal quand il change. Rien sous la garde des liaisons (Update-WBoundUi).
     # Operation en cours ou calibration B en attente (Get-AppBusy, CalRedo) : la borne en cours d emploi ne change pas,
-    # la liste revient sur le reglage en place
+    # la liste revient sur le reglage en place, et le journal le dit (le choix n est pas ignore en silence)
     if ($script:SettingSync -or -not $cmbWBound) { return }
     $i = [int]$cmbWBound.SelectedIndex
     $vals = @($cmbWBound.Tag)
     if ($i -lt 0 -or $i -ge $vals.Count) { return }
-    if ((Get-AppBusy) -or $script:CalRedo) { Update-WBoundUi; return }
+    if ((Get-AppBusy) -or $script:CalRedo) { Append-Log (T 'Borne de précompensation inchangée : une opération est en cours ou une calibration attend votre décision.'); Update-WBoundUi; return }
     $old = Get-PrecompBoundText
     $ns = [int]$vals[$i]
     Set-PrecompBound ($ns -le 0) $ns
@@ -14307,10 +14316,12 @@ function Show-WriteCheckTable($rep) {
     # attendue et l ecart mesuree - attendue, que le score et la couleur de la case « Asym. » jugent a la place de la
     # valeur mesuree (Set-TrackAsymExpected, 190). Pose ici, a l affichage du resultat : l etat des pistes, les pistes
     # faibles et les reecritures (Invoke-WriteCheckAnalysis) sont decides avant et n en dependent pas. AsymFor : lecteur
-    # cible et lecteur qui a relu, gardes avec le resultat pour sa phrase (journal, infobulle de la carte, export)
+    # cible et lecteur qui a relu, gardes avec le resultat pour sa phrase (journal, infobulle de la carte, export).
+    # AsymHead : tete de la piste qui porte une asymetrie attendue ('0' ou '1', tiree de sa cle), pour le jugement tete
+    # par tete du resume (Get-AsymSummary, 190 : courbe ecrite et facteur de la disquette sont par tete)
     $asymFor = $null
     if ($rep.AsymExcess) {
-        foreach ($k in $keys) { $e = Get-RepAsymExcess $rep $k; if ($null -ne $e) { Set-TrackAsymExpected $rep.State[$k] $e } }
+        foreach ($k in $keys) { $e = Get-RepAsymExcess $rep $k; if ($null -ne $e) { Set-TrackAsymExpected $rep.State[$k] $e; if ($rep.State[$k] -and $null -ne $rep.State[$k].AsymExp) { $rep.State[$k].AsymHead = [string](@($k -split '\.')[1]) } } }
         $asymFor = @{ Target = [string]$rep.Target; Src = [string]$rep.TargetSrc }
     }
     $last = @{}; $total = 0.0; $count = 0; $nBad = 0
@@ -16234,10 +16245,12 @@ function Get-AsymSummary($ms) {
     # cible, relue par le lecteur qui l a ecrite). NExp : leur nombre ; ExpMed, MeasMed : medianes de l attendue et de la
     # mesuree signee ; GapMed : mediane des ecarts mesuree - attendue ; In : pistes dont l ecart juge (AsymDev) reste dans
     # la classe verte de l asymetrie ; DevPoints : part de l asymetrie dans le score moyen telle que Get-TrackScore la
-    # compte (AsymDev des pistes qui le portent, Asym des autres ; Points garde la part de l asymetrie mesuree). Judge :
-    # 'ok' si |GapMed| <= AsymExpOkTol et si AsymExpInPct % au moins de ces pistes sont dans la classe verte, 'off' si
-    # |GapMed| > AsymExpNearTol, 'near' sinon (dans le doute : « proche », jamais « conforme ») ; '' sans piste a
-    # asymetrie attendue : resume de toujours
+    # compte (AsymDev des pistes qui le portent, Asym des autres ; Points garde la part de l asymetrie mesuree). Judge,
+    # tete par tete (AsymHead, pose par Show-WriteCheckTable, 170), le moins bon des jugements garde : pour une tete, 'ok'
+    # si l ecart median de ses pistes ne depasse pas AsymExpOkTol et si AsymExpInPct % au moins d entre elles sont dans la
+    # classe verte, 'off' si cet ecart median depasse AsymExpNearTol, 'near' sinon (dans le doute : « proche », jamais
+    # « conforme ») ; un ecart propre a une tete n est ainsi pas dilue par l autre. '' sans piste a asymetrie attendue :
+    # resume de toujours. GapMed, In, ExpMed, MeasMed et DevPoints restent ceux de l ensemble (la phrase ne change pas)
     $s.NExp = 0; $s.Judge = ''
     $ex = New-Object System.Collections.Generic.List[object]
     foreach ($m in $ok) { if ($null -ne $m.AsymExp) { $ex.Add($m) } }
@@ -16249,10 +16262,16 @@ function Get-AsymSummary($ms) {
         $s.MeasMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymExp + [double]$_.AsymGap }))
         $s.GapMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymGap }))
         $s.DevPoints = [int][math]::Round([double]$script:ScoreAsymK * $dev / $ok.Count)
-        $g = [math]::Abs($s.GapMed)
-        if ($g -le [double]$script:AsymExpOkTol -and 100 * $s.In -ge [int]$script:AsymExpInPct * $s.NExp) { $s.Judge = 'ok' }
-        elseif ($g -le [double]$script:AsymExpNearTol) { $s.Judge = 'near' }
-        else { $s.Judge = 'off' }
+        # Jugement tete par tete (AsymHead, pose par Show-WriteCheckTable : courbe ecrite et facteur de la disquette sont
+        # par tete), le moins bon des deux garde ; pistes sans AsymHead : un seul groupe, jugement d ensemble
+        $rk = @{ ok = 0; near = 1; off = 2 }; $s.Judge = 'ok'
+        foreach ($hk in @($ex | ForEach-Object { [string]$_.AsymHead } | Sort-Object -Unique)) {
+            $gr = @($ex | Where-Object { [string]$_.AsymHead -ceq $hk })
+            $g = [math]::Abs([double](Get-Median @($gr | ForEach-Object { [double]$_.AsymGap })))
+            $in = @($gr | Where-Object { (Get-AlLevel 'asym' ([double]$_.AsymDev)) -lt 1 }).Count
+            $j = if ($g -le [double]$script:AsymExpOkTol -and 100 * $in -ge [int]$script:AsymExpInPct * $gr.Count) { 'ok' } elseif ($g -le [double]$script:AsymExpNearTol) { 'near' } else { 'off' }
+            if ($rk[$j] -gt $rk[$s.Judge]) { $s.Judge = $j }
+        }
     }
     return $s
 }
@@ -26297,9 +26316,11 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         $bi = Get-LevelBrandItems ([string]$cmbDrive.Text) @($do.Ref.Units) $family
         # 12.8 (S3-HIGH) : duree avec la mesure directe et les nouveaux essais, au plus ($minDisk)
         $m1 = (T "Mesure complète de cette disquette sur le lecteur {0} : la précompensation est mesurée sur ses {1} cylindres (2 faces), environ {2} min ({3} min au plus si des cylindres demandent plus de {4} ns ou restent non convergés), puis l'image est écrite. La référence du lecteur n'est pas modifiée. La courbe obtenue est mémorisée pour la marque choisie ci-dessous ; sans marque, elle ne sert qu'à cette écriture.") -f "$($cmbDrive.Text)", "$nCyl", "$minutes", "$minDisk", "$mxDisk"
-        # Texte : M1 et usure du support (le detail de la calibration, $body, reste au journal)
+        # Texte : M1 et usure du support (le detail de la calibration, $body, reste au journal). 12.11 rc4 (R5, partie 2,
+        # relecture) : $Intro en tete, comme les quatre autres avertissements : sur ce chemin (Start-DiskMeasure, sans
+        # -Intro), il ne porte que la phrase d une calibration interrompue gardee, que ce lancement abandonnerait
         $cq = @{ Title = (T 'Calibration precomp'); Heading = (T 'Mesure complète de cette disquette'); Level = 'warn'; Picto = 'warn'
-                 Text = ($m1 + "`n`n" + $wear)
+                 Text = ($Intro + $m1 + "`n`n" + $wear)
                  Check = (T "Cette disquette sera effacée, puis l'image y sera écrite.")
                  GoText = (T 'Lancer la mesure complète'); GoGlyph = 'Diagnostic'
                  Combo = @{ Label = (T 'Marque de la disquette insérée :'); Items = $bi.Items; Text = [string]$do.Brand
@@ -26923,13 +26944,15 @@ function Get-CalibStopCause($cal, [bool]$gwError) {
     # (StopBy 'user' : bouton « Arreter », 540 ; invite d echange annulee, Invoke-CalibSwap). 'gw' : erreur de gw (GwError) :
     # releve absent ou illisible (StopBy 'scp', Invoke-CalibAnalysis), port du Greaseweazle introuvable apres la nouvelle
     # tentative (GwPortLost, 110), commande incomplete ou code retour (minuteur principal, 600), sinon gw non lance
-    # (Reset-GwSequence, 110). '' : cause non reconnue (erreur d une etape, arret decide pendant l analyse) : ni message ni
-    # reprise
+    # (Reset-GwSequence, 110 : StopBy 'launch', lu avant l etat de la commande gw precedente, que le lancement manque n a
+    # pas remis a zero : lecture de prechauffage en echec). '' : cause non reconnue (erreur d une etape, arret decide
+    # pendant l analyse) : ni message ni reprise
     if (-not $gwError) {
         if ([string]$cal.StopBy -eq 'user') { return @{ Kind = 'user'; Text = (T 'arrêt à votre demande') } }
         return @{ Kind = ''; Text = '' }
     }
     if ([string]$cal.StopBy -eq 'scp') { return @{ Kind = 'gw'; Text = (T 'relevé de la passe absent ou illisible') } }
+    if ([string]$cal.StopBy -eq 'launch') { return @{ Kind = 'gw'; Text = (T "gw n'a pas pu être lancé") } }
     if ($script:GwPortLost) { return @{ Kind = 'gw'; Text = (T "Greaseweazle déconnecté, gw n'a pas pu ouvrir son port, même à la nouvelle tentative") } }
     if ($script:GwLastIncomplete) { return @{ Kind = 'gw'; Text = (T 'commande gw incomplète (disquette protégée en écriture ou absente, lecteur en défaut ?)') } }
     if ([int]$script:GwLastCode -ne 0) { return @{ Kind = 'gw'; Text = ((T 'erreur de gw (code retour {0})') -f "$([int]$script:GwLastCode)") } }
@@ -27020,7 +27043,7 @@ function Get-CalibResumeText($rs) {
     if ($cal.Cross) { $t += "`n" + ((T "Utilisez la même disquette. Elle doit se trouver dans le lecteur {0}, {1} : c'est là que le journal l'annonçait à l'interruption. Si vous l'avez déplacée, remettez-la dans ce lecteur avant de reprendre ; l'application demandera ensuite chaque échange, comme avant.") -f "$($dk.Drive)", "$($dk.Role)") }
     else { $t += "`n" + ((T "Utilisez la même disquette, dans le lecteur {0}.") -f "$($dk.Drive)") }
     $t += "`n`n" + (T "Recommencer : les mesures gardées sont abandonnées, et la calibration repart de son avertissement.")
-    $t += "`n" + (T "Fermer : rien n'est lancé ; la calibration reste à reprendre tant que l'application est ouverte et qu'aucune autre calibration ne commence.")
+    $t += "`n" + (T "Fermer : rien n'est lancé ; la calibration reste à reprendre tant que l'application est ouverte et qu'aucune autre calibration du lecteur ni mesure complète d'une disquette ne commence ; une calibration rapide ou une mesure sur l'image ne l'abandonne pas.")
     $log = (T "=== Calibration reprise à l'étape {0} ({1}) : {2} passe(s) gardée(s) ({3}) ; l'étape interrompue est rejouée en entier ===") -f "$($si.N)", "$($si.Name)", "$($pl.Count)", "$done"
     $logDisk = if ($cal.Cross) { (T "Calibration croisée reprise : disquette attendue dans le lecteur {0}, {1}, là où le journal l'annonçait à l'interruption.") -f "$($dk.Drive)", "$($dk.Role)" } else { '' }
     return @{ Heading = (T 'Reprendre la calibration interrompue ?'); Text = [string]$t; Go = ((T "Reprendre à l'étape {0}") -f "$($si.N)"); Alt = (T 'Recommencer'); Log = [string]$log; LogDisk = [string]$logDisk }
@@ -27029,9 +27052,11 @@ function Get-CalibResumeText($rs) {
 function Show-CalibResumeDialog($rs) {
     # Fenetre de reprise d une calibration interrompue (frmConfirm, Show-AppConfirm) : bouton principal « Reprendre a
     # l etape N », second bouton « Recommencer », puis Fermer ; sans case a cocher : le texte dit quelle disquette et quel
-    # lecteur. Renvoie 'resume', 'restart' ou 'close' (Fermer, Echap, la croix) ; Show-AppConfirm note la reponse au journal
+    # lecteur. Niveau « warn », comme les autres confirmations qui ecrivent le motif : « Reprendre » efface et reecrit
+    # aussitot les pistes de test, sans repasser par l avertissement d usure. Renvoie 'resume', 'restart' ou 'close'
+    # (Fermer, Echap, la croix) ; Show-AppConfirm note la reponse au journal
     $t = Get-CalibResumeText $rs
-    $cq = @{ Title = (T 'Calibration precomp'); Heading = [string]$t.Heading; Text = [string]$t.Text; Level = 'info'; Picto = 'data'
+    $cq = @{ Title = (T 'Calibration precomp'); Heading = [string]$t.Heading; Text = [string]$t.Text; Level = 'warn'; Picto = 'warn'
              GoText = [string]$t.Go; GoGlyph = 'Diagnostic'; AltText = [string]$t.Alt }
     $script:ConfirmChoice = $null
     if (Show-AppConfirm @cq) { return 'resume' }
@@ -27040,10 +27065,13 @@ function Show-CalibResumeDialog($rs) {
 }
 
 function Clear-CalibResume([string]$why) {
-    # Passes gardees d une calibration interrompue abandonnees, raison au journal ; sans effet sans calibration gardee
+    # Passes gardees d une calibration interrompue abandonnees, raison au journal ; sans effet sans calibration gardee.
+    # Libelle de l onglet Ecriture qui annoncait la reprise (Set-CalibResume, Lbl), s il est encore affiche : remis a
+    # « Calibration precomp interrompue. » (« Recommencer » puis avertissement refuse : plus rien a reprendre)
     $rs = $script:CalResume; $script:CalResume = $null
     if (-not $rs -or -not $rs.Cal) { return }
     Append-Log ((T "Calibration interrompue ({0}) : passes gardées abandonnées ({1}).") -f (Get-CalibResumeLabel $rs.Cal), "$why")
+    if ($rs.Lbl -and [string]$lblWCal.Text -ceq [string]$rs.Lbl) { $lblWCal.Text = (T 'Calibration precomp interrompue.') }
 }
 
 function Set-CalibResume($cal, [bool]$gwError) {
@@ -27063,12 +27091,14 @@ function Set-CalibResume($cal, [bool]$gwError) {
     if (-not $cal.ResumeOk -or $cal.RetestEnd) { return }
     $script:CalResume = @{ Cal = $cal; At = (Get-Date); Cause = [string]$cause.Text; Sig = [string](Get-CalibResumeSig $cal) }
     $msg = (T "Calibration interrompue à l'étape {0} ({1}) : {2}. Passes faites, gardées en mémoire : {3}.") -f "$($si.N)", "$at", "$($cause.Text)", (@(@($cal.PassLog) | Where-Object { $_ }) -join ', ')
-    $msg += ' ' + ((T "Reprise possible tant que l'application reste ouverte : relancez la même calibration (mêmes lecteurs, même famille, même test, même image ou même type de disquette, mêmes options de lecteur), avec la même disquette ; une fenêtre proposera de reprendre à l'étape {0}, rejouée en entier.") -f "$($si.N)")
+    $msg += ' ' + ((T "Reprise possible tant que l'application reste ouverte : relancez la même calibration (mêmes lecteurs, même famille, même test, même choix d'une courbe par tête, même image ou même type de disquette, mêmes options de lecteur et même borne de précompensation), avec la même disquette ; une fenêtre proposera de reprendre à l'étape {0}, rejouée en entier.") -f "$($si.N)")
     if ($cal.Cross) { $dk = Get-CalibResumeDisk $cal; $msg += ' ' + ((T "La disquette est dans le lecteur {0}, {1}.") -f "$($dk.Drive)", "$($dk.Role)") }
     Append-Log $msg
     # Libelle de l onglet Ecriture, repris par le bilan de l Accueil (Set-HomeProgDone, appelee ensuite par
     # Stop-PrecompCalib) : texte court, sur une ligne a la taille minimale de la fenetre
     $lblWCal.Text = (T "Calibration interrompue : relancez-la pour reprendre à l'étape {0}.") -f "$($si.N)"
+    # Libelle garde avec l etat : Clear-CalibResume le retire s il est encore affiche (reprise qui n existe plus)
+    $script:CalResume.Lbl = [string]$lblWCal.Text
 }
 
 function Resume-PrecompCalib([string]$img, $geom, [int]$nCyl, [bool]$noWarm) {
@@ -32685,6 +32715,9 @@ $lblWBound.Name = 'lblWBound'
 $cmbWBound = New-Object System.Windows.Forms.ComboBox
 $cmbWBound.Name = 'cmbWBound'; $cmbWBound.Location = '186,242'; $cmbWBound.Width = 300; $cmbWBound.DropDownStyle = 'DropDownList'
 $cmbWBound.Add_SelectedIndexChanged({ Set-PrecompBoundFromUi })
+# Molette sur la liste fermee (onglet qui defile en mode expert) : evenement marque traite, la borne ne change pas sans
+# intention ; liste deroulee, la molette la fait defiler (meme garde que la liste du lecteur du bandeau, 510)
+$cmbWBound.Add_MouseWheel({ if (-not $this.DroppedDown -and $_ -is [System.Windows.Forms.HandledMouseEventArgs]) { $_.Handled = $true } })
 # 12.9 (S1) : ecriture sans surveillance, case a la suite du champ de la duree du prechauffage (position apres l ajout a
 # l onglet). Etat $script:CalibUnattended, pour la session : ni reglage ni configuration, decochee au demarrage et a la fin
 # de la sequence d ecriture (Update-CalibUnattended). Seul effet : avertissement de calibration de la disquette a ecrire

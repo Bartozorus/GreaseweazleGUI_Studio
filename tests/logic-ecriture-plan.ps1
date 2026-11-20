@@ -382,7 +382,9 @@ function Invoke-PlScenario($sc, [string]$fn, [bool]$withPlan) {
     $script:WriteQueue.Clear(); $script:Chain.Clear(); $script:WriteArgs = $null; $script:Rep = $null
     try { if ($fn -eq 'image') { Start-ImageWrite } else { Start-WriteTabWrite } } catch { [void]$script:PlTrace.Add("ERREUR $($_.Exception.Message)") }
     [void]$script:PlTrace.Add("fin calibration=$([bool]$script:Cal) suite=$($script:AfterCalib)")
-    return @{ Trace = @($script:PlTrace | ForEach-Object { & $plNorm $_ }); Log = @($script:PlLog | ForEach-Object { & $plNorm $_ }); Plan = $plan; Side = $side; Slow = [bool]$chkWSlow.Checked; Repair = [int]$numWRepair.Value }
+    # Raw : image flux ecrite telle quelle (regle de l ecriture, Test-RawFluxWrite) : gw ne la verifie jamais (cas P4)
+    $raw = [bool]((Get-Command 'Test-RawFluxWrite' -ErrorAction SilentlyContinue) -and (Test-RawFluxWrite ([string]$txtWFile.Text) ([string]$cmbWFmt.Text)))
+    return @{ Trace = @($script:PlTrace | ForEach-Object { & $plNorm $_ }); Log = @($script:PlLog | ForEach-Object { & $plNorm $_ }); Plan = $plan; Side = $side; Slow = [bool]$chkWSlow.Checked; Repair = [int]$numWRepair.Value; Raw = $raw }
 }
 
 function Test-PlAgree($r) {
@@ -434,7 +436,12 @@ function Test-PlAgree($r) {
         $nvW = (@($write | Where-Object { $_ -match ' --no-verify( |$)' }).Count -eq $write.Count)
         $nvP = ($segs -contains (T 'sans vérification gw'))
         if ($nvW -ne $nvP) { $bad += "verification de gw : commandes sans verification $nvW, annonce $nvP" }
-        if (-not $nvW) { $rm = [regex]::Match($write[0], ' --retries=(\d+)'); if (-not $rm.Success -or $segs -notcontains ((T 'vérification gw, {0} essai(s) au plus') -f $rm.Groups[1].Value)) { $bad += "essais de gw : commande « $($rm.Value.Trim()) », phrase « $all »" } }
+        # Relecture du lot R9 : image flux ecrite telle quelle, commande sans --no-verify : gw ne verifie pas un flux brut
+        # (tools/write.py de gw) ; la phrase le dit et n annonce aucune verification, bien que la commande porte --retries
+        $rawSeg = (T 'sans vérification gw (image flux écrite telle quelle)')
+        if (-not $nvW -and $r.Raw) { if ($segs -notcontains $rawSeg -or @($segs | Where-Object { $_ -like 'vérification gw*' }).Count) { $bad += "flux brut sans --no-verify : phrase « $all »" } }
+        elseif ($segs -contains $rawSeg) { $bad += "segment du flux brut hors de son cas : phrase « $all »" }
+        elseif (-not $nvW) { $rm = [regex]::Match($write[0], ' --retries=(\d+)'); if (-not $rm.Success -or $segs -notcontains ((T 'vérification gw, {0} essai(s) au plus') -f $rm.Groups[1].Value)) { $bad += "essais de gw : commande « $($rm.Value.Trim()) », phrase « $all »" } }
     }
     $tgtW = @($lg | Where-Object { $_.StartsWith(((T "Écriture pour le lecteur cible {0} : {1}, facteur 1,00.") -f 'X', 'Y').Split('X')[0]) }).Count -gt 0
     $tgtP = $all.Contains(((T 'pour le lecteur cible {0} : {1}') -f 'X', 'Y').Split('X')[0])
@@ -520,7 +527,7 @@ foreach ($pr in $plRoots) {
                 foreach ($x in (Test-PlAgree $r)) { $p4 += "$($sc.Id) $x" }
             }
             foreach ($x in @($p4 | Select-Object -First 6)) { "  P4 ECART $x" }
-            Chk 'P4' ($p4.Count -eq 0 -and $p4n -eq ($scP1.Count + $scP2.Count)) "$p4n scenarios (bouton ECRIRE et ecriture seule) : refus annonce si et seulement si le clic ne lance rien ; mesure annoncee (sur l image, au motif, complete) = mesure lancee ; ecriture sans mesure : effacement, tetes ecrites, controle et ses passes, verification de gw (--no-verify, ou --retries et ses essais), lecteur cible annonces = commandes et journal du clic ; ecarts : $(Get-List $p4 3)"
+            Chk 'P4' ($p4.Count -eq 0 -and $p4n -eq ($scP1.Count + $scP2.Count)) "$p4n scenarios (bouton ECRIRE et ecriture seule) : refus annonce si et seulement si le clic ne lance rien ; mesure annoncee (sur l image, au motif, complete) = mesure lancee ; ecriture sans mesure : effacement, tetes ecrites, controle et ses passes, verification de gw (--no-verify, ou --retries et ses essais ; image flux ecrite telle quelle sans --no-verify : « sans vérification gw (image flux écrite telle quelle) », gw ne verifiant pas un flux brut), lecteur cible annonces = commandes et journal du clic ; ecarts : $(Get-List $p4 3)"
             # ----------------------------------------------------------------- P5 : refus en tete, sans image, image absente
             $s11 = Get-PlShown @($scP1 | Where-Object { $_.Id -eq 'S11' })[0]
             $s20 = Get-PlShown @($scP1 | Where-Object { $_.Id -eq 'S20' })[0]

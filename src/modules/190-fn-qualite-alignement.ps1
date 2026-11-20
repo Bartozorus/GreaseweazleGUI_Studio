@@ -876,10 +876,12 @@ function Get-AsymSummary($ms) {
     # cible, relue par le lecteur qui l a ecrite). NExp : leur nombre ; ExpMed, MeasMed : medianes de l attendue et de la
     # mesuree signee ; GapMed : mediane des ecarts mesuree - attendue ; In : pistes dont l ecart juge (AsymDev) reste dans
     # la classe verte de l asymetrie ; DevPoints : part de l asymetrie dans le score moyen telle que Get-TrackScore la
-    # compte (AsymDev des pistes qui le portent, Asym des autres ; Points garde la part de l asymetrie mesuree). Judge :
-    # 'ok' si |GapMed| <= AsymExpOkTol et si AsymExpInPct % au moins de ces pistes sont dans la classe verte, 'off' si
-    # |GapMed| > AsymExpNearTol, 'near' sinon (dans le doute : « proche », jamais « conforme ») ; '' sans piste a
-    # asymetrie attendue : resume de toujours
+    # compte (AsymDev des pistes qui le portent, Asym des autres ; Points garde la part de l asymetrie mesuree). Judge,
+    # tete par tete (AsymHead, pose par Show-WriteCheckTable, 170), le moins bon des jugements garde : pour une tete, 'ok'
+    # si l ecart median de ses pistes ne depasse pas AsymExpOkTol et si AsymExpInPct % au moins d entre elles sont dans la
+    # classe verte, 'off' si cet ecart median depasse AsymExpNearTol, 'near' sinon (dans le doute : « proche », jamais
+    # « conforme ») ; un ecart propre a une tete n est ainsi pas dilue par l autre. '' sans piste a asymetrie attendue :
+    # resume de toujours. GapMed, In, ExpMed, MeasMed et DevPoints restent ceux de l ensemble (la phrase ne change pas)
     $s.NExp = 0; $s.Judge = ''
     $ex = New-Object System.Collections.Generic.List[object]
     foreach ($m in $ok) { if ($null -ne $m.AsymExp) { $ex.Add($m) } }
@@ -891,10 +893,16 @@ function Get-AsymSummary($ms) {
         $s.MeasMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymExp + [double]$_.AsymGap }))
         $s.GapMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymGap }))
         $s.DevPoints = [int][math]::Round([double]$script:ScoreAsymK * $dev / $ok.Count)
-        $g = [math]::Abs($s.GapMed)
-        if ($g -le [double]$script:AsymExpOkTol -and 100 * $s.In -ge [int]$script:AsymExpInPct * $s.NExp) { $s.Judge = 'ok' }
-        elseif ($g -le [double]$script:AsymExpNearTol) { $s.Judge = 'near' }
-        else { $s.Judge = 'off' }
+        # Jugement tete par tete (AsymHead, pose par Show-WriteCheckTable : courbe ecrite et facteur de la disquette sont
+        # par tete), le moins bon des deux garde ; pistes sans AsymHead : un seul groupe, jugement d ensemble
+        $rk = @{ ok = 0; near = 1; off = 2 }; $s.Judge = 'ok'
+        foreach ($hk in @($ex | ForEach-Object { [string]$_.AsymHead } | Sort-Object -Unique)) {
+            $gr = @($ex | Where-Object { [string]$_.AsymHead -ceq $hk })
+            $g = [math]::Abs([double](Get-Median @($gr | ForEach-Object { [double]$_.AsymGap })))
+            $in = @($gr | Where-Object { (Get-AlLevel 'asym' ([double]$_.AsymDev)) -lt 1 }).Count
+            $j = if ($g -le [double]$script:AsymExpOkTol -and 100 * $in -ge [int]$script:AsymExpInPct * $gr.Count) { 'ok' } elseif ($g -le [double]$script:AsymExpNearTol) { 'near' } else { 'off' }
+            if ($rk[$j] -gt $rk[$s.Judge]) { $s.Judge = $j }
+        }
     }
     return $s
 }

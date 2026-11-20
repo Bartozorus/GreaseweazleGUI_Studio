@@ -147,6 +147,9 @@ $lblWBound.Name = 'lblWBound'
 $cmbWBound = New-Object System.Windows.Forms.ComboBox
 $cmbWBound.Name = 'cmbWBound'; $cmbWBound.Location = '186,242'; $cmbWBound.Width = 300; $cmbWBound.DropDownStyle = 'DropDownList'
 $cmbWBound.Add_SelectedIndexChanged({ Set-PrecompBoundFromUi })
+# Molette sur la liste fermee (onglet qui defile en mode expert) : evenement marque traite, la borne ne change pas sans
+# intention ; liste deroulee, la molette la fait defiler (meme garde que la liste du lecteur du bandeau, 510)
+$cmbWBound.Add_MouseWheel({ if (-not $this.DroppedDown -and $_ -is [System.Windows.Forms.HandledMouseEventArgs]) { $_.Handled = $true } })
 # 12.9 (S1) : ecriture sans surveillance, case a la suite du champ de la duree du prechauffage (position apres l ajout a
 # l onglet). Etat $script:CalibUnattended, pour la session : ni reglage ni configuration, decochee au demarrage et a la fin
 # de la sequence d ecriture (Update-CalibUnattended). Seul effet : avertissement de calibration de la disquette a ecrire

@@ -152,9 +152,11 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         $bi = Get-LevelBrandItems ([string]$cmbDrive.Text) @($do.Ref.Units) $family
         # 12.8 (S3-HIGH) : duree avec la mesure directe et les nouveaux essais, au plus ($minDisk)
         $m1 = (T "Mesure complète de cette disquette sur le lecteur {0} : la précompensation est mesurée sur ses {1} cylindres (2 faces), environ {2} min ({3} min au plus si des cylindres demandent plus de {4} ns ou restent non convergés), puis l'image est écrite. La référence du lecteur n'est pas modifiée. La courbe obtenue est mémorisée pour la marque choisie ci-dessous ; sans marque, elle ne sert qu'à cette écriture.") -f "$($cmbDrive.Text)", "$nCyl", "$minutes", "$minDisk", "$mxDisk"
-        # Texte : M1 et usure du support (le detail de la calibration, $body, reste au journal)
+        # Texte : M1 et usure du support (le detail de la calibration, $body, reste au journal). 12.11 rc4 (R5, partie 2,
+        # relecture) : $Intro en tete, comme les quatre autres avertissements : sur ce chemin (Start-DiskMeasure, sans
+        # -Intro), il ne porte que la phrase d une calibration interrompue gardee, que ce lancement abandonnerait
         $cq = @{ Title = (T 'Calibration precomp'); Heading = (T 'Mesure complète de cette disquette'); Level = 'warn'; Picto = 'warn'
-                 Text = ($m1 + "`n`n" + $wear)
+                 Text = ($Intro + $m1 + "`n`n" + $wear)
                  Check = (T "Cette disquette sera effacée, puis l'image y sera écrite.")
                  GoText = (T 'Lancer la mesure complète'); GoGlyph = 'Diagnostic'
                  Combo = @{ Label = (T 'Marque de la disquette insérée :'); Items = $bi.Items; Text = [string]$do.Brand
@@ -778,13 +780,15 @@ function Get-CalibStopCause($cal, [bool]$gwError) {
     # (StopBy 'user' : bouton « Arreter », 540 ; invite d echange annulee, Invoke-CalibSwap). 'gw' : erreur de gw (GwError) :
     # releve absent ou illisible (StopBy 'scp', Invoke-CalibAnalysis), port du Greaseweazle introuvable apres la nouvelle
     # tentative (GwPortLost, 110), commande incomplete ou code retour (minuteur principal, 600), sinon gw non lance
-    # (Reset-GwSequence, 110). '' : cause non reconnue (erreur d une etape, arret decide pendant l analyse) : ni message ni
-    # reprise
+    # (Reset-GwSequence, 110 : StopBy 'launch', lu avant l etat de la commande gw precedente, que le lancement manque n a
+    # pas remis a zero : lecture de prechauffage en echec). '' : cause non reconnue (erreur d une etape, arret decide
+    # pendant l analyse) : ni message ni reprise
     if (-not $gwError) {
         if ([string]$cal.StopBy -eq 'user') { return @{ Kind = 'user'; Text = (T 'arrêt à votre demande') } }
         return @{ Kind = ''; Text = '' }
     }
     if ([string]$cal.StopBy -eq 'scp') { return @{ Kind = 'gw'; Text = (T 'relevé de la passe absent ou illisible') } }
+    if ([string]$cal.StopBy -eq 'launch') { return @{ Kind = 'gw'; Text = (T "gw n'a pas pu être lancé") } }
     if ($script:GwPortLost) { return @{ Kind = 'gw'; Text = (T "Greaseweazle déconnecté, gw n'a pas pu ouvrir son port, même à la nouvelle tentative") } }
     if ($script:GwLastIncomplete) { return @{ Kind = 'gw'; Text = (T 'commande gw incomplète (disquette protégée en écriture ou absente, lecteur en défaut ?)') } }
     if ([int]$script:GwLastCode -ne 0) { return @{ Kind = 'gw'; Text = ((T 'erreur de gw (code retour {0})') -f "$([int]$script:GwLastCode)") } }
@@ -875,7 +879,7 @@ function Get-CalibResumeText($rs) {
     if ($cal.Cross) { $t += "`n" + ((T "Utilisez la même disquette. Elle doit se trouver dans le lecteur {0}, {1} : c'est là que le journal l'annonçait à l'interruption. Si vous l'avez déplacée, remettez-la dans ce lecteur avant de reprendre ; l'application demandera ensuite chaque échange, comme avant.") -f "$($dk.Drive)", "$($dk.Role)") }
     else { $t += "`n" + ((T "Utilisez la même disquette, dans le lecteur {0}.") -f "$($dk.Drive)") }
     $t += "`n`n" + (T "Recommencer : les mesures gardées sont abandonnées, et la calibration repart de son avertissement.")
-    $t += "`n" + (T "Fermer : rien n'est lancé ; la calibration reste à reprendre tant que l'application est ouverte et qu'aucune autre calibration ne commence.")
+    $t += "`n" + (T "Fermer : rien n'est lancé ; la calibration reste à reprendre tant que l'application est ouverte et qu'aucune autre calibration du lecteur ni mesure complète d'une disquette ne commence ; une calibration rapide ou une mesure sur l'image ne l'abandonne pas.")
     $log = (T "=== Calibration reprise à l'étape {0} ({1}) : {2} passe(s) gardée(s) ({3}) ; l'étape interrompue est rejouée en entier ===") -f "$($si.N)", "$($si.Name)", "$($pl.Count)", "$done"
     $logDisk = if ($cal.Cross) { (T "Calibration croisée reprise : disquette attendue dans le lecteur {0}, {1}, là où le journal l'annonçait à l'interruption.") -f "$($dk.Drive)", "$($dk.Role)" } else { '' }
     return @{ Heading = (T 'Reprendre la calibration interrompue ?'); Text = [string]$t; Go = ((T "Reprendre à l'étape {0}") -f "$($si.N)"); Alt = (T 'Recommencer'); Log = [string]$log; LogDisk = [string]$logDisk }
@@ -884,9 +888,11 @@ function Get-CalibResumeText($rs) {
 function Show-CalibResumeDialog($rs) {
     # Fenetre de reprise d une calibration interrompue (frmConfirm, Show-AppConfirm) : bouton principal « Reprendre a
     # l etape N », second bouton « Recommencer », puis Fermer ; sans case a cocher : le texte dit quelle disquette et quel
-    # lecteur. Renvoie 'resume', 'restart' ou 'close' (Fermer, Echap, la croix) ; Show-AppConfirm note la reponse au journal
+    # lecteur. Niveau « warn », comme les autres confirmations qui ecrivent le motif : « Reprendre » efface et reecrit
+    # aussitot les pistes de test, sans repasser par l avertissement d usure. Renvoie 'resume', 'restart' ou 'close'
+    # (Fermer, Echap, la croix) ; Show-AppConfirm note la reponse au journal
     $t = Get-CalibResumeText $rs
-    $cq = @{ Title = (T 'Calibration precomp'); Heading = [string]$t.Heading; Text = [string]$t.Text; Level = 'info'; Picto = 'data'
+    $cq = @{ Title = (T 'Calibration precomp'); Heading = [string]$t.Heading; Text = [string]$t.Text; Level = 'warn'; Picto = 'warn'
              GoText = [string]$t.Go; GoGlyph = 'Diagnostic'; AltText = [string]$t.Alt }
     $script:ConfirmChoice = $null
     if (Show-AppConfirm @cq) { return 'resume' }
@@ -895,10 +901,13 @@ function Show-CalibResumeDialog($rs) {
 }
 
 function Clear-CalibResume([string]$why) {
-    # Passes gardees d une calibration interrompue abandonnees, raison au journal ; sans effet sans calibration gardee
+    # Passes gardees d une calibration interrompue abandonnees, raison au journal ; sans effet sans calibration gardee.
+    # Libelle de l onglet Ecriture qui annoncait la reprise (Set-CalibResume, Lbl), s il est encore affiche : remis a
+    # « Calibration precomp interrompue. » (« Recommencer » puis avertissement refuse : plus rien a reprendre)
     $rs = $script:CalResume; $script:CalResume = $null
     if (-not $rs -or -not $rs.Cal) { return }
     Append-Log ((T "Calibration interrompue ({0}) : passes gardées abandonnées ({1}).") -f (Get-CalibResumeLabel $rs.Cal), "$why")
+    if ($rs.Lbl -and [string]$lblWCal.Text -ceq [string]$rs.Lbl) { $lblWCal.Text = (T 'Calibration precomp interrompue.') }
 }
 
 function Set-CalibResume($cal, [bool]$gwError) {
@@ -918,12 +927,14 @@ function Set-CalibResume($cal, [bool]$gwError) {
     if (-not $cal.ResumeOk -or $cal.RetestEnd) { return }
     $script:CalResume = @{ Cal = $cal; At = (Get-Date); Cause = [string]$cause.Text; Sig = [string](Get-CalibResumeSig $cal) }
     $msg = (T "Calibration interrompue à l'étape {0} ({1}) : {2}. Passes faites, gardées en mémoire : {3}.") -f "$($si.N)", "$at", "$($cause.Text)", (@(@($cal.PassLog) | Where-Object { $_ }) -join ', ')
-    $msg += ' ' + ((T "Reprise possible tant que l'application reste ouverte : relancez la même calibration (mêmes lecteurs, même famille, même test, même image ou même type de disquette, mêmes options de lecteur), avec la même disquette ; une fenêtre proposera de reprendre à l'étape {0}, rejouée en entier.") -f "$($si.N)")
+    $msg += ' ' + ((T "Reprise possible tant que l'application reste ouverte : relancez la même calibration (mêmes lecteurs, même famille, même test, même choix d'une courbe par tête, même image ou même type de disquette, mêmes options de lecteur et même borne de précompensation), avec la même disquette ; une fenêtre proposera de reprendre à l'étape {0}, rejouée en entier.") -f "$($si.N)")
     if ($cal.Cross) { $dk = Get-CalibResumeDisk $cal; $msg += ' ' + ((T "La disquette est dans le lecteur {0}, {1}.") -f "$($dk.Drive)", "$($dk.Role)") }
     Append-Log $msg
     # Libelle de l onglet Ecriture, repris par le bilan de l Accueil (Set-HomeProgDone, appelee ensuite par
     # Stop-PrecompCalib) : texte court, sur une ligne a la taille minimale de la fenetre
     $lblWCal.Text = (T "Calibration interrompue : relancez-la pour reprendre à l'étape {0}.") -f "$($si.N)"
+    # Libelle garde avec l etat : Clear-CalibResume le retire s il est encore affiche (reprise qui n existe plus)
+    $script:CalResume.Lbl = [string]$lblWCal.Text
 }
 
 function Resume-PrecompCalib([string]$img, $geom, [int]$nCyl, [bool]$noWarm) {

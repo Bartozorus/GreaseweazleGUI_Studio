@@ -455,7 +455,19 @@ $x3a = ($sOk.NExp -eq 160 -and $sOk.In -eq 160 -and $sOk.Judge -ceq 'ok' -and (T
 $x3b = ($sOkEdge.Judge -ceq 'ok' -and $sNearLo.Judge -ceq 'near' -and $sNearHi.Judge -ceq 'near' -and $sOffHi.Judge -ceq 'off' -and $sOffLo.Judge -ceq 'off' -and (Test-NearX $sOffLo.GapMed (-0.025)) -and $sNg.Judge -ceq 'near')
 $x3c = ($sIn127.In -eq 127 -and $sIn127.Judge -ceq 'near' -and (Test-NearX $sIn127.GapMed 0.004) -and $sIn127.DevPoints -eq 25 -and $sIn128.In -eq 128 -and $sIn128.Judge -ceq 'ok')
 $x3d = ($sPlain.NExp -eq 0 -and $sPlain.Judge -ceq '' -and $sPlain.Points -eq 72 -and $sPart.N -eq 160 -and $sPart.NExp -eq 100 -and $sPart.DevPoints -eq 32)
-Chk 'X3' ($x3a -and $x3b -and $x3c -and $x3d) "160 pistes a +0,004 de l attendue : « $($sOk.Judge) », $($sOk.DevPoints) point(s) sur l ecart au lieu de $($sOk.Points) ($x3a) ; ecart median 0,0049 / 0,0051 / 0,0199 / 0,0201 / -0,025 : $($sOkEdge.Judge) / $($sNearLo.Judge) / $($sNearHi.Judge) / $($sOffHi.Judge) / $($sOffLo.Judge) ($x3b) ; meme ecart median, 127 puis 128 pistes sur 160 dans la classe verte : $($sIn127.Judge) puis $($sIn128.Judge) ($x3c) ; sans asymetrie attendue : jugement vide, resume de toujours ; 100 pistes sur 160 avec : part du score $($sPart.DevPoints) ($x3d)"
+# Relecture : jugement tete par tete (AsymHead, pose par Show-WriteCheckTable), le moins bon des deux garde : un ecart
+# propre a une tete n est pas dilue par l autre. Jeu fictif, 80 pistes par tete. Sans le jugement par tete, les quatre
+# premiers resumes donnaient 'near', 'ok', 'ok' et 'ok' (ecart median et part de pistes vertes de l ensemble)
+function New-MsH([string]$head, [int]$n, [double]$d3, [double]$d4, [double]$excess) { return @(New-MsX $n $d3 $d4 $excess | ForEach-Object { $_.AsymHead = $head; $_ }) }
+$sHead = Get-AsymSummary (@(New-MsH '0' 80 0.016 0.018 30) + @(New-MsH '1' 80 0.029 0.031 30))
+$sHeadNear = Get-AsymSummary (@(New-MsH '0' 80 0.015 0.015 30) + @(New-MsH '1' 80 0.018 0.020 30))
+$sHeadIn63 = Get-AsymSummary (@(New-MsH '0' 80 0.016 0.018 30) + @(New-MsH '1' 63 0.016 0.018 30) + @(New-MsH '1' 17 0.040 (-0.006) 30))
+$sHeadIn64 = Get-AsymSummary (@(New-MsH '0' 80 0.016 0.018 30) + @(New-MsH '1' 64 0.016 0.018 30) + @(New-MsH '1' 16 0.040 (-0.006) 30))
+$sHeadOk = Get-AsymSummary (@(New-MsH '0' 80 0.016 0.018 30) + @(New-MsH '1' 80 0.017 0.0179 30))
+$sHeadOne = Get-AsymSummary (New-MsH '1' 80 0.029 0.031 30)
+$x3e = ((Test-NearX $sHead.GapMed 0.017) -and $sHead.Judge -ceq 'off' -and (Test-NearX $sHeadNear.GapMed 0.004) -and $sHeadNear.In -eq 160 -and $sHeadNear.Judge -ceq 'near' -and
+        $sHeadIn63.In -eq 143 -and (Test-NearX $sHeadIn63.GapMed 0.004) -and $sHeadIn63.Judge -ceq 'near' -and $sHeadIn64.In -eq 144 -and $sHeadIn64.Judge -ceq 'ok' -and $sHeadOk.Judge -ceq 'ok' -and $sHeadOne.Judge -ceq 'off' -and $sHead.NExp -eq 160)
+Chk 'X3' ($x3a -and $x3b -and $x3c -and $x3d -and $x3e) "jugement tete par tete, le moins bon garde : une tete a +0,004 et l autre a +0,030 (ecart median de l ensemble 0,017) : « $($sHead.Judge) » ; une tete a 0 et l autre a +0,008 (ensemble 0,004) : « $($sHeadNear.Judge) » ; une tete a 63 puis 64 pistes vertes sur 80 (ensemble 143 et 144 sur 160) : « $($sHeadIn63.Judge) » puis « $($sHeadIn64.Judge) » ; deux tetes conformes : « $($sHeadOk.Judge) » ; une seule tete ecrite : « $($sHeadOne.Judge) » ($x3e) ; 160 pistes a +0,004 de l attendue : « $($sOk.Judge) », $($sOk.DevPoints) point(s) sur l ecart au lieu de $($sOk.Points) ($x3a) ; ecart median 0,0049 / 0,0051 / 0,0199 / 0,0201 / -0,025 : $($sOkEdge.Judge) / $($sNearLo.Judge) / $($sNearHi.Judge) / $($sOffHi.Judge) / $($sOffLo.Judge) ($x3b) ; meme ecart median, 127 puis 128 pistes sur 160 dans la classe verte : $($sIn127.Judge) puis $($sIn128.Judge) ($x3c) ; sans asymetrie attendue : jugement vide, resume de toujours ; 100 pistes sur 160 avec : part du score $($sPart.DevPoints) ($x3d)"
 $tOk = Get-AsymSummaryText $sOk -For $forX; $tNear = Get-AsymSummaryText $sNearLo -For $forX; $tOff = Get-AsymSummaryText $sOffLo -For $forX; $tNg = Get-AsymSummaryText $sNg -For $forX -Always
 $expOk = ($kOk -f 'Atelier 2', '+0,030', '+0,034', 'Banc 1') + ' ' + ($kTail -f '8', '68', 'Atelier 2')
 $expNear = ($kNear -f 'Atelier 2', '+0,030', '+0,035', 'Banc 1') + ' ' + ($kTail -f '10', '70', 'Atelier 2')
@@ -500,7 +512,18 @@ $resL = $script:LastRes; $cellsL = @(Get-CellsX)
 $wantCellsL = @(foreach ($c in 0..4) { "$c.0=+0,034/125/1"; "$c.1=+0,044/145/1" }) + @('5.0=-/-/-1')
 $expL = ($kPos -f '10', '10', '0,039', '78')
 $x5d = (($cellsL -join ' ') -ceq ($wantCellsL -join ' ') -and $resL.Score -eq 135 -and [string]$resL.AsymText -ceq $expL -and -not $resL.ContainsKey('AsymFor') -and @($repL.State.Values | Where-Object { $_.ContainsKey('AsymExp') }).Count -eq 0 -and (@($script:RLog) -ccontains "Contrôle après écriture : $expL"))
-Chk 'X5' ($x5a -and $x5b -and $x5c -and $x5d) "controle d une ecriture pour « Atelier 2 » relue par « Banc 1 », exces memorise (30 ns tete 0, 40 ns tete 1) : cases a la valeur mesuree et vertes, score 65 par piste ($x5a) ; score moyen $($resX.Score), phrase « conforme » au resultat et au journal, lecteurs gardes avec le resultat ($x5b) ; derniere mesure au score affiche, asymetrie mesuree et etat gardes, cylindre au-dela du tableau : derniere valeur ($x5c) ; meme controle sans cette memoire : score moyen $($resL.Score), cases de la couleur de la valeur mesuree, phrase de toujours ($x5d)"
+# Relecture : la vraie Show-WriteCheckTable pose la tete de chaque piste a asymetrie attendue (AsymHead) ; exces de 20 ns
+# seulement pour la tete 1 (attendue 0,020, mesuree 0,044 : ecart +0,024, au-dela de « proche ») : la phrase dit
+# « eloignee », alors que l ecart median des dix pistes (0,014) aurait donne « proche »
+$x5e0 = ([string]$repX.State['4.1'].AsymHead -ceq '1' -and [string]$repX.State['4.0'].AsymHead -ceq '0' -and -not $repX.State['5.0'].ContainsKey('AsymHead') -and @($repL.State.Values | Where-Object { $_.ContainsKey('AsymHead') }).Count -eq 0)
+Reset-State
+$repH = New-CheckRepX @{ 0 = [int[]]@(30); 1 = [int[]]@(20) }
+$null = Show-WriteCheckTable $repH
+$resH = $script:LastRes
+$sumH = Get-AsymSummary @($repH.State.Values)
+$expH = ($kOff -f 'Atelier 2', '+0,025', '+0,039', 'Banc 1') + ' ' + ($kTail -f '28', '78', 'Atelier 2')
+$x5e = ($x5e0 -and (Test-NearX $sumH.GapMed 0.014) -and $sumH.Judge -ceq 'off' -and [string]$resH.AsymText -ceq $expH -and (@($script:RLog) -ccontains "Contrôle après écriture : $expH"))
+Chk 'X5' ($x5a -and $x5b -and $x5c -and $x5d -and $x5e) "tete de chaque piste posee avec l asymetrie attendue, et une tete eloignee de l attendu (exces 30 ns tete 0, 20 ns tete 1 : ecart median de l ensemble 0,014) : phrase « eloignee » au resultat et au journal ($x5e) ; controle d une ecriture pour « Atelier 2 » relue par « Banc 1 », exces memorise (30 ns tete 0, 40 ns tete 1) : cases a la valeur mesuree et vertes, score 65 par piste ($x5a) ; score moyen $($resX.Score), phrase « conforme » au resultat et au journal, lecteurs gardes avec le resultat ($x5b) ; derniere mesure au score affiche, asymetrie mesuree et etat gardes, cylindre au-dela du tableau : derniere valeur ($x5c) ; meme controle sans cette memoire : score moyen $($resL.Score), cases de la couleur de la valeur mesuree, phrase de toujours ($x5d)"
 # Export du controle : tableau et resultat de X5 (avec exces memorise), puis sans
 function Set-CheckViewX($res) { $v = $script:QualView; $v.State = 'result'; $v.Kind = 'check'; $v.Reason = ''; $v.At = [datetime]::new(2026, 11, 11, 10, 0, 0); $v.Has = $true; $v.Res = $res }
 function Get-RowX($x, [string]$lab) { return @(@($x.Rows) | Where-Object { [string]$_[0] -ceq $lab })[0] }
