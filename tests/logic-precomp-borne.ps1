@@ -291,7 +291,11 @@ $wantLbl = @{ fr = 'Borne de précompensation :'; en = 'Precompensation bound:' 
 $wantLog = @{ fr = 'Borne de précompensation : {0} (avant : {1}).'; en = 'Precompensation bound: {0} (before: {1}).' }
 $wantOver = @{ fr = "dès qu'elle dépasse {0} ns."; en = 'as soon as it exceeds {0} ns.' }
 $wantBusy = @{ fr = 'Borne de précompensation inchangée : une opération est en cours ou une calibration attend votre décision.'; en = 'Precompensation bound unchanged: an operation is running or a calibration awaits your decision.' }
-$wantCap = @{ fr = "À l'écriture, la borne en place plafonne aussi la courbe multipliée par le facteur de précompensation : {0} ns au plus, long track compris ; une valeur déjà au-dessus n'est jamais augmentée."; en = 'At write time, the bound in place also caps the curve multiplied by the precompensation factor: {0} ns at most, long track included; a value already above it is never increased.' }
+# 12.11 rc4 (decision de l utilisateur) : en automatique, borne de la courbe ecrite avec un facteur propre a la famille
+# (400 ns en standard, 470 ns en long track) ; une borne choisie, la meme partout
+$wantCap0 = @{ fr = "À l'écriture, la borne en place plafonne aussi la courbe multipliée par le facteur de précompensation et la mesure sur l'image : {0} ; une valeur déjà au-dessus n'est jamais augmentée."; en = 'At write time, the bound in place also caps the curve multiplied by the precompensation factor and the measurement on the image: {0}; a value already above it is never increased.' }
+$wantCapA = @{ fr = ($wantCap0['fr'] -f '400 ns au plus, 470 ns en long track'); en = ($wantCap0['en'] -f '400 ns at most, 470 ns in long track') }
+$wantCapC = @{ fr = ($wantCap0['fr'] -f '450 ns au plus, long track compris'); en = ($wantCap0['en'] -f '450 ns at most, long track included') }
 $std = @(0) + @(for ($v = 300; $v -le 470; $v += 10) { $v })
 foreach ($L in @('fr', 'en')) {
     "--- onglet construit dans l ordre de l application, langue $L"
@@ -404,9 +408,9 @@ foreach ($L in @('fr', 'en')) {
             else { @('400 ns for a standard image', '470 ns for a long track image', 'a quarter of its', 'from 300 to 470 ns', 'half the bound', 'the bound does not exceed 470 ns', '(500 ns at most)', 'as soon as it exceeds 400 ns', 'keeps the bound of its computation', '(precompMaxNs)') }
     # Relecture : la sixieme ligne dit aussi la borne de la courbe ecrite avec un facteur (CalHardNsUser : 400 ns en
     # automatique, long track compris ; la valeur choisie sinon, cas U4 ; commandes : cas U9)
-    $need += ($wantCap[$L] -f '400')
+    $need += $wantCapA[$L]
     $missT = @($need | Where-Object { -not $tipL.Contains($_) })
-    Chk "U8$L" ($tl.Count -eq 7 -and $missT.Count -eq 0 -and $tipL -ceq (Get-PrecompBoundTip) -and $tl[5].EndsWith(($wantCap[$L] -f '400')) -and $u4a.Tip.Contains(($wantCap[$L] -f '450'))) "($L) infobulle de la liste : $($tl.Count) lignes, tirees des constantes de la borne et de Get-DiskOverNs (borne automatique, plage, quart de cellule, haute densite, plafond d une disquette, controle impose, courbes deja calculees et borne de la courbe ecrite avec un facteur : 400 ns en automatique, 450 ns avec 450 ns choisi, cle de la configuration) ; absents : $(Get-List $missT)"
+    Chk "U8$L" ($tl.Count -eq 7 -and $missT.Count -eq 0 -and $tipL -ceq (Get-PrecompBoundTip) -and $tl[5].EndsWith($wantCapA[$L]) -and $u4a.Tip.Contains($wantCapC[$L])) "($L) infobulle de la liste : $($tl.Count) lignes, tirees des constantes de la borne et de Get-DiskOverNs (borne automatique, plage, quart de cellule, haute densite, plafond d une disquette, controle impose, courbes deja calculees et borne de la courbe ecrite avec un facteur : 400 ns en automatique, 450 ns avec 450 ns choisi, cle de la configuration) ; absents : $(Get-List $missT)"
     if ($L -ne 'fr') { continue }
 
     # ================================================================= F : borne par famille
@@ -531,16 +535,16 @@ foreach ($L in @('fr', 'en')) {
                   Sig = [double[]]@($cy | ForEach-Object { 1.0 }); Breaks = @(); Date = '01/11/2026 10:00'; Test = 'fine'; Drive = 'A'; Method = 'motif'; Bits = 101344; Slope = -1.0; Converged = $true; MaxNs = 400
                   Spec = "0=120:79=$($v[79])"; Calc = '12.10' }
     }
-    function Invoke-PbFactorWrite([bool]$auto, [int]$ns) {
+    function Invoke-PbFactorWrite([bool]$auto, [int]$ns, [string]$fam = 'std') {
         Invoke-PbDefaults
-        $script:DriveCurves = @{ 'A|std' = (New-PbCurve) }; Sync-PrecompCurves
+        $script:DriveCurves = @{ "A|$fam" = (New-PbCurve) }; Sync-PrecompCurves
         $txtWFile.Text = $imAdf; $cmbWFmt.SelectedItem = 'amiga.amigados'
         Set-PrecompBound $auto $ns
         $txtWPrecomp.Text = '0=280:40=350'; $txtWPrecomp1.Text = '0=280:40=350'; $chkWPostCheck.Checked = $false
         $script:PbTrace.Clear(); $script:PbLog.Clear()
         $script:WriteQueue.Clear(); $script:Chain.Clear(); $script:WriteArgs = $null; $script:Rep = $null
         $script:LevelPostForce = $false; $script:Restore = $null; $script:GwProc = $null
-        $script:WriteFactorNext = @{ Drive = 'A'; Fam = 'std'; Img = $imAdf; K = @{ 0 = 1.2; 1 = 1.2 }; Brand = 'Marque inventee' }
+        $script:WriteFactorNext = @{ Drive = 'A'; Fam = $fam; Img = $imAdf; K = @{ 0 = 1.2; 1 = 1.2 }; Brand = 'Marque inventee' }
         try { Start-ImageWrite } catch { [void]$script:PbTrace.Add("ERREUR $($_.Exception.Message)") }
         $w = @($script:PbTrace | Where-Object { $_ -match '^(ecriture|file|gw) write ' -or $_ -like 'ERREUR*' } | ForEach-Object { ([string]$_).Replace($pbImg, '<img>') })
         $j = @($script:PbLog | Where-Object { $_ -match 'bornée à 0\.\.\d+ ns' } | ForEach-Object { [regex]::Match([string]$_, 'bornée à 0\.\.\d+ ns').Value })
@@ -549,6 +553,14 @@ foreach ($L in @('fr', 'en')) {
     }
     $u9f = [ordered]@{}
     foreach ($c in @(@($true, 0), @($false, 300), @($false, 470))) { $u9f["$(if ($c[0]) { 'automatique' } else { "$($c[1]) ns" })"] = Invoke-PbFactorWrite $c[0] $c[1] }
+    # 12.11 rc4 (decision de l utilisateur) : image long track (famille simulee : Get-ImageFamily remplacee le temps des
+    # deux ecritures, puis remise) : en automatique, borne de la reference long track (470 ns) ; 400 ns choisi : 400 ns
+    $gifSave = ${function:Get-ImageFamily}
+    Set-Item -Path function:script:Get-ImageFamily -Value { param([string]$path, [string]$fmt = '') return 'long' }
+    $u9l = [ordered]@{ 'automatique, long track' = (Invoke-PbFactorWrite $true 0 'long'); '400 ns, long track' = (Invoke-PbFactorWrite $false 400 'long') }
+    Set-Item -Path function:script:Get-ImageFamily -Value $gifSave
+    foreach ($k in @($u9l.Keys)) { "  U9c $k : $($u9l[$k])" }
+    Chk 'U9c' ($u9l['automatique, long track'].Contains('--precomp 0=336:40=420 ') -and $u9l['automatique, long track'].EndsWith('# bornée à 0..470 ns') -and $u9l['400 ns, long track'].Contains('--precomp 0=336:40=400 ') -and $u9l['400 ns, long track'].EndsWith('# bornée à 0..400 ns')) "image long track, facteur 1,20 (vraie Start-ImageWrite, champs 0=280:40=350) : en automatique, courbe ecrite bornee a 470 ns comme la reference de la famille (0=336:40=420) ; 400 ns choisi : 400 ns (0=336:40=400)"
     $script:DriveCurves = @{}; Sync-PrecompCurves; Invoke-PbDefaults
     $u9w = { param($p, $b) "ecriture write --drive=A --erase-empty --retries=10 --precomp $p --format=amiga.amigados `"<img>\jeu.adf`" # bornée à 0..$b ns" }
     $u9fWant = [ordered]@{ 'automatique' = (& $u9w '0=336:40=400' 400); '300 ns' = (& $u9w '0=300:40=350' 300); '470 ns' = (& $u9w '0=336:40=420' 470) }
@@ -583,7 +595,7 @@ foreach ($k in $keys) {
     $ik = $t019.IndexOf($k, [System.StringComparison]::Ordinal)
     if ($ik -lt $iR2) { $i1Bad += "hors de la section R2 de 019 : $k" }
 }
-Chk 'I1' ($keys.Count -eq 12 -and $i1Bad.Count -eq 0 -and $iRc4 -ge 0 -and $iR2 -gt $iRc4) "$($keys.Count) textes du lot (libelle, element « automatique », sept lignes de l infobulle, trois lignes de journal, dont celle du choix refuse pendant une operation) : entree anglaise dans la section R2 de 019 (sous « rc4 »), differente du francais, memes {n} ; ecarts : $(Get-List $i1Bad 3)"
+Chk 'I1' ($keys.Count -eq 14 -and $i1Bad.Count -eq 0 -and $iRc4 -ge 0 -and $iR2 -gt $iRc4) "$($keys.Count) textes du lot (libelle, element « automatique », sept lignes de l infobulle, trois lignes de journal, dont celle du choix refuse pendant une operation) : entree anglaise dans la section R2 de 019 (sous « rc4 »), differente du francais, memes {n} ; ecarts : $(Get-List $i1Bad 3)"
 $ch = [System.IO.File]::ReadAllText((Join-Path $Wt 'CHANGELOG.md'), [System.Text.Encoding]::UTF8)
 $m = [regex]::Match($ch, '(?s)## \[12\.11\].*?(?=\n## \[)'); $sec = if ($m.Success) { $m.Value } else { '' }
 $amel = ''; $ma = [regex]::Match($sec, '(?s)### Améliorations.*?(?=\n### )'); if ($ma.Success) { $amel = $ma.Value }
@@ -593,7 +605,7 @@ $d1 = [ordered]@{
     'entree des Améliorations' = $amel.Contains('**Borne de précompensation : 470 ns en long track, réglable dans les options avancées.**')
     'liste nommee' = $amel.Contains('« Borne de précompensation »') -and $amel.Contains('« Automatique (400 ns ; 470 ns en long track) »')
     'courbes deja calculees' = $amel.Contains('garde la borne de son calcul')
-    'borne de la courbe ecrite avec un facteur' = ($amel.Contains('la borne en place plafonne aussi la courbe multipliée par le facteur de précompensation') -and $amel.Contains('400 ns en réglage automatique, long track compris'))
+    'borne de la courbe ecrite avec un facteur' = ($amel.Contains('la borne en place plafonne aussi la courbe multipliée par le facteur de précompensation') -and $amel.Contains('400 ns en standard et 470 ns en long track, comme la courbe de référence de la famille'))
     'a savoir : haute densite a la moitie' = $sav.Contains('la même en standard et en long track (la haute densité en prend la moitié)')
     'a savoir : configuration existante' = ($sav.Contains('**Borne de précompensation : ce que devient le réglage d''une configuration existante.**') -and $sav.Contains('passe au réglage automatique') -and $sav.Contains('choisissez « 400 ns » dans la liste « Borne de précompensation »'))
     'plus de detour par 399 ns' = (-not $sec.Contains('399 ns'))

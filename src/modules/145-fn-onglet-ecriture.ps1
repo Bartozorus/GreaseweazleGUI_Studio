@@ -358,12 +358,9 @@ function Update-WritePlanUi([switch]$Typing) {
 
 function Update-WVerifyUi($vp = $null) {
     # 12.11 rc4 (R9) : case « Sans verification », libelle et champ « Essais » des options avancees, d apres la decision de
-    # l ecriture (Get-WriteVerifyPlan, 140) : $vp, celle du plan de la ligne « Ce qui va se passer » ; sans plan (avant
-    # l affichage de la fenetre, sans image, ecriture refusee) : d apres la case « Controler toutes les pistes » seule, sans
-    # acces au fichier. Controle applique (gw ecrit sans verification, --retries non transmis) : case, libelle et champ
-    # inactifs (sans objet ; leurs valeurs, gardees, reprennent leur effet avec une ecriture sans controle), infobulle qui
-    # le dit ; sinon actifs, infobulles de 520. Une case inactive n affiche pas son infobulle : la regle se lit aussi dans
-    # celle de « Controler toutes les pistes » (520) et dans la ligne. Appel : Update-WritePlanUi ; affichage seulement
+    # l ecriture (Get-WriteVerifyPlan, 140). Decision de l utilisateur (rc4) : R9 retire, ByCheck toujours faux : case,
+    # libelle et champ toujours actifs, jamais grises par le controle de toutes les pistes, infobulles de 520 (garde laissee
+    # pour une ecriture qui serait de nouveau sans objet). Appel : Update-WritePlanUi ; affichage seulement
     if (-not $chkWNoVerify -or -not $numWRetries) { return }
     if ($null -eq $vp) { $vp = Get-WriteVerifyPlan }
     $on = -not [bool]$vp.ByCheck
@@ -379,15 +376,15 @@ function Get-PrecompBoundTip {
     # reglage automatique et plage d une valeur choisie (constantes que lisent Set-CalibScale et Set-PrecompBound, 230),
     # plafond d une seule disquette (Get-DiskHardNs, Get-LevelAdaptHard, 265 : jamais sous CalHardNsDefault), seuil du
     # controle impose a la courbe d une mesure complete de la disquette, avec le reglage en place (Get-DiskOverNs, 265),
-    # borne de la courbe ecrite avec un facteur (CalHardNsUser, lue par Get-WriteFactorPlan, 140, et la mesure sur l image,
-    # 276 : la meme en standard et en long track, 400 ns en automatique)
+    # borne de la courbe ecrite avec un facteur (Get-WriteFactorPlan, 140, et la mesure sur
+    # l image, 276 : en automatique, 400 ns en standard et 470 ns en long track ; une borne choisie, la meme partout)
     $d = "$($script:CalHardNsDefault)"; $mx = "$($script:CalHardMaxNs)"
     return ((T "Borne de précompensation : la plus forte valeur que la calibration du lecteur retient pour un cylindre.") + "`n" +
             ((T "Automatique : {0} ns pour une image standard (cellule de 2 us), {1} ns pour une image long track (le quart de sa cellule de 1,89 us). Valeur choisie, de {2} à {1} ns : la même pour les deux, {0} ns compris. La haute densité prend la moitié de la borne.") -f $d, $mx, "$($script:CalHardMinNs)") + "`n" +
             ((T "Au quart de la cellule, les intervalles écrits atteignent la limite au-delà de laquelle ils seraient lus pour d'autres : la borne ne dépasse pas {0} ns.") -f $mx) + "`n" +
             ((T "Borne d'au moins {0} ns : la courbe d'une seule disquette peut la dépasser quand son besoin est plus fort, jusqu'au quart de la cellule de la piste écrite ({1} ns au plus) ; borne choisie sous {0} ns : elle n'est jamais dépassée.") -f $d, "$($script:CalDiskCapMaxNs)") + "`n" +
             ((T "Avec le réglage actuel, la courbe d'une mesure complète de la disquette impose le contrôle de toutes les pistes après l'écriture dès qu'elle dépasse {0} ns.") -f "$(Get-DiskOverNs)") + "`n" +
-            ((T "Une courbe déjà calculée garde la borne de son calcul : la nouvelle borne sert aux calibrations suivantes (le test rapide ramène à la borne en place les valeurs d'une référence calculée avec une borne plus haute). À l'écriture, la borne en place plafonne aussi la courbe multipliée par le facteur de précompensation : {0} ns au plus, long track compris ; une valeur déjà au-dessus n'est jamais augmentée.") -f "$($script:CalHardNsUser)") + "`n" +
+            ((T "Une courbe déjà calculée garde la borne de son calcul : la nouvelle borne sert aux calibrations suivantes (le test rapide ramène à la borne en place les valeurs d'une référence calculée avec une borne plus haute). À l'écriture, la borne en place plafonne aussi la courbe multipliée par le facteur de précompensation et la mesure sur l'image : {0} ; une valeur déjà au-dessus n'est jamais augmentée.") -f $(if ($script:CalHardAuto) { (T '{0} ns au plus, {1} ns en long track') -f "$($script:CalHardNsUser)", "$($script:CalHardMaxNs)" } else { (T '{0} ns au plus, long track compris') -f "$($script:CalHardNsUser)" })) + "`n" +
             (T "Enregistrée dans la configuration (precompMaxNs)."))
 }
 

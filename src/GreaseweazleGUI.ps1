@@ -3057,26 +3057,12 @@ $script:I18n["gw n'a pas pu ouvrir le port du Greaseweazle (carte déconnectée 
 $script:I18n["ERREUR : Greaseweazle déconnecté : gw n'a pas pu ouvrir son port, ni à la commande ni à la nouvelle tentative. Vérifiez le câble USB, le concentrateur USB et l'alimentation des lecteurs, puis relancez l'opération. Étape atteinte : {0}"] = 'ERROR: Greaseweazle disconnected: gw could not open its port, neither for the command nor for the retry. Check the USB cable, the USB hub and the drive power supply, then restart the operation. Step reached: {0}'
 
 # --- rc4 : retours sur la rc3 (140, 145, 300, 520 ; R10 : 170, 190) -------------------------------------------------------
-# R9 : le controle de toutes les pistes remplace la verification de gw (Get-WriteVerifyPlan, Get-WriteVerifyText, 140) :
+# Verification de gw (Get-WriteVerifyPlan, Get-WriteVerifyText, 140 ; R9 retire a la demande de l utilisateur, les deux gardees) :
 # segment de la ligne « Ce qui va se passer », journal, infobulles
 $script:I18n['sans vérification gw'] = 'no gw verification'
 $script:I18n['vérification gw, {0} essai(s) au plus'] = 'gw verification, up to {0} retry(ies)'
 $script:I18n['vérification gw, sans nouvel essai'] = 'gw verification, no retry'
 $script:I18n['sans vérification gw (image flux écrite telle quelle)'] = 'no gw verification (flux image written as is)'
-$script:I18n["Écriture sans vérification de gw (--no-verify, sans --retries) : le contrôle de toutes les pistes relit ensuite chaque piste écrite et réécrit les pistes faibles ({0} passe(s) au plus)."] = 'Write without gw verification (--no-verify, no --retries): the full track check then reads back every written track and rewrites the weak tracks (up to {0} pass(es)).'
-$script:I18n["Écriture sans vérification de gw (--no-verify, sans --retries) : le contrôle de toutes les pistes relit ensuite chaque piste écrite ; avec 0 passe de réécriture, une piste mal écrite est signalée, pas réécrite."] = 'Write without gw verification (--no-verify, no --retries): the full track check then reads back every written track; with 0 rewrite passes, a badly written track is reported, not rewritten.'
-$script:I18n["Sans objet tant que le contrôle de toutes les pistes s'applique à l'écriture : gw écrit alors sans vérification (--no-verify, sans --retries), l'application relit ensuite chaque piste écrite et réécrit les pistes faibles (« Passes de réécriture »).`nLa case « Sans vérification » et le champ « Essais » reprennent leur effet quand ce contrôle n'est pas demandé ou ne s'applique pas à l'image."] = "Not applicable while the full track check applies to the write: gw then writes without verification (--no-verify, no --retries), the application then reads back every written track and rewrites the weak tracks (""Rewrite passes"").`nThe ""No verification"" box and the ""Retries"" field take effect again when this check is not requested or does not apply to the image."
-$script:I18n["Quand ce contrôle s'applique à l'écriture, gw écrit sans vérification (--no-verify, sans --retries) : la relecture du contrôle la remplace, et une piste mal écrite est réécrite par les passes de réécriture, non plus tout de suite par gw."] = 'When this check applies to the write, gw writes without verification (--no-verify, no --retries): the read-back of the check replaces it, and a badly written track is rewritten by the rewrite passes, no longer immediately by gw.'
-# R9 : textes du prereglage de l ecriture lente (Set-WritePreset, 140) et de la restauration (Update-RsRules,
-# Start-RestoreWrite, Write-RestoreReport, 300) : le controle a la place de la verification gw
-$script:I18n["Écriture lente : image entière, profil Auto, effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, tête 0 puis tête 1, contrôle de toutes les pistes (3 passes de réécriture) ou, à défaut, vérification gw (10 essais)."] = 'Slow write: whole image, Auto profile, erase before writing (high-frequency on double density, pre-erase on high density), erase empty tracks, head 0 then head 1, full track check (3 rewrite passes) or, failing that, gw verification (10 retries).'
-$script:I18n["Règles appliquées à la copie : écriture tête par tête par le lecteur {0} avec la courbe croisée {0} → {1} et, si le lecteur {0} a sa courbe, son facteur de marque, sans calibration ni mesure de la destination, effacement avant l'écriture, contrôle de toutes les pistes ({3} passes de réécriture au plus) ou, à défaut, vérification par gw ({2} essais par piste), puis relecture par le lecteur {0} et comparaison avec l'original."] = 'Rules applied to the copy: head-by-head write by drive {0} with the cross curve {0} → {1} and, if drive {0} has its curve, its brand factor, without calibration or measurement of the destination, erase before writing, check of all tracks (up to {3} rewrite passes) or, failing that, gw verification ({2} retries per track), then read-back by drive {0} and comparison with the original.'
-$script:I18n["Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (mesure complète de cette disquette, liste « Mesure » de l'onglet Écriture), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), effacement avant l'écriture, contrôle de toutes les pistes ({1} passes de réécriture au plus) ou, à défaut, vérification par gw ({0} essais par piste), puis relecture et comparaison avec l'original."] = 'Rules applied to the copy: destination disk measured before writing when possible (full measurement of this disk, "Measure" list of the Write tab), head-by-head write with the existing drive calibration (per-head calibration if none exists), erase before writing, check of all tracks (up to {1} rewrite passes) or, failing that, gw verification ({0} retries per track), then read-back and comparison with the original.'
-$script:I18n["Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (calibration rapide), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), effacement avant l'écriture, contrôle de toutes les pistes ({1} passes de réécriture au plus) ou, à défaut, vérification par gw ({0} essais par piste), puis relecture et comparaison avec l'original."] = 'Rules applied to the copy: destination disk measured before writing when possible (quick calibration), head-by-head write with the existing drive calibration (per-head calibration if none exists), erase before writing, check of all tracks (up to {1} rewrite passes) or, failing that, gw verification ({0} retries per track), then read-back and comparison with the original.'
-$script:I18n["Restauration : écriture tête par tête, contrôle de toutes les pistes ({1} passes au plus) ou, à défaut, vérification par gw ({0} essais par piste)."] = 'Restore: head-by-head write, check of all tracks (up to {1} passes) or, failing that, gw verification ({0} retries per track).'
-$script:I18n["Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête par le lecteur {5} avec la courbe croisée {5} → {6} et, si le lecteur {5} a sa courbe, son facteur de marque, sans calibration ni mesure de la destination, effacement avant l'écriture ; contrôle de toutes les pistes, {4} passes de réécriture au plus ou, à défaut, vérification gw ({3} essais par piste) ; relecture finale par le lecteur {5} sans nouvel essai."] = 'Rules       : read {0} revolutions, {1} retries x {2} series; head-by-head write by drive {5} with the cross curve {5} → {6} and, if drive {5} has its curve, its brand factor, without calibration or measurement of the destination, erase before writing; check of all tracks, up to {4} rewrite passes or, failing that, gw verification ({3} retries per track); final read-back by drive {5} without retry.'
-$script:I18n["Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (mesure complète de cette disquette, liste « Mesure » de l'onglet Écriture) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité) ; contrôle de toutes les pistes, {4} passes de réécriture au plus ou, à défaut, vérification gw ({3} essais par piste) ; relecture finale sans nouvel essai."] = 'Rules       : read {0} revolutions, {1} retries x {2} series; destination measured before writing when possible (full measurement of this disk, "Measure" list of the Write tab); head-by-head write, existing calibration kept (per-head calibration with the fine test if none exists), erase before writing (high-frequency on double density, pre-erase on high density); check of all tracks, up to {4} rewrite passes or, failing that, gw verification ({3} retries per track); final read-back without retry.'
-$script:I18n["Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (calibration rapide) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité) ; contrôle de toutes les pistes, {4} passes de réécriture au plus ou, à défaut, vérification gw ({3} essais par piste) ; relecture finale sans nouvel essai."] = 'Rules       : read {0} revolutions, {1} retries x {2} series; destination measured before writing when possible (quick calibration); head-by-head write, existing calibration kept (per-head calibration with the fine test if none exists), erase before writing (high-frequency on double density, pre-erase on high density); check of all tracks, up to {4} rewrite passes or, failing that, gw verification ({3} retries per track); final read-back without retry.'
 # R10 : controle apres une ecriture pour un lecteur cible avec le facteur par cylindre, relu par le lecteur qui a ecrit :
 # asymetrie jugee sur son ecart a l asymetrie attendue (Get-AsymSummaryText, 190 ; Show-WriteCheckTable, 170) : journal,
 # infobulle de la carte, en-tete de l export. Trois jugements, puis la part du score ; rien n est predit du lecteur cible
@@ -3098,7 +3084,7 @@ $script:I18n["Automatique : {0} ns pour une image standard (cellule de 2 us), {1
 $script:I18n["Au quart de la cellule, les intervalles écrits atteignent la limite au-delà de laquelle ils seraient lus pour d'autres : la borne ne dépasse pas {0} ns."] = 'At a quarter of the cell, written intervals reach the limit beyond which they would be read as others: the bound does not exceed {0} ns.'
 $script:I18n["Borne d'au moins {0} ns : la courbe d'une seule disquette peut la dépasser quand son besoin est plus fort, jusqu'au quart de la cellule de la piste écrite ({1} ns au plus) ; borne choisie sous {0} ns : elle n'est jamais dépassée."] = 'Bound of at least {0} ns: the curve of a single disk may exceed it when its need is higher, up to a quarter of the cell of the written track ({1} ns at most); bound chosen below {0} ns: it is never exceeded.'
 $script:I18n["Avec le réglage actuel, la courbe d'une mesure complète de la disquette impose le contrôle de toutes les pistes après l'écriture dès qu'elle dépasse {0} ns."] = 'With the current setting, the curve of a full measurement of the disk enforces the full track check after the write as soon as it exceeds {0} ns.'
-$script:I18n["Une courbe déjà calculée garde la borne de son calcul : la nouvelle borne sert aux calibrations suivantes (le test rapide ramène à la borne en place les valeurs d'une référence calculée avec une borne plus haute). À l'écriture, la borne en place plafonne aussi la courbe multipliée par le facteur de précompensation : {0} ns au plus, long track compris ; une valeur déjà au-dessus n'est jamais augmentée."] = 'An already computed curve keeps the bound of its computation: the new bound applies to the following calibrations (the quick test brings the values of a reference computed with a higher bound back to the bound in place). At write time, the bound in place also caps the curve multiplied by the precompensation factor: {0} ns at most, long track included; a value already above it is never increased.'
+$script:I18n["Une courbe déjà calculée garde la borne de son calcul : la nouvelle borne sert aux calibrations suivantes (le test rapide ramène à la borne en place les valeurs d'une référence calculée avec une borne plus haute). À l'écriture, la borne en place plafonne aussi la courbe multipliée par le facteur de précompensation et la mesure sur l'image : {0} ; une valeur déjà au-dessus n'est jamais augmentée."] = 'An already computed curve keeps the bound of its computation: the new bound applies to the following calibrations (the quick test brings the values of a reference computed with a higher bound back to the bound in place). At write time, the bound in place also caps the curve multiplied by the precompensation factor and the measurement on the image: {0}; a value already above it is never increased.'
 $script:I18n["Enregistrée dans la configuration (precompMaxNs)."] = 'Saved in the configuration (precompMaxNs).'
 $script:I18n['Borne de précompensation : {0} (avant : {1}).'] = 'Precompensation bound: {0} (before: {1}).'
 $script:I18n["Borne de précompensation choisie : {0} ns en standard comme en long track (en automatique : {1} ns en long track) ; la haute densité en prend la moitié."] = 'Precompensation bound chosen: {0} ns for standard and long track alike (automatic setting: {1} ns for long track); high density takes half of it.'
@@ -3143,6 +3129,12 @@ $script:I18n['Calibration interrompue ({0}) : passes gardées abandonnées ({1})
 $script:I18n['densité du motif différente'] = 'different pattern density'
 $script:I18n['calibration recommencée à votre demande'] = 'calibration started again at your request'
 $script:I18n['une autre calibration commence'] = 'another calibration starts'
+
+# Decisions de l utilisateur (rc4) : borne de la courbe ecrite selon la famille (Get-PrecompBoundTip, 145) ; chute du
+# besoin vers c43/c44, signature de la zone interieure (Test-InnerZoneBreak, 270)
+$script:I18n['{0} ns au plus, {1} ns en long track'] = '{0} ns at most, {1} ns in long track'
+$script:I18n['{0} ns au plus, long track compris'] = '{0} ns at most, long track included'
+$script:I18n["Cette chute du besoin vers les cylindres 43 et 44 est une signature connue de nombreux lecteurs 3,5 pouces (zone intérieure du disque) : la courbe est correcte, rien à refaire."] = 'This drop of the need around cylinders 43 and 44 is a known signature of many 3.5-inch drives (inner zone of the disk): the curve is correct, nothing to redo.'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 try { Add-Type -AssemblyName System.IO.Compression.FileSystem } catch { }
@@ -10989,30 +10981,26 @@ function Get-WriteVerifyPlan($cp = $null) {
     # (Start-WriteCheck, 170) : verification de gw gardee. Args : options de gw write, a leur place de la 12.10 (apres
     # --erase-empty). Passes : passes de reecriture du controle (textes). Seule decision : Start-ImageWrite, la ligne « Ce
     # qui va se passer » (Get-WritePlan, 145), l etat et l infobulle de la case (Update-WVerifyUi, 145) et le journal la lisent
-    $by = if ($null -ne $cp) { [bool]($cp.Post -and -not $cp.Blocker) } else { [bool]$chkWPostCheck.Checked }
-    if (-not $script:ScpStatsOk) { $by = $false }
-    $r = @{ ByCheck = $by; NoVerify = ($by -or [bool]$chkWNoVerify.Checked); Retries = [int]$numWRetries.Value; Passes = [int]$numWRepair.Value; Args = @() }
+    # 12.11 rc4 (decision de l utilisateur) : R9 retire. Le controle de toutes les pistes juge la qualite du signal relu sans
+    # comparer le contenu a l image ; la verification de gw compare le contenu : les deux sont gardees. Case « Sans
+    # verification » et champ « Essais » seuls a decider, comme en 12.10 (commandes de la rc3) ; $cp n est plus lu. ByCheck
+    # toujours faux (champ garde pour les appelants)
+    $r = @{ ByCheck = $false; NoVerify = [bool]$chkWNoVerify.Checked; Retries = [int]$numWRetries.Value; Passes = [int]$numWRepair.Value; Args = @() }
     if ($r.NoVerify) { $r.Args += '--no-verify' }
-    if (-not $by) { $r.Args += "--retries=$($numWRetries.Value)" }
+    $r.Args += "--retries=$($numWRetries.Value)"
     return $r
 }
 
 function Get-WriteVerifyText($vp, [string]$kind) {
     # 12.11 rc4 (R9) : textes tires de la decision de Get-WriteVerifyPlan. 'seg' : segment de la ligne « Ce qui va se
-    # passer » ; 'log' : ligne de journal de Start-ImageWrite (controle applique seulement ; sinon '', journal de la 12.10) ;
-    # 'tip', 'tipn' : infobulles de la case « Sans verification » et du champ « Essais » (controle non applique : textes
-    # de 520, inchanges)
+    # passer » ; 'log' : '' (plus de ligne de journal propre : R9 retire) ; 'tip', 'tipn' : infobulles de la case « Sans
+    # verification » et du champ « Essais » (textes de 520, inchanges)
     if ($kind -eq 'seg') {
         if ($vp.NoVerify) { return (T 'sans vérification gw') }
         if ([int]$vp.Retries -gt 0) { return ((T 'vérification gw, {0} essai(s) au plus') -f "$($vp.Retries)") }
         return (T 'vérification gw, sans nouvel essai')
     }
-    if ($kind -eq 'log') {
-        if (-not $vp.ByCheck) { return '' }
-        if ([int]$vp.Passes -gt 0) { return ((T "Écriture sans vérification de gw (--no-verify, sans --retries) : le contrôle de toutes les pistes relit ensuite chaque piste écrite et réécrit les pistes faibles ({0} passe(s) au plus).") -f "$($vp.Passes)") }
-        return (T "Écriture sans vérification de gw (--no-verify, sans --retries) : le contrôle de toutes les pistes relit ensuite chaque piste écrite ; avec 0 passe de réécriture, une piste mal écrite est signalée, pas réécrite.")
-    }
-    if ($vp.ByCheck) { return (T "Sans objet tant que le contrôle de toutes les pistes s'applique à l'écriture : gw écrit alors sans vérification (--no-verify, sans --retries), l'application relit ensuite chaque piste écrite et réécrit les pistes faibles (« Passes de réécriture »).`nLa case « Sans vérification » et le champ « Essais » reprennent leur effet quand ce contrôle n'est pas demandé ou ne s'applique pas à l'image.") }
+    if ($kind -eq 'log') { return '' }
     if ($kind -eq 'tipn') { return (T '--retries : nombre de réécritures d''une piste dont la vérification échoue.') }
     return (T '--no-verify : DÉCONSEILLÉ. Supprime la relecture de contrôle de chaque piste.')
 }
@@ -11119,8 +11107,8 @@ function Start-ImageWrite([switch]$NoWarmup) {
         Append-Log ((T "Effacement avant l'écriture : densité du flux {0} inconnue (module d'analyse SCP indisponible) : pré-effacement de chaque piste (--pre-erase), comme avant.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))")
     } elseif ($ep.Note -eq 'fb') { Append-Log $ep.Fb }
     # $base : toutes les options sauf --tracks et l image (reprises telles quelles par les reecritures ciblees) ;
-    # en ecriture lente, sans --precomp : chaque tete a sa commande et sa valeur. 12.11 rc4 (R9) : --no-verify et --retries
-    # ajoutes plus bas, a la meme place, une fois le controle decide (Get-WriteVerifyPlan)
+    # en ecriture lente, sans --precomp : chaque tete a sa commande et sa valeur. 12.11 rc4 : --no-verify et --retries
+    # ajoutes plus bas, a la meme place (Get-WriteVerifyPlan : case « Sans verification » et champ « Essais »)
     $base = @('write') + (Get-CommonArgs)
     if ($chkWPreErase.Checked -and $em -ne 'hfreq') { $base += '--pre-erase' }
     if ($chkWEraseEmpty.Checked) { $base += '--erase-empty' }
@@ -11183,10 +11171,8 @@ function Start-ImageWrite([switch]$NoWarmup) {
     # 12.8 (FIX1C, constat 3, G1) : controle impose aussi quand un profil ecrit est la courbe adaptee d une calibration
     # rapide (bouton Calibrer au test rapide, puis ECRIRE sans nouvelle mesure), meme case decochee. 12.11 (L10) : controle
     # decide par Get-WriteCheckPlan (Post, ByCurve, Blocker), dont la ligne « Ce qui va se passer » tire aussi son segment.
-    # 12.11 rc4 (R9) : decide ici, avant la fin de $base (sans journal : ses lignes restent plus bas, a leur place) : le
-    # controle qui s applique remplace la verification de gw (Get-WriteVerifyPlan : --no-verify, sans --retries, dans $base,
-    # donc dans l ecriture et dans les reecritures des pistes faibles du controle ; sinon case « Sans verification » et
-    # champ « Essais », comme en 12.10)
+    # 12.11 rc4 : decide ici, avant la fin de $base (sans journal : ses lignes restent plus bas, a leur place). Verification
+    # de gw (Get-WriteVerifyPlan) : case « Sans verification » et champ « Essais » seuls, controle ou non (R9 retire)
     $headPcRaw = if ($slow) { Get-WriteHeadSpecs $userTs $pc0Raw $pc1Raw } else { $null }
     $cp = Get-WriteCheckPlan $txtWFile.Text $cmbWFmt.Text ([bool]$slow) $heads $headPcRaw $pc0Raw ([bool]$postForce)
     $vp = Get-WriteVerifyPlan $cp
@@ -11234,9 +11220,6 @@ function Start-ImageWrite([switch]$NoWarmup) {
     if ($blocker) {
         Append-Log ((T "Contrôle de toutes les pistes non applicable ({0}) : l'analyse de flux est calibrée pour le MFM double densité. Écriture sans contrôle.") -f "$blocker")
     }
-    # 12.11 rc4 (R9) : le journal dit l ecriture sans verification de gw quand le controle la remplace (texte de la decision)
-    $vl = Get-WriteVerifyText $vp 'log'
-    if ($vl) { Append-Log $vl }
     # 12.11 (L11) : barre de l onglet pendant l ecriture et son controle (Start-WriteProgress, 160) : plan des commandes de
     # l ecriture (file : effacements, ecritures par tete ; ou ecriture rapide), pose avant le lancement de la premiere ;
     # affichage seulement, file et commandes inchangees
@@ -11319,8 +11302,8 @@ function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
     # Parametres d une ecriture rapide ou lente : image entiere, profil Auto, effacement avant l ecriture (case « Effacer
     # avant d ecrire » ; 12.8.2 : haute frequence en double densite, pre-effacement en haute densite), effacement des
     # pistes vides, verification gw, 10 essais, precomp transmise. Rapide : une commande pour les deux tetes, sans controle complet.
-    # Lente : tete 0 puis tete 1 (profils par tete), controle de toutes les pistes, 3 passes de reecriture ; 12.11 rc4 (R9) :
-    # ce controle remplace la verification gw quand il s applique a l image (Get-WriteVerifyPlan), le journal le dit. Les options
+    # Lente : tete 0 puis tete 1 (profils par tete), controle de toutes les pistes, 3 passes de reecriture, verification gw
+    # gardee (12.11 rc4 : R9 retire). Les options
     # de lecteur (flippy, densel, fake index, diskdefs, secteurs durs, TG43) decrivent le materiel : conservees, comme
     # les elements step, h0.off, h1.off et hswap du champ Pistes (seuls c= et h= sont retires : image entiere).
     # Format : ADF -> amiga.amigados, ou amiga.amigados_hd d apres la taille ; image secteur brute (IMG, IMA, ST, DSK
@@ -11353,7 +11336,7 @@ function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
     $chkWSlow.Checked = ($mode -eq 'slow')
     if ($mode -eq 'slow') {
         $chkWPostCheck.Checked = $true; $numWRepair.Value = 3
-        Append-Log (T "Écriture lente : image entière, profil Auto, effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, tête 0 puis tête 1, contrôle de toutes les pistes (3 passes de réécriture) ou, à défaut, vérification gw (10 essais).")
+        Append-Log (T "Écriture lente : image entière, profil Auto, effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, vérification gw, 10 essais, tête 0 puis tête 1, contrôle de toutes les pistes, 3 passes de réécriture.")
     } else {
         $chkWPostCheck.Checked = $false
         Append-Log (T "Écriture rapide : image entière, profil Auto, effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, vérification gw, 10 essais, les deux têtes ensemble, sans contrôle complet des pistes.")
@@ -12096,6 +12079,10 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
             else { $r.Apply = $true; $r.Fam = $fam }
         }
     }
+    # 12.11 rc4 (decision de l utilisateur) : borne de la courbe ecrite d apres la famille : en reglage automatique
+    # (CalHardAuto), long track borne comme sa reference (CalHardMaxNs, 470 ns, comme Set-CalibScale) ; sinon
+    # CalHardNsUser, comme avant (standard, borne choisie). Meme regle dans la mesure sur l image (276)
+    if ([bool]$script:CalHardAuto -and ($fam -eq 'long' -or (-not $fam -and [string]$r.Fam -eq 'long'))) { $hard = [int]$script:CalHardMaxNs; $r.Hard = $hard }
     if (-not $r.Apply) {
         if ($Peek) { return $r }
         if ($img -and (Test-Path -LiteralPath $img)) {
@@ -12926,12 +12913,9 @@ function Update-WritePlanUi([switch]$Typing) {
 
 function Update-WVerifyUi($vp = $null) {
     # 12.11 rc4 (R9) : case « Sans verification », libelle et champ « Essais » des options avancees, d apres la decision de
-    # l ecriture (Get-WriteVerifyPlan, 140) : $vp, celle du plan de la ligne « Ce qui va se passer » ; sans plan (avant
-    # l affichage de la fenetre, sans image, ecriture refusee) : d apres la case « Controler toutes les pistes » seule, sans
-    # acces au fichier. Controle applique (gw ecrit sans verification, --retries non transmis) : case, libelle et champ
-    # inactifs (sans objet ; leurs valeurs, gardees, reprennent leur effet avec une ecriture sans controle), infobulle qui
-    # le dit ; sinon actifs, infobulles de 520. Une case inactive n affiche pas son infobulle : la regle se lit aussi dans
-    # celle de « Controler toutes les pistes » (520) et dans la ligne. Appel : Update-WritePlanUi ; affichage seulement
+    # l ecriture (Get-WriteVerifyPlan, 140). Decision de l utilisateur (rc4) : R9 retire, ByCheck toujours faux : case,
+    # libelle et champ toujours actifs, jamais grises par le controle de toutes les pistes, infobulles de 520 (garde laissee
+    # pour une ecriture qui serait de nouveau sans objet). Appel : Update-WritePlanUi ; affichage seulement
     if (-not $chkWNoVerify -or -not $numWRetries) { return }
     if ($null -eq $vp) { $vp = Get-WriteVerifyPlan }
     $on = -not [bool]$vp.ByCheck
@@ -12947,15 +12931,15 @@ function Get-PrecompBoundTip {
     # reglage automatique et plage d une valeur choisie (constantes que lisent Set-CalibScale et Set-PrecompBound, 230),
     # plafond d une seule disquette (Get-DiskHardNs, Get-LevelAdaptHard, 265 : jamais sous CalHardNsDefault), seuil du
     # controle impose a la courbe d une mesure complete de la disquette, avec le reglage en place (Get-DiskOverNs, 265),
-    # borne de la courbe ecrite avec un facteur (CalHardNsUser, lue par Get-WriteFactorPlan, 140, et la mesure sur l image,
-    # 276 : la meme en standard et en long track, 400 ns en automatique)
+    # borne de la courbe ecrite avec un facteur (Get-WriteFactorPlan, 140, et la mesure sur
+    # l image, 276 : en automatique, 400 ns en standard et 470 ns en long track ; une borne choisie, la meme partout)
     $d = "$($script:CalHardNsDefault)"; $mx = "$($script:CalHardMaxNs)"
     return ((T "Borne de précompensation : la plus forte valeur que la calibration du lecteur retient pour un cylindre.") + "`n" +
             ((T "Automatique : {0} ns pour une image standard (cellule de 2 us), {1} ns pour une image long track (le quart de sa cellule de 1,89 us). Valeur choisie, de {2} à {1} ns : la même pour les deux, {0} ns compris. La haute densité prend la moitié de la borne.") -f $d, $mx, "$($script:CalHardMinNs)") + "`n" +
             ((T "Au quart de la cellule, les intervalles écrits atteignent la limite au-delà de laquelle ils seraient lus pour d'autres : la borne ne dépasse pas {0} ns.") -f $mx) + "`n" +
             ((T "Borne d'au moins {0} ns : la courbe d'une seule disquette peut la dépasser quand son besoin est plus fort, jusqu'au quart de la cellule de la piste écrite ({1} ns au plus) ; borne choisie sous {0} ns : elle n'est jamais dépassée.") -f $d, "$($script:CalDiskCapMaxNs)") + "`n" +
             ((T "Avec le réglage actuel, la courbe d'une mesure complète de la disquette impose le contrôle de toutes les pistes après l'écriture dès qu'elle dépasse {0} ns.") -f "$(Get-DiskOverNs)") + "`n" +
-            ((T "Une courbe déjà calculée garde la borne de son calcul : la nouvelle borne sert aux calibrations suivantes (le test rapide ramène à la borne en place les valeurs d'une référence calculée avec une borne plus haute). À l'écriture, la borne en place plafonne aussi la courbe multipliée par le facteur de précompensation : {0} ns au plus, long track compris ; une valeur déjà au-dessus n'est jamais augmentée.") -f "$($script:CalHardNsUser)") + "`n" +
+            ((T "Une courbe déjà calculée garde la borne de son calcul : la nouvelle borne sert aux calibrations suivantes (le test rapide ramène à la borne en place les valeurs d'une référence calculée avec une borne plus haute). À l'écriture, la borne en place plafonne aussi la courbe multipliée par le facteur de précompensation et la mesure sur l'image : {0} ; une valeur déjà au-dessus n'est jamais augmentée.") -f $(if ($script:CalHardAuto) { (T '{0} ns au plus, {1} ns en long track') -f "$($script:CalHardNsUser)", "$($script:CalHardMaxNs)" } else { (T '{0} ns au plus, long track compris') -f "$($script:CalHardNsUser)" })) + "`n" +
             (T "Enregistrée dans la configuration (precompMaxNs)."))
 }
 
@@ -28522,6 +28506,18 @@ function Complete-CalibRetestEnd {
     Complete-PrecompCalib
 }
 
+function Test-InnerZoneBreak([int[]]$bk) {
+    # 12.11 rc4 (decision de l utilisateur) : changement de sens du besoin (Breaks de la courbe, journal de la calibration)
+    # dont la chute tombe entre c43 et c44, ou tout pres : premier cylindre de 42 a 45 et, avec deux cylindres, le second
+    # a 46 au plus. Fonction pure ; texte seulement
+    $b = @($bk)
+    if ($b.Count -lt 1) { return $false }
+    $c = [int]$b[0]
+    if ($c -lt 42 -or $c -gt 45) { return $false }
+    if ($b.Count -ge 2 -and [int]$b[1] -gt 46) { return $false }
+    return $true
+}
+
 function Write-CalibDentLog($u) {
     # 12.9 (correction 4) : bilan des dents locales du besoin suivies par la courbe d une unite (Warn.Dents, Get-CalibWarnings :
     # toujours un tableau ; filtre par securite : unite ou fixture sans ce champ, ou @($null) compte 1)
@@ -28702,6 +28698,9 @@ function Complete-PrecompCalib {
         $bk = @($u.Warn.Breaks)
         if ($bk.Count -ge 2) { Append-Log ($u.Prefix + ((T "Changement de sens du besoin entre c{0} et c{1} : courbe monotone par segments. La même signature sur une autre disquette désigne le lecteur, sinon le support.") -f "$($bk[0])", "$($bk[1])")) }
         elseif ($bk.Count -eq 1) { Append-Log ($u.Prefix + ((T "Le besoin redescend à partir de c{0} : courbe monotone par segments. La même signature sur une autre disquette désigne le lecteur, sinon le support.") -f "$($bk[0])")) }
+        # 12.11 rc4 (decision de l utilisateur) : chute entre c43 et c44, ou tout pres (Test-InnerZoneBreak) : signature
+        # physique de la zone interieure des lecteurs, dite au journal ; texte seulement, aucun calcul change
+        if (Test-InnerZoneBreak ([int[]]$bk)) { Append-Log ($u.Prefix + (T "Cette chute du besoin vers les cylindres 43 et 44 est une signature connue de nombreux lecteurs 3,5 pouces (zone intérieure du disque) : la courbe est correcte, rien à refaire.")) }
         Write-CalibDentLog $u        # 12.9 (correction 4)
         if ($u.Warn.Dev.Count -gt 0) { Append-Log ($u.Prefix + ((T "Écart à la courbe de plus de {1} ns et de trois incertitudes (courbe moins mesure) : {0}.") -f ($u.Warn.Dev -join ', '), (Format-UiNum $script:CalDevNs))) }
         # Calibration precedente du meme lecteur (encore en memoire, remplacee plus bas) : la forme de la courbe tient au
@@ -29866,8 +29865,11 @@ function Test-ContentMeasurable([string]$img, [string]$fmt) {
     $bl = Get-ContentBlocks $nc ([int]$script:ContentBlocks) ([int]$script:ContentBlockLen) ([int]$script:ContentMaxCyl) ([int]$script:ContentMinBlocks)
     if (-not $bl.Ok) { $r.Why = (T "moins de 20 cylindres dans l'image"); return $r }
     # Borne des valeurs ecrites : precompMaxNs de la double densite (CalHardNsUser, comme Get-WriteFactorPlan), a defaut
-    # CalHardNs (bareme d une calibration haute densite pas encore retabli par le minuteur)
+    # CalHardNs (bareme d une calibration haute densite pas encore retabli par le minuteur). 12.11 rc4 (decision de
+    # l utilisateur) : en reglage automatique, long track borne comme sa reference (CalHardMaxNs, 470 ns), comme
+    # Get-WriteFactorPlan (140)
     $hard = [int]$script:CalHardNsUser; if ($hard -le 0) { $hard = [int]$script:CalHardNs }
+    if ([bool]$script:CalHardAuto -and $fam -eq 'long') { $hard = [int]$script:CalHardMaxNs }
     $lv = Get-ContentLevels
     $pre = Get-ContentImageSkip $img ([int[]]$bl.Cyls)
     $plan = Get-ContentPlan ([int[]]@(Get-RecValues $c0)) ([int[]]@(Get-RecValues $c1)) $nc $lv $hard $pre
@@ -31203,13 +31205,9 @@ function Update-RsRules {
     # lecteur cible ; format haute densite (jamais de calibration ni de mesure, pre-effacement, controle des pistes non
     # applicable) ; sinon copie secteur double densite. Avant : regles de la copie secteur double densite pour une copie de
     # flux ou haute densite, et ecriture avec la courbe croisee pour un format haute densite refuse
-    # 12.11 rc4 (R9) : copie secteur double densite et lecteur cible : le controle de toutes les pistes remplace la
-    # verification gw (Get-WriteVerifyPlan, 140), gardee avec ses essais quand il ne s applique pas (haute densite : regle a
-    # part, inchangee ; format FM ou GCR, secteurs durs, TG43) ; memes mots dans le journal de Start-RestoreWrite et la
-    # ligne « Regles » du rapport (Write-RestoreReport)
     $pl = Get-RestorePlan $src $tg (Get-RestoreFormat)
     if ($pl.Kind -eq 'target') {
-        $t = (T "Règles appliquées à la copie : écriture tête par tête par le lecteur {0} avec la courbe croisée {0} → {1} et, si le lecteur {0} a sa courbe, son facteur de marque, sans calibration ni mesure de la destination, effacement avant l'écriture, contrôle de toutes les pistes ({3} passes de réécriture au plus) ou, à défaut, vérification par gw ({2} essais par piste), puis relecture par le lecteur {0} et comparaison avec l'original.") -f "$src", "$tg", "$($r.WriteRetries)", "$($r.RepairPasses)"
+        $t = (T "Règles appliquées à la copie : écriture tête par tête par le lecteur {0} avec la courbe croisée {0} → {1} et, si le lecteur {0} a sa courbe, son facteur de marque, sans calibration ni mesure de la destination, effacement avant l'écriture, vérification par gw, {2} essais par piste, contrôle de toutes les pistes ({3} passes de réécriture au plus), puis relecture par le lecteur {0} et comparaison avec l'original.") -f "$src", "$tg", "$($r.WriteRetries)", "$($r.RepairPasses)"
     } elseif ($pl.Kind -eq 'flux') {
         $t = (T "Règles appliquées à la copie : copie exacte du flux, écrite telle quelle par gw (ni précompensation, ni vérification par gw), sans calibration du lecteur ni mesure de la destination, écriture tête par tête, effacement avant l'écriture, contrôle de toutes les pistes ({0} passes de réécriture au plus), sans comparaison secteur par secteur avec l'original.") -f "$($r.RepairPasses)"
     } elseif ($pl.Kind -eq 'refused' -and $pl.Ti.BlockKind -eq 'hd') {
@@ -31224,9 +31222,9 @@ function Update-RsRules {
         # 12.10 (relecture de la RC) : liste « Mesure » de l onglet Ecriture a « complete, au motif » : mesure complete de la
         # destination (Get-LevelBeforeWriteKind, decision de Start-LevelBeforeWrite -Restore : ecriture lente), case « Mesurer
         # la disquette » cochee ou non. Avant : « calibration rapide » annoncee dans ce cas aussi
-        $t = (T "Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (mesure complète de cette disquette, liste « Mesure » de l'onglet Écriture), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), effacement avant l'écriture, contrôle de toutes les pistes ({1} passes de réécriture au plus) ou, à défaut, vérification par gw ({0} essais par piste), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)"
+        $t = (T "Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (mesure complète de cette disquette, liste « Mesure » de l'onglet Écriture), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), effacement avant l'écriture, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)"
     } else {
-        $t = (T "Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (calibration rapide), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), effacement avant l'écriture, contrôle de toutes les pistes ({1} passes de réécriture au plus) ou, à défaut, vérification par gw ({0} essais par piste), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)"
+        $t = (T "Règles appliquées à la copie : disquette de destination mesurée avant l'écriture quand c'est possible (calibration rapide), écriture tête par tête avec la calibration existante du lecteur (calibration par tête si aucune n'existe), effacement avant l'écriture, vérification par gw, {0} essais par piste, contrôle de toutes les pistes ({1} passes de réécriture au plus), puis relecture et comparaison avec l'original.") -f "$($r.WriteRetries)", "$($r.RepairPasses)"
     }
     if ($lblRsRules.Text -ne $t) { $lblRsRules.Text = $t }
 }
@@ -31901,7 +31899,7 @@ function Start-RestoreWrite {
         $r.Plan = if ($r.Mode -ne 'sector') { 'flux' } elseif ($r.HD) { 'hd' } elseif ($r.Target) { 'target' } else { 'sector' }
         if ($r.Plan -eq 'flux') { Append-Log ((T "Restauration : copie exacte du flux écrite tête par tête, telle quelle, contrôle de toutes les pistes ({0} passes au plus).") -f "$($script:RestoreRules.RepairPasses)") }
         elseif ($r.Plan -eq 'hd') { Append-Log ((T "Restauration : écriture tête par tête, {0} essais par piste, sans contrôle des pistes (non applicable à la haute densité).") -f "$($script:RestoreRules.WriteRetries)") }
-        else { Append-Log ((T "Restauration : écriture tête par tête, contrôle de toutes les pistes ({1} passes au plus) ou, à défaut, vérification par gw ({0} essais par piste).") -f "$($script:RestoreRules.WriteRetries)", "$($script:RestoreRules.RepairPasses)") }
+        else { Append-Log ((T "Restauration : écriture tête par tête, {0} essais par piste, contrôle de toutes les pistes ({1} passes au plus).") -f "$($script:RestoreRules.WriteRetries)", "$($script:RestoreRules.RepairPasses)") }
         Start-PresetWrite 'slow' -NoCalib:$noCalib -LevelOnly:($measure -and $noCalib -and $r.Mode -eq 'sector' -and -not $r.HD)
         Set-RestoreRepRules
     } finally { $r.InCall = $false; $r.Idle = Get-Date }
@@ -32069,15 +32067,15 @@ function Write-RestoreReport([bool]$ok, [string]$verdict) {
     if (-not $pk) { $pp = Get-RestorePlan ([string]$r.Drive) ([string]$r.TgtChoice) $(if ($r.Mode -eq 'flux') { '' } elseif ($r.Mode -eq 'sector') { [string]$r.Fmt } else { 'auto' }); $pk = [string]$pp.Kind }
     $rtg = if ($r.Target) { [string]$r.Target } else { [string]$r.TgtChoice }
     if ($pk -eq 'flux') { $rl = (T "Règles      : lecture {0} tours ; copie exacte du flux, écrite telle quelle par gw (ni précompensation, ni vérification gw), sans calibration du lecteur ni mesure de la destination ; écriture tête par tête, effacement avant l'écriture ; contrôle de toutes les pistes, {1} passes de réécriture au plus ; pas de comparaison secteur par secteur.") -f "$($rr.ReadRevs)", "$($rr.RepairPasses)" }
-    elseif ($pk -eq 'target') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête par le lecteur {5} avec la courbe croisée {5} → {6} et, si le lecteur {5} a sa courbe, son facteur de marque, sans calibration ni mesure de la destination, effacement avant l'écriture ; contrôle de toutes les pistes, {4} passes de réécriture au plus ou, à défaut, vérification gw ({3} essais par piste) ; relecture finale par le lecteur {5} sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)", "$($r.Drive)", "$rtg" }
+    elseif ($pk -eq 'target') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête par le lecteur {5} avec la courbe croisée {5} → {6} et, si le lecteur {5} a sa courbe, son facteur de marque, sans calibration ni mesure de la destination, effacement avant l'écriture, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale par le lecteur {5} sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)", "$($r.Drive)", "$rtg" }
     elseif ($pk -eq 'refused' -and $pp -and $pp.Ti.BlockKind -eq 'hd') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture pour le lecteur cible {3} non atteinte (elle serait refusée en haute densité : la calibration croisée n'existe qu'en double densité).") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$rtg" }
     elseif ($pk -eq 'refused' -and $pp) { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture pour le lecteur cible {3} non atteinte (elle serait refusée sans courbe croisée standard {4} → {3}).") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$rtg", "$($r.Drive)" }
     elseif ($pk -eq 'refused') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture pour le lecteur cible {3} refusée, rien n'a été écrit.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$rtg" }
     elseif ($pk -eq 'hd') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête avec la courbe haute densité existante du lecteur, sinon le profil d'origine, sans calibration ni mesure de la destination (jamais en haute densité), pré-effacement de chaque piste, vérification gw, {3} essais par piste ; pas de contrôle des pistes (non applicable à la haute densité) ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)" }
     # 12.10 (relecture de la RC) : copie secteur, liste « Mesure » a « complete, au motif » : mesure complete de la
     # destination (Get-LevelBeforeWriteKind ; liste figee pendant la restauration, onglets verrouilles : Set-RsLock)
-    elseif ((Get-LevelBeforeWriteKind 'slow' $true $false) -eq 'complete') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (mesure complète de cette disquette, liste « Mesure » de l'onglet Écriture) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité) ; contrôle de toutes les pistes, {4} passes de réécriture au plus ou, à défaut, vérification gw ({3} essais par piste) ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)" }
-    else { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (calibration rapide) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité) ; contrôle de toutes les pistes, {4} passes de réécriture au plus ou, à défaut, vérification gw ({3} essais par piste) ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)" }
+    elseif ((Get-LevelBeforeWriteKind 'slow' $true $false) -eq 'complete') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (mesure complète de cette disquette, liste « Mesure » de l'onglet Écriture) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)" }
+    else { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; destination mesurée avant l'écriture quand c'est possible (calibration rapide) ; écriture tête par tête, calibration existante conservée (calibration par tête en test fin si aucune n'existe), effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)" }
     $L.Add($rl)
     $L.Add('')
     $L.Add((T 'Étapes :'))
@@ -32804,9 +32802,6 @@ $chkWSlow.Add_CheckedChanged({ Update-SlowUi; if ($script:UiReady) { Update-Prec
 $chkWPostCheck = New-Object System.Windows.Forms.CheckBox
 $chkWPostCheck.Text = (T 'Contrôler toutes les pistes'); $chkWPostCheck.Location = '308,22'; $chkWPostCheck.Width = 255
 $tip.SetToolTip($chkWPostCheck, (T "Après une écriture réussie, relit en flux toutes les pistes écrites et classe chacune avec les critères de l'onglet Qualité & alignement.`nUne piste À SURVEILLER, CRITIQUE ou illisible est réécrite seule (après un effacement haute fréquence de la piste en double densité, avec pré-effacement en haute densité), puis seule remesurée,`njusqu'au nombre de passes de réécriture choisi. Résultat dans l'onglet Qualité & alignement."))
-# 12.11 rc4 (R9) : ce controle remplace la verification de gw (Get-WriteVerifyPlan, 140) : son infobulle le dit ; la case
-# « Sans verification » et le champ « Essais », inactifs quand il s applique (Update-WVerifyUi, 145), n affichent pas la leur
-$tip.SetToolTip($chkWPostCheck, $tip.GetToolTip($chkWPostCheck) + "`n" + (T "Quand ce contrôle s'applique à l'écriture, gw écrit sans vérification (--no-verify, sans --retries) : la relecture du contrôle la remplace, et une piste mal écrite est réécrite par les passes de réécriture, non plus tout de suite par gw."))
 
 $lblWRepair = New-Label (T 'Passes de réécriture :') '466,25'
 $numWRepair = New-Object System.Windows.Forms.NumericUpDown

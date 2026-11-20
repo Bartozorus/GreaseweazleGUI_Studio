@@ -81,8 +81,11 @@ function Test-ContentMeasurable([string]$img, [string]$fmt) {
     $bl = Get-ContentBlocks $nc ([int]$script:ContentBlocks) ([int]$script:ContentBlockLen) ([int]$script:ContentMaxCyl) ([int]$script:ContentMinBlocks)
     if (-not $bl.Ok) { $r.Why = (T "moins de 20 cylindres dans l'image"); return $r }
     # Borne des valeurs ecrites : precompMaxNs de la double densite (CalHardNsUser, comme Get-WriteFactorPlan), a defaut
-    # CalHardNs (bareme d une calibration haute densite pas encore retabli par le minuteur)
+    # CalHardNs (bareme d une calibration haute densite pas encore retabli par le minuteur). 12.11 rc4 (decision de
+    # l utilisateur) : en reglage automatique, long track borne comme sa reference (CalHardMaxNs, 470 ns), comme
+    # Get-WriteFactorPlan (140)
     $hard = [int]$script:CalHardNsUser; if ($hard -le 0) { $hard = [int]$script:CalHardNs }
+    if ([bool]$script:CalHardAuto -and $fam -eq 'long') { $hard = [int]$script:CalHardMaxNs }
     $lv = Get-ContentLevels
     $pre = Get-ContentImageSkip $img ([int[]]$bl.Cyls)
     $plan = Get-ContentPlan ([int[]]@(Get-RecValues $c0)) ([int[]]@(Get-RecValues $c1)) $nc $lv $hard $pre

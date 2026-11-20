@@ -508,6 +508,22 @@ if ($all.ContainsKey('RK0')) {
     Chk 'RK0' ($ok.Count -eq @($rs).Count -and $inj -eq 2 * $ok.Count -and $rem -gt 0 -and $flat -eq $rem -and $bad -eq 0 -and $smooth -ge 1) "$($ok.Count) calibrations : dent injectee et appliquee dans $inj couples, retiree a la verification 1 dans $rem, courbe finale sans baisse en c30/c31 $flat ; lignes « Courbe lissée sans la dent retirée » $smooth (>= 1) ; lignes « 0 cylindre(s) corrigé(s), résidu hors tolérance » $bad (0)$(Get-ErrTxt $rs)"
 }
 
+# 12.11 rc4 (decision de l utilisateur) : chute du besoin vers c43/c44, signature de la zone interieure dite au journal
+# (Test-InnerZoneBreak, 270, fonction pure) : premier cylindre des Breaks de 42 a 45, le second a 46 au plus
+$izOk = $false
+if (-not (Get-Command Test-InnerZoneBreak -CommandType Function -ErrorAction SilentlyContinue)) {
+    # Fonction lue dans le module 270 de la source testee (arbre syntaxique), ecrite dans le dossier de travail, chargee
+    $izTk = $null; $izEr = $null
+    $izA = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $Wt 'src\modules\270-fn-calib-complete.ps1'), [ref]$izTk, [ref]$izEr)
+    $izF = $izA.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Test-InnerZoneBreak' }, $true)
+    if ($izF) { $izP = Join-Path $here 'gen-r11.ps1'; [System.IO.File]::WriteAllText($izP, [string]$izF.Extent.Text, (New-Object System.Text.UTF8Encoding($true))); . $izP }
+}
+if (Get-Command Test-InnerZoneBreak -CommandType Function -ErrorAction SilentlyContinue) {
+    $izOk = ((Test-InnerZoneBreak @(43, 44)) -and (Test-InnerZoneBreak @(42, 43)) -and (Test-InnerZoneBreak @(44)) -and (Test-InnerZoneBreak @(45, 46)) -and
+             -not (Test-InnerZoneBreak @()) -and -not (Test-InnerZoneBreak @(30, 31)) -and -not (Test-InnerZoneBreak @(41, 42)) -and -not (Test-InnerZoneBreak @(46)) -and -not (Test-InnerZoneBreak @(44, 60)))
+}
+Chk 'R11' $izOk "chute du besoin entre c43 et c44 ou tout pres (43/44, 42/43, 44, 45/46) reconnue ; ailleurs (aucune, 30/31, 41/42, 46, 44/60) non"
+
 Get-Cal2Bilan 'logic-129-cal2-e2e'
 "duree : $(F $sw.Elapsed.TotalSeconds '0') s"
 exit $(if ($script:Fail) { 1 } else { 0 })

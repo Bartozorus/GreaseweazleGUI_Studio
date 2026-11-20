@@ -218,30 +218,26 @@ function Get-WriteVerifyPlan($cp = $null) {
     # (Start-WriteCheck, 170) : verification de gw gardee. Args : options de gw write, a leur place de la 12.10 (apres
     # --erase-empty). Passes : passes de reecriture du controle (textes). Seule decision : Start-ImageWrite, la ligne « Ce
     # qui va se passer » (Get-WritePlan, 145), l etat et l infobulle de la case (Update-WVerifyUi, 145) et le journal la lisent
-    $by = if ($null -ne $cp) { [bool]($cp.Post -and -not $cp.Blocker) } else { [bool]$chkWPostCheck.Checked }
-    if (-not $script:ScpStatsOk) { $by = $false }
-    $r = @{ ByCheck = $by; NoVerify = ($by -or [bool]$chkWNoVerify.Checked); Retries = [int]$numWRetries.Value; Passes = [int]$numWRepair.Value; Args = @() }
+    # 12.11 rc4 (decision de l utilisateur) : R9 retire. Le controle de toutes les pistes juge la qualite du signal relu sans
+    # comparer le contenu a l image ; la verification de gw compare le contenu : les deux sont gardees. Case « Sans
+    # verification » et champ « Essais » seuls a decider, comme en 12.10 (commandes de la rc3) ; $cp n est plus lu. ByCheck
+    # toujours faux (champ garde pour les appelants)
+    $r = @{ ByCheck = $false; NoVerify = [bool]$chkWNoVerify.Checked; Retries = [int]$numWRetries.Value; Passes = [int]$numWRepair.Value; Args = @() }
     if ($r.NoVerify) { $r.Args += '--no-verify' }
-    if (-not $by) { $r.Args += "--retries=$($numWRetries.Value)" }
+    $r.Args += "--retries=$($numWRetries.Value)"
     return $r
 }
 
 function Get-WriteVerifyText($vp, [string]$kind) {
     # 12.11 rc4 (R9) : textes tires de la decision de Get-WriteVerifyPlan. 'seg' : segment de la ligne « Ce qui va se
-    # passer » ; 'log' : ligne de journal de Start-ImageWrite (controle applique seulement ; sinon '', journal de la 12.10) ;
-    # 'tip', 'tipn' : infobulles de la case « Sans verification » et du champ « Essais » (controle non applique : textes
-    # de 520, inchanges)
+    # passer » ; 'log' : '' (plus de ligne de journal propre : R9 retire) ; 'tip', 'tipn' : infobulles de la case « Sans
+    # verification » et du champ « Essais » (textes de 520, inchanges)
     if ($kind -eq 'seg') {
         if ($vp.NoVerify) { return (T 'sans vérification gw') }
         if ([int]$vp.Retries -gt 0) { return ((T 'vérification gw, {0} essai(s) au plus') -f "$($vp.Retries)") }
         return (T 'vérification gw, sans nouvel essai')
     }
-    if ($kind -eq 'log') {
-        if (-not $vp.ByCheck) { return '' }
-        if ([int]$vp.Passes -gt 0) { return ((T "Écriture sans vérification de gw (--no-verify, sans --retries) : le contrôle de toutes les pistes relit ensuite chaque piste écrite et réécrit les pistes faibles ({0} passe(s) au plus).") -f "$($vp.Passes)") }
-        return (T "Écriture sans vérification de gw (--no-verify, sans --retries) : le contrôle de toutes les pistes relit ensuite chaque piste écrite ; avec 0 passe de réécriture, une piste mal écrite est signalée, pas réécrite.")
-    }
-    if ($vp.ByCheck) { return (T "Sans objet tant que le contrôle de toutes les pistes s'applique à l'écriture : gw écrit alors sans vérification (--no-verify, sans --retries), l'application relit ensuite chaque piste écrite et réécrit les pistes faibles (« Passes de réécriture »).`nLa case « Sans vérification » et le champ « Essais » reprennent leur effet quand ce contrôle n'est pas demandé ou ne s'applique pas à l'image.") }
+    if ($kind -eq 'log') { return '' }
     if ($kind -eq 'tipn') { return (T '--retries : nombre de réécritures d''une piste dont la vérification échoue.') }
     return (T '--no-verify : DÉCONSEILLÉ. Supprime la relecture de contrôle de chaque piste.')
 }
@@ -348,8 +344,8 @@ function Start-ImageWrite([switch]$NoWarmup) {
         Append-Log ((T "Effacement avant l'écriture : densité du flux {0} inconnue (module d'analyse SCP indisponible) : pré-effacement de chaque piste (--pre-erase), comme avant.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))")
     } elseif ($ep.Note -eq 'fb') { Append-Log $ep.Fb }
     # $base : toutes les options sauf --tracks et l image (reprises telles quelles par les reecritures ciblees) ;
-    # en ecriture lente, sans --precomp : chaque tete a sa commande et sa valeur. 12.11 rc4 (R9) : --no-verify et --retries
-    # ajoutes plus bas, a la meme place, une fois le controle decide (Get-WriteVerifyPlan)
+    # en ecriture lente, sans --precomp : chaque tete a sa commande et sa valeur. 12.11 rc4 : --no-verify et --retries
+    # ajoutes plus bas, a la meme place (Get-WriteVerifyPlan : case « Sans verification » et champ « Essais »)
     $base = @('write') + (Get-CommonArgs)
     if ($chkWPreErase.Checked -and $em -ne 'hfreq') { $base += '--pre-erase' }
     if ($chkWEraseEmpty.Checked) { $base += '--erase-empty' }
@@ -412,10 +408,8 @@ function Start-ImageWrite([switch]$NoWarmup) {
     # 12.8 (FIX1C, constat 3, G1) : controle impose aussi quand un profil ecrit est la courbe adaptee d une calibration
     # rapide (bouton Calibrer au test rapide, puis ECRIRE sans nouvelle mesure), meme case decochee. 12.11 (L10) : controle
     # decide par Get-WriteCheckPlan (Post, ByCurve, Blocker), dont la ligne « Ce qui va se passer » tire aussi son segment.
-    # 12.11 rc4 (R9) : decide ici, avant la fin de $base (sans journal : ses lignes restent plus bas, a leur place) : le
-    # controle qui s applique remplace la verification de gw (Get-WriteVerifyPlan : --no-verify, sans --retries, dans $base,
-    # donc dans l ecriture et dans les reecritures des pistes faibles du controle ; sinon case « Sans verification » et
-    # champ « Essais », comme en 12.10)
+    # 12.11 rc4 : decide ici, avant la fin de $base (sans journal : ses lignes restent plus bas, a leur place). Verification
+    # de gw (Get-WriteVerifyPlan) : case « Sans verification » et champ « Essais » seuls, controle ou non (R9 retire)
     $headPcRaw = if ($slow) { Get-WriteHeadSpecs $userTs $pc0Raw $pc1Raw } else { $null }
     $cp = Get-WriteCheckPlan $txtWFile.Text $cmbWFmt.Text ([bool]$slow) $heads $headPcRaw $pc0Raw ([bool]$postForce)
     $vp = Get-WriteVerifyPlan $cp
@@ -463,9 +457,6 @@ function Start-ImageWrite([switch]$NoWarmup) {
     if ($blocker) {
         Append-Log ((T "Contrôle de toutes les pistes non applicable ({0}) : l'analyse de flux est calibrée pour le MFM double densité. Écriture sans contrôle.") -f "$blocker")
     }
-    # 12.11 rc4 (R9) : le journal dit l ecriture sans verification de gw quand le controle la remplace (texte de la decision)
-    $vl = Get-WriteVerifyText $vp 'log'
-    if ($vl) { Append-Log $vl }
     # 12.11 (L11) : barre de l onglet pendant l ecriture et son controle (Start-WriteProgress, 160) : plan des commandes de
     # l ecriture (file : effacements, ecritures par tete ; ou ecriture rapide), pose avant le lancement de la premiere ;
     # affichage seulement, file et commandes inchangees
@@ -548,8 +539,8 @@ function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
     # Parametres d une ecriture rapide ou lente : image entiere, profil Auto, effacement avant l ecriture (case « Effacer
     # avant d ecrire » ; 12.8.2 : haute frequence en double densite, pre-effacement en haute densite), effacement des
     # pistes vides, verification gw, 10 essais, precomp transmise. Rapide : une commande pour les deux tetes, sans controle complet.
-    # Lente : tete 0 puis tete 1 (profils par tete), controle de toutes les pistes, 3 passes de reecriture ; 12.11 rc4 (R9) :
-    # ce controle remplace la verification gw quand il s applique a l image (Get-WriteVerifyPlan), le journal le dit. Les options
+    # Lente : tete 0 puis tete 1 (profils par tete), controle de toutes les pistes, 3 passes de reecriture, verification gw
+    # gardee (12.11 rc4 : R9 retire). Les options
     # de lecteur (flippy, densel, fake index, diskdefs, secteurs durs, TG43) decrivent le materiel : conservees, comme
     # les elements step, h0.off, h1.off et hswap du champ Pistes (seuls c= et h= sont retires : image entiere).
     # Format : ADF -> amiga.amigados, ou amiga.amigados_hd d apres la taille ; image secteur brute (IMG, IMA, ST, DSK
@@ -582,7 +573,7 @@ function Set-WritePreset([string]$mode, [string]$path, [string]$source = '') {
     $chkWSlow.Checked = ($mode -eq 'slow')
     if ($mode -eq 'slow') {
         $chkWPostCheck.Checked = $true; $numWRepair.Value = 3
-        Append-Log (T "Écriture lente : image entière, profil Auto, effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, tête 0 puis tête 1, contrôle de toutes les pistes (3 passes de réécriture) ou, à défaut, vérification gw (10 essais).")
+        Append-Log (T "Écriture lente : image entière, profil Auto, effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, vérification gw, 10 essais, tête 0 puis tête 1, contrôle de toutes les pistes, 3 passes de réécriture.")
     } else {
         $chkWPostCheck.Checked = $false
         Append-Log (T "Écriture rapide : image entière, profil Auto, effacement avant l'écriture (haute fréquence en double densité, pré-effacement en haute densité), effacement des pistes vides, vérification gw, 10 essais, les deux têtes ensemble, sans contrôle complet des pistes.")
@@ -1325,6 +1316,10 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
             else { $r.Apply = $true; $r.Fam = $fam }
         }
     }
+    # 12.11 rc4 (decision de l utilisateur) : borne de la courbe ecrite d apres la famille : en reglage automatique
+    # (CalHardAuto), long track borne comme sa reference (CalHardMaxNs, 470 ns, comme Set-CalibScale) ; sinon
+    # CalHardNsUser, comme avant (standard, borne choisie). Meme regle dans la mesure sur l image (276)
+    if ([bool]$script:CalHardAuto -and ($fam -eq 'long' -or (-not $fam -and [string]$r.Fam -eq 'long'))) { $hard = [int]$script:CalHardMaxNs; $r.Hard = $hard }
     if (-not $r.Apply) {
         if ($Peek) { return $r }
         if ($img -and (Test-Path -LiteralPath $img)) {

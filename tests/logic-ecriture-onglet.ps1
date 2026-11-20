@@ -338,16 +338,10 @@ $eoL12a = @(@("« Préchauffer le lecteur avant l'écriture lente », dans les o
             @("Même réglage dans les options avancées de l'onglet Écriture", "Même réglage dans l'onglet Écriture"),
             @("champ « Durée du préchauffage », dans les options avancées de l'onglet Écriture.", "champ « Durée du préchauffage » de l'onglet Écriture."))
 function Get-EoL12aBack([string]$t) { foreach ($p in $eoL12a) { $t = $t.Replace($p[0], $p[1]) }; return $t }
-# 12.11 rc4 (R9, adapte a dessein) : le controle de toutes les pistes qui s applique remplace la verification de gw : les
-# commandes gw write et la base des reecritures du controle portent --no-verify sans --retries (14 configurations ; E03,
-# « Sans verification » et 3 essais, donne alors les commandes de E01). Inchangees : E05 (secteurs durs et TG43 : controle
-# non applicable, --retries=10 garde), E11 (controle decoche : --retries=10 garde), E16 et E17 (mesure qui precede).
-# Avec -Before d une source d avant la rc4, E1b (case « Sans verification » et champ « Essais » inactifs, infobulles) et
-# E2b relevent ces ecarts voulus ; tests/logic-ecriture-verification.ps1 porte les commandes exactes
 $eoE2Ref = @{
-    E01 = 'cb8502588cdfee97'; E02 = '81aa3c9ea453bb44'; E03 = 'cb8502588cdfee97'; E04 = '16a4a567a903da92'; E05 = '59acdc1d2668f429'; E06 = 'b05ccaff7486604a'
-    E07 = 'bc67e25d9275f4da'; E08 = '09952f7c7766cabb'; E09 = '03ff00cdb35378ca'; E10 = '60e8be2d33e48066'; E11 = 'ccfd55129e25e5d4'; E12 = 'c5b2be1d45e69264'
-    E13 = '750c3dcf619b521d'; E14 = 'c420fa03b006d0b8'; E15 = '86a68f1cb2155fb4'; E16 = '0772ed9234fded8a'; E17 = 'd46b3e993da43f61'; E18 = '9e22a7d932c5eeba'
+    E01 = '16d3111066cd4d90'; E02 = '55992ccd99bd50d0'; E03 = '4073def8561dde2c'; E04 = '42424f4776ffe227'; E05 = '59acdc1d2668f429'; E06 = 'ee528337abdcd909'
+    E07 = 'efa50701388d6e4a'; E08 = 'cec1a0cc517f5c4c'; E09 = 'b827dfd7c6949649'; E10 = '076f444230598f93'; E11 = 'ccfd55129e25e5d4'; E12 = 'e18645e325c943cd'
+    E13 = 'bafdf60ae23065bb'; E14 = '16edf4cb821ec357'; E15 = '8d6b6f9ecdc1620d'; E16 = '0772ed9234fded8a'; E17 = 'd46b3e993da43f61'; E18 = 'cfb6924208d483d2'
 }
 function Get-EoSha([string]$s, [int]$n = 64) {
     $h = [System.Security.Cryptography.SHA256]::Create()

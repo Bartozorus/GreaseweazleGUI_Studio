@@ -1,10 +1,12 @@
 ﻿param([string]$Wt = '', [string]$Wiki = '', [string]$Work = '', [switch]$Ci, [string]$Before = '')
 . (Join-Path $PSScriptRoot 'commun.ps1')
 $Wt = Get-TestRoot $Wt
-# 12.11 rc4 (R9) : le controle de toutes les pistes qui s applique a une ecriture remplace la verification de gw.
-# Decision : Get-WriteVerifyPlan (140), d apres le controle decide par Get-WriteCheckPlan ; controle applique : gw write
-# avec --no-verify et sans --retries, pour l image et pour les reecritures des pistes faibles ; sinon case « Sans
-# verification » et champ « Essais », comme en 12.10.
+# 12.11 rc4 : verification de gw pendant l ecriture de l image. R9 (controle a la place de la verification) retire a la
+# demande de l utilisateur : le controle de toutes les pistes juge le signal sans comparer le contenu a l image, la
+# verification de gw compare le contenu ; les deux sont gardees. Decision : Get-WriteVerifyPlan (140), case « Sans
+# verification » et champ « Essais » seuls, controle ou non (commandes de la rc3, 49c9b5f) ; jamais grises.
+# Attendus des cas : commandes de R9 converties en celles de la rc3 (ConvertTo-VfRc3 : --no-verify seul remplace par
+# les options de la case et du champ du cas).
 #  S  statique (arbre syntaxique) : S1 une seule decision (Start-ImageWrite, la ligne « Ce qui va se passer », la case et
 #     le journal la lisent ; aucune autre fonction de l ecriture ne pose --no-verify ni --retries) ; S2 mesures de la
 #     disquette et calibrations (modules 2xx) : aucune reference a la case, au champ ni a la decision, --no-verify en dur
@@ -90,15 +92,16 @@ $wcaText = if ($fnAst.ContainsKey('Invoke-WriteCheckAnalysis')) { [string]$fnAst
 $siwText = if ($fnAst.ContainsKey('Start-ImageWrite')) { [string]$fnAst['Start-ImageWrite'].Extent.Text } else { '' }
 $s1 = [ordered]@{
     'decision presente (Get-WriteVerifyPlan, Get-WriteVerifyText)' = $hasDec
-    'Start-ImageWrite lit la decision, sur le controle decide' = ($siw -contains 'Get-WriteVerifyPlan' -and $siw -contains 'Get-WriteVerifyText' -and $siwText.Contains('$vp = Get-WriteVerifyPlan $cp') -and $siwText.Contains('$base += $vp.Args'))
+    'Start-ImageWrite lit la decision, sur le controle decide' = ($siw -contains 'Get-WriteVerifyPlan' -and $siwText.Contains('$vp = Get-WriteVerifyPlan $cp') -and $siwText.Contains('$base += $vp.Args'))
     'Start-ImageWrite ne lit plus la case ni le champ' = ($siwVars -notcontains 'chkWNoVerify' -and $siwVars -notcontains 'numWRetries')
     'options posees par la seule decision' = ($optFns -contains 'Get-WriteVerifyPlan' -and @($optFns | Where-Object { @('Get-WriteVerifyPlan', 'Get-WriteVerifyText') -notcontains $_ }).Count -eq 0)
     'ligne « Ce qui va se passer »' = ((Get-VfCalls 'Get-WritePlan') -contains 'Get-WriteVerifyPlan' -and (Get-VfCalls 'Get-WritePlan') -contains 'Get-WriteVerifyText')
     'case et champ' = ((Get-VfCalls 'Update-WVerifyUi') -contains 'Get-WriteVerifyPlan' -and (Get-VfCalls 'Update-WVerifyUi') -contains 'Get-WriteVerifyText' -and (Get-VfCalls 'Update-WritePlanUi') -contains 'Update-WVerifyUi')
+    'decision : case et champ seuls, sans le controle' = ($fnAst.ContainsKey('Get-WriteVerifyPlan') -and (Get-VfVars $fnAst['Get-WriteVerifyPlan'].Body) -notcontains 'cp' -and (Get-VfVars $fnAst['Get-WriteVerifyPlan'].Body) -contains 'chkWNoVerify' -and (Get-VfVars $fnAst['Get-WriteVerifyPlan'].Body) -contains 'numWRetries')
     'reecritures tirees de la base du controle' = ($wcaText.Contains('$wbase = @($rep.Base)') -and $wcaVars -notcontains 'chkWNoVerify' -and $wcaVars -notcontains 'numWRetries')
 }
 $s1Bad = @($s1.Keys | Where-Object { -not $s1[$_] })
-Chk 'S1' ($s1Bad.Count -eq 0) "une seule decision de la verification de gw : Get-WriteVerifyPlan, sur le controle de Get-WriteCheckPlan ; Start-ImageWrite, Get-WritePlan et Update-WVerifyUi la lisent, Start-ImageWrite ne lit plus la case ni le champ ; dans 140, 145, 160 et 170, seules Get-WriteVerifyPlan et Get-WriteVerifyText citent --no-verify ou --retries ($($optFns -join ', ')) ; les reecritures des pistes faibles reprennent la base du controle ; ecarts : $(Get-List $s1Bad)"
+Chk 'S1' ($s1Bad.Count -eq 0) "une seule decision de la verification de gw : Get-WriteVerifyPlan, case « Sans verification » et champ « Essais » seuls (le controle n y entre plus) ; Start-ImageWrite, Get-WritePlan et Update-WVerifyUi la lisent, Start-ImageWrite ne lit plus la case ni le champ ; dans 140, 145, 160 et 170, seules Get-WriteVerifyPlan et Get-WriteVerifyText citent --no-verify ou --retries ($($optFns -join ', ')) ; les reecritures des pistes faibles reprennent la base du controle ; ecarts : $(Get-List $s1Bad)"
 
 # S2 : mesures de la disquette, calibrations et controle de surface (modules 2xx) : rien ne lit la case, le champ ni la
 # decision ; --no-verify en dur dans la calibration (270) et la mesure sur l image (276), comme avant le lot
@@ -281,7 +284,7 @@ $vfCases = @(
        W = @('gw write --drive=A --pre-erase --erase-empty --retries=10 "<img>\flux.raw"') }
     @{ Id = 'T17'; G = 'V8'; T = 'image flux ecrite telle quelle, controle decoche, « Sans verification » cochee'; Img = $imRaw; Fmt = ''; Fn = 'image'; By = $false; Do = { $chkWPostCheck.Checked = $false; $chkWNoVerify.Checked = $true }
        W = @('gw write --drive=A --pre-erase --erase-empty --no-verify --retries=10 "<img>\flux.raw"') }
-    @{ Id = 'T18'; G = 'V8'; T = 'image flux ecrite telle quelle, controle coche'; Img = $imRaw; Fmt = ''; Fn = 'image'; By = $true; Do = { }
+    @{ Id = 'T18'; G = 'V8'; T = 'image flux ecrite telle quelle, controle coche : gw ne la verifie pas'; Img = $imRaw; Fmt = ''; Fn = 'image'; By = $true; Seg = 'raw'; Do = { }
        W = @("controle base write --drive=A --pre-erase --erase-empty --no-verify ; pistes  ; passes 3 ; relecture  ; precomp - ; effacement hfreq", 'ecriture write --drive=A --pre-erase --erase-empty --no-verify "<img>\flux.raw"') }
     @{ Id = 'T09'; G = 'V4'; T = 'lecteur cible, lente, controle coche'; Img = $imAdf; Fmt = 'amiga.amigados'; Fn = 'image'; By = $true; Do = { Set-VfCurves 'croisee'; $script:TargetDrives['A'] = '0'; $chkWSlow.Checked = $true; $txtWPrecomp.Text = $px; $txtWPrecomp1.Text = $px }
        W = @("controle base write --drive=A --erase-empty --no-verify --format=amiga.amigados$(& $ctlTail 3 "$px/$px")", "file write --drive=A --erase-empty --no-verify --format=amiga.amigados --precomp $px --tracks=h=0 $adf", "file write --drive=A --erase-empty --no-verify --format=amiga.amigados --precomp $px --tracks=h=1 $adf") }
@@ -300,6 +303,12 @@ $vfCases = @(
 )
 $logR9 = 'Écriture sans vérification de gw (--no-verify, sans --retries)'
 $logPreset = 'Écriture lente : image entière, profil Auto'
+function ConvertTo-VfRc3($cmds, $set) {
+    # Attendus ecrits pour R9 (--no-verify sans --retries quand le controle s appliquait) : commandes de la rc3, options de
+    # la case « Sans verification » et du champ « Essais » du cas, a la meme place
+    $o = if ($set.NoVer) { " --no-verify --retries=$($set.Ret)" } else { " --retries=$($set.Ret)" }
+    return @(@($cmds) | ForEach-Object { if ([string]$_ -match ' --retries=\d+') { [string]$_ } else { ([string]$_).Replace(' --no-verify', $o) } })
+}
 function Invoke-VfCase($sc, [bool]$new) {
     # Un cas : etat remis, image et format, reglages ; source testee : mise a jour de l onglet (ligne, case, champ) et plan
     # de la phrase ; puis la vraie fonction du chemin. Rend commandes et demandes, journal, plan, etat de la case
@@ -372,13 +381,13 @@ $dump = New-Object System.Collections.Generic.List[string]
 foreach ($sc in $vfCases) { $r = $cur[$sc.Id]; $dump.Add("=== $($sc.Id) $($sc.T)"); foreach ($x in $r.Trace) { $dump.Add("  T $x") }; foreach ($x in $r.Log) { $dump.Add("  J $x") }; if ($r.Plan) { $dump.Add("  P $($r.Ui.Line)") } }
 [System.IO.File]::WriteAllLines((Join-Path $here 'releve.txt'), [string[]]$dump.ToArray(), $utf8b)
 $vTitle = [ordered]@{
-    V1 = 'onglet « Ecriture », ecriture rapide (bouton ECRIRE, vraie Start-WriteTabWrite) : controle coche, --no-verify sans --retries dans l ecriture et la base du controle, « Sans verification » cochee ou non ; controle decoche : --retries=10, et --no-verify --retries=4 avec « Sans verification » et 4 essais, comme en 12.10'
-    V2 = 'onglet « Ecriture », ecriture lente : une commande par tete ; controle coche : --no-verify sans --retries ; decoche : --retries=10'
-    V3 = 'controle coche mais non applicable (haute densite) : verification de gw gardee, --retries=10 ; controle decoche mais impose par la courbe adaptee : --no-verify sans --retries ; module d analyse SCP indisponible (le controle serait ignore apres l ecriture) : verification de gw gardee, --retries=10'
-    V4 = 'ecriture pour un lecteur cible (courbe croisee, ecriture lente) : controle coche, --no-verify sans --retries ; decoche, --retries=10'
-    V5 = 'Bibliotheque (vraies Set-WritePreset et Start-PresetWrite) : ecriture lente, controle du prereglage, --no-verify sans --retries ; ecriture rapide, prereglage sans controle, --retries=10'
-    V6 = 'restauration (reglages de Start-RestoreWrite, vraie Start-PresetWrite -NoCalib) : copie secteur double densite, 5 passes du controle, --no-verify sans --retries ; haute densite, controle non applicable, --retries=20'
-    V8 = 'image flux ecrite telle quelle (.raw, sans format ; relecture) : controle decoche, commande de la 12.10 (--retries=10, que gw ignore pour un flux brut ; --no-verify --retries=10 avec « Sans verification ») ; controle coche : il s applique, --no-verify sans --retries'
+    V1 = 'onglet « Ecriture », ecriture rapide (bouton ECRIRE, vraie Start-WriteTabWrite) : controle coche ou non, --retries=10, et --no-verify --retries=4 avec « Sans verification » cochee'
+    V2 = 'onglet « Ecriture », ecriture lente : une commande par tete, controle coche ou non : --retries=10'
+    V3 = 'controle non applicable (haute densite), impose par la courbe adaptee, module d analyse SCP indisponible : verification de gw selon la case et le champ, --retries=10'
+    V4 = 'ecriture pour un lecteur cible (courbe croisee, ecriture lente) : controle coche ou non, --retries=10'
+    V5 = 'Bibliotheque (vraies Set-WritePreset et Start-PresetWrite) : ecritures lente (controle du prereglage) et rapide, --retries=10'
+    V6 = 'restauration (reglages de Start-RestoreWrite, vraie Start-PresetWrite -NoCalib) : copie secteur double densite (5 passes du controle) et haute densite, --retries=20'
+    V8 = 'image flux ecrite telle quelle (.raw, sans format) : commande de la 12.10 (--retries=10, que gw ignore pour un flux brut ; --no-verify --retries=10 avec « Sans verification »), controle coche ou non'
 }
 foreach ($gk in @($vTitle.Keys)) {
     $bad = @(); $n = 0
@@ -388,9 +397,9 @@ foreach ($gk in @($vTitle.Keys)) {
         "  $($sc.Id) $($sc.T)"
         foreach ($x in $w) { "      $x" }
         if (@($r.Trace | Where-Object { $_ -like 'ERREUR*' }).Count) { $bad += "$($sc.Id) : $(@($r.Trace | Where-Object { $_ -like 'ERREUR*' })[0])" }
-        if (($w -join "`n") -cne (@($sc.W) -join "`n")) { $bad += "$($sc.Id) : « $(Get-List $w 3) » au lieu de « $(Get-List $sc.W 3) »" }
-        if ($sc.By -and @($w | Where-Object { $_ -notmatch ' --no-verify ' -or $_ -match ' --retries=' }).Count) { $bad += "$($sc.Id) : controle applique, commande sans --no-verify ou avec --retries" }
-        if (-not $sc.By -and @($w | Where-Object { $_ -notmatch ' --retries=\d+ ' }).Count) { $bad += "$($sc.Id) : verification de gw gardee, commande sans --retries" }
+        $wx = @(ConvertTo-VfRc3 $sc.W $r.Set)
+        if (($w -join "`n") -cne ($wx -join "`n")) { $bad += "$($sc.Id) : « $(Get-List $w 3) » au lieu de « $(Get-List $wx 3) »" }
+        if (@($w | Where-Object { $_ -notmatch ' --retries=\d+ ' }).Count) { $bad += "$($sc.Id) : verification de gw gardee, commande sans --retries" }
     }
     Chk $gk ($bad.Count -eq 0 -and $n -ge 2) "$($vTitle[$gk]) ; $n cas, commandes mot pour mot ; ecarts : $(Get-List $bad 2)"
 }
@@ -440,16 +449,15 @@ foreach ($id in 'T01', 'T05') {
     foreach ($x in $rw.Cmds) { "      $x" }
     $ww = @($rw.Cmds | Where-Object { $_ -like 'write *' })
     if (@($rw.Trace | Where-Object { $_ -like 'ERREUR*' }).Count) { $v7Bad += "$id : $(@($rw.Trace | Where-Object { $_ -like 'ERREUR*' })[0])" }
-    if (($rw.Cmds -join "`n") -cne (@($rwWant[$id]) -join "`n")) { $v7Bad += "$id : « $(Get-List $rw.Cmds 3) »" }
-    if ($ww.Count -ne 2 -or @($ww | Where-Object { $_ -notmatch ' --no-verify ' -or $_ -match ' --retries=' }).Count) { $v7Bad += "$id : reecriture sans --no-verify ou avec --retries" }
+    if (($rw.Cmds -join "`n") -cne (@(ConvertTo-VfRc3 $rwWant[$id] $cur[$id].Set) -join "`n")) { $v7Bad += "$id : « $(Get-List $rw.Cmds 3) »" }
+    if ($ww.Count -ne 2 -or @($ww | Where-Object { $_ -notmatch ' --retries=\d+ ' }).Count) { $v7Bad += "$id : reecriture sans --retries" }
 }
-Chk 'V7' ($v7Bad.Count -eq 0) "reecritures des pistes faibles (vraie Invoke-WriteCheckAnalysis, base donnee au controle par Start-ImageWrite, ecriture rapide et ecriture lente avec --precomp par tete) : effacement haute frequence, puis gw write avec --no-verify et sans --retries, puis remesure ; commandes mot pour mot ; ecarts : $(Get-List $v7Bad 2)"
+Chk 'V7' ($v7Bad.Count -eq 0) "reecritures des pistes faibles (vraie Invoke-WriteCheckAnalysis, base donnee au controle par Start-ImageWrite, ecriture rapide et ecriture lente avec --precomp par tete) : effacement haute frequence, puis gw write avec les options de l ecriture (--retries=10, verification de gw gardee), puis remesure ; commandes mot pour mot ; ecarts : $(Get-List $v7Bad 2)"
 
 # =====================================================================================================================
 '--- P, J, U, E : phrase, journal, case et champ, poids estimes'
 $segNo = (T 'sans vérification gw'); $segRaw = (T 'sans vérification gw (image flux écrite telle quelle)')
 $pBad = @(); $jBad = @(); $uBad = @(); $kBad = @()
-$tipBy = ''; if ($hasDec) { $tipBy = Get-WriteVerifyText @{ ByCheck = $true; NoVerify = $true; Retries = 10; Passes = 3 } 'tip' }
 $tip520 = (T '--no-verify : DÉCONSEILLÉ. Supprime la relecture de contrôle de chaque piste.'); $tipN520 = (T '--retries : nombre de réécritures d''une piste dont la vérification échoue.')
 foreach ($sc in $vfCases) {
     $r = $cur[$sc.Id]; $w = @((Get-VfWrites $r) | Where-Object { $_ -notlike 'controle base*' })
@@ -472,53 +480,50 @@ foreach ($sc in $vfCases) {
     if ($r.Ui -and $ix -ge 1 -and -not $r.Ui.Line.Contains($want)) { $pBad += "$($sc.Id) : ligne affichee sans « $want »" }
     # J : ligne de journal du lot si et seulement si le controle remplace la verification, avec ses passes
     $jl = @($r.Log | Where-Object { $_.StartsWith($logR9) })
-    if ($sc.By -and ($jl.Count -ne 1 -or -not $jl[0].Contains("($($r.Set.Rep) passe(s) au plus)"))) { $jBad += "$($sc.Id) : $($jl.Count) ligne(s) « $(Get-List $jl 1) »" }
-    if (-not $sc.By -and $jl.Count -ne 0) { $jBad += "$($sc.Id) : ligne du lot sans controle" }
+    if ($jl.Count -ne 0) { $jBad += "$($sc.Id) : ligne « $logR9 » au journal" }
     # U : case, libelle et champ inactifs si et seulement si le controle remplace la verification ; infobulles accordees
     if ($r.Ui) {
-        $en = -not $sc.By
+        $en = $true
         if ($r.Ui.Chk -ne $en -or $r.Ui.Num -ne $en -or $r.Ui.Lbl -ne $en) { $uBad += "$($sc.Id) : case $($r.Ui.Chk), champ $($r.Ui.Num), libelle $($r.Ui.Lbl) au lieu de $en" }
-        if ($sc.By -and ($r.Ui.Tip -cne $tipBy -or $r.Ui.TipN -cne $tipBy)) { $uBad += "$($sc.Id) : infobulle « $($r.Ui.Tip) »" }
-        if (-not $sc.By -and ($r.Ui.Tip -cne $tip520 -or $r.Ui.TipN -cne $tipN520)) { $uBad += "$($sc.Id) : infobulle « $($r.Ui.Tip) » / « $($r.Ui.TipN) »" }
+        if (($r.Ui.Tip -cne $tip520 -or $r.Ui.TipN -cne $tipN520)) { $uBad += "$($sc.Id) : infobulle « $($r.Ui.Tip) » / « $($r.Ui.TipN) »" }
     } else { $uBad += "$($sc.Id) : etat de la case non releve" }
     if (-not $r.Kept) { $kBad += $sc.Id }
 }
 Chk 'P1' ($pBad.Count -eq 0) "ligne « Ce qui va se passer », $($vfCases.Count) cas : « $segNo » quand les commandes du clic portent --no-verify (controle applique, ou case cochee sans controle), « vérification gw, N essai(s) au plus » avec le N de --retries sinon, sauf pour une image flux ecrite telle quelle sans --no-verify (T16) : « $segRaw », jamais une verification annoncee, gw ne verifiant pas un flux brut ; segment juste apres celui du controle ; calcul sans journal ni fenetre ; ecarts : $(Get-List $pBad 2)"
-Chk 'J1' ($jBad.Count -eq 0) "journal : « $logR9 : ... » une fois, avec les passes de reecriture, si et seulement si le controle remplace la verification ; sans controle, journal de la 12.10 ; ecarts : $(Get-List $jBad 2)"
-Chk 'U1' ($uBad.Count -eq 0 -and $kBad.Count -eq 0 -and $tipBy.Length -gt 50 -and $tipBy -cne $tip520) "case « Sans verification », libelle et champ « Essais » : inactifs avec l infobulle « sans objet » quand le controle remplace la verification, actifs avec leurs infobulles de 520 sinon (controle decoche, non applicable) ; valeurs de la case et du champ jamais changees par l application (ecarts : $(Get-List $kBad)) ; ecarts : $(Get-List $uBad 2)"
+Chk 'J1' ($jBad.Count -eq 0) "journal : plus de ligne « $logR9 : ... » (R9 retire), journal de la 12.10 ; ecarts : $(Get-List $jBad 2)"
+Chk 'U1' ($uBad.Count -eq 0 -and $kBad.Count -eq 0) "case « Sans verification », libelle et champ « Essais » : toujours actifs, jamais grises par le controle, infobulles de 520 ; valeurs de la case et du champ jamais changees par l application (ecarts : $(Get-List $kBad)) ; ecarts : $(Get-List $uBad 2)"
 
 # U2 : sans image, avant l affichage de la fenetre, bascule de la case « Controler toutes les pistes », anglais
 $u2 = [ordered]@{}
 if ($hasUi) {
     Reset-VfState; $txtWFile.Text = ''; $chkWNoVerify.Checked = $true; $numWRetries.Value = 4
-    Update-WLevelUi; $a = @([bool]$chkWNoVerify.Enabled, [bool]$numWRetries.Enabled, [bool]$lblWRetries.Enabled, [string]$tip.GetToolTip($chkWNoVerify))
-    $chkWPostCheck.Checked = $false; $b = @([bool]$chkWNoVerify.Enabled, [bool]$numWRetries.Enabled, [bool]$lblWRetries.Enabled, [string]$tip.GetToolTip($chkWNoVerify), [string]$tip.GetToolTip($numWRetries))
+    Update-WLevelUi; $a = @([bool]$chkWNoVerify.Enabled, [bool]$numWRetries.Enabled, [bool]$lblWRetries.Enabled, [string]$tip.GetToolTip($chkWNoVerify), [string]$tip.GetToolTip($numWRetries))
+    $chkWPostCheck.Checked = $false; $b = @([bool]$chkWNoVerify.Enabled, [bool]$numWRetries.Enabled, [bool]$lblWRetries.Enabled)
     $chkWPostCheck.Checked = $true; $c = @([bool]$chkWNoVerify.Enabled, [bool]$numWRetries.Enabled, [bool]$lblWRetries.Enabled)
-    $u2['sans image : d apres la case du controle'] = (-not $a[0] -and -not $a[1] -and -not $a[2] -and $a[3] -ceq $tipBy -and $b[0] -and $b[1] -and $b[2] -and $b[3] -ceq $tip520 -and $b[4] -ceq $tipN520 -and -not $c[0] -and -not $c[1] -and -not $c[2])
+    $u2['sans image : actifs, controle coche ou non'] = ($a[0] -and $a[1] -and $a[2] -and $a[3] -ceq $tip520 -and $a[4] -ceq $tipN520 -and $b[0] -and $b[1] -and $b[2] -and $c[0] -and $c[1] -and $c[2])
     $u2['valeurs gardees'] = ([bool]$chkWNoVerify.Checked -and [int]$numWRetries.Value -eq 4)
-    # Avant l affichage de la fenetre (UiReady faux) : aucun acces a l image ; haute densite et controle coche : inactifs
-    # d apres la case seule, puis actifs une fois l image jugee (controle non applicable)
-    Reset-VfState; $txtWFile.Text = $imHd; $cmbWFmt.SelectedItem = 'amiga.amigados_hd'
+    # Avant l affichage de la fenetre (UiReady faux), puis image jugee : actifs, controle coche
+    Reset-VfState; $txtWFile.Text = $imAdf; $cmbWFmt.SelectedItem = 'amiga.amigados'; $chkWPostCheck.Checked = $true
     $script:UiReady = $false; $script:WPlanMemo = $null; $script:WPlanCur = $null; Update-WLevelUi; $d = [bool]$chkWNoVerify.Enabled
     $script:UiReady = $true; Update-WLevelUi; $e = [bool]$chkWNoVerify.Enabled
-    $u2['avant l affichage : case seule ; image jugee ensuite'] = (-not $d -and $e)
-    # Anglais : infobulle, segment et journal traduits
+    $u2['avant l affichage et image jugee : actifs'] = ($d -and $e)
+    # Anglais : infobulle de 520 et segment traduits
     $script:Lang = 'en'
     Reset-VfState; $txtWFile.Text = $imAdf; $cmbWFmt.SelectedItem = 'amiga.amigados'; Update-WLevelUi
     $enTip = [string]$tip.GetToolTip($chkWNoVerify); $enLine = [string]$script:WPlanFull
-    $enLog = Get-WriteVerifyText @{ ByCheck = $true; NoVerify = $true; Retries = 10; Passes = 3 } 'log'
     $script:Lang = 'fr'
-    $u2['anglais'] = ($enTip.StartsWith('Not applicable while the full track check applies') -and $enLine.Contains('; no gw verification') -and $enLog.StartsWith('Write without gw verification (--no-verify, no --retries)'))
+    $u2['anglais'] = ($enTip -ceq [string]$script:I18n['--no-verify : DÉCONSEILLÉ. Supprime la relecture de contrôle de chaque piste.'] -and $enLine.Contains('; gw verification, up to '))
+    # Decision avec un controle qui s applique : case et champ seuls, ByCheck faux ; aucune ligne de journal propre
+    Reset-VfState; $chkWNoVerify.Checked = $false
+    $vp = Get-WriteVerifyPlan @{ Post = $true; Blocker = $null; Forced = $true }
+    $u2['controle applique : verification de gw gardee'] = (-not $vp.ByCheck -and (@($vp.Args) -join ' ') -ceq "--retries=$([int]$numWRetries.Value)" -and (Get-WriteVerifyText $vp 'log') -eq '' -and (Get-WriteVerifyText @{ ByCheck = $false; NoVerify = $false; Retries = 0; Passes = 3 } 'seg') -ceq (T 'vérification gw, sans nouvel essai'))
     Reset-VfState
-    # Infobulle de « Controler toutes les pistes » : texte de 520, complete par la regle
+    # Infobulle de « Controler toutes les pistes » : texte de 520, sans la regle de R9
     $pcTip = [string]$tip.GetToolTip($chkWPostCheck)
-    $u2['infobulle du controle'] = ($pcTip.StartsWith('Après une écriture réussie, relit en flux toutes les pistes écrites') -and $pcTip.EndsWith((T "Quand ce contrôle s'applique à l'écriture, gw écrit sans vérification (--no-verify, sans --retries) : la relecture du contrôle la remplace, et une piste mal écrite est réécrite par les passes de réécriture, non plus tout de suite par gw.")))
-    # 0 passe de reecriture : le journal le dit
-    $l0 = Get-WriteVerifyText @{ ByCheck = $true; NoVerify = $true; Retries = 10; Passes = 0 } 'log'
-    $u2['0 passe'] = ($l0.Contains('avec 0 passe de réécriture, une piste mal écrite est signalée, pas réécrite') -and (Get-WriteVerifyText @{ ByCheck = $false; NoVerify = $false; Retries = 0; Passes = 3 } 'seg') -ceq (T 'vérification gw, sans nouvel essai') -and (Get-WriteVerifyText @{ ByCheck = $false; NoVerify = $true; Retries = 10; Passes = 3 } 'log') -eq '')
+    $u2['infobulle du controle'] = ($pcTip.StartsWith('Après une écriture réussie, relit en flux toutes les pistes écrites') -and -not $pcTip.Contains('gw écrit sans vérification'))
 } else { $u2['Update-WVerifyUi presente'] = $false }
 $u2Bad = @($u2.Keys | Where-Object { -not $u2[$_] })
-Chk 'U2' ($u2Bad.Count -eq 0) "case et champ sans image (d apres la case « Controler toutes les pistes » seule : inactifs, actifs, inactifs), valeurs gardees ; avant l affichage de la fenetre : d apres la case seule, sans acces a l image, puis d apres l image (haute densite : actifs) ; anglais (infobulle, segment, journal) ; infobulle de « Controler toutes les pistes » completee ; journal a 0 passe de reecriture ; ecarts : $(Get-List $u2Bad)"
+Chk 'U2' ($u2Bad.Count -eq 0) "case et champ sans image (actifs, case « Controler toutes les pistes » cochee ou non), valeurs gardees, avant l affichage et image jugee (actifs), anglais, decision avec controle (verification gardee, aucune ligne de journal), infobulle du controle sans la regle de R9 ; avant l affichage de la fenetre : d apres la case seule, sans acces a l image, puis d apres l image (haute densite : actifs) ; anglais (infobulle, segment, journal) ; infobulle de « Controler toutes les pistes » completee ; journal a 0 passe de reecriture ; ecarts : $(Get-List $u2Bad)"
 
 # E : poids estimes de l ecriture (Get-GwCmdUnits, Get-WriteProgUnits : barre de l onglet) : la part de la verification
 # de gw n est plus comptee quand le controle la remplace
@@ -528,10 +533,12 @@ if ($cw1.Count -eq 1 -and $cw2.Count -eq 1) {
     $ua = Get-GwCmdUnits ([string[]]@($cw1[0])) 160; $ub = Get-GwCmdUnits ([string[]]@($cw2[0])) 160
     $wa = Get-WriteProgUnits @($cur['T01'].Cmds) $true; $wb = Get-WriteProgUnits @($cur['T02'].Cmds) $false
     $pc = $script:ProgCost
-    $e1 = ([math]::Abs([double]$ua.Per - [double]$pc.Write) -lt 1e-9 -and [math]::Abs([double]$ub.Per - ([double]$pc.Write + [double]$pc.Verify)) -lt 1e-9 -and [math]::Abs(([double]$wb.Write - [double]$wa.Write) - 160 * [double]$pc.Verify) -lt 1e-6 -and [double]$wa.Check -gt 0 -and [double]$wb.Check -eq 0)
+    $pa = [double]$pc.Write; if (-not (@($cw1[0]) -contains '--no-verify')) { $pa += [double]$pc.Verify }
+    $pb = [double]$pc.Write; if (-not (@($cw2[0]) -contains '--no-verify')) { $pb += [double]$pc.Verify }
+    $e1 = ([math]::Abs([double]$ua.Per - $pa) -lt 1e-9 -and [math]::Abs([double]$ub.Per - $pb) -lt 1e-9 -and -not (@($cw1[0]) -contains '--no-verify') -and [double]$wa.Check -gt 0 -and [double]$wb.Check -eq 0)
     $eTxt = "par piste $($ua.Per) avec le controle, $($ub.Per) sans ; ecriture $([math]::Round($wa.Write, 1)) + controle $([math]::Round($wa.Check, 1)), contre $([math]::Round($wb.Write, 1))"
 }
-Chk 'E1' $e1 "poids estimes de l ecriture rapide de 160 pistes (barre de l onglet) : avec le controle, la piste ecrite ne compte plus la verification de gw (ecriture seule) et la relecture du controle s ajoute ; sans controle, ecriture et verification comme avant ($eTxt)"
+Chk 'E1' $e1 "poids estimes de l ecriture rapide de 160 pistes (barre de l onglet) : avec le controle, ecriture et verification de gw comptees (verification gardee) et la relecture du controle s ajoute ; sans controle, ecriture et verification ($eTxt)"
 
 # =====================================================================================================================
 if ($Before) {
@@ -580,9 +587,9 @@ foreach ($k in @($keys | Sort-Object -Unique)) {
     $nNew++
     if ($rc4Keys -cnotcontains $k) { $iBad += "hors de la section rc4 : « $($k.Substring(0, [math]::Min(60, $k.Length))) »" }
 }
-$stale = @($allT | Where-Object { $_ -match 'essais par piste, contrôle de toutes les pistes|essais par piste ; contrôle de toutes les pistes|vérification gw, 10 essais, tête 0 puis tête 1' })
+$stale = @($allT | Where-Object { $_ -match 'ou, à défaut, vérification|gw écrit sans vérification|Écriture sans vérification de gw|Sans objet tant que le contrôle' })
 $nRs = @($keys | Where-Object { $_ -match 'ou, à défaut, vérification' } | Sort-Object -Unique).Count
-Chk 'I1' ($iBad.Count -eq 0 -and $nNew -eq 16 -and $nRawKey -eq 1 -and $segRaw -ceq 'sans vérification gw (image flux écrite telle quelle)' -and [string]$script:I18n[$segRaw] -ceq 'no gw verification (flux image written as is)' -and $nRs -eq 8 -and $stale.Count -eq 0) "$nNew textes nouveaux ou changes (segments, dont celui du flux brut pose par Get-WritePlan, journal, infobulles ; prereglage de l ecriture lente, regles, journal et rapport de la restauration : $nRs textes « controle de toutes les pistes ... ou, a defaut, verification gw ») : entree anglaise dans la section rc4 de 019 ; plus aucun texte « verification gw, N essais, controle de toutes les pistes » dans les modules ($($stale.Count)) ; ecarts : $(Get-List $iBad 3)"
+Chk 'I1' ($iBad.Count -eq 0 -and $nNew -eq 4 -and $nRawKey -eq 1 -and $segRaw -ceq 'sans vérification gw (image flux écrite telle quelle)' -and [string]$script:I18n[$segRaw] -ceq 'no gw verification (flux image written as is)' -and $nRs -eq 0 -and $stale.Count -eq 0) "$nNew textes nouveaux ou changes (segments, dont celui du flux brut pose par Get-WritePlan, journal, infobulles ; prereglage de l ecriture lente, regles, journal et rapport de la restauration : $nRs textes « controle de toutes les pistes ... ou, a defaut, verification gw ») : entree anglaise dans la section rc4 de 019 ; plus aucun texte « verification gw, N essais, controle de toutes les pistes » dans les modules ($($stale.Count)) ; ecarts : $(Get-List $iBad 3)"
 
 '--- D : CHANGELOG, README, version montree'
 $ch = [System.IO.File]::ReadAllText((Join-Path $Wt 'CHANGELOG.md'), [System.Text.Encoding]::UTF8)
@@ -593,19 +600,18 @@ $rd = [System.IO.File]::ReadAllText((Join-Path $mods 'README.md'), [System.Text.
 $trd = [System.IO.File]::ReadAllText((Join-Path $Wt 'tests\README.md'), [System.Text.Encoding]::UTF8)
 $e000 = [System.IO.File]::ReadAllText((Get-VfMod $Wt '000'), [System.Text.Encoding]::UTF8)
 $d1 = [ordered]@{
-    'amelioration' = ($ame.Contains('**Écriture sans la vérification de gw quand le contrôle de toutes les pistes s''applique.**') -and $ame.Contains('`--no-verify`'))
-    'mesure sur l image accordee' = (-not $sec.Contains('elle suit toujours la case « Sans vérification » et le nombre d''essais'))
-    'a savoir' = ($sav.Contains('**Piste mal écrite : réécrite par le contrôle, plus par gw.**') -and $sav.Contains('0 passe'))
-    'flux brut' = ($ame.Contains('une image flux écrite telle quelle (sans format), que gw ne vérifie jamais') -and $ame.Contains('« sans vérification gw (image flux écrite telle quelle) »') -and $ame.Contains('module d''analyse SCP indisponible'))
-    'a savoir : pas de comparaison des donnees' = ($sav.Contains('ne compare pas les données relues à celles de l''image') -and $sav.Contains('décochez « Contrôler toutes les pistes »'))
-    'ligne : verification annoncee puis retiree' = $sec.Contains('l''écriture se fait alors sans la vérification de gw que la ligne annonçait')
+    'amelioration de R9 retiree' = (-not $sec.Contains('**Écriture sans la vérification de gw quand le contrôle de toutes les pistes s''applique.**'))
+    'mesure sur l image accordee' = (-not $sec.Contains('elle suit toujours la case « Sans vérification » et le nombre d''essais') -and -not $sec.Contains('voir « Écriture sans la vérification de gw'))
+    'a savoir : les deux gardes' = ($sav.Contains('**Contrôle de toutes les pistes et vérification de gw : les deux gardés.**') -and -not $sav.Contains('**Piste mal écrite : réécrite par le contrôle, plus par gw.**'))
+    'flux brut' = $sec.Contains('« sans vérification gw (image flux écrite telle quelle) »')
+    'ligne : plus de verification retiree' = (-not $sec.Contains('sans la vérification de gw que la ligne annonçait'))
     'materiel' = ($sec -notmatch 'vérifiée? sur (du )?matériel')
     'README 140' = ([regex]::Match($rd, '\| `140-fn-ecriture\.ps1` \|[^\n]*').Value.Contains('`Get-WriteVerifyPlan`'))
     'README 145' = ([regex]::Match($rd, '\| `145-fn-onglet-ecriture\.ps1` \|[^\n]*').Value.Contains('`Update-WVerifyUi`'))
     'README tests' = $trd.Contains('| `logic-ecriture-verification` |')
     'version montree' = ($e000 -match "(?m)^\`$script:VersionLabel = '12\.11 rc4'" -and $e000 -match "(?m)^\`$script:Version = '12\.11'")
 }
-Chk 'D1' (@($d1.Keys | Where-Object { -not $d1[$_] }).Count -eq 0) "CHANGELOG 12.11 : Ameliorations (ecriture sans la verification de gw quand le controle s applique ; l entree de la mesure sur l image ne dit plus que l ecriture de l image suit toujours la case), A savoir (piste mal ecrite reecrite par le controle, cas de 0 passe ; relecture : le controle ne compare pas les donnees relues a l image, l image flux ecrite telle quelle n est jamais verifiee par gw, la verification annoncee par la ligne peut etre retiree par une mesure), aucun texte ne dit un comportement verifie sur materiel ; README des modules (140, 145) et des tests ; version montree « 12.11 rc4 », version des donnees « 12.11 » ; ecarts : $(Get-List @($d1.Keys | Where-Object { -not $d1[$_] }))"
+Chk 'D1' (@($d1.Keys | Where-Object { -not $d1[$_] }).Count -eq 0) "CHANGELOG 12.11 : $(@($d1.Keys | Where-Object { -not $d1[$_] }) -join ', ') ; R9 retire (entree d Ameliorations retiree ; l entree de la mesure sur l image ne dit plus que l ecriture de l image suit toujours la case), A savoir (piste mal ecrite reecrite par le controle, cas de 0 passe ; relecture : le controle ne compare pas les donnees relues a l image, l image flux ecrite telle quelle n est jamais verifiee par gw, la verification annoncee par la ligne peut etre retiree par une mesure), aucun texte ne dit un comportement verifie sur materiel ; README des modules (140, 145) et des tests ; version montree « 12.11 rc4 », version des donnees « 12.11 » ; ecarts : $(Get-List @($d1.Keys | Where-Object { -not $d1[$_] }))"
 
 $nk = ''; if ($script:Fail) { $nk = ' ; non conformes : ' + (@($script:FailIds) -join ', ') }
 "=== bilan logic-ecriture-verification : $($script:NChk - $script:Fail) conformes sur $($script:NChk)$nk ; $([int]$sw.Elapsed.TotalSeconds) s"

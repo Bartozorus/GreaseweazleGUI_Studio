@@ -2358,6 +2358,18 @@ function Complete-CalibRetestEnd {
     Complete-PrecompCalib
 }
 
+function Test-InnerZoneBreak([int[]]$bk) {
+    # 12.11 rc4 (decision de l utilisateur) : changement de sens du besoin (Breaks de la courbe, journal de la calibration)
+    # dont la chute tombe entre c43 et c44, ou tout pres : premier cylindre de 42 a 45 et, avec deux cylindres, le second
+    # a 46 au plus. Fonction pure ; texte seulement
+    $b = @($bk)
+    if ($b.Count -lt 1) { return $false }
+    $c = [int]$b[0]
+    if ($c -lt 42 -or $c -gt 45) { return $false }
+    if ($b.Count -ge 2 -and [int]$b[1] -gt 46) { return $false }
+    return $true
+}
+
 function Write-CalibDentLog($u) {
     # 12.9 (correction 4) : bilan des dents locales du besoin suivies par la courbe d une unite (Warn.Dents, Get-CalibWarnings :
     # toujours un tableau ; filtre par securite : unite ou fixture sans ce champ, ou @($null) compte 1)
@@ -2538,6 +2550,9 @@ function Complete-PrecompCalib {
         $bk = @($u.Warn.Breaks)
         if ($bk.Count -ge 2) { Append-Log ($u.Prefix + ((T "Changement de sens du besoin entre c{0} et c{1} : courbe monotone par segments. La même signature sur une autre disquette désigne le lecteur, sinon le support.") -f "$($bk[0])", "$($bk[1])")) }
         elseif ($bk.Count -eq 1) { Append-Log ($u.Prefix + ((T "Le besoin redescend à partir de c{0} : courbe monotone par segments. La même signature sur une autre disquette désigne le lecteur, sinon le support.") -f "$($bk[0])")) }
+        # 12.11 rc4 (decision de l utilisateur) : chute entre c43 et c44, ou tout pres (Test-InnerZoneBreak) : signature
+        # physique de la zone interieure des lecteurs, dite au journal ; texte seulement, aucun calcul change
+        if (Test-InnerZoneBreak ([int[]]$bk)) { Append-Log ($u.Prefix + (T "Cette chute du besoin vers les cylindres 43 et 44 est une signature connue de nombreux lecteurs 3,5 pouces (zone intérieure du disque) : la courbe est correcte, rien à refaire.")) }
         Write-CalibDentLog $u        # 12.9 (correction 4)
         if ($u.Warn.Dev.Count -gt 0) { Append-Log ($u.Prefix + ((T "Écart à la courbe de plus de {1} ns et de trois incertitudes (courbe moins mesure) : {0}.") -f ($u.Warn.Dev -join ', '), (Format-UiNum $script:CalDevNs))) }
         # Calibration precedente du meme lecteur (encore en memoire, remplacee plus bas) : la forme de la courbe tient au
