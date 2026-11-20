@@ -194,6 +194,25 @@ function Start-HomeCalib([string]$name, [string]$test, [bool]$heads, [int]$nCyl,
     return $res
 }
 
+function Get-HomeCrossChoice([string]$name, [bool]$heads, [int]$nCyl, [bool]$fine) {
+    # 12.11 rc4 (R4) : choix du bouton « Calibration croisee pour un lecteur cible... » de la fenetre de la carte
+    return @{ Cross = $true; Name = $name; Heads = $heads; NCyl = $nCyl; Fine = $fine; Test = $(if ($fine) { 'fine' } else { 'std' }) }
+}
+
+function Start-HomeCrossCalib($ch) {
+    # 12.11 rc4 (R4, maquettes 05a et 05b approuvees) : calibration croisee lancee depuis la carte « Calibrer le
+    # lecteur » : Start-CrossCalib (270) avec le type, les cylindres et la case « une courbe par tete » de la carte (memes
+    # refus, chacun affiche par elle) ; lancee : meme suivi sur la carte que les autres calibrations de la carte
+    # (Update-HomeCalibCard). Rend le resultat de Start-CrossCalib
+    $r = Start-CrossCalib -HomeFmt ([string]$ch.Name) -HomeCyl ([int]$ch.NCyl) -HomeHeads ([bool]$ch.Heads) -HomeFine ([bool]$ch.Fine)
+    if ($r.Started) {
+        $script:HomeCalFmt = [string]$ch.Name
+        $script:HomeCalBusy = $true
+        Update-HomeCalibCard
+    }
+    return $r
+}
+
 function Update-HomeCalibCard {
     # Carte « Calibrer le lecteur » : progression d une calibration lancee depuis l Accueil (texte de la barre de l onglet
     # Ecriture), puis son bilan jusqu a la prochaine ouverture de la carte. Minuterie principale et Start-HomeCalib.
@@ -534,9 +553,15 @@ function Show-HomeCalib {
     $btnClose = New-Object System.Windows.Forms.Button; $btnClose.Name = 'btnHcClose'; $btnClose.Text = (T 'Fermer'); $btnClose.Size = New-Object System.Drawing.Size(110, 34); $btnClose.Location = '834,628'
     $btnGo = New-Object System.Windows.Forms.Button; $btnGo.Name = 'btnHcGo'; $btnGo.Text = (T 'Calibrer'); $btnGo.Size = New-Object System.Drawing.Size(160, 34); $btnGo.Location = '666,628'
     $btnClose.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
-    Set-Btn $btnCurve 'Diagnostic' 'normal'; Set-Btn $btnGo 'Play' 'primary'; Set-Btn $btnClose '' 'normal'
+    # 12.11 rc4 (R4, maquette 05a approuvee) : « Calibration croisee pour un lecteur cible... » : ferme la fenetre, puis
+    # Start-HomeCrossCalib ouvre la fenetre de choix de la calibration croisee avec le type, les cylindres et la case
+    # « une courbe par tete » choisis ici ; explication en infobulle
+    $btnCross = New-Object System.Windows.Forms.Button; $btnCross.Name = 'btnHcCross'; $btnCross.Text = (T 'Calibration croisée pour un lecteur cible…')
+    $btnCross.Size = New-Object System.Drawing.Size([math]::Max(300, (Get-DlgButtonWidth $btnCross.Text 'Switch' 300)), 34); $btnCross.Location = New-Object System.Drawing.Point(($btnCurve.Right + 8), 628)
+    $htip.SetToolTip($btnCross, ((T '« Calibration croisée pour un lecteur cible… » : {0} écrit, un autre lecteur relit. Pour les disquettes écrites ici puis lues par cet autre lecteur.') -f "$($cmbDrive.Text)"))
+    Set-Btn $btnCurve 'Diagnostic' 'normal'; Set-Btn $btnGo 'Play' 'primary'; Set-Btn $btnClose '' 'normal'; Set-Btn $btnCross 'Switch' 'normal'
     $dlg.CancelButton = $btnClose                     # pas d AcceptButton : Entree dans la liste ne lance rien
-    $dlg.Controls.AddRange(@($intro, $lv, $tbInfo, $lblCyl, $numCyl, $chkHeads, $chkWarm, $rbStd, $rbFine, $rbQuick, $lblQuick, $lblWarn, $btnCurve, $btnGo, $btnClose))
+    $dlg.Controls.AddRange(@($intro, $lv, $tbInfo, $lblCyl, $numCyl, $chkHeads, $chkWarm, $rbStd, $rbFine, $rbQuick, $lblQuick, $lblWarn, $btnCurve, $btnCross, $btnGo, $btnClose))
     # Mode par defaut : reglage calMode, celui de l onglet Ecriture (test standard, fin ou rapide) ; rapide indisponible :
     # test fin
     $prevFmt = [string]$script:HomeCalFmt
@@ -563,6 +588,12 @@ function Show-HomeCalib {
                        WarmEn = [bool]$s.Warm.Enabled; WarmChk = [bool]$s.Warm.Checked; QuickEn = [bool]$s.Quick.Enabled }
         $s.Dlg.DialogResult = [System.Windows.Forms.DialogResult]::OK
     })
+    $btnCross.Add_Click({
+        $s = $script:HcDlg
+        if ($s.Lv.SelectedItems.Count -eq 0 -or -not $s.Lv.SelectedItems[0].Tag.Cal) { return }
+        $s.Choice = Get-HomeCrossChoice ([string]$s.Lv.SelectedItems[0].Tag.Name) ([bool]$s.Heads.Checked) ([int]$s.Cyl.Value) ([bool]$s.Fine.Checked)
+        $s.Dlg.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    })
     $dlg.Add_Shown({ $s = $script:HcDlg; if ($s) { if ($s.Lv.SelectedItems.Count -gt 0) { $s.Lv.SelectedItems[0].EnsureVisible() }; [void]$s.Lv.Focus() } })
     if ($sel) { $sel.Selected = $true; $sel.Focused = $true }
     Update-HomeCalibDialog
@@ -578,6 +609,14 @@ function Show-HomeCalib {
     if ($dr -ne [System.Windows.Forms.DialogResult]::OK -or -not $ch) {
         # Type change sans calibration : cylindres retenus effaces (ils valaient pour l ancien type)
         if ($last -and $last -ne $prevFmt) { Set-Setting 'homeCalCyls' 0 }
+        [void](Save-Config); return
+    }
+    if ($ch.Cross) {
+        # 12.11 rc4 (R4) : refus deja affiches par Start-CrossCalib (aucun second message) ; cylindres et case retenus
+        # comme pour une calibration de la carte
+        $r = Start-HomeCrossCalib $ch
+        if ($r.Started) { Set-Setting 'homeCalHeads' $ch.Heads; Set-Setting 'homeCalCyls' $ch.NCyl }
+        elseif ($last -and $last -ne $prevFmt) { Set-Setting 'homeCalCyls' 0 }
         [void](Save-Config); return
     }
     $r = Start-HomeCalib $ch.Name $ch.Test $ch.Heads $ch.NCyl $ch.Warm

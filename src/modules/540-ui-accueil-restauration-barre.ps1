@@ -61,7 +61,7 @@ $cardCalib.Controls[3].AutoEllipsis = $true
 $cardCalib.Controls[3].Add_TextChanged({ Update-HomeCalDescTip })
 # 12.11 (lot LN-b) : lecteurs enregistres (fenetre frmDrives, 112), dernier emplacement libre de l Accueil ; description
 # de Get-DrivesCardText (fiches sans connexion comptees), mise a jour par Update-DriveList
-$cardDrives  = New-HomeCard 'Pin' (T 'Lecteurs enregistrés') (Get-DrivesCardText) '397,432' { Show-DrivesDialog }
+$cardDrives  = New-HomeCard 'Pin' (T 'Lecteurs') (Get-DrivesCardText) '397,432' { Show-DrivesDialog }
 $script:DrvDlg = $null
 $tabH.Controls.AddRange(@($lblHTitle, $lblHSub, $pnlHomeProg, $cardRestore, $cardWrite, $cardRead, $cardCheck, $cardCalib, $cardClean, $cardTest, $cardHelp, $cardJitter, $cardDrives))
 
@@ -297,15 +297,16 @@ $btnCfgSave.Add_Click({ if (Save-Config) { Append-Log ((T "Paramètres enregistr
 $btnCfgReset = New-BarButton (T 'Réinitialiser') 120
 $btnCfgReset.Add_Click({
     # 12.8 (lot 5, D3) : question simple, par Show-AppMessage en Oui / Non (texte ecrit au journal), pas par frmConfirm
-    $r = Show-AppMessage (T "Remettre tous les paramètres de l'interface à leurs valeurs par défaut et supprimer le fichier de configuration ?`n`n(Aucun effet sur le Greaseweazle, ni sur vos fichiers image, ni sur l'index de la bibliothèque.)") `
+    # 12.11 rc4 (R1, maquette 06b approuvee) : le texte dit ce que fait le code : reglages remis par defaut (Set-Defaults,
+    # qui garde lecteurs, courbes et lecteurs cibles), configuration reenregistree aussitot (avant : fichier supprime,
+    # lecteurs et calibrations dependant du prochain enregistrement)
+    $r = Show-AppMessage (T "Remettre tous les réglages de l'interface à leurs valeurs par défaut ?`n`nVos lecteurs et leurs calibrations ne sont pas touchés : ils gardent leur nom, leur connexion, leurs courbes et leur lecteur cible ; la liste « Lecteur : » du bandeau revient à la connexion par défaut. La configuration est réenregistrée aussitôt.`n`nPour effacer les calibrations : onglet Écriture, options avancées, « Effacer les calibrations ». Pour retirer un lecteur : bouton « Lecteurs… » du bandeau, puis « Supprimer… ».`n`n(Aucun effet sur le Greaseweazle, ni sur vos fichiers image, ni sur l'index de la bibliothèque.)") `
         (T 'Réinitialiser les paramètres') 'YesNo' 'Question'
     if ($r -eq 'Yes') {
         Set-Defaults
         Update-Library
-        if (Test-Path -LiteralPath $script:ConfigFile) {
-            try { Remove-Item -LiteralPath $script:ConfigFile -Force; Append-Log (T 'Configuration supprimée, valeurs par défaut restaurées.') }
-            catch { Append-Log ((T "Impossible de supprimer la configuration : {0}") -f "$($_.Exception.Message)") }
-        } else { Append-Log (T 'Valeurs par défaut restaurées.') }
+        if (Save-Config) { Append-Log (T 'Valeurs par défaut restaurées ; lecteurs et calibrations gardés, configuration réenregistrée.') }
+        else { Append-Log (T 'Valeurs par défaut restaurées ; configuration non réenregistrée (voir le journal).') }
     }
 })
 

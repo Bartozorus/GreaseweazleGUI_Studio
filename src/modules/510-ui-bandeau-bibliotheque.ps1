@@ -47,13 +47,23 @@ $btnHelpTop = New-Object System.Windows.Forms.Button
 $btnHelpTop.Text = (T 'Aide'); $btnHelpTop.Location = '404,28'; $btnHelpTop.Size = '84,34'; $btnHelpTop.Anchor = 'Top,Right'
 $btnHelpTop.Add_Click({ Open-HelpForTab })
 $tip.SetToolTip($btnHelpTop, (T 'Ouvre le guide en ligne de l''onglet affiché (touche F1).'))
+# 12.11 rc4 (R1, maquette 01a approuvee) : bouton en texte « Lecteurs... » sur la premiere rangee du bandeau, qui ne
+# deplace aucun controle : en haut a droite sans lecteur nomme (bord droit de « Chrono »), sinon a droite de « Mode
+# expert » (Set-DriveBannerLayout, 112) ; ouvre la fenetre « Lecteurs » (Show-DrivesDialog, 112)
+$btnDrivesTop = New-Object System.Windows.Forms.Button
+$btnDrivesTop.Name = 'btnDrivesTop'; $btnDrivesTop.Text = (T 'Lecteurs…'); $btnDrivesTop.Location = '694,5'; $btnDrivesTop.Size = '88,24'; $btnDrivesTop.Anchor = 'Top,Right'
+$btnDrivesTop.FlatStyle = 'Flat'; $btnDrivesTop.FlatAppearance.BorderSize = 1; $btnDrivesTop.UseVisualStyleBackColor = $false
+$btnDrivesTop.BackColor = [System.Drawing.Color]::White; $btnDrivesTop.ForeColor = [System.Drawing.Color]::FromArgb(40, 46, 58)
+$btnDrivesTop.FlatAppearance.BorderColor = [System.Drawing.Color]::FromArgb(196, 204, 216)
+$btnDrivesTop.Add_Click({ Show-DrivesDialog })
+$tip.SetToolTip($btnDrivesTop, (T 'Lecteurs : noms, connexions et calibrations de chaque lecteur'))
 
 # 12.11 (lot LN-b) : libelles nommes : texte et place du libelle du lecteur, place de « COM : » selon les lecteurs
 # enregistres (Set-DriveBannerLayout, 112 : positions de la 12.10 sans lecteur enregistre ayant une connexion)
 $lblDrive = New-BannerLabel (T 'Lecteur :') '500,37'
 $lblCom = New-BannerLabel (T 'COM :') '612,37'
 $pnlTop.Controls.AddRange(@($lblGwStatus, $lblDrive, $cmbDrive,
-    $lblCom, $txtDev, $chkTime, $chkExpert, $btnHelpTop))
+    $lblCom, $txtDev, $chkTime, $chkExpert, $btnHelpTop, $btnDrivesTop))
 $script:DriveBanner = $null      # 12.11 (lot LN-b) : positions de la 12.10, relevees au premier appel de Set-DriveBannerLayout
 
 # --- Separateur onglets / journal ----------------------------------------------

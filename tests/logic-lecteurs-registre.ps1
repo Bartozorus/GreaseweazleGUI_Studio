@@ -389,7 +389,7 @@ $TX = [ordered]@{
     T20  = @("Caractère non admis : « {0} ». Un nom se compose de lettres, de chiffres, d'espaces et des signes - . _ + # °", 'Character not allowed: "{0}". A name is made of letters, digits, spaces and the signs - . _ + # °')
     T21  = @('Un nom contient au moins une lettre sans accent ou un chiffre.', 'A name contains at least one unaccented letter or one digit.')
     T22  = @('« {0} » désigne une connexion : choisissez un autre nom.', '"{0}" designates a connection: choose another name.')
-    T23  = @('Un lecteur enregistré porte déjà ce nom : {0}.', 'A registered drive already has this name: {0}.')
+    T23  = @('Un lecteur porte déjà ce nom : {0}.', 'A drive already has this name: {0}.')
     T24  = @("Nom trop large pour s'afficher en entier dans les listes de lecteurs (environ 17 caractères) : raccourcissez-le.", 'Name too wide to be shown in full in the drive lists (about 17 characters): shorten it.')
     T69  = @('« {0} » est un mot réservé : choisissez un autre nom.', '"{0}" is a reserved word: choose another name.')
     T25  = @('Choisissez la connexion du lecteur.', 'Select the connection of the drive.')
@@ -399,22 +399,22 @@ $TX = [ordered]@{
     T28  = @('La connexion {0} a déjà des données sans nom de lecteur (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : le nom ne peut pas être retiré seul.', 'Connection {0} already has data without a drive name (curves, target drive, levels, per-brand memory or factors): the name cannot be removed on its own.')
     T29  = @("Configuration non sauvegardée : rien n'a été modifié (voir le journal).", 'Configuration not backed up: nothing was changed (see the log).')
     T30  = @("Calibration B en cours ou en attente de décision : terminez-la d'abord.", 'Calibration B in progress or awaiting a decision: finish it first.')
-    T71  = @('Lecteurs enregistrés : opération en cours ({0}). Réessayez quand elle est terminée.', 'Registered drives: operation in progress ({0}). Try again when it has finished.')
-    T57  = @('Configuration sauvegardée avant la modification des lecteurs enregistrés : {0}', 'Configuration backed up before changing the registered drives: {0}')
-    T58  = @("Configuration non copiée avant la modification des lecteurs enregistrés : {0}. Modification annulée : rien n'est changé.", 'Configuration not copied before changing the registered drives: {0}. Change cancelled: nothing is modified.')
-    T58b = @("Configuration non enregistrée avant la modification des lecteurs enregistrés. Modification annulée : rien n'est changé.", 'Configuration not saved before changing the registered drives. Change cancelled: nothing is modified.')
-    T59  = @('Lecteurs enregistrés : {0} fiche(s) illisible(s), ignorée(s).', 'Registered drives: {0} unreadable record(s), ignored.')
-    T59b = @('Lecteurs enregistrés : connexion illisible pour {0} : redonnez-la dans « Lecteurs enregistrés » (Accueil).', 'Registered drives: unreadable connection for {0}: set it again in "Registered drives" (Home).')
-    T60  = @("Lecteurs enregistrés relus dans la copie de secours ({0}) : le fichier de configuration ne les contenait pas (enregistré par une version antérieure, ou copie plus ancienne remise à sa place). Calibrations rangées sous leurs noms : {1}. Lecteurs cibles rétablis depuis cette copie : {2}. Vérifiez le lecteur choisi et son lecteur cible avant d'écrire.",
-             'Registered drives read back from the rescue copy ({0}): the configuration file did not contain them (saved by an earlier version, or an older copy put back in its place). Calibrations filed under their names: {1}. Target drives restored from this copy: {2}. Check the selected drive and its target drive before writing.')
-    T61  = @("Lecteurs présents dans les calibrations, sans fiche : {0}. Redonnez leur connexion dans « Lecteurs enregistrés » (Accueil) ; d'ici là, ils ne sont pas proposés dans le bandeau et leurs calibrations ne servent à aucun autre lecteur.",
-             'Drives present in the calibrations, without a record: {0}. Set their connection again in "Registered drives" (Home); until then, they are not offered in the banner and their calibrations are not used for any other drive.')
+    T71  = @('Lecteurs : opération en cours ({0}). Réessayez quand elle est terminée.', 'Drives: operation in progress ({0}). Try again when it has finished.')
+    T57  = @('Configuration sauvegardée avant la modification des lecteurs : {0}', 'Configuration backed up before changing the drives: {0}')
+    T58  = @("Configuration non copiée avant la modification des lecteurs : {0}. Modification annulée : rien n'est changé.", 'Configuration not copied before changing the drives: {0}. Change cancelled: nothing is modified.')
+    T58b = @("Configuration non enregistrée avant la modification des lecteurs. Modification annulée : rien n'est changé.", 'Configuration not saved before changing the drives. Change cancelled: nothing is modified.')
+    T59  = @('Lecteurs : {0} fiche(s) illisible(s), ignorée(s).', 'Drives: {0} unreadable record(s), ignored.')
+    T59b = @('Lecteurs : connexion illisible pour {0} : redonnez-la dans « Lecteurs » (Accueil).', 'Drives: unreadable connection for {0}: set it again in "Drives" (Home).')
+    T60  = @("Lecteurs relus dans la copie de secours ({0}) : le fichier de configuration ne les contenait pas (enregistré par une version antérieure, ou copie plus ancienne remise à sa place). Calibrations rangées sous leurs noms : {1}. Lecteurs cibles rétablis depuis cette copie : {2}. Vérifiez le lecteur choisi et son lecteur cible avant d'écrire.",
+             'Drives read back from the rescue copy ({0}): the configuration file did not contain them (saved by an earlier version, or an older copy put back in its place). Calibrations filed under their names: {1}. Target drives restored from this copy: {2}. Check the selected drive and its target drive before writing.')
+    T61  = @("Lecteurs présents dans les calibrations, sans fiche : {0}. Redonnez leur connexion dans « Lecteurs » (Accueil) ; d'ici là, ils ne sont pas proposés dans le bandeau et leurs calibrations ne servent à aucun autre lecteur.",
+             'Drives present in the calibrations, without a record: {0}. Set their connection again in "Drives" (Home); until then, they are not offered in the banner and their calibrations are not used for any other drive.')
     T76  = @('Calibrations rangées sous un nom de lecteur non admis ({0}) : elles ne servent à aucun lecteur.', 'Calibrations filed under a drive name that is not allowed ({0}): they are not used for any drive.')
-    T62  = @('Copie de secours des lecteurs enregistrés non écrite ({0}) : {1}', 'Rescue copy of the registered drives not written ({0}): {1}')
-    T63  = @('Copie de secours des lecteurs enregistrés illisible ({0}) : {1}', 'Rescue copy of the registered drives unreadable ({0}): {1}')
+    T62  = @('Copie de secours des lecteurs non écrite ({0}) : {1}', 'Rescue copy of the drives not written ({0}): {1}')
+    T63  = @('Copie de secours des lecteurs illisible ({0}) : {1}', 'Rescue copy of the drives unreadable ({0}): {1}')
     T66  = @('{0} (connexion à préciser)', '{0} (connection to be set)')
     TXa  = @('{0} : {1}', '{0}: {1}')
-    TXb  = @('Copie de secours des lecteurs enregistrés de Greaseweazle Studio (noms, connexions, lecteurs cibles) - régénérée automatiquement.', 'Rescue copy of the registered drives of Greaseweazle Studio (names, connections, target drives) - regenerated automatically.')
+    TXb  = @('Copie de secours des lecteurs de Greaseweazle Studio (noms, connexions, lecteurs cibles) - régénérée automatiquement.', 'Rescue copy of the drives of Greaseweazle Studio (names, connections, target drives) - regenerated automatically.')
 }
 function Fr([string]$k) { return [string]$TX[$k][0] }
 function En([string]$k) { return [string]$TX[$k][1] }
@@ -613,7 +613,7 @@ $bakN1 = Get-LnBaks
 $bakCfg = if ($bakN1.Count) { Read-LnJson $bakN1[0] } else { $null }
 $bakDrives = Get-LnProp $bakCfg 'drives'
 Chk 'N1e' ($recN1 -and [string]$recN1.Conn -ceq 'A' -and [string]$recN1.Id -cmatch $rxId -and [string]$recN1.Created -ceq '2026-11-20 18:02:11' -and [string]$recN1.From -ceq 'A' -and [string]$recN1.At -ceq '2026-11-20 18:02:11' -and $script:DriveReg.Count -eq 1) "fiche : connexion A, identifiant date $($recN1.Id), creee le $($recN1.Created), From A et At poses"
-Chk 'N1f' ($n1.Copy -and $bakN1.Count -eq 1 -and [System.IO.Path]::GetFileName($bakN1[0]) -ceq 'GreaseweazleGUI.json.lecteurs-20261120-180211.bak' -and $n1.Bak -eq $bakN1[0] -and (Get-LnFileSigs $bakN1[0]) -ceq $sig0 -and (Get-LnFileKeys $bakN1[0]) -cmatch '(?m)^A\|std$' -and $null -ne $bakDrives -and @(Get-LnProp $bakDrives 'list').Count -eq 0 -and (Get-LogN 'Configuration sauvegardée avant la modification des lecteurs enregistrés : *.lecteurs-20261120-180211.bak') -eq 1) "copie datee faite avant l action ($([System.IO.Path]::GetFileName("$($n1.Bak)"))) : les $n0 courbes d avant s y retrouvent sous leurs cles A|..., son bloc drives dit « aucun lecteur enregistre » (liste vide)"
+Chk 'N1f' ($n1.Copy -and $bakN1.Count -eq 1 -and [System.IO.Path]::GetFileName($bakN1[0]) -ceq 'GreaseweazleGUI.json.lecteurs-20261120-180211.bak' -and $n1.Bak -eq $bakN1[0] -and (Get-LnFileSigs $bakN1[0]) -ceq $sig0 -and (Get-LnFileKeys $bakN1[0]) -cmatch '(?m)^A\|std$' -and $null -ne $bakDrives -and @(Get-LnProp $bakDrives 'list').Count -eq 0 -and (Get-LogN 'Configuration sauvegardée avant la modification des lecteurs : *.lecteurs-20261120-180211.bak') -eq 1) "copie datee faite avant l action ($([System.IO.Path]::GetFileName("$($n1.Bak)"))) : les $n0 courbes d avant s y retrouvent sous leurs cles A|..., son bloc drives dit « aucun lecteur enregistre » (liste vide)"
 Set-LnBanner 'Sony MPF920'
 $aN1 = (Get-CommonArgs) -join ' '; $vN1 = (@($script:CurveKeys | Where-Object { $script:PrecompCurves[$_] }) -join ','); $kdN = Get-DriveK 'Sony MPF920' 'std' 0 ''; $tgN = Get-TargetDrive
 Set-LnBanner 'A'
@@ -763,7 +763,7 @@ $n6b = Add-NamedDrive 'Sony MPF920' 'A' 'A'
 if ($script:Lock) { $script:Lock.Dispose(); $script:Lock = $null }
 $script:LockAfterSave = $false
 ${function:Save-Config} = $script:RealSave
-Chk 'N6b' (-not $n6b.Ok -and $n6b.Why -ceq (Fr 'T29') -and (Get-LnState) -ceq $st -and (Get-LnBaks).Count -eq 0 -and (Get-LogN 'Configuration non copiée avant la modification des lecteurs enregistrés : *. Modification annulée : rien n''est changé.') -eq 1) "copie en echec (fichier de configuration tenu ouvert) : action annulee, etat identique, aucune fiche (« $($n6b.Why) », une ligne de journal)"
+Chk 'N6b' (-not $n6b.Ok -and $n6b.Why -ceq (Fr 'T29') -and (Get-LnState) -ceq $st -and (Get-LnBaks).Count -eq 0 -and (Get-LogN 'Configuration non copiée avant la modification des lecteurs : *. Modification annulée : rien n''est changé.') -eq 1) "copie en echec (fichier de configuration tenu ouvert) : action annulee, etat identique, aucune fiche (« $($n6b.Why) », une ligne de journal)"
 $blkAfterFail = Get-LnProp (Read-LnJson $script:ConfigFile) 'drives'
 [void](Save-Config)
 $blkNext = Get-LnProp (Read-LnJson $script:ConfigFile) 'drives'
@@ -1020,7 +1020,7 @@ $c3f.write.targetDrive | Add-Member -NotePropertyName '0' -NotePropertyValue 'B'
 Clear-LnMemory
 $l3 = [bool](Load-Config); Sync-PrecompCurves
 $keys3 = Get-LnSortedText @($script:DriveCurves.GetEnumerator() | ForEach-Object { [string]$_.Key })
-$t60 = @($script:Log | Where-Object { $_ -like 'Lecteurs enregistrés relus dans la copie de secours*' })
+$t60 = @($script:Log | Where-Object { $_ -like 'Lecteurs relus dans la copie de secours*' })
 $t60Want = (Fr 'T60') -f (Get-LnRescue), 'Sony MPF920 : 5 courbe(s) dont 2 croisée(s), dernière : 05/11/2026 10:00 ; TEAC FD-235HF : 4 courbe(s) dont 2 croisée(s), dernière : 05/11/2026 10:00', 'Sony MPF920 → TEAC FD-235HF'
 Chk 'C3a' ($l3 -and ((Get-LnRegNames) -join ',') -ceq 'Sony MPF920,TEAC FD-235HF' -and [string](Get-LnRec 'Sony MPF920').Id -ceq $idS -and [string](Get-LnRec 'TEAC FD-235HF').Id -ceq $idT -and [string](Get-LnRec 'TEAC FD-235HF').Conn -ceq '0' -and $script:DriveRescued -and [string]$script:DriveLast['A'] -ceq 'Sony MPF920' -and [string]$script:DriveLast['0'] -ceq 'TEAC FD-235HF' -and $null -eq $script:DriveRescuePairs) 'bloc drives absent, copie de secours presente : fiches, connexions, identifiants et last relus dans la copie ; registre marque « relu dans la copie de secours » pour la session'
 Chk 'C3b' ((Get-TargetDrive 'Sony MPF920') -ceq 'TEAC FD-235HF' -and (Get-TargetDrive '0') -ceq 'B' -and $t60.Count -eq 1 -and $t60[0] -ceq $t60Want) "lecteurs cibles : couple de la copie retabli (Sony MPF920 vers TEAC FD-235HF), sauf pour une source qui a aujourd hui un autre lecteur cible (0 vers B garde) ; une ligne de journal, mot pour mot, avec les calibrations de chaque fiche et les couples retablis"
@@ -1036,7 +1036,7 @@ Start-LnCase 'c3e'
 [System.IO.File]::WriteAllText($script:ConfigFile, $startJson, $utf8)
 Clear-LnMemory
 $l3e = [bool](Load-Config); Sync-PrecompCurves
-$t60e = @($script:Log | Where-Object { $_ -like 'Lecteurs enregistrés relus dans la copie de secours*' })
+$t60e = @($script:Log | Where-Object { $_ -like 'Lecteurs relus dans la copie de secours*' })
 Chk 'C3e' ($l3e -and ((Get-LnRegNames) -join ',') -ceq 'Sony MPF920' -and $script:DriveLast.Count -eq 0 -and (Get-DriveForConn 'A') -ceq 'A' -and [string]$cmbDrive.Text -ceq 'A' -and $script:PrecompCurves['std'] -and (Get-LnSortedText @($script:DriveCurves.GetEnumerator() | ForEach-Object { [string]$_.Key })) -ceq $keys1210 -and $t60e.Count -eq 1 -and $t60e[0] -ceq ((Fr 'T60') -f (Get-LnRescue), 'Sony MPF920 : aucune', 'Sony MPF920 → 0') -and (Get-TargetDrive 'A') -ceq '0' -and (Get-TargetDrive 'Sony MPF920') -ceq '0') "copie datee sans bloc drives remise en place : la fiche revient sans courbe (« Sony MPF920 : aucune »), avec son lecteur cible ; le bandeau reste sur le lecteur non enregistre de A, qui porte les courbes ; aucune courbe n est attribuee"
 Chk-Inv 'C3f'
 # C3g (relecture de LN-a) : nommer A « Sony MPF920 » pour lui rendre ses courbes : refuse tant que la fiche garde son
@@ -1131,7 +1131,7 @@ $c9 = Add-NamedDrive 'Sony MPF920' 'A' 'A'; $script:DriveLast = @{ 'A' = 'Sony M
 Clear-LnMemory
 $l9 = [bool](Load-Config); Sync-PrecompCurves
 $keys9 = Get-LnSortedText @($script:DriveCurves.GetEnumerator() | ForEach-Object { [string]$_.Key })
-Chk 'C9a' ($l9 -and $script:DriveReg.Count -eq 0 -and $keys9 -ceq $keys1210 -and (Get-LogN 'Lecteurs enregistrés relus*') -eq 0 -and -not $script:DriveRescued -and $null -ne $script:DriveRescueText -and (Get-TargetDrive 'A') -ceq '0' -and $script:PrecompCurves['std']) 'copie d avant la premiere attribution remise en place : son bloc drives, present avec une liste vide, fait foi : registre vide, courbes sous la lettre, aucune ligne « relus dans la copie de secours »'
+Chk 'C9a' ($l9 -and $script:DriveReg.Count -eq 0 -and $keys9 -ceq $keys1210 -and (Get-LogN 'Lecteurs relus*') -eq 0 -and -not $script:DriveRescued -and $null -ne $script:DriveRescueText -and (Get-TargetDrive 'A') -ceq '0' -and $script:PrecompCurves['std']) 'copie d avant la premiere attribution remise en place : son bloc drives, present avec une liste vide, fait foi : registre vide, courbes sous la lettre, aucune ligne « relus dans la copie de secours »'
 Step-LnClock 60; [void](Save-Config)
 $c9f = Read-LnJson $script:ConfigFile
 Chk 'C9b' (@(Get-LnProp (Read-LnJson (Get-LnRescue)).drives 'list').Count -eq 0 -and $null -ne (Get-LnProp $c9f 'drives') -and @(Get-LnProp $c9f.drives 'list').Count -eq 0) 'la copie de secours, qui citait encore le lecteur, est reecrite vide au premier enregistrement'
@@ -1349,7 +1349,7 @@ $dev = ''
 $md = [regex]::Match($sec1211, '(?s)### Pour les développeurs.*$')
 if ($md.Success) { $dev = $md.Value }
 $userPart = if ($dev) { $sec1211.Substring(0, $sec1211.Length - $dev.Length) } else { $sec1211 }
-$entry = @($dev -split "`n" | Where-Object { $_.Contains('**Lecteurs enregistrés, socle.**') })
+$entry = @($dev -split "`n" | Where-Object { $_.Contains('**Lecteurs, socle.**') })
 Chk 'I7' ($rd.Contains('| `112-fn-lecteurs.ps1` |') -and $rd.Contains('`Get-DriveConn`') -and $rd.Contains('`Edit-DriveData`') -and $entry.Count -eq 1 -and $entry[0].Contains('`Get-DriveConn($drive)`') -and $entry[0].Contains('`Edit-DriveData($from, $to, [switch]$Check)`') -and $entry[0] -notmatch 'matériel' -and $userPart -notmatch 'socle' -and $trd.Contains('| `logic-lecteurs-registre` |')) 'README des modules (module 112, fonctions du socle), README des tests, CHANGELOG : entree du socle dans « Pour les développeurs » seulement (12.11, lot LN-b : adapte a dessein, les rubriques de l utilisateur decrivent maintenant l interface des lecteurs enregistres) ; l entree ne dit aucun comportement verifie sur materiel'
 
 # ================================================================ Q. equivalence avec la source d avant (-Before), cas C8
@@ -1424,7 +1424,7 @@ if (-not $Before) {
     $script:ConfigFile = $cfg8
     $l8r = [bool](Load-Config); Sync-PrecompCurves
     Set-LnBanner 'Sony MPF920'; $view8S = (@($script:CurveKeys | Where-Object { $script:PrecompCurves[$_] }) -join ','); Set-LnBanner 'A'
-    Chk 'Q6' ($l8r -and ((Get-LnRegNames) -join ',') -ceq 'Sony MPF920,TEAC FD-235HF' -and $script:DriveRescued -and (Get-TargetDrive 'Sony MPF920') -ceq 'TEAC FD-235HF' -and (Get-TargetDrive 'B') -ceq '1' -and $view8S -ceq 'std,std_h0,std_h1' -and (Get-LogN 'Lecteurs enregistrés relus dans la copie de secours*Sony MPF920 : 5 courbe(s) dont 2 croisée(s)*Lecteurs cibles rétablis depuis cette copie : Sony MPF920 → TEAC FD-235HF.*') -eq 1 -and (Test-LnInv).Count -eq 0) 'retour : registre relu dans la copie de secours, courbes retrouvees sous leurs noms, lecteur cible du lecteur nomme retabli, une ligne de journal qui le dit'
+    Chk 'Q6' ($l8r -and ((Get-LnRegNames) -join ',') -ceq 'Sony MPF920,TEAC FD-235HF' -and $script:DriveRescued -and (Get-TargetDrive 'Sony MPF920') -ceq 'TEAC FD-235HF' -and (Get-TargetDrive 'B') -ceq '1' -and $view8S -ceq 'std,std_h0,std_h1' -and (Get-LogN 'Lecteurs relus dans la copie de secours*Sony MPF920 : 5 courbe(s) dont 2 croisée(s)*Lecteurs cibles rétablis depuis cette copie : Sony MPF920 → TEAC FD-235HF.*') -eq 1 -and (Test-LnInv).Count -eq 0) 'retour : registre relu dans la copie de secours, courbes retrouvees sous leurs noms, lecteur cible du lecteur nomme retabli, une ligne de journal qui le dit'
 }
 
 $nk = if ($script:Fail) { ' ; non conformes : ' + (@($script:FailIds) -join ', ') } else { '' }

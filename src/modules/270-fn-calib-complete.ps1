@@ -286,7 +286,12 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     Start-CalibWarmup      # prechauffage du lecteur s il y a lieu, puis premiere passe de mesure
 }
 
-function Start-CrossCalib {
+function Start-CrossCalib([string]$HomeFmt = '', [int]$HomeCyl = 0, $HomeHeads = $null, [bool]$HomeFine = $false) {
+    # 12.11 rc4 (R4, maquettes 05a et 05b approuvees) : lancee aussi depuis la fenetre de la carte « Calibrer le lecteur »
+    # de l Accueil (Start-HomeCrossCalib, 200) : $HomeFmt (type de disquette choisi), $HomeCyl (cylindres), $HomeHeads
+    # (une courbe par tete), $HomeFine (test fin preselectionne) remplacent l image et les cases de l onglet Ecriture ;
+    # type d une autre famille que standard ou long track : refus avant la fenetre de choix. Memes refus que depuis
+    # l onglet Ecriture
     # 12.10 : bouton a icone « Calibrer pour un lecteur cible... » de l onglet Ecriture (btnWCross) : calibration croisee, le
     # lecteur du bandeau (source) ecrit le motif, un autre lecteur (cible) le relit, la disquette passant de l un a l autre
     # a la main (Invoke-CalibSwap). Fenetre de choix (Show-CrossCalibDialog, 250) : cible parmi les lecteurs du bandeau,
@@ -319,11 +324,20 @@ function Start-CrossCalib {
     if ($eb) { $res.Why = [string]$eb.Why; [void](Show-AppMessage ([string]$eb.Why) ([string]$eb.Title) 'OK' ([string]$eb.Icon)); return $res }
     $sb = Get-CalibSettingBlock
     if ($sb) { $res.Why = $sb; [void](Show-AppMessage $sb (T 'Calibration precomp') 'OK' 'Warning'); return $res }
-    $ic = Get-CalibImageCheck
-    $imgFam = if ($ic.Ok) { [string]$ic.Family } else { '' }
-    if (@('std', 'long') -notcontains $imgFam) { $imgFam = '' }
-    $imgInfo = if ($imgFam) { (T "Image de l'onglet Écriture : {0} ({1}) ; avec cette famille, ses cylindres sont ceux de la calibration ; avec l'autre, 80 cylindres à la densité de la famille.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))", (Get-CalibFamilyName $imgFam) }
-               else { (T "Aucune image calibrable dans l'onglet Écriture : 80 cylindres, à la densité de la famille choisie.") }
+    $hInfo = $null
+    if ($HomeFmt) {
+        $hInfo = Get-HomeCalibInfo $HomeFmt
+        if (@('std', 'long') -notcontains [string]$hInfo.Cal) { $res.Why = (T 'famille sans calibration croisée'); [void](Show-AppMessage ((T 'Calibration croisée impossible pour {0} : seules les familles {1} et {2} se calibrent pour un lecteur cible.') -f [string]$hInfo.Label, (Get-CalibFamilyName 'std'), (Get-CalibFamilyName 'long')) (T 'Calibration precomp') 'OK' 'Warning'); return $res }
+        $imgFam = [string]$hInfo.Cal
+        $HomeCyl = [math]::Max(2, [math]::Min(84, $HomeCyl))
+        $imgInfo = (T "Type de disquette choisi dans l'Accueil : {0} ({1}), {2} cylindres ; avec l'autre famille, 80 cylindres à sa densité.") -f [string]$hInfo.Label, (Get-CalibFamilyName $imgFam), "$HomeCyl"
+    } else {
+        $ic = Get-CalibImageCheck
+        $imgFam = if ($ic.Ok) { [string]$ic.Family } else { '' }
+        if (@('std', 'long') -notcontains $imgFam) { $imgFam = '' }
+        $imgInfo = if ($imgFam) { (T "Image de l'onglet Écriture : {0} ({1}) ; avec cette famille, ses cylindres sont ceux de la calibration ; avec l'autre, 80 cylindres à la densité de la famille.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))", (Get-CalibFamilyName $imgFam) }
+                   else { (T "Aucune image calibrable dans l'onglet Écriture : 80 cylindres, à la densité de la famille choisie.") }
+    }
     if ($script:DriveReg.Count -gt 0) {
         $allT = Get-CrossCalibTargets @($cmbDrive.Items | ForEach-Object { [string]$_ }) $src
         $sameC = @($allT | Where-Object { $targets -cnotcontains $_ })
@@ -331,7 +345,9 @@ function Start-CrossCalib {
     }
     $nPassEst = @($script:CalCoarse).Count + [int]$script:CalMaxVerify
     $swF = Get-CrossSwapEstimate $nPassEst $true ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify); $swS = Get-CrossSwapEstimate $nPassEst $false ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify)   # 12.11 : au moins : une seule verification
-    $ch = Show-CrossCalibDialog $src $targets $(if ($imgFam) { $imgFam } else { 'std' }) ($cmbWCalMode.SelectedIndex -eq 1) $imgInfo ([bool]$chkWSlow.Checked) ([int]$swF.Min) ([int]$swS.Max) (Get-TargetDrive $src)   # 12.11 : lecteur cible de l onglet Ecriture preselectionne
+    $slow0 = if ($null -ne $HomeHeads) { [bool]$HomeHeads } else { [bool]$chkWSlow.Checked }
+    $fine0 = if ($hInfo) { $HomeFine } else { ($cmbWCalMode.SelectedIndex -eq 1) }
+    $ch = Show-CrossCalibDialog $src $targets $(if ($imgFam) { $imgFam } else { 'std' }) $fine0 $imgInfo $slow0 ([int]$swF.Min) ([int]$swS.Max) (Get-TargetDrive $src)   # 12.11 : lecteur cible de l onglet Ecriture preselectionne
     if (-not $ch.Ok) { $res.Why = (T 'annulée'); Append-Log (T "Calibration croisée : fenêtre de choix fermée, rien n'est lancé."); return $res }
     $tgt = [string]$ch.Target; $fam = [string]$ch.Family; $test = $(if ($ch.Fine) { 'fine' } else { 'std' })
     # 12.11 (lot LN-b) : lecteur cible confirme quand sa connexion porte plusieurs lecteurs (Confirm-DriveIdentity -Target,
@@ -339,20 +355,25 @@ function Start-CrossCalib {
     if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity -Target $tgt)) { $res.Why = (T 'Opération annulée : lecteur branché non confirmé.'); return $res }
     Append-Log ((T "Calibration croisée demandée : écriture par le lecteur {0}, relecture par le lecteur {1}, famille {2}, {3}.") -f "$src", "$tgt", (Get-CalibFamilyName $fam), $(if ($ch.Fine) { (T 'test fin') } else { (T 'test standard') }))
     $geom = $null
-    if ($fam -ne $imgFam) {
+    if ($fam -ne $imgFam -or $hInfo) {
         # Image de geometrie du type de la famille (comme Start-HomeCalib) : amiga.amigados (standard, 101 344 cellules),
-        # app.long (long track) ; seuil de famille de la configuration respecte (Get-ImageFamily)
+        # app.long (long track) ; seuil de famille de la configuration respecte (Get-ImageFamily). 12.11 rc4 (R4) : depuis
+        # l Accueil, avec la famille du type choisi, ce type et ses cylindres
         $name = if ($fam -eq 'long') { 'app.long' } else { 'amiga.amigados' }
+        $nG = 80
+        if ($hInfo -and $fam -eq $imgFam) { $name = $HomeFmt; $nG = $HomeCyl }
         $info = Get-HomeCalibInfo $name
-        try { $gimg = New-CalibGeometry $info 80 }
+        try { $gimg = New-CalibGeometry $info $nG }
         catch { $res.Why = "$($_.Exception.Message)"; [void](Show-AppMessage ((T "Calibration croisée impossible : image de géométrie impossible à créer : {0}") -f "$($_.Exception.Message)") (T 'Calibration precomp') 'OK' 'Error'); return $res }
         if ((Get-ImageFamily $gimg) -ne $fam) { $res.Why = (T 'seuil de famille'); [void](Show-AppMessage ((T "Calibration croisée impossible : avec le seuil de famille precompThresholdNs de {0} ns, ce type serait calibré dans une autre famille que {1}.") -f "$($script:PrecompThresholdNs)", (Get-CalibFamilyName $fam)) (T 'Calibration precomp') 'OK' 'Warning'); return $res }
         # Origine des cylindres sans parentheses : la ligne de journal des cylindres de test la met deja entre parentheses
-        $geom = @{ Img = $gimg; Label = [string]$info.Label; Fmt = $name; BitsSrc = [string]$info.BitsSrc; CylSrc = (T "80 cylindres, faute d'image de cette famille dans l'onglet Écriture") }
+        $cs = if ($hInfo -and $fam -eq $imgFam) { (T "{0} cylindres choisis dans l'Accueil") -f "$nG" } elseif ($hInfo) { (T '80 cylindres, à la densité de la famille choisie') } else { (T "80 cylindres, faute d'image de cette famille dans l'onglet Écriture") }
+        $geom = @{ Img = $gimg; Label = [string]$info.Label; Fmt = $name; BitsSrc = [string]$info.BitsSrc; CylSrc = $cs }
     }
     $script:AfterCalib = ''
     $script:CalCrossAsk = @{ Src = $src; Tgt = $tgt }
-    if ($geom) { Start-PrecompCalib -Geom $geom -Test $test } else { Start-PrecompCalib -Test $test }
+    if ($null -ne $HomeHeads) { Start-PrecompCalib -Geom $geom -Test $test -Heads ([bool]$HomeHeads) }
+    elseif ($geom) { Start-PrecompCalib -Geom $geom -Test $test } else { Start-PrecompCalib -Test $test }
     $script:CalCrossAsk = $null
     $res.Started = [bool]($script:Cal -and $script:Cal.Cross)
     return $res

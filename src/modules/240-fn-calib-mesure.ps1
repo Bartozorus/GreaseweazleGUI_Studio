@@ -324,6 +324,12 @@ function Reset-CalibProfiles {
     # bouton ECRIRE, jamais de calibration (Start-WriteTabWrite) ; test rapide, ecriture refusee sans reference
     # (Start-LevelBeforeWrite) ; restauration secteur en double densite, calibration par tete en test fin (Start-RestoreWrite)
     $msg = (T "Effacer toutes les calibrations de précompensation ?`n`nCourbes : {0}.`nProfils de famille remis aux valeurs d'origine : standard {1}, long track {2}.`nLes niveaux de la calibration rapide et la mémoire par marque sont effacés aussi.") -f "$list", "$($script:PrecompStdDefault)", "$($script:PrecompLongDefault)"
+    # 12.11 rc4 (R1, maquette 06a approuvee) : les lecteurs nommes ne sont pas supprimes, le message le dit en tete
+    if ($script:DriveReg -and $script:DriveReg.Count -gt 0) {
+        $dn = @($script:DriveReg.GetEnumerator() | ForEach-Object { $c0 = [string]$_.Value.Conn; "$([string]$_.Value.Name) ($(if ($c0) { $c0 } else { (T 'à préciser') }))" })
+        $i0 = $msg.IndexOf("`n`n")
+        if ($i0 -gt 0) { $msg = $msg.Insert($i0, "`n`n" + ((T 'Vos lecteurs ne sont pas supprimés : {0} restent dans la liste du bandeau et dans la fenêtre « Lecteurs », sans calibration. Pour retirer aussi un lecteur : bouton « Lecteurs… » du bandeau, puis « Supprimer… ».') -f ($dn -join ', '))) }
+    }
     # 12.11 (L7) : retour aux courbes de la copie par « Revenir a une calibration precedente… » (Start-CalibBack), sans
     # fermer l application ; la remise de la copie a la place du fichier reste le seul moyen de tout retrouver
     if ($curves.Count -gt 0) { $msg += "`n`n" + ((T "L'application copie d'abord la configuration dans « {0}.ref-….bak », dans le même dossier. Ensuite, « Revenir à une calibration précédente… » rétablit les courbes de cette copie, une calibration à la fois ; les niveaux, la mémoire par marque et les facteurs mesurés effacés ne reviennent qu'en remettant la copie à la place de « {0} », application fermée.") -f [System.IO.Path]::GetFileName([string]$script:ConfigFile)) }

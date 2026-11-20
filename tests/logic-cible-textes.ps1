@@ -70,7 +70,7 @@ $want = @('Update-SlowUi', 'Get-WarmMinutesText', 'Get-TargetDrive', 'Set-Target
           'Get-CalibState', 'Reset-CalibProfiles', 'Get-DriveCurveKeys', 'Get-DriveCurveLabel', 'Split-CrossDrive', 'Get-CurveKeyLabel', 'Sync-PrecompCurves',
           'Get-Setting', 'Get-FaceSafeWrite', 'Start-LevelCalibButton', 'Get-HomeCalibInfo', 'Write-RestoreReport', 'Get-RestoreStem', 'Update-TargetDriveUi',
           'Get-TargetDriveItems', 'Set-TargetDriveLayout')
-$wantNew = @('Get-CalibImageCheck', 'Get-LevelBeforeWriteKind', 'Update-WLevelUi', 'Get-WCurveSet', 'Show-WCurve', 'Get-RsCurveSet', 'Get-CalibSettingBlock', 'Get-CalibEnvBlock', 'Get-CalibResetAfterText', 'Get-WriteImageFamily')
+$wantNew = @('Get-CalibImageCheck', 'Get-LevelBeforeWriteKind', 'Update-WLevelUi', 'Get-WCurveSet', 'Show-WCurve', 'Get-RsCurveSet', 'Get-CalibSettingBlock', 'Get-CalibEnvBlock', 'Get-CalibResetAfterText', 'Get-WriteImageFamily', 'Get-HomeCrossChoice', 'Start-HomeCrossCalib')
 $code = (@($want | ForEach-Object { if (-not $all.ContainsKey($_)) { throw "fonction $_ introuvable" }; $all[$_] }) -join "`r`n`r`n")
 # 12.11 (lot L10) : decisions extraites de Start-WriteTabWrite, Start-LevelBeforeWrite et Start-ImageWrite (140, 260),
 # chargees quand la source les a (une source d avant le lot n en a pas)
@@ -139,7 +139,8 @@ function Start-ImageWrite { $script:Calls.Add('Start-ImageWrite') }
 function Start-LevelCalib($lr) { $script:Calls.Add('Start-LevelCalib'); $script:Cal = @{ Mode = 'level' } }
 function Start-DiskMeasure($lr, $b) { $script:Calls.Add('Start-DiskMeasure') }
 function Start-ContentMeasure($c) { $script:Calls.Add('Start-ContentMeasure') }
-function Start-PrecompCalib { param([switch]$ForceFine, $Geom = $null, [string]$Test = '')
+function Start-PrecompCalib { param([switch]$ForceFine, $Geom = $null, [string]$Test = '', $Heads = $null)
+    if ($null -ne $Heads) { $script:Calls.Add("Start-PrecompCalib Heads=$Heads Test=$Test") }   # 12.11 rc4 (R4) : calibration croisee depuis l Accueil
     # Debut fidele de Start-PrecompCalib (270:25-26) : Test-CalibImage reel, refus = rien n est lance
     $script:Calls.Add("Start-PrecompCalib(Geom=$(if ($Geom) { $Geom.Fmt } else { '' }))")
     $chk = Test-CalibImage $Geom
@@ -232,6 +233,23 @@ $script:GwExe = $svGw
 Set-Scn $imgf 'ibm.720' 0 $true $false 0 $true $false ''
 $r = Start-CrossCalib
 Chk 'C9c' ($r.Started -and (Get-Calls 'Show-CrossCalibDialog*').Count -eq 1) "installation complete retablie : la fenetre de choix s ouvre ($($script:Calls -join ' | '))"
+# 12.11 rc4 (R4) : calibration croisee lancee depuis la carte « Calibrer le lecteur » (Start-HomeCrossCalib, 200) : type,
+# cylindres et case « une courbe par tete » de la carte ; meme suivi sur la carte ; type d une famille sans calibration
+# croisee : refus avant la fenetre de choix, sans suivi
+function Update-HomeCalibCard { $script:Calls.Add('Update-HomeCalibCard') }
+if (Get-Command Start-HomeCrossCalib -ErrorAction SilentlyContinue) {
+    Set-Scn $imgf 'ibm.720' 0 $true $false 0 $true $false ''
+    $script:HomeCalBusy = $false; $script:HomeCalFmt = ''
+    $r = Start-HomeCrossCalib (Get-HomeCrossChoice 'amiga.amigados' $true 82 $true)
+    $dl = @(Get-Calls 'Show-CrossCalibDialog*')
+    $lab = [string](Get-HomeCalibInfo 'amiga.amigados').Label
+    Chk 'C10' ($r.Started -and $dl.Count -eq 1 -and $dl[0] -ceq ("Show-CrossCalibDialog[std] " + ((T "Type de disquette choisi dans l'Accueil : {0} ({1}), {2} cylindres ; avec l'autre famille, 80 cylindres à sa densité.") -f $lab, 'Standard 2 us', '82')) -and (Get-Calls 'New-CalibGeometry(amiga.amigados)').Count -eq 1 -and (Get-Calls 'Start-PrecompCalib(Geom=amiga.amigados)').Count -eq 1 -and (Get-Calls 'Start-PrecompCalib Heads=True Test=std').Count -eq 1 -and $script:HomeCalBusy -and $script:HomeCalFmt -ceq 'amiga.amigados' -and (Get-Calls 'Update-HomeCalibCard').Count -eq 1) "R4 : depuis la carte, type amiga.amigados, 82 cylindres, une courbe par tete : fenetre de choix avec le type et les cylindres de la carte, image de geometrie du type, une courbe par tete transmise, suivi sur la carte ($($script:Calls -join ' | '))"
+    Set-Scn $imgf 'ibm.720' 0 $true $false 0 $true $false ''
+    $script:HomeCalBusy = $false
+    $r = Start-HomeCrossCalib (Get-HomeCrossChoice 'ibm.1440' $false 80 $false)
+    $lab2 = [string](Get-HomeCalibInfo 'ibm.1440').Label
+    Chk 'C11' (-not $r.Started -and (Get-Calls 'Show-CrossCalibDialog*').Count -eq 0 -and (Get-CallsPre ("Show-AppMessage[Calibration precomp] " + ((T 'Calibration croisée impossible pour {0} : seules les familles {1} et {2} se calibrent pour un lecteur cible.') -f $lab2, 'Standard 2 us', 'Long track 1,89 us'))).Count -eq 1 -and (Get-Calls 'Start-PrecompCalib*').Count -eq 0 -and -not $script:HomeCalBusy -and (Get-Calls 'Update-HomeCalibCard').Count -eq 0) "R4 : type haute densite (ibm.1440) : refus avant la fenetre de choix, message, rien lance, pas de suivi ($($script:Calls -join ' | '))"
+}
 $ok6 = $false; $d6 = 'Get-CalibImageCheck absente'
 if ($hasNew -contains 'Get-CalibImageCheck') {
     Set-Scn $d64 '(auto)' 0 $true $false 0 $true $false ''
