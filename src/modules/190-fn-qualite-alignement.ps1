@@ -599,8 +599,9 @@ function Get-JitterRedBound {
 
 function Update-QualityTip {
     # 12.8.2 : definition des erreurs (premier intervalle et zone de l index non comptes) et de la stabilite (tours alignes),
-    # en avant-derniere ligne ; 12.11 : signe de la colonne « Asym. » (Format-AsymCell) en derniere ligne, cle a part
-    $tip.SetToolTip($lvAl, (((T "État par piste : SAIN / À SURVEILLER / CRITIQUE, d'après les erreurs, les trous, la stabilité et le jitter.`nJitter : SAIN sous {0} ns, À SURVEILLER sous {1} ns (onglet Accueil, « Régler le jitter »).`nCouleurs de la colonne Jitter : <{2} / <{0} / <{3} ns. Asymétrie : <0,02 / <0,05 / <0,10 (couleur et score seulement, sans effet sur l'état).`nErreurs : intervalles hors classe par tour, sans le premier intervalle de la lecture ; en double densité, sans le raccord d'écriture de gw quand il tient dans la zone de ± 1 ms autour de l'index (sauf index simulé ou données dans cette zone) ; les trous sont comptés partout. Stabilité : écart du nombre de flux entre les tours ; en double densité et à partir de 3 tours, comparés alignés sur les mêmes données.") -f "$($script:JitterOk)", "$($script:JitterWatch)", "$([math]::Round($script:JitterOk * 0.5))", "$([math]::Round((Get-JitterRedBound)))") + "`n" + (T "Signe de l'asymétrie : + intervalles longs relus trop longs (comme après une écriture au-dessus de la précompensation qui les centre pour ce lecteur) ; - trop courts (comme après une écriture au-dessous) ; sans signe : écarts de sens opposés.")))
+    # en avant-derniere ligne ; 12.11 : signe de la colonne « Asym. » (Format-AsymCell), cle a part ; 12.11 rc4 (R10) :
+    # derniere ligne, controle d une ecriture pour un lecteur cible (couleur et score sur l ecart a l attendu), cle a part
+    $tip.SetToolTip($lvAl, (((T "État par piste : SAIN / À SURVEILLER / CRITIQUE, d'après les erreurs, les trous, la stabilité et le jitter.`nJitter : SAIN sous {0} ns, À SURVEILLER sous {1} ns (onglet Accueil, « Régler le jitter »).`nCouleurs de la colonne Jitter : <{2} / <{0} / <{3} ns. Asymétrie : <0,02 / <0,05 / <0,10 (couleur et score seulement, sans effet sur l'état).`nErreurs : intervalles hors classe par tour, sans le premier intervalle de la lecture ; en double densité, sans le raccord d'écriture de gw quand il tient dans la zone de ± 1 ms autour de l'index (sauf index simulé ou données dans cette zone) ; les trous sont comptés partout. Stabilité : écart du nombre de flux entre les tours ; en double densité et à partir de 3 tours, comparés alignés sur les mêmes données.") -f "$($script:JitterOk)", "$($script:JitterWatch)", "$([math]::Round($script:JitterOk * 0.5))", "$([math]::Round((Get-JitterRedBound)))") + "`n" + (T "Signe de l'asymétrie : + intervalles longs relus trop longs (comme après une écriture au-dessus de la précompensation qui les centre pour ce lecteur) ; - trop courts (comme après une écriture au-dessous) ; sans signe : écarts de sens opposés.") + "`n" + (T "Contrôle d'une écriture pour un lecteur cible avec le facteur par cylindre : la case « Asym. » garde la valeur mesurée ; sa couleur et le score jugent l'écart à l'asymétrie attendue pour le lecteur qui relit.")))
 }
 
 function Set-JitterThresholds([int]$ok, [int]$watch) {
@@ -791,7 +792,37 @@ function Get-TrackMetrics($st) {
 function Get-TrackScore($m) {
     # Note de lecture d une piste (plus basse = mieux) : jitter, asymetrie (x 2000), erreurs, trous, stabilite
     # 12.11 : poids de l asymetrie lu dans $script:ScoreAsymK (040, valeur inchangee), que Get-AsymSummary lit aussi
-    return [math]::Round([double]$m.J + [double]$script:ScoreAsymK * [double]$m.Asym + 5 * [double]$m.Ooc + 50 * [double]$m.Dr + [double]$m.Stab, 0)
+    # 12.11 rc4 (R10) : piste qui porte une asymetrie attendue (Set-TrackAsymExpected) : son ecart a l attendu (AsymDev)
+    # est compte a la place de l asymetrie mesuree ; sans elle, meme valeur qu avant
+    $a = if ($null -ne $m.AsymDev) { [double]$m.AsymDev } else { [double]$m.Asym }
+    return [math]::Round([double]$m.J + [double]$script:ScoreAsymK * $a + 5 * [double]$m.Ooc + 50 * [double]$m.Dr + [double]$m.Stab, 0)
+}
+
+function Get-AsymExpected([double]$excessNs, [double]$cellNs) {
+    # 12.11 rc4 (R10) : asymetrie attendue, signee, d une piste ecrite $excessNs ns au-dessus (> 0) ou au-dessous (< 0) de
+    # la precompensation que le lecteur qui la relit aurait ecrite pour lui-meme : AsymExpGain x exces / cellule (040) ;
+    # $null sans cellule mesuree
+    if ([double]::IsNaN($cellNs) -or $cellNs -le 0) { return $null }
+    return [double]$script:AsymExpGain * $excessNs / $cellNs
+}
+
+function Set-TrackAsymExpected($m, [double]$excessNs) {
+    # 12.11 rc4 (R10) : piste d une disquette ecrite pour un lecteur cible et relue par le lecteur qui l a ecrite (controle
+    # apres ecriture, Show-WriteCheckTable, 170). Pose dans ses metriques AsymExp (asymetrie attendue, Get-AsymExpected),
+    # AsymGap (mesuree - attendue ; mesuree signee : somme des ecarts des rapports 3T/2T et 4T/2T a 1,5 et a 2, soit
+    # « Asym. » au signe pres quand ils vont dans le meme sens) et AsymDev (ce que le score et la couleur de la case jugent
+    # a la place de « Asym. » : valeurs absolues des deux ecarts, la moitie de l attendue retiree de chacun ; jamais sous
+    # |AsymGap| : une asymetrie d une autre forme que l attendue n est pas effacee ; attendue nulle : « Asym. »), puis
+    # recalcule Score (Get-TrackScore). Asym, R3 et R4 gardent les valeurs mesurees ; l etat de la piste (Get-HealthLevel)
+    # ne lit rien de tout cela. Piste illisible, cellule ou rapport non mesure : rien
+    if ($null -eq $m -or $m.Bad) { return }
+    $x = Get-AsymExpected $excessNs ([double]$m.Cell)
+    $d3 = [double]$m.R3 - 1.5; $d4 = [double]$m.R4 - 2.0
+    if ($null -eq $x -or [double]::IsNaN($d3) -or [double]::IsNaN($d4)) { return }
+    $m.AsymExp = [double]$x
+    $m.AsymGap = ($d3 + $d4) - [double]$x
+    $m.AsymDev = [math]::Abs($d3 - [double]$x / 2) + [math]::Abs($d4 - [double]$x / 2)
+    $m.Score = Get-TrackScore $m
 }
 
 function Get-AsymSign($m) {
@@ -841,15 +872,53 @@ function Get-AsymSummary($ms) {
         if (100 * $s.Pos -ge [int]$script:AsymSignPct * $s.N) { $s.Kind = '+' }
         elseif (100 * $s.Neg -ge [int]$script:AsymSignPct * $s.N) { $s.Kind = '-' }
     }
+    # 12.11 rc4 (R10) : pistes qui portent une asymetrie attendue (Set-TrackAsymExpected : disquette ecrite pour un lecteur
+    # cible, relue par le lecteur qui l a ecrite). NExp : leur nombre ; ExpMed, MeasMed : medianes de l attendue et de la
+    # mesuree signee ; GapMed : mediane des ecarts mesuree - attendue ; In : pistes dont l ecart juge (AsymDev) reste dans
+    # la classe verte de l asymetrie ; DevPoints : part de l asymetrie dans le score moyen telle que Get-TrackScore la
+    # compte (AsymDev des pistes qui le portent, Asym des autres ; Points garde la part de l asymetrie mesuree). Judge :
+    # 'ok' si |GapMed| <= AsymExpOkTol et si AsymExpInPct % au moins de ces pistes sont dans la classe verte, 'off' si
+    # |GapMed| > AsymExpNearTol, 'near' sinon (dans le doute : « proche », jamais « conforme ») ; '' sans piste a
+    # asymetrie attendue : resume de toujours
+    $s.NExp = 0; $s.Judge = ''
+    $ex = New-Object System.Collections.Generic.List[object]
+    foreach ($m in $ok) { if ($null -ne $m.AsymExp) { $ex.Add($m) } }
+    if ($ex.Count -gt 0) {
+        $s.NExp = $ex.Count; $s.In = 0; $dev = 0.0
+        foreach ($m in $ok) { $dev += $(if ($null -ne $m.AsymDev) { [double]$m.AsymDev } else { [double]$m.Asym }) }
+        foreach ($m in $ex) { if ((Get-AlLevel 'asym' ([double]$m.AsymDev)) -lt 1) { $s.In++ } }
+        $s.ExpMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymExp }))
+        $s.MeasMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymExp + [double]$_.AsymGap }))
+        $s.GapMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymGap }))
+        $s.DevPoints = [int][math]::Round([double]$script:ScoreAsymK * $dev / $ok.Count)
+        $g = [math]::Abs($s.GapMed)
+        if ($g -le [double]$script:AsymExpOkTol -and 100 * $s.In -ge [int]$script:AsymExpInPct * $s.NExp) { $s.Judge = 'ok' }
+        elseif ($g -le [double]$script:AsymExpNearTol) { $s.Judge = 'near' }
+        else { $s.Judge = 'off' }
+    }
     return $s
 }
 
-function Get-AsymSummaryText($s, [switch]$Always) {
+function Get-AsymSummaryText($s, [switch]$Always, $For = $null) {
     # 12.11 : phrase du resume de l asymetrie (Get-AsymSummary) : signe commun, pistes qui le portent, mediane, part du
     # score moyen. Sans signe commun : chaine vide, ou forme courte avec -Always (en-tete de l export) ; sans piste
     # lisible : chaine vide. La phrase reste conditionnelle (« comme apres une ecriture... » : regle etablie sur un seul
     # lecteur) et ne donne aucune consigne : le conseil de mesure reste celui de Get-WriteFactorHint (140)
+    # 12.11 rc4 (R10) : $For = @{ Target ; Src } (resultat d un controle apres une ecriture pour le lecteur cible Target,
+    # relue par le lecteur Src, Show-WriteCheckTable) et pistes a asymetrie attendue : la phrase juge l ecart a l attendu
+    # (Judge : conforme, proche, eloignee), donne les medianes attendue et mesuree, signees, et la part de l ecart dans le
+    # score moyen a cote de celle de l asymetrie mesuree ; elle ne dit rien de ce que lira le lecteur cible, sinon que ce
+    # n est pas predit. Sans $For : phrases de toujours
     if ($null -eq $s -or [int]$s.N -le 0) { return '' }
+    if ($For -and [int]$s.NExp -gt 0) {
+        $sg = '+0.000;-0.000;0.000'
+        $head = switch ([string]$s.Judge) {
+            'ok'    { (T "Asymétrie conforme à l'attendu pour une écriture destinée au lecteur cible {0} (médiane attendue {1}, mesurée {2} ; relu par le lecteur {3}).") }
+            'near'  { (T "Asymétrie proche de l'attendu pour une écriture destinée au lecteur cible {0} (médiane attendue {1}, mesurée {2} ; relu par le lecteur {3}).") }
+            default { (T "Asymétrie éloignée de l'attendu pour une écriture destinée au lecteur cible {0} (médiane attendue {1}, mesurée {2} ; relu par le lecteur {3}).") }
+        }
+        return (($head -f "$($For.Target)", (Format-UiNum ([double]$s.ExpMed) $sg), (Format-UiNum ([double]$s.MeasMed) $sg), "$($For.Src)") + ' ' + ((T "L'écart à l'attendu compte pour {0} point(s) du score moyen, au lieu de {1} pour l'asymétrie mesurée, et ne change pas l'état des pistes. La lecture par le lecteur {2} n'est pas prédite.") -f "$($s.DevPoints)", "$($s.Points)", "$($For.Target)"))
+    }
     $med = Format-UiNum ([double]$s.Med) '0.000'
     if ($s.Kind -eq '+') { return ((T "Asymétrie positive sur {0} piste(s) sur {1} (médiane {2}) : les intervalles longs sont relus trop longs, comme après une écriture au-dessus du niveau de précompensation qui centre les intervalles pour ce lecteur. Elle compte pour {3} point(s) du score moyen et ne change pas l'état des pistes.") -f "$($s.Pos)", "$($s.N)", $med, "$($s.Points)") }
     if ($s.Kind -eq '-') { return ((T "Asymétrie négative sur {0} piste(s) sur {1} (médiane {2}) : les intervalles longs sont relus trop courts, comme après une écriture au-dessous du niveau de précompensation qui centre les intervalles pour ce lecteur. Elle compte pour {3} point(s) du score moyen et ne change pas l'état des pistes.") -f "$($s.Neg)", "$($s.N)", $med, "$($s.Points)") }
@@ -884,7 +953,9 @@ function New-AlignRow([string]$lab, $m, [string]$mark, [string]$delta, [int]$del
     $lvJit = Get-AlLevel 'jitter' $m.J;   $it.SubItems[5].BackColor = $script:AlColors[$lvJit];  $it.SubItems[5].ForeColor = $script:AlFg[$lvJit]
     $lvSc  = Get-AlLevel 'score' $m.Score; $it.SubItems[6].BackColor = $script:AlColors[$lvSc];  $it.SubItems[6].ForeColor = $script:AlFg[$lvSc]
     if ($deltaLvl -ge 0) { $it.SubItems[7].BackColor = $script:AlColors[$deltaLvl]; $it.SubItems[7].ForeColor = $script:AlFg[$deltaLvl] }
-    $lvAs  = Get-AlLevel 'asym' $m.Asym;  $it.SubItems[8].BackColor = $script:AlColors[$lvAs];   $it.SubItems[8].ForeColor = $script:AlFg[$lvAs]
+    # 12.11 rc4 (R10) : piste a asymetrie attendue (Set-TrackAsymExpected) : la couleur juge l ecart a l attendu (AsymDev),
+    # la case garde la valeur mesuree
+    $lvAs  = Get-AlLevel 'asym' $(if ($null -ne $m.AsymDev) { $m.AsymDev } else { $m.Asym });  $it.SubItems[8].BackColor = $script:AlColors[$lvAs];   $it.SubItems[8].ForeColor = $script:AlFg[$lvAs]
     # 12.8 (lot 3b, D15) : icone d etat (colonne Etat) et icone de score (colonne Score), 16 px, dessinees par DrawSubItem
     $it.Tag = @{ State = $(if ($m.Unjudged -and $hl -eq 0) { 'hq' } else { "h$hl" }); Score = "q$lvSc"; M = $m }   # 12.10 : M, metriques de la piste (export du tableau)
     return $it
@@ -919,21 +990,35 @@ function Get-AlignTableExport {
     if ($r -and $r.ScoreText) { $head.Add(@((T 'Score'), [string]$r.ScoreText)) }
     if ($script:AlignRefLabel) { $head.Add(@((T 'Référence'), [string]$script:AlignRefLabel)) }
     $cols = @((T 'Piste'), (T 'État'), (T 'Erreurs/tour'), (T 'Trous/tour'), (T 'Stabilité'), (T 'Jitter ns'), 'Score', (T 'vs réf'), 'Asym.', (T 'Écart 3T'), (T 'Écart 4T'), (T 'Cellule ns'))
+    # 12.11 rc4 (R10) : tableau d un controle apres une ecriture pour un lecteur cible (une piste au moins porte une
+    # asymetrie attendue, Set-TrackAsymExpected) : deux colonnes de plus, en fin de ligne pour ne deplacer aucune des
+    # autres, l asymetrie attendue et l ecart mesuree - attendue, signes (AsymExp, AsymGap) ; « - » pour une piste sans
+    # elles. La colonne « Score » porte alors le score de l ecran, qui compte cet ecart ; « Asym. » et les ecarts 3T et
+    # 4T restent les valeurs mesurees. Sans asymetrie attendue : colonnes de toujours
+    $exp = (@(@($lvAl.Items) | Where-Object { $_.Tag -is [hashtable] -and $_.Tag.ContainsKey('M') -and $_.Tag.M -and $null -ne $_.Tag.M.AsymExp }).Count -gt 0)
+    if ($exp) { $cols += @((T 'Asym. attendue'), (T "Écart à l'attendu")) }
     $rows = New-Object System.Collections.Generic.List[object]
     foreach ($it in @($lvAl.Items)) {
         $m = if ($it.Tag -is [hashtable] -and $it.Tag.ContainsKey('M')) { $it.Tag.M } else { $null }
         $sub = @(0..9 | ForEach-Object { if ($_ -lt $it.SubItems.Count) { [string]$it.SubItems[$_].Text } else { '' } })
         if ($m -and -not $m.Bad) {
-            $rows.Add(@($sub[0], $sub[1], ('{0:0.0}' -f [double]$m.Ooc), ('{0:0.0}' -f [double]$m.Dr), ('{0:0}' -f [double]$m.Stab), ('{0:0}' -f [double]$m.J),
-                       ('{0:0}' -f [double]$m.Score), $sub[7], ('{0:0.000}' -f [double]$m.Asym), ('{0:+0.000;-0.000;0.000}' -f ([double]$m.R3 - 1.5)),
-                       ('{0:+0.000;-0.000;0.000}' -f ([double]$m.R4 - 2.0)), ('{0:0}' -f [double]$m.Cell)))
+            $row = @($sub[0], $sub[1], ('{0:0.0}' -f [double]$m.Ooc), ('{0:0.0}' -f [double]$m.Dr), ('{0:0}' -f [double]$m.Stab), ('{0:0}' -f [double]$m.J),
+                     ('{0:0}' -f [double]$m.Score), $sub[7], ('{0:0.000}' -f [double]$m.Asym), ('{0:+0.000;-0.000;0.000}' -f ([double]$m.R3 - 1.5)),
+                     ('{0:+0.000;-0.000;0.000}' -f ([double]$m.R4 - 2.0)), ('{0:0}' -f [double]$m.Cell))
         } else {
-            $rows.Add(@($sub[0], $sub[1], $sub[2], $sub[3], $sub[4], $sub[5], $sub[6], $sub[7], $sub[8], '-', '-', $sub[9]))
+            $row = @($sub[0], $sub[1], $sub[2], $sub[3], $sub[4], $sub[5], $sub[6], $sub[7], $sub[8], '-', '-', $sub[9])
         }
+        if ($exp) {
+            if ($m -and -not $m.Bad -and $null -ne $m.AsymExp) { $row += @(('{0:+0.000;-0.000;0.000}' -f [double]$m.AsymExp), ('{0:+0.000;-0.000;0.000}' -f [double]$m.AsymGap)) }
+            else { $row += @('-', '-') }
+        }
+        $rows.Add($row)
     }
     # 12.11 : ligne « Asymetrie » toujours presente : resume de Get-AsymSummary sur les metriques des lignes (Tag.M), forme
     # courte sans signe commun, « - » sans piste lisible (la correction retiree n ecrivait cette ligne que si elle agissait)
-    $asym = Get-AsymSummaryText (Get-AsymSummary @(@($lvAl.Items) | ForEach-Object { if ($_.Tag -is [hashtable] -and $_.Tag.ContainsKey('M')) { $_.Tag.M } })) -Always
+    # 12.11 rc4 (R10) : lecteur cible et lecteur qui a relu, memorises avec le resultat du controle (Res.AsymFor) : phrase
+    # du jugement de l ecart a l attendu, celle du journal et de l infobulle de la carte
+    $asym = Get-AsymSummaryText (Get-AsymSummary @(@($lvAl.Items) | ForEach-Object { if ($_.Tag -is [hashtable] -and $_.Tag.ContainsKey('M')) { $_.Tag.M } })) -Always -For $(if ($r -and $r.AsymFor) { $r.AsymFor } else { $null })
     $head.Add(@((T 'Asymétrie'), $(if ($asym) { $asym } else { '-' })))
     $head.Add(@((T 'Pistes'), [string]$rows.Count))
     # .ToArray() et non @() : sous PowerShell 7, @() sur une List[object] d elements tableaux echoue (liaison dynamique)

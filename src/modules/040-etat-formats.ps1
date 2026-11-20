@@ -137,6 +137,22 @@ $script:HealthErrOk = 2
 # 02/11/2026, un lecteur en long track : toutes les pistes ou presque portaient le signe de l ecriture)
 $script:ScoreAsymK = 2000
 $script:AsymSignPct = 80
+# 12.11 rc4 (R10) : asymetrie attendue d une disquette ecrite pour un lecteur cible avec le facteur par cylindre et relue
+# par le lecteur qui l a ecrite (controle apres ecriture). La piste porte e ns de precompensation de plus (ou de moins)
+# que ce lecteur n en aurait ecrit pour lui-meme sur cette disquette (courbe ecrite - D, Get-TargetTransferSpec, 140) :
+# gw deplace d autant chaque transition entre un intervalle de 2 cellules et un intervalle plus long, les intervalles de
+# 2 cellules sont relus plus courts, ceux de 3 et de 4 plus longs, et les rapports moyens 3T/2T et 4T/2T s ecartent de
+# 1,5 et de 2 dans le meme sens. AsymExpGain : asymetrie attendue = AsymExpGain x e / cellule (Get-AsymExpected, 190),
+# moitie sur chacun des deux rapports. Modele ideal (lecteur qui restitue tout le deplacement ecrit, voisins
+# independants) : 2,75 ; la constante retenue, plus basse, est celle qui tient sur le seul essai disponible (un couple de
+# lecteurs, famille standard) : a revoir avec d autres essais, d ou les tolerances larges. AsymExpOkTol : ecart median
+# mesuree - attendue au plus pour « conforme a l attendu », avec AsymExpInPct % des pistes au moins dont l ecart reste
+# dans la classe verte de l asymetrie (Get-AlLevel) ; AsymExpNearTol : au plus pour « proche de l attendu » ; au-dela :
+# « eloignee de l attendu » (Get-AsymSummary, 190)
+$script:AsymExpGain = 2.0
+$script:AsymExpOkTol = 0.005
+$script:AsymExpNearTol = 0.02
+$script:AsymExpInPct = 80
 $script:AlignRefLabel = ''
 # 12.8.2 (S11) : zone de l index (Read-ScpFile, Set-ScpTrackPost). gw ecrit les images ADF et a secteurs d index a index
 # (« Terminate at index ») : la jonction d ecriture tombe sur l index, dans l espace entre le dernier et le premier

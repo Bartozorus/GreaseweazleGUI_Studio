@@ -20,6 +20,12 @@ $Wt = Get-TestRoot $Wt
 #  E  aucune mesure ni commande ne fait intervenir le lecteur cible (commandes, mesures simulees, arbre syntaxique).
 #  R  ecriture de la restauration pour un lecteur cible (vraie Start-PresetWrite 'slow' -NoCalib, l appel de
 #     Start-RestoreWrite) : facteur de marque du lecteur qui ecrit puis facteur par cylindre, journal qui le dit.
+#  X  12.11 rc4 (R10) : exces de precompensation memorise avec le controle apres ecriture, pour l asymetrie attendue a la
+#     relecture par le lecteur qui ecrit. X1 Get-TargetTransferSpec rend, par cylindre, courbe ecrite - D (borne et zero
+#     compris) ; X2 la vraie Start-ImageWrite le pose dans le controle (Rep.AsymExcess), par tete : courbe ecrite pour le
+#     lecteur cible - courbe que le meme lecteur ecrit dans le scenario A correspondant, restauration comprise ; rien pour
+#     le meme lecteur, ni sans courbe propre, ni avec des courbes chargees d un autre lecteur ; X3 hswap dans le champ
+#     Pistes : exces de la tete qui ecrit chaque face. L asymetrie attendue elle-meme : logic-qualite-asymetrie (X1 a X9).
 # Relecture de la rc2 : borne max(borne, X, D) (C1, C3 : aucun cylindre ecrit sous la courbe du meme lecteur quand X > Sp),
 # cas R1, texte de la vraie fenetre de la mesure sur l image avec un lecteur cible (D5).
 # Harnais de logic-ecriture-plan : fonctions reelles de tous les modules fn, etat, onglet construit par les instructions
@@ -257,6 +263,8 @@ $scB = @(
 )
 # Restauration pour le lecteur cible 0 : ecriture de Start-RestoreWrite (Start-PresetWrite 'slow' -NoCalib), sans mesure
 $scR = @{ Id = 'R1'; T = 'restauration, facteur de marque 1,25'; Fn = 'restore'; Do = { $chkWSlow.Checked = $true; $chkWLevel.Checked = $false; Set-FkBrand 1.25 } }
+# 12.11 rc4 (R10, cas X3) : hswap dans le champ Pistes : la face h est ecrite par la tete 1 - h, avec le profil de celle-ci
+$scH = @{ Id = 'H1'; T = 'lente, facteur de marque 1,25, hswap'; Fn = 'tab'; Do = { $chkWSlow.Checked = $true; $chkWLevel.Checked = $false; Set-FkBrand 1.25; $txtWTracks.Text = 'hswap' } }
 # Empreintes de 62b8ce2 (sortie de ce test lance avec -Before <export de 62b8ce2>) : A, commandes et demandes (T) et
 # journal (J) ; B, commandes (T)
 # 12.11 rc4 (R9, adapte a dessein) : toutes ces ecritures sont suivies du controle de toutes les pistes (demande, ou impose
@@ -303,7 +311,9 @@ function Invoke-FkScenario($sc, [bool]$tgt, [bool]$own, [bool]$withPlan, [script
         $k = if ($hm.Success) { [int]$hm.Groups[1].Value } else { 'r' }
         $wr[$k] = $m.Groups[1].Value
     }
-    return @{ Trace = $tr; Log = @($script:FkLog | ForEach-Object { & $fkNorm $_ }); Plan = $plan; Chk = $chk; Side = $side; W = $wr; Slow = [bool]$chkWSlow.Checked; Tw = $twx }
+    # 12.11 rc4 (R10) : Rep, controle apres ecriture tel que la vraie Start-ImageWrite le laisse (bouchon de New-WriteCheck :
+    # table vide, que l ecriture complete : lecteur cible, exces memorise)
+    return @{ Trace = $tr; Log = @($script:FkLog | ForEach-Object { & $fkNorm $_ }); Plan = $plan; Chk = $chk; Side = $side; W = $wr; Slow = [bool]$chkWSlow.Checked; Tw = $twx; Rep = $script:Rep }
 }
 function Get-FkPrint($r, [switch]$TOnly) {
     $t = Get-FkSha (@($r.Trace) -join "`n")
@@ -352,6 +362,9 @@ foreach ($pr in $fkRoots) {
         $rr['G1'] = Invoke-FkScenario $scB[2] $true $true $true { foreach ($k in $script:CurveKeys) { $script:PrecompCurves[$k] = $null }; $script:PrecompStd = $script:PrecompStdDefault }
         $rr['G2'] = Invoke-FkScenario $scB[2] $true $true $true { foreach ($k in @('std', 'std_h0', 'std_h1')) { $o = $script:PrecompCurves[$k].Clone(); $o.Drive = '0'; $script:PrecompCurves[$k] = $o } }
         $rr['G3'] = Invoke-FkScenario $scB[2] $true $true $true
+        # 12.11 rc4 (R10, cas X3) : hswap, meme lecteur puis lecteur cible
+        $rr['H0'] = Invoke-FkScenario $scH $false $true $false
+        $rr['H1'] = Invoke-FkScenario $scH $true $true $false
     }
     $res[$pr.Tag] = $rr
 }
@@ -409,6 +422,20 @@ $noteD = (T 'courbe du lecteur {0} postérieure à la calibration croisée {0} �
 $tdD = @{ P0 = '0=20:40=60'; P1 = '0=20:40=60'; Kind = @{ 0 = 'own'; 1 = 'own' } }
 $pD = @(foreach ($od in '03/11/2026 10:00', '01/11/2026 10:00') { Get-TargetTransferPlan @{ Src = 'A'; Tgt = '0'; Fam = 'std'; Own = @(@{ Spec = '0=20:40=60'; Date = $od }); Curves = @(@{ Spec = '0=40:40=100'; Date = '02/11/2026 10:00' }) } @{ Apply = $false; Hard = $cap } $tdD $false })
 Chk 'U7' ($pD[0].Line.Contains($noteD) -and -not $pD[1].Line.Contains($noteD) -and $pD[0].P0 -ceq $pD[1].P0) "courbe propre de A du 03/11 apres la courbe croisee du 02/11 : « $noteD » au journal ; du 01/11 : aucune note ; courbe ecrite identique ($($pD[0].P0))"
+# X1 (12.11 rc4, R10) : Excess, par cylindre, courbe ecrite - D : facteur uniforme, borne, zero, D au-dessus de la borne,
+# courbes de longueurs differentes, D = Sp (exces = X - Sp) ; meme longueur que Values
+$x1Bad = @()
+foreach ($p in @(@('facteur 1,5', $t2, $d2), @('borne', $t3a, '0=300'), @('zero', $t3b, '0=0:5=0'), @('D au-dessus de la borne', $t3c, '0=500:10=420'), @('longueurs', $t4b, '0=22:5=33'),
+                 @('D = Sp', (Get-TargetTransferSpec '0=4:2=12:40=50:79=90' '0=4:2=12:40=50:79=90' '0=40:30=80:79=150' 0 $cap), '0=4:2=12:40=50:79=90'))) {
+    $t = $p[1]; $ex = @($t.Excess); $vv = @($t.Values)
+    if ($ex.Count -ne $vv.Count -or $ex.Count -eq 0) { $x1Bad += "$($p[0]) : $($ex.Count) exces pour $($vv.Count) valeurs"; continue }
+    $df = @(for ($c = 0; $c -lt $vv.Count; $c++) { if ([int]$ex[$c] -ne [int]$vv[$c] - (Get-FkVal $p[2] $c)) { "c$c $($ex[$c])" } })
+    if ($df.Count) { $x1Bad += "$($p[0]) : $(Get-List $df 3)" }
+}
+# Valeurs relevees sans erreur quand la source testee ne rend pas l exces (source d avant le lot : cas non conforme)
+$x1n = @(@($t3b.Excess) | Where-Object { $_ -lt 0 }).Count
+$x1v = @(foreach ($p in @(@($t2, 40), @($t3a, 0), @($t3c, 0))) { $ex = @($p[0].Excess); if ($ex.Count -gt $p[1]) { [int]$ex[$p[1]] } else { -9999 } })
+Chk 'X1' ($x1Bad.Count -eq 0 -and $x1v[1] -eq ($cap - 300) -and $x1v[2] -eq 0 -and $x1n -eq 0 -and $x1v[0] -eq ([int]$t2.Values[40] - (6 + 3 * 40))) "exces par cylindre = courbe ecrite - D, six jeux (facteur 1,5 a c40 : $($t2.Values[40]) - $(6 + 3 * 40) = $($x1v[0]) ns ; borne : $cap - 300 = $($x1v[1]) ns ; D au-dessus de la borne : $($x1v[2]) ns) ; ecarts : $(Get-List $x1Bad)"
 
 # =====================================================================================================================
 '--- A : ecriture « meme lecteur » inchangee (62b8ce2)'
@@ -511,6 +538,50 @@ foreach ($h in 0, 1) {
 $rMeas = @($r1.Trace | Where-Object { $_ -match '^(calibration rapide|mesure complete|mesure sur l image|calibration complete)' -or $_ -like 'ERREUR*' })
 $rLog = @($r1.Log | Where-Object { $_.StartsWith('Écriture pour le lecteur cible 0 : courbe de cette disquette (lecteur A, tête 0 : courbe du lecteur × 1,25', [System.StringComparison]::Ordinal) -and $_.Contains('tête 1 : courbe du lecteur × 1,25') })
 Chk 'R1' ($rBad.Count -eq 0 -and $rMeas.Count -eq 0 -and $rLog.Count -eq 1) "restauration pour le lecteur cible 0 (Start-PresetWrite 'slow' -NoCalib), facteur de marque 1,25 : par tete et par cylindre, formule appliquee a 1,25 x Sp (c40 tete 0 : X $(Get-FkVal $xs[0] 40) ns -> $(Get-FkVal $r1.W[0] 40) ns) ; aucune mesure ($(Get-List $rMeas)) ; ligne de journal du facteur de marque et du facteur par cylindre : $($rLog.Count) ; ecarts : $(Get-List $rBad)"
+
+'--- X : exces de precompensation memorise avec le controle apres ecriture (12.11 rc4, R10)'
+# X2 : vraie Start-ImageWrite : Rep.AsymExcess, par tete, = courbe ecrite pour le lecteur cible - courbe que le meme
+# lecteur ecrit dans le scenario A correspondant (D), cylindres 0 a 83 (au-dela du tableau : sa derniere valeur) ;
+# ecriture rapide : la meme courbe pour les deux tetes
+function Get-FkExcessDiff($rep, $h, [string]$wSpec, [string]$dSpec) {
+    # Ecarts un par un dans le pipeline (l appelant les recueille par @()), comme Get-FkDiff
+    if (-not $rep -or -not $rep.AsymExcess -or $null -eq $rep.AsymExcess[[int]$h]) { "tete $h : aucun exces memorise"; return }
+    $ex = @($rep.AsymExcess[[int]$h])
+    for ($cy = 0; $cy -lt 84; $cy++) { $got = [int]$ex[[math]::Min($cy, $ex.Count - 1)]; $want = (Get-FkVal $wSpec $cy) - (Get-FkVal $dSpec $cy); if ($got -ne $want) { "tete $h c$cy $got/$want" } }
+}
+$x2Bad = @()
+foreach ($sc in $scA) {
+    $cid = 'C' + $sc.Id.Substring(1); $a = $cur[$sc.Id]; $c = $cur[$cid]
+    foreach ($k in @($a.W.Keys)) {
+        foreach ($h in $(if ("$k" -eq 'r') { @(0, 1) } else { @([int]$k) })) {
+            $df = @(Get-FkExcessDiff $c.Rep $h ([string]$c.W[$k]) ([string]$a.W[$k]))
+            if ($df.Count) { $x2Bad += "$cid : $(Get-List $df 3)" }
+        }
+    }
+    if ([string]$c.Rep.Target -cne '0' -or [string]$c.Rep.TargetSrc -cne 'A') { $x2Bad += "$cid : lecteurs du controle « $($c.Rep.TargetSrc) » -> « $($c.Rep.Target) »" }
+    if ($a.Rep -and $a.Rep.ContainsKey('AsymExcess')) { $x2Bad += "$($sc.Id) : exces memorise pour le meme lecteur" }
+}
+foreach ($h in 0, 1) {
+    $df = @(Get-FkExcessDiff $cur['R1'].Rep $h ([string]$cur['R1'].W[$h]) (ConvertTo-ScaledSpec $own[$h] 1.25 $cap)); if ($df.Count) { $x2Bad += "R1 : $(Get-List $df 3)" }
+    $df = @(Get-FkExcessDiff $cur['B1'].Rep $h ([string]$cur['B1'].W[$h]) $own[$h]); if ($df.Count) { $x2Bad += "B1 : $(Get-List $df 3)" }
+}
+foreach ($id in 'B3', 'G1', 'G2') { $rp = $cur[$id].Rep; if (-not $rp -or [string]$rp.Target -cne '0' -or $rp.ContainsKey('AsymExcess')) { $x2Bad += "$id : controle absent ou exces memorise sans courbe D connue" } }
+# Tableaux releves sans erreur quand la source testee ne memorise rien (source d avant le lot : cas non conforme)
+function Get-FkExcess($r, [int]$h) { if ($r -and $r.Rep -and $r.Rep.AsymExcess -and $null -ne $r.Rep.AsymExcess[$h]) { return ,@($r.Rep.AsymExcess[$h]) }; return ,@() }
+$exC1 = Get-FkExcess $cur['C1'] 0; $exC5a = Get-FkExcess $cur['C5'] 0; $exC5b = Get-FkExcess $cur['C5'] 1
+Chk 'X2' ($x2Bad.Count -eq 0 -and $exC1.Count -ge 80 -and @($exC1 | Where-Object { $_ -gt 0 }).Count -gt 60 -and $exC5a.Count -ge 80 -and ($exC5a -join ',') -ceq ($exC5b -join ',')) "$($scA.Count) ecritures pour le lecteur cible 0, la restauration et l ecriture sans mesure (D = courbe propre) : exces memorise avec le controle = courbe ecrite - courbe du meme lecteur, par tete, cylindres 0 a 83 (C1 tete 0, c40 : $(if ($exC1.Count -gt 40) { $exC1[40] } else { 'absent' }) ns) ; ecriture rapide : une courbe pour les deux tetes ; meme lecteur (A1 a A6), sans courbe propre (B3), courbes chargees vides ou d un autre lecteur (G1, G2) : rien de memorise ; ecarts : $(Get-List $x2Bad)"
+# X3 : hswap : la face 0 est ecrite par la tete 1 (profil et exces de la tete 1), la face 1 par la tete 0
+$h0 = $cur['H0']; $h1 = $cur['H1']; $x3Bad = @()
+foreach ($h in 0, 1) {
+    $ph = 1 - $h
+    if (-not $h1.W.ContainsKey($h) -or -not $h0.W.ContainsKey($h)) { $x3Bad += "face $h non ecrite"; continue }
+    $e = Get-FkExpect (ConvertTo-ScaledSpec $own[$ph] 1.25 $cap) $own[$ph] $xs[$ph] 84 $cap $min
+    $df = @(Get-FkDiff (Get-FkVals ([string]$h1.W[$h]) 84) $e); if ($df.Count) { $x3Bad += "face $h, profil de la tete $ph : $(Get-List $df 3)" }
+    $df = @(Get-FkExcessDiff $h1.Rep $h ([string]$h1.W[$h]) ([string]$h0.W[$h])); if ($df.Count) { $x3Bad += "face $h, exces : $(Get-List $df 3)" }
+}
+$exH0 = Get-FkExcess $h1 0; $exH1 = Get-FkExcess $h1 1; $exR1 = Get-FkExcess $cur['R1'] 1
+$x3Swap = ($exH0.Count -ge 80 -and ($exH0 -join ',') -cne ($exH1 -join ',') -and ($exH0 -join ',') -ceq ($exR1 -join ','))
+Chk 'X3' ($x3Bad.Count -eq 0 -and $x3Swap -and @($h1.Trace | Where-Object { $_ -like 'ERREUR*' }).Count -eq 0) "hswap dans le champ Pistes, facteur de marque 1,25 : chaque face recoit le profil et l exces de la tete qui l ecrit (face 0 : ceux de la tete 1 sans hswap ; c40 : $(if ($exH0.Count -gt 40) { $exH0[40] } else { 'absent' }) ns face 0, $(if ($exH1.Count -gt 40) { $exH1[40] } else { 'absent' }) ns face 1) ; ecarts : $(Get-List $x3Bad)"
 
 # =====================================================================================================================
 '--- D : phrase, case de la mesure et journal tires de la meme decision'

@@ -479,6 +479,13 @@ function Start-ImageWrite([switch]$NoWarmup) {
         # cible) ; reecritures gardees (les pistes faibles pour la source le sont tres probablement pour la cible) ; verdict
         # complete par Complete-WriteCheck (170)
         if ($tgtDrive) { $script:Rep.Target = $tgtDrive; $script:Rep.TargetSrc = [string]$cmbDrive.Text; Append-Log ((T "Contrôle après écriture pour le lecteur cible {0} : relecture par le lecteur {1}, pas par le lecteur cible ; les pistes faibles pour le lecteur {1} sont réécrites (elles le sont très probablement aussi pour le lecteur {0}).") -f "$tgtDrive", "$($cmbDrive.Text)") }
+        # 12.11 rc4 (R10) : ecriture pour le lecteur cible avec le facteur par cylindre ($xp) : le lecteur qui ecrit relira
+        # une disquette ecrite expres au-dessus (ou au-dessous) de son propre besoin. Exces par cylindre memorise avec le
+        # controle (courbe ecrite - D, Get-TargetTransferSpec), par tete relue : celles des commandes d ecriture, hswap
+        # compris (Get-WriteHeadSpecs ; ecriture rapide : meme courbe pour les deux). Le resultat du controle en tire
+        # l asymetrie attendue de chaque piste (Show-WriteCheckTable, 170). Courbe croisee telle quelle (sans $xp) : D n est
+        # pas connue, rien n est memorise et le controle juge l asymetrie mesuree, comme avant
+        if ($tgtDrive -and $xp) { $script:Rep.AsymExcess = Get-WriteHeadSpecs $userTs $xp.T[0].Excess $xp.T[1].Excess }
         if ($script:ImageUnstable) { $script:Rep.Ignore = $script:ImageUnstable }
         $script:Rep.SrcWeak = $script:ImageSrcWeak; $script:Rep.NoJudge = $script:ImageNoJudge; $script:Rep.SrcOver = $script:ImageSrcOver
         # SCP non analyse (module absent, restauration : voir Start-RestoreWrite) ou analyse en echec : rien n est juge
@@ -1601,6 +1608,9 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
     # et au moins un cylindre apres la derniere entree des trois profils (au-dela, les trois sont constants). Rend @{ Spec ;
     # Values ; Ratio (cylindre -> X/Sp, la ou Sp >= XferMinNs) ; Added (cylindres en ecart reporte) ; Same (D = Sp) }.
     # Regle 5 : courbe ecrite egale a X en chaque cylindre (D = Sp) : Spec est $xSpec, la meme chaine (commandes gw de la rc1)
+    # 12.11 rc4 (R10) : Excess, par cylindre, courbe ecrite - D(c) en ns : ce que la piste porte de plus (ou de moins) que
+    # ce que S aurait ecrit pour lui-meme sur cette disquette ; memorise avec le controle apres ecriture (Start-ImageWrite,
+    # Rep.AsymExcess) pour l asymetrie attendue a la relecture par S (Get-RepAsymExcess, 170). Sans effet sur la courbe
     $last = 0
     foreach ($s in @($dSpec, $spSpec, $xSpec)) {
         foreach ($m in [regex]::Matches([string]$s, '(\d+)\s*=\s*(\d+)')) { if ([int]$m.Groups[1].Value -gt $last) { $last = [int]$m.Groups[1].Value } }
@@ -1608,8 +1618,8 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
     $n = [math]::Max($cyls, $last + 1)
     $min = [double]$script:XferMinNs
     # Ratio : table simple (une table ordonnee lirait une cle entiere comme un rang)
-    $r = @{ Spec = $xSpec; Values = @(); Ratio = @{}; Added = @(); Same = $true }
-    $vals = New-Object int[] $n
+    $r = @{ Spec = $xSpec; Values = @(); Ratio = @{}; Added = @(); Same = $true; Excess = @() }
+    $vals = New-Object int[] $n; $exc = New-Object int[] $n
     $asX = $true; $added = New-Object System.Collections.Generic.List[int]
     for ($c = 0; $c -lt $n; $c++) {
         $d = [double](Get-SpecValue $dSpec $c); $sp = [double](Get-SpecValue $spSpec $c); $x = [double](Get-SpecValue $xSpec $c)
@@ -1617,9 +1627,10 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
         if ($sp -ge $min) { $w = $x * $d / $sp; $r.Ratio[$c] = $x / $sp }
         else { $w = $x + ($d - $sp); $added.Add($c) }
         $vals[$c] = [int][math]::Max(0.0, [math]::Min([math]::Round($w), [math]::Max([double]$cap, [math]::Max($x, $d))))
+        $exc[$c] = $vals[$c] - [int]$d
         if ($vals[$c] -ne [int]$x) { $asX = $false }
     }
-    $r.Values = $vals; $r.Added = [int[]]$added.ToArray()
+    $r.Values = $vals; $r.Added = [int[]]$added.ToArray(); $r.Excess = $exc
     if (-not $asX) { $r.Spec = Build-CurveProfile $vals }
     return $r
 }

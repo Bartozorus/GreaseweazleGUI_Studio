@@ -343,9 +343,35 @@ function Invoke-WriteCheckAnalysis {
     Start-RepPending
 }
 
+function Get-RepAsymExcess($rep, [string]$k) {
+    # 12.11 rc4 (R10) : exces de precompensation (ns) de la piste $k ('cylindre.tete') d une ecriture pour un lecteur cible
+    # avec le facteur par cylindre : Rep.AsymExcess, memorise a l ecriture (Start-ImageWrite, 140 : par tete, tableau par
+    # cylindre de courbe ecrite - courbe que le lecteur qui ecrit aurait ecrite pour lui-meme sur cette disquette). Cylindre
+    # au-dela du tableau : derniere valeur (les profils y sont constants) ; $null sans cette memoire pour la piste
+    if (-not $rep -or -not $rep.AsymExcess) { return $null }
+    $p = @($k -split '\.')
+    if ($p.Count -ne 2) { return $null }
+    $ex = $rep.AsymExcess[[int]$p[1]]
+    if ($null -eq $ex) { return $null }
+    $ex = @($ex)
+    if ($ex.Count -eq 0) { return $null }
+    return [double]$ex[[math]::Min([int]$p[0], $ex.Count - 1)]
+}
+
 function Show-WriteCheckTable($rep) {
     # Etat final de chaque piste controlee (derniere mesure) dans l onglet Qualite, avec reecritures et retries
     $keys = Sort-TrackKeys @($rep.State.Keys)
+    # 12.11 rc4 (R10) : ecriture pour un lecteur cible avec le facteur par cylindre (Rep.AsymExcess) : le lecteur qui a
+    # ecrit relit une disquette ecrite expres au-dessus de son propre besoin. Chaque piste lisible recoit son asymetrie
+    # attendue et l ecart mesuree - attendue, que le score et la couleur de la case « Asym. » jugent a la place de la
+    # valeur mesuree (Set-TrackAsymExpected, 190). Pose ici, a l affichage du resultat : l etat des pistes, les pistes
+    # faibles et les reecritures (Invoke-WriteCheckAnalysis) sont decides avant et n en dependent pas. AsymFor : lecteur
+    # cible et lecteur qui a relu, gardes avec le resultat pour sa phrase (journal, infobulle de la carte, export)
+    $asymFor = $null
+    if ($rep.AsymExcess) {
+        foreach ($k in $keys) { $e = Get-RepAsymExcess $rep $k; if ($null -ne $e) { Set-TrackAsymExpected $rep.State[$k] $e } }
+        $asymFor = @{ Target = [string]$rep.Target; Src = [string]$rep.TargetSrc }
+    }
     $last = @{}; $total = 0.0; $count = 0; $nBad = 0
     # 12.8 (lot 3b) : icone d etat de 16 px devant le texte de la colonne Etat
     $lvAl.Columns[1].Width = $(if (@($rep.State.Values | Where-Object { $_.Weak }).Count -gt 0) { 302 } else { 222 })
@@ -388,7 +414,9 @@ function Show-WriteCheckTable($rep) {
     }
     # 12.11 : resume de l asymetrie des pistes lisibles (Get-AsymSummary : signe commun, part du score moyen) : infobulle
     # de la carte et journal ; l en-tete de l export le recalcule sur les lignes du tableau, meme fonction
-    $res.AsymText = Get-AsymSummaryText (Get-AsymSummary @($keys | ForEach-Object { $rep.State[$_] }))
+    # 12.11 rc4 (R10) : ecriture pour un lecteur cible avec asymetrie attendue : phrase du jugement de l ecart (-For)
+    if ($asymFor) { $res.AsymFor = $asymFor }
+    $res.AsymText = Get-AsymSummaryText (Get-AsymSummary @($keys | ForEach-Object { $rep.State[$_] })) -For $asymFor
     if ($res.AsymText) { Append-Log ((T "Contrôle après écriture : {0}") -f $res.AsymText) }
     Set-QualityResult $res
 }

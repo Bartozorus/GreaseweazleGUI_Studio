@@ -19,6 +19,16 @@ $Wt = Get-TestRoot $Wt
 #  T1, T2   infobulle du tableau (Update-QualityTip reelle, vrai ToolTip jamais affiche) ; infobulle de la carte
 #           (Get-QualityCardModel reelle, theme reel de 500) ;
 #  I1       table I18n : textes de la specification dans 019, memes jalons {n}, cles de la correction absentes ;
+#  X1 a X9  12.11 rc4 (R10) : asymetrie attendue d une ecriture pour un lecteur cible, relue par le lecteur qui a ecrit.
+#           X1 Get-AsymExpected et constantes de 040 ; X2 Set-TrackAsymExpected (attendue, ecart, part comptee au score,
+#           valeurs mesurees et etat gardes, attendue nulle ou negative, ecarts de sens opposes, piste illisible) ; X3
+#           jugement du resume de part et d autre de chaque seuil (conforme, proche, eloignee ; part des pistes dans la
+#           classe verte) ; X4 phrases en francais et en anglais, sans lecteur cible : phrases de toujours ; X5 controle
+#           (Show-WriteCheckTable reelle) avec l exces memorise a l ecriture : score, couleur de la case, derniere
+#           mesure, resultat, journal, et le meme controle sans cette memoire, inchange ; X6 export : deux colonnes en
+#           fin de ligne, en-tete, anglais, douze colonnes sans asymetrie attendue ; X7 la mesure simple de l onglet
+#           reste inchangee sur les memes pistes, et seul l affichage du controle pose l asymetrie attendue (arbre
+#           syntaxique de tous les modules) ; X8 infobulle de la carte et couleur des lignes au journal ; X9 table I18n ;
 #  Q0 a Q7  equivalence avec la 12.10, avec -Before <racine d une copie de la source de la 12.10> (aucune dans le depot ;
 #           sans elle, une ligne « saute ») : les memes pistes factices passent par les fonctions des deux versions,
 #           chacune chargee dans sa portee. Q1 mesure, deux passes (lignes du tableau au signe pres, derniere mesure,
@@ -30,7 +40,9 @@ $Wt = Get-TestRoot $Wt
 # controles WinForms jamais affiches (ListView, ToolTip) ; bouchons pour le journal, la carte, la lecture des fichiers SCP
 # et la chaine d etapes. Aucun gw, aucune fenetre, aucune compilation.
 # Non couvert : la ligne de journal du controle dans son enchainement reel (Complete-WriteCheck) ; le dessin de la case
-# (Draw-AlSubItem) et celui de la carte (Render-QualityCard).
+# (Draw-AlSubItem) et celui de la carte (Render-QualityCard) ; R10 : la valeur de la constante AsymExpGain et des
+# tolerances (relevees sur un essai reel, hors depot), l exces memorise par la vraie ecriture (logic-cible-facteur, cas
+# X1 a X3).
 $here = Get-TestWorkDir $MyInvocation.MyCommand.Path $Work
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 $script:NChk = 0; $script:Fail = 0; $script:FailIds = @()
@@ -61,8 +73,19 @@ $kShort = 'médiane {0}, sans signe commun ; {1} point(s) du score moyen'
 $eShort = 'median {0}, no common sign; {1} point(s) of the mean score'
 $kSign = "Signe de l'asymétrie : + intervalles longs relus trop longs (comme après une écriture au-dessus de la précompensation qui les centre pour ce lecteur) ; - trop courts (comme après une écriture au-dessous) ; sans signe : écarts de sens opposés."
 $eSign = 'Asymmetry sign: + long intervals read back too long (as after a write above the precompensation that centres them for this drive); - too short (as after a write below it); no sign: deviations in opposite directions.'
+# 12.11 rc4 (R10) : ecriture pour un lecteur cible, asymetrie jugee sur son ecart a l attendu ; ligne de l infobulle
+$kOk = "Asymétrie conforme à l'attendu pour une écriture destinée au lecteur cible {0} (médiane attendue {1}, mesurée {2} ; relu par le lecteur {3})."
+$eOk = 'Asymmetry as expected for a write intended for target drive {0} (median expected {1}, measured {2}; read back by drive {3}).'
+$kNear = "Asymétrie proche de l'attendu pour une écriture destinée au lecteur cible {0} (médiane attendue {1}, mesurée {2} ; relu par le lecteur {3})."
+$eNear = 'Asymmetry close to the expected one for a write intended for target drive {0} (median expected {1}, measured {2}; read back by drive {3}).'
+$kOff = "Asymétrie éloignée de l'attendu pour une écriture destinée au lecteur cible {0} (médiane attendue {1}, mesurée {2} ; relu par le lecteur {3})."
+$eOff = 'Asymmetry far from the expected one for a write intended for target drive {0} (median expected {1}, measured {2}; read back by drive {3}).'
+$kTail = "L'écart à l'attendu compte pour {0} point(s) du score moyen, au lieu de {1} pour l'asymétrie mesurée, et ne change pas l'état des pistes. La lecture par le lecteur {2} n'est pas prédite."
+$eTail = 'The deviation from the expected value accounts for {0} point(s) of the mean score, instead of {1} for the measured asymmetry, and does not change the track status. Reading by drive {2} is not predicted.'
+$kTgt = "Contrôle d'une écriture pour un lecteur cible avec le facteur par cylindre : la case « Asym. » garde la valeur mesurée ; sa couleur et le score jugent l'écart à l'asymétrie attendue pour le lecteur qui relit."
+$eTgt = 'Check of a write for a target drive with the per-cylinder factor: the "Asym." cell keeps the measured value; its colour and the score judge the deviation from the asymmetry expected for the drive that reads back.'
 # Cles de la correction retiree (018 jusqu a la 12.10)
-$kOld1 = "Mesure : asymétrie et score corrigés du biais de lecture du lecteur {0} sur {1} piste(s), d'après le motif de sa calibration (famille d'après la cellule mesurée)."
+$kOld1 ="Mesure : asymétrie et score corrigés du biais de lecture du lecteur {0} sur {1} piste(s), d'après le motif de sa calibration (famille d'après la cellule mesurée)."
 $kOld2 = "corrigée du biais de lecture du lecteur sur {0} piste(s), d'après le motif de sa calibration"
 
 # ---------------------------------------------------------------- fonctions reelles
@@ -71,14 +94,16 @@ $fnCommon = @{
     '110-fn-coeur-gw.ps1'           = @('Get-LogColor')
     '150-fn-pistes-densite.ps1'     = @('Get-TrackKeyOrder', 'Sort-TrackKeys', 'Format-TrackList', 'Get-TSpecExtras', 'Get-TrackGroups', 'Format-EraseTracks')
     '170-fn-controle-ecriture.ps1'  = @('Test-RepFakeIndex', 'Set-CopyUnstable', 'Merge-RepRetries', 'Add-RepReads', 'Invoke-WriteCheckAnalysis', 'Show-WriteCheckTable', 'Update-RepPartial')
-    '190-fn-qualite-alignement.ps1' = @('Get-AlLevel', 'Get-HealthLevel', 'Get-JitterRedBound', 'Update-QualityTip', 'Get-TrackMetrics', 'Get-TrackScore', 'New-AlignRow', 'New-AlignLastInfo', 'Get-AlignTableExport', 'Get-UnstableClusters', 'Invoke-AlignAnalysis')
+    '190-fn-qualite-alignement.ps1' = @('Get-AlLevel', 'Get-HealthLevel', 'Get-JitterRedBound', 'Update-QualityTip', 'Get-TrackMetrics', 'Get-TrackScore', 'New-AlignRow', 'Get-AlignTableExport', 'Get-UnstableClusters', 'Invoke-AlignAnalysis')
     '195-fn-qualite-affichage.ps1'  = @('Get-QualSf', 'Get-QualityCardModel', 'Get-QualStateTitle', 'Get-QualStaleText', 'Get-QualLevelColor', 'Get-QualInk', 'Get-QualDimInk', 'Get-AlName')
     '230-fn-calib-courbe.ps1'       = @('Format-CylList', 'Get-Median')
 }
-$fnNew = @('Get-AsymSign', 'Format-AsymCell', 'Get-AsymSummary', 'Get-AsymSummaryText')
+# 12.11 rc4 (R10) : Get-AsymExpected et Set-TrackAsymExpected ; New-AlignLastInfo (12.11 rc3) vient ici : rangee avec les
+# fonctions communes, elle empechait de charger la source de la 12.10, qui ne l a pas (cas Q, -Before)
+$fnNew = @('Get-AsymSign', 'Format-AsymCell', 'Get-AsymSummary', 'Get-AsymSummaryText', 'Get-AsymExpected', 'Set-TrackAsymExpected', 'New-AlignLastInfo')
 $fnOld = @('Get-AsymRefTable', 'Get-AsymRefs', 'Set-TrackAsymRef')
 $asgCommon = @('$script:HealthErrOk', '$script:JitterStdOk', '$script:JitterStdWatch', '$script:ScpStructMax')
-$asgNew = @('$script:ScoreAsymK', '$script:AsymSignPct')
+$asgNew = @('$script:ScoreAsymK', '$script:AsymSignPct', '$script:AsymExpGain', '$script:AsymExpOkTol', '$script:AsymExpNearTol', '$script:AsymExpInPct')   # 12.11 rc4 (R10) : les quatre dernieres
 $asgOld = @('$script:QualAsymRefOn')
 function New-Gen([string]$root, [string]$outFile, [string[]]$fn190, [string[]]$asg040, [string[]]$asg560) {
     # Fichier de travail : texte des fonctions et des affectations demandees, tel quel ; rend le texte de chaque fonction
@@ -113,6 +138,13 @@ $script:Lang = 'fr'
 $genNew = Join-Path $here 'gen-apres.ps1'
 $defsNew = New-Gen $Wt $genNew $fnNew $asgNew @()
 . $genNew
+# 12.11 rc4 (R10) : fonction du controle (170) absente de la source de la 12.10 : chargee a part de $fnCommon, que les
+# deux versions partagent ; la vraie Show-WriteCheckTable ne l appelle que pour un controle qui porte Rep.AsymExcess
+$fdX = @((Get-Ast (Join-Path $mods '170-fn-controle-ecriture.ps1')).FindAll({ param($x) $x -is $tFn -and $x.Name -eq 'Get-RepAsymExcess' }, $false))
+if ($fdX.Count -ne 1) { throw "fonction Get-RepAsymExcess introuvable dans 170-fn-controle-ecriture.ps1 sous $Wt (lot R10 absent de cette source ?)" }
+$genX = Join-Path $here 'gen-r10.ps1'
+[System.IO.File]::WriteAllText($genX, ($fdX[0].Extent.Text + "`r`n"), $utf8Bom)
+. $genX
 
 # ---------------------------------------------------------------- remplacants et controles jamais affiches
 try { $bold = New-Object System.Drawing.Font('Segoe UI', 9.75, [System.Drawing.FontStyle]::Bold) }
@@ -358,7 +390,9 @@ Reset-State
 Update-QualityTip
 $tt = [string]$tip.GetToolTip($lvAl); $ttL = @($tt -split "`n")
 $script:Lang = 'en'; Update-QualityTip; $ttE = @(([string]$tip.GetToolTip($lvAl)) -split "`n"); $script:Lang = 'fr'
-Chk 'T1' ($ttL.Count -eq 5 -and $ttL[4] -ceq $kSign -and $tt.Contains('Asymétrie : <0,02 / <0,05 / <0,10') -and $ttL[3].StartsWith('Erreurs : ') -and $ttE.Count -eq 5 -and $ttE[4] -ceq $eSign) "infobulle du tableau : $($ttL.Count) lignes, la derniere sur le signe, en francais et en anglais"
+# 12.11 rc4 (R10, adapte a dessein) : six lignes au lieu de cinq ; la derniere dit ce que jugent la couleur de la case et
+# le score au controle d une ecriture pour un lecteur cible ; la ligne du signe reste la cinquieme
+Chk 'T1' ($ttL.Count -eq 6 -and $ttL[4] -ceq $kSign -and $ttL[5] -ceq $kTgt -and $tt.Contains('Asymétrie : <0,02 / <0,05 / <0,10') -and $ttL[3].StartsWith('Erreurs : ') -and $ttE.Count -eq 6 -and $ttE[4] -ceq $eSign -and $ttE[5] -ceq $eTgt) "infobulle du tableau : $($ttL.Count) lignes, la cinquieme sur le signe, la derniere sur le controle d une ecriture pour un lecteur cible, en francais et en anglais"
 # Infobulle de la carte : vraie Get-QualityCardModel sur le resultat d une mesure reelle de 12 pistes positives
 Reset-State
 $script:FakeScp[$script:AlignTmp] = Get-TrackSet 12 1.511 2.025
@@ -384,6 +418,148 @@ foreach ($p in @(@($kPos, $ePos, 'positive'), @($kNeg, $eNeg, 'negative'), @($kS
     if (-not ([string]$script:I18n[$p[0]] -ceq $p[1]) -or -not $t019.Contains($p[0]) -or $ph1 -ne $ph2) { $badKeys += $p[2] }
 }
 Chk 'I1' ($badKeys.Count -eq 0 -and -not $script:I18n.ContainsKey($kOld1) -and -not $script:I18n.ContainsKey($kOld2) -and -not $t018.Contains('biais de lecture') -and [string]$script:I18n['Asymétrie'] -ceq 'Asymmetry') "quatre textes de la specification dans 019, memes jalons : en defaut $(if ($badKeys.Count) { $badKeys -join ', ' } else { 'aucun' }) ; cles de la correction absentes de la table ; « Asymétrie » gardee"
+
+# ---------------------------------------------------------------- X : asymetrie attendue pour un lecteur cible (R10)
+"--- X : asymetrie attendue d une ecriture pour un lecteur cible (12.11 rc4, R10)"
+# Jeu fictif : le lecteur « Banc 1 » ecrit pour le lecteur cible « Atelier 2 » et relit ; cellule de 2 000 ns ; exces de
+# precompensation de 30 ns (tete 0) et de 40 ns (tete 1) : asymetrie attendue 2 x exces / cellule = 0,030 et 0,040
+$forX = @{ Target = 'Atelier 2'; Src = 'Banc 1' }
+function New-TrackX([double]$d3, [double]$d4, [double]$cell = 2000.0) { return ,@((New-Rev 57.0 (1.5 + $d3) (2.0 + $d4) 0 0 $cell), (New-Rev 57.0 (1.5 + $d3) (2.0 + $d4) 0 0 $cell), (New-Rev 57.0 (1.5 + $d3) (2.0 + $d4) 0 0 $cell)) }
+function New-MsX([int]$n, [double]$d3, [double]$d4, [double]$excess) { return @(1..$n | ForEach-Object { $m = Get-TrackMetrics (New-TrackX $d3 $d4); Set-TrackAsymExpected $m $excess; $m }) }
+function Test-NearX($a, [double]$b) { return ($null -ne $a -and [math]::Abs([double]$a - $b) -lt 1e-9) }
+$x1 = @((Get-AsymExpected 30 2000), (Get-AsymExpected (-20) 2000), (Get-AsymExpected 30 1888))
+Chk 'X1' ((Test-NearX $x1[0] 0.030) -and (Test-NearX $x1[1] (-0.020)) -and (Test-NearX $x1[2] (60.0 / 1888)) -and $null -eq (Get-AsymExpected 30 0) -and $null -eq (Get-AsymExpected 30 ([double]::NaN)) -and $script:AsymExpGain -eq 2.0 -and $script:AsymExpOkTol -eq 0.005 -and $script:AsymExpNearTol -eq 0.02 -and $script:AsymExpInPct -eq 80) "asymetrie attendue = 2 x exces / cellule : +30 ns sur 2 000 ns -> $($x1[0].ToString('0.000', $inv)), -20 ns -> $($x1[1].ToString('0.000', $inv)), +30 ns sur 1 888 ns -> $($x1[2].ToString('0.0000', $inv)) ; sans cellule mesuree : aucune ; tolerances de 040 : conforme a $($script:AsymExpOkTol), proche a $($script:AsymExpNearTol), $($script:AsymExpInPct) % des pistes"
+$mX = Get-TrackMetrics (New-TrackX 0.016 0.018); $rawX = "$([int]$mX.Score)/$([int]$mX.Level)"
+Set-TrackAsymExpected $mX 30
+$mZ = Get-TrackMetrics (New-TrackX 0.016 0.018); Set-TrackAsymExpected $mZ 0
+$mNg = Get-TrackMetrics (New-TrackX (-0.012) (-0.010)); $rawNg = [int]$mNg.Score; Set-TrackAsymExpected $mNg (-10)
+$mMx = Get-TrackMetrics (New-TrackX 0.030 (-0.010)); $rawMx = [int]$mMx.Score; Set-TrackAsymExpected $mMx 20
+$mBd = Get-TrackMetrics @(); Set-TrackAsymExpected $mBd 30; Set-TrackAsymExpected $null 30
+$mC0 = Get-TrackMetrics (New-TrackX 0.016 0.018 0.0); $rawC0 = [int]$mC0.Score; Set-TrackAsymExpected $mC0 30
+$x2a = ($rawX -ceq '125/0' -and (Test-NearX $mX.AsymExp 0.030) -and (Test-NearX $mX.AsymGap 0.004) -and (Test-NearX $mX.AsymDev 0.004) -and [int]$mX.Score -eq 65 -and (Test-NearX $mX.Asym 0.034) -and (Test-NearX $mX.R3 1.516) -and (Test-NearX $mX.R4 2.018) -and [int]$mX.Level -eq 0)
+$x2b = ((Test-NearX $mZ.AsymExp 0.0) -and (Test-NearX $mZ.AsymDev ([double]$mZ.Asym)) -and [int]$mZ.Score -eq 125)
+$x2c = ($rawNg -eq 101 -and (Test-NearX $mNg.AsymExp (-0.010)) -and (Test-NearX $mNg.AsymGap (-0.012)) -and (Test-NearX $mNg.AsymDev 0.012) -and [int]$mNg.Score -eq 81)
+$x2d = ($rawMx -eq 137 -and (Test-NearX $mMx.AsymGap 0.0) -and (Test-NearX $mMx.AsymDev 0.040) -and [int]$mMx.Score -eq 137)
+$x2e = (-not $mBd.ContainsKey('AsymExp') -and -not $mBd.ContainsKey('AsymDev') -and -not $mC0.ContainsKey('AsymExp') -and [int]$mC0.Score -eq $rawC0)
+Chk 'X2' ($x2a -and $x2b -and $x2c -and $x2d -and $x2e) "ecarts +0,016 et +0,018, exces 30 ns : attendue 0,030, ecart +0,004, score $rawX -> $([int]$mX.Score) (65 attendu), asymetrie mesuree, rapports et etat gardes ($x2a) ; attendue nulle : score de toujours ($x2b) ; exces negatif : $rawNg -> $([int]$mNg.Score) ($x2c) ; ecarts de sens opposes, somme egale a l attendue : rien d efface, $rawMx -> $([int]$mMx.Score) ($x2d) ; piste illisible ou sans cellule : rien de pose ($x2e)"
+$sOk = Get-AsymSummary (New-MsX 160 0.016 0.018 30)
+$sOkEdge = Get-AsymSummary (New-MsX 160 0.017 0.0179 30); $sNearLo = Get-AsymSummary (New-MsX 160 0.017 0.0181 30)
+$sNearHi = Get-AsymSummary (New-MsX 160 0.0249 0.025 30); $sOffHi = Get-AsymSummary (New-MsX 160 0.0251 0.025 30)
+$sOffLo = Get-AsymSummary (New-MsX 160 0.005 0.005 35)
+$sIn127 = Get-AsymSummary (@(New-MsX 127 0.016 0.018 30) + @(New-MsX 33 0.040 (-0.006) 30))
+$sIn128 = Get-AsymSummary (@(New-MsX 128 0.016 0.018 30) + @(New-MsX 32 0.040 (-0.006) 30))
+$sPlain = Get-AsymSummary (New-Ms 160 1.511 2.025)
+$sPart = Get-AsymSummary (@(New-MsX 100 0.016 0.018 30) + @(New-Ms 60 1.511 2.025))
+$sNg = Get-AsymSummary (New-MsX 160 (-0.012) (-0.010) (-10))
+$x3a = ($sOk.NExp -eq 160 -and $sOk.In -eq 160 -and $sOk.Judge -ceq 'ok' -and (Test-NearX $sOk.ExpMed 0.030) -and (Test-NearX $sOk.MeasMed 0.034) -and (Test-NearX $sOk.GapMed 0.004) -and $sOk.DevPoints -eq 8 -and $sOk.Points -eq 68 -and $sOk.Kind -ceq '+')
+$x3b = ($sOkEdge.Judge -ceq 'ok' -and $sNearLo.Judge -ceq 'near' -and $sNearHi.Judge -ceq 'near' -and $sOffHi.Judge -ceq 'off' -and $sOffLo.Judge -ceq 'off' -and (Test-NearX $sOffLo.GapMed (-0.025)) -and $sNg.Judge -ceq 'near')
+$x3c = ($sIn127.In -eq 127 -and $sIn127.Judge -ceq 'near' -and (Test-NearX $sIn127.GapMed 0.004) -and $sIn127.DevPoints -eq 25 -and $sIn128.In -eq 128 -and $sIn128.Judge -ceq 'ok')
+$x3d = ($sPlain.NExp -eq 0 -and $sPlain.Judge -ceq '' -and $sPlain.Points -eq 72 -and $sPart.N -eq 160 -and $sPart.NExp -eq 100 -and $sPart.DevPoints -eq 32)
+Chk 'X3' ($x3a -and $x3b -and $x3c -and $x3d) "160 pistes a +0,004 de l attendue : « $($sOk.Judge) », $($sOk.DevPoints) point(s) sur l ecart au lieu de $($sOk.Points) ($x3a) ; ecart median 0,0049 / 0,0051 / 0,0199 / 0,0201 / -0,025 : $($sOkEdge.Judge) / $($sNearLo.Judge) / $($sNearHi.Judge) / $($sOffHi.Judge) / $($sOffLo.Judge) ($x3b) ; meme ecart median, 127 puis 128 pistes sur 160 dans la classe verte : $($sIn127.Judge) puis $($sIn128.Judge) ($x3c) ; sans asymetrie attendue : jugement vide, resume de toujours ; 100 pistes sur 160 avec : part du score $($sPart.DevPoints) ($x3d)"
+$tOk = Get-AsymSummaryText $sOk -For $forX; $tNear = Get-AsymSummaryText $sNearLo -For $forX; $tOff = Get-AsymSummaryText $sOffLo -For $forX; $tNg = Get-AsymSummaryText $sNg -For $forX -Always
+$expOk = ($kOk -f 'Atelier 2', '+0,030', '+0,034', 'Banc 1') + ' ' + ($kTail -f '8', '68', 'Atelier 2')
+$expNear = ($kNear -f 'Atelier 2', '+0,030', '+0,035', 'Banc 1') + ' ' + ($kTail -f '10', '70', 'Atelier 2')
+$expOff = ($kOff -f 'Atelier 2', '+0,035', '+0,010', 'Banc 1') + ' ' + ($kTail -f '50', '20', 'Atelier 2')
+$expNg = ($kNear -f 'Atelier 2', '-0,010', '-0,022', 'Banc 1') + ' ' + ($kTail -f '24', '44', 'Atelier 2')
+$script:Lang = 'en'
+$tOkE = Get-AsymSummaryText $sOk -For $forX; $tNearE = Get-AsymSummaryText $sNearLo -For $forX; $tOffE = Get-AsymSummaryText $sOffLo -For $forX
+$script:Lang = 'fr'
+$x4a = ($tOk -ceq $expOk -and $tNear -ceq $expNear -and $tOff -ceq $expOff -and $tNg -ceq $expNg)
+$x4b = ($tOkE -ceq (($eOk -f 'Atelier 2', '+0.030', '+0.034', 'Banc 1') + ' ' + ($eTail -f '8', '68', 'Atelier 2')) -and $tNearE -ceq (($eNear -f 'Atelier 2', '+0.030', '+0.035', 'Banc 1') + ' ' + ($eTail -f '10', '70', 'Atelier 2')) -and $tOffE -ceq (($eOff -f 'Atelier 2', '+0.035', '+0.010', 'Banc 1') + ' ' + ($eTail -f '50', '20', 'Atelier 2')))
+$x4c = ((Get-AsymSummaryText $sOk) -ceq ($kPos -f '160', '160', '0,034', '68') -and (Get-AsymSummaryText $sPlain -For $forX) -ceq ($kPos -f '160', '160', '0,036', '72') -and (Get-AsymSummaryText (Get-AsymSummary @()) -For $forX) -ceq '')
+$x4d = (@($tOk, $tNear, $tOff) | Where-Object { $_ -notlike "*La lecture par le lecteur Atelier 2 n'est pas prédite." -or $_ -notlike '*relu par le lecteur Banc 1*' }).Count -eq 0
+Chk 'X4' ($x4a -and $x4b -and $x4c -and $x4d) "phrases du jugement, lecteur cible et lecteur qui relit nommes, medianes signees : $(Get-Short $tOk 150) ($x4a) ; en anglais ($x4b) ; sans lecteur cible ou sans asymetrie attendue : phrases de toujours ($x4c) ; chacune dit que la lecture par le lecteur cible n est pas predite ($x4d)"
+function New-StateX {
+    # Dix pistes lisibles (cinq cylindres, deux tetes) et une absente ; metriques neuves a chaque appel
+    $st = @{}
+    foreach ($c in 0..4) { $st["$c.0"] = Get-TrackMetrics (New-TrackX 0.016 0.018); $st["$c.1"] = Get-TrackMetrics (New-TrackX 0.021 0.023) }
+    $mm = Get-TrackMetrics @(); $mm.Missing = $true; $st['5.0'] = $mm
+    return $st
+}
+function New-CheckRepX($excess) {
+    # Controle d une ecriture pour le lecteur cible ; $excess : memoire de l ecriture (par tete, exces par cylindre)
+    $r = @{ State = (New-StateX); Rewrites = @{}; Retries = @{}; Ignore = $null; SrcWeak = $null; Target = 'Atelier 2'; TargetSrc = 'Banc 1' }
+    if ($excess) { $r.AsymExcess = $excess }
+    return $r
+}
+function Get-CellsX { return @(@($lvAl.Items) | ForEach-Object { $it = $_; "$([string]$it.SubItems[0].Text)=$([string]$it.SubItems[8].Text)/$([string]$it.SubItems[6].Text)/" + $(if ($it.SubItems.Count -gt 8) { [string]([array]::IndexOf(@(0..3 | ForEach-Object { $script:AlColors[$_].ToArgb() }), $it.SubItems[8].BackColor.ToArgb())) } else { '' }) }) }
+Reset-State
+# Tete 1 : tableau de deux cylindres seulement ; au-dela, la derniere valeur (les profils y sont constants)
+$repX = New-CheckRepX @{ 0 = [int[]]@(30, 30, 30, 30, 30, 30); 1 = [int[]]@(40, 40) }
+$null = Show-WriteCheckTable $repX
+$resX = $script:LastRes; $logX = @($script:RLog); $lastX = $script:AlignLast; $cellsX = @(Get-CellsX)
+$expX5 = ($kOk -f 'Atelier 2', '+0,035', '+0,039', 'Banc 1') + ' ' + ($kTail -f '8', '78', 'Atelier 2')
+$wantCells = @(foreach ($c in 0..4) { "$c.0=+0,034/65/0"; "$c.1=+0,044/65/0" }) + @('5.0=-/-/-1')
+$x5a = (($cellsX -join ' ') -ceq ($wantCells -join ' '))
+$x5b = ($resX.Score -eq 65 -and $resX.Count -eq 10 -and $resX.Bad -eq 1 -and [string]$resX.AsymText -ceq $expX5 -and $resX.AsymFor -and [string]$resX.AsymFor.Target -ceq 'Atelier 2' -and [string]$resX.AsymFor.Src -ceq 'Banc 1' -and ($logX -ccontains "Contrôle après écriture : $expX5") -and @(Get-AsymLines).Count -eq 0)
+$x5c = ([int]$lastX['0.0'].Score -eq 65 -and [int]$lastX['4.1'].Score -eq 65 -and (Test-NearX $lastX['0.1'].Asym 0.044) -and (Test-NearX $repX.State['4.1'].AsymExp 0.040) -and (Test-NearX $repX.State['4.0'].AsymExp 0.030) -and (Test-NearX $repX.State['0.1'].Asym 0.044) -and [int]$repX.State['0.1'].Level -eq 0 -and -not $repX.State['5.0'].ContainsKey('AsymExp'))
+Reset-State
+$repL = New-CheckRepX $null
+$null = Show-WriteCheckTable $repL
+$resL = $script:LastRes; $cellsL = @(Get-CellsX)
+$wantCellsL = @(foreach ($c in 0..4) { "$c.0=+0,034/125/1"; "$c.1=+0,044/145/1" }) + @('5.0=-/-/-1')
+$expL = ($kPos -f '10', '10', '0,039', '78')
+$x5d = (($cellsL -join ' ') -ceq ($wantCellsL -join ' ') -and $resL.Score -eq 135 -and [string]$resL.AsymText -ceq $expL -and -not $resL.ContainsKey('AsymFor') -and @($repL.State.Values | Where-Object { $_.ContainsKey('AsymExp') }).Count -eq 0 -and (@($script:RLog) -ccontains "Contrôle après écriture : $expL"))
+Chk 'X5' ($x5a -and $x5b -and $x5c -and $x5d) "controle d une ecriture pour « Atelier 2 » relue par « Banc 1 », exces memorise (30 ns tete 0, 40 ns tete 1) : cases a la valeur mesuree et vertes, score 65 par piste ($x5a) ; score moyen $($resX.Score), phrase « conforme » au resultat et au journal, lecteurs gardes avec le resultat ($x5b) ; derniere mesure au score affiche, asymetrie mesuree et etat gardes, cylindre au-dela du tableau : derniere valeur ($x5c) ; meme controle sans cette memoire : score moyen $($resL.Score), cases de la couleur de la valeur mesuree, phrase de toujours ($x5d)"
+# Export du controle : tableau et resultat de X5 (avec exces memorise), puis sans
+function Set-CheckViewX($res) { $v = $script:QualView; $v.State = 'result'; $v.Kind = 'check'; $v.Reason = ''; $v.At = [datetime]::new(2026, 11, 11, 10, 0, 0); $v.Has = $true; $v.Res = $res }
+function Get-RowX($x, [string]$lab) { return @(@($x.Rows) | Where-Object { [string]$_[0] -ceq $lab })[0] }
+Reset-State
+$null = Show-WriteCheckTable (New-CheckRepX @{ 0 = [int[]]@(30, 30, 30, 30, 30, 30); 1 = [int[]]@(40, 40) })
+Set-CheckViewX $script:LastRes
+$xX = Get-AlignTableExport; $hmX = Get-HeadMap $xX
+$script:Lang = 'en'; $xXe = Get-AlignTableExport; $hmXe = Get-HeadMap $xXe; $script:Lang = 'fr'
+$r00 = Get-RowX $xX '0.0'; $r01 = Get-RowX $xX '0.1'; $r50 = Get-RowX $xX '5.0'
+$x6a = (@($xX.Cols).Count -eq 14 -and [string]$xX.Cols[11] -ceq 'Cellule ns' -and [string]$xX.Cols[12] -ceq 'Asym. attendue' -and [string]$xX.Cols[13] -ceq "Écart à l'attendu" -and @($xX.Rows | Where-Object { @($_).Count -ne 14 }).Count -eq 0 -and @($xX.Rows).Count -eq 11)
+$x6b = ((@($r00[6], $r00[8], $r00[9], $r00[10], $r00[11], $r00[12], $r00[13]) -join ' ') -ceq '65 0,034 +0,016 +0,018 2000 +0,030 +0,004' -and (@($r01[8], $r01[12], $r01[13]) -join ' ') -ceq '0,044 +0,040 +0,004' -and (@($r50[12], $r50[13]) -join ' ') -ceq '- -')
+$x6c = ($hmX['Asymétrie'] -ceq $expX5 -and [string]$xXe.Cols[12] -ceq 'Expected asym.' -and [string]$xXe.Cols[13] -ceq 'Deviation from expected' -and $hmXe['Asymmetry'] -ceq (($eOk -f 'Atelier 2', '+0.035', '+0.039', 'Banc 1') + ' ' + ($eTail -f '8', '78', 'Atelier 2')))
+Reset-State
+$null = Show-WriteCheckTable (New-CheckRepX $null)
+Set-CheckViewX $script:LastRes
+$xL = Get-AlignTableExport; $hmL = Get-HeadMap $xL; $rL0 = Get-RowX $xL '0.0'
+$x6d = (@($xL.Cols).Count -eq 12 -and @($xL.Rows | Where-Object { @($_).Count -ne 12 }).Count -eq 0 -and $hmL['Asymétrie'] -ceq $expL -and [string]$rL0[6] -ceq '125')
+Chk 'X6' ($x6a -and $x6b -and $x6c -and $x6d) "export du controle : $(@($xX.Cols).Count) colonnes, « Asym. attendue » et « Écart à l'attendu » en fin de ligne ($x6a) ; piste 0.0 : $(@($r00[6], $r00[8], $r00[12], $r00[13]) -join ' ; '), piste absente « - » ($x6b) ; en-tete « Asymétrie » : la phrase du journal, colonnes et phrase en anglais ($x6c) ; sans exces memorise : $(@($xL.Cols).Count) colonnes, phrase et score de toujours ($x6d)"
+# Mesure simple de l onglet sur les memes pistes (aucune memoire de l ecriture) : inchangee
+Reset-State
+$trX = @{}; foreach ($c in 0..4) { $trX[2 * $c] = New-TrackX 0.016 0.018; $trX[2 * $c + 1] = New-TrackX 0.021 0.023 }
+$script:FakeScp[$script:AlignTmp] = $trX
+$null = Invoke-AlignAnalysis
+$resM = $script:LastRes; $cellsM = @(Get-CellsX)
+$wantCellsM = @(foreach ($c in 0..4) { "$c.0=+0,034/125/1"; "$c.1=+0,044/145/1" })
+$x7a = (($cellsM -join ' ') -ceq ($wantCellsM -join ' ') -and $resM.Score -eq 135 -and [string]$resM.AsymText -ceq $expL -and -not $resM.ContainsKey('AsymFor') -and @(@($lvAl.Items) | Where-Object { $_.Tag.M.ContainsKey('AsymExp') }).Count -eq 0)
+# Arbre syntaxique de tous les modules : seul l affichage du controle pose l asymetrie attendue ; l exces n est ecrit que
+# par l ecriture et lu que par le controle ; la mesure de l onglet et les fonctions de decision n y touchent pas
+$tCmd = [System.Management.Automation.Language.CommandAst]; $tMem = [System.Management.Automation.Language.MemberExpressionAst]
+$callX = @(); $useX = @()
+foreach ($f in @(Get-ChildItem -LiteralPath $mods -Filter '*.ps1' -File | Sort-Object Name)) {
+    foreach ($fd in @((Get-Ast $f.FullName).FindAll({ param($x) $x -is $tFn }, $true))) {
+        if (@($fd.Body.FindAll({ param($x) $x -is $tCmd -and $x.GetCommandName() -eq 'Set-TrackAsymExpected' }, $true)).Count) { $callX += $fd.Name }
+        if (@($fd.Body.FindAll({ param($x) $x -is $tMem -and $x.Member.Extent.Text -eq 'AsymExcess' }, $true)).Count) { $useX += $fd.Name }
+    }
+}
+$callX = @($callX | Sort-Object -Unique); $useX = @($useX | Sort-Object -Unique)
+$measX = @(@('Invoke-AlignAnalysis', 'Get-TrackMetrics') | Where-Object { $defsNew[$_] -match 'AsymExp|AsymFor|AsymExcess|AsymDev|AsymGap' })
+$x7b = (($callX -join ',') -ceq 'Show-WriteCheckTable' -and ($useX -join ',') -ceq 'Get-RepAsymExcess,Show-WriteCheckTable,Start-ImageWrite' -and $measX.Count -eq 0)
+Chk 'X7' ($x7a -and $x7b) "mesure simple de l onglet sur les memes pistes : score moyen $($resM.Score), cases de la couleur de la valeur mesuree, phrase de toujours, aucune asymetrie attendue ($x7a) ; Set-TrackAsymExpected appelee par : $($callX -join ', ') ; exces memorise ecrit ou lu par : $($useX -join ', ') ; la mesure et les metriques d une piste n en lisent rien ($x7b)"
+# Infobulle de la carte et couleur des lignes au journal
+$resX.At = [datetime]::new(2026, 11, 11, 10, 0, 0)
+$vX = @{ State = 'result'; Kind = 'check'; Reason = ''; At = $resX.At; Has = $true; Pass = 0; Drive = ''; Heads = ''; Revs = 0; NCyl = 0; RunText = ''; Res = $resX }
+$tipX = @(([string](Get-QualityCardModel $vX).Tip) -split "`n")
+$iSX = [array]::IndexOf($tipX, [string]$resX.ScoreText); $iAX = [array]::IndexOf($tipX, $expX5)
+$colsX = @()
+foreach ($lang in 'fr', 'en') {
+    $script:Lang = $lang
+    foreach ($s in @($sOk, $sNearLo, $sOffLo)) { $colsX += [string](Get-LogColor ((T "Contrôle après écriture : {0}") -f (Get-AsymSummaryText $s -For $forX))) }
+}
+$script:Lang = 'fr'
+Chk 'X8' ($iSX -ge 0 -and $iAX -eq $iSX + 1 -and ($colsX -join ' ') -ceq 'std std std std std std') "infobulle de la carte (vraie Get-QualityCardModel) : phrase du jugement juste apres le texte du score (ligne $($iAX + 1) sur $($tipX.Count)) ; couleur au journal des trois jugements, en francais puis en anglais : $($colsX -join ' ') (texte courant attendu)"
+$iRc4 = $t019.IndexOf('# --- rc4 :'); $badX = @()
+foreach ($p in @(@($kOk, $eOk, 'conforme'), @($kNear, $eNear, 'proche'), @($kOff, $eOff, 'eloignee'), @($kTail, $eTail, 'part du score'), @($kTgt, $eTgt, 'infobulle'), @('Asym. attendue', 'Expected asym.', 'colonne 13'), @("Écart à l'attendu", 'Deviation from expected', 'colonne 14'))) {
+    $ph1 = (@([regex]::Matches($p[0], '\{\d\}') | ForEach-Object { $_.Value } | Sort-Object -Unique) -join '')
+    $ph2 = (@([regex]::Matches($p[1], '\{\d\}') | ForEach-Object { $_.Value } | Sort-Object -Unique) -join '')
+    if (-not ([string]$script:I18n[$p[0]] -ceq $p[1]) -or $iRc4 -lt 0 -or $t019.IndexOf($p[0], [System.StringComparison]::Ordinal) -lt $iRc4 -or $ph1 -ne $ph2) { $badX += $p[2] }
+}
+Chk 'X9' ($badX.Count -eq 0) "sept textes du lot dans la section « rc4 » de 019, memes jalons : en defaut $(if ($badX.Count) { $badX -join ', ' } else { 'aucun' })"
 
 # ---------------------------------------------------------------- Q : equivalence avec la source d avant
 "--- Q : equivalence avec la 12.10 (-Before)"
