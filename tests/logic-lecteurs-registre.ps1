@@ -87,7 +87,7 @@ $want = [ordered]@{
               'Export-TargetDrives', 'Import-TargetDrives', 'Save-Config', 'Get-Cfg', 'Set-Num', 'Set-Combo', 'Load-Config')
     '140' = @('Get-DriveIds', 'Get-TargetDrive', 'Set-TargetDrive', 'Get-TargetDriveItems', 'Get-TargetCurves', 'Get-TargetWriteInfo')
     '220' = @('Get-CurveDate', 'Get-DriveFamilyCurves')
-    '230' = @('Test-CurveHd', 'Get-CalibFamilyName', 'Get-Median', 'Get-CurveCalc', 'Get-CurveCalcRef', 'Test-CurveCalcOk', 'Get-CurveCalcText', 'ConvertTo-CurveConfig', 'ConvertTo-LevelConfig', 'ConvertTo-LevelBrandConfig',
+    '230' = @('Set-PrecompBound', 'Test-CurveHd', 'Get-CalibFamilyName', 'Get-Median', 'Get-CurveCalc', 'Get-CurveCalcRef', 'Test-CurveCalcOk', 'Get-CurveCalcText', 'ConvertTo-CurveConfig', 'ConvertTo-LevelConfig', 'ConvertTo-LevelBrandConfig',
               'ConvertFrom-LevelBrandConfig', 'ConvertFrom-LevelConfig', 'ConvertFrom-CurveConfig')
     '240' = @('Get-CalibDriveArgsFor', 'Get-CalibStoreDrive', 'Split-CrossDrive', 'Get-CrossCalibTargets', 'Get-CurveKeyLabel', 'Get-DriveCurveKey', 'Split-DriveCurveKey', 'Get-DriveCurve', 'Set-DriveCurve', 'Sync-PrecompCurves',
               'Get-DriveCurveKeys', 'Get-DriveCurveLabel')
@@ -122,7 +122,7 @@ $wantState = [ordered]@{
               '$script:DriveNameMax', '$script:DriveListWidth', '$script:DriveBackupKeep', '$script:DriveReserved')
     '550' = @('$script:CleanPrefs')
     '560' = @('$script:CalRedo', '$script:CalHardNsDefault', '$script:CalHardMinNs', '$script:CalHardMaxNs', '$script:CalHardNs', '$script:CalWarmupDefault', '$script:CalWarmupMinutes', '$script:DriveCurves', '$script:PrecompCurves',
-              '$script:CurveKeys', '$script:LevelFormat', '$script:LevelShifts', '$script:LevelBrand', '$script:LevelBrands', '$script:ConfigRefBackupKeep', '$script:TargetDrives', '$script:CalHardNsUser')
+              '$script:CurveKeys', '$script:LevelFormat', '$script:LevelShifts', '$script:LevelBrand', '$script:LevelBrands', '$script:ConfigRefBackupKeep', '$script:TargetDrives', '$script:CalHardNsUser', '$script:CalHardAuto')
     '565' = @('$script:ContentKMax', '$script:ContentMeasures')
 }
 $stateParts = New-Object System.Collections.Generic.List[string]
@@ -152,6 +152,7 @@ $script:Log = New-Object System.Collections.Generic.List[string]
 function Append-Log([string]$text) { $script:Log.Add($text) }
 function Get-LogN([string]$like) { return @($script:Log | Where-Object { $_ -like $like }).Count }
 function Set-CalibScale([string]$fam) { }
+function Update-WBoundUi { }      # 12.11 rc4 (R2) : liste « Borne de precompensation » de l onglet Ecriture (145), mise a jour par la vraie Set-PrecompBound (Load-Config)
 function Update-SlowUi { }
 function Update-TargetDriveUi { }
 function Update-RsRules { }

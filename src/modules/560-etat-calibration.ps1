@@ -288,6 +288,10 @@ $script:CalSigMax        = 50.0    # incertitude maximale d un zero (ns)
 $script:CalInterpDefault = 100     # cible d une passe de mesure sans aucune estimation (ns)
 $script:CalHdK           = 0.5     # rapport des cellules haute et double densite (1 us / 2 us) (H)
 $script:CalHardNsUser    = $script:CalHardNs   # borne configuree (precompMaxNs), celle de la double densite
+# 12.11 rc4 (R2) : reglage automatique de la borne (liste « Borne de precompensation » des options avancees de l onglet
+# Ecriture, Set-PrecompBound, 230) : borne propre a la famille (CalHardNsDefault ; CalHardMaxNs en long track,
+# Set-CalibScale) ; faux : CalHardNsUser choisie, la meme dans toutes les familles, 400 ns comprise (write.precompMaxAuto)
+$script:CalHardAuto      = $true
 $script:CalScaleDd = @{ CalCoarse = $script:CalCoarse; CalMaxNs = $script:CalMaxNs; CalBracketMargin = $script:CalBracketMargin
     CalBracketStep = $script:CalBracketStep; CalTrendSig = $script:CalTrendSig; CalTrendRefSig = $script:CalTrendRefSig
     CalContraMaxNs = $script:CalContraMaxNs; CalDevNs = $script:CalDevNs; CalDenseStep = $script:CalDenseStep

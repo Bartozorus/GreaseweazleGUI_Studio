@@ -102,6 +102,7 @@ $fnCommon = [ordered]@{
     '270-fn-calib-complete.ps1'   = @('Start-DiskMeasure', 'Set-DiskHardNs', 'Reset-DiskHardNs')
 }
 $fnL4 = @('Get-DiskCellNs', 'Get-DiskCapNs', 'Get-UnitCapNs', 'Get-DiskCapBits', 'Get-DiskBoundText', 'Get-DiskOverAdviceText', 'Get-BoundAdviceNs')   # 265, lots L4, L4b et L12a
+$fnR2 = @('Set-PrecompBound')   # 230, 12.11 rc4 (R2) : seule entree du reglage de la borne (absente d une source d avant)
 # Lot L4 encore : formats gw calibres par l application (cas B3) : fonctions reelles et table des formats de 040
 # Lot L4b (cas A) : densite du motif d une image (240, 220) et fonctions qui decident si une image de l onglet Ecriture
 # atteint la calibration rapide ou la mesure de la disquette (260 : bouton « Calibrer » ; 140 : bouton ECRIRE ; 150, 230)
@@ -147,6 +148,7 @@ function New-Gen([string]$root, [string]$outFile, [bool]$l4) {
     $parts = New-Object System.Collections.Generic.List[string]; $defs = @{}
     foreach ($mod in @($fnCommon.Keys)) {
         $want = @($fnCommon[$mod]); if ($l4 -and $mod -like '265-*') { $want += $fnL4 }
+        if ($l4 -and $mod -like '230-*') { $want += $fnR2 }
         $have = Get-Cal2FnDefs (Join-Path $dir $mod)
         foreach ($n in $want) {
             if (-not $have.ContainsKey($n)) { throw "fonction $n introuvable dans $mod sous $root (lot L4 absent de cette source ?)" }
@@ -223,6 +225,7 @@ $script:RLog = New-Object System.Collections.Generic.List[string]
 function Append-Log([string]$text) { $script:RLog.Add($text) }
 function Get-LevelCtlCyls($units, [int]$maxCyl) { return ,[int[]]@(64, 78) }
 function Set-TBound([int]$b) { $script:CalHardNsUser = $b; Set-CalibScale '' }
+function Update-WBoundUi { }   # 12.11 rc4 (R2) : liste des options avancees (145), que Set-PrecompBound met a jour : sans objet ici
 function New-TRef {
     # Reference factice de 80 cylindres, de 60 a 336 ns ; moyenne 198 ns (exacte en binaire, comme tous les termes du modele)
     $v = New-Object int[] 80
@@ -501,7 +504,10 @@ $usesTxt = (@($uses.Keys | Sort-Object) | ForEach-Object { "$_ x$($uses[$_])" })
 # Lot L12a (adapte a dessein) : les trois conditions du conseil de relever la borne (260:Get-LevelUnitResults,
 # 265:Get-LevelAdaptOutcome x2) lisent Get-BoundAdviceNs, seule a lire CalHardMaxNs pour ce conseil
 # 12.11 rc3 (R2, adapte a dessein) : Set-CalibScale lit CalHardMaxNs, borne par defaut du long track
-$usesExp = '120:Load-Config x2, 230:Set-CalibScale x1, 265:Get-BoundAdviceNs x1, 265:Get-DiskCapNs x1, 560:(script) x1'
+# 12.11 rc4 (R2, adapte a dessein) : reglage de la borne dans les options avancees : plage et textes de la liste
+# (230 : Set-PrecompBound, Get-PrecompBoundChoices, Get-PrecompBoundText), infobulle (145 : Get-PrecompBoundTip), ligne
+# de journal d une borne de 400 ns choisie (120 : Load-Config, troisieme emploi)
+$usesExp = '120:Load-Config x3, 145:Get-PrecompBoundTip x1, 230:Get-PrecompBoundChoices x1, 230:Get-PrecompBoundText x1, 230:Set-CalibScale x1, 230:Set-PrecompBound x1, 265:Get-BoundAdviceNs x1, 265:Get-DiskCapNs x1, 560:(script) x1'
 function Get-Callers([string]$name) { return ((@($calls[$name]) | Sort-Object) -join ', ') }
 $f270 = Join-Path $mods '270-fn-calib-complete.ps1'
 $spAst = Get-FnAst $f270 'Start-PrecompCalib'
@@ -1077,22 +1083,27 @@ foreach ($k in @($gridNew.None.Keys | Sort-Object)) { $sg = Get-TSig $gridNew.No
 Chk 'N1' ($bad.Count -eq 0 -and $gridNew.None.Count -eq 32 -and $sig1210.Count -eq 32) "$($gridNew.None.Count) calibrations factices sans densite : plafonds, plus fortes valeurs, sommes des courbes, cylindres satures et au-dela de la borne egaux a ceux de la source de la 12.10 ; ecarts : $(Get-List $bad)"
 
 # ---------------------------------------------------------------- R : borne de la reference par famille (12.11 rc3, R2)
-'--- R : borne de la reference par famille (12.11 rc3, R2)'
-# R1 vraie Set-CalibScale, precompMaxNs a sa valeur par defaut (400 ns, celle qu ecrit la configuration) : long track au
-# quart de cellule (CalHardMaxNs, 470 ns), standard et sans famille a 400 ns, haute densite a 200 ns (la rc2.2 : 400 ns en
-# long track) ; R2 borne reglee a 430 puis 350 ns : prioritaire dans toutes les familles, comme avant ; R3 vraies
-# Set-DiskHardNs puis Reset-DiskHardNs en long track : borne de la famille retablie ; seuil du controle impose (vraie
-# Get-DiskOverNs) inchange, 400 ns
-$rSave = [int]$script:CalHardNsUser
-function Get-RBound([int]$user, [string]$fam) { $script:CalHardNsUser = $user; Set-CalibScale $fam; return "$($script:CalHardNs)/$($script:CalScaleFam)" }
-$r1 = @(foreach ($f in 'long', 'std', '', 'hd') { Get-RBound 400 $f })
-Chk 'R1' (($r1 -join ' ; ') -ceq '470/long ; 400/dd ; 400/dd ; 200/hd') "precompMaxNs par defaut, long, std, sans famille, hd : $($r1 -join ' ; ')"
-$r2 = @(foreach ($uu in 430, 350) { foreach ($f in 'long', 'std', 'hd') { Get-RBound $uu $f } })
-Chk 'R2' (($r2 -join ' ; ') -ceq '430/dd ; 430/dd ; 215/hd ; 350/dd ; 350/dd ; 175/hd') "precompMaxNs reglee a 430 puis 350 ns, long, std, hd : $($r2 -join ' ; ')"
-[void](Get-RBound 400 'long'); Set-DiskHardNs @{ DiskOnly = $true; HardNs = 472 }; $r3a = [int]$script:CalHardNs
+'--- R : borne de la reference par famille (12.11 rc3, R2 ; rc4 : reglage pose par Set-PrecompBound)'
+# R1 vraies Set-PrecompBound et Set-CalibScale, borne automatique : long track au quart de cellule (CalHardMaxNs, 470 ns),
+# standard et sans famille a 400 ns, haute densite a 200 ns (la rc2.2 : 400 ns en long track) ; R2 borne reglee a 430
+# puis 350 ns : la meme dans toutes les familles, comme avant ; R3 vraies Set-DiskHardNs puis Reset-DiskHardNs en long
+# track : borne de la famille retablie ; seuil du controle impose (vraie Get-DiskOverNs) inchange, 400 ns.
+# 12.11 rc4 (R2, adapte a dessein) : le reglage passe par Set-PrecompBound (automatique, ou valeur choisie) au lieu de
+# la valeur 400 lue comme « non regle » ; R4, nouveau : 400 ns choisi vaut 400 ns en long track aussi (la rc3 : 470 ns),
+# borne retablie a 400 ns apres une mesure complete. Le reglage, sa lecture et la liste : logic-precomp-borne
+$rSave = @([bool]$script:CalHardAuto, [int]$script:CalHardNsUser)
+function Get-RBound([bool]$auto, [int]$user, [string]$fam) { Set-PrecompBound $auto $user; Set-CalibScale $fam; return "$($script:CalHardNs)/$($script:CalScaleFam)" }
+$r1 = @(foreach ($f in 'long', 'std', '', 'hd') { Get-RBound $true 0 $f })
+Chk 'R1' (($r1 -join ' ; ') -ceq '470/long ; 400/dd ; 400/dd ; 200/hd') "borne automatique, long, std, sans famille, hd : $($r1 -join ' ; ')"
+$r2 = @(foreach ($uu in 430, 350) { foreach ($f in 'long', 'std', 'hd') { Get-RBound $false $uu $f } })
+Chk 'R2' (($r2 -join ' ; ') -ceq '430/dd ; 430/dd ; 215/hd ; 350/dd ; 350/dd ; 175/hd') "borne reglee a 430 puis 350 ns, long, std, hd : $($r2 -join ' ; ')"
+[void](Get-RBound $true 0 'long'); Set-DiskHardNs @{ DiskOnly = $true; HardNs = 472 }; $r3a = [int]$script:CalHardNs
 Reset-DiskHardNs; $r3b = "$($script:CalHardNs)/$($script:CalScaleFam)"; $r3c = Get-DiskOverNs
 Chk 'R3' ($r3a -eq 472 -and $r3b -ceq '470/long' -and $r3c -eq 400) "mesure complete en long track : borne $r3a pendant, $r3b apres Reset-DiskHardNs ; controle impose au-dela de $r3c ns"
-$script:CalHardNsUser = $rSave; Set-CalibScale ''
+$r4 = @(foreach ($f in 'long', 'std', '', 'hd') { Get-RBound $false 400 $f })
+[void](Get-RBound $false 400 'long'); Set-DiskHardNs @{ DiskOnly = $true; HardNs = 472 }; Reset-DiskHardNs; $r4b = "$($script:CalHardNs)/$($script:CalScaleFam)"; $r4c = Get-DiskOverNs
+Chk 'R4' (($r4 -join ' ; ') -ceq '400/dd ; 400/dd ; 400/dd ; 200/hd' -and $r4b -ceq '400/dd' -and $r4c -eq 400) "400 ns choisi, long, std, sans famille, hd : $($r4 -join ' ; ') ; apres une mesure complete en long track : $r4b ; controle impose au-dela de $r4c ns"
+Set-PrecompBound $rSave[0] $rSave[1]
 
 # ---------------------------------------------------------------- Q : equivalence avec la 12.10 (-Before)
 '--- Q : equivalence avec la 12.10 (-Before)'

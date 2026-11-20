@@ -267,7 +267,7 @@ function Test-ContentLevelSettings($cfg) {
 
 # --- Configuration -------------------------------------------------------------
 function Set-Defaults {
-    $script:CalHardNs = $script:CalHardNsDefault; $script:CalHardNsUser = $script:CalHardNs; Set-CalibScale ''   # 12.7 : bareme double densite
+    Set-PrecompBound $true   # 12.7 : bareme double densite ; 12.11 rc4 (R2) : borne de precompensation automatique, liste des options avancees a jour (230)
     $script:HomeCalFmt = 'amiga.amigados'
     $txtDev.Text = ''
     $chkTime.Checked = $false
@@ -638,6 +638,7 @@ function Save-Config {
             precompStd = $(if ($oc -and $oc.Std -and -not $script:PrecompCurves['std']) { $oc.Std } else { $script:PrecompStd })
             precompLong = $(if ($oc -and $oc.Long -and -not $script:PrecompCurves['long']) { $oc.Long } else { $script:PrecompLong })
             precompMaxNs = [int]$script:CalHardNsUser   # borne des valeurs calibrees (300 a 470 ns, 400 par defaut ; 12.7 : celle de la double densite, la haute densite en prend la moitie)
+            precompMaxAuto = [bool]$script:CalHardAuto  # 12.11 rc4 (R2) : borne automatique (precompMaxNs vaut alors 400) ; faux : valeur choisie, 400 ns comprise ; une version anterieure ignore cette cle
             calibVersion = $script:Version     # version de l application qui a enregistre (information)
             calibCalc = $script:CalibCalc      # calcul de calibration courant ; chaque courbe porte le sien (calc)
             calibAlgo = $script:CalibAlgo
@@ -882,16 +883,23 @@ function Load-Config {
     if ($lostProf) { Append-Log (T 'Profil de famille calibré sans courbe (version antérieure à 12.1) : profil d''origine rétabli.') }
     # Borne des valeurs calibrees : reglage de la configuration, ramene a 300..470 ns ; valeur illisible : defaut, signale
     $hraw = Get-Cfg $w 'precompMaxNs' $null
-    $hn = $script:CalHardNsDefault; $hd = 0.0
+    $hn = $script:CalHardNsDefault; $hd = 0.0; $hread = $false
     if ($null -ne $hraw) {
         if ($hraw -isnot [bool] -and $hraw -isnot [array] -and [double]::TryParse(([string]$hraw).Trim(), [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$hd) -and -not [double]::IsNaN($hd) -and -not [double]::IsInfinity($hd)) {
-            $hn = [int][math]::Round([math]::Max(-1e9, [math]::Min(1e9, $hd)))
+            $hn = [int][math]::Round([math]::Max(-1e9, [math]::Min(1e9, $hd))); $hread = $true
         } else { Append-Log ((T "Borne de précompensation (precompMaxNs) illisible ({0}) : {1} ns par défaut.") -f "$hraw", "$($script:CalHardNsDefault)") }
     }
     $script:CalHardNs = [int][math]::Max($script:CalHardMinNs, [math]::Min($script:CalHardMaxNs, $hn))
     if ($script:CalHardNs -ne $hn) { Append-Log ((T "Borne de précompensation (precompMaxNs) de {0} ns ramenée à {1} ns : elle va de {2} à {3} ns. Au-delà de 470 ns, la précompensation déplacerait une transition d'un quart de cellule en long track (1,89 us).") -f "$hraw", "$($script:CalHardNs)", "$($script:CalHardMinNs)", "$($script:CalHardMaxNs)") }
     elseif ($script:CalHardNs -ne $script:CalHardNsDefault) { Append-Log ((T "Borne de précompensation réglée dans la configuration (precompMaxNs) : {0} ns, au lieu de {1} ns par défaut.") -f "$($script:CalHardNs)", "$($script:CalHardNsDefault)") }
-    $script:CalHardNsUser = $script:CalHardNs; Set-CalibScale ''   # 12.7 : borne configuree, bareme double densite
+    # 12.11 rc4 (R2) : borne automatique ou valeur choisie (liste « Borne de precompensation » des options avancees).
+    # Configuration d une version anterieure, sans la cle precompMaxAuto : 400 ns = automatique, toute autre valeur =
+    # valeur reglee, comme avant. 400 ns choisi : valeur de 400 ns lue avec precompMaxAuto a faux. Une valeur autre que
+    # 400 ns reste une valeur reglee quoi que dise la cle (fichier modifie a la main, comme avant)
+    $hauto = Get-Cfg $w 'precompMaxAuto' $null
+    $hset = ($script:CalHardNs -ne $script:CalHardNsDefault -or ($hread -and $null -ne $hauto -and $hauto -isnot [array] -and ([string]$hauto).Trim() -eq 'False'))
+    if ($hset -and $script:CalHardNs -eq $script:CalHardNsDefault) { Append-Log ((T "Borne de précompensation choisie : {0} ns dans toutes les familles, long track compris (en automatique : {1} ns en long track).") -f "$($script:CalHardNs)", "$($script:CalHardMaxNs)") }
+    Set-PrecompBound (-not $hset) ([int]$script:CalHardNs)   # 12.7 : borne configuree, bareme double densite ; 12.11 rc4 : Set-PrecompBound (230)
     # 12.8 (point 7) : reglages de la table, sauf ceux de l ecriture lente lus plus bas, a la place qu ils avaient en 12.7
     # (apres les champs --precomp) : lecteur, mode de calibration, duree du prechauffage (lignes de journal d une valeur
     # illisible ou ramenee a 0..30 min), profil precomp (code, sinon ancien texte francais ou anglais), seuil de famille,

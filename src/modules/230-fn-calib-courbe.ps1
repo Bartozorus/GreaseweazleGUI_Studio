@@ -20,13 +20,49 @@ function Set-CalibScale([string]$fam) {
     $script:CalCondPass = [bool]$t.CalCondPass; $script:CalLatin = [bool]$t.CalLatin; $script:CalDentOn = [bool]$t.CalDentOn
     $script:CalVOffOn = [bool]$t.CalVOffOn
     # 12.11 rc3 (R2) : borne par defaut propre a la famille. Long track : CalHardMaxNs (470 ns, un quart de cellule long
-    # track) quand precompMaxNs vaut sa valeur par defaut (CalHardNsDefault, 400 ns, que la configuration ecrit toujours) ;
-    # une autre valeur reglee garde la priorite, comme avant. Standard et haute densite inchanges. Bareme 'long' : remis a
-    # la double densite au repos (filet du minuteur, 600), retabli par Reset-DiskHardNs (270). Une courbe deja calculee
-    # garde la borne de son calcul (MaxNs, Get-CurveMaxNs)
-    $lt = ($fam -eq 'long' -and [int]$script:CalHardNsUser -eq [int]$script:CalHardNsDefault)
+    # track) ; standard et haute densite inchanges. Bareme 'long' : remis a la double densite au repos (filet du minuteur,
+    # 600), retabli par Reset-DiskHardNs (270). Une courbe deja calculee garde la borne de son calcul (MaxNs,
+    # Get-CurveMaxNs). 12.11 rc4 (R2) : borne propre a la famille quand le reglage est automatique (CalHardAuto, pose par
+    # Set-PrecompBound) ; une valeur choisie, 400 ns comprise, vaut dans toutes les familles (la rc3 lisait 400 ns comme
+    # « non regle »)
+    $lt = ($fam -eq 'long' -and [bool]$script:CalHardAuto)
     $script:CalHardNs = if ($hd) { [int][math]::Round([double]$script:CalHardNsUser * $script:CalHdK) } elseif ($lt) { [int]$script:CalHardMaxNs } else { $script:CalHardNsUser }
     $script:CalScaleFam = if ($hd) { 'hd' } elseif ($lt) { 'long' } else { 'dd' }
+}
+
+function Set-PrecompBound([bool]$auto, [int]$ns = 0) {
+    # 12.11 rc4 (R2) : seule entree du reglage de la borne de precompensation : liste « Borne de precompensation » des
+    # options avancees de l onglet Ecriture (Set-PrecompBoundFromUi, 145), Load-Config et Set-Defaults (120). $auto : borne
+    # propre a la famille (Set-CalibScale : CalHardNsDefault, CalHardMaxNs en long track) ; sinon $ns, ramenee a
+    # CalHardMinNs..CalHardMaxNs, la meme en standard et en long track. CalHardNsUser reste la borne de la double densite
+    # standard (CalHardNsDefault en automatique), que lisent le plafond par disquette et le seuil du controle impose (265).
+    # Bareme double densite pose (appel au repos : demarrage, « Reinitialiser », liste des options avancees), puis liste
+    # mise a jour (Update-WBoundUi, 145). Une courbe deja calculee garde la borne de son calcul (MaxNs)
+    $script:CalHardAuto = [bool]$auto
+    $script:CalHardNsUser = if ($auto) { [int]$script:CalHardNsDefault } else { [int][math]::Max([int]$script:CalHardMinNs, [math]::Min([int]$script:CalHardMaxNs, $ns)) }
+    Set-CalibScale ''
+    Update-WBoundUi
+}
+
+function Get-PrecompBoundChoices {
+    # 12.11 rc4 (R2) : valeurs de la liste « Borne de precompensation », dans l ordre de ses elements : 0 (automatique),
+    # puis de CalHardMinNs a CalHardMaxNs par pas de 10 ns ; une borne reglee hors de ce pas (fichier de configuration) y
+    # prend son rang : elle reste affichee et enregistree telle quelle. Valeurs rendues une a une : l appelant les
+    # recueille par @()
+    $l = New-Object 'System.Collections.Generic.List[int]'
+    for ($v = [int]$script:CalHardMinNs; $v -le [int]$script:CalHardMaxNs; $v += 10) { $l.Add($v) }
+    if (-not $script:CalHardAuto -and -not $l.Contains([int]$script:CalHardNsUser)) { $l.Add([int]$script:CalHardNsUser); $l.Sort() }
+    $l.Insert(0, 0)
+    return $l.ToArray()
+}
+
+function Get-PrecompBoundText([int]$ns = -1) {
+    # 12.11 rc4 (R2) : texte d une valeur de Get-PrecompBoundChoices (element de la liste, journal, options avancees
+    # modifiees) : 0, reglage automatique, avec les deux bornes que Set-CalibScale pose alors ; sinon « N ns ». Sans
+    # argument : le reglage en place
+    if ($ns -lt 0) { $ns = if ($script:CalHardAuto) { 0 } else { [int]$script:CalHardNsUser } }
+    if ($ns -eq 0) { return ((T 'Automatique ({0} ns ; {1} ns en long track)') -f "$($script:CalHardNsDefault)", "$($script:CalHardMaxNs)") }
+    return "$ns ns"
 }
 
 function Test-CurveHd($cv) {

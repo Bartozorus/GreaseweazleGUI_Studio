@@ -3087,6 +3087,20 @@ $script:I18n["L'écart à l'attendu compte pour {0} point(s) du score moyen, au 
 $script:I18n["Contrôle d'une écriture pour un lecteur cible avec le facteur par cylindre : la case « Asym. » garde la valeur mesurée ; sa couleur et le score jugent l'écart à l'asymétrie attendue pour le lecteur qui relit."] = 'Check of a write for a target drive with the per-cylinder factor: the "Asym." cell keeps the measured value; its colour and the score judge the deviation from the asymmetry expected for the drive that reads back.'
 $script:I18n['Asym. attendue'] = 'Expected asym.'
 $script:I18n["Écart à l'attendu"] = 'Deviation from expected'
+# R2 : borne de precompensation reglable dans les options avancees de l onglet Ecriture (520 ; Set-PrecompBound et
+# Get-PrecompBoundText, 230 ; Update-WBoundUi, Get-PrecompBoundTip et Set-PrecompBoundFromUi, 145 ; Load-Config, 120) :
+# libelle, element « automatique » de la liste, infobulle, journal
+$script:I18n['Borne de précompensation :'] = 'Precompensation bound:'
+$script:I18n['Automatique ({0} ns ; {1} ns en long track)'] = 'Automatic ({0} ns; {1} ns for long track)'
+$script:I18n["Borne de précompensation : la plus forte valeur que la calibration du lecteur retient pour un cylindre."] = 'Precompensation bound: the highest value the drive calibration keeps for a cylinder.'
+$script:I18n["Automatique : {0} ns pour une image standard (cellule de 2 us), {1} ns pour une image long track (le quart de sa cellule de 1,89 us). Valeur choisie, de {2} à {1} ns : la même pour les deux, {0} ns compris. La haute densité prend la moitié de la borne."] = 'Automatic: {0} ns for a standard image (2 us cell), {1} ns for a long track image (a quarter of its 1.89 us cell). Chosen value, from {2} to {1} ns: the same for both, {0} ns included. High density takes half the bound.'
+$script:I18n["Au quart de la cellule, les intervalles écrits atteignent la limite au-delà de laquelle ils seraient lus pour d'autres : la borne ne dépasse pas {0} ns."] = 'At a quarter of the cell, written intervals reach the limit beyond which they would be read as others: the bound does not exceed {0} ns.'
+$script:I18n["Borne d'au moins {0} ns : la courbe d'une seule disquette peut la dépasser quand son besoin est plus fort, jusqu'au quart de la cellule de la piste écrite ({1} ns au plus) ; borne choisie sous {0} ns : elle n'est jamais dépassée."] = 'Bound of at least {0} ns: the curve of a single disk may exceed it when its need is higher, up to a quarter of the cell of the written track ({1} ns at most); bound chosen below {0} ns: it is never exceeded.'
+$script:I18n["Avec le réglage actuel, la courbe d'une mesure complète de la disquette impose le contrôle de toutes les pistes après l'écriture dès qu'elle dépasse {0} ns."] = 'With the current setting, the curve of a full measurement of the disk enforces the full track check after the write as soon as it exceeds {0} ns.'
+$script:I18n["Une courbe déjà calculée garde la borne de son calcul : la nouvelle borne sert aux calibrations suivantes (le test rapide ramène à la borne en place les valeurs d'une référence calculée avec une borne plus haute)."] = 'An already computed curve keeps the bound of its computation: the new bound applies to the following calibrations (the quick test brings the values of a reference computed with a higher bound back to the bound in place).'
+$script:I18n["Enregistrée dans la configuration (precompMaxNs)."] = 'Saved in the configuration (precompMaxNs).'
+$script:I18n['Borne de précompensation : {0} (avant : {1}).'] = 'Precompensation bound: {0} (before: {1}).'
+$script:I18n["Borne de précompensation choisie : {0} ns dans toutes les familles, long track compris (en automatique : {1} ns en long track)."] = 'Precompensation bound chosen: {0} ns for all families, long track included (automatic setting: {1} ns for long track).'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 try { Add-Type -AssemblyName System.IO.Compression.FileSystem } catch { }
@@ -7373,7 +7387,7 @@ function Test-ContentLevelSettings($cfg) {
 
 # --- Configuration -------------------------------------------------------------
 function Set-Defaults {
-    $script:CalHardNs = $script:CalHardNsDefault; $script:CalHardNsUser = $script:CalHardNs; Set-CalibScale ''   # 12.7 : bareme double densite
+    Set-PrecompBound $true   # 12.7 : bareme double densite ; 12.11 rc4 (R2) : borne de precompensation automatique, liste des options avancees a jour (230)
     $script:HomeCalFmt = 'amiga.amigados'
     $txtDev.Text = ''
     $chkTime.Checked = $false
@@ -7744,6 +7758,7 @@ function Save-Config {
             precompStd = $(if ($oc -and $oc.Std -and -not $script:PrecompCurves['std']) { $oc.Std } else { $script:PrecompStd })
             precompLong = $(if ($oc -and $oc.Long -and -not $script:PrecompCurves['long']) { $oc.Long } else { $script:PrecompLong })
             precompMaxNs = [int]$script:CalHardNsUser   # borne des valeurs calibrees (300 a 470 ns, 400 par defaut ; 12.7 : celle de la double densite, la haute densite en prend la moitie)
+            precompMaxAuto = [bool]$script:CalHardAuto  # 12.11 rc4 (R2) : borne automatique (precompMaxNs vaut alors 400) ; faux : valeur choisie, 400 ns comprise ; une version anterieure ignore cette cle
             calibVersion = $script:Version     # version de l application qui a enregistre (information)
             calibCalc = $script:CalibCalc      # calcul de calibration courant ; chaque courbe porte le sien (calc)
             calibAlgo = $script:CalibAlgo
@@ -7988,16 +8003,23 @@ function Load-Config {
     if ($lostProf) { Append-Log (T 'Profil de famille calibré sans courbe (version antérieure à 12.1) : profil d''origine rétabli.') }
     # Borne des valeurs calibrees : reglage de la configuration, ramene a 300..470 ns ; valeur illisible : defaut, signale
     $hraw = Get-Cfg $w 'precompMaxNs' $null
-    $hn = $script:CalHardNsDefault; $hd = 0.0
+    $hn = $script:CalHardNsDefault; $hd = 0.0; $hread = $false
     if ($null -ne $hraw) {
         if ($hraw -isnot [bool] -and $hraw -isnot [array] -and [double]::TryParse(([string]$hraw).Trim(), [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$hd) -and -not [double]::IsNaN($hd) -and -not [double]::IsInfinity($hd)) {
-            $hn = [int][math]::Round([math]::Max(-1e9, [math]::Min(1e9, $hd)))
+            $hn = [int][math]::Round([math]::Max(-1e9, [math]::Min(1e9, $hd))); $hread = $true
         } else { Append-Log ((T "Borne de précompensation (precompMaxNs) illisible ({0}) : {1} ns par défaut.") -f "$hraw", "$($script:CalHardNsDefault)") }
     }
     $script:CalHardNs = [int][math]::Max($script:CalHardMinNs, [math]::Min($script:CalHardMaxNs, $hn))
     if ($script:CalHardNs -ne $hn) { Append-Log ((T "Borne de précompensation (precompMaxNs) de {0} ns ramenée à {1} ns : elle va de {2} à {3} ns. Au-delà de 470 ns, la précompensation déplacerait une transition d'un quart de cellule en long track (1,89 us).") -f "$hraw", "$($script:CalHardNs)", "$($script:CalHardMinNs)", "$($script:CalHardMaxNs)") }
     elseif ($script:CalHardNs -ne $script:CalHardNsDefault) { Append-Log ((T "Borne de précompensation réglée dans la configuration (precompMaxNs) : {0} ns, au lieu de {1} ns par défaut.") -f "$($script:CalHardNs)", "$($script:CalHardNsDefault)") }
-    $script:CalHardNsUser = $script:CalHardNs; Set-CalibScale ''   # 12.7 : borne configuree, bareme double densite
+    # 12.11 rc4 (R2) : borne automatique ou valeur choisie (liste « Borne de precompensation » des options avancees).
+    # Configuration d une version anterieure, sans la cle precompMaxAuto : 400 ns = automatique, toute autre valeur =
+    # valeur reglee, comme avant. 400 ns choisi : valeur de 400 ns lue avec precompMaxAuto a faux. Une valeur autre que
+    # 400 ns reste une valeur reglee quoi que dise la cle (fichier modifie a la main, comme avant)
+    $hauto = Get-Cfg $w 'precompMaxAuto' $null
+    $hset = ($script:CalHardNs -ne $script:CalHardNsDefault -or ($hread -and $null -ne $hauto -and $hauto -isnot [array] -and ([string]$hauto).Trim() -eq 'False'))
+    if ($hset -and $script:CalHardNs -eq $script:CalHardNsDefault) { Append-Log ((T "Borne de précompensation choisie : {0} ns dans toutes les familles, long track compris (en automatique : {1} ns en long track).") -f "$($script:CalHardNs)", "$($script:CalHardMaxNs)") }
+    Set-PrecompBound (-not $hset) ([int]$script:CalHardNs)   # 12.7 : borne configuree, bareme double densite ; 12.11 rc4 : Set-PrecompBound (230)
     # 12.8 (point 7) : reglages de la table, sauf ceux de l ecriture lente lus plus bas, a la place qu ils avaient en 12.7
     # (apres les champs --precomp) : lecteur, mode de calibration, duree du prechauffage (lignes de journal d une valeur
     # illisible ou ramenee a 0..30 min), profil precomp (code, sinon ancien texte francais ou anglais), seuil de famille,
@@ -12536,6 +12558,8 @@ function Get-WriteAdvDefs {
         @{ Ctl = $chkWWarm; Def = [bool]$script:SettingDefs['warmSlowWrite'].Def; Label = '' }
         @{ Ctl = $chkWCalWarm; Def = [bool]$script:SettingDefs['warmFullCalib'].Def; Label = '' }
         @{ Ctl = $numWWarmMin; Def = [double]$script:SettingDefs['warmMinutes'].Def; Label = (T 'Durée du préchauffage :') }
+        # 12.11 rc4 (R2) : borne de precompensation, element 0 : automatique (Set-Defaults : Set-PrecompBound $true, 230)
+        @{ Ctl = $cmbWBound; Def = 0; Label = (T 'Borne de précompensation :') }
     )
 }
 
@@ -12559,7 +12583,9 @@ function Get-WriteAdvChanges {
             $v = if ([object]::ReferenceEquals($c, $numWWarmMin)) { Get-WarmMinutesText ([double]$c.Value) } else { [string]$c.Value }
             $names += ('{0} {1}' -f [string]$d.Label, $v)
         } elseif ($c -is [System.Windows.Forms.ComboBox]) {
-            if ([int]$c.SelectedIndex -eq [int]$d.Def) { continue }
+            # 12.11 rc4 (R2) : liste pas encore remplie (« Borne de precompensation », creee vide par 520 et remplie par
+            # Set-Defaults) : rien a compter
+            if ($c.Items.Count -eq 0 -or [int]$c.SelectedIndex -eq [int]$d.Def) { continue }
             $names += ('{0} {1}' -f [string]$d.Label, [string]$c.Text)
         } else {
             $v = ([string]$c.Text).Trim()
@@ -12869,6 +12895,66 @@ function Update-WVerifyUi($vp = $null) {
     if ([string]$tip.GetToolTip($numWRetries) -cne $t) { $tip.SetToolTip($numWRetries, $t) }
 }
 
+function Get-PrecompBoundTip {
+    # 12.11 rc4 (R2) : infobulle de la liste « Borne de precompensation », tiree des fonctions qui decident : bornes du
+    # reglage automatique et plage d une valeur choisie (constantes que lisent Set-CalibScale et Set-PrecompBound, 230),
+    # plafond d une seule disquette (Get-DiskHardNs, Get-LevelAdaptHard, 265 : jamais sous CalHardNsDefault), seuil du
+    # controle impose a la courbe d une mesure complete de la disquette, avec le reglage en place (Get-DiskOverNs, 265)
+    $d = "$($script:CalHardNsDefault)"; $mx = "$($script:CalHardMaxNs)"
+    return ((T "Borne de précompensation : la plus forte valeur que la calibration du lecteur retient pour un cylindre.") + "`n" +
+            ((T "Automatique : {0} ns pour une image standard (cellule de 2 us), {1} ns pour une image long track (le quart de sa cellule de 1,89 us). Valeur choisie, de {2} à {1} ns : la même pour les deux, {0} ns compris. La haute densité prend la moitié de la borne.") -f $d, $mx, "$($script:CalHardMinNs)") + "`n" +
+            ((T "Au quart de la cellule, les intervalles écrits atteignent la limite au-delà de laquelle ils seraient lus pour d'autres : la borne ne dépasse pas {0} ns.") -f $mx) + "`n" +
+            ((T "Borne d'au moins {0} ns : la courbe d'une seule disquette peut la dépasser quand son besoin est plus fort, jusqu'au quart de la cellule de la piste écrite ({1} ns au plus) ; borne choisie sous {0} ns : elle n'est jamais dépassée.") -f $d, "$($script:CalDiskCapMaxNs)") + "`n" +
+            ((T "Avec le réglage actuel, la courbe d'une mesure complète de la disquette impose le contrôle de toutes les pistes après l'écriture dès qu'elle dépasse {0} ns.") -f "$(Get-DiskOverNs)") + "`n" +
+            (T "Une courbe déjà calculée garde la borne de son calcul : la nouvelle borne sert aux calibrations suivantes (le test rapide ramène à la borne en place les valeurs d'une référence calculée avec une borne plus haute).") + "`n" +
+            (T "Enregistrée dans la configuration (precompMaxNs)."))
+}
+
+function Update-WBoundUi {
+    # 12.11 rc4 (R2) : liste « Borne de precompensation » des options avancees, d apres le reglage (Set-PrecompBound, 230,
+    # qui appelle cette fonction) : elements de Get-PrecompBoundChoices (leurs valeurs gardees dans Tag, leurs textes de
+    # Get-PrecompBoundText), element du reglage choisi, sous la garde des liaisons (Set-PrecompBoundFromUi ne s execute
+    # pas) ; infobulle (Get-PrecompBoundTip). Elements refaits seulement quand le reglage a montrer n y figure pas : liste
+    # vide (520 la cree avant les constantes de 560 ; Set-Defaults la remplit au demarrage), ou borne reglee hors du pas
+    # de la liste (fichier de configuration) ; jamais pendant un choix de l utilisateur, dont la valeur vient de la liste
+    if (-not $cmbWBound) { return }
+    $show = if ($script:CalHardAuto) { 0 } else { [int]$script:CalHardNsUser }
+    $cur = if ($null -ne $cmbWBound.Tag) { [int[]]@($cmbWBound.Tag) } else { [int[]]@() }
+    $sv = $script:SettingSync; $script:SettingSync = $true
+    try {
+        if ($cmbWBound.Items.Count -eq 0 -or $cmbWBound.Items.Count -ne $cur.Count -or [array]::IndexOf($cur, $show) -lt 0) {
+            $cur = [int[]]@(Get-PrecompBoundChoices)
+            $cmbWBound.BeginUpdate()
+            try {
+                $cmbWBound.Items.Clear()
+                foreach ($v in $cur) { [void]$cmbWBound.Items.Add((Get-PrecompBoundText $v)) }
+                $cmbWBound.Tag = $cur
+            } finally { $cmbWBound.EndUpdate() }
+        }
+        $sel = [array]::IndexOf($cur, $show)
+        if ($cmbWBound.SelectedIndex -ne $sel) { $cmbWBound.SelectedIndex = $sel }
+    } finally { $script:SettingSync = $sv }
+    $t = Get-PrecompBoundTip
+    if ([string]$tip.GetToolTip($cmbWBound) -cne $t) { $tip.SetToolTip($cmbWBound, $t) }
+}
+
+function Set-PrecompBoundFromUi {
+    # 12.11 rc4 (R2) : gestionnaire SelectedIndexChanged de la liste « Borne de precompensation » (520) : reglage pose par
+    # Set-PrecompBound (230), ligne de journal quand il change. Rien sous la garde des liaisons (Update-WBoundUi).
+    # Operation en cours ou calibration B en attente (Get-AppBusy, CalRedo) : la borne en cours d emploi ne change pas,
+    # la liste revient sur le reglage en place
+    if ($script:SettingSync -or -not $cmbWBound) { return }
+    $i = [int]$cmbWBound.SelectedIndex
+    $vals = @($cmbWBound.Tag)
+    if ($i -lt 0 -or $i -ge $vals.Count) { return }
+    if ((Get-AppBusy) -or $script:CalRedo) { Update-WBoundUi; return }
+    $old = Get-PrecompBoundText
+    $ns = [int]$vals[$i]
+    Set-PrecompBound ($ns -le 0) $ns
+    $new = Get-PrecompBoundText
+    if ($new -cne $old) { Append-Log ((T 'Borne de précompensation : {0} (avant : {1}).') -f $new, $old) }
+}
+
 function Switch-WAdvView {
     # 12.11 (L9) : clic du lien des options avancees : inverse la case « Mode expert » du bandeau (reglage ui.expert de la
     # configuration, qui affiche aussi les onglets techniques), sauf quand elle est inactive (restauration en cours, 300)
@@ -12915,6 +13001,7 @@ function Set-WriteTabLayout {
     $chkWTG43.Left = $chkWHard.Left + $chkWHard.PreferredSize.Width + 8
     $numWWarmMin.Left = $lblWWarmMin.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblWWarmMin.Text, $f).Width + 8
     $lblWWarmMinU.Left = $numWWarmMin.Right + 6
+    if ($cmbWBound -and $lblWBound) { $cmbWBound.Left = $lblWBound.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblWBound.Text, $f).Width + 8 }   # 12.11 rc4 (R2)
     $grpWAdv.Visible = [bool]$chkExpert.Checked
     Update-WAdvLink
     $tabW.AutoScrollPosition = New-Object System.Drawing.Point(0, 0)
@@ -18765,13 +18852,49 @@ function Set-CalibScale([string]$fam) {
     $script:CalCondPass = [bool]$t.CalCondPass; $script:CalLatin = [bool]$t.CalLatin; $script:CalDentOn = [bool]$t.CalDentOn
     $script:CalVOffOn = [bool]$t.CalVOffOn
     # 12.11 rc3 (R2) : borne par defaut propre a la famille. Long track : CalHardMaxNs (470 ns, un quart de cellule long
-    # track) quand precompMaxNs vaut sa valeur par defaut (CalHardNsDefault, 400 ns, que la configuration ecrit toujours) ;
-    # une autre valeur reglee garde la priorite, comme avant. Standard et haute densite inchanges. Bareme 'long' : remis a
-    # la double densite au repos (filet du minuteur, 600), retabli par Reset-DiskHardNs (270). Une courbe deja calculee
-    # garde la borne de son calcul (MaxNs, Get-CurveMaxNs)
-    $lt = ($fam -eq 'long' -and [int]$script:CalHardNsUser -eq [int]$script:CalHardNsDefault)
+    # track) ; standard et haute densite inchanges. Bareme 'long' : remis a la double densite au repos (filet du minuteur,
+    # 600), retabli par Reset-DiskHardNs (270). Une courbe deja calculee garde la borne de son calcul (MaxNs,
+    # Get-CurveMaxNs). 12.11 rc4 (R2) : borne propre a la famille quand le reglage est automatique (CalHardAuto, pose par
+    # Set-PrecompBound) ; une valeur choisie, 400 ns comprise, vaut dans toutes les familles (la rc3 lisait 400 ns comme
+    # « non regle »)
+    $lt = ($fam -eq 'long' -and [bool]$script:CalHardAuto)
     $script:CalHardNs = if ($hd) { [int][math]::Round([double]$script:CalHardNsUser * $script:CalHdK) } elseif ($lt) { [int]$script:CalHardMaxNs } else { $script:CalHardNsUser }
     $script:CalScaleFam = if ($hd) { 'hd' } elseif ($lt) { 'long' } else { 'dd' }
+}
+
+function Set-PrecompBound([bool]$auto, [int]$ns = 0) {
+    # 12.11 rc4 (R2) : seule entree du reglage de la borne de precompensation : liste « Borne de precompensation » des
+    # options avancees de l onglet Ecriture (Set-PrecompBoundFromUi, 145), Load-Config et Set-Defaults (120). $auto : borne
+    # propre a la famille (Set-CalibScale : CalHardNsDefault, CalHardMaxNs en long track) ; sinon $ns, ramenee a
+    # CalHardMinNs..CalHardMaxNs, la meme en standard et en long track. CalHardNsUser reste la borne de la double densite
+    # standard (CalHardNsDefault en automatique), que lisent le plafond par disquette et le seuil du controle impose (265).
+    # Bareme double densite pose (appel au repos : demarrage, « Reinitialiser », liste des options avancees), puis liste
+    # mise a jour (Update-WBoundUi, 145). Une courbe deja calculee garde la borne de son calcul (MaxNs)
+    $script:CalHardAuto = [bool]$auto
+    $script:CalHardNsUser = if ($auto) { [int]$script:CalHardNsDefault } else { [int][math]::Max([int]$script:CalHardMinNs, [math]::Min([int]$script:CalHardMaxNs, $ns)) }
+    Set-CalibScale ''
+    Update-WBoundUi
+}
+
+function Get-PrecompBoundChoices {
+    # 12.11 rc4 (R2) : valeurs de la liste « Borne de precompensation », dans l ordre de ses elements : 0 (automatique),
+    # puis de CalHardMinNs a CalHardMaxNs par pas de 10 ns ; une borne reglee hors de ce pas (fichier de configuration) y
+    # prend son rang : elle reste affichee et enregistree telle quelle. Valeurs rendues une a une : l appelant les
+    # recueille par @()
+    $l = New-Object 'System.Collections.Generic.List[int]'
+    for ($v = [int]$script:CalHardMinNs; $v -le [int]$script:CalHardMaxNs; $v += 10) { $l.Add($v) }
+    if (-not $script:CalHardAuto -and -not $l.Contains([int]$script:CalHardNsUser)) { $l.Add([int]$script:CalHardNsUser); $l.Sort() }
+    $l.Insert(0, 0)
+    return $l.ToArray()
+}
+
+function Get-PrecompBoundText([int]$ns = -1) {
+    # 12.11 rc4 (R2) : texte d une valeur de Get-PrecompBoundChoices (element de la liste, journal, options avancees
+    # modifiees) : 0, reglage automatique, avec les deux bornes que Set-CalibScale pose alors ; sinon « N ns ». Sans
+    # argument : le reglage en place
+    if ($ns -lt 0) { $ns = if ($script:CalHardAuto) { 0 } else { [int]$script:CalHardNsUser } }
+    if ($ns -eq 0) { return ((T 'Automatique ({0} ns ; {1} ns en long track)') -f "$($script:CalHardNsDefault)", "$($script:CalHardMaxNs)") }
+    return "$ns ns"
 }
 
 function Test-CurveHd($cv) {
@@ -32241,6 +32364,16 @@ $numWWarmMin.Name = 'numWWarmMin'; $numWWarmMin.Minimum = 0; $numWWarmMin.Maximu
 $numWWarmMin.Width = 60; $numWWarmMin.Location = '187,214'; $numWWarmMin.Value = 5
 $lblWWarmMinU = New-Label (T 'min au plus (0 : aucun préchauffage)') '253,217'
 $tip.SetToolTip($numWWarmMin, (T "Durée maximale du préchauffage du lecteur avant une écriture lente ou une calibration complète, en minutes : 5 par défaut, de 0 à 30, 0 : aucun préchauffage. Le préchauffage est réduit, ou sauté, si le lecteur vient de servir.`nEnregistrée dans la configuration (calWarmupMinutes)."))
+# 12.11 rc4 (R2) : borne de precompensation (reglage write.precompMaxNs, jusqu ici dans la configuration seulement), sous
+# la duree du prechauffage, dans le cadre des options avancees : liste « Automatique (400 ns ; 470 ns en long track) »,
+# puis les valeurs de 300 a 470 ns. Liste creee vide : ses elements et son infobulle viennent des constantes de 560, lues
+# apres ce module ; Set-Defaults les pose au demarrage (Set-PrecompBound, 230 ; Update-WBoundUi, 145). Choix d un
+# element : Set-PrecompBoundFromUi (145). Liste a la suite de son libelle (Set-WriteTabLayout, 145)
+$lblWBound = New-Label (T 'Borne de précompensation :') '12,245'
+$lblWBound.Name = 'lblWBound'
+$cmbWBound = New-Object System.Windows.Forms.ComboBox
+$cmbWBound.Name = 'cmbWBound'; $cmbWBound.Location = '186,242'; $cmbWBound.Width = 300; $cmbWBound.DropDownStyle = 'DropDownList'
+$cmbWBound.Add_SelectedIndexChanged({ Set-PrecompBoundFromUi })
 # 12.9 (S1) : ecriture sans surveillance, case a la suite du champ de la duree du prechauffage (position apres l ajout a
 # l onglet). Etat $script:CalibUnattended, pour la session : ni reglage ni configuration, decochee au demarrage et a la fin
 # de la sequence d ecriture (Update-CalibUnattended). Seul effet : avertissement de calibration de la disquette a ecrire
@@ -32428,8 +32561,8 @@ $grpWOpt.Controls.AddRange(@($lblWSource, $chkWPreErase, $chkWSlow, $chkWPostChe
 # repliee garde sa valeur et son effet, le lien la compte et la ligne a droite du bouton la nomme (Get-WriteAdvChanges).
 # Rangees : effacement des pistes vides, verification, essais, passes de reecriture ; profil et --precomp ; pistes,
 # densel, fake index, face B ; diskdefs, materiel ; prechauffages et leur duree ; retour a une calibration precedente et
-# « Effacer les calibrations »
-$grpWAdv = New-Group (T 'Options avancées') '10,367' '762,254'
+# « Effacer les calibrations ». 12.11 rc4 (R2) : derniere rangee, borne de precompensation (cadre de 280 px au lieu de 254)
+$grpWAdv = New-Group (T 'Options avancées') '10,367' '762,280'
 
 $txtWTracks = New-Object System.Windows.Forms.TextBox
 $txtWTracks.Location = '62,106'; $txtWTracks.Width = 150
@@ -32469,6 +32602,7 @@ $grpWAdv.Controls.AddRange(@($chkWEraseEmpty, $chkWNoVerify, $lblWRetries, $numW
     (New-Label (T 'Pistes :') '12,109'), $txtWTracks, (New-Label (T 'Densel :') '222,109'), $cmbWDensel, (New-Label (T 'Fake index :') '348,109'), $txtWFakeIdx, $chkWReverse,
     (New-Label (T 'Diskdefs :') '12,137'), $txtWDiskdefs, $btnWDiskdefs, $chkWHard, $chkWTG43,
     $chkWWarm, $chkWCalWarm, $lblWWarmMin, $numWWarmMin, $lblWWarmMinU, $btnWCalBack, $btnWCalReset))
+$grpWAdv.Controls.AddRange(@($lblWBound, $cmbWBound))    # 12.11 rc4 (R2) : derniere rangee, borne de precompensation
 
 # --- Action
 # 12.11 (L9) : bouton sous le cadre 2, a la meme place dans les deux vues
@@ -33923,6 +34057,10 @@ $script:CalSigMax        = 50.0    # incertitude maximale d un zero (ns)
 $script:CalInterpDefault = 100     # cible d une passe de mesure sans aucune estimation (ns)
 $script:CalHdK           = 0.5     # rapport des cellules haute et double densite (1 us / 2 us) (H)
 $script:CalHardNsUser    = $script:CalHardNs   # borne configuree (precompMaxNs), celle de la double densite
+# 12.11 rc4 (R2) : reglage automatique de la borne (liste « Borne de precompensation » des options avancees de l onglet
+# Ecriture, Set-PrecompBound, 230) : borne propre a la famille (CalHardNsDefault ; CalHardMaxNs en long track,
+# Set-CalibScale) ; faux : CalHardNsUser choisie, la meme dans toutes les familles, 400 ns comprise (write.precompMaxAuto)
+$script:CalHardAuto      = $true
 $script:CalScaleDd = @{ CalCoarse = $script:CalCoarse; CalMaxNs = $script:CalMaxNs; CalBracketMargin = $script:CalBracketMargin
     CalBracketStep = $script:CalBracketStep; CalTrendSig = $script:CalTrendSig; CalTrendRefSig = $script:CalTrendRefSig
     CalContraMaxNs = $script:CalContraMaxNs; CalDevNs = $script:CalDevNs; CalDenseStep = $script:CalDenseStep

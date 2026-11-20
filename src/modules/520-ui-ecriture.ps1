@@ -137,6 +137,16 @@ $numWWarmMin.Name = 'numWWarmMin'; $numWWarmMin.Minimum = 0; $numWWarmMin.Maximu
 $numWWarmMin.Width = 60; $numWWarmMin.Location = '187,214'; $numWWarmMin.Value = 5
 $lblWWarmMinU = New-Label (T 'min au plus (0 : aucun préchauffage)') '253,217'
 $tip.SetToolTip($numWWarmMin, (T "Durée maximale du préchauffage du lecteur avant une écriture lente ou une calibration complète, en minutes : 5 par défaut, de 0 à 30, 0 : aucun préchauffage. Le préchauffage est réduit, ou sauté, si le lecteur vient de servir.`nEnregistrée dans la configuration (calWarmupMinutes)."))
+# 12.11 rc4 (R2) : borne de precompensation (reglage write.precompMaxNs, jusqu ici dans la configuration seulement), sous
+# la duree du prechauffage, dans le cadre des options avancees : liste « Automatique (400 ns ; 470 ns en long track) »,
+# puis les valeurs de 300 a 470 ns. Liste creee vide : ses elements et son infobulle viennent des constantes de 560, lues
+# apres ce module ; Set-Defaults les pose au demarrage (Set-PrecompBound, 230 ; Update-WBoundUi, 145). Choix d un
+# element : Set-PrecompBoundFromUi (145). Liste a la suite de son libelle (Set-WriteTabLayout, 145)
+$lblWBound = New-Label (T 'Borne de précompensation :') '12,245'
+$lblWBound.Name = 'lblWBound'
+$cmbWBound = New-Object System.Windows.Forms.ComboBox
+$cmbWBound.Name = 'cmbWBound'; $cmbWBound.Location = '186,242'; $cmbWBound.Width = 300; $cmbWBound.DropDownStyle = 'DropDownList'
+$cmbWBound.Add_SelectedIndexChanged({ Set-PrecompBoundFromUi })
 # 12.9 (S1) : ecriture sans surveillance, case a la suite du champ de la duree du prechauffage (position apres l ajout a
 # l onglet). Etat $script:CalibUnattended, pour la session : ni reglage ni configuration, decochee au demarrage et a la fin
 # de la sequence d ecriture (Update-CalibUnattended). Seul effet : avertissement de calibration de la disquette a ecrire
@@ -324,8 +334,8 @@ $grpWOpt.Controls.AddRange(@($lblWSource, $chkWPreErase, $chkWSlow, $chkWPostChe
 # repliee garde sa valeur et son effet, le lien la compte et la ligne a droite du bouton la nomme (Get-WriteAdvChanges).
 # Rangees : effacement des pistes vides, verification, essais, passes de reecriture ; profil et --precomp ; pistes,
 # densel, fake index, face B ; diskdefs, materiel ; prechauffages et leur duree ; retour a une calibration precedente et
-# « Effacer les calibrations »
-$grpWAdv = New-Group (T 'Options avancées') '10,367' '762,254'
+# « Effacer les calibrations ». 12.11 rc4 (R2) : derniere rangee, borne de precompensation (cadre de 280 px au lieu de 254)
+$grpWAdv = New-Group (T 'Options avancées') '10,367' '762,280'
 
 $txtWTracks = New-Object System.Windows.Forms.TextBox
 $txtWTracks.Location = '62,106'; $txtWTracks.Width = 150
@@ -365,6 +375,7 @@ $grpWAdv.Controls.AddRange(@($chkWEraseEmpty, $chkWNoVerify, $lblWRetries, $numW
     (New-Label (T 'Pistes :') '12,109'), $txtWTracks, (New-Label (T 'Densel :') '222,109'), $cmbWDensel, (New-Label (T 'Fake index :') '348,109'), $txtWFakeIdx, $chkWReverse,
     (New-Label (T 'Diskdefs :') '12,137'), $txtWDiskdefs, $btnWDiskdefs, $chkWHard, $chkWTG43,
     $chkWWarm, $chkWCalWarm, $lblWWarmMin, $numWWarmMin, $lblWWarmMinU, $btnWCalBack, $btnWCalReset))
+$grpWAdv.Controls.AddRange(@($lblWBound, $cmbWBound))    # 12.11 rc4 (R2) : derniere rangee, borne de precompensation
 
 # --- Action
 # 12.11 (L9) : bouton sous le cadre 2, a la meme place dans les deux vues

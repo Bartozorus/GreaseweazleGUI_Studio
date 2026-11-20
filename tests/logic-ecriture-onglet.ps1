@@ -43,7 +43,7 @@ $Wt = Get-TestRoot $Wt
 #  A  options avancees : A1 valeurs par defaut, aucune comptee ; A2 une option changee a la fois, nommee ; A3 table egale a
 #     Set-Defaults (arbre syntaxique) et a $script:SettingDefs, toutes les options du cadre comptees ; A4 toutes changees,
 #     infobulle de la ligne ; A5 lien : « Mode expert » inverse, inactif avec la case.
-#  E  equivalence : E1 valeurs des 36 controles au demarrage, apres des changements de vue, egales en vue simple et en mode
+#  E  equivalence : E1 valeurs des 37 controles au demarrage, apres des changements de vue, egales en vue simple et en mode
 #     expert (avec -Before, egales a celles de d8d80d6, textes et infobulles compris) ; E2 commandes gw, file d ecriture,
 #     controle, prechauffage et mesure demandes par les vraies Start-WriteTabWrite et Start-ImageWrite pour 18
 #     configurations de l onglet (options avancees comprises), identiques en vue simple et en mode expert, et a celles de
@@ -292,14 +292,15 @@ Chk 'I4' ($bad9.Count -eq 0) "$($want9.Count) textes du lot L9 (titres des cadre
 $tAsgA = [System.Management.Automation.Language.AssignmentStatementAst]
 $tFnA = [System.Management.Automation.Language.FunctionDefinitionAst]
 $utf8b = New-Object System.Text.UTF8Encoding($true)
-# Les 36 variables de controle de l onglet : les 35 commandes de la 12.10 (15 en vue simple), puis btnWCalBack (L7) ;
+# Les 37 variables de controle de l onglet : les 35 commandes de la 12.10 (15 en vue simple), btnWCalBack (L7), puis
+# cmbWBound, liste « Borne de precompensation » (12.11 rc4, R2 ; dernier de la liste : les 36 premiers gardent leur rang) ;
 # controles nommes sans commande ; options avancees comptees par le lien (Get-WriteAdvDefs) ; contenu du cadre avance
 $eoCtl = @('txtWFile', 'btnWFile', 'cmbWFmt', 'chkWPreErase', 'chkWSlow', 'chkWPostCheck', 'chkWUnattended', 'chkWLevel', 'cmbWLevelMode', 'cmbWTarget', 'cmbWCalMode', 'btnWCalib', 'btnWCross', 'btnWCurve', 'btnWrite',
            'chkWEraseEmpty', 'chkWNoVerify', 'numWRetries', 'numWRepair', 'cmbWProfile', 'chkWPrecomp', 'txtWPrecomp', 'txtWPrecomp1', 'txtWTracks', 'cmbWDensel', 'txtWFakeIdx', 'chkWReverse', 'txtWDiskdefs', 'btnWDiskdefs',
-           'chkWHard', 'chkWTG43', 'chkWWarm', 'chkWCalWarm', 'numWWarmMin', 'btnWCalReset', 'btnWCalBack')
+           'chkWHard', 'chkWTG43', 'chkWWarm', 'chkWCalWarm', 'numWWarmMin', 'btnWCalReset', 'btnWCalBack', 'cmbWBound')
 $eoNamed = @('lblWProfileInfo', 'lblWCal', 'pbWCal', 'lblWPrecomp1', 'lblWRepair', 'lblWLevelMode', 'lblWTarget', 'lblWWarmMin', 'lblWWarmMinU')
-$eoAdv = @('chkWEraseEmpty', 'chkWNoVerify', 'numWRetries', 'numWRepair', 'cmbWProfile', 'chkWPrecomp', 'txtWTracks', 'cmbWDensel', 'txtWFakeIdx', 'chkWReverse', 'txtWDiskdefs', 'chkWHard', 'chkWTG43', 'chkWWarm', 'chkWCalWarm', 'numWWarmMin')
-$eoAdvBox = @($eoAdv + @('txtWPrecomp', 'txtWPrecomp1', 'lblWPrecomp1', 'lblWRepair', 'lblWRetries', 'btnWDiskdefs', 'lblWWarmMin', 'lblWWarmMinU', 'btnWCalBack', 'btnWCalReset', 'grpWAdv'))
+$eoAdv = @('chkWEraseEmpty', 'chkWNoVerify', 'numWRetries', 'numWRepair', 'cmbWProfile', 'chkWPrecomp', 'txtWTracks', 'cmbWDensel', 'txtWFakeIdx', 'chkWReverse', 'txtWDiskdefs', 'chkWHard', 'chkWTG43', 'chkWWarm', 'chkWCalWarm', 'numWWarmMin', 'cmbWBound')
+$eoAdvBox = @($eoAdv + @('txtWPrecomp', 'txtWPrecomp1', 'lblWPrecomp1', 'lblWRepair', 'lblWRetries', 'btnWDiskdefs', 'lblWWarmMin', 'lblWWarmMinU', 'btnWCalBack', 'btnWCalReset', 'lblWBound', 'grpWAdv'))
 # Empreintes relevees sur d8d80d6, la source d avant le lot L9 (sortie du test lance avec -Before <export de d8d80d6>) :
 # S2, debut du SHA-256 de chaque instruction gardee de 520 ; E2, SHA-256 des commandes de chaque configuration.
 # Lot L12a (adapte a dessein) : deux infobulles changees, qui disent ou trouver la case et la duree du prechauffage (options
@@ -385,7 +386,7 @@ $p520 = Get-EoMod $Wt '520'
 $a520 = Get-Ast $p520
 $top520 = @($a520.EndBlock.Statements)
 $s1Bad = @(); $s1Types = @{ txt = 'TextBox'; btn = 'Button'; cmb = 'ComboBox'; chk = 'CheckBox'; num = 'NumericUpDown'; pb = 'ProgressBar' }
-foreach ($v in @($eoCtl + $eoNamed + @('lblWSource', 'lnkWAdv', 'lblWPlan', 'lblWRetries', 'grpWImage', 'grpWOpt', 'grpWAdv'))) {
+foreach ($v in @($eoCtl + $eoNamed + @('lblWSource', 'lnkWAdv', 'lblWPlan', 'lblWRetries', 'lblWBound', 'grpWImage', 'grpWOpt', 'grpWAdv'))) {
     $as = @($top520 | Where-Object { $_ -is $tAsgA -and $_.Left.Extent.Text -eq "`$$v" })
     if ($as.Count -ne 1) { $s1Bad += "$v : $($as.Count) creation(s)"; continue }
     $r = $as[0].Right.Extent.Text
@@ -393,7 +394,7 @@ foreach ($v in @($eoCtl + $eoNamed + @('lblWSource', 'lnkWAdv', 'lblWPlan', 'lbl
     if ($s1Types.ContainsKey($px) -and $r -cne "New-Object System.Windows.Forms.$($s1Types[$px])") { $s1Bad += "$v : $r" }
     if ($px -eq 'lbl' -and $r -notmatch '^(New-Label |New-Object System\.Windows\.Forms\.Label$)') { $s1Bad += "$v : $r" }
 }
-Chk 'S1' ($s1Bad.Count -eq 0 -and $eoCtl.Count -eq 36) "les $($eoCtl.Count) variables de controle (35 commandes de la 12.10 et btnWCalBack), $($eoNamed.Count) controles nommes de la 12.10, les 3 cadres et les 4 controles nommes du lot (lblWSource, lnkWAdv, lblWPlan, lblWRetries) crees une fois chacun, au niveau du script de 520 ; ecarts : $(Get-List $s1Bad)"
+Chk 'S1' ($s1Bad.Count -eq 0 -and $eoCtl.Count -eq 37) "les $($eoCtl.Count) variables de controle (35 commandes de la 12.10, btnWCalBack et cmbWBound), $($eoNamed.Count) controles nommes de la 12.10, les 3 cadres et les 5 controles nommes depuis (lblWSource, lnkWAdv, lblWPlan, lblWRetries, lblWBound) crees une fois chacun, au niveau du script de 520 ; ecarts : $(Get-List $s1Bad)"
 # S2 : chaque instruction gardee de d8d80d6 est presente, texte identique (empreintes ci-dessus) ; avec -Before, liste
 # complete comparee instruction par instruction
 $keepNow = Get-EoKeep $p520
@@ -480,9 +481,10 @@ function New-EoGen([string]$root, [string]$tag) {
     Write-EoGen $g.U540 @((Get-Ast (Get-EoMod $root '540')).EndBlock.Statements | Where-Object { $_.Extent.Text -match '^(Set-Btn\s+|Set-Cue\s+|\$tip\.SetToolTip\()\$(\w+)\b' -and $eoCtl -contains $Matches[2] } | ForEach-Object { $_.Extent.Text })
     $g.Ico = Join-Path $here "gen-$tag-540-icones.ps1"
     Write-EoGen $g.Ico @((Get-Ast (Get-EoMod $root '540')).EndBlock.Statements | Where-Object { $_.Extent.Text -match '^(\$imgTabs( = |\.)|foreach \(\$n in @\(''Home''|\$tabs\.ImageList = |\$tab\w+\.ImageKey = )' } | ForEach-Object { $_.Extent.Text })
-    # Set-Defaults (120) : instructions qui portent sur l onglet Ecriture, reglages compris, dans leur ordre
+    # Set-Defaults (120) : instructions qui portent sur l onglet Ecriture, reglages compris, dans leur ordre ; 12.11 rc4
+    # (R2) : borne de precompensation remise en automatique, liste des options avancees remplie (Set-PrecompBound $true)
     $sd = @((Get-Ast (Get-EoMod $root '120')).FindAll({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq 'Set-Defaults' }, $false))
-    $ds = @($sd[0].Body.EndBlock.Statements | Where-Object { $_.Extent.Text -match '\$(txtW|cmbW|chkW|numW|lblW)' -or $_.Extent.Text -match '^(Reset-Settings|Update-SlowUi|Update-TargetDriveUi)$' } | ForEach-Object { $_.Extent.Text })
+    $ds = @($sd[0].Body.EndBlock.Statements | Where-Object { $_.Extent.Text -match '\$(txtW|cmbW|chkW|numW|lblW)' -or $_.Extent.Text -match '^(Reset-Settings|Update-SlowUi|Update-TargetDriveUi|Set-PrecompBound \$true)$' } | ForEach-Object { $_.Extent.Text })
     $g.Def = Join-Path $here "gen-$tag-defauts.ps1"
     Write-EoGen $g.Def @("function Invoke-EoDefaults {`r`n" + ($ds -join "`r`n") + "`r`n}")
     $g.NDef = $ds.Count
@@ -579,7 +581,7 @@ function Get-EoBottom {
     return $b
 }
 function Get-EoSnap {
-    # Valeurs des 36 controles : etat, texte, elements, nom, infobulle (pas la place ni la visibilite)
+    # Valeurs des 37 controles : etat, texte, elements, nom, infobulle (pas la place ni la visibilite)
     $o = New-Object System.Collections.Generic.List[string]
     foreach ($v in $eoCtl) {
         $c = Get-Variable -Name $v -ValueOnly -ErrorAction SilentlyContinue
@@ -672,6 +674,9 @@ foreach ($eoR in $eoRoots) {
                 foreach ($sc in $eoScn) { $eoRes[$key].EX[$sc.Id] = Invoke-EoScenario $sc }
                 $chkExpert.Checked = $false
             }
+            # 12.11 rc4 (R2) : application au repos apres les ecritures simulees (les bouchons laissent le controle et la
+            # file en place) : la liste « Borne de precompensation » ne change pas le reglage pendant une operation
+            $script:Rep = $null; $script:Chain.Clear(); $script:WriteQueue.Clear(); $script:WriteArgs = $null
             Invoke-EoDefaults
         }
         if (-not $eoR.New) { continue }
@@ -728,7 +733,7 @@ foreach ($eoR in $eoRoots) {
         $longWarm = Get-EoWidest (Get-EoAsgKeys 'Update-SlowUi' 'chkWWarm') $durs
         $longCalWarm = Get-EoWidest (Get-EoAsgKeys 'Update-SlowUi' 'chkWCalWarm') $durs
         $longPc = Get-EoWidest (Get-EoAsgKeys 'Update-SlowUi' 'chkWPrecomp') @('')
-        $links = @((T 'Options avancées…'), ((T 'Options avancées : {0} modifiée(s)…') -f '16'), (T 'Masquer les options avancées'))
+        $links = @((T 'Options avancées…'), ((T 'Options avancées : {0} modifiée(s)…') -f '17'), (T 'Masquer les options avancées'))
         $wide = Get-DriveWidestName $form.Font
         $wide2 = $wide.Substring(0, $wide.Length - 1) + 'M'
         $vRows = @(); $vBad = @(); $vWrite = @{}; $vBottom = 0; $vAdvOk = $true
@@ -798,7 +803,7 @@ foreach ($eoR in $eoRoots) {
         $aDefs = @(Get-WriteAdvDefs)
         $a1 = @(Get-WriteAdvChanges)
         $chkExpert.Checked = $true; $a1x = "$($lnkWAdv.Text)|$($lblWPlan.Text)"; $chkExpert.Checked = $false
-        Chk "A1$L" ($aDefs.Count -eq 16 -and $a1.Count -eq 0 -and $lnkWAdv.Text -ceq (T 'Options avancées…') -and $lblWPlan.Text -eq '' -and $a1x -ceq ((T 'Masquer les options avancées') + '|')) "($L) reglages par defaut (Set-Defaults) : aucune des $($aDefs.Count) options avancees comptee ; lien « $($lnkWAdv.Text) », ligne vide ; mode expert : « $(($a1x -split '\|')[0]) »"
+        Chk "A1$L" ($aDefs.Count -eq 17 -and $a1.Count -eq 0 -and $lnkWAdv.Text -ceq (T 'Options avancées…') -and $lblWPlan.Text -eq '' -and $a1x -ceq ((T 'Masquer les options avancées') + '|')) "($L) reglages par defaut (Set-Defaults) : aucune des $($aDefs.Count) options avancees comptee ; lien « $($lnkWAdv.Text) », ligne vide ; mode expert : « $(($a1x -split '\|')[0]) »"
         # A2 : une option changee a la fois, dans les deux vues ; nom attendu : texte de la case, ou libelle et valeur
         $chg = [ordered]@{
             chkWEraseEmpty = @({ $chkWEraseEmpty.Checked = $false }, ((T '{0} : décochée') -f (T 'Effacer les pistes vides')))
@@ -817,6 +822,8 @@ foreach ($eoR in $eoRoots) {
             chkWWarm = @({ $chkWWarm.Checked = $false }, ((T '{0} : décochée') -f ((T "Préchauffer le lecteur avant l'écriture lente ({0} au plus de lecture sans écriture)") -f '5 min')))
             chkWCalWarm = @({ $chkWCalWarm.Checked = $false }, ((T '{0} : décochée') -f ((T "Préchauffer le lecteur avant la calibration complète ({0} au plus de lecture sans écriture)") -f '5 min')))
             numWWarmMin = @({ $numWWarmMin.Value = 2.5 }, ((T 'Durée du préchauffage :') + ' 2 min 30 s'))
+            # 12.11 rc4 (R2) : borne de precompensation, element de 450 ns choisi dans la liste
+            cmbWBound = @({ $cmbWBound.SelectedIndex = [array]::IndexOf([int[]]@($cmbWBound.Tag), 450) }, ((T 'Borne de précompensation :') + ' 450 ns'))
         }
         $a2Bad = @(); $a2Ex = @()
         foreach ($k in @($chg.Keys)) {
@@ -831,7 +838,7 @@ foreach ($eoR in $eoRoots) {
         }
         Invoke-EoDefaults
         "  A2 ($L) : $($a2Ex -join ' ; ')"
-        Chk "A2$L" ($a2Bad.Count -eq 0 -and @(Get-WriteAdvChanges).Count -eq 0) "($L) chacune des 16 options changee seule : un nom (texte de la case, « : decochee » quand elle l est, ou libelle et valeur), compte du lien « 1 modifiee(s) » en vue simple, ligne qui la nomme dans les deux vues, valeur par defaut remise : plus rien ; ecarts : $(Get-List $a2Bad 3)"
+        Chk "A2$L" ($a2Bad.Count -eq 0 -and @(Get-WriteAdvChanges).Count -eq 0) "($L) chacune des $($chg.Count) options changee seule : un nom (texte de la case, « : decochee » quand elle l est, ou libelle et valeur), compte du lien « 1 modifiee(s) » en vue simple, ligne qui la nomme dans les deux vues, valeur par defaut remise : plus rien ; ecarts : $(Get-List $a2Bad 3)"
         if ($L -eq 'fr') {
             # A3 : table egale aux defauts de Set-Defaults (120, arbre syntaxique) et de $script:SettingDefs (040) ; toutes les
             # options du cadre comptees (sauf les champs --precomp, remplis par le profil)
@@ -847,6 +854,8 @@ foreach ($eoR in $eoRoots) {
                     'chkWWarm' { $exp = [bool]$script:SettingDefs['warmSlowWrite'].Def }
                     'chkWCalWarm' { $exp = [bool]$script:SettingDefs['warmFullCalib'].Def }
                     'numWWarmMin' { $exp = [double]$script:SettingDefs['warmMinutes'].Def }
+                    # 12.11 rc4 (R2) : borne de precompensation : Set-Defaults la remet en automatique (element 0) par Set-PrecompBound
+                    'cmbWBound' { if (@($sdFn.Body.EndBlock.Statements | Where-Object { $_.Extent.Text -ceq 'Set-PrecompBound $true' }).Count -eq 1) { $exp = 0 } else { $a3Bad += 'cmbWBound : Set-PrecompBound $true absent de Set-Defaults' } }
                     default {
                         if (-not $sdAsg.ContainsKey($vn)) { $a3Bad += "$vn absent de Set-Defaults"; continue }
                         $r = $sdAsg[$vn]
@@ -858,9 +867,9 @@ foreach ($eoR in $eoRoots) {
             $inBox = @(foreach ($c in @($grpWAdv.Controls)) { if ($c -is [System.Windows.Forms.CheckBox] -or $c -is [System.Windows.Forms.NumericUpDown] -or $c -is [System.Windows.Forms.ComboBox] -or $c -is [System.Windows.Forms.TextBox]) { Get-EoName $c } })
             $inTab = @($aDefs | ForEach-Object { Get-EoName $_.Ctl })
             $notCounted = @($inBox | Where-Object { $inTab -notcontains $_ -and @('txtWPrecomp', 'txtWPrecomp1') -notcontains $_ })
-            Chk 'A3' ($a3Bad.Count -eq 0 -and $notCounted.Count -eq 0 -and (($inTab | Sort-Object) -join ',') -ceq (($eoAdv | Sort-Object) -join ',')) "Get-WriteAdvDefs : $($aDefs.Count) options, valeurs par defaut egales a Set-Defaults (arbre syntaxique de 120) et, pour le profil, les prechauffages et leur duree, a `$script:SettingDefs (040) ; toutes les options du cadre comptees, sauf les champs --precomp ; ecarts : $(Get-List ($a3Bad + $notCounted))"
+            Chk 'A3' ($a3Bad.Count -eq 0 -and $notCounted.Count -eq 0 -and (($inTab | Sort-Object) -join ',') -ceq (($eoAdv | Sort-Object) -join ',')) "Get-WriteAdvDefs : $($aDefs.Count) options, valeurs par defaut egales a Set-Defaults (arbre syntaxique de 120) et, pour le profil, les prechauffages et leur duree, a `$script:SettingDefs (040), pour la borne de precompensation, a Set-PrecompBound `$true ; toutes les options du cadre comptees, sauf les champs --precomp ; ecarts : $(Get-List ($a3Bad + $notCounted))"
         }
-        # A4 : les 16 changees ensemble : compte, noms dans l ordre du cadre, ligne trop longue : infobulle du texte complet
+        # A4 : les 17 changees ensemble : compte, noms dans l ordre du cadre, ligne trop longue : infobulle du texte complet
         Invoke-EoDefaults
         foreach ($k in @($chg.Keys)) { & $chg[$k][0] }
         $a4 = @(Get-WriteAdvChanges)
@@ -868,7 +877,7 @@ foreach ($eoR in $eoRoots) {
         $a4H = $lblWPlan.GetPreferredSize((New-Object System.Drawing.Size($lblWPlan.Width, 0))).Height
         # Ensemble, la duree de 2 min 30 s passe dans le texte des deux cases de prechauffage (Update-SlowUi)
         $a4Want = @($chg.Keys | ForEach-Object { ([string]$chg[$_][1]).Replace('5 min ', '2 min 30 s ') })
-        Chk "A4$L" ($a4.Count -eq 16 -and $lnkWAdv.Text -ceq ((T 'Options avancées : {0} modifiée(s)…') -f '16') -and ($a4 -join '|') -ceq ($a4Want -join '|') -and $a4H -gt $lblWPlan.Height -and $a4Tip -ceq $lblWPlan.Text -and $lblWPlan.AutoEllipsis) "($L) les 16 options changees : « $($lnkWAdv.Text) », noms dans l ordre du cadre (duree du prechauffage reprise par le texte des cases) ; ligne de $a4H px pour $($lblWPlan.Height) : points de suspension et texte complet en infobulle (Update-WPlanTip)"
+        Chk "A4$L" ($a4.Count -eq 17 -and $lnkWAdv.Text -ceq ((T 'Options avancées : {0} modifiée(s)…') -f '17') -and ($a4 -join '|') -ceq ($a4Want -join '|') -and $a4H -gt $lblWPlan.Height -and $a4Tip -ceq $lblWPlan.Text -and $lblWPlan.AutoEllipsis) "($L) les 17 options changees : « $($lnkWAdv.Text) », noms dans l ordre du cadre (duree du prechauffage reprise par le texte des cases) ; ligne de $a4H px pour $($lblWPlan.Height) : points de suspension et texte complet en infobulle (Update-WPlanTip)"
         Invoke-EoDefaults
         $a4b = [string]$tip.GetToolTip($lblWPlan)
         # A5 : lien : inverse « Mode expert » (vraie Switch-WAdvView), sans effet quand la case est inactive, inactif avec elle
@@ -891,11 +900,12 @@ foreach ($eoR in $eoRoots) {
 '--- E : equivalence avec la source d avant le lot'
 $rf = $eoRes['eo-fr']
 $e1Same = (($rf.Snap0 -join "`n") -ceq ($rf.Snap1 -join "`n"))
-Chk 'E1' ($rf.ViewSame -and $eoRes['eo-en'].ViewSame -and $e1Same -and $rf.Snap0.Count -eq 36) "valeurs, textes, noms, etats et infobulles des 36 controles : identiques apres les changements de vue (16 options changees, mode expert coche puis decoche par le lien), en francais et en anglais ; demarrage identique avant et apres les cas W, V et A"
+Chk 'E1' ($rf.ViewSame -and $eoRes['eo-en'].ViewSame -and $e1Same -and $rf.Snap0.Count -eq 37) "valeurs, textes, noms, etats et infobulles des 37 controles : identiques apres les changements de vue (17 options changees, mode expert coche puis decoche par le lien), en francais et en anglais ; demarrage identique avant et apres les cas W, V et A"
 if ($Before) {
     $ra = $eoRes['avant-fr']
     # Lot L12a (adapte a dessein) : infobulles de chkWSlow et chkWCalWarm ramenees a leur texte d avant ($eoL12a)
     $sb = @(); $nTipB = 0
+    # 12.11 rc4 (R2) : les 36 controles d avant le lot R2 (cmbWBound, le 37e, est absent d une source d avant)
     for ($i = 0; $i -lt 36; $i++) { $nw = Get-EoL12aBack $rf.Snap0[$i]; if ($nw -cne $rf.Snap0[$i]) { $nTipB++ }; if ($ra.Snap0[$i] -cne $nw) { $sb += "$($ra.Snap0[$i]) => $($rf.Snap0[$i])" } }
     foreach ($x in @($sb | Select-Object -First 4)) { "  E1b ECART $x" }
     Chk 'E1b' ($sb.Count -eq 0 -and $nTipB -eq 2) "-Before : valeurs, textes, noms, etats, elements et infobulles des 36 controles au demarrage identiques a ceux de la source d avant, a la precision du lot L12a pres ($nTipB infobulles) ; ecarts : $($sb.Count)"

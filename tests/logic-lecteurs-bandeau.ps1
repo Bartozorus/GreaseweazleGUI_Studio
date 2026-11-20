@@ -103,7 +103,7 @@ $want = [ordered]@{
     '145' = @('Update-WSourceLabel')
     '210' = @('Draw-PictoFloppy', 'Draw-PictoDrive')
     '220' = @('Get-CurveDate', 'Get-DriveFamilyCurves')
-    '230' = @('Test-CurveHd', 'Get-CalibFamilyName', 'Get-Median', 'Get-CurveCalc', 'Get-CurveCalcRef', 'Test-CurveCalcOk', 'Get-CurveCalcText', 'ConvertTo-CurveConfig', 'ConvertTo-LevelConfig', 'ConvertTo-LevelBrandConfig',
+    '230' = @('Set-PrecompBound', 'Test-CurveHd', 'Get-CalibFamilyName', 'Get-Median', 'Get-CurveCalc', 'Get-CurveCalcRef', 'Test-CurveCalcOk', 'Get-CurveCalcText', 'ConvertTo-CurveConfig', 'ConvertTo-LevelConfig', 'ConvertTo-LevelBrandConfig',
               'ConvertFrom-LevelBrandConfig', 'ConvertFrom-LevelConfig', 'ConvertFrom-CurveConfig')
     '240' = @('Get-CalibDriveArgsFor', 'Get-CalibStoreDrive', 'Split-CrossDrive', 'Get-CrossCalibTargets', 'Get-CurveKeyLabel', 'Get-DriveCurveKey', 'Split-DriveCurveKey', 'Get-DriveCurve', 'Set-DriveCurve', 'Sync-PrecompCurves',
               'Get-DriveCurveKeys', 'Get-DriveCurveLabel')
@@ -141,7 +141,7 @@ $wantState = [ordered]@{
     '520' = @('$script:BtnFont', '$script:BtnFontBold')
     '550' = @('$script:CleanPrefs')
     '560' = @('$script:CalRedo', '$script:CalHardNsDefault', '$script:CalHardMinNs', '$script:CalHardMaxNs', '$script:CalHardNs', '$script:CalWarmupDefault', '$script:CalWarmupMinutes', '$script:DriveActivity', '$script:DriveCurves',
-              '$script:PrecompCurves', '$script:CurveKeys', '$script:LevelFormat', '$script:LevelShifts', '$script:LevelBrand', '$script:LevelBrands', '$script:ConfigRefBackupKeep', '$script:TargetDrives', '$script:CalHardNsUser')
+              '$script:PrecompCurves', '$script:CurveKeys', '$script:LevelFormat', '$script:LevelShifts', '$script:LevelBrand', '$script:LevelBrands', '$script:ConfigRefBackupKeep', '$script:TargetDrives', '$script:CalHardNsUser', '$script:CalHardAuto')
     '565' = @('$script:ContentKMax', '$script:ContentMeasures')
 }
 $stateParts = New-Object System.Collections.Generic.List[string]
@@ -199,6 +199,7 @@ function Show-AppMessage([string]$text, [string]$title, [string]$buttons = 'OK',
     return 'OK'
 }
 function Set-CalibScale([string]$fam) { }
+function Update-WBoundUi { }      # 12.11 rc4 (R2) : liste « Borne de precompensation » de l onglet Ecriture (145), mise a jour par la vraie Set-PrecompBound (Load-Config)
 function Update-SlowUi { }
 function Update-RsRules { }
 function Update-RsFmtFound { }

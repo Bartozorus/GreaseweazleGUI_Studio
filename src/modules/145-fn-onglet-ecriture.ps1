@@ -34,6 +34,8 @@ function Get-WriteAdvDefs {
         @{ Ctl = $chkWWarm; Def = [bool]$script:SettingDefs['warmSlowWrite'].Def; Label = '' }
         @{ Ctl = $chkWCalWarm; Def = [bool]$script:SettingDefs['warmFullCalib'].Def; Label = '' }
         @{ Ctl = $numWWarmMin; Def = [double]$script:SettingDefs['warmMinutes'].Def; Label = (T 'Durée du préchauffage :') }
+        # 12.11 rc4 (R2) : borne de precompensation, element 0 : automatique (Set-Defaults : Set-PrecompBound $true, 230)
+        @{ Ctl = $cmbWBound; Def = 0; Label = (T 'Borne de précompensation :') }
     )
 }
 
@@ -57,7 +59,9 @@ function Get-WriteAdvChanges {
             $v = if ([object]::ReferenceEquals($c, $numWWarmMin)) { Get-WarmMinutesText ([double]$c.Value) } else { [string]$c.Value }
             $names += ('{0} {1}' -f [string]$d.Label, $v)
         } elseif ($c -is [System.Windows.Forms.ComboBox]) {
-            if ([int]$c.SelectedIndex -eq [int]$d.Def) { continue }
+            # 12.11 rc4 (R2) : liste pas encore remplie (« Borne de precompensation », creee vide par 520 et remplie par
+            # Set-Defaults) : rien a compter
+            if ($c.Items.Count -eq 0 -or [int]$c.SelectedIndex -eq [int]$d.Def) { continue }
             $names += ('{0} {1}' -f [string]$d.Label, [string]$c.Text)
         } else {
             $v = ([string]$c.Text).Trim()
@@ -367,6 +371,66 @@ function Update-WVerifyUi($vp = $null) {
     if ([string]$tip.GetToolTip($numWRetries) -cne $t) { $tip.SetToolTip($numWRetries, $t) }
 }
 
+function Get-PrecompBoundTip {
+    # 12.11 rc4 (R2) : infobulle de la liste « Borne de precompensation », tiree des fonctions qui decident : bornes du
+    # reglage automatique et plage d une valeur choisie (constantes que lisent Set-CalibScale et Set-PrecompBound, 230),
+    # plafond d une seule disquette (Get-DiskHardNs, Get-LevelAdaptHard, 265 : jamais sous CalHardNsDefault), seuil du
+    # controle impose a la courbe d une mesure complete de la disquette, avec le reglage en place (Get-DiskOverNs, 265)
+    $d = "$($script:CalHardNsDefault)"; $mx = "$($script:CalHardMaxNs)"
+    return ((T "Borne de précompensation : la plus forte valeur que la calibration du lecteur retient pour un cylindre.") + "`n" +
+            ((T "Automatique : {0} ns pour une image standard (cellule de 2 us), {1} ns pour une image long track (le quart de sa cellule de 1,89 us). Valeur choisie, de {2} à {1} ns : la même pour les deux, {0} ns compris. La haute densité prend la moitié de la borne.") -f $d, $mx, "$($script:CalHardMinNs)") + "`n" +
+            ((T "Au quart de la cellule, les intervalles écrits atteignent la limite au-delà de laquelle ils seraient lus pour d'autres : la borne ne dépasse pas {0} ns.") -f $mx) + "`n" +
+            ((T "Borne d'au moins {0} ns : la courbe d'une seule disquette peut la dépasser quand son besoin est plus fort, jusqu'au quart de la cellule de la piste écrite ({1} ns au plus) ; borne choisie sous {0} ns : elle n'est jamais dépassée.") -f $d, "$($script:CalDiskCapMaxNs)") + "`n" +
+            ((T "Avec le réglage actuel, la courbe d'une mesure complète de la disquette impose le contrôle de toutes les pistes après l'écriture dès qu'elle dépasse {0} ns.") -f "$(Get-DiskOverNs)") + "`n" +
+            (T "Une courbe déjà calculée garde la borne de son calcul : la nouvelle borne sert aux calibrations suivantes (le test rapide ramène à la borne en place les valeurs d'une référence calculée avec une borne plus haute).") + "`n" +
+            (T "Enregistrée dans la configuration (precompMaxNs)."))
+}
+
+function Update-WBoundUi {
+    # 12.11 rc4 (R2) : liste « Borne de precompensation » des options avancees, d apres le reglage (Set-PrecompBound, 230,
+    # qui appelle cette fonction) : elements de Get-PrecompBoundChoices (leurs valeurs gardees dans Tag, leurs textes de
+    # Get-PrecompBoundText), element du reglage choisi, sous la garde des liaisons (Set-PrecompBoundFromUi ne s execute
+    # pas) ; infobulle (Get-PrecompBoundTip). Elements refaits seulement quand le reglage a montrer n y figure pas : liste
+    # vide (520 la cree avant les constantes de 560 ; Set-Defaults la remplit au demarrage), ou borne reglee hors du pas
+    # de la liste (fichier de configuration) ; jamais pendant un choix de l utilisateur, dont la valeur vient de la liste
+    if (-not $cmbWBound) { return }
+    $show = if ($script:CalHardAuto) { 0 } else { [int]$script:CalHardNsUser }
+    $cur = if ($null -ne $cmbWBound.Tag) { [int[]]@($cmbWBound.Tag) } else { [int[]]@() }
+    $sv = $script:SettingSync; $script:SettingSync = $true
+    try {
+        if ($cmbWBound.Items.Count -eq 0 -or $cmbWBound.Items.Count -ne $cur.Count -or [array]::IndexOf($cur, $show) -lt 0) {
+            $cur = [int[]]@(Get-PrecompBoundChoices)
+            $cmbWBound.BeginUpdate()
+            try {
+                $cmbWBound.Items.Clear()
+                foreach ($v in $cur) { [void]$cmbWBound.Items.Add((Get-PrecompBoundText $v)) }
+                $cmbWBound.Tag = $cur
+            } finally { $cmbWBound.EndUpdate() }
+        }
+        $sel = [array]::IndexOf($cur, $show)
+        if ($cmbWBound.SelectedIndex -ne $sel) { $cmbWBound.SelectedIndex = $sel }
+    } finally { $script:SettingSync = $sv }
+    $t = Get-PrecompBoundTip
+    if ([string]$tip.GetToolTip($cmbWBound) -cne $t) { $tip.SetToolTip($cmbWBound, $t) }
+}
+
+function Set-PrecompBoundFromUi {
+    # 12.11 rc4 (R2) : gestionnaire SelectedIndexChanged de la liste « Borne de precompensation » (520) : reglage pose par
+    # Set-PrecompBound (230), ligne de journal quand il change. Rien sous la garde des liaisons (Update-WBoundUi).
+    # Operation en cours ou calibration B en attente (Get-AppBusy, CalRedo) : la borne en cours d emploi ne change pas,
+    # la liste revient sur le reglage en place
+    if ($script:SettingSync -or -not $cmbWBound) { return }
+    $i = [int]$cmbWBound.SelectedIndex
+    $vals = @($cmbWBound.Tag)
+    if ($i -lt 0 -or $i -ge $vals.Count) { return }
+    if ((Get-AppBusy) -or $script:CalRedo) { Update-WBoundUi; return }
+    $old = Get-PrecompBoundText
+    $ns = [int]$vals[$i]
+    Set-PrecompBound ($ns -le 0) $ns
+    $new = Get-PrecompBoundText
+    if ($new -cne $old) { Append-Log ((T 'Borne de précompensation : {0} (avant : {1}).') -f $new, $old) }
+}
+
 function Switch-WAdvView {
     # 12.11 (L9) : clic du lien des options avancees : inverse la case « Mode expert » du bandeau (reglage ui.expert de la
     # configuration, qui affiche aussi les onglets techniques), sauf quand elle est inactive (restauration en cours, 300)
@@ -413,6 +477,7 @@ function Set-WriteTabLayout {
     $chkWTG43.Left = $chkWHard.Left + $chkWHard.PreferredSize.Width + 8
     $numWWarmMin.Left = $lblWWarmMin.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblWWarmMin.Text, $f).Width + 8
     $lblWWarmMinU.Left = $numWWarmMin.Right + 6
+    if ($cmbWBound -and $lblWBound) { $cmbWBound.Left = $lblWBound.Left + [System.Windows.Forms.TextRenderer]::MeasureText($lblWBound.Text, $f).Width + 8 }   # 12.11 rc4 (R2)
     $grpWAdv.Visible = [bool]$chkExpert.Checked
     Update-WAdvLink
     $tabW.AutoScrollPosition = New-Object System.Drawing.Point(0, 0)
