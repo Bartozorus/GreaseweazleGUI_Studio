@@ -3,7 +3,7 @@
 $Wt = Get-TestRoot $Wt
 # 12.11 rc2 : ecriture pour un lecteur cible avec le facteur par cylindre de la calibration croisee (spec-facteur-croise).
 #  U  Get-TargetTransferSpec et Get-TargetTransferSummary (140) : D = Sp donne X a la chaine pres ; facteur uniforme k
-#     (D = k.Sp) : k.X la ou Sp >= XferMinNs, X + (k - 1).Sp ailleurs ; borne et zero ; cylindres au-dela de la longueur
+#     (D = k.Sp) : k.X partout (rc5, R13 : sous XferMinNs, facteur du cylindre voisin repris) ; borne et zero ; cylindres au-dela de la longueur
 #     d une courbe ; tete par tete (Get-TargetTransferPlan) ; resume (min, mediane, max, cylindres sous le seuil et facteur repris, rc5).
 #  A  ecriture « meme lecteur » strictement inchangee : six scenarios (mesure sur l image, test rapide, mesure complete,
 #     facteur de marque, ecriture rapide au test rapide, Bibliotheque), mesures simulees jusqu a l ecriture (bouchons qui
@@ -663,7 +663,7 @@ $jW = @(foreach ($h in 0, 1) {
     (T 'tête {0} : {1}') -f "$h", (((T 'facteur de {0} à {1}, médiane {2}') -f (Format-UiNum $qs[0] '0.00'), (Format-UiNum $qs[-1] '0.00'), (Format-UiNum $md '0.00')) + $tl)
 })
 $jWant = 'tête 0 : calibration rapide de cette disquette'
-Chk 'D2' ($jC1 -and $jC1.Contains(($jW -join ' ; ')) -and $jC1.Contains('c0-1 sous 10 ns : facteur du cylindre c2 repris') -and -not $jC1.Contains('écart reporté') -and$jC1.Contains('tête 0 : courbe du lecteur × 1,10 (k 1,10 mesuré sur cette disquette), tête 1 : courbe du lecteur × 0,95 (k 0,95 mesuré sur cette disquette)') -and @($cur['C2'].Log | Where-Object { $_.Contains($jWant) }).Count -eq 1 -and @($cur['C3'].Log | Where-Object { $_.Contains('tête 0 : mesure complète de cette disquette') }).Count -eq 1) "journal de l ecriture (C1) : « $jC1 » ; origine de D nommee (mesure sur l image, test rapide, mesure complete)"
+Chk 'D2' ($jC1 -and $jC1.Contains(($jW -join ' ; ')) -and $jC1.Contains('c0-1 sous 10 ns : facteur du cylindre c2 repris') -and -not $jC1.Contains('écart reporté') -and $jC1.Contains('tête 0 : courbe du lecteur × 1,10 (k 1,10 mesuré sur cette disquette), tête 1 : courbe du lecteur × 0,95 (k 0,95 mesuré sur cette disquette)') -and @($cur['C2'].Log | Where-Object { $_.Contains($jWant) }).Count -eq 1 -and @($cur['C3'].Log | Where-Object { $_.Contains('tête 0 : mesure complète de cette disquette') }).Count -eq 1) "journal de l ecriture (C1) : « $jC1 » ; origine de D nommee (mesure sur l image, test rapide, mesure complete)"
 # Anglais et texte affiche entier (ligne « Ce qui va se passer », instructions reelles de l onglet)
 $dShow = @()
 foreach ($lang in 'fr', 'en') {
