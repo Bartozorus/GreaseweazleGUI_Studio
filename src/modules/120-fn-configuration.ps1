@@ -296,6 +296,7 @@ function Set-Defaults {
     $txtWPrecomp1.Text = $script:PrecompStd
     $chkWPostCheck.Checked = $true
     $numWRepair.Value = 3
+    $chkWZones.Checked = $true                 # 12.11 rc7 (R16) : correction par zones (lecteur cible)
     # 12.8 (point 7) : reglages de la table (lecteur, mode de calibration, ecriture lente, prechauffages et leur duree,
     # mesure de la disquette, profil precomp, seuil de famille, carte « Calibrer le lecteur », mesure de l onglet
     # Qualite, seuils de jitter, nettoyage de l onglet Outils) : defauts de la table, y compris le seuil precompThresholdNs
@@ -635,6 +636,7 @@ function Save-Config {
             retries = [int]$numWRetries.Value
             precompOn = [bool]$chkWPrecomp.Checked; precomp = $txtWPrecomp.Text; precomp1 = $txtWPrecomp1.Text
             postCheck = [bool]$chkWPostCheck.Checked; repairMax = [int]$numWRepair.Value
+            zoneFix = [bool]$chkWZones.Checked  # 12.11 rc7 (R16) : correction par zones au controle d une ecriture pour un lecteur cible ; une version anterieure ignore cette cle
             precompStd = $(if ($oc -and $oc.Std -and -not $script:PrecompCurves['std']) { $oc.Std } else { $script:PrecompStd })
             precompLong = $(if ($oc -and $oc.Long -and -not $script:PrecompCurves['long']) { $oc.Long } else { $script:PrecompLong })
             precompMaxNs = [int]$script:CalHardNsUser   # borne des valeurs calibrees (300 a 470 ns, 400 par defaut ; 12.7 : celle de la double densite, la haute densite en prend la moitie)
@@ -917,7 +919,8 @@ function Load-Config {
     $chkWPostCheck.Checked = [bool](Get-Cfg $w 'postCheck' $true)
     $rm = [int](Get-Cfg $w 'repairMax' 3); $numWRepair.Value = [math]::Max(0, [math]::Min(10, $rm))
     $numWRepair.Enabled = $chkWPostCheck.Checked; $lblWRepair.Enabled = $chkWPostCheck.Checked
-    $txtWPrecomp.Text  = [string](Get-Cfg $w 'precomp' $script:PrecompStd)
+    $chkWZones.Checked = [bool](Get-Cfg $w 'zoneFix' $true)   # 12.11 rc7 (R16)
+    $txtWPrecomp.Text  =[string](Get-Cfg $w 'precomp' $script:PrecompStd)
     $txtWPrecomp1.Text = [string](Get-Cfg $w 'precomp1' $txtWPrecomp.Text)
     if ($script:OldCalib) { $script:OldCalib.P0 = $txtWPrecomp.Text; $script:OldCalib.P1 = $txtWPrecomp1.Text }   # retablis si conservees
     # Champs --precomp remplis par une ancienne calibration : profil d origine (sauf profil manuel, choisi par l utilisateur)

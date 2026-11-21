@@ -179,6 +179,20 @@ $k3a = Get-DriveK 'A' 'std' 0 'X'
 $script:ContentMeasures = @((New-K3Rec '03/03/2026 10:00' 1.12 'marge'), (New-K3Rec '04/03/2026 11:00' 0.90 'marge'))
 $k3b = Get-DriveK 'A' 'std' 0 'X'
 Chk 'K3' ($k3a.K -eq 0.71 -and $k3a.N -eq 1 -and $k3a.Src -eq 'lecteur' -and [math]::Abs($k3b.K - 1.01) -lt 1e-9 -and $k3b.N -eq 2) "mesures marge 1,12 et 1,15 et asymetrie 0,71 : k memorise $($k3a.K) ($($k3a.N) mesure, et non la mediane 1,12 des trois) ; marge seule 1,12 et 0,90 : $($k3b.K) ($($k3b.N) mesures)"
+# K4 (12.11 rc7, R16) : pente de l asymetrie relue memorisee (SRel de Get-DriveK, gain de l asymetrie attendue du controle
+# d une ecriture pour un lecteur cible) : mediane des pentes des mesures retenues dont l asymetrie a decide ; aucune pour une
+# mesure par la marge, une pente absente (mesure d avant la rc6 : NaN a la lecture de la configuration) ou sans mesure
+function New-K4Rec([string]$date, [double]$k, [string]$meth, $s) { $r = New-K3Rec $date $k $meth; if ($null -ne $s) { $r.SRelAsym = [double]$s }; return $r }
+$script:ContentMeasures = @((New-K4Rec '01/03/2026 10:00' 0.70 'asym' 0.91), (New-K4Rec '02/03/2026 10:00' 0.72 'asym' 0.79), (New-K4Rec '03/03/2026 10:00' 0.74 'asym' 0.86), (New-K4Rec '03/03/2026 11:00' 1.10 'marge' 1.40))
+$k4a = Get-DriveK 'A' 'std' 0 'X'
+$script:ContentMeasures = @((New-K4Rec '01/03/2026 10:00' 0.70 'asym' ([double]::NaN)), (New-K4Rec '02/03/2026 10:00' 0.72 'asym' 0.80))
+$k4b = Get-DriveK 'A' 'std' 0 'X'
+$script:ContentMeasures = @((New-K4Rec '01/03/2026 10:00' 1.12 'marge' 0.80))
+$k4c = Get-DriveK 'A' 'std' 0 'X'
+$script:ContentMeasures = @((New-K4Rec '01/03/2026 10:00' 0.70 'asym' ([double]::NaN)))
+$k4d = Get-DriveK 'A' 'std' 0 'X'
+$script:ContentMeasures = @(); $k4e = Get-DriveK 'A' 'std' 0 'X'
+Chk 'K4' ([math]::Abs([double]$k4a.SRel - 0.86) -lt 1e-9 -and [math]::Abs([double]$k4b.SRel - 0.80) -lt 1e-9 -and $null -eq $k4c.SRel -and $null -eq $k4d.SRel -and $null -eq $k4e.SRel -and $k4e.ContainsKey('SRel')) "pentes 0,91, 0,79 et 0,86 par l asymetrie (et une mesure par la marge) : SRel $($k4a.SRel) (mediane 0,86) ; une pente absente sur deux : $($k4b.SRel) ; marge seule, pente absente, aucune mesure : aucune"
 
 $nk = if ($script:Fail) { ' ; NON CONFORMES : ' + (@($script:FailIds) -join ', ') } else { '' }
 "=== bilan logic-contenu-asymetrie : $($script:NChk - $script:Fail) conformes sur $($script:NChk)$nk ; $([int]$sw.Elapsed.TotalSeconds) s"

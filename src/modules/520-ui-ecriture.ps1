@@ -150,6 +150,13 @@ $cmbWBound.Add_SelectedIndexChanged({ Set-PrecompBoundFromUi })
 # Molette sur la liste fermee (onglet qui defile en mode expert) : evenement marque traite, la borne ne change pas sans
 # intention ; liste deroulee, la molette la fait defiler (meme garde que la liste du lecteur du bandeau, 510)
 $cmbWBound.Add_MouseWheel({ if (-not $this.DroppedDown -and $_ -is [System.Windows.Forms.HandledMouseEventArgs]) { $_.Handled = $true } })
+# 12.11 rc7 (R16) : correction par zones au controle d une ecriture pour un lecteur cible (Get-WriteZonePlan, 140 ;
+# Find-WriteZones, 170), sous la borne de precompensation, derniere rangee du cadre des options avancees ; cochee par
+# defaut (Set-Defaults), enregistree dans la configuration (write.zoneFix)
+$chkWZones = New-Object System.Windows.Forms.CheckBox
+$chkWZones.Name = 'chkWZones'; $chkWZones.Location = '12,272'; $chkWZones.AutoSize = $true; $chkWZones.Checked = $true
+$chkWZones.Text = (T "Corriger les zones écartées de l'attendu (lecteur cible)")
+$tip.SetToolTip($chkWZones, ((T "Écriture pour un lecteur cible avec le facteur par cylindre, contrôle de toutes les pistes et 2 passes de réécriture au moins : quand plusieurs cylindres voisins ({0} au moins) relus par le lecteur qui écrit s'écartent dans le même sens de l'asymétrie attendue, leurs pistes sont réécrites une fois avec la précompensation décalée de la moitié de l'écart ({1} ns au plus), puis relues. La correction est gardée si la zone se rapproche de l'attendu, sinon la zone reprend sa courbe d'origine. Une piste isolée n'est jamais corrigée.`nLa correction ne s'appuie que sur la relecture par le lecteur qui écrit : elle ne garantit pas la lecture par le lecteur cible.") -f "$($script:WriteZoneMinCyl)", "$($script:WriteZoneCapNs)"))
 # 12.9 (S1) : ecriture sans surveillance, case a la suite du champ de la duree du prechauffage (position apres l ajout a
 # l onglet). Etat $script:CalibUnattended, pour la session : ni reglage ni configuration, decochee au demarrage et a la fin
 # de la sequence d ecriture (Update-CalibUnattended). Seul effet : avertissement de calibration de la disquette a ecrire
@@ -334,8 +341,9 @@ $grpWOpt.Controls.AddRange(@($lblWSource, $chkWPreErase, $chkWSlow, $chkWPostChe
 # repliee garde sa valeur et son effet, le lien la compte et la ligne a droite du bouton la nomme (Get-WriteAdvChanges).
 # Rangees : effacement des pistes vides, verification, essais, passes de reecriture ; profil et --precomp ; pistes,
 # densel, fake index, face B ; diskdefs, materiel ; prechauffages et leur duree ; retour a une calibration precedente et
-# « Effacer les calibrations ». 12.11 rc4 (R2) : derniere rangee, borne de precompensation (cadre de 280 px au lieu de 254)
-$grpWAdv = New-Group (T 'Options avancées') '10,367' '762,280'
+# « Effacer les calibrations ». 12.11 rc4 (R2) : derniere rangee, borne de precompensation (cadre de 280 px au lieu de 254).
+# 12.11 rc7 (R16) : rangee de plus, correction par zones (cadre de 306 px)
+$grpWAdv = New-Group (T 'Options avancées') '10,367' '762,306'
 
 $txtWTracks = New-Object System.Windows.Forms.TextBox
 $txtWTracks.Location = '62,106'; $txtWTracks.Width = 150
@@ -376,6 +384,7 @@ $grpWAdv.Controls.AddRange(@($chkWEraseEmpty, $chkWNoVerify, $lblWRetries, $numW
     (New-Label (T 'Diskdefs :') '12,137'), $txtWDiskdefs, $btnWDiskdefs, $chkWHard, $chkWTG43,
     $chkWWarm, $chkWCalWarm, $lblWWarmMin, $numWWarmMin, $lblWWarmMinU, $btnWCalBack, $btnWCalReset))
 $grpWAdv.Controls.AddRange(@($lblWBound, $cmbWBound))    # 12.11 rc4 (R2) : derniere rangee, borne de precompensation
+$grpWAdv.Controls.Add($chkWZones)                         # 12.11 rc7 (R16) : rangee suivante, correction par zones
 
 # --- Action
 # 12.11 (L9) : bouton sous le cadre 2, a la meme place dans les deux vues

@@ -638,6 +638,9 @@ function Complete-ContentMeasure($cal) {
     $date = Get-Date -Format 'dd/MM/yyyy HH:mm'
     $brand = [string]$ct.Brand
     $kk = @{ 0 = 1.0; 1 = 1.0 }; $src = @{ 0 = 'defaut'; 1 = 'defaut' }; $recs = @(); $res = @(); $sum = @{}
+    # 12.11 rc7 (R16) : pente de l asymetrie relue de chaque tete dont le facteur applique vient de l asymetrie ($null sinon),
+    # transmise a l ecriture qui suit (WriteFactorNext.SRel : gain de l asymetrie attendue du controle, Get-WriteFactorPlan)
+    $sRel = @{ 0 = $null; 1 = $null }
     $kMax = if ([double]$script:ContentKMax -gt 0) { [double]$script:ContentKMax } else { 2.0 }
     foreach ($h in 0, 1) {
         $pre = (T '[tête {0}] ') -f "$h"
@@ -695,7 +698,7 @@ function Complete-ContentMeasure($cal) {
             if (@('mesure', 'haute', 'basse') -contains $etat) { $kr = [math]::Min([math]::Max($kr, 0.0), $kMax) }
             # 12.11 rc6 (R15) : asymetrie retenue : k par l asymetrie, etat 'mesure' (memoire de la marque, Get-DriveK), erreur-
             # type et cylindres de l asymetrie ; facteur et etat de la marge gardes a part (KMarge, EtatMarge)
-            if ($aDet) { $kr = [double]$af.K }
+            if ($aDet) { $kr = [double]$af.K; $sRel[$h] = [double]$af.SRel }
             $recs += ,@{ Model = 'contenu'; Drive = $drive; Family = $fam; Head = $h; Date = $date; Image = [System.IO.Path]::GetFileName([string]$cal.Image)
                          K = $(if ([double]::IsNaN($kr)) { $kr } else { [math]::Round($kr, 3) }); KVertex = $(if ([double]::IsNaN([double]$fit.K)) { $null } else { [math]::Round([double]$fit.K, 3) })
                          Bound = $(if ($aDet) { '' } else { switch ($etat) { 'haute' { 'high' } 'basse' { 'low' } default { '' } } }); Flat = (-not $aDet -and $etat -eq 'plate')
@@ -711,7 +714,7 @@ function Complete-ContentMeasure($cal) {
                          S = [double]$fit.S; NCyl = [int]$fit.NCyl; N = [int]$fit.N; KApplied = [double]$ap.K; Src = [string]$ap.Src; LowTxt = $lowTxt; Zones = @($fit.Zones) } + $asF)
         } elseif ($aDet) {
             # 12.11 rc6 (R15) : marge non mesuree, asymetrie determinee : elle est appliquee et memorisee
-            $kk[$h] = [double]$ch.K; $src[$h] = 'mesure'
+            $kk[$h] = [double]$ch.K; $src[$h] = 'mesure'; $sRel[$h] = [double]$af.SRel
             $why = if (-not $hc.Ok -and [string]$hc.Why -eq 'peu') { (T 'trop peu de pistes exploitables ({0} cylindres)') -f "$($hc.NCyl)" } else { (T 'ajustement impossible') }
             Append-Log ((T '{0}Facteur par la marge non mesuré ({1}).') -f "$pre", "$why")
             Append-Log (Get-ContentAppliedAsymText $pre $ch ([double]::NaN))
@@ -753,7 +756,7 @@ function Complete-ContentMeasure($cal) {
     if ($script:AfterCalib -ne 'write') { $script:WriteFactorNext = $null; return }
     $script:AfterCalib = ''
     $script:WriteFactorNext = @{ Drive = $drive; Fam = $fam; Img = [string]$cal.Image; K = @{ 0 = [double]$kk[0]; 1 = [double]$kk[1] }
-                                 Src = @{ 0 = [string]$src[0]; 1 = [string]$src[1] }; Date = $date; Brand = $brand }
+                                 Src = @{ 0 = [string]$src[0]; 1 = [string]$src[1] }; Date = $date; Brand = $brand; SRel = $sRel }
     # 12.11 rc6 (R15) : « avec le facteur mesuré » seulement quand les deux tetes ecrivent un facteur mesure sur cette
     # disquette ; sinon le facteur de chaque tete (resume de la barre)
     if ([string]$src[0] -eq 'mesure' -and [string]$src[1] -eq 'mesure') { Append-Log ((T "Mesure de la disquette sur l'image terminée en {0} : écriture de l'image avec le facteur mesuré.") -f "$durTxt") }

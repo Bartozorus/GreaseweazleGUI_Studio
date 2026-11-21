@@ -95,7 +95,8 @@ $want = @('Get-SpecCount', 'Start-Progress', 'Update-Progress', 'Stop-Progress',
           'Update-WriteWarmupProgress', 'Start-WriteWarmup', 'Invoke-WriteWarmup', 'Stop-WriteWarmup', 'Invoke-WriteQueueNext', 'Invoke-NextChainStep', 'Get-GwDriveKey', 'Reset-GwSequence',
           'New-WriteCheck', 'Test-SourceMayHaveWeak', 'Start-RepPending', 'Invoke-RepNextCmd', 'Merge-RepRetries', 'Stop-WriteCheck',
           'Get-ContentMeasureMinutes', 'Get-ContentEraseEst',   # 12.11 rc3 (R8) : cas C11
-          'Test-GwPortRetry', 'Invoke-GwPortRetry')             # 12.11 rc3 (R5) : serie G
+          'Test-GwPortRetry', 'Invoke-GwPortRetry',             # 12.11 rc3 (R5) : serie G
+          'Get-WriteZoneCount')                                 # 12.11 rc7 (R16) : zones corrigees, lues par Complete-WriteCheck
 $miss = @($want | Where-Object { -not $src.Text.ContainsKey($_) })
 if ($miss.Count) { throw "fonctions introuvables dans les modules : $($miss -join ', ')" }
 $parts = New-Object System.Collections.Generic.List[string]

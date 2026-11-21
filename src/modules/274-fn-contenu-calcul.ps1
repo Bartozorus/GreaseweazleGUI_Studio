@@ -657,10 +657,13 @@ function Get-DriveK([string]$drive, [string]$fam, [int]$h, $brand = $null) {
     # mesures dont la marge a decide ne comptent plus dans la mediane
     $ca = @($cand | Where-Object { [string]$_.R.Method -eq 'asym' })
     if ($ca.Count -gt 0) { $cand = $ca }
-    if ($cand.Count -eq 0) { return @{ K = 1.0; Src = 'defaut'; Rec = $null; N = 0; Ks = [double[]]@(); Old = $old; OldContent = $oldC; Other = $nOth; OtherBrands = $ob; Brand = $br } }
+    # 12.11 rc7 (R16) : SRel, pente de l asymetrie relue (x 2/cellule) des enregistrements retenus dont l asymetrie a decide
+    # (Method 'asym', SRelAsym fini) : mediane, comme k ; $null sans eux (gain de repli du controle, Get-AsymExpGain, 190)
+    if ($cand.Count -eq 0) { return @{ K = 1.0; Src = 'defaut'; Rec = $null; N = 0; Ks = [double[]]@(); Old = $old; OldContent = $oldC; Other = $nOth; OtherBrands = $ob; Brand = $br; SRel = $null } }
     $last = @($cand | Sort-Object -Property @{ Expression = { $_.D }; Descending = $true }, @{ Expression = { $_.I }; Descending = $true } | Select-Object -First 3)
     $ks = [double[]]@($last | ForEach-Object { $_.K })
-    return @{ K = [double](Get-Median $ks); Src = 'lecteur'; Rec = $last[0].R; N = $last.Count; Ks = $ks; Old = $old; OldContent = $oldC; Other = $nOth; OtherBrands = $ob; Brand = $br }
+    $sr = [double[]]@($last | Where-Object { [string]$_.R.Method -eq 'asym' -and $null -ne $_.R.SRelAsym -and -not [double]::IsNaN([double]$_.R.SRelAsym) -and -not [double]::IsInfinity([double]$_.R.SRelAsym) } | ForEach-Object { [double]$_.R.SRelAsym })
+    return @{ K = [double](Get-Median $ks); Src = 'lecteur'; Rec = $last[0].R; N = $last.Count; Ks = $ks; Old = $old; OldContent = $oldC; Other = $nOth; OtherBrands = $ob; Brand = $br; SRel = $(if ($sr.Count -gt 0) { [double](Get-Median $sr) } else { $null }) }
 }
 
 function Get-StaleDriveFactors {

@@ -146,17 +146,41 @@ $script:AsymSignPct = 80
 # que ce lecteur n en aurait ecrit pour lui-meme sur cette disquette (courbe ecrite - D, Get-TargetTransferSpec, 140) :
 # gw deplace d autant chaque transition entre un intervalle de 2 cellules et un intervalle plus long, les intervalles de
 # 2 cellules sont relus plus courts, ceux de 3 et de 4 plus longs, et les rapports moyens 3T/2T et 4T/2T s ecartent de
-# 1,5 et de 2 dans le meme sens. AsymExpGain : asymetrie attendue = AsymExpGain x e / cellule (Get-AsymExpected, 190),
+# 1,5 et de 2 dans le meme sens. Gain g : asymetrie attendue = g x e / cellule (Get-AsymExpected, 190),
 # moitie sur chacun des deux rapports. Modele ideal (lecteur qui restitue tout le deplacement ecrit, voisins
 # independants) : 2,75 ; la constante retenue, plus basse, est celle qui tient sur le seul essai disponible (un couple de
 # lecteurs, famille standard) : a revoir avec d autres essais, d ou les tolerances larges. AsymExpOkTol : ecart median
 # mesuree - attendue au plus pour « conforme a l attendu », avec AsymExpInPct % des pistes au moins dont l ecart reste
 # dans la classe verte de l asymetrie (Get-AlLevel) ; AsymExpNearTol : au plus pour « proche de l attendu » ; au-dela :
 # « eloignee de l attendu » (Get-AsymSummary, 190)
-$script:AsymExpGain = 2.0
+# 12.11 rc7 (R16) : le gain n est plus une constante : par tete, g = 2 x pente de l asymetrie relue mesuree par la mesure
+# sur l image de cette disquette (SRelAsym de l enregistrement dont le facteur est applique, bornee a ContentAsymSRelMin
+# et ContentAsymSRelMax ; Get-WriteFactorPlan, 140 ; Rep.AsymGain, 170). AsymExpGainFallback : gain sans pente mesuree
+# (facteur par defaut, par la marge, mesure d avant la rc6) : mediane des pentes du lecteur qui ecrit sur les essais
+# (0,78 a 0,95, cinq mesures), soit p = 0,85 ; 1,8 au plus (a 1,9, un des trois essais redevient « eloignee »)
+$script:AsymExpGainFallback = 1.7
 $script:AsymExpOkTol = 0.005
 $script:AsymExpNearTol = 0.02
 $script:AsymExpInPct = 80
+# 12.11 rc7 (R16) : correction par zones d une ecriture pour un lecteur cible (Get-WriteZoneScan, 170), au controle complet,
+# tete par tete, sur l ecart mesuree - attendue des pistes saines converti en ns (e = ecart x cellule / g). Lissage :
+# mediane de e sur les cylindres c - WriteZoneHalfWin a c + WriteZoneHalfWin ; cylindre marque du signe de cette mediane
+# a WriteZoneMinNs ns au moins ; suites de meme signe fusionnees par-dessus WriteZoneGap cylindres non marques au plus ;
+# zone : WriteZoneMinCyl cylindres au moins, WriteZoneMinTracks pistes retenues au moins, mediane brute de e de meme signe
+# et de WriteZoneMinNs ns au moins. Correction : arrondi de -WriteZoneF x mediane, bornee a +/- WriteZoneCapNs ns, ajoutee
+# a la courbe ecrite de la tete sur les cylindres de la zone (0 a CalHardMaxNs, une valeur nulle reste nulle). Acceptee
+# a la relecture par le lecteur qui ecrit si l ecart median s est rapproche de l attendue d au moins WriteZoneAccept x la
+# correction, sans depasser WriteZoneMinNs ns de l autre cote ; sinon courbe d origine. Valeurs au centre de la region sans
+# zone aggravee des trois essais (L de 8 a 12, S de 6 a 8, f de 0,5 a 0,6) ; f au plus 0,5 : rapport besoin du lecteur
+# cible / ecart du lecteur qui ecrit de 0,45 a 1,7 sur les six zones observees
+$script:WriteZoneHalfWin = 2
+$script:WriteZoneMinNs = 8
+$script:WriteZoneGap = 2
+$script:WriteZoneMinCyl = 10
+$script:WriteZoneMinTracks = 8
+$script:WriteZoneF = 0.5
+$script:WriteZoneCapNs = 15
+$script:WriteZoneAccept = 0.5
 $script:AlignRefLabel = ''
 # 12.8.2 (S11) : zone de l index (Read-ScpFile, Set-ScpTrackPost). gw ecrit les images ADF et a secteurs d index a index
 # (« Terminate at index ») : la jonction d ecriture tombe sur l index, dans l espace entre le dernier et le premier

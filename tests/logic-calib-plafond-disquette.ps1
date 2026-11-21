@@ -510,7 +510,8 @@ $usesTxt = (@($uses.Keys | Sort-Object) | ForEach-Object { "$_ x$($uses[$_])" })
 # 12.11 rc4 (decision de l utilisateur, adapte a dessein) : en automatique, la courbe ecrite avec un facteur d une image
 # long track (140 : Get-WriteFactorPlan) et la mesure sur l image (276 : Test-ContentMeasurable) sont bornees a
 # CalHardMaxNs comme la reference de la famille ; l infobulle le dit (145 : Get-PrecompBoundTip, second emploi)
-$usesExp = '120:Load-Config x3, 140:Get-WriteFactorPlan x1, 145:Get-PrecompBoundTip x2, 230:Get-PrecompBoundChoices x1, 230:Get-PrecompBoundText x1, 230:Set-CalibScale x1, 230:Set-PrecompBound x1, 265:Get-BoundAdviceNs x1, 265:Get-DiskCapNs x1, 276:Test-ContentMeasurable x1, 560:(script) x1'
+# 12.11 rc7 (R16, adapte a dessein) : la correction par zones borne la courbe decalee a CalHardMaxNs (170 : Get-WriteZoneSpec)
+$usesExp = '120:Load-Config x3, 140:Get-WriteFactorPlan x1, 145:Get-PrecompBoundTip x2, 170:Get-WriteZoneSpec x1, 230:Get-PrecompBoundChoices x1, 230:Get-PrecompBoundText x1, 230:Set-CalibScale x1, 230:Set-PrecompBound x1, 265:Get-BoundAdviceNs x1, 265:Get-DiskCapNs x1, 276:Test-ContentMeasurable x1, 560:(script) x1'
 function Get-Callers([string]$name) { return ((@($calls[$name]) | Sort-Object) -join ', ') }
 $f270 = Join-Path $mods '270-fn-calib-complete.ps1'
 $spAst = Get-FnAst $f270 'Start-PrecompCalib'

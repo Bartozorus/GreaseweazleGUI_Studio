@@ -228,6 +228,18 @@ function Get-WriteVerifyPlan($cp = $null) {
     return $r
 }
 
+function Get-WriteZonePlan([bool]$xfer, $cp, [int]$passes) {
+    # 12.11 rc7 (R16) : correction par zones au controle apres une ecriture pour un lecteur cible (Find-WriteZones, 170) :
+    # @{ On ; Asked }. Asked : case « Corriger les zones ecartees de l attendu (lecteur cible) » des options avancees. On :
+    # demandee, ecriture pour un lecteur cible avec le facteur par cylindre ($xfer : asymetrie attendue connue au controle),
+    # controle de toutes les pistes applique ($cp, Get-WriteCheckPlan : demande ou impose, sans raison qui l empeche) et
+    # 2 passes de reecriture au moins (une zone non acceptee doit pouvoir etre reecrite avec sa courbe d origine). Seule
+    # decision : Start-ImageWrite (Rep.ZoneFix) et la ligne « Ce qui va se passer » (Get-WritePlan, 145) la lisent
+    $r = @{ On = $false; Asked = [bool]$chkWZones.Checked }
+    if ($r.Asked -and $xfer -and $cp -and [bool]$cp.Post -and -not $cp.Blocker -and $passes -ge 2) { $r.On = $true }
+    return $r
+}
+
 function Get-WriteVerifyText($vp, [string]$kind) {
     # 12.11 rc4 (R9) : textes tires de la decision de Get-WriteVerifyPlan. 'seg' : segment de la ligne « Ce qui va se
     # passer » ; 'log' : '' (plus de ligne de journal propre : R9 retire) ; 'tip', 'tipn' : infobulles de la case « Sans
@@ -476,7 +488,17 @@ function Start-ImageWrite([switch]$NoWarmup) {
         # compris (Get-WriteHeadSpecs ; ecriture rapide : meme courbe pour les deux). Le resultat du controle en tire
         # l asymetrie attendue de chaque piste (Show-WriteCheckTable, 170). Courbe croisee telle quelle (sans $xp) : D n est
         # pas connue, rien n est memorise et le controle juge l asymetrie mesuree, comme avant
-        if ($tgtDrive -and $xp) { $script:Rep.AsymExcess = Get-WriteHeadSpecs $userTs $xp.T[0].Excess $xp.T[1].Excess }
+        if ($tgtDrive -and $xp) {
+            $script:Rep.AsymExcess = Get-WriteHeadSpecs $userTs $xp.T[0].Excess $xp.T[1].Excess
+            # 12.11 rc7 (R16) : gain de l asymetrie attendue par tete relue (hswap compris, comme l exces) : 2 x pente de
+            # l asymetrie relue de la mesure dont le facteur est applique ($wf.SRel, Get-WriteFactorPlan), sinon le repli
+            # (Get-AsymExpGain, 190) ; une ligne de journal. Correction par zones decidee par Get-WriteZonePlan (Rep.ZoneFix,
+            # lue par Find-WriteZones, 170)
+            $gp = @{}; foreach ($ph in 0, 1) { $gp[$ph] = Get-AsymExpGain $(if ($null -ne $wf.SRel[$ph]) { 2 * [double]$wf.SRel[$ph] } else { [double]::NaN }) }
+            $script:Rep.AsymGain = Get-WriteHeadSpecs $userTs $gp[0] $gp[1]
+            Append-Log (Get-AsymGainText $script:Rep.AsymGain $(Get-WriteHeadSpecs $userTs ($null -ne $wf.SRel[0]) ($null -ne $wf.SRel[1])))
+            $script:Rep.ZoneFix = [bool](Get-WriteZonePlan $true $cp ([int]$numWRepair.Value)).On
+        }
         if ($script:ImageUnstable) { $script:Rep.Ignore = $script:ImageUnstable }
         $script:Rep.SrcWeak = $script:ImageSrcWeak; $script:Rep.NoJudge = $script:ImageNoJudge; $script:Rep.SrcOver = $script:ImageSrcOver
         # SCP non analyse (module absent, restauration : voir Start-RestoreWrite) ou analyse en echec : rien n est juge
@@ -1280,7 +1302,11 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
     $hard = [int]$script:CalHardNsUser; if ($hard -le 0) { $hard = [int]$script:CalHardNs }
     $fMax = [double]$script:ContentFMax
     $r = @{ Apply = $false; Why = ''; F0 = 1.0; F1 = 1.0; FMean = 1.0; K = @{ 0 = 1.0; 1 = 1.0 }; Src = @{ 0 = 'defaut'; 1 = 'defaut' }
-            Hard = $hard; Fam = ''; Line = ''; Lines = @(); Target = ''; Curves = @(); Own = @(); SrcText = @{}; Hint = '' }
+            Hard = $hard; Fam = ''; Line = ''; Lines = @(); Target = ''; Curves = @(); Own = @(); SrcText = @{}; Hint = ''; SRel = @{ 0 = $null; 1 = $null } }
+    # 12.11 rc7 (R16) : SRel, par tete, pente de l asymetrie relue (x 2/cellule) de la mesure dont le facteur est applique,
+    # quand ce facteur vient de l asymetrie : mesure sur cette disquette ($next.SRel, 276) ou memoire de la marque
+    # (Get-DriveK, SRel) ; $null sinon (facteur par defaut, par la marge, mesure d avant la rc6). Gain de l asymetrie
+    # attendue du controle d une ecriture pour un lecteur cible (Start-ImageWrite, Rep.AsymGain)
     $tw = Get-TargetWriteInfo $img $fmt $slow
     if ($tw.Applies) {
         $r.Fam = [string]$tw.Fam
@@ -1349,6 +1375,10 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
             }
         }
         if ($null -eq $k -or [double]::IsNaN($k) -or [double]::IsInfinity($k)) { $dr = Get-DriveK $drive $fam $h $brand; $k = [double]$dr.K; $src = [string]$dr.Src }
+        $sr = $null
+        if ($src -eq 'mesure' -and $useNext -and $next.SRel) { $sr = $next.SRel[$h]; if ($null -eq $sr) { $sr = $next.SRel["$h"] } }
+        elseif ($src -eq 'lecteur') { $sr = (Get-DriveK $drive $fam $h $brand).SRel }
+        if ($null -ne $sr -and -not [double]::IsNaN([double]$sr) -and -not [double]::IsInfinity([double]$sr) -and [double]$sr -gt 0) { $r.SRel[$h] = [double]$sr }
         $lim = Limit-WriteFactor $k $fMax
         if ($lim.Clamped) { $lines += (T 'Facteur de la tête {0} ramené de {1} à {2} (il va de 0 à {3}).') -f "$h", (Format-UiNum $k '0.00'), (Format-UiNum ([double]$lim.F) '0.00'), (Format-UiNum $fMax '0.0#') }
         $r.K[$h] = $k; $r.Src[$h] = $src

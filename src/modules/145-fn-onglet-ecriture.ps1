@@ -36,6 +36,8 @@ function Get-WriteAdvDefs {
         @{ Ctl = $numWWarmMin; Def = [double]$script:SettingDefs['warmMinutes'].Def; Label = (T 'Durée du préchauffage :') }
         # 12.11 rc4 (R2) : borne de precompensation, element 0 : automatique (Set-Defaults : Set-PrecompBound $true, 230)
         @{ Ctl = $cmbWBound; Def = 0; Label = (T 'Borne de précompensation :') }
+        # 12.11 rc7 (R16) : correction par zones au controle d une ecriture pour un lecteur cible, cochee par defaut
+        @{ Ctl = $chkWZones; Def = $true; Label = '' }
     )
 }
 
@@ -224,6 +226,9 @@ function Get-WritePlan {
         if ($x.EndsWith('.')) { $x = $x.Substring(0, $x.Length - 1) }
         [void]$sg.Add(@{ T = ($x.Substring(0, 1).ToLower() + $x.Substring(1)); Crit = $true; S = ((T 'lecteur cible {0} sans effet') -f "$($tw.Tgt)") })
     }
+    # 12.11 rc7 (R16) : correction par zones au controle (Get-WriteZonePlan, 140, sur le meme controle $cp : celle de
+    # Start-ImageWrite), apres le lecteur cible ; descriptif (retire par la coupe avant les segments critiques)
+    if ((Get-WriteZonePlan ([bool]$tw.Xfer) $cp $rep).On) { [void]$sg.Add(@{ T = (T "correction des zones écartées de l'attendu, d'après la relecture par le lecteur qui écrit"); Crit = $false }) }
     # Options avancees modifiees (le lien les compte)
     $ch = @(Get-WriteAdvChanges)
     if ($ch.Count -gt 0) { [void]$sg.Add(@{ T = ((T 'options avancées : {0}') -f ($ch -join ', ')); Crit = $false }) }

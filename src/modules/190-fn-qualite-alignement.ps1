@@ -798,15 +798,22 @@ function Get-TrackScore($m) {
     return [math]::Round([double]$m.J + [double]$script:ScoreAsymK * $a + 5 * [double]$m.Ooc + 50 * [double]$m.Dr + [double]$m.Stab, 0)
 }
 
-function Get-AsymExpected([double]$excessNs, [double]$cellNs) {
-    # 12.11 rc4 (R10) : asymetrie attendue, signee, d une piste ecrite $excessNs ns au-dessus (> 0) ou au-dessous (< 0) de
-    # la precompensation que le lecteur qui la relit aurait ecrite pour lui-meme : AsymExpGain x exces / cellule (040) ;
-    # $null sans cellule mesuree
-    if ([double]::IsNaN($cellNs) -or $cellNs -le 0) { return $null }
-    return [double]$script:AsymExpGain * $excessNs / $cellNs
+function Get-AsymExpGain([double]$gain = [double]::NaN) {
+    # 12.11 rc7 (R16) : gain de l asymetrie attendue : $gain (2 x pente mesuree par la mesure sur l image, Rep.AsymGain,
+    # 170) s il est fini et positif, sinon AsymExpGainFallback (040)
+    if ([double]::IsNaN($gain) -or [double]::IsInfinity($gain) -or $gain -le 0) { return [double]$script:AsymExpGainFallback }
+    return $gain
 }
 
-function Set-TrackAsymExpected($m, [double]$excessNs) {
+function Get-AsymExpected([double]$excessNs, [double]$cellNs, [double]$gain = [double]::NaN) {
+    # 12.11 rc4 (R10) : asymetrie attendue, signee, d une piste ecrite $excessNs ns au-dessus (> 0) ou au-dessous (< 0) de
+    # la precompensation que le lecteur qui la relit aurait ecrite pour lui-meme : g x exces / cellule ; $null sans cellule
+    # mesuree. 12.11 rc7 (R16) : g = Get-AsymExpGain $gain (pente de la tete mesuree sur l image, sinon le repli de 040)
+    if ([double]::IsNaN($cellNs) -or $cellNs -le 0) { return $null }
+    return [double](Get-AsymExpGain $gain) * $excessNs / $cellNs
+}
+
+function Set-TrackAsymExpected($m, [double]$excessNs, [double]$gain = [double]::NaN) {
     # 12.11 rc4 (R10) : piste d une disquette ecrite pour un lecteur cible et relue par le lecteur qui l a ecrite (controle
     # apres ecriture, Show-WriteCheckTable, 170). Pose dans ses metriques AsymExp (asymetrie attendue, Get-AsymExpected),
     # AsymGap (mesuree - attendue ; mesuree signee : somme des ecarts des rapports 3T/2T et 4T/2T a 1,5 et a 2, soit
@@ -814,11 +821,13 @@ function Set-TrackAsymExpected($m, [double]$excessNs) {
     # a la place de « Asym. » : valeurs absolues des deux ecarts, la moitie de l attendue retiree de chacun ; jamais sous
     # |AsymGap| : une asymetrie d une autre forme que l attendue n est pas effacee ; attendue nulle : « Asym. »), puis
     # recalcule Score (Get-TrackScore). Asym, R3 et R4 gardent les valeurs mesurees ; l etat de la piste (Get-HealthLevel)
-    # ne lit rien de tout cela. Piste illisible, cellule ou rapport non mesure : rien
+    # ne lit rien de tout cela. Piste illisible, cellule ou rapport non mesure : rien. 12.11 rc7 (R16) : gain $gain de la
+    # tete (Get-AsymExpGain), garde dans AsymGain pour convertir l ecart en ns (GapNs, Get-AsymSummary)
     if ($null -eq $m -or $m.Bad) { return }
-    $x = Get-AsymExpected $excessNs ([double]$m.Cell)
+    $x = Get-AsymExpected $excessNs ([double]$m.Cell) $gain
     $d3 = [double]$m.R3 - 1.5; $d4 = [double]$m.R4 - 2.0
     if ($null -eq $x -or [double]::IsNaN($d3) -or [double]::IsNaN($d4)) { return }
+    $m.AsymGain = [double](Get-AsymExpGain $gain)
     $m.AsymExp = [double]$x
     $m.AsymGap = ($d3 + $d4) - [double]$x
     $m.AsymDev = [math]::Abs($d3 - [double]$x / 2) + [math]::Abs($d4 - [double]$x / 2)
@@ -892,9 +901,10 @@ function Get-AsymSummary($ms) {
         $s.ExpMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymExp }))
         $s.MeasMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymExp + [double]$_.AsymGap }))
         $s.GapMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymGap }))
-        # 12.11 rc6 (R14) : GapNs, mediane de l ecart converti en ns par la constante du modele (Get-AsymExpected a
-        # l envers : ecart x cellule / AsymExpGain) : < 0, disquette sous-compensee pour le lecteur cible ; > 0, sur-compensee
-        $s.GapNs = $(if ([double]$script:AsymExpGain -gt 0) { [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymGap * [double]$_.Cell / [double]$script:AsymExpGain })) } else { 0.0 })
+        # 12.11 rc6 (R14) : GapNs, mediane de l ecart converti en ns (Get-AsymExpected a l envers : ecart x cellule / g) :
+        # < 0, disquette sous-compensee pour le lecteur cible ; > 0, sur-compensee. 12.11 rc7 (R16) : g de chaque piste, celui
+        # de son attendue (AsymGain, Set-TrackAsymExpected ; piste sans : Get-AsymExpGain, le repli de 040)
+        $s.GapNs = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymGap * [double]$_.Cell / [double](Get-AsymExpGain $(if ($null -ne $_.AsymGain) { [double]$_.AsymGain } else { [double]::NaN })) }))
         $s.DevPoints = [int][math]::Round([double]$script:ScoreAsymK * $dev / $ok.Count)
         # Jugement tete par tete (AsymHead, pose par Show-WriteCheckTable : courbe ecrite et facteur de la disquette sont
         # par tete), le moins bon des deux garde ; pistes sans AsymHead : un seul groupe, jugement d ensemble

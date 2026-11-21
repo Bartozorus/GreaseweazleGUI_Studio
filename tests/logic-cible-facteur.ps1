@@ -204,7 +204,8 @@ function Set-FkStubs {
     }
     function script:Start-ContentMeasure($chk) {
         [void]$script:FkTrace.Add("mesure sur l image lecteur $($chk.Drive) famille $($chk.Fam)")
-        $script:WriteFactorNext = @{ Drive = [string]$chk.Drive; Fam = [string]$chk.Fam; Img = [string]$chk.Img; K = @{ 0 = 1.10; 1 = 0.95 }; Src = @{ 0 = 'mesure'; 1 = 'mesure' }; Date = '14/11/2026 10:00'; Brand = '' }
+        # 12.11 rc7 (R16) : pentes de l asymetrie relue des deux tetes (facteur par l asymetrie), comme la fin reelle les transmet
+        $script:WriteFactorNext = @{ Drive = [string]$chk.Drive; Fam = [string]$chk.Fam; Img = [string]$chk.Img; K = @{ 0 = 1.10; 1 = 0.95 }; Src = @{ 0 = 'mesure'; 1 = 'mesure' }; Date = '14/11/2026 10:00'; Brand = ''; SRel = @{ 0 = 0.79; 1 = 0.78 } }
         Append-Log 'bouchon : mesure sur l image terminee'
         Start-ImageWrite -NoWarmup
     }
@@ -671,6 +672,26 @@ foreach ($h in 0, 1) {
 $exH0 = Get-FkExcess $h1 0; $exH1 = Get-FkExcess $h1 1; $exR1 = Get-FkExcess $cur['R1'] 1
 $x3Swap = ($exH0.Count -ge 80 -and ($exH0 -join ',') -cne ($exH1 -join ',') -and ($exH0 -join ',') -ceq ($exR1 -join ','))
 Chk 'X3' ($x3Bad.Count -eq 0 -and $x3Swap -and @($h1.Trace | Where-Object { $_ -like 'ERREUR*' }).Count -eq 0) "hswap dans le champ Pistes, facteur de marque 1,25 : chaque face recoit le profil et l exces de la tete qui l ecrit (face 0 : ceux de la tete 1 sans hswap ; c40 : $(if ($exH0.Count -gt 40) { $exH0[40] } else { 'absent' }) ns face 0, $(if ($exH1.Count -gt 40) { $exH1[40] } else { 'absent' }) ns face 1) ; ecarts : $(Get-List $x3Bad)"
+# X4 (12.11 rc7, R16) : gain de l asymetrie attendue memorise avec le controle (Rep.AsymGain) : 2 x pente de la mesure sur
+# l image qui precede (C1 : pentes 0,79 et 0,78 transmises par WriteFactorNext), repli 1,7 sans pente (facteur de marque sans
+# mesure par l asymetrie, calibration rapide, mesure complete) ; ligne de journal ; correction par zones decidee par
+# Get-WriteZonePlan (Rep.ZoneFix ; case, controle, 2 passes au moins), segment de la ligne « Ce qui va se passer »
+function Get-FkGain($r) { if ($r -and $r.Rep -and $r.Rep.AsymGain) { return ('{0}/{1}' -f ([double]$r.Rep.AsymGain[0]).ToString('0.00', [Globalization.CultureInfo]::InvariantCulture), ([double]$r.Rep.AsymGain[1]).ToString('0.00', [Globalization.CultureInfo]::InvariantCulture)) }; return '-' }
+$gWant = @{ C1 = '1.58/1.56'; C2 = '1.70/1.70'; C3 = '1.70/1.70'; C4 = '1.70/1.70'; C5 = '1.70/1.70'; C6 = '1.58/1.56' }
+$x4Bad = @(foreach ($id in @($gWant.Keys | Sort-Object)) { $gv = Get-FkGain $cur[$id]; if ($gv -cne $gWant[$id] -or -not $cur[$id].Rep.ZoneFix) { "$id : gain $gv, correction par zones $([bool]$cur[$id].Rep.ZoneFix)" } })
+foreach ($id in @($scA | ForEach-Object { $_.Id })) { if ($cur[$id].Rep -and ($cur[$id].Rep.ContainsKey('AsymGain') -or $cur[$id].Rep.ContainsKey('ZoneFix'))) { $x4Bad += "$id : gain ou correction par zones pour le meme lecteur" } }
+$gLine = "Contrôle après écriture : asymétrie attendue = g × excès de précompensation / cellule ; tête 0 : g = 1,58, deux fois la pente mesurée sur l'image ; tête 1 : g = 1,56, deux fois la pente mesurée sur l'image."
+$gLine4 = "Contrôle après écriture : asymétrie attendue = g × excès de précompensation / cellule ; tête 0 : g = 1,70 par défaut, pente non mesurée ; tête 1 : g = 1,70 par défaut, pente non mesurée."
+$x4l = (@($cur['C1'].Log) -ccontains $gLine -and @($cur['C4'].Log) -ccontains $gLine4)
+$zSeg = "correction des zones écartées de l'attendu, d'après la relecture par le lecteur qui écrit"
+$x4p = (@($cur['C1'].Plan.Segs | Where-Object { [string]$_.T -ceq $zSeg }).Count -eq 1 -and $cur['B3'].Plan -and @($cur['B3'].Plan.Segs | Where-Object { [string]$_.T -ceq $zSeg }).Count -eq 0)
+$cpOk = @{ Post = $true; Blocker = $null }
+$zKeep = $chkWZones.Checked
+$chkWZones.Checked = $true; $zp = @((Get-WriteZonePlan $true $cpOk 2).On, (Get-WriteZonePlan $true $cpOk 1).On, (Get-WriteZonePlan $false $cpOk 3).On, (Get-WriteZonePlan $true @{ Post = $false; Blocker = $null } 3).On, (Get-WriteZonePlan $true @{ Post = $true; Blocker = 'secteurs durs' } 3).On)
+$chkWZones.Checked = $false; $zp += @((Get-WriteZonePlan $true $cpOk 3).On, (Get-WriteZonePlan $true $cpOk 3).Asked)
+$chkWZones.Checked = $zKeep
+$x4z = (($zp | ForEach-Object { [int][bool]$_ }) -join '') -ceq '1000000'
+Chk 'X4' ($x4Bad.Count -eq 0 -and $x4l -and $x4p -and $x4z) "gain memorise par tete (vraie Start-ImageWrite) : C1 $(Get-FkGain $cur['C1']) (2 x pentes 0,79 et 0,78), C4 $(Get-FkGain $cur['C4']) (repli) ; aucun pour le meme lecteur ; ecarts : $(Get-List $x4Bad) ; ligne de journal du gain ($x4l) ; segment « correction des zones » de la ligne pour le lecteur cible seulement ($x4p) ; Get-WriteZonePlan : case cochee, 2 passes : oui ; 1 passe, sans facteur par cylindre, sans controle, controle non applicable, case decochee : non ($(($zp | ForEach-Object { [int][bool]$_ }) -join ''))"
 
 # =====================================================================================================================
 '--- D : phrase, case de la mesure et journal tires de la meme decision'
