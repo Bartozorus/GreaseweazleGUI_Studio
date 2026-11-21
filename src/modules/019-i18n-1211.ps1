@@ -326,8 +326,6 @@ $script:I18n['× {0} ({1})'] = '× {0} ({1})'
 $script:I18n['× {0}, moyenne des deux têtes'] = '× {0}, mean of both heads'
 $script:I18n['facteur de {0} à {1}, médiane {2}'] = 'factor from {0} to {1}, median {2}'
 $script:I18n['aucun cylindre où le besoin propre atteint {0} ns'] = 'no cylinder where the own need reaches {0} ns'
-$script:I18n['tête {0} : c{1}'] = 'head {0}: c{1}'
-$script:I18n["cylindres où le besoin propre du lecteur {0} est sous {1} ns : écart reporté en ns ({2})"] = 'cylinders where the own need of drive {0} is below {1} ns: difference carried over in ns ({2})'
 # Lecteur cible sans courbe propre du lecteur qui ecrit : courbe croisee telle quelle (Get-WriteFactorPlan,
 # Start-WriteTabWrite, Start-PresetWrite, Update-WLevelUi, 140) ; Bibliotheque sans calibration automatique (Start-PresetWrite)
 $script:I18n["Écriture pour le lecteur cible {0} : {1}, facteur 1,00 ; pas de courbe propre du lecteur {2} pour cette famille : courbe croisée telle quelle."] = 'Write for target drive {0}: {1}, factor 1.00; no own curve of drive {2} for this family: cross curve as is.'
@@ -531,3 +529,8 @@ $script:I18n['Vos lecteurs ne sont pas supprimés : {0} restent dans la liste du
 $script:I18n["Remettre tous les réglages de l'interface à leurs valeurs par défaut ?`n`nVos lecteurs et leurs calibrations ne sont pas touchés : ils gardent leur nom, leur connexion, leurs courbes et leur lecteur cible ; la liste « Lecteur : » du bandeau revient à la connexion par défaut. La configuration est réenregistrée aussitôt.`n`nPour effacer les calibrations : onglet Écriture, options avancées, « Effacer les calibrations ». Pour retirer un lecteur : bouton « Lecteurs… » du bandeau, puis « Supprimer… ».`n`n(Aucun effet sur le Greaseweazle, ni sur vos fichiers image, ni sur l'index de la bibliothèque.)"] = "Reset all interface settings to their default values?`n`nYour drives and their calibrations are not touched: they keep their name, their connection, their curves and their target drive; the ""Drive:"" list of the banner goes back to the default connection. The configuration is saved again immediately.`n`nTo clear the calibrations: Write tab, advanced options, ""Clear calibrations"". To remove a drive: ""Drives…"" button of the banner, then ""Delete…"".`n`n(No effect on the Greaseweazle, on your image files or on the library index.)"
 $script:I18n['Valeurs par défaut restaurées ; lecteurs et calibrations gardés, configuration réenregistrée.'] = 'Default values restored; drives and calibrations kept, configuration saved again.'
 $script:I18n['Valeurs par défaut restaurées ; configuration non réenregistrée (voir le journal).'] = 'Default values restored; configuration not saved again (see the log).'
+
+# --- rc5 : facteur de la disquette sous le seuil XferMinNs (140, R13) ------------------------------------------------------
+$script:I18n['c{0} sous {1} ns : facteur du cylindre c{2} repris'] = 'c{0} below {1} ns: factor of cylinder c{2} reused'
+$script:I18n['c{0} sous {1} ns : facteur moyen de la disquette repris ({2})'] = 'c{0} below {1} ns: mean factor of the disk reused ({2})'
+$script:I18n['c{0} sous {1} ns : écart reporté en ns'] = 'c{0} below {1} ns: difference carried over in ns'

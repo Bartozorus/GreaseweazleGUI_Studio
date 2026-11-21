@@ -1593,15 +1593,15 @@ function Get-TargetWriteInfo([string]$img, [string]$fmt, [bool]$slow) {
 function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec, [int]$cyls, [int]$cap) {
     # 12.11 (rc2, spec-facteur-croise, regle 4) : courbe ecrite pour le lecteur cible T par le lecteur S, une tete, cylindre
     # par cylindre c de 0 a n - 1 : Sp(c) >= XferMinNs (040) : X(c) x D(c) / Sp(c), le facteur par cylindre de la
-    # calibration croisee (X/Sp) applique a la courbe de cette disquette ; sinon X(c) + (D(c) - Sp(c)), l ecart de la
-    # disquette reporte en ns (au bord, le besoin propre de S est de quelques ns : un rapport y multiplierait le bruit de
-    # mesure). D : profil que S ecrirait pour lui-meme sur cette disquette (Start-ImageWrite : mesure, facteur) ; Sp : courbe
+    # calibration croisee (X/Sp) applique a la courbe de cette disquette ; sinon (au bord, le besoin propre de S est de
+    # quelques ns : un rapport D/Sp y multiplierait le bruit de mesure) : facteur de la disquette repris d un cylindre
+    # voisin (rc5, R13, ci-dessous ; en rc2 a rc4 : X(c) + (D(c) - Sp(c)), d ou une marche au seuil). D : profil que S ecrirait pour lui-meme sur cette disquette (Start-ImageWrite : mesure, facteur) ; Sp : courbe
     # propre de S ; X : courbe croisee S -> T. Valeur d un cylindre au-dela de la derniere entree d un profil : celle de la
     # derniere (Get-SpecValue, prolongement de gw). Arrondi au ns (au pair, comme ConvertTo-ScaledSpec), au moins 0, au plus
     # max($cap, X(c), D(c)) : la borne de l ecriture « meme lecteur » de cette disquette (D deja au-dessus, venue d une
     # mesure, et X deja au-dessus ne sont jamais reduites par la borne). n : $cyls,
     # et au moins un cylindre apres la derniere entree des trois profils (au-dela, les trois sont constants). Rend @{ Spec ;
-    # Values ; Ratio (cylindre -> X/Sp, la ou Sp >= XferMinNs) ; Added (cylindres en ecart reporte) ; Same (D = Sp) }.
+    # Values ; Ratio (cylindre -> X/Sp, la ou Sp >= XferMinNs) ; Borrow ; Pooled ; PoolF ; Added ; Same (D = Sp) }.
     # Regle 5 : courbe ecrite egale a X en chaque cylindre (D = Sp) : Spec est $xSpec, la meme chaine (commandes gw de la rc1)
     # 12.11 rc4 (R10) : Excess, par cylindre, courbe ecrite - D(c) en ns : ce que la piste porte de plus (ou de moins) que
     # ce que S aurait ecrit pour lui-meme sur cette disquette ; memorise avec le controle apres ecriture (Start-ImageWrite,
@@ -1610,22 +1610,39 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
     foreach ($s in @($dSpec, $spSpec, $xSpec)) {
         foreach ($m in [regex]::Matches([string]$s, '(\d+)\s*=\s*(\d+)')) { if ([int]$m.Groups[1].Value -gt $last) { $last = [int]$m.Groups[1].Value } }
     }
+    # 12.11 rc5 (R13) : sous le seuil, X(c) x f, f = D(c')/Sp(c') du cylindre c' le plus proche ou Sp >= XferMinNs (a
+    # distance egale, le cylindre superieur) : le facteur de la disquette reste applique, sans marche au seuil (D = k x Sp
+    # donne k x X partout) ; aucun tel cylindre : f = somme de D / somme de Sp sur les n cylindres (Pooled, PoolF) ;
+    # somme de Sp nulle : X(c) + (D(c) - Sp(c)), l ancien ecart reporte (Added). Borrow : cylindre -> c'
     $n = [math]::Max($cyls, $last + 1)
     $min = [double]$script:XferMinNs
     # Ratio : table simple (une table ordonnee lirait une cle entiere comme un rang)
-    $r = @{ Spec = $xSpec; Values = @(); Ratio = @{}; Added = @(); Same = $true; Excess = @() }
+    $r = @{ Spec = $xSpec; Values = @(); Ratio = @{}; Added = @(); Borrow = @{}; Pooled = @(); PoolF = $null; Same = $true; Excess = @() }
     $vals = New-Object int[] $n; $exc = New-Object int[] $n
-    $asX = $true; $added = New-Object System.Collections.Generic.List[int]
+    $asX = $true; $added = New-Object System.Collections.Generic.List[int]; $pooled = New-Object System.Collections.Generic.List[int]
+    $dA = New-Object double[] $n; $spA = New-Object double[] $n; $xA = New-Object double[] $n; $sumD = 0.0; $sumSp = 0.0; $nOk = 0
     for ($c = 0; $c -lt $n; $c++) {
-        $d = [double](Get-SpecValue $dSpec $c); $sp = [double](Get-SpecValue $spSpec $c); $x = [double](Get-SpecValue $xSpec $c)
+        $dA[$c] = [double](Get-SpecValue $dSpec $c); $spA[$c] = [double](Get-SpecValue $spSpec $c); $xA[$c] = [double](Get-SpecValue $xSpec $c)
+        $sumD += $dA[$c]; $sumSp += $spA[$c]; if ($spA[$c] -ge $min) { $nOk++ }
+    }
+    for ($c = 0; $c -lt $n; $c++) {
+        $d = $dA[$c]; $sp = $spA[$c]; $x = $xA[$c]
         if ($d -ne $sp) { $r.Same = $false }
         if ($sp -ge $min) { $w = $x * $d / $sp; $r.Ratio[$c] = $x / $sp }
+        elseif ($nOk -gt 0) {
+            $cs = -1
+            for ($k = 1; $cs -lt 0; $k++) {
+                if ($c + $k -lt $n -and $spA[$c + $k] -ge $min) { $cs = $c + $k } elseif ($c - $k -ge 0 -and $spA[$c - $k] -ge $min) { $cs = $c - $k }
+            }
+            $w = $x * $dA[$cs] / $spA[$cs]; $r.Borrow[$c] = $cs
+        }
+        elseif ($sumSp -gt 0) { $r.PoolF = $sumD / $sumSp; $w = $x * $r.PoolF; $pooled.Add($c) }
         else { $w = $x + ($d - $sp); $added.Add($c) }
         $vals[$c] = [int][math]::Max(0.0, [math]::Min([math]::Round($w), [math]::Max([double]$cap, [math]::Max($x, $d))))
         $exc[$c] = $vals[$c] - [int]$d
         if ($vals[$c] -ne [int]$x) { $asX = $false }
     }
-    $r.Values = $vals; $r.Added = [int[]]$added.ToArray(); $r.Excess = $exc
+    $r.Values = $vals; $r.Added = [int[]]$added.ToArray(); $r.Pooled = [int[]]$pooled.ToArray(); $r.Excess = $exc
     if (-not $asX) { $r.Spec = Build-CurveProfile $vals }
     return $r
 }
@@ -1633,11 +1650,25 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
 function Get-TargetTransferSummary($t) {
     # 12.11 (rc2) : resume du facteur par cylindre d une tete (Get-TargetTransferSpec) : @{ Min ; Med ; Max } de X/Sp sur
     # les cylindres ou Sp >= XferMinNs ($null sans eux), Added (cylindres en ecart reporte), Text (journal)
+    # 12.11 rc5 (R13) : Text suivi, entre parentheses, des cylindres sous le seuil : facteur du cylindre c' repris (par c'),
+    # facteur moyen de la disquette repris (Pooled), ecart reporte en ns (Added)
     $v = @(@($t.Ratio.Values) | ForEach-Object { [double]$_ })
     $s = @{ Min = $null; Med = $null; Max = $null; Added = @($t.Added); Text = '' }
-    if ($v.Count -eq 0) { $s.Text = (T 'aucun cylindre où le besoin propre atteint {0} ns') -f "$($script:XferMinNs)"; return $s }
+    $mn = "$($script:XferMinNs)"
+    $u = @()
+    $bw = $t.Borrow
+    if ($bw -and $bw.Count) {
+        foreach ($src in @(@($bw.Values) | ForEach-Object { [int]$_ } | Sort-Object -Unique)) {
+            $cl = [int[]]@(foreach ($k in @($bw.Keys)) { if ([int]$bw[$k] -eq $src) { [int]$k } })
+            $u += (T 'c{0} sous {1} ns : facteur du cylindre c{2} repris') -f (Format-CylList $cl), $mn, "$src"
+        }
+    }
+    if (@($t.Pooled).Count) { $u += (T 'c{0} sous {1} ns : facteur moyen de la disquette repris ({2})') -f (Format-CylList ([int[]]@($t.Pooled))), $mn, (Format-UiNum $t.PoolF '0.00') }
+    if (@($t.Added).Count) { $u += (T 'c{0} sous {1} ns : écart reporté en ns') -f (Format-CylList ([int[]]@($t.Added))), $mn }
+    $tail = if ($u.Count) { ' (' + ($u -join ', ') + ')' } else { '' }
+    if ($v.Count -eq 0) { $s.Text = ((T 'aucun cylindre où le besoin propre atteint {0} ns') -f $mn) + $tail; return $s }
     $s.Min = [double]($v | Measure-Object -Minimum).Minimum; $s.Max = [double]($v | Measure-Object -Maximum).Maximum; $s.Med = [double](Get-Median $v)
-    $s.Text = (T 'facteur de {0} à {1}, médiane {2}') -f (Format-UiNum $s.Min '0.00'), (Format-UiNum $s.Max '0.00'), (Format-UiNum $s.Med '0.00')
+    $s.Text = ((T 'facteur de {0} à {1}, médiane {2}') -f (Format-UiNum $s.Min '0.00'), (Format-UiNum $s.Max '0.00'), (Format-UiNum $s.Med '0.00')) + $tail
     return $s
 }
 
@@ -1697,15 +1728,13 @@ function Get-TargetTransferPlan($tw, $wf, $td, [bool]$slow) {
             (T 'tête {0} : {1}') -f "$h", $x
         }) -join ', '
         $sum = @(foreach ($h in 0, 1) { (T 'tête {0} : {1}') -f "$h", (Get-TargetTransferSummary $r.T[$h]).Text }) -join ' ; '
-        $ad = @(foreach ($h in 0, 1) { $a = @($r.T[$h].Added); if ($a.Count) { (T 'tête {0} : c{1}') -f "$h", (Format-CylList ([int[]]$a)) } }) -join ', '
     } else {
         $o = [string]$kt[[string]$td.Kind[0]]
         if ($wf.Apply) { $o += ' ' + ((T '× {0}, moyenne des deux têtes') -f (Format-UiNum $wf.FMean '0.00')) }
         $sum = (Get-TargetTransferSummary $t0).Text
-        $a = @($t0.Added); $ad = if ($a.Count) { 'c' + (Format-CylList ([int[]]$a)) } else { '' }
     }
+    # 12.11 rc5 (R13) : cylindres sous le seuil dans le resume par tete (Get-TargetTransferSummary), plus de phrase a part
     $r.Line = (T "Écriture pour le lecteur cible {0} : courbe de cette disquette (lecteur {1}, {2}) × facteur par cylindre de la calibration croisée {1} → {0} ({3}) ; {4}") -f "$tgt", "$src", "$o", (Get-TargetCurvesText $src $tgt ([string]$tw.Fam) $xc), "$sum"
-    if ($ad) { $r.Line += ' ; ' + ((T "cylindres où le besoin propre du lecteur {0} est sous {1} ns : écart reporté en ns ({2})") -f "$src", "$($script:XferMinNs)", "$ad") }
     # Relecture m2 : courbe propre de S plus recente que la courbe croisee (S recalibre depuis) : le facteur X/Sp est pris
     # sur la courbe propre courante, note pour interpreter le resultat
     if ((Get-CurveDate $own[0]) -gt (Get-CurveDate $xc[0])) { $r.Line += ' ; ' + ((T 'courbe du lecteur {0} postérieure à la calibration croisée {0} → {1}') -f "$src", "$tgt") }

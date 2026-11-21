@@ -4,7 +4,7 @@ $Wt = Get-TestRoot $Wt
 # 12.11 rc2 : ecriture pour un lecteur cible avec le facteur par cylindre de la calibration croisee (spec-facteur-croise).
 #  U  Get-TargetTransferSpec et Get-TargetTransferSummary (140) : D = Sp donne X a la chaine pres ; facteur uniforme k
 #     (D = k.Sp) : k.X la ou Sp >= XferMinNs, X + (k - 1).Sp ailleurs ; borne et zero ; cylindres au-dela de la longueur
-#     d une courbe ; tete par tete (Get-TargetTransferPlan) ; resume (min, mediane, max, cylindres en ecart reporte).
+#     d une courbe ; tete par tete (Get-TargetTransferPlan) ; resume (min, mediane, max, cylindres sous le seuil et facteur repris, rc5).
 #  A  ecriture « meme lecteur » strictement inchangee : six scenarios (mesure sur l image, test rapide, mesure complete,
 #     facteur de marque, ecriture rapide au test rapide, Bibliotheque), mesures simulees jusqu a l ecriture (bouchons qui
 #     reprennent la fin reelle : Set-LevelFields, drapeau LevelPostForce, facteur mesure WriteFactorNext, puis la vraie
@@ -80,11 +80,21 @@ function Get-FkVal([string]$spec, [int]$c) {
     return $v
 }
 # Courbe attendue par la specification (regle 4), ecrite ici : cylindres 0 a $n - 1
+# 12.11 rc5 (R13) : sous le seuil, X x D(c')/Sp(c') du cylindre c' le plus proche ou Sp >= seuil (a distance egale, le
+# superieur) ; aucun : X x somme D / somme Sp ; somme Sp nulle : X + D - Sp
 function Get-FkExpect([string]$d, [string]$sp, [string]$x, [int]$n, [int]$cap, [int]$min) {
     $o = New-Object int[] $n
+    $ok = @(for ($c = 0; $c -lt $n; $c++) { if ((Get-FkVal $sp $c) -ge $min) { $c } })
+    $sD = 0.0; $sS = 0.0; for ($c = 0; $c -lt $n; $c++) { $sD += Get-FkVal $d $c; $sS += Get-FkVal $sp $c }
     for ($c = 0; $c -lt $n; $c++) {
         $dv = [double](Get-FkVal $d $c); $sv = [double](Get-FkVal $sp $c); $xv = [double](Get-FkVal $x $c)
-        $w = if ($sv -ge $min) { $xv * $dv / $sv } else { $xv + $dv - $sv }
+        if ($sv -ge $min) { $w = $xv * $dv / $sv }
+        elseif ($ok.Count) {
+            $best = $ok[0]; foreach ($q in $ok) { $dq = [math]::Abs($q - $c); $db = [math]::Abs($best - $c); if ($dq -lt $db -or ($dq -eq $db -and $q -gt $best)) { $best = $q } }
+            $w = $xv * (Get-FkVal $d $best) / [double](Get-FkVal $sp $best)
+        }
+        elseif ($sS -gt 0) { $w = $xv * $sD / $sS }
+        else { $w = $xv + $dv - $sv }
         $w = [math]::Round($w); if ($w -lt 0) { $w = 0 }; $b = [math]::Max([double]$cap, [math]::Max($xv, $dv)); if ($w -gt $b) { $w = $b }
         $o[$c] = [int]$w
     }
@@ -374,21 +384,50 @@ $u1 = @(@('0=4:2=12:40=50:79=90', '0=40:30=80:79=150'), @('0=0:5=9:6=30', '0=12:
 $u1Bad = @()
 foreach ($p in $u1) { $t = Get-TargetTransferSpec $p[0] $p[0] $p[1] 0 $cap; if ($t.Spec -cne $p[1] -or -not $t.Same) { $u1Bad += "$($p[0]) -> $($t.Spec)" } }
 Chk 'U1' ($u1Bad.Count -eq 0) "regle 5 : D = Sp donne X a la chaine pres (meme profil transmis qu en rc1), $($u1.Count) jeux dont une courbe croisee au-dessus de la borne ; ecarts : $(Get-List $u1Bad)"
-# U2 : facteur uniforme k = 1,5 (D = 1,5 Sp exactement) : 1,5 X la ou Sp >= 10 ns, X + 0,5 Sp ailleurs
+# U2 : facteur uniforme k = 1,5 (D = 1,5 Sp exactement) : 1,5 X sur tous les cylindres (rc5, R13 : sous 10 ns, facteur
+# du cylindre 3 repris ; jusqu a la rc4 : X + 0,5 Sp, d ou une marche au seuil)
 $sp2 = Build-CurveProfile ([int[]]@(for ($c = 0; $c -lt 80; $c++) { 4 + 2 * $c }))
 $d2 = Build-CurveProfile ([int[]]@(for ($c = 0; $c -lt 80; $c++) { 6 + 3 * $c }))
 $x2 = Build-CurveProfile ([int[]]@(for ($c = 0; $c -lt 80; $c++) { 20 + 2 * $c }))
 $t2 = Get-TargetTransferSpec $d2 $sp2 $x2 0 1000
-$e2 = [int[]]@(for ($c = 0; $c -lt 80; $c++) { $s = 4 + 2 * $c; $x = 20 + 2 * $c; if ($s -ge 10) { [int][math]::Round(1.5 * $x) } else { [int]($x + 0.5 * $s) } })
+$e2 = [int[]]@(for ($c = 0; $c -lt 80; $c++) { 30 + 3 * $c })
 $g2 = Get-FkVals $t2.Spec 80
 $df2 = @(Get-FkDiff $g2 $e2)
-Chk 'U2' ($df2.Count -eq 0 -and (@($t2.Added) -join ',') -eq '0,1,2' -and @($t2.Ratio.Keys).Count -eq 77) "facteur uniforme 1,5 : 1,5 X aux cylindres 3 a 79 (Sp >= 10 ns), X + 0,5 Sp aux cylindres 0 a 2 (ecart reporte : $(@($t2.Added) -join ',')) ; ecarts : $(Get-List $df2)"
+$bw2 = @(foreach ($c in 0, 1, 2) { if ($t2.Borrow -and $t2.Borrow.ContainsKey($c)) { "$c>$($t2.Borrow[$c])" } }) -join ','
+Chk 'U2' ($df2.Count -eq 0 -and @($t2.Added).Count -eq 0 -and $bw2 -eq '0>3,1>3,2>3' -and @($t2.Ratio.Keys).Count -eq 77) "facteur uniforme 1,5 : 1,5 X aux 80 cylindres, sans marche au seuil ; cylindres 0 a 2 (Sp < 10 ns) : facteur du cylindre 3 repris ($bw2) ; ecarts : $(Get-List $df2)"
+# U2b (R13, constat sur materiel) : k = 0,65, Sp au bord sous 10 ns : 0,65 X partout (rc4 : X - 0,35 Sp sous le seuil)
+$sp2b = Build-CurveProfile ([int[]]@(for ($c = 0; $c -lt 80; $c++) { 2 + $c }))
+$d2b = ConvertTo-ScaledSpec $sp2b 0.65 1000
+$x2b = Build-CurveProfile ([int[]]@(for ($c = 0; $c -lt 80; $c++) { 44 + $c }))
+$t2b = Get-TargetTransferSpec $d2b $sp2b $x2b 0 1000
+$e2b = Get-FkExpect $d2b $sp2b $x2b 80 1000 $min
+$g2b = Get-FkVals $t2b.Spec 80
+$df2b = @(Get-FkDiff $g2b $e2b)
+# Saut au seuil (c7 -> c8, Sp 9 -> 10) au plus celui de X x f a l arrondi pres ; valeurs sous le seuil = 0,65 X a l arrondi de D pres
+$f8 = (Get-FkVal $d2b 8) / 10.0
+$lo = @(for ($c = 0; $c -lt 8; $c++) { if ([math]::Abs($g2b[$c] - (44 + $c) * $f8) -gt 0.51) { "c$c $($g2b[$c])" } })
+Chk 'U2b' ($df2b.Count -eq 0 -and $lo.Count -eq 0 -and [math]::Abs(($g2b[8] - $g2b[7]) - $f8) -le 1 -and $g2b[0] -le [math]::Round(0.7 * 44)) "k 0,65, Sp de 2 a 81 ns, X de 44 a 123 ns : cylindres 0 a 7 = X x D(8)/Sp(8) ($f8), c0 $($g2b[0]) ns (rc4 : 43 ns), c7 -> c8 $($g2b[7]) -> $($g2b[8]) ns ; ecarts : $(Get-List (@($df2b) + $lo))"
+# U2c : D de forme libre (test rapide, mesure complete) : continuite au seuil, facteur du premier cylindre au-dessus ;
+# creux interieur de Sp (c40-41 sous 10 ns : c40 -> c39, c41 -> c42) ;
+# cylindre a egale distance (c60 seul sous le seuil : c61 repris) ; Sp partout sous le seuil (facteur moyen) ; Sp nul (ecart reporte)
+$sp2c = Build-CurveProfile ([int[]]@(for ($c = 0; $c -lt 80; $c++) { if ($c -in 40, 41, 60) { 5 } elseif ($c -lt 6) { 3 + $c } else { 10 + $c } }))
+$d2c = Build-CurveProfile ([int[]]@(for ($c = 0; $c -lt 80; $c++) { 20 + [int](15 * [math]::Sin($c / 7.0)) + $c }))
+$x2c = Build-CurveProfile ([int[]]@(for ($c = 0; $c -lt 80; $c++) { 50 + 2 * $c }))
+$t2c = Get-TargetTransferSpec $d2c $sp2c $x2c 0 1000
+$e2c = Get-FkExpect $d2c $sp2c $x2c 80 1000 $min
+$df2c = @(Get-FkDiff (Get-FkVals $t2c.Spec 80) $e2c)
+$bw2c = @(foreach ($c in 0, 5, 40, 41, 60) { "$c>$(if ($t2c.Borrow) { $t2c.Borrow[$c] })" }) -join ','
+$t2d = Get-TargetTransferSpec '0=4:10=8' '0=3:10=6' '0=40:10=60' 0 1000
+$e2d = Get-FkExpect '0=4:10=8' '0=3:10=6' '0=40:10=60' 11 1000 $min
+$t2e = Get-TargetTransferSpec '0=5' '0=0' '0=30' 0 1000
+$df2d = @(Get-FkDiff (Get-FkVals $t2d.Spec 11) $e2d)
+Chk 'U2c' ($df2c.Count -eq 0 -and $bw2c -eq '0>6,5>6,40>39,41>42,60>61' -and $df2d.Count -eq 0 -and @($t2d.Pooled).Count -eq 11 -and @($t2e.Added).Count -eq 1 -and (Get-FkVal $t2e.Spec 0) -eq 35) "D de forme libre : $($df2c.Count) ecart(s) a la regle ecrite ici, cylindres repris $bw2c ; Sp partout sous 10 ns : facteur moyen $(Format-UiNum $t2d.PoolF '0.00') sur $(@($t2d.Pooled).Count) cylindres ; Sp nul : ecart reporte ($($t2e.Spec)) ; ecarts : $(Get-List (@($df2c) + $df2d))"
 # U3 : borne et zero
 $t3a = Get-TargetTransferSpec '0=300' '0=50' '0=100:10=450' 0 $cap
 $t3b = Get-TargetTransferSpec '0=0:5=0' '0=5:5=40' '0=3:5=80' 0 $cap
 # Relecture B1 : D au-dessus de la borne (mesure) : la courbe ecrite n est jamais ramenee sous D (X/Sp = 2 : 1000 -> D)
 $t3c = Get-TargetTransferSpec '0=500:10=420' '0=50' '0=100:10=60' 0 $cap
-Chk 'U3' ((Get-FkVal $t3a.Spec 0) -eq $cap -and (Get-FkVal $t3a.Spec 10) -eq 450 -and (Get-FkVal $t3b.Spec 0) -eq 0 -and (Get-FkVal $t3b.Spec 5) -eq 0 -and (Get-FkVal $t3c.Spec 0) -eq 500 -and (Get-FkVal $t3c.Spec 10) -eq 420) "borne max($cap ns, X, D) : 6 X ramene a $cap ns, X deja au-dessus gardee (450 ns), D deja au-dessus gardee (500 ns avec X/Sp = 2 ; 420 ns avec X/Sp = 1,2) ; zero : X + (D - Sp) negatif (3 + 0 - 5) et facteur nul (Sp 40, D 0) ramenes a 0 ($($t3a.Spec) ; $($t3b.Spec) ; $($t3c.Spec))"
+Chk 'U3' ((Get-FkVal $t3a.Spec 0) -eq $cap -and (Get-FkVal $t3a.Spec 10) -eq 450 -and (Get-FkVal $t3b.Spec 0) -eq 0 -and (Get-FkVal $t3b.Spec 5) -eq 0 -and (Get-FkVal $t3c.Spec 0) -eq 500 -and (Get-FkVal $t3c.Spec 10) -eq 420) "borne max($cap ns, X, D) : 6 X ramene a $cap ns, X deja au-dessus gardee (450 ns), D deja au-dessus gardee (500 ns avec X/Sp = 2 ; 420 ns avec X/Sp = 1,2) ; zero : facteur nul (D 0) sous le seuil (c0, Sp 5) et au-dessus (Sp 40) ramenes a 0 ($($t3a.Spec) ; $($t3b.Spec) ; $($t3c.Spec))"
 # U4 : cylindres au-dela de la longueur d une courbe (prolongement par la derniere valeur)
 $t4 = Get-TargetTransferSpec '0=22:5=33' '0=20:10=30' '0=40:50=60' 0 $cap
 $t4b = Get-TargetTransferSpec '0=22:5=33' '0=20:10=30' '0=40:50=60' 84 $cap
@@ -407,11 +446,18 @@ $twC = @{ Src = 'A'; Tgt = '0'; Fam = 'std'; Own = @($o0); Curves = @($x0, $x1) 
 $pC = Get-TargetTransferPlan $twC @{ Apply = $false; Hard = $cap } @{ P0 = $o0.Spec; P1 = $o0.Spec; Kind = @{ 0 = 'own'; 1 = 'own' } } $true
 $d5 = @(Get-FkDiff (Get-FkVals $pU.P0 84) $e5a) + @(Get-FkDiff (Get-FkVals $pU.P1 84) $e5b)
 Chk 'U5' ($d5.Count -eq 0 -and $pC.P0 -ceq $x0.Spec -and $pC.P1 -ceq $x1.Spec) "ecriture lente : tete 0 = f(1,2 Sp0, Sp0, X0), tete 1 = f(0,8 Sp1, Sp1, X1) ; courbe propre commune, sans facteur : chaque tete recoit sa courbe croisee telle quelle ($($pC.P0) / $($pC.P1)) ; ecarts : $(Get-List $d5)"
-# U6 : resume (facteur X/Sp sur les cylindres ou Sp >= 10 ns ; cylindres en ecart reporte)
+# U6 : resume (facteur X/Sp sur les cylindres ou Sp >= 10 ns ; rc5, R13 : cylindres sous le seuil et cylindre repris,
+# facteur moyen, ecart reporte)
 $s6 = Get-TargetTransferSummary $t2
 $r6 = @(for ($c = 3; $c -lt 80; $c++) { (20.0 + 2 * $c) / (4 + 2 * $c) })
 $m6 = @($r6 | Sort-Object); $med6 = ($m6[38])
-Chk 'U6' ([math]::Abs($s6.Min - ($m6[0])) -lt 1e-9 -and [math]::Abs($s6.Max - ($m6[-1])) -lt 1e-9 -and [math]::Abs($s6.Med - $med6) -lt 1e-9 -and (@($s6.Added) -join ',') -eq '0,1,2' -and $s6.Text -ceq ((T 'facteur de {0} à {1}, médiane {2}') -f (Format-UiNum $m6[0] '0.00'), (Format-UiNum $m6[-1] '0.00'), (Format-UiNum $med6 '0.00'))) "resume : $($s6.Text) ; ecart reporte aux cylindres $(@($s6.Added) -join ',')"
+$w6 = ((T 'facteur de {0} à {1}, médiane {2}') -f (Format-UiNum $m6[0] '0.00'), (Format-UiNum $m6[-1] '0.00'), (Format-UiNum $med6 '0.00')) + ' (' + ((T 'c{0} sous {1} ns : facteur du cylindre c{2} repris') -f '0-2', '10', '3') + ')'
+$s6c = (Get-TargetTransferSummary $t2c).Text; $s6d = (Get-TargetTransferSummary $t2d).Text; $s6e = (Get-TargetTransferSummary $t2e).Text
+$u6Bad = @()
+foreach ($p in @(@($s6c, 'c0-5 sous 10 ns : facteur du cylindre c6 repris, c40 sous 10 ns : facteur du cylindre c39 repris, c41 sous 10 ns : facteur du cylindre c42 repris, c60 sous 10 ns : facteur du cylindre c61 repris)'),
+                 @($s6d, ('aucun cylindre où le besoin propre atteint 10 ns (c0-10 sous 10 ns : facteur moyen de la disquette repris (' + (Format-UiNum $t2d.PoolF '0.00') + '))')),
+                 @($s6e, 'aucun cylindre où le besoin propre atteint 10 ns (c0 sous 10 ns : écart reporté en ns)'))) { if (-not ([string]$p[0]).EndsWith($p[1], [System.StringComparison]::Ordinal)) { $u6Bad += $p[0] } }
+Chk 'U6' ([math]::Abs($s6.Min - ($m6[0])) -lt 1e-9 -and [math]::Abs($s6.Max - ($m6[-1])) -lt 1e-9 -and [math]::Abs($s6.Med - $med6) -lt 1e-9 -and @($s6.Added).Count -eq 0 -and $s6.Text -ceq $w6 -and $u6Bad.Count -eq 0) "resume : $($s6.Text) ; creux, facteur moyen, Sp nul : $(Get-List $u6Bad)"
 # U7 (relecture m2) : courbe propre du lecteur qui ecrit posterieure a la courbe croisee : note au journal, courbe ecrite inchangee
 $noteD = (T 'courbe du lecteur {0} postérieure à la calibration croisée {0} → {1}') -f 'A', '0'
 $tdD = @{ P0 = '0=20:40=60'; P1 = '0=20:40=60'; Kind = @{ 0 = 'own'; 1 = 'own' } }
@@ -611,10 +657,13 @@ $jC1 = @($cur['C1'].Log | Where-Object { $_.StartsWith('Écriture pour le lecteu
 $jW = @(foreach ($h in 0, 1) {
     $q = @(for ($cy = 0; $cy -lt 80; $cy++) { $s = Get-FkVal $own[$h] $cy; if ($s -ge $min) { (Get-FkVal $xs[$h] $cy) / [double]$s } })
     $qs = @($q | Sort-Object); $md = if ($qs.Count % 2) { $qs[[int][math]::Floor($qs.Count / 2)] } else { ($qs[$qs.Count / 2 - 1] + $qs[$qs.Count / 2]) / 2 }
-    (T 'tête {0} : {1}') -f "$h", ((T 'facteur de {0} à {1}, médiane {2}') -f (Format-UiNum $qs[0] '0.00'), (Format-UiNum $qs[-1] '0.00'), (Format-UiNum $md '0.00'))
+    # rc5 (R13) : cylindres sous le seuil (c0-1 pour ces courbes), facteur du premier cylindre au-dessus repris
+    $lo = @(for ($cy = 0; $cy -lt 80; $cy++) { if ((Get-FkVal $own[$h] $cy) -lt $min) { $cy } else { break } })
+    $tl = if ($lo.Count) { ' (' + ((T 'c{0} sous {1} ns : facteur du cylindre c{2} repris') -f (Format-CylList ([int[]]$lo)), "$min", "$($lo.Count)") + ')' } else { '' }
+    (T 'tête {0} : {1}') -f "$h", (((T 'facteur de {0} à {1}, médiane {2}') -f (Format-UiNum $qs[0] '0.00'), (Format-UiNum $qs[-1] '0.00'), (Format-UiNum $md '0.00')) + $tl)
 })
 $jWant = 'tête 0 : calibration rapide de cette disquette'
-Chk 'D2' ($jC1 -and $jC1.Contains(($jW -join ' ; ')) -and $jC1.Contains('cylindres où le besoin propre du lecteur A est sous 10 ns : écart reporté en ns (tête 0 : c0-1, tête 1 : c0-1)') -and $jC1.Contains('tête 0 : courbe du lecteur × 1,10 (k 1,10 mesuré sur cette disquette), tête 1 : courbe du lecteur × 0,95 (k 0,95 mesuré sur cette disquette)') -and @($cur['C2'].Log | Where-Object { $_.Contains($jWant) }).Count -eq 1 -and @($cur['C3'].Log | Where-Object { $_.Contains('tête 0 : mesure complète de cette disquette') }).Count -eq 1) "journal de l ecriture (C1) : « $jC1 » ; origine de D nommee (mesure sur l image, test rapide, mesure complete)"
+Chk 'D2' ($jC1 -and $jC1.Contains(($jW -join ' ; ')) -and $jC1.Contains('c0-1 sous 10 ns : facteur du cylindre c2 repris') -and -not $jC1.Contains('écart reporté') -and$jC1.Contains('tête 0 : courbe du lecteur × 1,10 (k 1,10 mesuré sur cette disquette), tête 1 : courbe du lecteur × 0,95 (k 0,95 mesuré sur cette disquette)') -and @($cur['C2'].Log | Where-Object { $_.Contains($jWant) }).Count -eq 1 -and @($cur['C3'].Log | Where-Object { $_.Contains('tête 0 : mesure complète de cette disquette') }).Count -eq 1) "journal de l ecriture (C1) : « $jC1 » ; origine de D nommee (mesure sur l image, test rapide, mesure complete)"
 # Anglais et texte affiche entier (ligne « Ce qui va se passer », instructions reelles de l onglet)
 $dShow = @()
 foreach ($lang in 'fr', 'en') {
