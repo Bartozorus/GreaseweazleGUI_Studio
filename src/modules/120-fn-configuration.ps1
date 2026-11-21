@@ -852,8 +852,9 @@ function Load-Config {
     # Revue 12.8.2 : facteurs d un autre calcul qui ne s appliquent plus (aucune mesure du calcul actuel pour ce lecteur,
     # cette famille et cette tete, Get-StaleDriveFactors) : une ligne a chaque demarrage, jusqu a une nouvelle mesure
     $sdf = Get-StaleDriveFactors
-    # 12.9 : facteurs d un autre calcul de mesure sur l image (ContentCalc avant la 12.9) : texte de la montee de calcul
-    if ([int]$sdf.Content -gt 0) { Append-Log (T "Facteurs mesurés sur l'image avant la 12.9 : le calcul a changé (marque, courbure en ns, facteur au-delà de 1), ils ne sont plus appliqués. Refaites une mesure sur l'image pour chaque marque.") }
+    # 12.9 : facteurs d un autre calcul de mesure sur l image (ContentCalc avant la 12.9) : texte de la montee de calcul.
+    # 12.11 rc6 (R15) : ContentCalc 12.11 (facteur par l asymetrie) : texte de cette montee
+    if ([int]$sdf.Content -gt 0) { Append-Log (T "Facteurs mesurés sur l'image avant la 12.11 : le facteur se règle désormais par l'asymétrie de lecture, ils ne sont plus appliqués. Refaites une mesure sur l'image pour chaque marque.") }
     # Synthese C (A2) : mesures du calcul actuel relues sans etat (configuration reecrite par une version anterieure, qui
     # retire les champs de la 12.9) : Get-DriveK ne les retient plus ; une ligne a chaque demarrage, jusqu a une nouvelle
     # mesure du calcul actuel pour ce lecteur, cette famille et cette tete (comme Get-StaleDriveFactors)

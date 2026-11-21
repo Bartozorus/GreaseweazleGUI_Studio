@@ -428,7 +428,7 @@ $fn112 = @((Get-LnFnAsts (Get-LnModule $mods '112')) | ForEach-Object { $_.Name 
 Chk 'H1' ($fnA.Missing.Count -eq 0 -and $stateMissing.Count -eq 0 -and $fn112.Count -ge 30) "fonctions et etat reels trouves ($($fn112.Count) fonctions du module 112) ; absents : $(@($fnA.Missing + $stateMissing) -join ', ')"
 Reset-LnWorld 'h'
 Set-LnBanner 'B'; $hB = [string]$cmbDrive.Text; Set-LnBanner 'A'
-Chk 'H2' ($hB -ceq 'B' -and [string]$cmbDrive.Text -ceq 'A' -and $cmbDrive.Items.Count -eq 6 -and -not $form.Visible -and $script:DriveReg.Count -eq 0 -and $script:CalibCalc -eq '12.10' -and $script:ContentCalc -eq '12.9') "liste du bandeau reelle a six elements, jamais affichee ; registre vide ; CalibCalc $($script:CalibCalc) et ContentCalc $($script:ContentCalc) inchanges"
+Chk 'H2' ($hB -ceq 'B' -and [string]$cmbDrive.Text -ceq 'A' -and $cmbDrive.Items.Count -eq 6 -and -not $form.Visible -and $script:DriveReg.Count -eq 0 -and $script:CalibCalc -eq '12.10' -and $script:ContentCalc -eq '12.11') "liste du bandeau reelle a six elements, jamais affichee ; registre vide ; CalibCalc $($script:CalibCalc) inchange, ContentCalc $($script:ContentCalc) (12.11 rc6, R15)"
 
 # ================================================================ M. migration (scenario 1)
 '--- M. migration : configuration 12.10, registre vide'

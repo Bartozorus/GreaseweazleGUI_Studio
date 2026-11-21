@@ -1606,6 +1606,8 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
     # 12.11 rc4 (R10) : Excess, par cylindre, courbe ecrite - D(c) en ns : ce que la piste porte de plus (ou de moins) que
     # ce que S aurait ecrit pour lui-meme sur cette disquette ; memorise avec le controle apres ecriture (Start-ImageWrite,
     # Rep.AsymExcess) pour l asymetrie attendue a la relecture par S (Get-RepAsymExcess, 170). Sans effet sur la courbe
+    # 12.11 rc6 (R15) : D > Sp (la disquette demande plus que la courbe propre de S) : courbe ecrite au plus X + (D - Sp),
+    # la hausse reportee en ns et non en rapport (Capped : cylindres concernes) ; D = Sp donne toujours X, D <= Sp inchange
     $last = 0
     foreach ($s in @($dSpec, $spSpec, $xSpec)) {
         foreach ($m in [regex]::Matches([string]$s, '(\d+)\s*=\s*(\d+)')) { if ([int]$m.Groups[1].Value -gt $last) { $last = [int]$m.Groups[1].Value } }
@@ -1617,9 +1619,9 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
     $n = [math]::Max($cyls, $last + 1)
     $min = [double]$script:XferMinNs
     # Ratio : table simple (une table ordonnee lirait une cle entiere comme un rang)
-    $r = @{ Spec = $xSpec; Values = @(); Ratio = @{}; Added = @(); Borrow = @{}; Pooled = @(); PoolF = $null; Same = $true; Excess = @() }
+    $r = @{ Spec = $xSpec; Values = @(); Ratio = @{}; Added = @(); Borrow = @{}; Pooled = @(); PoolF = $null; Same = $true; Excess = @(); Capped = @() }
     $vals = New-Object int[] $n; $exc = New-Object int[] $n
-    $asX = $true; $added = New-Object System.Collections.Generic.List[int]; $pooled = New-Object System.Collections.Generic.List[int]
+    $asX = $true; $added = New-Object System.Collections.Generic.List[int]; $pooled = New-Object System.Collections.Generic.List[int]; $capped = New-Object System.Collections.Generic.List[int]
     $dA = New-Object double[] $n; $spA = New-Object double[] $n; $xA = New-Object double[] $n; $sumD = 0.0; $sumSp = 0.0; $nOk = 0
     for ($c = 0; $c -lt $n; $c++) {
         $dA[$c] = [double](Get-SpecValue $dSpec $c); $spA[$c] = [double](Get-SpecValue $spSpec $c); $xA[$c] = [double](Get-SpecValue $xSpec $c)
@@ -1638,11 +1640,15 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
         }
         elseif ($sumSp -gt 0) { $r.PoolF = $sumD / $sumSp; $w = $x * $r.PoolF; $pooled.Add($c) }
         else { $w = $x + ($d - $sp); $added.Add($c) }
+        # 12.11 rc6 (R15) : disquette qui demande plus que la courbe propre (D > Sp) : la hausse est reportee au plus en ns,
+        # min(part en rapport, X + (D - Sp)) ; une baisse (D <= Sp) reste reportee en rapport. Avec X >= Sp, c est
+        # min(X x D/Sp, X + D - Sp) en tout cylindre. Capped : cylindres ou la borne en ns a joue
+        if ($d -gt $sp -and ($x + ($d - $sp)) -lt $w) { $w = $x + ($d - $sp); $capped.Add($c) }
         $vals[$c] = [int][math]::Max(0.0, [math]::Min([math]::Round($w), [math]::Max([double]$cap, [math]::Max($x, $d))))
         $exc[$c] = $vals[$c] - [int]$d
         if ($vals[$c] -ne [int]$x) { $asX = $false }
     }
-    $r.Values = $vals; $r.Added = [int[]]$added.ToArray(); $r.Pooled = [int[]]$pooled.ToArray(); $r.Excess = $exc
+    $r.Values = $vals; $r.Added = [int[]]$added.ToArray(); $r.Pooled = [int[]]$pooled.ToArray(); $r.Excess = $exc; $r.Capped = [int[]]$capped.ToArray()
     if (-not $asX) { $r.Spec = Build-CurveProfile $vals }
     return $r
 }
@@ -1665,6 +1671,8 @@ function Get-TargetTransferSummary($t) {
     }
     if (@($t.Pooled).Count) { $u += (T 'c{0} sous {1} ns : facteur moyen de la disquette repris ({2})') -f (Format-CylList ([int[]]@($t.Pooled))), $mn, (Format-UiNum $t.PoolF '0.00') }
     if (@($t.Added).Count) { $u += (T 'c{0} sous {1} ns : écart reporté en ns') -f (Format-CylList ([int[]]@($t.Added))), $mn }
+    # 12.11 rc6 (R15) : cylindres ou la disquette demande plus que la courbe propre et ou la hausse est reportee en ns
+    if (@($t.Capped).Count) { $u += (T 'c{0} : besoin de la disquette au-dessus de la courbe du lecteur, hausse reportée en ns') -f (Format-CylList ([int[]]@($t.Capped))) }
     $tail = if ($u.Count) { ' (' + ($u -join ', ') + ')' } else { '' }
     if ($v.Count -eq 0) { $s.Text = ((T 'aucun cylindre où le besoin propre atteint {0} ns') -f $mn) + $tail; return $s }
     $s.Min = [double]($v | Measure-Object -Minimum).Minimum; $s.Max = [double]($v | Measure-Object -Maximum).Maximum; $s.Med = [double](Get-Median $v)

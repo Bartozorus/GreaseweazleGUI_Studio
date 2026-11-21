@@ -483,6 +483,92 @@ function Get-ContentFourthPass($plan, [int[]]$v0, [int[]]$v1, [int]$hard, $preSk
     return @{ H = $hh; BlockK = $bk; NCylHead = $nh }
 }
 
+function Get-ContentAsymOls($rows) {
+    # 12.11 rc6 (R15) : moindres carres sans constante A = s.w + g.V sur des lignes @{ W (precomp ecrite, ns) ; V (courbe
+    # du lecteur au cylindre, ns) ; A (asymetrie signee relue) } : @{ S ; G ; K = -g/s (NaN si s <= 0) ; SeS ; SeK
+    # (erreur-type de k, methode delta) ; Sd (ecart-type residuel) ; N } ; $null : moins de 3 lignes ou systeme singulier
+    $n = 0; $sww = 0.0; $swv = 0.0; $svv = 0.0; $swa = 0.0; $sva = 0.0; $saa = 0.0
+    foreach ($r in @($rows)) {
+        if ($null -eq $r) { continue }
+        $w = [double]$r.W; $v = [double]$r.V; $a = [double]$r.A
+        $n++; $sww += $w * $w; $swv += $w * $v; $svv += $v * $v; $swa += $w * $a; $sva += $v * $a; $saa += $a * $a
+    }
+    if ($n -lt 3) { return $null }
+    $det = $sww * $svv - $swv * $swv
+    if (-not ([math]::Abs($det) -gt 1e-9 * [math]::Max(1.0, $sww * $svv))) { return $null }
+    $s = ($svv * $swa - $swv * $sva) / $det; $g = ($sww * $sva - $swv * $swa) / $det
+    $rss = [math]::Max(0.0, $saa - $s * $swa - $g * $sva)
+    $s2 = if ($n -gt 2) { $rss / ($n - 2) } else { 0.0 }
+    $vss = $s2 * $svv / $det; $vgg = $s2 * $sww / $det; $vsg = -$s2 * $swv / $det
+    $o = @{ S = $s; G = $g; K = [double]::NaN; SeS = [math]::Sqrt([math]::Max(0.0, $vss)); SeK = [double]::NaN; Sd = [math]::Sqrt($s2); N = $n }
+    if ($s -gt 0) {
+        $o.K = -$g / $s
+        $ds = $g / ($s * $s); $dg = -1.0 / $s
+        $o.SeK = [math]::Sqrt([math]::Max(0.0, $ds * $ds * $vss + $dg * $dg * $vgg + 2 * $ds * $dg * $vsg))
+    }
+    return $o
+}
+
+function Get-ContentAsymFit($rows) {
+    # 12.11 rc6 (R15) : facteur k d une tete par l asymetrie relue, sur les lignes de la mesure sur l image @{ C ; K
+    # (niveau) ; W ; V ; A ; Cell (cellule relue, ns) } de toutes les passes (4e comprise ; A NaN : ligne ignoree) : modele
+    # A = s.(w - k.V(c)) (Get-ContentAsymOls), le besoin de la disquette vaut k.V(c) (asymetrie nulle). Jackknife par zone
+    # de 5 cylindres (c div 5) : ecart-type des k obtenus sans chaque zone. Det : facteur determine, sinon Why, premier
+    # critere non tenu (seuils de 040) : 'peu' (moins de ContentAsymMinCyl cylindres a 2 niveaux lisibles), 'echec'
+    # (ajustement impossible), 'pente' (s <= 0 ou s x cellule / 2 hors de [ContentAsymSRelMin ; ContentAsymSRelMax]),
+    # 'tpente' (t de s < ContentAsymMinT), 'incert' (erreur-type au-dela de ContentAsymSeKMax et jackknife au-dela de
+    # ContentAsymJackMax), 'borne' (k hors de [ContentAsymKMin ; ContentFMax]), 'extrap' (k au-dela de ContentAsymExtrap x
+    # le plus haut niveau ecrit, KTop). Rend @{ Det ; Why ; K ; SeK ; Jack ; S ; SRel ; TS ; Sd ; NCyl ; N ; KTop ; Cell }
+    $nan = [double]::NaN
+    $rr = @(@($rows) | Where-Object { $null -ne $_ -and -not [double]::IsNaN([double]$_.A) -and -not [double]::IsInfinity([double]$_.A) })
+    $lv = @{}; $kTop = 0.0; $cs = 0.0; $cn = 0
+    foreach ($r in $rr) {
+        $c = [int]$r.C
+        if (-not $lv.ContainsKey($c)) { $lv[$c] = @{} }
+        $lv[$c]['{0:R}' -f [double]$r.K] = $true
+        if ([double]$r.K -gt $kTop) { $kTop = [double]$r.K }
+        $ce = [double]$r.Cell; if (-not [double]::IsNaN($ce) -and $ce -gt 0) { $cs += $ce; $cn++ }
+    }
+    $o = @{ Det = $false; Why = ''; K = $nan; SeK = $nan; Jack = $nan; S = $nan; SRel = $nan; TS = $nan; Sd = $nan
+            NCyl = @($lv.Keys | Where-Object { $lv[$_].Count -ge 2 }).Count; N = $rr.Count; KTop = $kTop; Cell = $(if ($cn) { $cs / $cn } else { $nan }) }
+    $f = Get-ContentAsymOls $rr
+    if ($f) {
+        $o.S = [double]$f.S; $o.K = [double]$f.K; $o.SeK = [double]$f.SeK; $o.Sd = [double]$f.Sd
+        if ([double]$f.SeS -gt 0) { $o.TS = [double]$f.S / [double]$f.SeS } elseif ([double]$f.S -gt 0) { $o.TS = [double]::PositiveInfinity }
+        if (-not [double]::IsNaN([double]$o.Cell)) { $o.SRel = [double]$f.S * [double]$o.Cell / 2 }
+        $zs = @($rr | ForEach-Object { [int][math]::Floor([int]$_.C / 5) } | Sort-Object -Unique)
+        if ($zs.Count -ge 2) {
+            $kj = @(foreach ($z in $zs) { $fz = Get-ContentAsymOls @($rr | Where-Object { [int][math]::Floor([int]$_.C / 5) -ne $z }); if ($fz -and -not [double]::IsNaN([double]$fz.K)) { [double]$fz.K } })
+            if ($kj.Count -eq $zs.Count) {
+                $m = ($kj | Measure-Object -Average).Average; $ss = 0.0; foreach ($x in $kj) { $ss += ($x - $m) * ($x - $m) }
+                $o.Jack = [math]::Sqrt(($kj.Count - 1) * $ss / $kj.Count)
+            }
+        }
+    }
+    if ([int]$o.NCyl -lt [int]$script:ContentAsymMinCyl) { $o.Why = 'peu'; return $o }
+    if (-not $f) { $o.Why = 'echec'; return $o }
+    if (-not ([double]$o.S -gt 0) -or -not ([double]$o.SRel -ge [double]$script:ContentAsymSRelMin -and [double]$o.SRel -le [double]$script:ContentAsymSRelMax)) { $o.Why = 'pente'; return $o }
+    if (-not ([double]$o.TS -ge [double]$script:ContentAsymMinT)) { $o.Why = 'tpente'; return $o }
+    if (-not ([double]$o.SeK -le [double]$script:ContentAsymSeKMax) -and -not ([double]$o.Jack -le [double]$script:ContentAsymJackMax)) { $o.Why = 'incert'; return $o }
+    if (-not ([double]$o.K -ge [double]$script:ContentAsymKMin -and [double]$o.K -le [double]$script:ContentFMax)) { $o.Why = 'borne'; return $o }
+    if (-not ([double]$o.K -le [double]$script:ContentAsymExtrap * $kTop)) { $o.Why = 'extrap'; return $o }
+    $o.Det = $true
+    return $o
+}
+
+function Get-ContentAsymChoice($af, [string]$etat, [double]$kM, $memK = $null, [double]$kMax = 0) {
+    # 12.11 rc6 (R15) : facteur applique a une tete : par l asymetrie quand elle est determinee ($af.Det,
+    # Get-ContentAsymFit ; By 'asym', Src 'mesure') ; sinon comme avant par la marge, puis le k memorise de la marque, puis 1
+    # (Get-ContentAppliedK : By 'marge' quand la marge decide, '' sinon). Gap : asymetrie retenue alors que la marge est
+    # determinee ('mesure', 'haute', 'basse') et s en ecarte de plus de ContentAsymMargeGap. Rend @{ K ; Src ; By ; Gap }
+    if ($af -and $af.Det) {
+        $gap = (@('mesure', 'haute', 'basse') -contains $etat -and -not [double]::IsNaN($kM) -and [math]::Abs($kM - [double]$af.K) -gt [double]$script:ContentAsymMargeGap)
+        return @{ K = [double]$af.K; Src = 'mesure'; By = 'asym'; Gap = $gap }
+    }
+    $ap = Get-ContentAppliedK $etat $kM $memK $kMax
+    return @{ K = [double]$ap.K; Src = [string]$ap.Src; By = $(if ([string]$ap.Src -eq 'mesure') { 'marge' } else { '' }); Gap = $false }
+}
+
 function Solve-ContentLinear([double[][]]$a, [double[]]$b) {
     # Systeme a x = b (petit, dense) : elimination de Gauss a pivot partiel puis remontee (port de revue_sony.solve) ;
     # $null si un pivot est inferieur a 1e-10 en valeur absolue. a et b ne sont pas modifies
@@ -674,7 +760,10 @@ function ConvertTo-ContentConfig($rec) {
                        # 12.9 : marque, etat de la tete, courbure en ns, t, dispersion des zones, passes, k par zone (2 decimales)
                        brand = [string]$rec.Brand; etat = [string]$rec.Etat; q = (ConvertTo-FiniteOrNull $rec.Q); tQ = (ConvertTo-FiniteOrNull $rec.TQ)
                        chi2Ddl = (ConvertTo-FiniteOrNull $rec.Chi2Ddl); nPass = [int]$rec.NPass
-                       zones = @(@($rec.Zones) | Where-Object { $null -ne $_ } | ForEach-Object { $zk = ConvertTo-FiniteOrNull $_.K; [ordered]@{ z = [int]$_.Z; k = $(if ($null -ne $zk) { [math]::Round([double]$zk, 2) } else { $null }) } }) }
+                       zones = @(@($rec.Zones) | Where-Object { $null -ne $_ } | ForEach-Object { $zk = ConvertTo-FiniteOrNull $_.K; [ordered]@{ z = [int]$_.Z; k = $(if ($null -ne $zk) { [math]::Round([double]$zk, 2) } else { $null }) } })
+                       # 12.11 rc6 (R15) : methode qui a donne k ('asym', 'marge', ''), facteur par l asymetrie et par la marge
+                       method = [string]$rec.Method; kAsym = (ConvertTo-FiniteOrNull $rec.KAsym); seKAsym = (ConvertTo-FiniteOrNull $rec.SeKAsym)
+                       sRelAsym = (ConvertTo-FiniteOrNull $rec.SRelAsym); kMarge = (ConvertTo-FiniteOrNull $rec.KMarge); etatMarge = [string]$rec.EtatMarge }
 }
 
 function ConvertFrom-ContentConfig($o) {
@@ -688,6 +777,8 @@ function ConvertFrom-ContentConfig($o) {
         $k = ConvertTo-FiniteOrNull $o.k; $hd = ConvertTo-FiniteOrNull $o.head
         $etat = [string]$o.etat
         $kMax = if ([double]$script:ContentKMax -gt 0) { [double]$script:ContentKMax } else { 2.0 }
+        # 12.11 rc6 (R15) : facteur par l asymetrie : jusqu a ContentFMax (4)
+        if ([string]$o.method -eq 'asym') { $kMax = [double]$script:ContentFMax }
         $kBad = if (@('', 'mesure', 'haute', 'basse') -contains $etat) { $null -eq $k -or $k -lt 0 -or $k -gt $kMax } else { $false }
         if (-not [string]$o.drive -or -not [string]$o.family -or $null -eq $hd -or ($hd -ne 0 -and $hd -ne 1) -or $kBad) { return $null }
         $nan = [double]::NaN
@@ -702,7 +793,9 @@ function ConvertFrom-ContentConfig($o) {
                   ContentCalc = [string]$o.contentCalc; Version = [string]$o.version
                   Brand = ([string]$o.brand).Trim(); Etat = $etat; Q = (Get-ConfigDouble $o.q $nan); TQ = (Get-ConfigDouble $o.tQ $nan)
                   Chi2Ddl = (Get-ConfigDouble $o.chi2Ddl $nan); NPass = [int]$o.nPass
-                  Zones = @(@($o.zones) | Where-Object { $null -ne $_ } | ForEach-Object { @{ Z = [int]$_.z; K = (Get-ConfigDouble $_.k $nan) } }) }
+                  Zones = @(@($o.zones) | Where-Object { $null -ne $_ } | ForEach-Object { @{ Z = [int]$_.z; K = (Get-ConfigDouble $_.k $nan) } })
+                  Method = [string]$o.method; KAsym = (Get-ConfigDouble $o.kAsym $nan); SeKAsym = (Get-ConfigDouble $o.seKAsym $nan)
+                  SRelAsym = (Get-ConfigDouble $o.sRelAsym $nan); KMarge = (Get-ConfigDouble $o.kMarge $nan); EtatMarge = [string]$o.etatMarge }
     } catch { return $null }
 }
 

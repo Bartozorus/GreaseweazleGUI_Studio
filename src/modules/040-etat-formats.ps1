@@ -288,6 +288,23 @@ $script:ContentFMax = 4.0
 # partir duquel le facteur par cylindre de la calibration croisee (X/Sp) s applique a la courbe de cette disquette ; en
 # dessous, l ecart de la disquette (D - Sp) est reporte en ns (un rapport y multiplierait le bruit de mesure)
 $script:XferMinNs = 10
+# 12.11 rc6 (R15) : facteur de la disquette par l asymetrie relue (Get-ContentAsymFit, 274) : moindres carres sans
+# constante A = s.w + g.V(c), k = -g/s, sur les relectures de la mesure sur l image. « Determine » si : au moins
+# ContentAsymMinCyl cylindres a 2 niveaux lisibles ; s > 0 et s x cellule / 2 dans [ContentAsymSRelMin ; ContentAsymSRelMax]
+# (pente relue rapportee aux 2 / cellule de l asymetrie attendue ; observe 0,65 a 0,95) ; t de s >= ContentAsymMinT ;
+# erreur-type de k <= ContentAsymSeKMax ou ecart-type du jackknife par zone de 5 cylindres <= ContentAsymJackMax ; k dans
+# [ContentAsymKMin ; ContentFMax] et au plus ContentAsymExtrap x le plus haut niveau ecrit. Seuils estimes sur 5 mesures
+# reelles (une paire de lecteurs, famille standard), a revoir avec d autres essais. ContentAsymMargeGap : ecart avec le
+# facteur par la marge au-dela duquel le journal le signale (l asymetrie reste retenue)
+$script:ContentAsymMinCyl = 24
+$script:ContentAsymSRelMin = 0.4
+$script:ContentAsymSRelMax = 1.5
+$script:ContentAsymMinT = 10.0
+$script:ContentAsymSeKMax = 0.10
+$script:ContentAsymJackMax = 0.15
+$script:ContentAsymKMin = 0.1
+$script:ContentAsymExtrap = 1.5
+$script:ContentAsymMargeGap = 0.3
 $script:WFactorNote = $null                                                 # 12.8.1 : complement « facteur » du libelle du profil (Update-WriteFactorNote)
 $script:WTargetHead = ''                                                    # 12.10 (relecture de la RC) : refus du lecteur cible en tete du libelle du profil (Sync-WTargetHead)
 $script:WProfilePath = ''                                                   # 12.10 (relecture de la RC) : image du libelle du profil (Update-PrecompForImage, Sync-WTargetHead)
