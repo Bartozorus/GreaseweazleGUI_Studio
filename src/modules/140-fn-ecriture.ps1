@@ -1642,8 +1642,11 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
         else { $w = $x + ($d - $sp); $added.Add($c) }
         # 12.11 rc6 (R15) : disquette qui demande plus que la courbe propre (D > Sp) : la hausse est reportee au plus en ns,
         # min(part en rapport, X + (D - Sp)) ; une baisse (D <= Sp) reste reportee en rapport. Avec X >= Sp, c est
-        # min(X x D/Sp, X + D - Sp) en tout cylindre. Capped : cylindres ou la borne en ns a joue
-        if ($d -gt $sp -and ($x + ($d - $sp)) -lt $w) { $w = $x + ($d - $sp); $capped.Add($c) }
+        # min(X x D/Sp, X + D - Sp) en tout cylindre. Capped : cylindres ou la borne en ns a joue. Relecture de la rc6 : toute
+        # hausse au-dessus de X est bornee a X + max(0, D - Sp), aussi sous XferMinNs quand le facteur repris d un voisin
+        # (ou moyen) depasse 1 alors que D(c) <= Sp(c) (D = k x Sp arrondi egal a Sp aux faibles Sp, 1 < k < 1,5) : X, et non
+        # X x k sans borne
+        if ($w -gt $x) { $lim = $x + [math]::Max(0.0, $d - $sp); if ($w -gt $lim) { $w = $lim; $capped.Add($c) } }
         $vals[$c] = [int][math]::Max(0.0, [math]::Min([math]::Round($w), [math]::Max([double]$cap, [math]::Max($x, $d))))
         $exc[$c] = $vals[$c] - [int]$d
         if ($vals[$c] -ne [int]$x) { $asX = $false }

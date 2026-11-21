@@ -14,6 +14,7 @@ $Wt = Get-TestRoot $Wt
 #           moyennes par Get-TrackMetrics, comme au controle) ; piste absente, tour illisible : NaN.
 #  K1, K2   enregistrement par marque : methode, facteurs par l asymetrie et par la marge gardes dans la configuration ; k
 #           au-dessus de 2 admis pour l asymetrie seulement ; ContentCalc 12.11, CalibCalc inchange ; textes du journal.
+#  K3       (relecture) memoire par marque (Get-DriveK) : les mesures par l asymetrie seules dans la mediane quand il y en a.
 # Fonctions reelles extraites par l arbre syntaxique (bloc C# ScpStats de 030 charge comme logic-qualite-hors-classe),
 # bouchons : T, Append-Log. Aucune relecture reelle, aucun gw, aucune fenetre.
 # Non couvert ici : Complete-ContentMeasure elle-meme (enchainement de la mesure, journal complet, ecriture qui suit),
@@ -45,7 +46,12 @@ $want = @{
     '190-fn-qualite-alignement.ps1' = @('Get-TrackMetrics', 'Get-TrackScore', 'Get-HealthLevel')
     '274-fn-contenu-calcul.ps1' = @('Get-ContentAsymOls', 'Get-ContentAsymFit', 'Get-ContentAsymChoice', 'Get-ContentAppliedK', 'ConvertTo-FiniteOrNull', 'Get-ConfigDouble', 'Get-RecValues', 'ConvertTo-ContentConfig', 'ConvertFrom-ContentConfig')
     '276-fn-contenu-mesure.ps1' = @('Get-ContentTrackAsym', 'Get-ContentAsymWhyText', 'Get-ContentAsymText', 'Get-ContentAppliedAsymText', 'Format-ContentNum')
+    # relecture de la rc6 : memoire par marque (Get-DriveK) et ses aides
+    '220-fn-profil-precomp.ps1' = @('Get-CurveDate')
+    '230-fn-calib-courbe.ps1' = @('Get-Median')
+    '265-fn-calib-adaptative.ps1' = @('Get-LevelBrandKey')
 }
+$want['274-fn-contenu-calcul.ps1'] += 'Get-DriveK'
 $found = @{}
 foreach ($f in @($want.Keys)) {
     foreach ($fd in (Get-AsAst (Join-Path $mods $f)).FindAll({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false)) {
@@ -94,7 +100,7 @@ $lv3 = [double[]]@(0.25, 0.6, 1.0); $lv4 = [double[]]@(0.25, 0.6, 1.0, 1.6)
 '--- P : estimateur sur des asymetries lineaires simulees'
 $p1 = Get-ContentAsymFit (New-AsRows 0.75 0.9 0.004 $lv3)
 Chk 'P1' ($p1.Det -and [math]::Abs($p1.K - 0.75) -le 0.03 -and [math]::Abs($p1.SRel - 0.9) -le 0.05 -and $p1.NCyl -eq 40 -and $p1.N -eq 120 -and $p1.SeK -le 0.05 -and $p1.Jack -le 0.08 -and $p1.TS -ge 10) "k 0,75, pente 0,9 x 2/cellule, bruit 0,004 (residus reels 0,005 a 0,008), 3 niveaux : k = $([math]::Round($p1.K, 3)) ± $([math]::Round($p1.SeK, 3)) (jackknife $([math]::Round($p1.Jack, 3))), pente $([math]::Round($p1.SRel, 3)), t $([math]::Round($p1.TS, 0)), $($p1.NCyl) cylindres, $($p1.N) pistes"
-# P2 : besoin au-dessus de la courbe (cas du 21/11, k 1,9 avec un lecteur a faible besoin), 4e passe aux niveaux 1,6 et 1
+# P2 : besoin au-dessus de la courbe (k 1,9 avec un lecteur a faible besoin), 4e passe aux niveaux 1,6 et 1
 $p2 = Get-ContentAsymFit (New-AsRows 1.9 0.85 0.006 $lv4 -v0 2 -v1 0.7 -seed 11)
 Chk 'P2' ($p2.Det -and [math]::Abs($p2.K - 1.9) -le 0.08 -and [math]::Abs($p2.SRel - 0.85) -le 0.05 -and $p2.KTop -eq 1.6) "k 1,9 au-dessus du plus haut niveau 1,6 (courbe de 2 a 54 ns, 4 niveaux) : k = $([math]::Round($p2.K, 3)) ± $([math]::Round($p2.SeK, 3)), pente $([math]::Round($p2.SRel, 3)), extrapolation permise jusqu a $(1.5 * $p2.KTop)"
 # P3 : sans bruit, valeurs exactes a l arrondi de w pres (k et pente retrouves a 1e-6 quand w n est pas arrondi : V entiers, niveaux 0, 1, 2)
@@ -126,8 +132,8 @@ Chk 'N6' ($p6.Det -and $p6.N -eq 120 -and [math]::Abs($p6.K - $p1.K) -lt 1e-12 -
 $c1 = Get-ContentAsymChoice $p1 'mesure' 0.7 1.3 2.0
 $c1b = Get-ContentAsymChoice $p1 'mesure' 1.2 $null 2.0
 Chk 'C1' ($c1.By -eq 'asym' -and $c1.Src -eq 'mesure' -and $c1.K -eq $p1.K -and -not $c1.Gap -and $c1b.By -eq 'asym' -and $c1b.Gap) "asymetrie determinee : k $([math]::Round($c1.K, 3)) par l asymetrie (marge 0,70, ecart sous 0,3 : non signale) ; marge 1,20 : ecart signale ($($c1b.Gap)), l asymetrie reste retenue"
-$c2 = Get-ContentAsymChoice $p2 'plate' 2.29 0.8 2.0
-Chk 'C2' ($c2.By -eq 'asym' -and [math]::Abs($c2.K - $p2.K) -lt 1e-12 -and -not $c2.Gap) "marge plate (cas du 21/11) et asymetrie determinee : k $([math]::Round($c2.K, 2)) applique, et non le facteur de la marque 0,8 ; pas d ecart signale (marge non determinee)"
+$c2 = Get-ContentAsymChoice $p2 'plate' 2.35 0.8 2.0
+Chk 'C2' ($c2.By -eq 'asym' -and [math]::Abs($c2.K - $p2.K) -lt 1e-12 -and -not $c2.Gap) "marge plate et asymetrie determinee : k $([math]::Round($c2.K, 2)) applique, et non le facteur de la marque 0,8 ; pas d ecart signale (marge non determinee)"
 $c3 = Get-ContentAsymChoice $n1 'mesure' 0.82 1.3 2.0
 $c3b = Get-ContentAsymChoice $n1 'haute' 2.6 $null 2.0
 Chk 'C3' ($c3.By -eq 'marge' -and $c3.K -eq 0.82 -and $c3.Src -eq 'mesure' -and $c3b.K -eq 2.0 -and $c3b.By -eq 'marge') "asymetrie non determinee, marge determinee : k $($c3.K) par la marge ; optimum de la marge au-dela de 2 : $($c3b.K) (borne, comme en 12.10)"
@@ -156,13 +162,23 @@ $script:ScpStatsOk = $false; $noCs = Get-ContentTrackAsym @((New-AsRev 40 40)); 
 Chk 'T3' ([double]::IsNaN($bad.A) -and [double]::IsNaN($none.A) -and [double]::IsNaN($noCs.A)) "un tour sans cellule mesuree (piste illisible pour le controle) : A NaN ($($bad.A)) ; piste absente : $($none.A) ; analyse compilee absente : $($noCs.A)"
 
 '--- K : enregistrement, calcul, textes'
-$recA = @{ Model = 'contenu'; Drive = 'A'; Family = 'std'; Head = 0; Date = '21/11/2026 17:16'; K = 3.1; Etat = 'mesure'; Method = 'asym'; KAsym = 3.1; SeKAsym = 0.04; SRelAsym = 0.85; KMarge = 2.29; EtatMarge = 'plate'; Levels = @(1.0); Values = @(10, 20) }
+$recA = @{ Model = 'contenu'; Drive = 'A'; Family = 'std'; Head = 0; Date = '05/03/2026 09:30'; K = 3.1; Etat = 'mesure'; Method = 'asym'; KAsym = 3.1; SeKAsym = 0.04; SRelAsym = 0.85; KMarge = 2.35; EtatMarge = 'plate'; Levels = @(1.0); Values = @(10, 20) }
 $recM = @{} + $recA; $recM.Method = 'marge'
 $ra = ConvertFrom-ContentConfig ((ConvertTo-ContentConfig $recA) | ConvertTo-Json -Depth 5 | ConvertFrom-Json)
 $rm = ConvertFrom-ContentConfig ((ConvertTo-ContentConfig $recM) | ConvertTo-Json -Depth 5 | ConvertFrom-Json)
-Chk 'K1' ($ra -and $ra.K -eq 3.1 -and $ra.Method -eq 'asym' -and $ra.KAsym -eq 3.1 -and $ra.KMarge -eq 2.29 -and $ra.EtatMarge -eq 'plate' -and $ra.SRelAsym -eq 0.85 -and $null -eq $rm) "configuration : methode $($ra.Method), k $($ra.K) par l asymetrie (marge $($ra.KMarge), $($ra.EtatMarge)) relus ; k 3,1 par la marge : rejete comme avant (au-dela de ContentKMax 2) : $($null -eq $rm)"
+Chk 'K1' ($ra -and $ra.K -eq 3.1 -and $ra.Method -eq 'asym' -and $ra.KAsym -eq 3.1 -and $ra.KMarge -eq 2.35 -and $ra.EtatMarge -eq 'plate' -and $ra.SRelAsym -eq 0.85 -and $null -eq $rm) "configuration : methode $($ra.Method), k $($ra.K) par l asymetrie (marge $($ra.KMarge), $($ra.EtatMarge)) relus ; k 3,1 par la marge : rejete comme avant (au-dela de ContentKMax 2) : $($null -eq $rm)"
 $txD = Get-ContentAsymText $p1; $txN = Get-ContentAsymText $n1; $txG = Get-ContentAppliedAsymText '[tête 0] ' $c1b 1.2
 Chk 'K2' ($script:ContentCalc -eq '12.11' -and $script:CalibCalc -eq '12.10' -and $txD.StartsWith("Facteur par l'asymétrie : k = 0,7") -and $txN -ceq "Facteur par l'asymétrie non déterminé (20 cylindres à 2 niveaux lisibles, il en faut 24) : la marge décide." -and $txG.Contains('la marge donnait k = 1,20, écart au-delà de 0,3')) "ContentCalc $($script:ContentCalc) (mesures 12.9 mises de cote), CalibCalc $($script:CalibCalc) (courbes gardees) ; journal : « $txD » ; « $txN » ; « $txG »"
+
+# K3 (relecture de la rc6) : memoire par marque, un seul calcul dans la mediane : des qu une mesure par l asymetrie existe
+# pour ce lecteur, cette famille, cette tete et cette marque, les mesures dont la marge a decide (etat 'mesure' aussi) ne
+# comptent plus ; sans mesure par l asymetrie, la marge reste le facteur memorise (repli de la 12.10)
+function New-K3Rec([string]$date, [double]$k, [string]$meth) { return @{ Model = 'contenu'; Drive = 'A'; Family = 'std'; Head = 0; Date = $date; K = $k; Etat = 'mesure'; Method = $meth; Brand = 'X'; ContentCalc = $script:ContentCalc; Calc = $script:CalibCalc } }
+$script:ContentMeasures = @((New-K3Rec '03/03/2026 10:00' 1.12 'marge'), (New-K3Rec '04/03/2026 10:00' 0.71 'asym'), (New-K3Rec '04/03/2026 11:00' 1.15 'marge'))
+$k3a = Get-DriveK 'A' 'std' 0 'X'
+$script:ContentMeasures = @((New-K3Rec '03/03/2026 10:00' 1.12 'marge'), (New-K3Rec '04/03/2026 11:00' 0.90 'marge'))
+$k3b = Get-DriveK 'A' 'std' 0 'X'
+Chk 'K3' ($k3a.K -eq 0.71 -and $k3a.N -eq 1 -and $k3a.Src -eq 'lecteur' -and [math]::Abs($k3b.K - 1.01) -lt 1e-9 -and $k3b.N -eq 2) "mesures marge 1,12 et 1,15 et asymetrie 0,71 : k memorise $($k3a.K) ($($k3a.N) mesure, et non la mediane 1,12 des trois) ; marge seule 1,12 et 0,90 : $($k3b.K) ($($k3b.N) mesures)"
 
 $nk = if ($script:Fail) { ' ; NON CONFORMES : ' + (@($script:FailIds) -join ', ') } else { '' }
 "=== bilan logic-contenu-asymetrie : $($script:NChk - $script:Fail) conformes sur $($script:NChk)$nk ; $([int]$sw.Elapsed.TotalSeconds) s"

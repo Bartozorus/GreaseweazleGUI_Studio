@@ -12946,8 +12946,11 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
         else { $w = $x + ($d - $sp); $added.Add($c) }
         # 12.11 rc6 (R15) : disquette qui demande plus que la courbe propre (D > Sp) : la hausse est reportee au plus en ns,
         # min(part en rapport, X + (D - Sp)) ; une baisse (D <= Sp) reste reportee en rapport. Avec X >= Sp, c est
-        # min(X x D/Sp, X + D - Sp) en tout cylindre. Capped : cylindres ou la borne en ns a joue
-        if ($d -gt $sp -and ($x + ($d - $sp)) -lt $w) { $w = $x + ($d - $sp); $capped.Add($c) }
+        # min(X x D/Sp, X + D - Sp) en tout cylindre. Capped : cylindres ou la borne en ns a joue. Relecture de la rc6 : toute
+        # hausse au-dessus de X est bornee a X + max(0, D - Sp), aussi sous XferMinNs quand le facteur repris d un voisin
+        # (ou moyen) depasse 1 alors que D(c) <= Sp(c) (D = k x Sp arrondi egal a Sp aux faibles Sp, 1 < k < 1,5) : X, et non
+        # X x k sans borne
+        if ($w -gt $x) { $lim = $x + [math]::Max(0.0, $d - $sp); if ($w -gt $lim) { $w = $lim; $capped.Add($c) } }
         $vals[$c] = [int][math]::Max(0.0, [math]::Min([math]::Round($w), [math]::Max([double]$cap, [math]::Max($x, $d))))
         $exc[$c] = $vals[$c] - [int]$d
         if ($vals[$c] -ne [int]$x) { $asX = $false }
@@ -30402,6 +30405,11 @@ function Get-DriveK([string]$drive, [string]$fam, [int]$h, $brand = $null) {
         $cand += @{ R = $r; D = (Get-CurveDate $r); I = $i; K = $k }
     }
     $ob = [string[]]@($oth.Values | Sort-Object)
+    # Relecture de la rc6 (R15) : la marge et l asymetrie ne donnent pas le meme facteur sur une meme disquette (ecarts
+    # jusqu a 0,3 observes) : des qu une mesure de ce lecteur pour cette marque a son facteur par l asymetrie (Method 'asym'), les
+    # mesures dont la marge a decide ne comptent plus dans la mediane
+    $ca = @($cand | Where-Object { [string]$_.R.Method -eq 'asym' })
+    if ($ca.Count -gt 0) { $cand = $ca }
     if ($cand.Count -eq 0) { return @{ K = 1.0; Src = 'defaut'; Rec = $null; N = 0; Ks = [double[]]@(); Old = $old; OldContent = $oldC; Other = $nOth; OtherBrands = $ob; Brand = $br } }
     $last = @($cand | Sort-Object -Property @{ Expression = { $_.D }; Descending = $true }, @{ Expression = { $_.I }; Descending = $true } | Select-Object -First 3)
     $ks = [double[]]@($last | ForEach-Object { $_.K })

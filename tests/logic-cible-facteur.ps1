@@ -6,7 +6,8 @@ $Wt = Get-TestRoot $Wt
 #     (D = k.Sp) : k.X partout (rc5, R13 : sous XferMinNs, facteur du cylindre voisin repris) ; borne et zero ; cylindres au-dela de la longueur
 #     d une courbe ; tete par tete (Get-TargetTransferPlan) ; resume (min, mediane, max, cylindres sous le seuil et facteur repris, rc5).
 #     12.11 rc6 (R15) : D > Sp, hausse reportee au plus en ns (min(rapport, X + D - Sp)) ; U8 : baisse en rapport, hausse
-#     bornee en ns, continuite a k = 1, D = Sp -> X, X < Sp.
+#     bornee en ns, continuite a k = 1, D = Sp -> X, X < Sp. U9 (relecture) : sous le seuil, facteur repris > 1 et D = Sp
+#     apres arrondi : X, jamais au-dessus de X + max(0, D - Sp).
 #  A  ecriture « meme lecteur » strictement inchangee : six scenarios (mesure sur l image, test rapide, mesure complete,
 #     facteur de marque, ecriture rapide au test rapide, Bibliotheque), mesures simulees jusqu a l ecriture (bouchons qui
 #     reprennent la fin reelle : Set-LevelFields, drapeau LevelPostForce, facteur mesure WriteFactorNext, puis la vraie
@@ -99,7 +100,10 @@ function Get-FkExpect([string]$d, [string]$sp, [string]$x, [int]$n, [int]$cap, [
         elseif ($sS -gt 0) { $w = $xv * $sD / $sS }
         else { $w = $xv + $dv - $sv }
         # 12.11 rc6 (R15) : D > Sp : au plus X + (D - Sp) (hausse de la disquette reportee en ns)
-        if ($dv -gt $sv -and ($xv + $dv - $sv) -lt $w) { $w = $xv + $dv - $sv; $script:FkCapped += $c }
+        # relecture de la rc6 : une hausse au-dessus de X ne depasse jamais X + max(0, D - Sp), y compris quand le facteur
+        # repris d un voisin depasse 1 alors que D(c) <= Sp(c)
+        $lim = $xv + [math]::Max(0.0, $dv - $sv)
+        if ($w -gt $xv -and $w -gt $lim) { $w = $lim; $script:FkCapped += $c }
         $w = [math]::Round($w); if ($w -lt 0) { $w = 0 }; $b = [math]::Max([double]$cap, [math]::Max($xv, $dv)); if ($w -gt $b) { $w = $b }
         $o[$c] = [int]$w
     }
@@ -427,6 +431,14 @@ $tE = Get-TargetTransferSpec (ConvertTo-ScaledSpec $spD 1.5 1000) $spD $xD 0 100
 $dE = @(for ($c = 0; $c -lt 80; $c++) { if ([math]::Abs($gD[$c] - 0.5 * (20 + $c)) -gt 1) { "d c$c $($gD[$c])" }; if ([math]::Abs($gE[$c] - 1.5 * (20 + $c)) -gt 1) { "e c$c $($gE[$c])" } })
 if ($dE.Count -or @($tE.Capped).Count) { $u8Bad += "X < Sp : $(Get-List $dE 4) ; marques $(@($tE.Capped).Count)" }
 Chk 'U8' ($u8Bad.Count -eq 0) "rc6 (R15) : baisse k 0,5 en rapport (c40 : $((Get-FkVals (Get-TargetTransferSpec (ConvertTo-ScaledSpec $sp8 0.5 1000) $sp8 $x8 0 1000).Spec 80)[40]) ns pour X 100) ; hausse k 2 bornee en ns (X + Sp) ; continuite a k = 1 (c40 : $($g99[40]) / $($g101[40]) ns) ; D = Sp -> X ; X < Sp : baisse et hausse en rapport (c40 : $($gD[40]) / $($gE[40]) ns pour X 60) ; ecarts : $(Get-List $u8Bad)"
+# U9 (relecture de la rc6) : hausse faible (k 1,2) et Sp au bord sous 10 ns : D = round(1,2 Sp) vaut Sp a c0 (Sp 2) ; le
+# facteur 1,2 repris du cylindre 8 ne doit pas y porter la courbe a 1,2 X (48 ns) : X (40 ns). Partout : au plus
+# X + max(0, D - Sp) ; baisse k 0,8 : 0,8 X au bord comme en rc5 (facteur repris, aucun cylindre marque)
+$sp9 = Build-CurveProfile ([int[]]@(for ($c = 0; $c -lt 80; $c++) { 2 + $c })); $x9 = Build-CurveProfile ([int[]]@(for ($c = 0; $c -lt 80; $c++) { 40 + 2 * $c }))
+$d9 = ConvertTo-ScaledSpec $sp9 1.2 1000; $t9 = Get-TargetTransferSpec $d9 $sp9 $x9 0 1000; $g9 = Get-FkVals $t9.Spec 80
+$o9 = @(for ($c = 0; $c -lt 80; $c++) { $lim = (40 + 2 * $c) + [math]::Max(0, (Get-FkVal $d9 $c) - (2 + $c)); if ($g9[$c] -gt $lim) { "c$c $($g9[$c])>$lim" } })
+$t9b = Get-TargetTransferSpec (ConvertTo-ScaledSpec $sp9 0.8 1000) $sp9 $x9 0 1000; $g9b = Get-FkVals $t9b.Spec 80
+Chk 'U9' ($g9[0] -eq 40 -and $o9.Count -eq 0 -and @($t9.Capped) -contains 0 -and $t9.Borrow[0] -eq 8 -and $g9b[0] -eq 32 -and @($t9b.Capped).Count -eq 0) "k 1,2, Sp 2 ns a c0 (D = Sp apres arrondi), facteur du cylindre $($t9.Borrow[0]) repris : c0 $($g9[0]) ns (X 40, 48 sans borne) ; au-dessus de X + max(0, D - Sp) : $(Get-List $o9) ; baisse k 0,8 : c0 $($g9b[0]) ns (0,8 X), $(@($t9b.Capped).Count) cylindre marque"
 # U2b (R13, constat sur materiel) : k = 0,65, Sp au bord sous 10 ns : 0,65 X partout (rc4 : X - 0,35 Sp sous le seuil)
 $sp2b = Build-CurveProfile ([int[]]@(for ($c = 0; $c -lt 80; $c++) { 2 + $c }))
 $d2b = ConvertTo-ScaledSpec $sp2b 0.65 1000

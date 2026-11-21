@@ -652,6 +652,11 @@ function Get-DriveK([string]$drive, [string]$fam, [int]$h, $brand = $null) {
         $cand += @{ R = $r; D = (Get-CurveDate $r); I = $i; K = $k }
     }
     $ob = [string[]]@($oth.Values | Sort-Object)
+    # Relecture de la rc6 (R15) : la marge et l asymetrie ne donnent pas le meme facteur sur une meme disquette (ecarts
+    # jusqu a 0,3 observes) : des qu une mesure de ce lecteur pour cette marque a son facteur par l asymetrie (Method 'asym'), les
+    # mesures dont la marge a decide ne comptent plus dans la mediane
+    $ca = @($cand | Where-Object { [string]$_.R.Method -eq 'asym' })
+    if ($ca.Count -gt 0) { $cand = $ca }
     if ($cand.Count -eq 0) { return @{ K = 1.0; Src = 'defaut'; Rec = $null; N = 0; Ks = [double[]]@(); Old = $old; OldContent = $oldC; Other = $nOth; OtherBrands = $ob; Brand = $br } }
     $last = @($cand | Sort-Object -Property @{ Expression = { $_.D }; Descending = $true }, @{ Expression = { $_.I }; Descending = $true } | Select-Object -First 3)
     $ks = [double[]]@($last | ForEach-Object { $_.K })

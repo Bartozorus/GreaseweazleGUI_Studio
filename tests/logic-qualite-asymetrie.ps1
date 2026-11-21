@@ -676,7 +676,7 @@ if ($okSrc) {
     $tfY = [System.Windows.Forms.TextFormatFlags]::NoPrefix -bor [System.Windows.Forms.TextFormatFlags]::SingleLine
     $wid = { param($s) [System.Windows.Forms.TextRenderer]::MeasureText($s, $fS, (New-Object System.Drawing.Size(32000, 100)), $tfY).Width }
     $sW = @{ N = 160; NExp = 160; Judge = 'off'; ExpMed = -0.123; MeasMed = -0.456; GapNs = 128.4 }
-    $forW = @{ Target = 'TEAC FD-235HF'; Src = 'Banc 1' }; $forL = @{ Target = ('Lecteur au nom vraiment très long ' * 2); Src = 'Banc 1' }
+    $forW = @{ Target = 'Lecteur B-235'; Src = 'Banc 1' }; $forL = @{ Target = ('Lecteur au nom vraiment très long ' * 2); Src = 'Banc 1' }
     $worstL = 0; $worstS = 0; $longPick = @()
     foreach ($lang in 'fr', 'en') {
         $script:Lang = $lang
@@ -703,7 +703,7 @@ if ($okSrc) {
         $script:Lang = 'fr'; $gr.Dispose(); $bmp.Dispose(); $fB.Dispose(); $fM.Dispose()
     } else { $cutC += 'polices ou colonnes introuvables' }
     $y6 = ($worstL -le $avail -and $worstS -le $avail -and $longPick.Count -eq 0 -and $cutC.Count -eq 0)
-    $y6d = "ligne de la carte, lecteur « TEAC FD-235HF », valeurs a 3 decimales et 128 ns, francais et anglais : $worstL px ; forme courte : $worstS px ; pour $avail px utiles ; nom long : forme courte retenue (en defaut : $(if ($longPick.Count) { $longPick -join ' ' } else { 'aucun' })) ; en-tetes et cases des colonnes coupes : $(if ($cutC.Count) { $cutC -join ', ' } else { 'aucun' })"
+    $y6d = "ligne de la carte, lecteur « Lecteur B-235 », valeurs a 3 decimales et 128 ns, francais et anglais : $worstL px ; forme courte : $worstS px ; pour $avail px utiles ; nom long : forme courte retenue (en defaut : $(if ($longPick.Count) { $longPick -join ' ' } else { 'aucun' })) ; en-tetes et cases des colonnes coupes : $(if ($cutC.Count) { $cutC -join ', ' } else { 'aucun' })"
     $fS.Dispose()
 }
 Chk 'Y6' $y6 $y6d
