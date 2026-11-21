@@ -29,6 +29,13 @@ $Wt = Get-TestRoot $Wt
 #           fin de ligne, en-tete, anglais, douze colonnes sans asymetrie attendue ; X7 la mesure simple de l onglet
 #           reste inchangee sur les memes pistes, et seul l affichage du controle pose l asymetrie attendue (arbre
 #           syntaxique de tous les modules) ; X8 infobulle de la carte et couleur des lignes au journal ; X9 table I18n ;
+#  Y1 a Y7  12.11 rc6 (R14) : asymetrie attendue visible dans l onglet. Y1 ecart median en ns (constante du modele) ; Y2
+#           ligne de la carte (Show-WriteCheckTable reelle, Get-AsymExpLine) : jugement, medianes, sous- ou
+#           sur-compensee d environ N ns, forme courte, anglais, rien sans asymetrie attendue ; Y3 colonnes « Attendue » et
+#           « Ecart » du tableau, retirees sans exces memorise, par une mesure et a la reinitialisation ; Y4 carte
+#           (Get-QualityCardModel reelle) : ligne, encre du jugement, grisee, mesure sans ligne ; Y5 place de la ligne
+#           (Set-QualityCardRoom reelle, positions lues dans 530, vrais controles jamais affiches) ; Y6 textes entiers a la
+#           taille par defaut (ligne de la carte, en-tetes et cases des colonnes, polices lues dans 195 et 500) ; Y7 I18n ;
 #  Q0 a Q7  equivalence avec la 12.10, avec -Before <racine d une copie de la source de la 12.10> (aucune dans le depot ;
 #           sans elle, une ligne « saute ») : les memes pistes factices passent par les fonctions des deux versions,
 #           chacune chargee dans sa portee. Q1 mesure, deux passes (lignes du tableau au signe pres, derniere mesure,
@@ -100,10 +107,11 @@ $fnCommon = @{
 }
 # 12.11 rc4 (R10) : Get-AsymExpected et Set-TrackAsymExpected ; New-AlignLastInfo (12.11 rc3) vient ici : rangee avec les
 # fonctions communes, elle empechait de charger la source de la 12.10, qui ne l a pas (cas Q, -Before)
-$fnNew = @('Get-AsymSign', 'Format-AsymCell', 'Get-AsymSummary', 'Get-AsymSummaryText', 'Get-AsymExpected', 'Set-TrackAsymExpected', 'New-AlignLastInfo')
+$fnNew = @('Get-AsymSign', 'Format-AsymCell', 'Get-AsymSummary', 'Get-AsymSummaryText', 'Get-AsymExpected', 'Set-TrackAsymExpected', 'New-AlignLastInfo',
+           'Get-AsymExpLine', 'Set-AlExpColumns', 'Add-AlExpCells')   # 12.11 rc6 (R14) : les trois dernieres
 $fnOld = @('Get-AsymRefTable', 'Get-AsymRefs', 'Set-TrackAsymRef')
 $asgCommon = @('$script:HealthErrOk', '$script:JitterStdOk', '$script:JitterStdWatch', '$script:ScpStructMax')
-$asgNew = @('$script:ScoreAsymK', '$script:AsymSignPct', '$script:AsymExpGain', '$script:AsymExpOkTol', '$script:AsymExpNearTol', '$script:AsymExpInPct')   # 12.11 rc4 (R10) : les quatre dernieres
+$asgNew = @('$script:ScoreAsymK', '$script:AsymSignPct', '$script:AsymExpGain', '$script:AsymExpOkTol', '$script:AsymExpNearTol', '$script:AsymExpInPct', '$script:QualCardLine3H', '$script:QualCardRoom')   # 12.11 rc4 (R10) : les quatre dernieres
 $asgOld = @('$script:QualAsymRefOn')
 function New-Gen([string]$root, [string]$outFile, [string[]]$fn190, [string[]]$asg040, [string[]]$asg560) {
     # Fichier de travail : texte des fonctions et des affectations demandees, tel quel ; rend le texte de chaque fonction
@@ -584,6 +592,141 @@ foreach ($p in @(@($kOk, $eOk, 'conforme'), @($kNear, $eNear, 'proche'), @($kOff
 }
 Chk 'X9' ($badX.Count -eq 0) "sept textes du lot dans la section « rc4 » de 019, memes jalons : en defaut $(if ($badX.Count) { $badX -join ', ' } else { 'aucun' })"
 
+# ---------------------------------------------------------------- Y : asymetrie attendue dans l onglet (R14)
+"--- Y : asymetrie attendue dans l onglet (12.11 rc6, R14)"
+# Fonctions de la carte (195) absentes de la source de la 12.10 : chargees a part, comme Get-RepAsymExcess
+$fdY = @((Get-Ast (Join-Path $mods '195-fn-qualite-affichage.ps1')).FindAll({ param($x) $x -is $tFn -and @('Set-QualityCardRoom', 'Get-QualFitText', 'Update-QualityView', 'Render-QualityCard') -contains $x.Name }, $false))
+$defsY = @{}; foreach ($fd in $fdY) { $defsY[$fd.Name] = $fd.Extent.Text }
+$genY = Join-Path $here 'gen-r14.ps1'
+[System.IO.File]::WriteAllText($genY, (($defsY['Set-QualityCardRoom'], $defsY['Get-QualFitText']) -join "`r`n`r`n") + "`r`n", $utf8Bom)
+. $genY
+# Y1 : ecart median en ns (constante du modele) : X5 (ecart +0,004 partout, cellule 2000 ns) : 4 ns ; $repH (tete 0 +0,004,
+# tete 1 +0,024) : mediane de 4 et 24 = 14 ns ; exces de 60 ns (attendue 0,060, mesurees 0,034 et 0,044) : -21 ns
+Reset-State
+$null = Show-WriteCheckTable (New-CheckRepX @{ 0 = [int[]]@(60); 1 = [int[]]@(60) })
+$resU = $script:LastRes; $colsU = @(@($lvAl.Columns) | ForEach-Object { "$($_.Text)/$($_.Width)" })
+$rowU0 = @(@($lvAl.Items) | Where-Object { $_.SubItems[0].Text -ceq '0.0' })[0]; $rowU5 = @(@($lvAl.Items) | Where-Object { $_.SubItems[0].Text -ceq '5.0' })[0]
+$sumX = Get-AsymSummary @((New-CheckRepX $null).State.Values | ForEach-Object { $_ })
+$y1 = ((Test-NearX $sumH.GapNs 14.0) -and (Test-NearX (Get-AsymSummary @($repX.State.Values)).GapNs 4.0) -and -not $sumX.ContainsKey('GapNs') -and [double]$script:AsymExpGain -eq 2.0)
+Chk 'Y1' $y1 "ecart median a l attendu en ns, par la constante du modele (AsymExpGain $($script:AsymExpGain)) : $($sumH.GapNs) ns (14 attendu), sans asymetrie attendue : aucun"
+# Y2 : ligne de la carte (vraie Show-WriteCheckTable puis Get-AsymExpLine) : jugement, medianes signees, sens et taille
+$wOk = "Lecteur cible Atelier 2 : asymétrie conforme à l'attendu (attendue +0,035, mesurée +0,039)"
+$wOff = "Lecteur cible Atelier 2 : asymétrie éloignée de l'attendu (attendue +0,025, mesurée +0,039) ; disquette sur-compensée d'environ 14 ns"
+$wOffS = "Asymétrie éloignée de l'attendu (attendue +0,025, mesurée +0,039) ; disquette sur-compensée pour le lecteur cible d'environ 14 ns"
+$wU = "Lecteur cible Atelier 2 : asymétrie éloignée de l'attendu (attendue +0,060, mesurée +0,039) ; disquette sous-compensée d'environ 21 ns"
+$sNearY = @{ N = 10; NExp = 10; Judge = 'near'; ExpMed = 0.051; MeasMed = 0.040; GapNs = -0.3 }
+$y2a = ([string]$resX.AsymLine -ceq $wOk -and [string]$resX.AsymJudge -ceq 'ok' -and [string]$resX.AsymLineShort -ceq "Asymétrie conforme à l'attendu (attendue +0,035, mesurée +0,039)" -and [string]$resH.AsymLine -ceq $wOff -and [string]$resH.AsymLineShort -ceq $wOffS -and [string]$resH.AsymJudge -ceq 'off' -and [string]$resU.AsymLine -ceq $wU)
+$y2b = ((Get-AsymExpLine $sNearY $forX) -ceq "Lecteur cible Atelier 2 : asymétrie proche de l'attendu (attendue +0,051, mesurée +0,040) ; disquette sous-compensée d'environ 1 ns" -and (Get-AsymExpLine $sNearY $null) -ceq '' -and (Get-AsymExpLine $sumX $forX) -ceq '' -and (Get-AsymExpLine $null $forX) -ceq '')
+$y2c = ([string]$resL.AsymLine -ceq '' -and [string]$resL.AsymJudge -ceq '' -and -not $resM.ContainsKey('AsymLine') -and -not (([string]$resX.AsymLine + [string]$resH.AsymLine + $wU) -match 'score|lira|prédit'))
+$script:Lang = 'en'
+$y2d = ((Get-AsymExpLine $sumH $forX) -ceq 'Target drive Atelier 2: asymmetry far from the expected one (expected +0.025, measured +0.039); disk over-compensated by about 14 ns' -and (Get-AsymExpLine $sumH $forX -Short) -ceq 'Asymmetry far from the expected one (expected +0.025, measured +0.039); disk over-compensated for the target drive by about 14 ns' -and (Get-AsymExpLine $sNearY $forX -Short) -ceq 'Asymmetry close to the expected one (expected +0.051, measured +0.040); disk under-compensated for the target drive by about 1 ns')
+$script:Lang = 'fr'
+Chk 'Y2' ($y2a -and $y2b -and $y2c -and $y2d) "ligne de la carte : « $wOk » ($y2a) ; « proche », taille au moins 1 ns, sans lecteur cible ou sans asymetrie attendue : rien ($y2b) ; controle sans exces memorise et mesure : aucune ligne, aucune prediction du lecteur cible ($y2c) ; anglais, formes longue et courte ($y2d)"
+# Y3 : colonnes du tableau : en fin de ligne avec un exces memorise, retirees sans lui, par une mesure et a la reinitialisation
+$base10 = 'Piste/60 État/222 Erreurs/60 Trous/60 Stab/60 Jitter ns/60 Score/60 vs réf/60 Asym./60 Cell ns/60'
+$y3a = (($colsU -join ' ') -ceq ($base10 + ' Attendue/80 Écart/70') -and (@(0..11 | ForEach-Object { $rowU0.SubItems[$_].Text })[10, 11] -join ' ') -ceq '+0,060 -0,026' -and ($rowU5.SubItems.Count -eq 12) -and ($rowU5.SubItems[10].Text + ' ' + $rowU5.SubItems[11].Text) -ceq '- -' -and @(@($lvAl.Items) | Where-Object { $_.SubItems.Count -ne 12 }).Count -eq 0)
+$null = Show-WriteCheckTable (New-CheckRepX $null)
+$y3b = ((@(@($lvAl.Columns) | ForEach-Object { "$($_.Text)/$($_.Width)" }) -join ' ') -ceq $base10 -and @(@($lvAl.Items) | Where-Object { $_.SubItems.Count -ne 10 }).Count -eq 0)
+$null = Show-WriteCheckTable (New-CheckRepX @{ 0 = [int[]]@(30); 1 = [int[]]@(40) }); $nAfterX = $lvAl.Columns.Count
+$null = Show-WriteCheckTable (New-CheckRepX @{ 0 = [int[]]@(30); 1 = [int[]]@(40) }); $nAgain = $lvAl.Columns.Count
+$script:FakeScp[$script:AlignTmp] = $trX
+$null = Invoke-AlignAnalysis
+$y3c = ($nAfterX -eq 12 -and $nAgain -eq 12 -and $lvAl.Columns.Count -eq 10 -and ((@(@($lvAl.Columns) | ForEach-Object { "$($_.Text)/$($_.Width)" }) -join ' ') -ceq $base10))
+Set-AlExpColumns $true; Set-AlExpColumns $false
+$y3d = ($lvAl.Columns.Count -eq 10 -and [regex]::IsMatch($s530, '\$lvAl\.Items\.Clear\(\); Set-AlExpColumns \$false'))
+Chk 'Y3' ($y3a -and $y3b -and $y3c -and $y3d) "colonnes « Attendue » et « Écart » en fin de ligne (attendue, ecart signes ; piste absente « - ») ($y3a) ; controle sans exces : colonnes de toujours ($y3b) ; deux controles de suite : $nAfterX puis $nAgain colonnes, puis mesure : $($lvAl.Columns.Count) ($y3c) ; retrait idempotent et au bouton Reinitialiser de 530 ($y3d)"
+# Y4 : carte (vraie Get-QualityCardModel) : ligne et encre du jugement ; grise et perimee ; mesure : aucune
+$cY = Get-QualityCardModel $vX
+$vH = @{} + $vX; $resH.At = $resX.At; $vH.Res = $resH; $cH = Get-QualityCardModel $vH
+$vS = @{} + $vH; $vS.State = 'stale'; $vS.Reason = 'written'; $cS = Get-QualityCardModel $vS
+$resM.At = $resX.At; $vM = @{} + $vX; $vM.Kind = 'measure'; $vM.Res = $resM; $cM = Get-QualityCardModel $vM
+$y4 = ([string]$cY.Line3 -ceq $wOk -and $cY.Line3Ink.ToArgb() -eq (Get-QualInk 0).ToArgb() -and [string]$cH.Line3 -ceq $wOff -and [string]$cH.Line3Short -ceq $wOffS -and $cH.Line3Ink.ToArgb() -eq (Get-QualInk 3).ToArgb() -and
+       [string]$cS.Line3 -ceq $wOff -and $cS.Line3Ink.ToArgb() -eq (Get-QualDimInk).ToArgb() -and [string]$cM.Line3 -ceq '' -and ([string]$cH.Access).EndsWith($wOff) -and -not ([string]$cM.Access).Contains('attendu') -and [string]$cH.State -ceq [string]$cY.State)
+Chk 'Y4' $y4 "carte du controle : ligne « conforme » en vert, « eloignee » en rouge, grisee si perimee, reprise par le nom accessible ; mesure : aucune ligne ; etat (COPIE SAINE...) inchange"
+# Y5 : place de la ligne : la carte grandit, la ligne du guide et le tableau descendent (bas du tableau fixe) ; positions de
+# toujours (530) sans elle
+$pos = @{}
+foreach ($n in 'pnlQualCard', 'lblAlReco', 'lvAl') { $mm = [regex]::Match($s530, "\`$$n\.Location = '(\d+),(\d+)'; \`$$n\.Size = '(\d+),(\d+)'"); if ($mm.Success) { $pos[$n] = @([int]$mm.Groups[2].Value, [int]$mm.Groups[4].Value) } }
+$y5 = $false; $y5d = 'positions introuvables dans 530'
+if ($pos.Count -eq 3) {
+    $lvKeep = $lvAl
+    $pnlQualCard = New-Object System.Windows.Forms.Panel; $pnlQualCard.Top = $pos.pnlQualCard[0]; $pnlQualCard.Height = $pos.pnlQualCard[1]
+    $lblAlReco = New-Object System.Windows.Forms.Label; $lblAlReco.Top = $pos.lblAlReco[0]; $lblAlReco.Height = $pos.lblAlReco[1]
+    $lvAl = New-Object System.Windows.Forms.ListView; $lvAl.Top = $pos.lvAl[0]; $lvAl.Height = $pos.lvAl[1]
+    $script:QualCardRoom = 0
+    $snap = { "$($pnlQualCard.Top)/$($pnlQualCard.Height) $($lblAlReco.Top) $($lvAl.Top)/$($lvAl.Height)/$($lvAl.Bottom)" }
+    $p0 = & $snap; Set-QualityCardRoom $false; $p1 = & $snap; Set-QualityCardRoom $true; $p2 = & $snap; Set-QualityCardRoom $true; $p3 = & $snap; Set-QualityCardRoom $false; $p4 = & $snap
+    $bot = $pos.lvAl[0] + $pos.lvAl[1]
+    $want2 = "$($pos.pnlQualCard[0])/$($pos.pnlQualCard[1] + 20) $($pos.lblAlReco[0] + 20) $($pos.lvAl[0] + 20)/$($pos.lvAl[1] - 20)/$bot"
+    $y5 = ($p1 -ceq $p0 -and $p2 -ceq $want2 -and $p3 -ceq $p2 -and $p4 -ceq $p0 -and [int]$script:QualCardLine3H -eq 20 -and
+           [regex]::IsMatch($defsY['Update-QualityView'], 'Get-QualityCardModel \$script:QualView\s+Set-QualityCardRoom \(\[bool\]\$script:QualCard\.Line3\)') -and
+           $pos.pnlQualCard[0] + $pos.pnlQualCard[1] + 20 -le $pos.lblAlReco[0] + 20)
+    $y5d = "sans ligne : $p0 (inchange : $($p1 -ceq $p0)) ; avec : $p2 ($want2 attendu) ; deuxieme appel : inchange ; retour : $p4"
+    $lvAl = $lvKeep; $pnlQualCard = $null; $lblAlReco = $null; $script:QualCardRoom = 0
+}
+Chk 'Y5' $y5 $y5d
+# Y6 : textes entiers a la taille par defaut : ligne de la carte (police et largeur lues dans 195 et 530), en francais et en
+# anglais ; nom de lecteur long : forme courte ; en-tetes et cases des colonnes (polices de 500, largeurs de Set-AlExpColumns)
+$mCard = [regex]::Match($s530, "\`$pnlQualCard\.Size = '(\d+),")
+$okSrc = ($mCard.Success -and $defsY['Render-QualityCard'] -match "\`$fSmall = Get-QualFont 'Segoe UI' 8\.25" -and $defsY['Render-QualityCard'] -match 'Get-QualFitText \$m\.Line3 \$m\.Line3Short \$fSmall \(\$w - 22\)')
+$y6 = $false; $y6d = 'police ou largeur de la carte introuvable'
+if ($okSrc) {
+    $avail = [int]$mCard.Groups[1].Value - 22
+    $fS = New-Object System.Drawing.Font('Segoe UI', [single]8.25)
+    $tfY = [System.Windows.Forms.TextFormatFlags]::NoPrefix -bor [System.Windows.Forms.TextFormatFlags]::SingleLine
+    $wid = { param($s) [System.Windows.Forms.TextRenderer]::MeasureText($s, $fS, (New-Object System.Drawing.Size(32000, 100)), $tfY).Width }
+    $sW = @{ N = 160; NExp = 160; Judge = 'off'; ExpMed = -0.123; MeasMed = -0.456; GapNs = 128.4 }
+    $forW = @{ Target = 'TEAC FD-235HF'; Src = 'Banc 1' }; $forL = @{ Target = ('Lecteur au nom vraiment très long ' * 2); Src = 'Banc 1' }
+    $worstL = 0; $worstS = 0; $longPick = @()
+    foreach ($lang in 'fr', 'en') {
+        $script:Lang = $lang
+        foreach ($g in 128.4, -128.4) {
+            $sW.GapNs = $g
+            $lw = & $wid (Get-AsymExpLine $sW $forW); if ($lw -gt $worstL) { $worstL = $lw }
+            $sl = Get-AsymExpLine $sW $forL -Short; $swd = & $wid $sl; if ($swd -gt $worstS) { $worstS = $swd }
+            if ((Get-QualFitText (Get-AsymExpLine $sW $forL) $sl $fS $avail) -cne $sl) { $longPick += "$lang/$g" }
+        }
+    }
+    $script:Lang = 'fr'
+    $mB = [regex]::Match($s500, "\`$bold\s*=\s*New-Object System\.Drawing\.Font\('([^']+)',\s*([0-9.]+),\s*\[System\.Drawing\.FontStyle\]::Bold\)")
+    $mWc = [regex]::Matches($defsNew['Set-AlExpColumns'], "Columns\.Add\(\(T '([^']+)'\),\s*(\d+)\)")
+    $cutC = @()
+    if ($mB.Success -and $mF.Success -and $mWc.Count -eq 2) {
+        $fB = New-Object System.Drawing.Font($mB.Groups[1].Value, [single][double]::Parse($mB.Groups[2].Value, $inv), [System.Drawing.FontStyle]::Bold)
+        $fM = New-Object System.Drawing.Font($mF.Groups[1].Value, [single][double]::Parse($mF.Groups[2].Value, $inv))
+        $bmp = New-Object System.Drawing.Bitmap(200, 40); $gr = [System.Drawing.Graphics]::FromImage($bmp)
+        foreach ($mc in $mWc) {
+            $cw = [int]$mc.Groups[2].Value - 8
+            foreach ($lang in 'fr', 'en') { $script:Lang = $lang; $h = (T $mc.Groups[1].Value); if ($gr.MeasureString($h, $fB, 1000, (Get-QualSf 'hcenter')).Width -gt $cw) { $cutC += $h } }
+            foreach ($v in '+0,123', '-0,456', '+0.123') { if ($gr.MeasureString($v, $fM, 1000, (Get-QualSf 'center')).Width -gt $cw) { $cutC += $v } }
+        }
+        $script:Lang = 'fr'; $gr.Dispose(); $bmp.Dispose(); $fB.Dispose(); $fM.Dispose()
+    } else { $cutC += 'polices ou colonnes introuvables' }
+    $y6 = ($worstL -le $avail -and $worstS -le $avail -and $longPick.Count -eq 0 -and $cutC.Count -eq 0)
+    $y6d = "ligne de la carte, lecteur « TEAC FD-235HF », valeurs a 3 decimales et 128 ns, francais et anglais : $worstL px ; forme courte : $worstS px ; pour $avail px utiles ; nom long : forme courte retenue (en defaut : $(if ($longPick.Count) { $longPick -join ' ' } else { 'aucun' })) ; en-tetes et cases des colonnes coupes : $(if ($cutC.Count) { $cutC -join ', ' } else { 'aucun' })"
+    $fS.Dispose()
+}
+Chk 'Y6' $y6 $y6d
+# Y7 : table I18n : textes du lot dans la section « rc6 » R14 de 019, memes jalons
+$iRc6 = $t019.IndexOf('# --- rc6 : asymetrie attendue'); $badY = @()
+foreach ($p in @(
+    @("Lecteur cible {0} : asymétrie conforme à l'attendu (attendue {1}, mesurée {2})", 'Target drive {0}: asymmetry as expected (expected {1}, measured {2})'),
+    @("Lecteur cible {0} : asymétrie proche de l'attendu (attendue {1}, mesurée {2})", 'Target drive {0}: asymmetry close to the expected one (expected {1}, measured {2})'),
+    @("Lecteur cible {0} : asymétrie éloignée de l'attendu (attendue {1}, mesurée {2})", 'Target drive {0}: asymmetry far from the expected one (expected {1}, measured {2})'),
+    @("Asymétrie conforme à l'attendu (attendue {0}, mesurée {1})", 'Asymmetry as expected (expected {0}, measured {1})'),
+    @("Asymétrie proche de l'attendu (attendue {0}, mesurée {1})", 'Asymmetry close to the expected one (expected {0}, measured {1})'),
+    @("Asymétrie éloignée de l'attendu (attendue {0}, mesurée {1})", 'Asymmetry far from the expected one (expected {0}, measured {1})'),
+    @("disquette sous-compensée d'environ {0} ns", 'disk under-compensated by about {0} ns'), @("disquette sur-compensée d'environ {0} ns", 'disk over-compensated by about {0} ns'),
+    @("disquette sous-compensée pour le lecteur cible d'environ {0} ns", 'disk under-compensated for the target drive by about {0} ns'),
+    @("disquette sur-compensée pour le lecteur cible d'environ {0} ns", 'disk over-compensated for the target drive by about {0} ns'),
+    @('{0} ; {1}', '{0}; {1}'), @('Attendue', 'Expected'), @('Écart', 'Gap'))) {
+    $ph1 = (@([regex]::Matches($p[0], '\{\d\}') | ForEach-Object { $_.Value } | Sort-Object -Unique) -join '')
+    $ph2 = (@([regex]::Matches($p[1], '\{\d\}') | ForEach-Object { $_.Value } | Sort-Object -Unique) -join '')
+    $at = $t019.IndexOf("I18n[" + $(if ($p[0].Contains("'")) { '"' + $p[0] + '"' } else { "'" + $p[0] + "'" }) + "]", [System.StringComparison]::Ordinal)
+    if (-not ([string]$script:I18n[$p[0]] -ceq $p[1]) -or $iRc6 -lt 0 -or $at -lt $iRc6 -or $ph1 -ne $ph2) { $badY += $p[0] }
+}
+Chk 'Y7' ($badY.Count -eq 0) "treize textes du lot dans la section « rc6 » (R14) de 019, memes jalons : en defaut $(if ($badY.Count) { $badY -join ' | ' } else { 'aucun' })"
+
 # ---------------------------------------------------------------- Q : equivalence avec la source d avant
 "--- Q : equivalence avec la 12.10 (-Before)"
 function Format-V($v) {
@@ -596,7 +739,7 @@ function Format-V($v) {
     return "$v"
 }
 function Get-RowsDigest { return @(@($lvAl.Items) | ForEach-Object { $it = $_; ((0..9 | ForEach-Object { [string]$it.SubItems[$_].Text }) -join '|') + '|' + [string]$it.Tag.State + '|' + [string]$it.Tag.Score }) }
-function Get-ResDigest($res) { $h = @{}; foreach ($k in @($res.Keys)) { if ($k -ne 'AsymText') { $h[$k] = $res[$k] } }; return (Format-V $h) }
+function Get-ResDigest($res) { $h = @{}; foreach ($k in @($res.Keys)) { if (@('AsymText', 'AsymLine', 'AsymLineShort', 'AsymJudge') -notcontains $k) { $h[$k] = $res[$k] } }; return (Format-V $h) }   # 12.11 rc6 (R14) : ligne de la carte, absente de la 12.10
 function Get-ViewDigest { return @{ Rows = @(Get-RowsDigest); Rest = @('derniere ' + (Format-V $script:AlignLast)) + @('resultat ' + (Get-ResDigest $script:LastRes)) + @($script:RLog) + @($script:Calls) } }
 function Get-RepDigest($rep) {
     $l = @()

@@ -892,6 +892,9 @@ function Get-AsymSummary($ms) {
         $s.ExpMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymExp }))
         $s.MeasMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymExp + [double]$_.AsymGap }))
         $s.GapMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymGap }))
+        # 12.11 rc6 (R14) : GapNs, mediane de l ecart converti en ns par la constante du modele (Get-AsymExpected a
+        # l envers : ecart x cellule / AsymExpGain) : < 0, disquette sous-compensee pour le lecteur cible ; > 0, sur-compensee
+        $s.GapNs = $(if ([double]$script:AsymExpGain -gt 0) { [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymGap * [double]$_.Cell / [double]$script:AsymExpGain })) } else { 0.0 })
         $s.DevPoints = [int][math]::Round([double]$script:ScoreAsymK * $dev / $ok.Count)
         # Jugement tete par tete (AsymHead, pose par Show-WriteCheckTable : courbe ecrite et facteur de la disquette sont
         # par tete), le moins bon des deux garde ; pistes sans AsymHead : un seul groupe, jugement d ensemble
@@ -932,6 +935,60 @@ function Get-AsymSummaryText($s, [switch]$Always, $For = $null) {
     if ($s.Kind -eq '-') { return ((T "Asymétrie négative sur {0} piste(s) sur {1} (médiane {2}) : les intervalles longs sont relus trop courts, comme après une écriture au-dessous du niveau de précompensation qui centre les intervalles pour ce lecteur. Elle compte pour {3} point(s) du score moyen et ne change pas l'état des pistes.") -f "$($s.Neg)", "$($s.N)", $med, "$($s.Points)") }
     if ($Always) { return ((T 'médiane {0}, sans signe commun ; {1} point(s) du score moyen') -f $med, "$($s.Points)") }
     return ''
+}
+
+function Get-AsymExpLine($s, $For, [switch]$Short) {
+    # 12.11 rc6 (R14) : ligne de la carte de l onglet Qualite pour le controle d une ecriture destinee au lecteur cible
+    # $For.Target (pistes a asymetrie attendue, Get-AsymSummary) : jugement (Judge), medianes attendue et mesuree signees,
+    # et, quand l asymetrie n est pas conforme, le sens de l ecart en clair et sa taille en ns (GapNs : mesuree sous
+    # l attendue = disquette sous-compensee pour le lecteur cible, au-dessus = sur-compensee). Rien sur le score ou la
+    # lecture du lecteur cible. -Short : sans le nom du lecteur cible (nom long, carte etroite). '' sans asymetrie attendue
+    if ($null -eq $s -or -not $For -or [int]$s.N -le 0 -or [int]$s.NExp -le 0) { return '' }
+    $sg = '+0.000;-0.000;0.000'
+    $e = Format-UiNum ([double]$s.ExpMed) $sg; $me = Format-UiNum ([double]$s.MeasMed) $sg
+    $head = if ($Short) {
+        switch ([string]$s.Judge) {
+            'ok'    { (T "Asymétrie conforme à l'attendu (attendue {0}, mesurée {1})") -f $e, $me }
+            'near'  { (T "Asymétrie proche de l'attendu (attendue {0}, mesurée {1})") -f $e, $me }
+            default { (T "Asymétrie éloignée de l'attendu (attendue {0}, mesurée {1})") -f $e, $me }
+        }
+    } else {
+        switch ([string]$s.Judge) {
+            'ok'    { (T "Lecteur cible {0} : asymétrie conforme à l'attendu (attendue {1}, mesurée {2})") -f "$($For.Target)", $e, $me }
+            'near'  { (T "Lecteur cible {0} : asymétrie proche de l'attendu (attendue {1}, mesurée {2})") -f "$($For.Target)", $e, $me }
+            default { (T "Lecteur cible {0} : asymétrie éloignée de l'attendu (attendue {1}, mesurée {2})") -f "$($For.Target)", $e, $me }
+        }
+    }
+    if ([string]$s.Judge -eq 'ok') { return $head }
+    $g = [double]$s.GapNs
+    $n = "$([math]::Max(1, [int][math]::Round([math]::Abs($g))))"
+    $dir = if ($Short) {
+        if ($g -lt 0) { (T "disquette sous-compensée pour le lecteur cible d'environ {0} ns") -f $n } else { (T "disquette sur-compensée pour le lecteur cible d'environ {0} ns") -f $n }
+    } else {
+        if ($g -lt 0) { (T "disquette sous-compensée d'environ {0} ns") -f $n } else { (T "disquette sur-compensée d'environ {0} ns") -f $n }
+    }
+    return ((T '{0} ; {1}') -f $head, $dir)
+}
+
+function Set-AlExpColumns([bool]$on) {
+    # 12.11 rc6 (R14) : colonnes « Attendue » et « Ecart » du tableau de l onglet Qualite (asymetrie attendue et ecart
+    # mesuree - attendue, signes), en fin de ligne pour ne deplacer aucune autre colonne ; seulement pour le controle d une
+    # ecriture destinee a un lecteur cible (Show-WriteCheckTable, 170) ; retirees pour une mesure et a la reinitialisation
+    if ($on -and $lvAl.Columns.Count -eq 10) {
+        [void]$lvAl.Columns.Add((T 'Attendue'), 80); [void]$lvAl.Columns.Add((T 'Écart'), 70)
+    } elseif (-not $on) {
+        while ($lvAl.Columns.Count -gt 10) { $lvAl.Columns.RemoveAt($lvAl.Columns.Count - 1) }
+    }
+}
+
+function Add-AlExpCells($it, $m) {
+    # 12.11 rc6 (R14) : cases des colonnes de Set-AlExpColumns pour une ligne de New-AlignRow (format de l export) ;
+    # « - » pour une piste illisible ou sans asymetrie attendue
+    while ($it.SubItems.Count -lt 10) { [void]$it.SubItems.Add('-') }
+    if ($m -and -not $m.Bad -and $null -ne $m.AsymExp) {
+        [void]$it.SubItems.Add(('{0:+0.000;-0.000;0.000}' -f [double]$m.AsymExp)); [void]$it.SubItems.Add(('{0:+0.000;-0.000;0.000}' -f [double]$m.AsymGap))
+    } else { [void]$it.SubItems.Add('-'); [void]$it.SubItems.Add('-') }
+    return $it
 }
 
 # Ligne du tableau de l onglet Qualite pour une piste ; $mark complete l etat (ex. « (reecrite x2) »)
@@ -1129,6 +1186,7 @@ function Invoke-AlignAnalysis {
     $res = @{ Kind = 'measure'; Score = $null; Lvl = 3; Count = 0; Bad = 0; Health = 0; NTracks = 0; WatchKeys = @(); CritKeys = @()
               HealthText = ''; ScoreText = ''; Prev = $null; Best = $null; RefAvg = $null; AsymText = '' }
     $lvAl.Columns[1].Width = 222                          # 12.8 (lot 3b) : icone d etat de 16 px devant le texte
+    Set-AlExpColumns $false                               # 12.11 rc6 (R14) : colonnes d un controle pour un lecteur cible retirees
     $lvAl.BeginUpdate()
     try {
         $lvAl.Items.Clear()

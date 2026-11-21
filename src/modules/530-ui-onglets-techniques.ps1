@@ -298,8 +298,8 @@ $btnAlReset.Add_Click({
     $script:AlPos = $null; $script:AlLastMove = 0; $script:AlPosScores = @{}; $script:AlignRefLabel = ''
     $lblAlRef.Text = (T 'Aucune référence')
     $lblAlPos.Text = ''; $lblAlReco.Text = ''
-    $lvAl.Items.Clear()
-    Reset-QualityView                                     # 12.8 (lot 3a) : carte vide, plus aucun resultat
+    $lvAl.Items.Clear(); Set-AlExpColumns $false          # 12.11 rc6 (R14) : colonnes d un controle pour un lecteur cible retirees
+    Reset-QualityView                                    # 12.8 (lot 3a) : carte vide, plus aucun resultat
 })
 
 $chkAlGuide = New-Object System.Windows.Forms.CheckBox

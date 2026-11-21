@@ -3234,6 +3234,21 @@ $script:I18n["k {0} mesuré par l'asymétrie"] = 'k {0} measured from asymmetry'
 $script:I18n["Mesure de la disquette sur l'image terminée en {0} : écriture de l'image (tête 0 : {1} ; tête 1 : {2})."] = 'Disk measurement on the image finished in {0}: writing the image (head 0: {1}; head 1: {2}).'
 $script:I18n["Facteurs mesurés sur l'image avant la 12.11 : le facteur se règle désormais par l'asymétrie de lecture, ils ne sont plus appliqués. Refaites une mesure sur l'image pour chaque marque."] = 'Factors measured on the image before 12.11: the factor is now set from the read asymmetry; they are no longer applied. Measure again on the image for each brand.'
 $script:I18n['c{0} : besoin de la disquette au-dessus de la courbe du lecteur, hausse reportée en ns'] = 'c{0}: disk need above the drive curve, increase carried over in ns'
+
+# --- rc6 : asymetrie attendue d une ecriture pour un lecteur cible dans l onglet Qualite (190, 195, 170, R14) ----------------
+$script:I18n["Lecteur cible {0} : asymétrie conforme à l'attendu (attendue {1}, mesurée {2})"] = 'Target drive {0}: asymmetry as expected (expected {1}, measured {2})'
+$script:I18n["Lecteur cible {0} : asymétrie proche de l'attendu (attendue {1}, mesurée {2})"] = 'Target drive {0}: asymmetry close to the expected one (expected {1}, measured {2})'
+$script:I18n["Lecteur cible {0} : asymétrie éloignée de l'attendu (attendue {1}, mesurée {2})"] = 'Target drive {0}: asymmetry far from the expected one (expected {1}, measured {2})'
+$script:I18n["Asymétrie conforme à l'attendu (attendue {0}, mesurée {1})"] = 'Asymmetry as expected (expected {0}, measured {1})'
+$script:I18n["Asymétrie proche de l'attendu (attendue {0}, mesurée {1})"] = 'Asymmetry close to the expected one (expected {0}, measured {1})'
+$script:I18n["Asymétrie éloignée de l'attendu (attendue {0}, mesurée {1})"] = 'Asymmetry far from the expected one (expected {0}, measured {1})'
+$script:I18n["disquette sous-compensée d'environ {0} ns"] = 'disk under-compensated by about {0} ns'
+$script:I18n["disquette sur-compensée d'environ {0} ns"] = 'disk over-compensated by about {0} ns'
+$script:I18n["disquette sous-compensée pour le lecteur cible d'environ {0} ns"] = 'disk under-compensated for the target drive by about {0} ns'
+$script:I18n["disquette sur-compensée pour le lecteur cible d'environ {0} ns"] = 'disk over-compensated for the target drive by about {0} ns'
+$script:I18n['{0} ; {1}'] = '{0}; {1}'
+$script:I18n['Attendue'] = 'Expected'
+$script:I18n['Écart'] = 'Gap'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 try { Add-Type -AssemblyName System.IO.Compression.FileSystem } catch { }
@@ -3872,6 +3887,10 @@ $script:AlignRef    = $null     # reference memorisee (meme structure)
 # (verdict du controle apres ecriture) et du verdict de la restauration
 $script:QualView = @{ State = 'empty'; Kind = ''; Reason = ''; At = $null; Has = $false; Pass = 0; Drive = ''; Heads = ''; Revs = 0; NCyl = 0; RunText = ''; Res = $null }
 $script:QualCard = $null
+# 12.11 rc6 (R14) : hauteur de la ligne de l asymetrie attendue sur la carte (Set-QualityCardRoom, 195) et hauteur ajoutee
+# en ce moment (0 : carte de 58 px de toujours)
+$script:QualCardLine3H = 20
+$script:QualCardRoom = 0
 $script:QualGdi = @{}
 $script:WCalIcon = $null
 $script:WTabNotice = $null      # 12.8 (FIX-PISTES) : avis de fin d une operation de la Bibliotheque (Set-WTabNotice)
@@ -14870,6 +14889,10 @@ function Show-WriteCheckTable($rep) {
     $last = @{}; $total = 0.0; $count = 0; $nBad = 0
     # 12.8 (lot 3b) : icone d etat de 16 px devant le texte de la colonne Etat
     $lvAl.Columns[1].Width = $(if (@($rep.State.Values | Where-Object { $_.Weak }).Count -gt 0) { 302 } else { 222 })
+    # 12.11 rc6 (R14) : colonnes « Attendue » et « Ecart » quand une piste porte une asymetrie attendue (Set-AlExpColumns,
+    # 190) ; sans elle, tableau de toujours
+    $expCols = [bool]($asymFor -and @($keys | Where-Object { $rep.State[$_] -and $null -ne $rep.State[$_].AsymExp }).Count -gt 0)
+    Set-AlExpColumns $expCols
     $lvAl.BeginUpdate()
     try {
         $lvAl.Items.Clear()
@@ -14878,7 +14901,9 @@ function Show-WriteCheckTable($rep) {
             $mark = ''
             if ($rep.Rewrites.ContainsKey($k)) { $mark = ((T " (réécrite x{0})") -f "$($rep.Rewrites[$k])") }
             elseif ($rep.Retries.ContainsKey($k)) { $mark = ((T " (essais x{0})") -f "$($rep.Retries[$k])") }
-            [void]$lvAl.Items.Add((New-AlignRow $k $m $mark '-' -1))
+            $row = New-AlignRow $k $m $mark '-' -1
+            if ($expCols) { $row = Add-AlExpCells $row $m }
+            [void]$lvAl.Items.Add($row)
             if ($m.Bad) { $last[$k] = @{ Score = 9999; Jitter = 0; Asym = 0; Err = 0; Stab = 0; Cell = 0 }; $nBad++; continue }
             $last[$k] = @{ Score = $m.Score; Jitter = $m.J; Asym = $m.Asym; Err = $m.Ooc; Stab = $m.Stab; Cell = $m.Cell }
             $total += $m.Score; $count++
@@ -14911,7 +14936,12 @@ function Show-WriteCheckTable($rep) {
     # de la carte et journal ; l en-tete de l export le recalcule sur les lignes du tableau, meme fonction
     # 12.11 rc4 (R10) : ecriture pour un lecteur cible avec asymetrie attendue : phrase du jugement de l ecart (-For)
     if ($asymFor) { $res.AsymFor = $asymFor }
-    $res.AsymText = Get-AsymSummaryText (Get-AsymSummary @($keys | ForEach-Object { $rep.State[$_] })) -For $asymFor
+    $asum = Get-AsymSummary @($keys | ForEach-Object { $rep.State[$_] })
+    $res.AsymText = Get-AsymSummaryText $asum -For $asymFor
+    # 12.11 rc6 (R14) : ligne de l asymetrie attendue sur la carte (Get-AsymExpLine, 190), forme longue et sans le nom du
+    # lecteur cible, et son jugement (couleur) ; '' sans asymetrie attendue : carte de toujours
+    $res.AsymLine = Get-AsymExpLine $asum $asymFor; $res.AsymLineShort = Get-AsymExpLine $asum $asymFor -Short
+    $res.AsymJudge = $(if ($res.AsymLine) { [string]$asum.Judge } else { '' })
     if ($res.AsymText) { Append-Log ((T "Contrôle après écriture : {0}") -f $res.AsymText) }
     Set-QualityResult $res
 }
@@ -16804,6 +16834,9 @@ function Get-AsymSummary($ms) {
         $s.ExpMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymExp }))
         $s.MeasMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymExp + [double]$_.AsymGap }))
         $s.GapMed = [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymGap }))
+        # 12.11 rc6 (R14) : GapNs, mediane de l ecart converti en ns par la constante du modele (Get-AsymExpected a
+        # l envers : ecart x cellule / AsymExpGain) : < 0, disquette sous-compensee pour le lecteur cible ; > 0, sur-compensee
+        $s.GapNs = $(if ([double]$script:AsymExpGain -gt 0) { [double](Get-Median @($ex | ForEach-Object { [double]$_.AsymGap * [double]$_.Cell / [double]$script:AsymExpGain })) } else { 0.0 })
         $s.DevPoints = [int][math]::Round([double]$script:ScoreAsymK * $dev / $ok.Count)
         # Jugement tete par tete (AsymHead, pose par Show-WriteCheckTable : courbe ecrite et facteur de la disquette sont
         # par tete), le moins bon des deux garde ; pistes sans AsymHead : un seul groupe, jugement d ensemble
@@ -16844,6 +16877,60 @@ function Get-AsymSummaryText($s, [switch]$Always, $For = $null) {
     if ($s.Kind -eq '-') { return ((T "Asymétrie négative sur {0} piste(s) sur {1} (médiane {2}) : les intervalles longs sont relus trop courts, comme après une écriture au-dessous du niveau de précompensation qui centre les intervalles pour ce lecteur. Elle compte pour {3} point(s) du score moyen et ne change pas l'état des pistes.") -f "$($s.Neg)", "$($s.N)", $med, "$($s.Points)") }
     if ($Always) { return ((T 'médiane {0}, sans signe commun ; {1} point(s) du score moyen') -f $med, "$($s.Points)") }
     return ''
+}
+
+function Get-AsymExpLine($s, $For, [switch]$Short) {
+    # 12.11 rc6 (R14) : ligne de la carte de l onglet Qualite pour le controle d une ecriture destinee au lecteur cible
+    # $For.Target (pistes a asymetrie attendue, Get-AsymSummary) : jugement (Judge), medianes attendue et mesuree signees,
+    # et, quand l asymetrie n est pas conforme, le sens de l ecart en clair et sa taille en ns (GapNs : mesuree sous
+    # l attendue = disquette sous-compensee pour le lecteur cible, au-dessus = sur-compensee). Rien sur le score ou la
+    # lecture du lecteur cible. -Short : sans le nom du lecteur cible (nom long, carte etroite). '' sans asymetrie attendue
+    if ($null -eq $s -or -not $For -or [int]$s.N -le 0 -or [int]$s.NExp -le 0) { return '' }
+    $sg = '+0.000;-0.000;0.000'
+    $e = Format-UiNum ([double]$s.ExpMed) $sg; $me = Format-UiNum ([double]$s.MeasMed) $sg
+    $head = if ($Short) {
+        switch ([string]$s.Judge) {
+            'ok'    { (T "Asymétrie conforme à l'attendu (attendue {0}, mesurée {1})") -f $e, $me }
+            'near'  { (T "Asymétrie proche de l'attendu (attendue {0}, mesurée {1})") -f $e, $me }
+            default { (T "Asymétrie éloignée de l'attendu (attendue {0}, mesurée {1})") -f $e, $me }
+        }
+    } else {
+        switch ([string]$s.Judge) {
+            'ok'    { (T "Lecteur cible {0} : asymétrie conforme à l'attendu (attendue {1}, mesurée {2})") -f "$($For.Target)", $e, $me }
+            'near'  { (T "Lecteur cible {0} : asymétrie proche de l'attendu (attendue {1}, mesurée {2})") -f "$($For.Target)", $e, $me }
+            default { (T "Lecteur cible {0} : asymétrie éloignée de l'attendu (attendue {1}, mesurée {2})") -f "$($For.Target)", $e, $me }
+        }
+    }
+    if ([string]$s.Judge -eq 'ok') { return $head }
+    $g = [double]$s.GapNs
+    $n = "$([math]::Max(1, [int][math]::Round([math]::Abs($g))))"
+    $dir = if ($Short) {
+        if ($g -lt 0) { (T "disquette sous-compensée pour le lecteur cible d'environ {0} ns") -f $n } else { (T "disquette sur-compensée pour le lecteur cible d'environ {0} ns") -f $n }
+    } else {
+        if ($g -lt 0) { (T "disquette sous-compensée d'environ {0} ns") -f $n } else { (T "disquette sur-compensée d'environ {0} ns") -f $n }
+    }
+    return ((T '{0} ; {1}') -f $head, $dir)
+}
+
+function Set-AlExpColumns([bool]$on) {
+    # 12.11 rc6 (R14) : colonnes « Attendue » et « Ecart » du tableau de l onglet Qualite (asymetrie attendue et ecart
+    # mesuree - attendue, signes), en fin de ligne pour ne deplacer aucune autre colonne ; seulement pour le controle d une
+    # ecriture destinee a un lecteur cible (Show-WriteCheckTable, 170) ; retirees pour une mesure et a la reinitialisation
+    if ($on -and $lvAl.Columns.Count -eq 10) {
+        [void]$lvAl.Columns.Add((T 'Attendue'), 80); [void]$lvAl.Columns.Add((T 'Écart'), 70)
+    } elseif (-not $on) {
+        while ($lvAl.Columns.Count -gt 10) { $lvAl.Columns.RemoveAt($lvAl.Columns.Count - 1) }
+    }
+}
+
+function Add-AlExpCells($it, $m) {
+    # 12.11 rc6 (R14) : cases des colonnes de Set-AlExpColumns pour une ligne de New-AlignRow (format de l export) ;
+    # « - » pour une piste illisible ou sans asymetrie attendue
+    while ($it.SubItems.Count -lt 10) { [void]$it.SubItems.Add('-') }
+    if ($m -and -not $m.Bad -and $null -ne $m.AsymExp) {
+        [void]$it.SubItems.Add(('{0:+0.000;-0.000;0.000}' -f [double]$m.AsymExp)); [void]$it.SubItems.Add(('{0:+0.000;-0.000;0.000}' -f [double]$m.AsymGap))
+    } else { [void]$it.SubItems.Add('-'); [void]$it.SubItems.Add('-') }
+    return $it
 }
 
 # Ligne du tableau de l onglet Qualite pour une piste ; $mark complete l etat (ex. « (reecrite x2) »)
@@ -17041,6 +17128,7 @@ function Invoke-AlignAnalysis {
     $res = @{ Kind = 'measure'; Score = $null; Lvl = 3; Count = 0; Bad = 0; Health = 0; NTracks = 0; WatchKeys = @(); CritKeys = @()
               HealthText = ''; ScoreText = ''; Prev = $null; Best = $null; RefAvg = $null; AsymText = '' }
     $lvAl.Columns[1].Width = 222                          # 12.8 (lot 3b) : icone d etat de 16 px devant le texte
+    Set-AlExpColumns $false                               # 12.11 rc6 (R14) : colonnes d un controle pour un lecteur cible retirees
     $lvAl.BeginUpdate()
     try {
         $lvAl.Items.Clear()
@@ -17617,7 +17705,7 @@ function Get-QualityCardModel($v) {
     $edge = [System.Drawing.Color]::FromArgb(205, 212, 224)
     $m = @{ Back = $wh; Bar = $edge; Icon = 'none'; Badge = ''; GreyIcon = $false; Score = [string][char]0x2013; ScoreInk = $th.Muted
             Caption = (T 'score · plus bas = mieux'); CaptionInk = $th.Muted; Level = ''; LevelInk = $th.Muted; Line2 = ''; Line2Short = ''; Line2More = @()
-            Line2Ink = $th.Muted; StateIcon = ''; State = ''; StateInk = $th.Muted; Sub = ''; SubShort = ''; SubInk = $th.Muted; Chip = ''; ChipBack = $th.Muted
+            Line2Ink = $th.Muted; Line3 = ''; Line3Short = ''; Line3Ink = $th.Muted; StateIcon = ''; State = ''; StateInk = $th.Muted; Sub = ''; SubShort = ''; SubInk = $th.Muted; Chip = ''; ChipBack = $th.Muted
             Tip = ''; Access = '' }
     $r = $v.Res
     $at = if ($r -and $r.At -is [datetime]) { $r.At.ToString('HH:mm') } else { '' }
@@ -17702,6 +17790,12 @@ function Get-QualityCardModel($v) {
             }
             if ($bad -gt 0) { $fullL2 = $m.Line2 }
         }
+        # 12.11 rc6 (R14) : controle d une ecriture destinee a un lecteur cible : ligne de l asymetrie attendue sous le score et
+        # l etat (Res.AsymLine, Show-WriteCheckTable, 170), encre de son jugement ; grise avec le resultat
+        if ($r.Kind -eq 'check' -and $r.AsymLine) {
+            $m.Line3 = [string]$r.AsymLine; $m.Line3Short = [string]$r.AsymLineShort
+            if ($show) { $m.Line3Ink = Get-QualInk $(switch ([string]$r.AsymJudge) { 'ok' { 0 } 'near' { 2 } default { 3 } }) }
+        }
         if ($show) {
             $m.Bar = $(if ($count -le 0) { $th.Danger } else { Get-QualLevelColor $lvl })
             $m.ScoreInk = Get-QualInk $lvl; $m.LevelInk = Get-QualInk $lvl
@@ -17728,7 +17822,7 @@ function Get-QualityCardModel($v) {
     # 244,245,247) : gris plus fonce (Get-QualDimInk), pour un contraste >= 4,5:1 ; sur fond blanc, Theme.Muted (4,69:1)
     if ($m.Back.ToArgb() -ne $wh.ToArgb()) {
         $dim = Get-QualDimInk
-        foreach ($k in @('ScoreInk', 'CaptionInk', 'LevelInk', 'Line2Ink', 'StateInk', 'SubInk')) { if ($m[$k].ToArgb() -eq $th.Muted.ToArgb()) { $m[$k] = $dim } }
+        foreach ($k in @('ScoreInk', 'CaptionInk', 'LevelInk', 'Line2Ink', 'Line3Ink', 'StateInk', 'SubInk')) { if ($m[$k].ToArgb() -eq $th.Muted.ToArgb()) { $m[$k] = $dim } }
     }
     # Infobulle : etat d affichage, textes complets du resultat (listes de pistes), puis les deux definitions
     $tips = @()
@@ -17740,7 +17834,7 @@ function Get-QualityCardModel($v) {
     $tips += (T "État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter. Erreurs comptées sans le premier intervalle de la lecture ni, en double densité, le raccord d'écriture dans la zone de ± 1 ms autour de l'index ; stabilité mesurée sur des tours alignés (double densité, 3 tours ou plus).`nIndépendant du contenu : comparable d'une disquette à l'autre.")
     $tips += (T "Score de qualité de lecture (plus bas = mieux). Dépend du contenu : à comparer uniquement sur une même image`n(deux lecteurs, deux précompensations, deux réglages).")
     $m.Tip = ($tips -join "`n").Trim()
-    $m.Access = @(@($m.Chip, "$($m.Score) $($m.Level)".Trim(), $m.State) | Where-Object { $_ -and $_ -ne [string][char]0x2013 }) -join ' ; '
+    $m.Access = @(@($m.Chip, "$($m.Score) $($m.Level)".Trim(), $m.State, $m.Line3) | Where-Object { $_ -and $_ -ne [string][char]0x2013 }) -join ' ; '
     return $m
 }
 
@@ -17748,6 +17842,7 @@ function Get-QualityCardModel($v) {
 function Update-QualityView {
     # Rendu de $script:QualView : carte de resultat, infobulle et tableau (gris hors resultat, D16)
     $script:QualCard = Get-QualityCardModel $script:QualView
+    Set-QualityCardRoom ([bool]$script:QualCard.Line3)      # 12.11 rc6 (R14) : ligne de l asymetrie attendue
     # 12.8 (FIX3) : bandeau orange des zones instables de la derniere mesure (Set-UnstableBanner) grise comme la carte tant
     # que ce resultat n est pas le resultat courant (mesure en cours, perime) ; le guide d alignement, qui utilise la meme
     # ligne, garde ses couleurs
@@ -17759,6 +17854,20 @@ function Update-QualityView {
     $tip.SetToolTip($pnlQualCard, $script:QualCard.Tip)
     $pnlQualCard.AccessibleName = $script:QualCard.Access
     if ($lvAl) { $lvAl.Invalidate() }
+}
+
+function Set-QualityCardRoom([bool]$extra) {
+    # 12.11 rc6 (R14) : carte haute de QualCardLine3H px de plus quand elle porte la ligne de l asymetrie attendue (controle
+    # d une ecriture pour un lecteur cible) : la ligne du guide et le tableau descendent d autant, le bas du tableau ne
+    # bouge pas ; sans cette ligne (mesure, carte vide), positions de toujours (530)
+    if (-not $pnlQualCard) { return }
+    $want = $(if ($extra) { [int]$script:QualCardLine3H } else { 0 })
+    $d = $want - [int]$script:QualCardRoom
+    if ($d -eq 0) { return }
+    $script:QualCardRoom = $want
+    $pnlQualCard.Height += $d
+    if ($lblAlReco) { $lblAlReco.Top += $d }
+    if ($lvAl) { $lvAl.Top += $d; $lvAl.Height -= $d }
 }
 
 function Get-QualFitText([string]$long, [string]$short, $font, [int]$w, [string[]]$more = @()) {
@@ -17822,6 +17931,11 @@ function Render-QualityCard {
         [System.Windows.Forms.TextRenderer]::DrawText($g, $m.Level, $fLevel, (New-Object System.Drawing.Rectangle($lay.Lx, 4, [math]::Max(10, $lvW), 26)), $m.LevelInk, $m.Back, $tf)
         $l2 = Get-QualFitText $m.Line2 $m.Line2Short $fSmall $lay.L2W $m.Line2More
         [System.Windows.Forms.TextRenderer]::DrawText($g, $l2, $fSmall, (New-Object System.Drawing.Rectangle($lay.Lx, 32, $lay.L2W, 20)), $m.Line2Ink, $m.Back, $tf)
+        # 12.11 rc6 (R14) : ligne de l asymetrie attendue, sur toute la largeur sous le pictogramme (Set-QualityCardRoom)
+        if ($m.Line3) {
+            $l3 = Get-QualFitText $m.Line3 $m.Line3Short $fSmall ($w - 22)
+            [System.Windows.Forms.TextRenderer]::DrawText($g, $l3, $fSmall, (New-Object System.Drawing.Rectangle(12, 56, ($w - 22), 18)), $m.Line3Ink, $m.Back, $tf)
+        }
         if ($lay.Sep -gt 0) {
             $g.DrawLine((Get-QualPen $edge 1), $lay.Sep, 8, $lay.Sep, [math]::Min(($h - 8), $lay.SepBottom))
             $tx = $lay.StX
@@ -34160,8 +34274,8 @@ $btnAlReset.Add_Click({
     $script:AlPos = $null; $script:AlLastMove = 0; $script:AlPosScores = @{}; $script:AlignRefLabel = ''
     $lblAlRef.Text = (T 'Aucune référence')
     $lblAlPos.Text = ''; $lblAlReco.Text = ''
-    $lvAl.Items.Clear()
-    Reset-QualityView                                     # 12.8 (lot 3a) : carte vide, plus aucun resultat
+    $lvAl.Items.Clear(); Set-AlExpColumns $false          # 12.11 rc6 (R14) : colonnes d un controle pour un lecteur cible retirees
+    Reset-QualityView                                    # 12.8 (lot 3a) : carte vide, plus aucun resultat
 })
 
 $chkAlGuide = New-Object System.Windows.Forms.CheckBox

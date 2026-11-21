@@ -377,6 +377,10 @@ function Show-WriteCheckTable($rep) {
     $last = @{}; $total = 0.0; $count = 0; $nBad = 0
     # 12.8 (lot 3b) : icone d etat de 16 px devant le texte de la colonne Etat
     $lvAl.Columns[1].Width = $(if (@($rep.State.Values | Where-Object { $_.Weak }).Count -gt 0) { 302 } else { 222 })
+    # 12.11 rc6 (R14) : colonnes « Attendue » et « Ecart » quand une piste porte une asymetrie attendue (Set-AlExpColumns,
+    # 190) ; sans elle, tableau de toujours
+    $expCols = [bool]($asymFor -and @($keys | Where-Object { $rep.State[$_] -and $null -ne $rep.State[$_].AsymExp }).Count -gt 0)
+    Set-AlExpColumns $expCols
     $lvAl.BeginUpdate()
     try {
         $lvAl.Items.Clear()
@@ -385,7 +389,9 @@ function Show-WriteCheckTable($rep) {
             $mark = ''
             if ($rep.Rewrites.ContainsKey($k)) { $mark = ((T " (réécrite x{0})") -f "$($rep.Rewrites[$k])") }
             elseif ($rep.Retries.ContainsKey($k)) { $mark = ((T " (essais x{0})") -f "$($rep.Retries[$k])") }
-            [void]$lvAl.Items.Add((New-AlignRow $k $m $mark '-' -1))
+            $row = New-AlignRow $k $m $mark '-' -1
+            if ($expCols) { $row = Add-AlExpCells $row $m }
+            [void]$lvAl.Items.Add($row)
             if ($m.Bad) { $last[$k] = @{ Score = 9999; Jitter = 0; Asym = 0; Err = 0; Stab = 0; Cell = 0 }; $nBad++; continue }
             $last[$k] = @{ Score = $m.Score; Jitter = $m.J; Asym = $m.Asym; Err = $m.Ooc; Stab = $m.Stab; Cell = $m.Cell }
             $total += $m.Score; $count++
@@ -418,7 +424,12 @@ function Show-WriteCheckTable($rep) {
     # de la carte et journal ; l en-tete de l export le recalcule sur les lignes du tableau, meme fonction
     # 12.11 rc4 (R10) : ecriture pour un lecteur cible avec asymetrie attendue : phrase du jugement de l ecart (-For)
     if ($asymFor) { $res.AsymFor = $asymFor }
-    $res.AsymText = Get-AsymSummaryText (Get-AsymSummary @($keys | ForEach-Object { $rep.State[$_] })) -For $asymFor
+    $asum = Get-AsymSummary @($keys | ForEach-Object { $rep.State[$_] })
+    $res.AsymText = Get-AsymSummaryText $asum -For $asymFor
+    # 12.11 rc6 (R14) : ligne de l asymetrie attendue sur la carte (Get-AsymExpLine, 190), forme longue et sans le nom du
+    # lecteur cible, et son jugement (couleur) ; '' sans asymetrie attendue : carte de toujours
+    $res.AsymLine = Get-AsymExpLine $asum $asymFor; $res.AsymLineShort = Get-AsymExpLine $asum $asymFor -Short
+    $res.AsymJudge = $(if ($res.AsymLine) { [string]$asum.Judge } else { '' })
     if ($res.AsymText) { Append-Log ((T "Contrôle après écriture : {0}") -f $res.AsymText) }
     Set-QualityResult $res
 }

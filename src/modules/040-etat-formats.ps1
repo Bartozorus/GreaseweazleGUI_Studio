@@ -105,6 +105,10 @@ $script:AlignRef    = $null     # reference memorisee (meme structure)
 # (verdict du controle apres ecriture) et du verdict de la restauration
 $script:QualView = @{ State = 'empty'; Kind = ''; Reason = ''; At = $null; Has = $false; Pass = 0; Drive = ''; Heads = ''; Revs = 0; NCyl = 0; RunText = ''; Res = $null }
 $script:QualCard = $null
+# 12.11 rc6 (R14) : hauteur de la ligne de l asymetrie attendue sur la carte (Set-QualityCardRoom, 195) et hauteur ajoutee
+# en ce moment (0 : carte de 58 px de toujours)
+$script:QualCardLine3H = 20
+$script:QualCardRoom = 0
 $script:QualGdi = @{}
 $script:WCalIcon = $null
 $script:WTabNotice = $null      # 12.8 (FIX-PISTES) : avis de fin d une operation de la Bibliotheque (Set-WTabNotice)
