@@ -1315,11 +1315,14 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
     $hard = [int]$script:CalHardNsUser; if ($hard -le 0) { $hard = [int]$script:CalHardNs }
     $fMax = [double]$script:ContentFMax
     $r = @{ Apply = $false; Why = ''; F0 = 1.0; F1 = 1.0; FMean = 1.0; K = @{ 0 = 1.0; 1 = 1.0 }; Src = @{ 0 = 'defaut'; 1 = 'defaut' }
-            Hard = $hard; Fam = ''; Line = ''; Lines = @(); Target = ''; Curves = @(); Own = @(); SrcText = @{}; Hint = ''; SRel = @{ 0 = $null; 1 = $null } }
+            Hard = $hard; Fam = ''; Line = ''; Lines = @(); Target = ''; Curves = @(); Own = @(); SrcText = @{}; Hint = ''; SRel = @{ 0 = $null; 1 = $null }; Next = '' }
     # 12.11 rc7 (R16) : SRel, par tete, pente de l asymetrie relue (x 2/cellule) de la mesure dont le facteur est applique,
     # quand ce facteur vient de l asymetrie : mesure sur cette disquette ($next.SRel, 276) ou memoire de la marque
     # (Get-DriveK, SRel) ; $null sinon (facteur par defaut, par la marge, mesure d avant la rc6). Gain de l asymetrie
     # attendue du controle d une ecriture pour un lecteur cible (Start-ImageWrite, Rep.AsymGain)
+    # 12.11 (version finale, relecture) : Next, ce qui a precede cette ecriture quand le facteur s applique : 'mesure' (mesure
+    # sur l image retenue, $next.K, quel que soit son resultat par tete), 'sans' (« Ecrire sans mesure » choisi dans sa
+    # fenetre, $next sans K), '' (aucune) ; consigne de fin d une ecriture pour un lecteur cible (Get-TargetWriteLearnHow, 172)
     $tw = Get-TargetWriteInfo $img $fmt $slow
     if ($tw.Applies) {
         $r.Fam = [string]$tw.Fam
@@ -1372,6 +1375,7 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
         return $r
     }
     $useNext = ($null -ne $next -and [string]$next.Drive -eq $drive -and [string]$next.Fam -eq $fam -and [string]$next.Img -eq $img)
+    if ($useNext) { $r.Next = if ($next.K) { 'mesure' } else { 'sans' } }
     # 12.9 (N13) : marque de la mesure ou de la fenetre « Mesure de la disquette » qui precede ($next.Brand), sinon derniere
     # marque choisie (ecritures sans fenetre : rapide, Bibliotheque, restauration, test rapide)
     $brand = if ($useNext -and $null -ne $next.Brand) { [string]$next.Brand } else { [string]$script:LevelBrand }

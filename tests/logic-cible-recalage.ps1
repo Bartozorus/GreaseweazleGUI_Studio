@@ -37,6 +37,13 @@ $Wt = Get-TestRoot $Wt
 #     un facteur mesure, de la marque, mele (rapide) ou k = 1 : ligne de fin d ecriture, relecture refusee par tete avec sa
 #     raison, proposition non affichee, memoire gardee ; L7 origine absente ; L8 memoires de la rc8 (sans KLearn) et
 #     configuration ; L9 textes anglais.
+#     Relecture de la version finale : L10 memoire de la rc8 d une ecriture lente faite avec le facteur de la marque
+#     (directe et relue de la configuration) : refusee, rien propose ; L11 relecture partielle et mesure continue d une
+#     ecriture qui ne peut rien apprendre : sa raison, jamais « mesurez les memes cylindres » ; L12 consigne de fin
+#     d ecriture selon l onglet (mesure faite avant sans facteur determine, « Ecrire sans mesure », « Test rapide », case
+#     cochee avec une autre mesure, image non mesurable, restauration, facteur non applique) ; L13 tete exclue nommee par
+#     sa tete physique (hswap). Onglet Ecriture simule ($chkWLevel, $cmbWCalMode, $cmbWFmt, $txtWTracks), mesure sur
+#     l image possible ou non par des remplacants de Get-LevelWriteSkip (140) et Test-ContentMeasurable (276).
 # Non couvert ici : l interface affichee (fenetre de confirmation, fenetre « Lecteurs »), une ecriture et une mesure reelles ;
 # les ecritures « meme lecteur » et sans recalage sont couvertes par les empreintes de logic-cible-facteur.
 Import-TestWinForms
@@ -92,6 +99,17 @@ function Test-ManualPrecomp { return [bool]$script:Manual }
 $cmbDrive = New-Object System.Windows.Forms.ComboBox; $cmbDrive.Text = 'A'
 $txtWFile = New-Object System.Windows.Forms.TextBox
 $pbWCal = New-Object System.Windows.Forms.ProgressBar; $lblWCal = New-Object System.Windows.Forms.Label
+# Version finale (relecture) : onglet Ecriture lu par la consigne de fin d ecriture (Get-TargetWriteLearnHow, 172) : case
+# « Mesurer la disquette » (vrai Test-WriteLevelWanted, 140), « Calibration precomp » (2 : Test rapide), liste « Mesure »
+# (vrai Get-LevelBeforeWriteKind, 260) ; mesure sur l image possible ou non ($script:FkMeasurable, $script:FkSkip)
+$chkWLevel = [pscustomobject]@{ Checked = $false }
+$cmbWCalMode = [pscustomobject]@{ SelectedIndex = 1 }
+$cmbWFmt = [pscustomobject]@{ Text = '(auto)' }
+$txtWTracks = [pscustomobject]@{ Text = '' }
+$script:Settings['levelBeforeWriteMode'] = 'content'
+$script:FkMeasurable = $true; $script:FkSkip = $null
+function Get-LevelWriteSkip([string]$img, [string]$fmt, [string]$ts) { return $script:FkSkip }
+function Test-ContentMeasurable([string]$img, [string]$fmt) { return @{ Ok = [bool]$script:FkMeasurable; Why = 'image factice' } }
 $script:Theme = @{ Danger = [System.Drawing.Color]::Red; Muted = [System.Drawing.Color]::Gray }
 $script:CurveKeys = @('std', 'long', 'std_h0', 'std_h1', 'long_h0', 'long_h1', 'hd', 'hd_h0', 'hd_h1')
 $script:PrecompCurves = @{}; $script:DriveReg = @{}; $script:TargetDrives = @{}; $script:LevelShifts = @{}; $script:LevelBrands = @(); $script:OldCalib = $null
@@ -575,7 +593,7 @@ $evX = Get-TargetRecalReadback $mX $rbL 0 $AT '0' '0' 'A'
 $script:Log.Clear(); $script:ConfirmN = 0; $script:ConfirmAns = $true
 $oX = Invoke-TargetRecalOffer $resL $rbL
 $lXo = (@($script:Log) -join ' ')
-Chk 'L3' ($mX -and $mX.H['0'].KLearn -eq $true -and $mX.H['1'].KLearn -eq $false -and $mX.H['1'].KMeasured -eq $true -and [string]$mX.H['1'].KSrc -ceq 'lecteur' -and $lX.Contains('gardée en mémoire') -and $lX.Contains("La tête 1 ne servira pas à ce recalage : son facteur n'a pas été mesuré sur la disquette elle-même.") -and $evX.Ok -and $evX.Heads['0'].Ok -and -not $evX.Heads['1'].Ok -and (@($evX.Heads['1'].Why) -join ' ').Contains('tête 1 : facteur de la disquette repris des mesures du lecteur pour la marque, pas mesuré sur cette disquette : cette relecture ne peut pas recaler la courbe croisée') -and $oX -eq 'stored' -and $script:TargetRecal.ContainsKey('A>0|std_h0') -and -not $script:TargetRecal.ContainsKey('A>0|std_h1') -and $lXo.Contains('repris des mesures du lecteur')) "tete 0 mesuree, tete 1 de la marque : seule la tete 0 apprend ; la ligne de fin d ecriture et le journal de la relecture le disent"
+Chk 'L3' ($mX -and $mX.H['0'].KLearn -eq $true -and $mX.H['1'].KLearn -eq $false -and $mX.H['1'].KMeasured -eq $true -and [string]$mX.H['1'].KSrc -ceq 'lecteur' -and $lX.Contains('gardée en mémoire') -and $lX.Contains("La tête 1 ne servira pas à ce recalage : son facteur n'a pas été mesuré sur la disquette elle-même.") -and $evX.Ok -and $evX.Heads['0'].Ok -and -not $evX.Heads['1'].Ok -and (@($evX.Heads['1'].Why) -join ' ') -ceq 'tête 1 : facteur de la disquette repris des mesures du lecteur pour la marque, pas mesuré sur cette disquette' -and $oX -eq 'stored' -and $script:TargetRecal.ContainsKey('A>0|std_h0') -and -not $script:TargetRecal.ContainsKey('A>0|std_h1') -and $lXo.Contains('repris des mesures du lecteur') -and -not $lXo.Contains('ne peut pas recaler') -and -not ([string]$script:ConfirmArgs.Text).Contains('ne peut pas recaler') -and ([string]$script:ConfirmArgs.Text).Contains('pas mesuré sur cette disquette')) "tete 0 mesuree, tete 1 de la marque : seule la tete 0 apprend ; la ligne de fin d ecriture et le journal de la relecture le disent ; raison de la tete exclue sans conclusion contraire a la fenetre qui recale l autre"
 # L4 : ecriture lente avec le facteur de la marque sur les deux tetes : rien a apprendre ; ligne de fin d ecriture sans
 # promesse, avec la consigne ; memoire gardee : la relecture est refusee avec sa raison, sans fenetre
 $script:TargetRecal = @{}
@@ -584,7 +602,7 @@ $lL = (@($script:Log) -join ' ')
 $script:Log.Clear(); $script:ConfirmN = 0
 $oL = Invoke-TargetRecalOffer $resL $rbL
 $lLo = (@($script:Log) -join ' ')
-Chk 'L4' ($mL -and $script:Saves -eq 1 -and $lL.StartsWith('Écriture pour le lecteur cible 0 terminée (') -and $lL.Contains("elle ne pourra pas recaler la courbe croisée A → 0, car son facteur n'a pas été mesuré sur la disquette elle-même. Pour qu'une écriture recale cette courbe, $howS.") -and -not $lL.Contains('pourra recaler la courbe croisée A → 0.') -and -not $lL.Contains('gardée en mémoire') -and $oL -eq 'refused' -and $script:ConfirmN -eq 0 -and $script:TargetRecal.Count -eq 0 -and $lLo.Contains('non proposé') -and $lLo.Contains('tête 0 : facteur de la disquette repris des mesures du lecteur pour la marque') -and $lLo.Contains('tête 1 : facteur de la disquette repris') -and -not $lLo.Contains('aucune écriture')) "facteur de la marque : « $lL » ; relecture : « $lLo »"
+Chk 'L4' ($mL -and $script:Saves -eq 1 -and $lL.StartsWith('Écriture pour le lecteur cible 0 terminée (') -and $lL.Contains("elle ne pourra pas recaler la courbe croisée A → 0, car son facteur n'a pas été mesuré sur la disquette elle-même. Pour qu'une écriture recale cette courbe, $howS.") -and -not $lL.Contains('pourra recaler la courbe croisée A → 0.') -and -not $lL.Contains('gardée en mémoire') -and $oL -eq 'refused' -and $script:ConfirmN -eq 0 -and $script:TargetRecal.Count -eq 0 -and $lLo.Contains("Recalage de la courbe croisée A → 0 sur cette relecture non proposé : l'écriture du $($mL.Date) ne peut pas recaler la courbe croisée (tête 0 : facteur de la disquette repris des mesures du lecteur pour la marque, pas mesuré sur cette disquette ; tête 1 : facteur de la disquette repris") -and -not $lLo.Contains('aucune écriture') -and -not $mL.ContainsKey('How')) "facteur de la marque : « $lL » ; relecture : « $lLo »"
 # L5 : ecriture rapide aux origines melees : facteur moyen, aucune tete n apprend ; rapide aux deux tetes mesurees : apprend
 $mF = New-FkDone $wX $false
 $lF = (@($script:Log) -join ' ')
@@ -619,17 +637,101 @@ $i8 = Import-LastTargetWrites $o8.write.lastTargetWrite
 $a8 = $script:LastTargetWrites['A>0']; $b8 = $script:LastTargetWrites['B>0']
 Chk 'L8' ($okR8 -and [int]$i8.N -eq 2 -and $null -eq $a8.H['0'].KLearn -and (Get-TargetWriteKLearnWhy $a8 '0') -eq '' -and $b8.H['0'].KLearn -eq $true -and $b8.H['1'].KLearn -eq $false -and (Get-TargetWriteKLearnWhy $b8 '0') -eq '' -and (Get-TargetWriteKLearnWhy $b8 '1').Contains('repris des mesures')) 'memoires de la rc8 : lente et rapide mesurees apprennent, rapide a une tete ou melee non ; configuration : KLearn null, vrai et faux relus'
 # L9 : textes anglais (cles T() identiques a la table, controle I1 de check-source pour toutes les cles)
-$keys9 = @('tête {0} : facteur de la disquette repris des mesures du lecteur pour la marque, pas mesuré sur cette disquette : cette relecture ne peut pas recaler la courbe croisée',
-           'tête {0} : origine du facteur de la disquette inconnue : cette relecture ne peut pas recaler la courbe croisée',
-           "tête {0} : écriture rapide avec le facteur moyen des deux têtes, dont une n'a pas été mesurée sur cette disquette : cette relecture ne peut pas recaler la courbe croisée",
-           "Écriture pour le lecteur cible {0} terminée ({1}, {2} piste(s)) : elle ne pourra pas recaler la courbe croisée {3} → {0}, car son facteur n'a pas été mesuré sur la disquette elle-même. Pour qu'une écriture recale cette courbe, {4}.",
-           "La tête {0} ne servira pas à ce recalage : son facteur n'a pas été mesuré sur la disquette elle-même.")
+$keys9 = @('tête {0} : facteur de la disquette repris des mesures du lecteur pour la marque, pas mesuré sur cette disquette',
+           'tête {0} : origine du facteur de la disquette inconnue',
+           "tête {0} : écriture rapide avec le facteur moyen des deux têtes, dont une n'a pas été mesurée sur cette disquette",
+           "Écriture pour le lecteur cible {0} terminée ({1}, {2} piste(s)) : elle ne pourra pas recaler la courbe croisée {3} → {0}, car son facteur n'a pas été mesuré sur la disquette elle-même.",
+           "Pour qu'une écriture recale cette courbe, {0}.",
+           "La mesure sur l'image faite avant cette écriture n'a pas déterminé ce facteur (voir ses lignes dans le journal) : une écriture recalera cette courbe quand cette mesure le déterminera.",
+           "mesurez la disquette au lieu de choisir « Écrire sans mesure »", "choisissez la mesure « sur l'image à écrire »",
+           "choisissez le test standard ou fin dans « Calibration précomp », avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »",
+           "écrivez l'image en écriture lente, avec le test standard ou fin dans « Calibration précomp », « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »",
+           "La tête {0} ne servira pas à ce recalage : son facteur n'a pas été mesuré sur la disquette elle-même.",
+           "Recalage de la courbe croisée {0} → {1} sur cette relecture non proposé : l'écriture du {2} ne peut pas recaler la courbe croisée ({3}).")
 $script:Lang = 'en'
 $mLe = New-FkDone $wL $true
 $lLe = (@($script:Log) -join ' ')
 $wLe = Get-TargetWriteKLearnWhy $mLe '0'
+$script:Log.Clear(); $script:ConfirmN = 0
+$oLe = Invoke-TargetRecalOffer $resL $rbL
+$lLeo = (@($script:Log) -join ' ')
+$wLme = $wL.Clone(); $wLme.Next = 'mesure'
+[void](New-FkDone $wLme $true)
+$lMe = (@($script:Log) -join ' ')
 $script:Lang = 'fr'
-Chk 'L9' (@($keys9 | Where-Object { -not $script:I18n.ContainsKey($_) }).Count -eq 0 -and $lLe.Contains('cannot be used to adjust the cross curve A → 0, because its factor was not measured on the disk itself. For a write to adjust this curve, check "Measure the disk before the slow write"') -and $wLe.Contains("head 0: disk factor taken from the drive's measurements for the brand")) "anglais : « $lLe » ; « $wLe »"
+Chk 'L9' (@($keys9 | Where-Object { -not $script:I18n.ContainsKey($_) }).Count -eq 0 -and $lLe.Contains('cannot be used to adjust the cross curve A → 0, because its factor was not measured on the disk itself. For a write to adjust this curve, check "Measure the disk before the slow write"') -and $wLe -ceq "head 0: disk factor taken from the drive's measurements for the brand, not measured on this disk" -and $oLe -eq 'refused' -and $lLeo.Contains('Cross curve adjustment A → 0 on this read-back not offered: the write of ') -and $lLeo.Contains("cannot adjust the cross curve (head 0: disk factor taken from the drive's measurements for the brand, not measured on this disk; head 1: ") -and -not $lLeo.Contains(' ; ') -and $lMe.Contains('The measurement on the image made before this write did not determine this factor (see its lines in the log)')) "anglais : « $lLe » ; « $wLe » ; « $lLeo »"
+# L10 : memoire de la rc8 (sans KLearn) d une ecriture lente faite avec le facteur de la marque (kSrc 'lecteur', kMeasured
+# vrai : ce que la rc8 ecrivait) : aucune tete n apprend, directement et apres un aller-retour par la configuration ;
+# relecture complete : refusee, aucune fenetre, rien d enregistre. Echoue si 'lecteur' redevient appris pour une memoire
+# sans KLearn
+Reset-Fk
+$r8l = New-FkMem; $r8l.H['0'].KSrc = 'lecteur'; $r8l.H['1'].KSrc = 'lecteur'
+$w10 = @((Get-TargetWriteKLearnWhy $r8l '0'), (Get-TargetWriteKLearnWhy $r8l '1'))
+$script:LastTargetWrites = @{ 'A>0' = $r8l }
+$o10c = (@{ write = @{ lastTargetWrite = (Export-LastTargetWrites) } } | ConvertTo-Json -Depth 8) | ConvertFrom-Json
+$i10 = Import-LastTargetWrites $o10c.write.lastTargetWrite
+$r8c = $script:LastTargetWrites['A>0']
+$w10c = @((Get-TargetWriteKLearnWhy $r8c '0'), (Get-TargetWriteKLearnWhy $r8c '1'))
+$ev10 = Get-TargetRecalReadback $r8c $rbL 0 $AT '0' '0' 'A'
+$script:Log.Clear(); $script:ConfirmN = 0; $script:ConfirmAns = $true
+$o10 = Invoke-TargetRecalOffer $resL $rbL
+Chk 'L10' (@($w10 + $w10c | Where-Object { -not ([string]$_).Contains('repris des mesures du lecteur pour la marque') }).Count -eq 0 -and [int]$i10.N -eq 1 -and $null -eq $r8c.H['0'].KLearn -and $r8c.H['0'].KMeasured -eq $true -and -not $ev10.Ok -and -not $ev10.Heads['0'].Ok -and -not $ev10.Heads['1'].Ok -and $o10 -eq 'refused' -and $script:ConfirmN -eq 0 -and $script:TargetRecal.Count -eq 0 -and $script:Saves -eq 0) "memoire de la rc8, ecriture lente avec le facteur de la marque : refusee directement et apres la configuration ($($w10c -join ' | '))"
+# L11 : ecriture qui ne peut rien apprendre (facteur de la marque) : une relecture partielle (10 cylindres) donne cette
+# raison, jamais « mesurez les memes cylindres » ; mesure continue : cette raison a la premiere passe, rien ensuite.
+# Ecriture dont une tete apprend : relecture partielle refusee par sa couverture, comme avant (O7)
+Reset-Fk
+[void](New-FkDone $wL $true)
+$rb10 = New-FkRead @{ 0 = 6.0; 1 = 4.0 } $G 10
+$script:Log.Clear(); $script:ConfirmN = 0
+$oP = Invoke-TargetRecalOffer $resL $rb10
+$lP = (@($script:Log) -join ' ')
+$script:Log.Clear(); $script:AlignLoop = $true; $script:QualView = @{ Pass = 1 }
+$oQ1 = Invoke-TargetRecalOffer $resL $rb10
+$lQ1 = (@($script:Log) -join ' ')
+$script:Log.Clear(); $script:QualView = @{ Pass = 2 }
+$oQ2 = Invoke-TargetRecalOffer $resL $rb10
+$nQ2 = $script:Log.Count
+$script:AlignLoop = $false; $script:QualView = @{ Pass = 0 }
+[void](New-FkDone $wX $true)
+$script:Log.Clear()
+$oPx = Invoke-TargetRecalOffer $resL $rb10
+$lPx = (@($script:Log) -join ' ')
+Chk 'L11' ($oP -eq 'refused' -and $script:ConfirmN -eq 0 -and $lP.Contains('ne peut pas recaler la courbe croisée (tête 0 : facteur de la disquette repris des mesures du lecteur pour la marque, pas mesuré sur cette disquette ; tête 1 : ') -and -not $lP.Contains('mesurez les mêmes cylindres') -and -not $lP.Contains('piste(s) relue(s)') -and $oQ1 -eq 'loop' -and $lQ1.Contains('ne peut pas recaler la courbe croisée (tête 0 : ') -and -not $lQ1.Contains('Faites une mesure simple') -and $oQ2 -eq 'loop' -and $nQ2 -eq 0 -and $oPx -eq 'refused' -and $lPx.Contains('mesurez les mêmes cylindres')) "relecture partielle : « $lP » ; mesure continue : « $lQ1 » ; une tete apprend : « $lPx »"
+# L12 : consigne de la ligne de fin d une ecriture qui ne peut rien apprendre (facteur de la marque sur les deux tetes),
+# decidee au lancement d apres l onglet. Mesure sur l image faite avant l ecriture sans determiner le facteur (Next
+# 'mesure', origines 'lecteur') : elle le dit, sans demander de cocher la case ; « Ecrire sans mesure » ; « Test rapide »
+# (case cochee et verrouillee ; lente, rapide) ; case cochee avec la mesure complete ; case cochee, mesure sur l image, sans
+# mesure faite : aucune consigne ; image non mesurable sur son contenu (lente, rapide), image qui ne recouvre pas le motif,
+# restauration, facteur non applique : aucune consigne. Lente case decochee et rapide : L4 et L5
+Reset-Fk
+$howM = "La mesure sur l'image faite avant cette écriture n'a pas déterminé ce facteur (voir ses lignes dans le journal) : une écriture recalera cette courbe quand cette mesure le déterminera."
+$pfx = "Pour qu'une écriture recale cette courbe, "
+$base = "elle ne pourra pas recaler la courbe croisée A → 0, car son facteur n'a pas été mesuré sur la disquette elle-même."
+function Get-FkEndLine($wf, [bool]$slow) { [void](New-FkDone $wf $slow); return (@($script:Log) -join ' ') }
+$wLs = $wL.Clone(); $wLs.Next = 'sans'
+$e1 = Get-FkEndLine $wLme $true
+$e2 = Get-FkEndLine $wLs $true
+$cmbWCalMode.SelectedIndex = 2; $chkWLevel.Checked = $true
+$e3 = Get-FkEndLine $wL $true; $e4 = Get-FkEndLine $wL $false
+$cmbWCalMode.SelectedIndex = 1
+$script:Settings['levelBeforeWriteMode'] = 'complete'; $e5 = Get-FkEndLine $wL $true
+$script:Settings['levelBeforeWriteMode'] = 'content'; $e6 = Get-FkEndLine $wL $true
+$chkWLevel.Checked = $false
+$script:FkMeasurable = $false; $e7 = Get-FkEndLine $wL $true; $e7f = Get-FkEndLine $wL $false; $script:FkMeasurable = $true
+$script:FkSkip = @{ Why = 'une face' }; $e8 = Get-FkEndLine $wL $true; $script:FkSkip = $null
+$script:Restore = @{ Step = 4 }; $e9 = Get-FkEndLine $wL $true; $script:Restore = $null
+$wLn = $wL.Clone(); $wLn.Apply = $false
+$hN = Get-TargetWriteLearnHow $wLn $true 'C:\factice\essai.adf'
+$none = @($e6, $e7, $e7f, $e8, $e9)
+$okN = (@($none | Where-Object { -not $_.Contains($base) -or $_.Contains($pfx) -or $_.Contains($howM) }).Count -eq 0)
+Chk 'L12' (@($e1, $e2, $e3, $e4, $e5 | Where-Object { -not $_.Contains($base) -or $_.Contains('cochez') }).Count -eq 0 -and $e1.Contains($howM) -and -not $e1.Contains($pfx) -and $e2.Contains($pfx + 'mesurez la disquette au lieu de choisir « Écrire sans mesure ».') -and $e3.Contains($pfx + "choisissez le test standard ou fin dans « Calibration précomp », avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire ».") -and $e4.Contains($pfx + "écrivez l'image en écriture lente, avec le test standard ou fin dans « Calibration précomp », « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire ».") -and $e5.Contains($pfx + "choisissez la mesure « sur l'image à écrire ».") -and $okN -and $hN -eq '') "mesure faite avant : « $e1 » ; Test rapide : « $e3 » ; mesure complete : « $e5 »"
+# L13 : hswap, tete physique 0 mesuree sur la disquette, tete physique 1 de la marque : la tete logique 0, ecrite par la tete
+# physique 1, n apprend pas ; la ligne de fin d ecriture nomme la tete physique 1, comme les lignes du facteur de l ecriture
+$script:LastTargetWrites = @{}; $script:Log.Clear()
+$script:TargetWritePending = (New-TargetWriteMemory $twL $wX $xpL $rcL $true 'hswap' 'C:\factice\essai.adf' @(0, 1) $false 160)
+Complete-TargetWriteMemory $true
+$mH = $script:LastTargetWrites['A>0']; $lH = (@($script:Log) -join ' ')
+Chk 'L13' ($mH -and [int]$mH.H['0'].Phys -eq 1 -and $mH.H['0'].KLearn -eq $false -and $mH.H['1'].KLearn -eq $true -and $lH.Contains('gardée en mémoire') -and $lH.Contains('La tête 1 ne servira pas à ce recalage') -and -not $lH.Contains('La tête 0 ne servira pas')) "hswap : « $lH »"
 
 # =====================================================================================================================
 "=== bilan logic-cible-recalage : $($script:NChk - $script:Fail) conformes sur $($script:NChk)$(if ($script:Fail) { " ; NON CONFORMES : $($script:FailIds -join ', ')" }) ; $([int]$sw.Elapsed.TotalSeconds) s"

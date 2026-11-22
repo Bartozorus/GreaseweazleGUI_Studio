@@ -21,7 +21,8 @@ $Wt = Get-TestRoot $Wt
 #  D : Update-CalibProgress (270) sur un etat simule sans PhaseStart : aucune erreur
 #  F : facteur de marque reutilise (140 Get-WriteFactorPlan, Get-WriteFactorHint) : conseil de mesure quand les mesures de
 #      la marque s ecartent de 0,2 ou plus, ou en long track sans aucune mesure de la marque ; jamais quand la mesure est
-#      cochee, impossible (restauration, test rapide, image non mesurable), pour un lecteur cible ou un profil Manuel
+#      cochee, impossible (restauration, test rapide, image non mesurable), pour un lecteur cible ou un profil Manuel ;
+#      F6b (12.11, version finale) : Next, ce qui a precede l ecriture (mesure sur l image, « Ecrire sans mesure », aucune)
 #  S : statique (cles i18n et traductions, README des modules, CHANGELOG)
 # Relecture de la finalisation (09/11/2026, v1210\finalisation\revue) : copie adaptee de logic-1210-final, qui la
 # remplace dans la campagne. Conseil de mesure : consigne selon l ecriture (lente : cocher la case ; rapide : ecrire en
@@ -1354,6 +1355,14 @@ $next = @{ Drive = 'A'; Fam = 'std'; Img = $img['jeu.adf']; K = @{ 0 = 1.12; 1 =
 $wf10 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true $next
 $cmN = $script:CmN; $wf11 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true $null -Peek
 Chk 'F6' ((Get-Hint $wf10).Count -eq 0 -and $wf10.Src[0] -eq 'mesure' -and (Get-Hint $wf11).Count -eq 0 -and $wf11.Apply -and $script:CmN -eq $cmN) "facteur mesure sur cette disquette : aucun conseil ; calcul seul (-Peek, libelle) : aucun conseil, mesure possible non evaluee"
+# 12.11 (version finale, relecture) : Next, ce qui a precede l ecriture (consigne de fin d une ecriture pour un lecteur cible,
+# 172) : mesure sur l image retenue ('mesure', quel que soit son resultat par tete), « Ecrire sans mesure » ('sans' : K
+# absent, facteur de la marque), aucune, ou mesure d une autre image (non retenue) : ''
+$nextS = @{ Drive = 'A'; Fam = 'std'; Img = $img['jeu.adf']; K = $null; Brand = 'Sony' }
+$nextL = @{ Drive = 'A'; Fam = 'std'; Img = $img['jeu.adf']; K = @{ 0 = 1.05; 1 = 1.05 }; Src = @{ 0 = 'lecteur'; 1 = 'lecteur' }; Brand = 'Sony' }
+$nextO = @{ Drive = 'A'; Fam = 'std'; Img = 'autre.adf'; K = @{ 0 = 1.12; 1 = 1.08 }; Src = @{ 0 = 'mesure'; 1 = 'mesure' }; Brand = 'Sony' }
+$wfS = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true $nextS; $wfL = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true $nextL; $wfO = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true $nextO
+Chk 'F6b' ([string]$wf10.Next -ceq 'mesure' -and [string]$wfL.Next -ceq 'mesure' -and [string]$wfL.Src[0] -ceq 'lecteur' -and [string]$wfS.Next -ceq 'sans' -and [string]$wfS.Src[0] -cne 'mesure' -and [string]$wf1.Next -ceq '' -and [string]$wfO.Next -ceq '' -and [string]$wf11.Next -ceq '') "Next : mesure retenue '$($wf10.Next)', mesure sans facteur determine '$($wfL.Next)' ($($wfL.Src[0])), Ecrire sans mesure '$($wfS.Next)', aucune '$($wf1.Next)', autre image '$($wfO.Next)'"
 $script:TargetDrives = @{ A = '0' }; $wf12 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true; $script:TargetDrives = @{}
 Set-Ui 3 $true; $wf13 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true; Set-Ui 0 $true
 # 12.11 (rc2, adapte a dessein) : lecteur cible avec la courbe propre de A : facteur et conseil de mesure comme pour le meme

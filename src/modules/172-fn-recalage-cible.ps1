@@ -111,15 +111,16 @@ function Get-TargetWriteKLearnWhy($mem, [string]$lk) {
     # du lecteur pour la marque), 'defaut' (k = 1) ou absente et inconnue (prudence) : refus. Origine 'mesure' : memoire de la
     # version finale, KLearn et KMeasured (Test-TargetRecalKLearn a l ecriture : en ecriture rapide, l autre tete compte
     # aussi) ; memoire de la rc8, sans KLearn : KMeasured, et en ecriture rapide l origine 'mesure' des deux tetes ecrites
-    # (une seule tete ecrite : origine de l autre inconnue, refus)
+    # (une seule tete ecrite : origine de l autre inconnue, refus). Relecture : le fait seul, sans conclusion, comme les
+    # raisons voisines (la fenetre de confirmation liste aussi la raison d une tete exclue quand l autre recale)
     $hm = $null
     if ($mem -and $mem.H) { $hm = $mem.H[$lk] }
     $ks = if ($hm) { [string]$hm.KSrc } else { '' }
-    if ($ks -ceq 'lecteur') { return ((T 'tête {0} : facteur de la disquette repris des mesures du lecteur pour la marque, pas mesuré sur cette disquette : cette relecture ne peut pas recaler la courbe croisée') -f $lk) }
+    if ($ks -ceq 'lecteur') { return ((T 'tête {0} : facteur de la disquette repris des mesures du lecteur pour la marque, pas mesuré sur cette disquette') -f $lk) }
     if ($ks -ceq 'defaut') { return ((T "tête {0} : facteur de la disquette non mesuré à l'écriture (k = 1 par défaut)") -f $lk) }
-    $unk = (T 'tête {0} : origine du facteur de la disquette inconnue : cette relecture ne peut pas recaler la courbe croisée') -f $lk
+    $unk = (T 'tête {0} : origine du facteur de la disquette inconnue') -f $lk
     if ($ks -cne 'mesure') { return $unk }
-    $fast = (T "tête {0} : écriture rapide avec le facteur moyen des deux têtes, dont une n'a pas été mesurée sur cette disquette : cette relecture ne peut pas recaler la courbe croisée") -f $lk
+    $fast = (T "tête {0} : écriture rapide avec le facteur moyen des deux têtes, dont une n'a pas été mesurée sur cette disquette") -f $lk
     $km = ($hm.KMeasured -eq $true)
     if ($null -ne $hm.KLearn) {
         if ($hm.KLearn -eq $true -and $km) { return '' }
@@ -135,6 +136,65 @@ function Get-TargetWriteKLearnWhy($mem, [string]$lk) {
         if ([string]$x.KSrc -cne 'mesure') { return $fast }
     }
     return ''
+}
+
+function Get-TargetWriteNoLearn($mem) {
+    # Tetes logiques ecrites d une memoire (New-TargetWriteMemory) qui ne peuvent pas recaler la courbe croisee
+    # (Get-TargetWriteKLearnWhy), triees : Heads = @(@{ Lk ; Phys (tete physique qui l a ecrite) ; Why }) ; All : aucune
+    # tete ecrite ne le peut (fin de l ecriture : ligne sans promesse ; relecture : refus avec ces raisons, quelle que soit
+    # la couverture de la mesure)
+    $out = @(); $n = 0
+    if ($mem -and $mem.H) {
+        foreach ($lk in @($mem.H.Keys | ForEach-Object { [string]$_ } | Sort-Object)) {
+            $n++
+            $w = Get-TargetWriteKLearnWhy $mem $lk
+            if ($w) { $out += ,@{ Lk = $lk; Phys = [int]$mem.H[$lk].Phys; Why = $w } }
+        }
+    }
+    return @{ Heads = $out; All = ($n -gt 0 -and $out.Count -eq $n) }
+}
+
+function Get-TargetWriteLearnHow($wf, [bool]$slow, [string]$img) {
+    # Consigne de la ligne de fin d une ecriture pour un lecteur cible dont aucune tete ne peut recaler la courbe croisee
+    # (Complete-TargetWriteMemory), decidee au lancement (New-TargetWriteMemory) d apres l onglet Ecriture, avec les gardes
+    # de Get-WriteFactorHint (140) pour ne jamais demander ce qui est deja fait ou sans effet. Rend un code :
+    #  - 'mesure' : une mesure sur l image a precede l ecriture (Get-WriteFactorPlan, Next) sans determiner le facteur ;
+    #  - 'sans' : « Ecrire sans mesure » choisi dans la fenetre de la mesure ;
+    #  sinon, seulement si la mesure sur l image est possible pour cette image (Get-LevelWriteSkip, Test-ContentMeasurable) :
+    #  - 'quickslow', 'quickfast' : « Test rapide » (mesure au motif, case cochee et verrouillee) ;
+    #  - 'fast' : ecriture rapide, jamais mesuree ; 'slow' : case « Mesurer la disquette » decochee ;
+    #  - 'mode' : case cochee, liste « Mesure » autre que sur l image (Get-LevelBeforeWriteKind).
+    # '' : aucune consigne (facteur non applique, restauration, image non mesurable sur son contenu, ou mesure demandee qui
+    # n a pas eu lieu pour une autre raison)
+    if (-not $wf -or -not $wf.Apply -or $script:Restore) { return '' }
+    $nx = [string]$wf.Next
+    if ($nx -ceq 'mesure' -or $nx -ceq 'sans') { return $nx }
+    try {
+        $fmt = [string]$cmbWFmt.Text
+        if (Get-LevelWriteSkip $img $fmt ([string]$txtWTracks.Text)) { return '' }
+        if (-not (Test-ContentMeasurable $img $fmt).Ok) { return '' }
+    } catch { return '' }
+    if ($cmbWCalMode.SelectedIndex -eq 2) { if ($slow) { return 'quickslow' } else { return 'quickfast' } }
+    if (-not $slow) { return 'fast' }
+    if (-not (Test-WriteLevelWanted 'slow')) { return 'slow' }
+    if ([string](Get-LevelBeforeWriteKind 'slow' $false $true) -cne 'content') { return 'mode' }
+    return ''
+}
+
+function Get-TargetWriteLearnHowText([string]$how) {
+    # Phrase de la consigne (Get-TargetWriteLearnHow) ajoutee a la ligne de fin d ecriture ; '' sans consigne
+    if ($how -ceq 'mesure') { return (T "La mesure sur l'image faite avant cette écriture n'a pas déterminé ce facteur (voir ses lignes dans le journal) : une écriture recalera cette courbe quand cette mesure le déterminera.") }
+    $x = switch -CaseSensitive ($how) {
+        'sans' { T "mesurez la disquette au lieu de choisir « Écrire sans mesure »" }
+        'slow' { T "cochez « Mesurer la disquette avant l'écriture lente », avec la mesure « sur l'image à écrire »" }
+        'fast' { T "écrivez l'image en écriture lente, avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »" }
+        'mode' { T "choisissez la mesure « sur l'image à écrire »" }
+        'quickslow' { T "choisissez le test standard ou fin dans « Calibration précomp », avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »" }
+        'quickfast' { T "écrivez l'image en écriture lente, avec le test standard ou fin dans « Calibration précomp », « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »" }
+        default { '' }
+    }
+    if (-not $x) { return '' }
+    return ((T "Pour qu'une écriture recale cette courbe, {0}.") -f $x)
 }
 
 function Get-TargetRecalPlan($tw, $wf, $xc, [bool]$slow) {
@@ -208,10 +268,14 @@ function New-TargetWriteMemory($tw, $wf, $xp, $rc, [bool]$slow, [string]$userTs,
         $hs["$lh"] = @{ Phys = $p; W = [string]$t.Spec; O = [int]$t.Recal; ORecal = $ro; XDate = $rx; XKey = $rk
                          K = [math]::Round($kv, 3); KSrc = $ks; KMeasured = [bool](Test-TargetRecalKMeasured $wf $p $slow); KLearn = [bool](Test-TargetRecalKLearn $wf $p $slow); Zones = [int[]]@() }
     }
+    # Aucune tete n apprend : consigne de la ligne de fin d ecriture decidee maintenant, d apres l onglet au lancement
+    # (Get-TargetWriteLearnHow) ; How, comme ImgPath, n est pas garde dans la memoire finale
+    $how = ''
+    if (@($hs.Values | Where-Object { $_.KLearn }).Count -eq 0) { $how = Get-TargetWriteLearnHow $wf $slow $img }
     $now = Get-Date
     return @{ Id = 'W' + $now.ToString('yyyyMMddHHmmss', [System.Globalization.CultureInfo]::InvariantCulture); Src = [string]$tw.Src; Tgt = [string]$tw.Tgt
               Fam = [string]$tw.Fam; Image = [System.IO.Path]::GetFileName($img); Slow = $slow; Heads = [int[]]@($hs.Keys | ForEach-Object { [int]$_ } | Sort-Object)
-              Check = $check; Written = @{}; PlanTracks = $planTracks; ImgPath = $img; Tracks = 0; H = $hs; Verdict = ''; Calc = [string]$script:CalibCalc; Date = ''; At = '' }
+              Check = $check; Written = @{}; PlanTracks = $planTracks; ImgPath = $img; How = $how; Tracks = 0; H = $hs; Verdict = ''; Calc = [string]$script:CalibCalc; Date = ''; At = '' }
 }
 
 function Set-TargetWritePending($p) {
@@ -269,19 +333,24 @@ function Complete-TargetWriteMemory([bool]$ok, $rep = $null) {
     $p.Date = $now.ToString('dd/MM/yyyy HH:mm', [System.Globalization.CultureInfo]::InvariantCulture)
     $p.At = $now.ToString('yyyy-MM-dd HH:mm:ss', [System.Globalization.CultureInfo]::InvariantCulture)
     # Lecteurs tires de la cle (une memoire relue ou deplacee par Edit-DriveData ne les porte pas)
-    foreach ($f in 'Written', 'PlanTracks', 'Check', 'ImgPath', 'Src', 'Tgt') { $p.Remove($f) }
+    $how = [string]$p.How
+    foreach ($f in 'Written', 'PlanTracks', 'Check', 'ImgPath', 'How', 'Src', 'Tgt') { $p.Remove($f) }
     $script:LastTargetWrites[$pk] = $p
     # Version finale (mesure obligatoire) : tetes dont le facteur n a pas ete mesure sur la disquette elle-meme
-    # (Get-TargetWriteKLearnWhy). Aucune tete ne peut apprendre : la ligne ne promet plus de recalage et dit comment faire
-    # (consigne de Get-WriteFactorHint, 140) ; la memoire est gardee quand meme : une relecture par le lecteur cible dit
-    # alors pourquoi elle n est pas proposee, et non qu aucune ecriture n est en memoire
-    $noL = @(foreach ($lk in @($p.H.Keys | ForEach-Object { [string]$_ } | Sort-Object)) { if (Get-TargetWriteKLearnWhy $p $lk) { $lk } })
-    if ($noL.Count -gt 0 -and $noL.Count -ge @($p.H.Keys).Count) {
-        $how = if ([bool]$p.Slow) { (T "cochez « Mesurer la disquette avant l'écriture lente », avec la mesure « sur l'image à écrire »") } else { (T "écrivez l'image en écriture lente, avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »") }
-        Append-Log ((T "Écriture pour le lecteur cible {0} terminée ({1}, {2} piste(s)) : elle ne pourra pas recaler la courbe croisée {3} → {0}, car son facteur n'a pas été mesuré sur la disquette elle-même. Pour qu'une écriture recale cette courbe, {4}.") -f $tgt, "$($p.Date)", "$n", $src, $how)
+    # (Get-TargetWriteNoLearn). Aucune tete ne peut apprendre : la ligne ne promet plus de recalage, avec la consigne
+    # decidee au lancement (Get-TargetWriteLearnHow : jamais ce qui est deja fait ou sans effet, aucune quand la mesure sur
+    # l image est impossible) ; la memoire est gardee quand meme : une relecture par le lecteur cible dit alors pourquoi
+    # elle n est pas proposee, et non qu aucune ecriture n est en memoire. Tete exclue nommee par la tete physique qui l a
+    # ecrite, comme les lignes du facteur de cette ecriture (Get-TargetTransferPlan, 140)
+    $nlw = Get-TargetWriteNoLearn $p
+    if ($nlw.All) {
+        $line = (T "Écriture pour le lecteur cible {0} terminée ({1}, {2} piste(s)) : elle ne pourra pas recaler la courbe croisée {3} → {0}, car son facteur n'a pas été mesuré sur la disquette elle-même.") -f $tgt, "$($p.Date)", "$n", $src
+        $ht = Get-TargetWriteLearnHowText $how
+        if ($ht) { $line += ' ' + $ht }
+        Append-Log $line
     } else {
         $line = (T "Écriture pour le lecteur cible {0} gardée en mémoire ({1}, {2} piste(s)) : une mesure de cette disquette par le lecteur {0} dans l'onglet « Qualité & alignement » pourra recaler la courbe croisée {3} → {0}.") -f $tgt, "$($p.Date)", "$n", $src
-        if ($noL.Count -gt 0) { $line += ' ' + ((T "La tête {0} ne servira pas à ce recalage : son facteur n'a pas été mesuré sur la disquette elle-même.") -f ($noL -join ', ')) }
+        if (@($nlw.Heads).Count -gt 0) { $line += ' ' + ((T "La tête {0} ne servira pas à ce recalage : son facteur n'a pas été mesuré sur la disquette elle-même.") -f ((@($nlw.Heads) | ForEach-Object { "$($_.Phys)" }) -join ', ')) }
         Append-Log $line
     }
     if (-not $script:Restore) { [void](Save-Config) }
@@ -495,7 +564,8 @@ function Get-TargetRecalHeadText($mem, $o, $u, [string]$tgt) {
 function Invoke-TargetRecalOffer($res, $tracks) {
     # Fin d une mesure de l onglet Qualite (Invoke-AlignAnalysis, 190) : quand le lecteur qui a relu est le lecteur cible de
     # la derniere ecriture gardee en memoire pour lui (Get-TargetWriteMemoryFor), la relecture est jugee par la regle R17
-    # (Get-TargetRecalReadback). Refus : une ligne de journal qui dit pourquoi. Admise : fenetre de confirmation (frmConfirm,
+    # (Get-TargetRecalReadback). Refus : une ligne de journal qui dit pourquoi (ecriture dont aucune tete ne peut recaler la
+    # courbe croisee : cette raison seule, avant toute autre, Get-TargetWriteNoLearn). Admise : fenetre de confirmation (frmConfirm,
     # Show-AppConfirm) qui rappelle l ecriture (date, image), demande de confirmer que c est bien cette disquette (case) et
     # montre le recalage calcule par tete (Get-TargetRecalHeadText) ; confirmee : entrees du magasin remplacees
     # (Get-TargetRecalUpdate), une ligne de journal, configuration enregistree. Pendant une mesure continue : rien
@@ -506,10 +576,19 @@ function Invoke-TargetRecalOffer($res, $tracks) {
     $wm = Get-TargetWriteMemoryFor $drv
     if (-not $wm) { return 'none' }
     $mem = $wm.Mem; $src = [string]$wm.Src; $tgt = [string]$wm.Tgt
+    # Version finale (relecture) : aucune tete de cette ecriture ne peut recaler la courbe croisee (Get-TargetWriteNoLearn :
+    # facteur de la marque, k = 1, origine inconnue) : cette raison seule, a toute relecture par le lecteur cible (mesure
+    # partielle ou continue comprises), et jamais l invitation a mesurer toute la disquette, qui serait refusee aussi
+    $nlw = Get-TargetWriteNoLearn $mem
+    $nlTxt = if ($nlw.All) { (T "Recalage de la courbe croisée {0} → {1} sur cette relecture non proposé : l'écriture du {2} ne peut pas recaler la courbe croisée ({3}).") -f $src, $tgt, "$($mem.Date)", ((@($nlw.Heads) | ForEach-Object { [string]$_.Why }) -join (T ' ; ')) } else { '' }
     if ($script:AlignLoop) {
-        if ([int]$script:QualView.Pass -le 1) { Append-Log ((T "Recalage de la courbe croisée {0} → {1} : non proposé pendant une mesure continue. Faites une mesure simple de toute la disquette écrite le {2} (mêmes cylindres et mêmes têtes que l'écriture).") -f $src, $tgt, "$($mem.Date)") }
+        if ([int]$script:QualView.Pass -le 1) {
+            if ($nlTxt) { Append-Log $nlTxt }
+            else { Append-Log ((T "Recalage de la courbe croisée {0} → {1} : non proposé pendant une mesure continue. Faites une mesure simple de toute la disquette écrite le {2} (mêmes cylindres et mêmes têtes que l'écriture).") -f $src, $tgt, "$($mem.Date)") }
+        }
         return 'loop'
     }
+    if ($nlTxt) { Append-Log $nlTxt; return 'refused' }
     $ev = Get-TargetRecalReadback $mem $tracks ([int]$res.Health) $res.At $drv $tgt $src
     $hw = @(foreach ($lk in @($ev.Heads.Keys | Sort-Object)) { foreach ($w in @($ev.Heads[$lk].Why)) { $w } })
     if (-not $ev.Ok) {
