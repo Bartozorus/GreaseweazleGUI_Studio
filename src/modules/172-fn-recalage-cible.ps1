@@ -184,17 +184,42 @@ function Get-TargetWriteLearnHow($wf, [bool]$slow, [string]$img) {
 function Get-TargetWriteLearnHowText([string]$how) {
     # Phrase de la consigne (Get-TargetWriteLearnHow) ajoutee a la ligne de fin d ecriture ; '' sans consigne
     if ($how -ceq 'mesure') { return (T "La mesure sur l'image faite avant cette écriture n'a pas déterminé ce facteur (voir ses lignes dans le journal) : une écriture recalera cette courbe quand cette mesure le déterminera.") }
-    $x = switch -CaseSensitive ($how) {
-        'sans' { T "mesurez la disquette au lieu de choisir « Écrire sans mesure »" }
-        'slow' { T "cochez « Mesurer la disquette avant l'écriture lente », avec la mesure « sur l'image à écrire »" }
-        'fast' { T "écrivez l'image en écriture lente, avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »" }
-        'mode' { T "choisissez la mesure « sur l'image à écrire »" }
-        'quickslow' { T "choisissez le test standard ou fin dans « Calibration précomp », avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »" }
-        'quickfast' { T "écrivez l'image en écriture lente, avec le test standard ou fin dans « Calibration précomp », « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »" }
-        default { '' }
-    }
+    $x = Get-TargetWriteHowPhrase $how
     if (-not $x) { return '' }
     return ((T "Pour qu'une écriture recale cette courbe, {0}.") -f $x)
+}
+
+function Get-TargetWriteHowPhrase([string]$how) {
+    # Geste a faire pour mesurer la disquette sur l image avant une ecriture, d apres un code de Get-TargetWriteLearnHow
+    # ('sans', 'slow', 'fast', 'mode', 'quickslow', 'quickfast') ; '' pour 'mesure', '' ou un code inconnu. Lue par la
+    # ligne de fin d ecriture (Get-TargetWriteLearnHowText) et, 12.11 (version finale), par le conseil des zones qui
+    # couvrent presque toute une tete (Get-WriteZoneHeadAdvice, 170)
+    switch -CaseSensitive ($how) {
+        'sans' { return (T "mesurez la disquette au lieu de choisir « Écrire sans mesure »") }
+        'slow' { return (T "cochez « Mesurer la disquette avant l'écriture lente », avec la mesure « sur l'image à écrire »") }
+        'fast' { return (T "écrivez l'image en écriture lente, avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »") }
+        'mode' { return (T "choisissez la mesure « sur l'image à écrire »") }
+        'quickslow' { return (T "choisissez le test standard ou fin dans « Calibration précomp », avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »") }
+        'quickfast' { return (T "écrivez l'image en écriture lente, avec le test standard ou fin dans « Calibration précomp », « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »") }
+    }
+    return ''
+}
+
+function Get-TargetZoneAdvice($wf, [bool]$slow, [string]$userTs, [string]$img) {
+    # 12.11 (version finale) : ce que peut demander le conseil des zones qui couvrent presque toute une tete
+    # (Get-WriteZoneHeadAdvice, 170), decide au lancement d une ecriture pour un lecteur cible avec correction par zones
+    # (Start-ImageWrite, 140 : Rep.ZoneAdvice), d apres l onglet a ce moment-la. KSrc : origine du facteur de la disquette
+    # de chaque tete logique relue ('mesure', 'lecteur', 'defaut' ; $wf : Get-WriteFactorPlan, par tete physique ; hswap
+    # compris, Get-WriteHeadSpecs) ; ecriture rapide, facteur moyen des deux tetes : 'mesure' seulement si les deux le sont
+    # (comme Test-TargetRecalKLearn). How : consigne de mesure de Get-TargetWriteLearnHow (jamais ce qui est deja fait ou
+    # sans effet ; '' : aucune, restauration ou image non mesurable par exemple)
+    $s = @{}
+    foreach ($p in 0, 1) { $v = ''; if ($wf -and $wf.Src) { $v = [string]$wf.Src[$p]; if (-not $v) { $v = [string]$wf.Src["$p"] } }; $s[$p] = $v }
+    if (-not $slow) {
+        $m = if ($s[0] -ceq 'mesure' -and $s[1] -ceq 'mesure') { 'mesure' } elseif ($s[0] -ceq 'lecteur' -or $s[1] -ceq 'lecteur') { 'lecteur' } else { 'defaut' }
+        $s[0] = $m; $s[1] = $m
+    }
+    return @{ KSrc = (Get-WriteHeadSpecs $userTs $s[0] $s[1]); How = [string](Get-TargetWriteLearnHow $wf $slow $img) }
 }
 
 function Get-TargetRecalPlan($tw, $wf, $xc, [bool]$slow) {

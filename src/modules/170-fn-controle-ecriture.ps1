@@ -553,7 +553,50 @@ function Start-WriteZonePass($rep, $zs) {
     $rep.Zones = @($zs); $rep.ZonePass = $true
     $it = @(foreach ($z in $zs) { (T '{0} : écart médian {1} ns, correction {2} ns') -f (Format-WriteZone $z), (Format-UiNum ([double]$z.E0) '+0.0;-0.0;0.0'), ('{0:+0;-0;0}' -f [int]$z.Dz) })
     Append-Log ((T "Contrôle après écriture : {0} zone(s) écartée(s) de l'attendu à la relecture par le lecteur {1} ({2}). Leurs {3} piste(s) sont réécrites à la passe {4}/{5} avec la précompensation décalée sur ces cylindres, puis relues ; une zone qui ne se rapproche pas de l'attendu reprend sa courbe d'origine.") -f "$(@($zs).Count)", "$($rep.TargetSrc)", ($it -join ' ; '), "$($all.Count)", "$($rep.Round)", "$($rep.Max)")
+    # 12.11 (version finale) : conseil par tete dont les zones couvrent presque tous les cylindres ecrits, a la suite de la
+    # ligne des zones (Get-WriteZoneHeadAdvice) ; texte seulement
+    foreach ($l in @(Get-WriteZoneHeadAdvice $rep $zs)) { Append-Log $l }
     return @($all)
+}
+
+function Get-WriteZoneHeadAdvice($rep, $zs) {
+    # 12.11 (version finale) : conseil d une correction par zones ($zs, Find-WriteZones), une ligne de journal par tete dont
+    # les zones de meme sens couvrent au moins WriteZoneHeadPct % (040) des cylindres ecrits de cette tete : cylindres du
+    # perimetre du controle (Rep.Scope) de la tete, couverts par les cylindres C0 a C1 de ses zones, reunis. Deux morceaux
+    # de meme sens (separes par plus de WriteZoneGap cylindres sans piste retenue) comptent ensemble ; des zones de sens
+    # contraires, non : une erreur du facteur de la disquette multiplie toute la courbe de la tete et la decale dans un seul
+    # sens. Pourcentage tronque a l unite, seuil compare sans arrondi. Consigne selon l origine du facteur de la disquette
+    # (Rep.ZoneAdvice, Get-TargetZoneAdvice, 172, decidee au lancement) : mesure sur cette disquette, ou mesure sur l image
+    # faite avant l ecriture sans determiner ce facteur : la refaire ; facteur de la marque ou k = 1 : le geste de mesure de
+    # Get-TargetWriteHowPhrase ; aucune consigne possible (restauration, image non mesurable, origine inconnue) : le fait
+    # seul. Texte seulement : zones, profils et reecritures inchanges. Rend les lignes, tete 0 puis tete 1
+    $out = @()
+    if (-not $rep -or -not $rep.Scope) { return $out }
+    $min = [double]$script:WriteZoneHeadPct
+    $ad = $rep.ZoneAdvice
+    foreach ($h in 0, 1) {
+        $cyl = @{}
+        foreach ($k in @($rep.Scope.Keys)) { $p = @(([string]$k) -split '\.'); if ($p.Count -eq 2 -and [int]$p[1] -eq $h) { $cyl[[int]$p[0]] = $true } }
+        $tot = $cyl.Count
+        if ($tot -eq 0) { continue }
+        $best = 0
+        foreach ($sg in 1, -1) {
+            $cov = @{}
+            foreach ($z in @(@($zs) | Where-Object { $_ -and [int]$_.H -eq $h -and [math]::Sign([double]$_.E0) -eq $sg })) {
+                for ($c = [int]$z.C0; $c -le [int]$z.C1; $c++) { if ($cyl.ContainsKey($c)) { $cov[$c] = $true } }
+            }
+            if ($cov.Count -gt $best) { $best = $cov.Count }
+        }
+        if ($best * 100 -lt $min * $tot) { continue }
+        $pct = "$([int][math]::Floor(100.0 * $best / $tot))"
+        $ks = ''; $how = ''
+        if ($ad) { if ($ad.KSrc) { $ks = [string]$ad.KSrc[$h] }; $how = [string]$ad.How }
+        $ph = Get-TargetWriteHowPhrase $how
+        if ($ks -ceq 'mesure' -or $how -ceq 'mesure') { $out += (T "Contrôle après écriture : zone(s) écartée(s) de l'attendu sur {0} % des cylindres écrits de la tête {1} ({2} sur {3}) : facteur de la disquette à revoir, refaites la mesure sur l'image.") -f $pct, "$h", "$best", "$tot" }
+        elseif ($ph) { $out += (T "Contrôle après écriture : zone(s) écartée(s) de l'attendu sur {0} % des cylindres écrits de la tête {1} ({2} sur {3}) : facteur de la disquette à revoir ; pour le mesurer sur l'image avant l'écriture, {4}.") -f $pct, "$h", "$best", "$tot", $ph }
+        else { $out += (T "Contrôle après écriture : zone(s) écartée(s) de l'attendu sur {0} % des cylindres écrits de la tête {1} ({2} sur {3}) : facteur de la disquette à revoir.") -f $pct, "$h", "$best", "$tot" }
+    }
+    return $out
 }
 
 function Complete-WriteZonePass($rep, $weak) {

@@ -43,6 +43,11 @@ $Wt = Get-TestRoot $Wt
 #           rc6 sans correction, ecriture rapide ; Z6 profil decale, borne de la courbe ecrite (Rep.ZoneHard) ; Z7 verdict,
 #           carte (forme sans les zones quand rien d autre ne tient), libelles, passe interrompue par gw ou par
 #           « Arreter » (pistes effacees non reecrites dites vierges) ; Z8 I18n ;
+#  Z9, Z10  12.11 (version finale) : conseil d une correction par zones qui couvre presque toute une tete
+#           (Get-WriteZoneHeadAdvice) : Z9 79 et 80 % (seuil WriteZoneHeadPct), zone en deux morceaux de meme sens (couverture
+#           totale de la tete) ou de sens contraires (non additionnes), une tete seule, consigne selon l origine du facteur
+#           (mesure, facteur de la marque et geste de mesure, aucune consigne), anglais ; Z10 vraie Invoke-WriteCheckAnalysis :
+#           ligne juste apres celle des zones, zones et commandes de la passe 1 inchangees ;
 #  Q0 a Q7  equivalence avec la 12.10, avec -Before <racine d une copie de la source de la 12.10> (aucune dans le depot ;
 #           sans elle, une ligne « saute ») : les memes pistes factices passent par les fonctions des deux versions,
 #           chacune chargee dans sa portee. Q1 mesure, deux passes (lignes du tableau au signe pres, derniere mesure,
@@ -121,7 +126,8 @@ $fnOld = @('Get-AsymRefTable', 'Get-AsymRefs', 'Set-TrackAsymRef')
 $asgCommon = @('$script:HealthErrOk', '$script:JitterStdOk', '$script:JitterStdWatch', '$script:ScpStructMax')
 # 12.11 rc7 (R16) : AsymExpGain (2) remplace par AsymExpGainFallback (1,7) ; constantes de la correction par zones
 $asgNew = @('$script:ScoreAsymK', '$script:AsymSignPct', '$script:AsymExpGainFallback', '$script:AsymExpOkTol', '$script:AsymExpNearTol', '$script:AsymExpInPct', '$script:QualCardLine3H', '$script:QualCardRoom',   # 12.11 rc4 (R10) : les quatre dernieres
-            '$script:WriteZoneHalfWin', '$script:WriteZoneMinNs', '$script:WriteZoneGap', '$script:WriteZoneMinCyl', '$script:WriteZoneMinTracks', '$script:WriteZoneF', '$script:WriteZoneCapNs', '$script:WriteZoneAccept')
+            '$script:WriteZoneHalfWin', '$script:WriteZoneMinNs', '$script:WriteZoneGap', '$script:WriteZoneMinCyl', '$script:WriteZoneMinTracks', '$script:WriteZoneF', '$script:WriteZoneCapNs', '$script:WriteZoneAccept',
+            '$script:WriteZoneHeadPct')   # 12.11 (version finale) : conseil des zones qui couvrent presque toute une tete
 $asgOld = @('$script:QualAsymRefOn')
 function New-Gen([string]$root, [string]$outFile, [string[]]$fn190, [string[]]$asg040, [string[]]$asg560) {
     # Fichier de travail : texte des fonctions et des affectations demandees, tel quel ; rend le texte de chaque fonction
@@ -161,11 +167,13 @@ $defsNew = New-Gen $Wt $genNew $fnNew $asgNew @('$script:CalHardMaxNs')
 # 12.11 rc7 (R16) : de meme les fonctions de la correction par zones (170 ; Get-SpecValue et Build-CurveProfile de 230) ;
 # Complete-WriteCheck et (relecture rc7) Stop-WriteCheck reelles, gardees a part (cas Z7, dans une portee avec leurs bouchons)
 $fnX = @('Get-RepAsymExcess', 'Get-RepAsymGain', 'Get-AsymGainText', 'Get-WriteZoneGap', 'Get-WriteZoneScan', 'Get-WriteZoneSpec', 'Get-RepHeadSpec', 'Find-WriteZones', 'Format-WriteZone',
-         'Start-WriteZonePass', 'Complete-WriteZonePass', 'Get-WriteZoneCount', 'Invoke-RepNextCmd', 'Complete-WriteCheck', 'Stop-WriteCheck')
+         'Start-WriteZonePass', 'Complete-WriteZonePass', 'Get-WriteZoneCount', 'Invoke-RepNextCmd', 'Complete-WriteCheck', 'Stop-WriteCheck',
+         'Get-WriteZoneHeadAdvice')   # 12.11 (version finale) : conseil des zones qui couvrent presque toute une tete
 $defsX = @{}
 # 12.11 rc8 (R17) : recalage du lecteur cible (172), appele par Invoke-AlignAnalysis et Complete-WriteCheck ; aucune
 # ecriture pour un lecteur cible en memoire ici : sans effet
-$fnR = @('Invoke-TargetRecalOffer', 'Get-TargetWriteMemoryFor', 'Complete-TargetWriteMemory')
+$fnR = @('Invoke-TargetRecalOffer', 'Get-TargetWriteMemoryFor', 'Complete-TargetWriteMemory',
+         'Get-TargetWriteHowPhrase')   # 12.11 (version finale) : geste de mesure du conseil des zones
 foreach ($pm in @(@('170-fn-controle-ecriture.ps1', $fnX), @('230-fn-calib-courbe.ps1', @('Get-SpecValue', 'Build-CurveProfile')), @('172-fn-recalage-cible.ps1', $fnR))) {
     foreach ($fd in @((Get-Ast (Join-Path $mods $pm[0])).FindAll({ param($x) $x -is $tFn }, $false))) { if (@($pm[1]) -contains $fd.Name) { $defsX[$fd.Name] = $fd.Extent.Text } }
 }
@@ -1045,6 +1053,48 @@ foreach ($k in $zKeys) {
     if (-not $script:I18n.ContainsKey($k) -or $ph1 -ne $ph2 -or -not [string]$script:I18n[$k]) { $badZ += $k }
 }
 Chk 'Z8' ($iRc7 -gt 0 -and $zKeys.Count -eq 18 -and $badZ.Count -eq 0) "$($zKeys.Count) textes du lot dans la section « rc7 » de 019, memes jalons : en defaut $(if ($badZ.Count) { $badZ -join ' | ' } else { 'aucun' })"
+
+# Z9 (12.11, version finale) : conseil quand les zones d une tete couvrent au moins WriteZoneHeadPct % (80) de ses cylindres
+# ecrits. Perimetre fictif de 100 cylindres par tete ; zones donnees directement (tete, cylindres, sens de l ecart)
+$z9Scope = @{}; foreach ($c in 0..99) { $z9Scope["$c.0"] = $true; $z9Scope["$c.1"] = $true }
+function Get-Z9([object[]]$zs, $ad = $null) { return @(Get-WriteZoneHeadAdvice @{ Scope = $z9Scope; ZoneAdvice = $ad } $zs) }
+function New-Z9([int]$h, [int]$c0, [int]$c1, [double]$e0) { return @{ H = $h; C0 = $c0; C1 = $c1; E0 = $e0; Dz = 0; N = 8; State = 'pending' } }
+$adM = @{ KSrc = @{ 0 = 'mesure'; 1 = 'mesure' }; How = 'mesure' }
+$z9Base = "Contrôle après écriture : zone(s) écartée(s) de l'attendu sur {0} % des cylindres écrits de la tête {1} ({2} sur {3}) : facteur de la disquette à revoir"
+function Get-Z9Want([string]$p, [string]$h, [string]$n, [string]$tail) { return (($z9Base -f $p, $h, $n, '100') + $tail) }
+$z9 = [ordered]@{
+    '79 %' = ((Get-Z9 @((New-Z9 0 0 78 12.0)) $adM).Count -eq 0)
+    '80 %' = (((Get-Z9 @((New-Z9 0 0 79 12.0)) $adM) -join '|') -ceq (Get-Z9Want '80' '0' '80' ", refaites la mesure sur l'image."))
+    'deux morceaux de meme sens, 40 + 40' = (((Get-Z9 @((New-Z9 0 0 39 12.0), (New-Z9 0 50 89 9.0)) $adM) -join '|') -ceq (Get-Z9Want '80' '0' '80' ", refaites la mesure sur l'image."))
+    'deux morceaux de meme sens, 40 + 39' = ((Get-Z9 @((New-Z9 0 0 39 -12.0), (New-Z9 0 50 88 -9.0)) $adM).Count -eq 0)
+    'sens contraires, 40 + 45' = ((Get-Z9 @((New-Z9 0 0 39 12.0), (New-Z9 0 50 94 -9.0)) $adM).Count -eq 0)
+    'une tete seule' = (((Get-Z9 @((New-Z9 0 0 9 12.0), (New-Z9 1 10 99 -12.0)) $adM) -join '|') -ceq (Get-Z9Want '90' '1' '90' ", refaites la mesure sur l'image."))
+    'cylindres hors du perimetre' = ((Get-Z9 @((New-Z9 0 25 140 12.0)) $adM).Count -eq 0)
+    'facteur de la marque, case decochee' = (((Get-Z9 @((New-Z9 0 0 84 12.0)) @{ KSrc = @{ 0 = 'lecteur'; 1 = 'lecteur' }; How = 'slow' }) -join '|') -ceq (Get-Z9Want '85' '0' '85' " ; pour le mesurer sur l'image avant l'écriture, cochez « Mesurer la disquette avant l'écriture lente », avec la mesure « sur l'image à écrire »."))
+    'k = 1, ecriture rapide' = (((Get-Z9 @((New-Z9 1 0 84 12.0)) @{ KSrc = @{ 0 = 'defaut'; 1 = 'defaut' }; How = 'fast' }) -join '|') -ceq (Get-Z9Want '85' '1' '85' " ; pour le mesurer sur l'image avant l'écriture, écrivez l'image en écriture lente, avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »."))
+    'mesure faite sans determiner ce facteur' = (((Get-Z9 @((New-Z9 0 0 84 12.0)) @{ KSrc = @{ 0 = 'lecteur'; 1 = 'mesure' }; How = 'mesure' }) -join '|') -ceq (Get-Z9Want '85' '0' '85' ", refaites la mesure sur l'image."))
+    'aucune consigne possible' = (((Get-Z9 @((New-Z9 0 0 84 12.0)) @{ KSrc = @{ 0 = 'lecteur'; 1 = 'lecteur' }; How = '' }) -join '|') -ceq (Get-Z9Want '85' '0' '85' '.') -and ((Get-Z9 @((New-Z9 0 0 84 12.0)) $null) -join '|') -ceq (Get-Z9Want '85' '0' '85' '.'))
+}
+$script:Lang = 'en'; $z9En = @(Get-Z9 @((New-Z9 0 0 84 12.0)) @{ KSrc = @{ 0 = 'lecteur'; 1 = 'lecteur' }; How = 'slow' }) -join '|'; $script:Lang = 'fr'
+$z9['anglais'] = ($z9En -ceq 'Post-write check: zone(s) away from the expected value over 85% of the written cylinders of head 0 (85 of 100): disk factor to be reviewed; to measure it on the image before writing, check "Measure the disk before the slow write", with the "on the image to write" measure.')
+Chk 'Z9' ($script:WriteZoneHeadPct -eq 80 -and @($z9.Keys | Where-Object { -not $z9[$_] }).Count -eq 0) "seuil $($script:WriteZoneHeadPct) % : 79 % rien, 80 % une ligne ; morceaux de meme sens additionnes, de sens contraires non ; tete par tete ; consigne selon l origine du facteur ; anglais « $z9En » ; ecarts : $(@($z9.Keys | Where-Object { -not $z9[$_] }) -join ', ')"
+
+# Z10 : vraie Invoke-WriteCheckAnalysis, ecart de +20 ns sur les cylindres 0 a 71 de la tete 0 (72 sur 80, 90 %) et
+# facteur mesure sur la disquette : la ligne du conseil suit celle des zones ; zones et commandes de la passe 1 comme sans
+# conseil (meme Rep sans ZoneAdvice : memes commandes)
+$zBig = { param($c, $h) if ($h -eq 0 -and $c -le 71) { 20 } else { 0 } }
+$script:RLog.Clear(); $script:Calls.Clear()
+$r10 = New-ZRep $zBig @() @{ ZoneAdvice = $adM }
+$null = Invoke-WriteCheckAnalysis
+$log10 = @($script:RLog); $i10 = -1; for ($q = 0; $q -lt $log10.Count; $q++) { if ($log10[$q] -like "Contrôle après écriture : 1 zone(s) écartée(s) de l'attendu*") { $i10 = $q } }
+$adv10 = "Contrôle après écriture : zone(s) écartée(s) de l'attendu sur 90 % des cylindres écrits de la tête 0 (72 sur 80) : facteur de la disquette à revoir, refaites la mesure sur l'image."
+$cmd10 = @(Get-ZCmds $r10); $zz10 = Get-ZZones $r10
+$script:RLog.Clear()
+$r10b = New-ZRep $zBig @() @{ ZoneAdvice = $null }
+$null = Invoke-WriteCheckAnalysis
+$cmd10b = @(Get-ZCmds $r10b)
+$z10 = ($i10 -ge 0 -and $i10 + 1 -lt $log10.Count -and $log10[$i10 + 1] -ceq $adv10 -and @($log10 | Where-Object { $_ -like '*facteur de la disquette à revoir*' }).Count -eq 1 -and $zz10 -ceq 'h0 c0-71 20.0 -10 pending' -and ($cmd10 -join "`n") -ceq ($cmd10b -join "`n") -and @($script:RLog | Where-Object { $_ -like '*facteur de la disquette à revoir.' }).Count -eq 1)
+Chk 'Z10' $z10 "zone $zz10 : ligne suivante « $(if ($i10 -ge 0 -and $i10 + 1 -lt $log10.Count) { $log10[$i10 + 1] } else { 'absente' }) » ; commandes de la passe 1 identiques sans ZoneAdvice ($($cmd10.Count)) ; sans ZoneAdvice : le fait seul"
 
 # ---------------------------------------------------------------- Q : equivalence avec la source d avant
 "--- Q : equivalence avec la 12.10 (-Before)"

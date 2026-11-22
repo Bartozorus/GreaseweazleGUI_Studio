@@ -3359,6 +3359,12 @@ $script:I18n['étendue {0} sur {1} mesures'] = 'range {0} over {1} measurements'
 $script:I18n["Facteur de la marque « {0} » dispersé sur ce lecteur ({1}) : la médiane appliquée peut être loin du facteur de cette disquette ; pour mesurer celle-ci au lieu d'appliquer la médiane, {2}."] = 'Factor of brand "{0}" spread out on this drive ({1}): the applied median may be far from the factor of this disk; to measure this disk instead of applying the median, {2}.'
 $script:I18n["médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : mesurez plutôt cette disquette sur l'image"] = 'median factor of brand "{0}" applied, measurements spread out ({1}): measure this disk on the image instead'
 $script:I18n['mesures de la marque dispersées : mesurez plutôt cette disquette'] = 'brand measurements spread out: measure this disk instead'
+
+# --- Version finale : conseil d une correction par zones qui couvre presque toute une tete (Get-WriteZoneHeadAdvice, 170) :
+# journal du controle, consigne selon l origine du facteur de la disquette (gestes de Get-TargetWriteHowPhrase, 172)
+$script:I18n["Contrôle après écriture : zone(s) écartée(s) de l'attendu sur {0} % des cylindres écrits de la tête {1} ({2} sur {3}) : facteur de la disquette à revoir, refaites la mesure sur l'image."] = 'Post-write check: zone(s) away from the expected value over {0}% of the written cylinders of head {1} ({2} of {3}): disk factor to be reviewed, redo the measurement on the image.'
+$script:I18n["Contrôle après écriture : zone(s) écartée(s) de l'attendu sur {0} % des cylindres écrits de la tête {1} ({2} sur {3}) : facteur de la disquette à revoir ; pour le mesurer sur l'image avant l'écriture, {4}."] = 'Post-write check: zone(s) away from the expected value over {0}% of the written cylinders of head {1} ({2} of {3}): disk factor to be reviewed; to measure it on the image before writing, {4}.'
+$script:I18n["Contrôle après écriture : zone(s) écartée(s) de l'attendu sur {0} % des cylindres écrits de la tête {1} ({2} sur {3}) : facteur de la disquette à revoir."] = 'Post-write check: zone(s) away from the expected value over {0}% of the written cylinders of head {1} ({2} of {3}): disk factor to be reviewed.'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 try { Add-Type -AssemblyName System.IO.Compression.FileSystem } catch { }
@@ -4074,6 +4080,12 @@ $script:WriteZoneMinTracks = 8
 $script:WriteZoneF = 0.5
 $script:WriteZoneCapNs = 15
 $script:WriteZoneAccept = 0.5
+# 12.11 (version finale) : conseil d une correction par zones. Zones d une tete, de meme sens, qui couvrent au moins
+# WriteZoneHeadPct % de ses cylindres ecrits (perimetre du controle) : l ecart a l attendu porte sur presque toute la tete,
+# ce que donne un facteur de la disquette errone (il multiplie toute la courbe de la tete), et non la forme de la courbe
+# croisee ; une ligne de journal conseille de revoir ce facteur (Get-WriteZoneHeadAdvice, 170). Texte seulement : zones et
+# reecritures inchangees
+$script:WriteZoneHeadPct = 80
 # 12.11 rc8 (R17) : recalage de la courbe croisee par une relecture du lecteur cible (172). Decalage constant par tete, en
 # ns, ajoute a la courbe ecrite pour le lecteur cible : somme des estimations des TargetRecalMaxItems dernieres ecritures
 # relues / (n + p), p = (1 - TargetRecalFirstShare) / TargetRecalFirstShare, au plus +/- TargetRecalCapNs (Get-TargetRecalNs,
@@ -12099,6 +12111,10 @@ function Start-ImageWrite([switch]$NoWarmup) {
             # Relecture rc7 : borne de la courbe decalee sur une zone (Get-WriteZoneSpec, 170) : celle de la courbe ecrite
             # ($wf.Hard, borne de precompensation en place, Get-TargetTransferPlan)
             $script:Rep.ZoneHard = [int]$wf.Hard
+            # 12.11 (version finale) : origine du facteur de la disquette et consigne de mesure, decidees maintenant, pour le
+            # conseil des zones qui couvrent presque toute une tete (Get-TargetZoneAdvice, 172 ; Get-WriteZoneHeadAdvice,
+            # 170). Consigne seulement : une erreur ici la laisse vide, l ecriture et ses zones n en dependent pas
+            if ($script:Rep.ZoneFix) { try { $script:Rep.ZoneAdvice = Get-TargetZoneAdvice $wf ([bool]$slow) $userTs ([string]$txtWFile.Text) } catch { $script:Rep.ZoneAdvice = $null } }
         }
         if ($script:ImageUnstable) { $script:Rep.Ignore = $script:ImageUnstable }
         $script:Rep.SrcWeak = $script:ImageSrcWeak; $script:Rep.NoJudge = $script:ImageNoJudge; $script:Rep.SrcOver = $script:ImageSrcOver
@@ -15470,7 +15486,50 @@ function Start-WriteZonePass($rep, $zs) {
     $rep.Zones = @($zs); $rep.ZonePass = $true
     $it = @(foreach ($z in $zs) { (T '{0} : écart médian {1} ns, correction {2} ns') -f (Format-WriteZone $z), (Format-UiNum ([double]$z.E0) '+0.0;-0.0;0.0'), ('{0:+0;-0;0}' -f [int]$z.Dz) })
     Append-Log ((T "Contrôle après écriture : {0} zone(s) écartée(s) de l'attendu à la relecture par le lecteur {1} ({2}). Leurs {3} piste(s) sont réécrites à la passe {4}/{5} avec la précompensation décalée sur ces cylindres, puis relues ; une zone qui ne se rapproche pas de l'attendu reprend sa courbe d'origine.") -f "$(@($zs).Count)", "$($rep.TargetSrc)", ($it -join ' ; '), "$($all.Count)", "$($rep.Round)", "$($rep.Max)")
+    # 12.11 (version finale) : conseil par tete dont les zones couvrent presque tous les cylindres ecrits, a la suite de la
+    # ligne des zones (Get-WriteZoneHeadAdvice) ; texte seulement
+    foreach ($l in @(Get-WriteZoneHeadAdvice $rep $zs)) { Append-Log $l }
     return @($all)
+}
+
+function Get-WriteZoneHeadAdvice($rep, $zs) {
+    # 12.11 (version finale) : conseil d une correction par zones ($zs, Find-WriteZones), une ligne de journal par tete dont
+    # les zones de meme sens couvrent au moins WriteZoneHeadPct % (040) des cylindres ecrits de cette tete : cylindres du
+    # perimetre du controle (Rep.Scope) de la tete, couverts par les cylindres C0 a C1 de ses zones, reunis. Deux morceaux
+    # de meme sens (separes par plus de WriteZoneGap cylindres sans piste retenue) comptent ensemble ; des zones de sens
+    # contraires, non : une erreur du facteur de la disquette multiplie toute la courbe de la tete et la decale dans un seul
+    # sens. Pourcentage tronque a l unite, seuil compare sans arrondi. Consigne selon l origine du facteur de la disquette
+    # (Rep.ZoneAdvice, Get-TargetZoneAdvice, 172, decidee au lancement) : mesure sur cette disquette, ou mesure sur l image
+    # faite avant l ecriture sans determiner ce facteur : la refaire ; facteur de la marque ou k = 1 : le geste de mesure de
+    # Get-TargetWriteHowPhrase ; aucune consigne possible (restauration, image non mesurable, origine inconnue) : le fait
+    # seul. Texte seulement : zones, profils et reecritures inchanges. Rend les lignes, tete 0 puis tete 1
+    $out = @()
+    if (-not $rep -or -not $rep.Scope) { return $out }
+    $min = [double]$script:WriteZoneHeadPct
+    $ad = $rep.ZoneAdvice
+    foreach ($h in 0, 1) {
+        $cyl = @{}
+        foreach ($k in @($rep.Scope.Keys)) { $p = @(([string]$k) -split '\.'); if ($p.Count -eq 2 -and [int]$p[1] -eq $h) { $cyl[[int]$p[0]] = $true } }
+        $tot = $cyl.Count
+        if ($tot -eq 0) { continue }
+        $best = 0
+        foreach ($sg in 1, -1) {
+            $cov = @{}
+            foreach ($z in @(@($zs) | Where-Object { $_ -and [int]$_.H -eq $h -and [math]::Sign([double]$_.E0) -eq $sg })) {
+                for ($c = [int]$z.C0; $c -le [int]$z.C1; $c++) { if ($cyl.ContainsKey($c)) { $cov[$c] = $true } }
+            }
+            if ($cov.Count -gt $best) { $best = $cov.Count }
+        }
+        if ($best * 100 -lt $min * $tot) { continue }
+        $pct = "$([int][math]::Floor(100.0 * $best / $tot))"
+        $ks = ''; $how = ''
+        if ($ad) { if ($ad.KSrc) { $ks = [string]$ad.KSrc[$h] }; $how = [string]$ad.How }
+        $ph = Get-TargetWriteHowPhrase $how
+        if ($ks -ceq 'mesure' -or $how -ceq 'mesure') { $out += (T "Contrôle après écriture : zone(s) écartée(s) de l'attendu sur {0} % des cylindres écrits de la tête {1} ({2} sur {3}) : facteur de la disquette à revoir, refaites la mesure sur l'image.") -f $pct, "$h", "$best", "$tot" }
+        elseif ($ph) { $out += (T "Contrôle après écriture : zone(s) écartée(s) de l'attendu sur {0} % des cylindres écrits de la tête {1} ({2} sur {3}) : facteur de la disquette à revoir ; pour le mesurer sur l'image avant l'écriture, {4}.") -f $pct, "$h", "$best", "$tot", $ph }
+        else { $out += (T "Contrôle après écriture : zone(s) écartée(s) de l'attendu sur {0} % des cylindres écrits de la tête {1} ({2} sur {3}) : facteur de la disquette à revoir.") -f $pct, "$h", "$best", "$tot" }
+    }
+    return $out
 }
 
 function Complete-WriteZonePass($rep, $weak) {
@@ -15909,17 +15968,42 @@ function Get-TargetWriteLearnHow($wf, [bool]$slow, [string]$img) {
 function Get-TargetWriteLearnHowText([string]$how) {
     # Phrase de la consigne (Get-TargetWriteLearnHow) ajoutee a la ligne de fin d ecriture ; '' sans consigne
     if ($how -ceq 'mesure') { return (T "La mesure sur l'image faite avant cette écriture n'a pas déterminé ce facteur (voir ses lignes dans le journal) : une écriture recalera cette courbe quand cette mesure le déterminera.") }
-    $x = switch -CaseSensitive ($how) {
-        'sans' { T "mesurez la disquette au lieu de choisir « Écrire sans mesure »" }
-        'slow' { T "cochez « Mesurer la disquette avant l'écriture lente », avec la mesure « sur l'image à écrire »" }
-        'fast' { T "écrivez l'image en écriture lente, avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »" }
-        'mode' { T "choisissez la mesure « sur l'image à écrire »" }
-        'quickslow' { T "choisissez le test standard ou fin dans « Calibration précomp », avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »" }
-        'quickfast' { T "écrivez l'image en écriture lente, avec le test standard ou fin dans « Calibration précomp », « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »" }
-        default { '' }
-    }
+    $x = Get-TargetWriteHowPhrase $how
     if (-not $x) { return '' }
     return ((T "Pour qu'une écriture recale cette courbe, {0}.") -f $x)
+}
+
+function Get-TargetWriteHowPhrase([string]$how) {
+    # Geste a faire pour mesurer la disquette sur l image avant une ecriture, d apres un code de Get-TargetWriteLearnHow
+    # ('sans', 'slow', 'fast', 'mode', 'quickslow', 'quickfast') ; '' pour 'mesure', '' ou un code inconnu. Lue par la
+    # ligne de fin d ecriture (Get-TargetWriteLearnHowText) et, 12.11 (version finale), par le conseil des zones qui
+    # couvrent presque toute une tete (Get-WriteZoneHeadAdvice, 170)
+    switch -CaseSensitive ($how) {
+        'sans' { return (T "mesurez la disquette au lieu de choisir « Écrire sans mesure »") }
+        'slow' { return (T "cochez « Mesurer la disquette avant l'écriture lente », avec la mesure « sur l'image à écrire »") }
+        'fast' { return (T "écrivez l'image en écriture lente, avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »") }
+        'mode' { return (T "choisissez la mesure « sur l'image à écrire »") }
+        'quickslow' { return (T "choisissez le test standard ou fin dans « Calibration précomp », avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »") }
+        'quickfast' { return (T "écrivez l'image en écriture lente, avec le test standard ou fin dans « Calibration précomp », « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »") }
+    }
+    return ''
+}
+
+function Get-TargetZoneAdvice($wf, [bool]$slow, [string]$userTs, [string]$img) {
+    # 12.11 (version finale) : ce que peut demander le conseil des zones qui couvrent presque toute une tete
+    # (Get-WriteZoneHeadAdvice, 170), decide au lancement d une ecriture pour un lecteur cible avec correction par zones
+    # (Start-ImageWrite, 140 : Rep.ZoneAdvice), d apres l onglet a ce moment-la. KSrc : origine du facteur de la disquette
+    # de chaque tete logique relue ('mesure', 'lecteur', 'defaut' ; $wf : Get-WriteFactorPlan, par tete physique ; hswap
+    # compris, Get-WriteHeadSpecs) ; ecriture rapide, facteur moyen des deux tetes : 'mesure' seulement si les deux le sont
+    # (comme Test-TargetRecalKLearn). How : consigne de mesure de Get-TargetWriteLearnHow (jamais ce qui est deja fait ou
+    # sans effet ; '' : aucune, restauration ou image non mesurable par exemple)
+    $s = @{}
+    foreach ($p in 0, 1) { $v = ''; if ($wf -and $wf.Src) { $v = [string]$wf.Src[$p]; if (-not $v) { $v = [string]$wf.Src["$p"] } }; $s[$p] = $v }
+    if (-not $slow) {
+        $m = if ($s[0] -ceq 'mesure' -and $s[1] -ceq 'mesure') { 'mesure' } elseif ($s[0] -ceq 'lecteur' -or $s[1] -ceq 'lecteur') { 'lecteur' } else { 'defaut' }
+        $s[0] = $m; $s[1] = $m
+    }
+    return @{ KSrc = (Get-WriteHeadSpecs $userTs $s[0] $s[1]); How = [string](Get-TargetWriteLearnHow $wf $slow $img) }
 }
 
 function Get-TargetRecalPlan($tw, $wf, $xc, [bool]$slow) {

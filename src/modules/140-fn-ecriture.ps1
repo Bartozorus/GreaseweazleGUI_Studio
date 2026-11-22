@@ -514,6 +514,10 @@ function Start-ImageWrite([switch]$NoWarmup) {
             # Relecture rc7 : borne de la courbe decalee sur une zone (Get-WriteZoneSpec, 170) : celle de la courbe ecrite
             # ($wf.Hard, borne de precompensation en place, Get-TargetTransferPlan)
             $script:Rep.ZoneHard = [int]$wf.Hard
+            # 12.11 (version finale) : origine du facteur de la disquette et consigne de mesure, decidees maintenant, pour le
+            # conseil des zones qui couvrent presque toute une tete (Get-TargetZoneAdvice, 172 ; Get-WriteZoneHeadAdvice,
+            # 170). Consigne seulement : une erreur ici la laisse vide, l ecriture et ses zones n en dependent pas
+            if ($script:Rep.ZoneFix) { try { $script:Rep.ZoneAdvice = Get-TargetZoneAdvice $wf ([bool]$slow) $userTs ([string]$txtWFile.Text) } catch { $script:Rep.ZoneAdvice = $null } }
         }
         if ($script:ImageUnstable) { $script:Rep.Ignore = $script:ImageUnstable }
         $script:Rep.SrcWeak = $script:ImageSrcWeak; $script:Rep.NoJudge = $script:ImageNoJudge; $script:Rep.SrcOver = $script:ImageSrcOver

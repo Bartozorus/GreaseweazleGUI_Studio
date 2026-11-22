@@ -29,6 +29,8 @@ $Wt = Get-TestRoot $Wt
 #     lecteur cible - courbe que le meme lecteur ecrit dans le scenario A correspondant, restauration comprise ; rien pour
 #     le meme lecteur, ni sans courbe propre, ni avec des courbes chargees d un autre lecteur ; X3 hswap dans le champ
 #     Pistes : exces de la tete qui ecrit chaque face. L asymetrie attendue elle-meme : logic-qualite-asymetrie (X1 a X9).
+#     X5 (12.11, version finale) : la vraie Start-ImageWrite pose avec la correction par zones ce que peut demander son
+#     conseil (Rep.ZoneAdvice, Get-TargetZoneAdvice) : origine du facteur par tete relue et consigne de mesure.
 # Relecture de la rc2 : borne max(borne, X, D) (C1, C3 : aucun cylindre ecrit sous la courbe du meme lecteur quand X > Sp),
 # cas R1, texte de la vraie fenetre de la mesure sur l image avec un lecteur cible (D5).
 # Harnais de logic-ecriture-plan : fonctions reelles de tous les modules fn, etat, onglet construit par les instructions
@@ -694,6 +696,15 @@ $chkWZones.Checked = $false; $zp += @((Get-WriteZonePlan $true $cpOk 3).On, (Get
 $chkWZones.Checked = $zKeep
 $x4z = (($zp | ForEach-Object { [int][bool]$_ }) -join '') -ceq '1000000'
 Chk 'X4' ($x4Bad.Count -eq 0 -and $x4l -and $x4p -and $x4z) "gain memorise par tete (vraie Start-ImageWrite) : C1 $(Get-FkGain $cur['C1']) (2 x pentes 0,815 et 0,765), C4 $(Get-FkGain $cur['C4']) (repli) ; aucun pour le meme lecteur ; ecarts : $(Get-List $x4Bad) ; ligne de journal du gain ($x4l) ; segment « correction des zones » de la ligne pour le lecteur cible seulement ($x4p) ; Get-WriteZonePlan : case cochee, 2 passes : oui ; 1 passe, sans facteur par cylindre, sans controle, controle non applicable, case decochee : non ($(($zp | ForEach-Object { [int][bool]$_ }) -join ''))"
+# X5 (12.11, version finale) : conseil des zones qui couvrent presque toute une tete, decide au lancement par la vraie
+# Start-ImageWrite (Rep.ZoneAdvice) : C1 facteur mesure sur l image (consigne 'mesure' : la mesure a precede) ; C2 Test rapide ;
+# C3 mesure complete (case cochee, autre mesure que sur l image) ; C4 facteur de la marque, case decochee ; rien pour le
+# meme lecteur
+function Get-FkZoneAdv($r) { if ($r -and $r.Rep -and $r.Rep.ZoneAdvice) { $a = $r.Rep.ZoneAdvice; return "$($a.KSrc[0])/$($a.KSrc[1]) $($a.How)" }; return '-' }
+$x5Want = [ordered]@{ C1 = 'mesure/mesure mesure'; C2 = 'defaut/defaut quickslow'; C3 = 'defaut/defaut mode'; C4 = 'lecteur/lecteur slow' }
+$x5Bad = @(foreach ($id in @($x5Want.Keys)) { $v = Get-FkZoneAdv $cur[$id]; if ($v -cne $x5Want[$id]) { "$id : $v" } })
+foreach ($id in @($scA | ForEach-Object { $_.Id })) { if ($cur[$id].Rep -and $cur[$id].Rep.ContainsKey('ZoneAdvice')) { $x5Bad += "$id : conseil des zones pour le meme lecteur" } }
+Chk 'X5' ($x5Bad.Count -eq 0) "origine du facteur par tete relue et consigne (vraie Start-ImageWrite) : $(@($x5Want.Keys | ForEach-Object { "$_ $(Get-FkZoneAdv $cur[$_])" }) -join ' ; ') ; ecarts : $(Get-List $x5Bad)"
 
 # =====================================================================================================================
 '--- D : phrase, case de la mesure et journal tires de la meme decision'

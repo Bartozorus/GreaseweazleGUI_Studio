@@ -732,6 +732,21 @@ $script:TargetWritePending = (New-TargetWriteMemory $twL $wX $xpL $rcL $true 'hs
 Complete-TargetWriteMemory $true
 $mH = $script:LastTargetWrites['A>0']; $lH = (@($script:Log) -join ' ')
 Chk 'L13' ($mH -and [int]$mH.H['0'].Phys -eq 1 -and $mH.H['0'].KLearn -eq $false -and $mH.H['1'].KLearn -eq $true -and $lH.Contains('gardée en mémoire') -and $lH.Contains('La tête 1 ne servira pas à ce recalage') -and -not $lH.Contains('La tête 0 ne servira pas')) "hswap : « $lH »"
+# L14 (12.11, version finale) : ce que peut demander le conseil des zones qui couvrent presque toute une tete
+# (Get-TargetZoneAdvice) : origine du facteur par tete logique relue (hswap ; ecriture rapide : 'mesure' seulement si les
+# deux tetes le sont), consigne de Get-TargetWriteLearnHow ; gestes de Get-TargetWriteHowPhrase (memes textes que la ligne
+# de fin d ecriture)
+$img14 = 'C:\factice\essai.adf'
+$wF0 = $wL.Clone(); $wF0.Src = @{ 0 = 'defaut'; 1 = 'defaut' }
+$a1 = Get-TargetZoneAdvice $wX $true '' $img14; $a2 = Get-TargetZoneAdvice $wX $true 'hswap' $img14
+$a3 = Get-TargetZoneAdvice $wX $false '' $img14; $a4 = Get-TargetZoneAdvice $wM $false '' $img14; $a5 = Get-TargetZoneAdvice $wF0 $false '' $img14
+$a6 = Get-TargetZoneAdvice $wLme $true '' $img14
+$script:Restore = @{ Step = 4 }; $a7 = Get-TargetZoneAdvice $wL $true '' $img14; $script:Restore = $null
+$ks14 = @($a1, $a2, $a3, $a4, $a5 | ForEach-Object { "$($_.KSrc[0])/$($_.KSrc[1])" }) -join ' '
+$hw14 = @($a1, $a3, $a6, $a7 | ForEach-Object { [string]$_.How }) -join ' '
+$ph14 = @('sans', 'slow', 'fast', 'mode', 'quickslow', 'quickfast' | ForEach-Object { $x = Get-TargetWriteHowPhrase $_; [bool]$x -and (Get-TargetWriteLearnHowText $_) -ceq ($pfx + $x + '.') })
+$ph14 += @((Get-TargetWriteHowPhrase 'mesure') -ceq '', (Get-TargetWriteHowPhrase '') -ceq '', (Get-TargetWriteHowPhrase 'autre') -ceq '')
+Chk 'L14' ($ks14 -ceq 'mesure/lecteur lecteur/mesure lecteur/lecteur mesure/mesure defaut/defaut' -and $hw14 -ceq 'slow fast mesure ' -and @($ph14 | Where-Object { -not $_ }).Count -eq 0) "origines par tete logique : $ks14 (lente, hswap, rapide mixte, rapide mesuree, rapide k = 1) ; consignes : « $hw14 » (lente case decochee, rapide, mesure faite avant, restauration) ; gestes communs a la ligne de fin d ecriture"
 
 # =====================================================================================================================
 "=== bilan logic-cible-recalage : $($script:NChk - $script:Fail) conformes sur $($script:NChk)$(if ($script:Fail) { " ; NON CONFORMES : $($script:FailIds -join ', ')" }) ; $([int]$sw.Elapsed.TotalSeconds) s"

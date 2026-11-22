@@ -182,6 +182,12 @@ $script:WriteZoneMinTracks = 8
 $script:WriteZoneF = 0.5
 $script:WriteZoneCapNs = 15
 $script:WriteZoneAccept = 0.5
+# 12.11 (version finale) : conseil d une correction par zones. Zones d une tete, de meme sens, qui couvrent au moins
+# WriteZoneHeadPct % de ses cylindres ecrits (perimetre du controle) : l ecart a l attendu porte sur presque toute la tete,
+# ce que donne un facteur de la disquette errone (il multiplie toute la courbe de la tete), et non la forme de la courbe
+# croisee ; une ligne de journal conseille de revoir ce facteur (Get-WriteZoneHeadAdvice, 170). Texte seulement : zones et
+# reecritures inchangees
+$script:WriteZoneHeadPct = 80
 # 12.11 rc8 (R17) : recalage de la courbe croisee par une relecture du lecteur cible (172). Decalage constant par tete, en
 # ns, ajoute a la courbe ecrite pour le lecteur cible : somme des estimations des TargetRecalMaxItems dernieres ecritures
 # relues / (n + p), p = (1 - TargetRecalFirstShare) / TargetRecalFirstShare, au plus +/- TargetRecalCapNs (Get-TargetRecalNs,
