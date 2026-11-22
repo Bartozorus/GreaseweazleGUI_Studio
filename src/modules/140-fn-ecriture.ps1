@@ -498,6 +498,9 @@ function Start-ImageWrite([switch]$NoWarmup) {
             $script:Rep.AsymGain = Get-WriteHeadSpecs $userTs $gp[0] $gp[1]
             Append-Log (Get-AsymGainText $script:Rep.AsymGain $(Get-WriteHeadSpecs $userTs ($null -ne $wf.SRel[0]) ($null -ne $wf.SRel[1])))
             $script:Rep.ZoneFix = [bool](Get-WriteZonePlan $true $cp ([int]$numWRepair.Value)).On
+            # Relecture rc7 : borne de la courbe decalee sur une zone (Get-WriteZoneSpec, 170) : celle de la courbe ecrite
+            # ($wf.Hard, borne de precompensation en place, Get-TargetTransferPlan)
+            $script:Rep.ZoneHard = [int]$wf.Hard
         }
         if ($script:ImageUnstable) { $script:Rep.Ignore = $script:ImageUnstable }
         $script:Rep.SrcWeak = $script:ImageSrcWeak; $script:Rep.NoJudge = $script:ImageNoJudge; $script:Rep.SrcOver = $script:ImageSrcOver

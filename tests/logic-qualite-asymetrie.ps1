@@ -36,6 +36,13 @@ $Wt = Get-TestRoot $Wt
 #           (Get-QualityCardModel reelle) : ligne, encre du jugement, grisee, mesure sans ligne ; Y5 place de la ligne
 #           (Set-QualityCardRoom reelle, positions lues dans 530, vrais controles jamais affiches) ; Y6 textes entiers a la
 #           taille par defaut (ligne de la carte, en-tetes et cases des colonnes, polices lues dans 195 et 500) ; Y7 I18n ;
+#  Z1 a Z8  12.11 rc7 (R16) : correction par zones, jeu fictif de 160 pistes passe par la vraie Invoke-WriteCheckAnalysis.
+#           Z1 piste isolee, deux voisines, 9 cylindres : aucune zone ; 10 cylindres : une zone ; trou de pistes faibles
+#           (plus de 2 cylindres : suite coupee) ; Z2 zones, plafond, commandes de la passe 1 ; Z3 acceptation, repli,
+#           passe 2, une seule tentative ; Z4 seuils d acceptation, 8 pistes saines relues au moins ; Z5 commandes de la
+#           rc6 sans correction, ecriture rapide ; Z6 profil decale, borne de la courbe ecrite (Rep.ZoneHard) ; Z7 verdict,
+#           carte (forme sans les zones quand rien d autre ne tient), libelles, passe interrompue par gw ou par
+#           « Arreter » (pistes effacees non reecrites dites vierges) ; Z8 I18n ;
 #  Q0 a Q7  equivalence avec la 12.10, avec -Before <racine d une copie de la source de la 12.10> (aucune dans le depot ;
 #           sans elle, une ligne « saute ») : les memes pistes factices passent par les fonctions des deux versions,
 #           chacune chargee dans sa portee. Q1 mesure, deux passes (lignes du tableau au signe pres, derniere mesure,
@@ -47,9 +54,9 @@ $Wt = Get-TestRoot $Wt
 # controles WinForms jamais affiches (ListView, ToolTip) ; bouchons pour le journal, la carte, la lecture des fichiers SCP
 # et la chaine d etapes. Aucun gw, aucune fenetre, aucune compilation.
 # Non couvert : la ligne de journal du controle dans son enchainement reel (Complete-WriteCheck) ; le dessin de la case
-# (Draw-AlSubItem) et celui de la carte (Render-QualityCard) ; R10 : la valeur de la constante AsymExpGain et des
-# tolerances (relevees sur un essai reel, hors depot), l exces memorise par la vraie ecriture (logic-cible-facteur, cas
-# X1 a X3).
+# (Draw-AlSubItem) et celui de la carte (Render-QualityCard) ; R10 : la valeur du gain de repli AsymExpGainFallback, des
+# tolerances et des parametres des zones (relevees sur trois essais reels, hors depot), l exces memorise par la vraie
+# ecriture (logic-cible-facteur, cas X1 a X4) ; l enchainement reel des commandes gw d une correction par zones.
 $here = Get-TestWorkDir $MyInvocation.MyCommand.Path $Work
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 $script:NChk = 0; $script:Fail = 0; $script:FailIds = @()
@@ -152,9 +159,9 @@ $defsNew = New-Gen $Wt $genNew $fnNew $asgNew @('$script:CalHardMaxNs')
 # 12.11 rc4 (R10) : fonction du controle (170) absente de la source de la 12.10 : chargee a part de $fnCommon, que les
 # deux versions partagent ; la vraie Show-WriteCheckTable ne l appelle que pour un controle qui porte Rep.AsymExcess.
 # 12.11 rc7 (R16) : de meme les fonctions de la correction par zones (170 ; Get-SpecValue et Build-CurveProfile de 230) ;
-# Complete-WriteCheck reelle, gardee a part (cas Z9, dans une portee avec ses bouchons)
+# Complete-WriteCheck et (relecture rc7) Stop-WriteCheck reelles, gardees a part (cas Z7, dans une portee avec leurs bouchons)
 $fnX = @('Get-RepAsymExcess', 'Get-RepAsymGain', 'Get-AsymGainText', 'Get-WriteZoneGap', 'Get-WriteZoneScan', 'Get-WriteZoneSpec', 'Get-RepHeadSpec', 'Find-WriteZones', 'Format-WriteZone',
-         'Start-WriteZonePass', 'Complete-WriteZonePass', 'Get-WriteZoneCount', 'Invoke-RepNextCmd', 'Complete-WriteCheck')
+         'Start-WriteZonePass', 'Complete-WriteZonePass', 'Get-WriteZoneCount', 'Invoke-RepNextCmd', 'Complete-WriteCheck', 'Stop-WriteCheck')
 $defsX = @{}
 foreach ($pm in @(@('170-fn-controle-ecriture.ps1', $fnX), @('230-fn-calib-courbe.ps1', @('Get-SpecValue', 'Build-CurveProfile')))) {
     foreach ($fd in @((Get-Ast (Join-Path $mods $pm[0])).FindAll({ param($x) $x -is $tFn }, $false))) { if (@($pm[1]) -contains $fd.Name) { $defsX[$fd.Name] = $fd.Extent.Text } }
@@ -162,7 +169,7 @@ foreach ($pm in @(@('170-fn-controle-ecriture.ps1', $fnX), @('230-fn-calib-courb
 $missX = @(@($fnX + @('Get-SpecValue', 'Build-CurveProfile')) | Where-Object { -not $defsX.ContainsKey($_) })
 if ($missX.Count -gt 0) { throw "fonctions $($missX -join ', ') introuvables sous $Wt (lots R10 et R16 absents de cette source ?)" }
 $genX = Join-Path $here 'gen-r10.ps1'
-[System.IO.File]::WriteAllText($genX, ((@($defsX.Keys | Where-Object { @('Invoke-RepNextCmd', 'Complete-WriteCheck') -notcontains $_ } | Sort-Object | ForEach-Object { $defsX[$_] }) -join "`r`n`r`n") + "`r`n"), $utf8Bom)
+[System.IO.File]::WriteAllText($genX, ((@($defsX.Keys | Where-Object { @('Invoke-RepNextCmd', 'Complete-WriteCheck', 'Stop-WriteCheck') -notcontains $_ } | Sort-Object | ForEach-Object { $defsX[$_] }) -join "`r`n`r`n") + "`r`n"), $utf8Bom)
 . $genX
 
 # ---------------------------------------------------------------- remplacants et controles jamais affiches
@@ -449,9 +456,9 @@ function New-TrackX([double]$d3, [double]$d4, [double]$cell = 2000.0) { return ,
 function New-MsX([int]$n, [double]$d3, [double]$d4, [double]$excess) { return @(1..$n | ForEach-Object { $m = Get-TrackMetrics (New-TrackX $d3 $d4); Set-TrackAsymExpected $m $excess 2.0; $m }) }
 function Test-NearX($a, [double]$b) { return ($null -ne $a -and [math]::Abs([double]$a - $b) -lt 1e-9) }
 $x1 = @((Get-AsymExpected 30 2000 2.0), (Get-AsymExpected (-20) 2000 2.0), (Get-AsymExpected 30 1888 2.0))
-$x1g = @((Get-AsymExpected 30 2000), (Get-AsymExpected 30 2000 1.58), (Get-AsymExpected 30 2000 0), (Get-AsymExpected 30 2000 (-1)), (Get-AsymExpected 30 2000 ([double]::NaN)), (Get-AsymExpected 30 2000 ([double]::PositiveInfinity)))
-$x1b = ((Test-NearX $x1g[0] 0.0255) -and (Test-NearX $x1g[1] 0.0237) -and (Test-NearX $x1g[2] 0.0255) -and (Test-NearX $x1g[3] 0.0255) -and (Test-NearX $x1g[4] 0.0255) -and (Test-NearX $x1g[5] 0.0255) -and [double]$script:AsymExpGainFallback -eq 1.7 -and -not (Get-Variable -Name AsymExpGain -Scope Script -ErrorAction SilentlyContinue))
-Chk 'X1' ((Test-NearX $x1[0] 0.030) -and (Test-NearX $x1[1] (-0.020)) -and (Test-NearX $x1[2] (60.0 / 1888)) -and $null -eq (Get-AsymExpected 30 0) -and $null -eq (Get-AsymExpected 30 ([double]::NaN)) -and $x1b -and $script:AsymExpOkTol -eq 0.005 -and $script:AsymExpNearTol -eq 0.02 -and $script:AsymExpInPct -eq 80) "asymetrie attendue = g x exces / cellule, g = 2 : +30 ns sur 2 000 ns -> $($x1[0].ToString('0.000', $inv)), -20 ns -> $($x1[1].ToString('0.000', $inv)), +30 ns sur 1 888 ns -> $($x1[2].ToString('0.0000', $inv)) ; g = 1,58 (2 x pente 0,79) -> $($x1g[1].ToString('0.0000', $inv)) ; sans gain, gain nul, negatif, NaN ou infini : repli 1,7 -> $($x1g[0].ToString('0.0000', $inv)) ($x1b) ; sans cellule mesuree : aucune ; tolerances de 040 : conforme a $($script:AsymExpOkTol), proche a $($script:AsymExpNearTol), $($script:AsymExpInPct) % des pistes"
+$x1g = @((Get-AsymExpected 30 2000), (Get-AsymExpected 30 2000 1.63), (Get-AsymExpected 30 2000 0), (Get-AsymExpected 30 2000 (-1)), (Get-AsymExpected 30 2000 ([double]::NaN)), (Get-AsymExpected 30 2000 ([double]::PositiveInfinity)))
+$x1b = ((Test-NearX $x1g[0] 0.0255) -and (Test-NearX $x1g[1] 0.02445) -and (Test-NearX $x1g[2] 0.0255) -and (Test-NearX $x1g[3] 0.0255) -and (Test-NearX $x1g[4] 0.0255) -and (Test-NearX $x1g[5] 0.0255) -and [double]$script:AsymExpGainFallback -eq 1.7 -and -not (Get-Variable -Name AsymExpGain -Scope Script -ErrorAction SilentlyContinue))
+Chk 'X1' ((Test-NearX $x1[0] 0.030) -and (Test-NearX $x1[1] (-0.020)) -and (Test-NearX $x1[2] (60.0 / 1888)) -and $null -eq (Get-AsymExpected 30 0) -and $null -eq (Get-AsymExpected 30 ([double]::NaN)) -and $x1b -and $script:AsymExpOkTol -eq 0.005 -and $script:AsymExpNearTol -eq 0.02 -and $script:AsymExpInPct -eq 80) "asymetrie attendue = g x exces / cellule, g = 2 : +30 ns sur 2 000 ns -> $($x1[0].ToString('0.000', $inv)), -20 ns -> $($x1[1].ToString('0.000', $inv)), +30 ns sur 1 888 ns -> $($x1[2].ToString('0.0000', $inv)) ; g = 1,63 (2 x pente fictive 0,815) -> $($x1g[1].ToString('0.00000', $inv)) ; sans gain, gain nul, negatif, NaN ou infini : repli 1,7 -> $($x1g[0].ToString('0.0000', $inv)) ($x1b) ; sans cellule mesuree : aucune ; tolerances de 040 : conforme a $($script:AsymExpOkTol), proche a $($script:AsymExpNearTol), $($script:AsymExpInPct) % des pistes"
 $mX = Get-TrackMetrics (New-TrackX 0.016 0.018); $rawX = "$([int]$mX.Score)/$([int]$mX.Level)"
 Set-TrackAsymExpected $mX 30 2.0
 $mZ = Get-TrackMetrics (New-TrackX 0.016 0.018); Set-TrackAsymExpected $mZ 0 2.0
@@ -692,7 +699,7 @@ Chk 'Y5' $y5 $y5d
 # Y6 : textes entiers a la taille par defaut : ligne de la carte (police et largeur lues dans 195 et 530), en francais et en
 # anglais ; nom de lecteur long : forme courte ; en-tetes et cases des colonnes (polices de 500, largeurs de Set-AlExpColumns)
 $mCard = [regex]::Match($s530, "\`$pnlQualCard\.Size = '(\d+),")
-$okSrc = ($mCard.Success -and $defsY['Render-QualityCard'] -match "\`$fSmall = Get-QualFont 'Segoe UI' 8\.25" -and $defsY['Render-QualityCard'] -match 'Get-QualFitText \$m\.Line3 \$m\.Line3Short \$fSmall \(\$w - 22\)')
+$okSrc = ($mCard.Success -and $defsY['Render-QualityCard'] -match "\`$fSmall = Get-QualFont 'Segoe UI' 8\.25" -and $defsY['Render-QualityCard'] -match 'Get-QualFitText \$m\.Line3 \$m\.Line3Short \$fSmall \(\$w - 22\) \$m\.Line3More')
 $y6 = $false; $y6d = 'police ou largeur de la carte introuvable'
 if ($okSrc) {
     $avail = [int]$mCard.Groups[1].Value - 22
@@ -701,7 +708,7 @@ if ($okSrc) {
     $wid = { param($s) [System.Windows.Forms.TextRenderer]::MeasureText($s, $fS, (New-Object System.Drawing.Size(32000, 100)), $tfY).Width }
     $sW = @{ N = 160; NExp = 160; Judge = 'off'; ExpMed = -0.123; MeasMed = -0.456; GapNs = 128.4 }
     $forW = @{ Target = 'Lecteur B-235'; Src = 'Banc 1' }; $forL = @{ Target = ('Lecteur au nom vraiment très long ' * 2); Src = 'Banc 1' }
-    $worstL = 0; $worstS = 0; $longPick = @()
+    $worstL = 0; $worstS = 0; $longPick = @(); $zoneCut = @()
     foreach ($lang in 'fr', 'en') {
         $script:Lang = $lang
         foreach ($g in 128.4, -128.4) {
@@ -709,6 +716,10 @@ if ($okSrc) {
             $lw = & $wid (Get-AsymExpLine $sW $forW); if ($lw -gt $worstL) { $worstL = $lw }
             $sl = Get-AsymExpLine $sW $forL -Short; $swd = & $wid $sl; if ($swd -gt $worstS) { $worstS = $swd }
             if ((Get-QualFitText (Get-AsymExpLine $sW $forL) $sl $fS $avail) -cne $sl) { $longPick += "$lang/$g" }
+            # Relecture rc7 (R16) : zones corrigees a la suite (formes de Show-WriteCheckTable, 170) : la forme retenue tient
+            $zt = (T ' ; zones corrigées : {0} sur {1}') -f '10', '10'; $sb = Get-AsymExpLine $sW $forW -Short
+            $zPick = Get-QualFitText ((Get-AsymExpLine $sW $forW) + $zt) ($sb + $zt) $fS $avail @($sb)
+            if ((& $wid $zPick) -gt $avail) { $zoneCut += "$lang/$g" }
         }
     }
     $script:Lang = 'fr'
@@ -726,8 +737,8 @@ if ($okSrc) {
         }
         $script:Lang = 'fr'; $gr.Dispose(); $bmp.Dispose(); $fB.Dispose(); $fM.Dispose()
     } else { $cutC += 'polices ou colonnes introuvables' }
-    $y6 = ($worstL -le $avail -and $worstS -le $avail -and $longPick.Count -eq 0 -and $cutC.Count -eq 0)
-    $y6d = "ligne de la carte, lecteur « Lecteur B-235 », valeurs a 3 decimales et 128 ns, francais et anglais : $worstL px ; forme courte : $worstS px ; pour $avail px utiles ; nom long : forme courte retenue (en defaut : $(if ($longPick.Count) { $longPick -join ' ' } else { 'aucun' })) ; en-tetes et cases des colonnes coupes : $(if ($cutC.Count) { $cutC -join ', ' } else { 'aucun' })"
+    $y6 = ($worstL -le $avail -and $worstS -le $avail -and $longPick.Count -eq 0 -and $cutC.Count -eq 0 -and $zoneCut.Count -eq 0)
+    $y6d = "ligne de la carte, lecteur « Lecteur B-235 », valeurs a 3 decimales et 128 ns, francais et anglais : $worstL px ; forme courte : $worstS px ; pour $avail px utiles ; nom long : forme courte retenue (en defaut : $(if ($longPick.Count) { $longPick -join ' ' } else { 'aucun' })) ; avec « zones corrigees : 10 sur 10 » : forme retenue entiere (en defaut : $(if ($zoneCut.Count) { $zoneCut -join ' ' } else { 'aucun' })) ; en-tetes et cases des colonnes coupes : $(if ($cutC.Count) { $cutC -join ', ' } else { 'aucun' })"
     $fS.Dispose()
 }
 Chk 'Y6' $y6 $y6d
@@ -801,7 +812,17 @@ $r1t = New-ZRep $zTen
 $null = Invoke-WriteCheckAnalysis
 $z1t = @(Get-WriteZoneScan $r1t)
 $z1b = ($z1t.Count -eq 1 -and [int]$z1t[0].H -eq 1 -and [int]$z1t[0].C0 -eq 10 -and [int]$z1t[0].C1 -eq 19 -and [int]$z1t[0].Dz -eq -10 -and (Get-ZZones $r1t) -ceq 'h1 c10-19 20.0 -10 pending')
-Chk 'Z1' ($z1a -and $z1b) "piste isolee a +40 ns (30.0), deux voisines a -40 ns (50.1 et 51.1), suite de 9 cylindres a +20 ns (c10-18 tete 1) : aucune zone, aucune commande, controle termine ($z1a) ; la meme suite sur 10 cylindres : zone c10-19 tete 1, correction -10 ns, reecrite ($z1b)"
+# Relecture rc7 : cylindres sans piste retenue (pistes faibles) au milieu d une suite : 3 (plus de 2) la coupent en deux
+# suites trop courtes (c10-14 et c18-24 : aucune zone) ; 2 la laissent entiere (c10-24, 13 pistes retenues)
+$zHole = { param($c, $h) if ($h -eq 0 -and $c -ge 10 -and $c -le 24) { 20 } else { 0 } }
+$r1h = New-ZRep $zHole @('15.0', '16.0', '17.0')
+$null = Invoke-WriteCheckAnalysis
+$z1h3 = @(Get-WriteZoneScan $r1h)
+$r1h = New-ZRep $zHole @('15.0', '16.0')
+$null = Invoke-WriteCheckAnalysis
+$z1h2 = @(Get-WriteZoneScan $r1h)
+$z1c = ($z1h3.Count -eq 0 -and $z1h2.Count -eq 1 -and [int]$z1h2[0].C0 -eq 10 -and [int]$z1h2[0].C1 -eq 24 -and [int]$z1h2[0].N -eq 13)
+Chk 'Z1' ($z1a -and $z1b -and $z1c) "piste isolee a +40 ns (30.0), deux voisines a -40 ns (50.1 et 51.1), suite de 9 cylindres a +20 ns (c10-18 tete 1) : aucune zone, aucune commande, controle termine ($z1a) ; la meme suite sur 10 cylindres : zone c10-19 tete 1, correction -10 ns, reecrite ($z1b) ; c10-24 a +20 ns avec 3 pistes faibles au milieu : $($z1h3.Count) zone ; avec 2 : $(@($z1h2 | ForEach-Object { "c$($_.C0)-$($_.C1), $($_.N) pistes" }) -join ' ; ') ($z1c)"
 
 # Z2 : zones detectees, correction bornee et plafonnee ; une piste isolee et deux voisines dans une zone ne la cassent pas ;
 # commandes gw exactes de la passe 1 (pistes faibles dans et hors zone)
@@ -860,12 +881,13 @@ Chk 'Z3' ($z3a -and $z3b -and $z3c -and $z3d) "relecture de la passe 1 : $(Get-Z
 
 # Z4 : critere d acceptation de part et d autre de ses seuils (Complete-WriteZonePass reelle, zone de la tete 0 c20-39,
 # E0 = +14, correction -7) : rapprochee de 3,6 ns (gardee) ou de 3,4 (reprise) ; de l autre cote a -7,9 ns (gardee) ou
-# -8,1 (reprise) ; aucune piste saine relue (reprise)
-function Test-ZAccept([double]$e1, [switch]$Bad) {
+# -8,1 (reprise) ; aucune piste saine relue (reprise). Relecture rc7 : jugee sur 8 pistes saines relues au moins (12 des 20
+# pistes devenues faibles : gardee ; 13 : reprise, ecart pourtant rapproche)
+function Test-ZAccept([double]$e1, [switch]$Bad, [int]$NWeak = 0) {
     $ef = { param($c, $h) if ($h -eq 0 -and $c -ge 20 -and $c -le 39) { 14 } else { 0 } }
     $r = New-ZRep $ef
     $null = Invoke-WriteCheckAnalysis
-    $weakNow = @(if ($Bad) { @($r.Zones[0].Tracks) })
+    $weakNow = @(if ($Bad) { @($r.Zones[0].Tracks) } elseif ($NWeak -gt 0) { @($r.Zones[0].Tracks) | Select-Object -First $NWeak })
     $script:ZE1 = $e1
     Set-ZReads $r { param($c, $h) if ($h -eq 0 -and $c -ge 20 -and $c -le 39) { $script:ZE1 } else { 0 } } $weakNow
     $script:RLog.Clear()
@@ -873,8 +895,10 @@ function Test-ZAccept([double]$e1, [switch]$Bad) {
     return [string]$r.Zones[0].State
 }
 $z4 = @((Test-ZAccept 10.4), (Test-ZAccept 10.6), (Test-ZAccept (-7.9)), (Test-ZAccept (-8.1)), (Test-ZAccept 7 -Bad))
-$z4l = @($script:RLog | Where-Object { $_ -like "Zone écartée de l'attendu, tête 0 c20-39 : écart médian +14,0 ns avant la correction de -7 ns, aucune piste saine relue après*" }).Count -eq 1
-Chk 'Z4' (($z4 -join ' ') -ceq 'ok back ok back back' -and $z4l) "ecart median apres la correction de -7 ns : +10,4 / +10,6 / -7,9 / -8,1 / pistes toutes faibles -> $($z4 -join ' / ') (ok back ok back back attendu) ; ligne de journal sans piste saine ($z4l)"
+$z4l = @($script:RLog | Where-Object { $_ -ceq "Zone écartée de l'attendu, tête 0 c20-39 : écart médian +14,0 ns avant la correction de -7 ns, 0 piste(s) saine(s) relue(s) après, il en faut 8 : correction reprise, courbe d'origine sur ces cylindres, pistes réécrites à la passe suivante." }).Count -eq 1
+$z4 += @((Test-ZAccept 7 -NWeak 12), (Test-ZAccept 7 -NWeak 13))
+$z4m = @($script:RLog | Where-Object { $_ -like "Zone écartée de l'attendu, tête 0 c20-39 : écart médian +14,0 ns avant la correction de -7 ns, 7 piste(s) saine(s) relue(s) après, il en faut 8 :*" }).Count -eq 1
+Chk 'Z4' (($z4 -join ' ') -ceq 'ok back ok back back ok back' -and $z4l -and $z4m) "ecart median apres la correction de -7 ns : +10,4 / +10,6 / -7,9 / -8,1 / pistes toutes faibles / +7 avec 8 pistes saines sur 20 / +7 avec 7 -> $($z4 -join ' / ') (ok back ok back back ok back attendu) ; lignes de journal sans piste saine ($z4l) et avec 7 pistes saines ($z4m)"
 
 # Z5 : sans correction par zones, commandes de la rc6 : case decochee (Rep.ZoneFix faux), ecriture meme lecteur (sans exces),
 # une seule passe de reecriture, garde-fou declenche ; ecriture rapide : avec zones, profil commun retire de la base et une
@@ -910,7 +934,20 @@ Chk 'Z5' (($o5 | ForEach-Object { [int]$_ }) -join '' -ceq '111111') "case decoc
 # augmentee, elements autres que c=ns gardes, zone au-dela de la derniere entree, sans zone : meme chaine
 $z6 = @((Get-WriteZoneSpec '0=40:40=80' @(@{ C0 = 20; C1 = 39; Dz = 500 })), (Get-WriteZoneSpec '0=480' @(@{ C0 = 0; C1 = 9; Dz = 10 })), (Get-WriteZoneSpec '0=480' @(@{ C0 = 0; C1 = 9; Dz = -15 })),
         (Get-WriteZoneSpec 'type=mfm:0=0:10=60' @(@{ C0 = 5; C1 = 14; Dz = 5 })), (Get-WriteZoneSpec '0=40' @(@{ C0 = 70; C1 = 79; Dz = -10 })), (Get-WriteZoneSpec '0=40:40=80' @()), (Get-WriteZoneSpec '0=20' @(@{ C0 = 0; C1 = 9; Dz = -30 })))
-Chk 'Z6' (($z6 -join ' | ') -ceq '0=40:20=470:40=80 | 0=480 | 0=465:10=480 | type=mfm:0=0:10=65:15=60 | 0=40:70=30:80=40 | 0=40:40=80 | 0=0:10=20') "profils decales : $($z6 -join ' | ')"
+# Relecture rc7 : borne de la courbe ecrite transmise (Rep.ZoneHard, 400 ns ici) : hausse arretee a la borne, valeur deja
+# au-dessus jamais augmentee mais abaissee ; une zone dont la hausse ne change rien a cause de la borne n est pas retenue
+# (Find-WriteZones) ; commande de la passe 1 bornee
+$z6 += @((Get-WriteZoneSpec '0=390' @(@{ C0 = 0; C1 = 9; Dz = 15 }) 400), (Get-WriteZoneSpec '0=420' @(@{ C0 = 0; C1 = 9; Dz = 10 }) 400), (Get-WriteZoneSpec '0=420' @(@{ C0 = 0; C1 = 9; Dz = -15 }) 400), (Get-WriteZoneSpec '0=390' @(@{ C0 = 0; C1 = 9; Dz = 15 }) 0))
+$zLow = { param($c, $h) if ($h -eq 1 -and $c -ge 40 -and $c -le 59) { -20 } else { 0 } }
+$r6a = New-ZRep $zLow @() @{ HeadPrecomp = @{ 0 = '0=40:40=80'; 1 = '0=0:40=400' }; ZoneHard = 400 }
+$null = Invoke-WriteCheckAnalysis
+$z6a = @(Find-WriteZones $r6a).Count
+$r6a.ZoneHard = 0; $z6a0 = @(Find-WriteZones $r6a).Count
+$r6b = New-ZRep $zLow @() @{ HeadPrecomp = @{ 0 = '0=40:40=80'; 1 = '0=0:40=395' }; ZoneHard = 400 }
+$null = Invoke-WriteCheckAnalysis
+$z6b = @(Get-ZCmds $r6b | Where-Object { $_ -like 'write *' })
+$z6ok = ($z6a -eq 0 -and $z6a0 -eq 1 -and $r6a.Pending.Count -eq 0 -and $z6b.Count -eq 1 -and $z6b[0] -ceq "write --drive=0 --retries=10 --precomp 0=0:40=400:60=395 --tracks=c=40-59:h=1 `"image-factice.adf`"")
+Chk 'Z6' (($z6 -join ' | ') -ceq '0=40:20=470:40=80 | 0=480 | 0=465:10=480 | type=mfm:0=0:10=65:15=60 | 0=40:70=30:80=40 | 0=40:40=80 | 0=0:10=20 | 0=400:10=390 | 0=420 | 0=405:10=420 | 0=405:10=390' -and $z6ok) "profils decales : $($z6 -join ' | ') ; borne de 400 ns : zone sans effet ecartee ($z6a zone ; sans borne transmise, 470 ns : $z6a0), reecriture « $(if ($z6b.Count) { $z6b[0] } else { 'aucune' }) » ($z6ok)"
 
 # Z7 : verdict de fin et carte (vraies Complete-WriteCheck et Show-WriteCheckTable, bouchons de l interface) : zones corrigees
 # sur combien ; passe 1 interrompue par gw : zones reecrites non jugees ; libelle de la passe (vraie Invoke-RepNextCmd)
@@ -934,6 +971,15 @@ $r.Weak = @(); $script:RLog.Clear()
 $t7 = Invoke-ZComplete $r
 $res7 = $script:LastRes
 $z7a = ($t7 -ceq "CONTRÔLE APRÈS ÉCRITURE : 160/160 pistes saines, après réécriture de 62 piste(s) en 2 passe(s) ; zones écartées de l'attendu corrigées : 1 sur 3 (relu par le lecteur Banc 1, pas par le lecteur cible Atelier 2)" -and @($script:RLog) -ccontains $t7 -and ([string]$res7.AsymLine).EndsWith(' ; zones corrigées : 1 sur 3') -and ([string]$res7.AsymLineShort).EndsWith(' ; zones corrigées : 1 sur 3'))
+# Relecture rc7 : carte (vraie Get-QualityCardModel, vraie Get-QualFitText) : forme courte sans les zones en derniere forme,
+# retenue quand aucune autre ne tient (pas de ligne coupee) ; large : forme longue avec les zones
+$v7 = @{ State = 'result'; Kind = 'check'; Reason = ''; At = [datetime]::new(2026, 11, 11, 10, 0, 0); Has = $true; Pass = 0; Drive = ''; Heads = ''; Revs = 0; NCyl = 0; RunText = ''; Res = $res7 }
+$c7 = Get-QualityCardModel $v7
+$bare7 = [string]$res7.AsymLineBare
+$f7 = New-Object System.Drawing.Font('Segoe UI', [single]8.25)
+$z7d = ($bare7 -and ([string]$res7.AsymLineShort) -ceq ($bare7 + ' ; zones corrigées : 1 sur 3') -and @($c7.Line3More).Count -eq 1 -and [string]@($c7.Line3More)[0] -ceq $bare7 -and
+        (Get-QualFitText $c7.Line3 $c7.Line3Short $f7 32000 $c7.Line3More) -ceq [string]$c7.Line3 -and (Get-QualFitText $c7.Line3 $c7.Line3Short $f7 40 $c7.Line3More) -ceq $bare7)
+$f7.Dispose()
 $r = New-ZRep $zMain $zWeak
 $null = Invoke-WriteCheckAnalysis
 $lblWCal = [pscustomobject]@{ Text = '' }
@@ -946,8 +992,33 @@ Invoke-RepNextCmd; $lab += $lblWCal.Text; Invoke-RepNextCmd; $lab += $lblWCal.Te
 $z7b = (($lab -join ' | ') -ceq "Contrôle après écriture : effacement haute fréquence avant la réécriture 1/3 de 62 piste(s) (pistes faibles et zones écartées de l'attendu)... | Contrôle après écriture : réécriture 1/3 de 62 piste(s) (pistes faibles et zones écartées de l'attendu)...")
 $script:RLog.Clear()
 $t7g = Invoke-ZComplete $r -GwError
-$z7c = ($t7g -like "*; zones écartées de l'attendu : 0 corrigée(s) sur 3, 3 réécrite(s) avec la correction sans être jugée(s) (relu par le lecteur Banc 1, pas par le lecteur cible Atelier 2)")
-Chk 'Z7' ($z7a -and $z7b -and $z7c) "verdict : « $(Get-Short $t7 200) » ; ligne de la carte terminee par « zones corrigees : 1 sur 3 » ($z7a) ; libelles de la passe 1 avec des zones ($z7b) ; passe interrompue par gw : « $(Get-Short $t7g 90) » ($z7c)"
+$z7c = ($t7g -like "*; zones écartées de l'attendu : 0 corrigée(s) sur 3, 3 non jugée(s), leurs pistes ont pu être réécrites avec la correction (relu par le lecteur Banc 1, pas par le lecteur cible Atelier 2)")
+# Relecture rc7 : « Arreter » pendant la passe 1 (vraie Stop-WriteCheck) : tete 0 effacee et reecrite, tete 1 effacee
+# seulement : ses pistes (zone c0-19 et piste faible 60.1) sont dites vierges ; arret avant tout effacement : rien
+function Invoke-ZStop($rep) {
+    $gs = Join-Path $here 'gen-r16-arret.ps1'
+    [System.IO.File]::WriteAllText($gs, ($defsX['Stop-WriteCheck'] + "`r`n"), $utf8Bom)
+    function Set-WCalVerdict([string]$t, [string]$k) { }
+    function Exit-CheckTab { }
+    . $gs
+    $script:Restore = $null; $script:Rep = $rep
+    Stop-WriteCheck
+}
+$r = New-ZRep $zMain $zWeak
+$null = Invoke-WriteCheckAnalysis
+$el7 = $script:EraseLog
+foreach ($k in @($r.Weak)) { $el7.Erased[[string]$k] = $true; if (([string]$k).EndsWith('.0')) { $el7.Written[[string]$k] = $true } }
+$script:RLog.Clear()
+Invoke-ZStop $r
+$w7e = "Contrôle après écriture : piste(s) effacée(s) en haute fréquence et non réécrite(s) après l'arrêt de gw : $(Format-TrackList (Sort-TrackKeys @(@(0..19 | ForEach-Object { "$_.1" }) + @('60.1')))). Elles sont vierges sur la disquette : réécrivez l'image."
+$log7e = @($script:RLog)
+$r = New-ZRep $zMain $zWeak
+$null = Invoke-WriteCheckAnalysis
+$script:RLog.Clear()
+Invoke-ZStop $r
+$log7f = @($script:RLog)
+$z7e = ($log7e.Count -eq 2 -and $log7e[0] -ceq 'Contrôle après écriture interrompu.' -and $log7e[1] -ceq $w7e -and $null -eq $script:Rep -and ($log7f -join '|') -ceq 'Contrôle après écriture interrompu.')
+Chk 'Z7' ($z7a -and $z7b -and $z7c -and $z7d -and $z7e) "verdict : « $(Get-Short $t7 200) » ; ligne de la carte terminee par « zones corrigees : 1 sur 3 » ($z7a) ; libelles de la passe 1 avec des zones ($z7b) ; passe interrompue par gw (ici avant toute commande) : « $(Get-Short $t7g 90) », sans dire les pistes reecrites ($z7c) ; carte : forme courte sans les zones quand rien d autre ne tient ($z7d) ; Arreter pendant la passe 1 : pistes effacees non reecrites dites vierges, rien avant tout effacement ($z7e)"
 
 # Z8 : textes du lot dans la section « rc7 » de 019, memes jalons
 $iRc7 = $t019.IndexOf('# --- rc7 :'); $badZ = @()

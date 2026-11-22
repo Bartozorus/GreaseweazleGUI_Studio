@@ -422,6 +422,8 @@ function Get-WriteZoneScan($rep) {
     # signe de la suite et de WriteZoneMinNs ns au moins ; une piste isolee, ou deux voisines, ne font ni ne defont une zone.
     # Correction Dz : arrondi (au pair) de -WriteZoneF x E0, bornee a +/- WriteZoneCapNs. Rend les zones une a une :
     # @{ H ; C0 ; C1 ; E0 ; Dz ; N (pistes retenues) ; State 'pending' ; E1 ; Tracks : pistes de la zone, Start-WriteZonePass }
+    # Relecture rc7 : un cylindre sans piste retenue (piste faible, ignoree, non jugee, hors du controle) n est pas marque :
+    # une suite s arrete apres plus de WriteZoneGap cylindres sans piste retenue, comme apres des cylindres non marques
     $sMin = [double]$script:WriteZoneMinNs; $hw = [int]$script:WriteZoneHalfWin; $cap = [double]$script:WriteZoneCapNs
     foreach ($h in 0, 1) {
         $pl = New-Object System.Collections.Generic.List[object]
@@ -444,7 +446,7 @@ function Get-WriteZoneScan($rep) {
         $i = 0
         while ($i -lt $n) {
             $j = $i
-            while ($j + 1 -lt $n -and $sg[$j + 1] -eq $sg[$i]) { $j++ }
+            while ($j + 1 -lt $n -and $sg[$j + 1] -eq $sg[$i] -and ([int]$pts[$j + 1].C - [int]$pts[$j].C - 1) -le [int]$script:WriteZoneGap) { $j++ }
             if ($sg[$i] -ne 0) {
                 $lr = if ($runs.Count -gt 0) { $runs[$runs.Count - 1] } else { $null }
                 if ($lr -and [int]$lr.S -eq $sg[$i] -and ([int]$pts[$i].C - [int]$pts[[int]$lr.I1].C - 1) -le [int]$script:WriteZoneGap) { $lr.I1 = $j }
@@ -464,11 +466,13 @@ function Get-WriteZoneScan($rep) {
     }
 }
 
-function Get-WriteZoneSpec([string]$spec, $zones) {
+function Get-WriteZoneSpec([string]$spec, $zones, [int]$hard = 0) {
     # 12.11 rc7 (R16) : profil --precomp $spec d une tete, decale de Dz ns sur les cylindres C0 a C1 de chaque zone de
-    # $zones (celles de cette tete) : W'(c) = W(c) + Dz, au moins 0, au plus CalHardMaxNs (470 ns, 560) ou W(c) s il est deja
-    # au-dessus (une valeur n est jamais augmentee au-dela) ; une valeur nulle reste nulle ; ailleurs, valeurs inchangees.
-    # Elements autres que c=ns gardes en tete. Sans zone : $spec rendu tel quel (meme chaine, commandes de la rc6)
+    # $zones (celles de cette tete) : W'(c) = W(c) + Dz, au moins 0, au plus $hard ou W(c) s il est deja au-dessus (une
+    # valeur n est jamais augmentee au-dela) ; une valeur nulle reste nulle ; ailleurs, valeurs inchangees. Elements autres
+    # que c=ns gardes en tete. Sans zone : $spec rendu tel quel (meme chaine, commandes de la rc6). Relecture rc7 : $hard,
+    # borne de la courbe ecrite (Rep.ZoneHard : celle de Get-WriteFactorPlan, borne de precompensation en place, comme la
+    # courbe ecrite pour le lecteur cible) ; 0 ou absente : CalHardMaxNs (470 ns, 560)
     $zs = @($zones | Where-Object { $_ })
     if (-not $spec -or $zs.Count -eq 0) { return $spec }
     $pre = @(); $last = 0
@@ -480,7 +484,7 @@ function Get-WriteZoneSpec([string]$spec, $zones) {
     foreach ($z in $zs) { if ([int]$z.C1 + 2 -gt $n) { $n = [int]$z.C1 + 2 } }
     $v = New-Object int[] $n
     for ($c = 0; $c -lt $n; $c++) { $v[$c] = [int](Get-SpecValue $spec $c) }
-    $hard = [int]$script:CalHardMaxNs
+    if ($hard -le 0) { $hard = [int]$script:CalHardMaxNs }
     foreach ($z in $zs) {
         for ($c = [math]::Max(0, [int]$z.C0); $c -le [int]$z.C1; $c++) {
             $w = $v[$c]
@@ -509,7 +513,7 @@ function Find-WriteZones($rep) {
     if (-not $rep -or -not $rep.ZoneFix -or -not $rep.AsymExcess -or [int]$rep.Max -lt 2 -or $rep.Safety) { return }
     foreach ($z in @(Get-WriteZoneScan $rep)) {
         $sp = Get-RepHeadSpec $rep ([int]$z.H)
-        if (-not $sp -or (Get-WriteZoneSpec $sp @($z)) -ceq $sp) { continue }
+        if (-not $sp -or (Get-WriteZoneSpec $sp @($z) ([int]$rep.ZoneHard)) -ceq $sp) { continue }
         $z
     }
 }
@@ -535,7 +539,7 @@ function Start-WriteZonePass($rep, $zs) {
     $rep.HeadPrecompOrig = @{ 0 = $rep.HeadPrecomp[0]; 1 = $rep.HeadPrecomp[1] }
     foreach ($h in 0, 1) {
         $hz = @($zs | Where-Object { [int]$_.H -eq $h })
-        if ($hz.Count -gt 0) { $rep.HeadPrecomp[$h] = Get-WriteZoneSpec ([string]$rep.HeadPrecompOrig[$h]) $hz }
+        if ($hz.Count -gt 0) { $rep.HeadPrecomp[$h] = Get-WriteZoneSpec ([string]$rep.HeadPrecompOrig[$h]) $hz ([int]$rep.ZoneHard) }
     }
     $all = New-Object System.Collections.Generic.List[string]
     foreach ($z in $zs) {
@@ -559,19 +563,21 @@ function Complete-WriteZonePass($rep, $weak) {
     # d au moins la moitie du decalage) et E1 x signe(E0) >= -WriteZoneMinNs (pas plus de 8 ns de l autre cote) ; sinon, ou
     # sans piste saine relue, reprise (State 'back') : profil d origine sur ses cylindres et ses pistes ajoutees aux pistes
     # faibles de la passe suivante. Une seule tentative par zone. Profils des passes suivantes : origine + zones acceptees.
-    # Une ligne de journal par zone. Rend les pistes faibles de la passe suivante
+    # Une ligne de journal par zone. Rend les pistes faibles de la passe suivante. Relecture rc7 : jugee sur
+    # WriteZoneMinTracks pistes saines relues au moins, comme sa detection ; moins (pistes devenues faibles) : reprise
     $back = New-Object System.Collections.Generic.List[string]
+    $nMin = [int]$script:WriteZoneMinTracks
     foreach ($z in @($rep.Zones)) {
         if ([string]$z.State -ne 'pending') { continue }
         $vals = @(foreach ($k in @($z.Tracks)) { $e = Get-WriteZoneGap $rep ([string]$k); if ($null -ne $e) { [double]$e } })
         $ok = $false; $sg = [math]::Sign([double]$z.E0)
-        if ($vals.Count -gt 0) {
-            $z.E1 = [double](Get-Median $vals)
+        if ($vals.Count -gt 0) { $z.E1 = [double](Get-Median $vals) }
+        if ($vals.Count -ge $nMin) {
             $ok = (([double]$z.E0 - [double]$z.E1) * $sg -ge [double]$script:WriteZoneAccept * [math]::Abs([int]$z.Dz) -and [double]$z.E1 * $sg -ge -[double]$script:WriteZoneMinNs)
         }
         $z.State = $(if ($ok) { 'ok' } else { 'back' })
         $e0 = Format-UiNum ([double]$z.E0) '+0.0;-0.0;0.0'; $dz = '{0:+0;-0;0}' -f [int]$z.Dz
-        if ($vals.Count -eq 0) { Append-Log ((T "Zone écartée de l'attendu, {0} : écart médian {1} ns avant la correction de {2} ns, aucune piste saine relue après : correction reprise, courbe d'origine sur ces cylindres, pistes réécrites à la passe suivante.") -f (Format-WriteZone $z), $e0, $dz) }
+        if ($vals.Count -lt $nMin) { Append-Log ((T "Zone écartée de l'attendu, {0} : écart médian {1} ns avant la correction de {2} ns, {3} piste(s) saine(s) relue(s) après, il en faut {4} : correction reprise, courbe d'origine sur ces cylindres, pistes réécrites à la passe suivante.") -f (Format-WriteZone $z), $e0, $dz, "$($vals.Count)", "$nMin") }
         elseif ($ok) { Append-Log ((T "Zone écartée de l'attendu, {0} : écart médian {1} ns avant, {2} ns après la correction de {3} ns (relecture par le lecteur {4}) : correction gardée.") -f (Format-WriteZone $z), $e0, (Format-UiNum ([double]$z.E1) '+0.0;-0.0;0.0'), $dz, "$($rep.TargetSrc)") }
         else { Append-Log ((T "Zone écartée de l'attendu, {0} : écart médian {1} ns avant, {2} ns après la correction de {3} ns (relecture par le lecteur {4}) : correction reprise, courbe d'origine sur ces cylindres, pistes réécrites à la passe suivante.") -f (Format-WriteZone $z), $e0, (Format-UiNum ([double]$z.E1) '+0.0;-0.0;0.0'), $dz, "$($rep.TargetSrc)") }
         if (-not $ok) { foreach ($k in @($z.Tracks)) { if (-not $back.Contains([string]$k)) { $back.Add([string]$k) } } }
@@ -580,7 +586,7 @@ function Complete-WriteZonePass($rep, $weak) {
     if ($rep.HeadPrecompOrig) {
         foreach ($h in 0, 1) {
             $hz = @(@($rep.Zones) | Where-Object { [int]$_.H -eq $h -and [string]$_.State -eq 'ok' })
-            $rep.HeadPrecomp[$h] = $(if ($hz.Count -gt 0) { Get-WriteZoneSpec ([string]$rep.HeadPrecompOrig[$h]) $hz } else { $rep.HeadPrecompOrig[$h] })
+            $rep.HeadPrecomp[$h] = $(if ($hz.Count -gt 0) { Get-WriteZoneSpec ([string]$rep.HeadPrecompOrig[$h]) $hz ([int]$rep.ZoneHard) } else { $rep.HeadPrecompOrig[$h] })
         }
     }
     # Tableau rendu entier (virgule), meme vide ou d une seule piste, comme Sort-TrackKeys
@@ -589,8 +595,8 @@ function Complete-WriteZonePass($rep, $weak) {
 }
 
 function Get-WriteZoneCount($rep) {
-    # 12.11 rc7 (R16) : zones du controle (Rep.Zones) : N, Ok (correction gardee), Pend (reecrites, non jugees : passe 1
-    # interrompue par une erreur de gw)
+    # 12.11 rc7 (R16) : zones du controle (Rep.Zones) : N, Ok (correction gardee), Pend (non jugees : passe 1 interrompue
+    # par une erreur de gw, avant ou apres la reecriture de leurs pistes avec la correction)
     $zs = @(@($rep.Zones) | Where-Object { $_ })
     return @{ N = $zs.Count; Ok = @($zs | Where-Object { [string]$_.State -eq 'ok' }).Count; Pend = @($zs | Where-Object { [string]$_.State -eq 'pending' }).Count }
 }
@@ -668,9 +674,11 @@ function Show-WriteCheckTable($rep) {
     # lecteur cible, et son jugement (couleur) ; '' sans asymetrie attendue : carte de toujours
     $res.AsymLine = Get-AsymExpLine $asum $asymFor; $res.AsymLineShort = Get-AsymExpLine $asum $asymFor -Short
     $res.AsymJudge = $(if ($res.AsymLine) { [string]$asum.Judge } else { '' })
-    # 12.11 rc7 (R16) : zones ecartees de l attendu corrigees (Get-WriteZoneCount) a la suite de la ligne de la carte
+    # 12.11 rc7 (R16) : zones ecartees de l attendu corrigees (Get-WriteZoneCount) a la suite de la ligne de la carte.
+    # Relecture rc7 : AsymLineBare, forme courte sans elles, derniere forme de la carte (Render-QualityCard, 195) : une
+    # ligne trop longue perd le nombre de zones (repris par le verdict, infobulle) plutot que d etre coupee
     $zc = Get-WriteZoneCount $rep
-    if ($res.AsymLine -and $zc.N -gt 0) { $zt = (T ' ; zones corrigées : {0} sur {1}') -f "$($zc.Ok)", "$($zc.N)"; $res.AsymLine += $zt; $res.AsymLineShort += $zt }
+    if ($res.AsymLine -and $zc.N -gt 0) { $zt = (T ' ; zones corrigées : {0} sur {1}') -f "$($zc.Ok)", "$($zc.N)"; $res.AsymLineBare = $res.AsymLineShort; $res.AsymLine += $zt; $res.AsymLineShort += $zt }
     if ($res.AsymText) { Append-Log ((T "Contrôle après écriture : {0}") -f $res.AsymText) }
     Set-QualityResult $res
 }
@@ -714,10 +722,10 @@ function Complete-WriteCheck([switch]$GwError) {
     }
     # 12.10 : ecriture pour un lecteur cible (Rep.Target, Rep.TargetSrc : Start-ImageWrite) : le verdict rappelle que la
     # relecture est celle du lecteur qui a ecrit, pas celle du lecteur cible
-    # 12.11 rc7 (R16) : zones ecartees de l attendu (Get-WriteZoneCount) : corrigees sur combien, et celles reecrites mais non
-    # jugees (passe 1 interrompue par une erreur de gw)
+    # 12.11 rc7 (R16) : zones ecartees de l attendu (Get-WriteZoneCount) : corrigees sur combien, et celles non jugees
+    # (passe 1 interrompue par une erreur de gw : leurs pistes ont pu etre reecrites avec la correction, ou pas encore)
     $zc = Get-WriteZoneCount $rep
-    if ($zc.Pend -gt 0) { $txt += ((T " ; zones écartées de l'attendu : {0} corrigée(s) sur {1}, {2} réécrite(s) avec la correction sans être jugée(s)") -f "$($zc.Ok)", "$($zc.N)", "$($zc.Pend)") }
+    if ($zc.Pend -gt 0) { $txt += ((T " ; zones écartées de l'attendu : {0} corrigée(s) sur {1}, {2} non jugée(s), leurs pistes ont pu être réécrites avec la correction") -f "$($zc.Ok)", "$($zc.N)", "$($zc.Pend)") }
     elseif ($zc.N -gt 0) { $txt += ((T " ; zones écartées de l'attendu corrigées : {0} sur {1}") -f "$($zc.Ok)", "$($zc.N)") }
     if ($rep.Target) { $txt += ((T " (relu par le lecteur {0}, pas par le lecteur cible {1})") -f "$($rep.TargetSrc)", "$($rep.Target)") }
     Append-Log $txt
@@ -777,10 +785,18 @@ function Stop-WriteCheck([switch]$GwError) {
     # Erreur gw pendant une passe de reecriture : verdict et tableau avec les mesures deja acquises.
     if (-not $script:Rep) { return }
     if ($GwError -and $script:Rep.Round -gt 0 -and $script:Rep.State.Count -gt 0) { Update-RepPartial; Complete-WriteCheck -GwError; return }
+    # Relecture rc7 (R16) : arret pendant une passe de reecriture (Arreter) : pistes de la passe effacees en haute frequence
+    # et pas encore reecrites (EraseLog de la passe, Read-GwOutput), vierges sur la disquette ; meme ligne que
+    # Update-RepPartial. Depuis la correction par zones, une passe peut effacer des pistes saines, jusqu a une tete entiere
+    $rep = $script:Rep; $el = $script:EraseLog; $blank = @()
+    if ([int]$rep.Round -gt 0 -and $el -and [string]$el.Owner -eq 'check' -and [int]$el.Round -eq [int]$rep.Round) {
+        $blank = Sort-TrackKeys @(@($rep.Weak) | Where-Object { $el.Erased.ContainsKey([string]$_) -and -not $el.Written.ContainsKey([string]$_) })
+    }
     $script:Rep = $null
     Exit-CheckTab                                         # 12.10 (lot 1, E11) : sans effet si la relecture n a pas commence
     Set-WCalVerdict (T 'Contrôle après écriture interrompu.') 'h1'     # 12.8 (lot 3) : icone d etat dans l onglet Ecriture
     Append-Log (T 'Contrôle après écriture interrompu.')
+    if (@($blank).Count -gt 0) { Append-Log ((T "Contrôle après écriture : piste(s) effacée(s) en haute fréquence et non réécrite(s) après l'arrêt de gw : {0}. Elles sont vierges sur la disquette : réécrivez l'image.") -f "$(Format-TrackList $blank)") }
     Set-QualityStale 'checkabort'                         # 12.8 (lot 3a) : resultat de l onglet Qualite perime
     if ($script:Restore) { Stop-Restore (T 'contrôle des pistes interrompu') }
 }

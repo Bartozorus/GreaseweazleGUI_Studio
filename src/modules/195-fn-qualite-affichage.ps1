@@ -321,7 +321,7 @@ function Get-QualityCardModel($v) {
     $edge = [System.Drawing.Color]::FromArgb(205, 212, 224)
     $m = @{ Back = $wh; Bar = $edge; Icon = 'none'; Badge = ''; GreyIcon = $false; Score = [string][char]0x2013; ScoreInk = $th.Muted
             Caption = (T 'score · plus bas = mieux'); CaptionInk = $th.Muted; Level = ''; LevelInk = $th.Muted; Line2 = ''; Line2Short = ''; Line2More = @()
-            Line2Ink = $th.Muted; Line3 = ''; Line3Short = ''; Line3Ink = $th.Muted; StateIcon = ''; State = ''; StateInk = $th.Muted; Sub = ''; SubShort = ''; SubInk = $th.Muted; Chip = ''; ChipBack = $th.Muted
+            Line2Ink = $th.Muted; Line3 = ''; Line3Short = ''; Line3More = @(); Line3Ink = $th.Muted; StateIcon = ''; State = ''; StateInk = $th.Muted; Sub = ''; SubShort = ''; SubInk = $th.Muted; Chip = ''; ChipBack = $th.Muted
             Tip = ''; Access = '' }
     $r = $v.Res
     $at = if ($r -and $r.At -is [datetime]) { $r.At.ToString('HH:mm') } else { '' }
@@ -410,6 +410,9 @@ function Get-QualityCardModel($v) {
         # l etat (Res.AsymLine, Show-WriteCheckTable, 170), encre de son jugement ; grise avec le resultat
         if ($r.Kind -eq 'check' -and $r.AsymLine) {
             $m.Line3 = [string]$r.AsymLine; $m.Line3Short = [string]$r.AsymLineShort
+            # Relecture rc7 (R16) : zones corrigees a la suite de la ligne ; forme courte sans elles quand aucune ne tient
+            # (Res.AsymLineBare : le nombre de zones reste dans le verdict, infobulle)
+            if ($r.AsymLineBare) { $m.Line3More = @([string]$r.AsymLineBare) }
             if ($show) { $m.Line3Ink = Get-QualInk $(switch ([string]$r.AsymJudge) { 'ok' { 0 } 'near' { 2 } default { 3 } }) }
         }
         if ($show) {
@@ -549,7 +552,7 @@ function Render-QualityCard {
         [System.Windows.Forms.TextRenderer]::DrawText($g, $l2, $fSmall, (New-Object System.Drawing.Rectangle($lay.Lx, 32, $lay.L2W, 20)), $m.Line2Ink, $m.Back, $tf)
         # 12.11 rc6 (R14) : ligne de l asymetrie attendue, sur toute la largeur sous le pictogramme (Set-QualityCardRoom)
         if ($m.Line3) {
-            $l3 = Get-QualFitText $m.Line3 $m.Line3Short $fSmall ($w - 22)
+            $l3 = Get-QualFitText $m.Line3 $m.Line3Short $fSmall ($w - 22) $m.Line3More
             [System.Windows.Forms.TextRenderer]::DrawText($g, $l3, $fSmall, (New-Object System.Drawing.Rectangle(12, 56, ($w - 22), 18)), $m.Line3Ink, $m.Back, $tf)
         }
         if ($lay.Sep -gt 0) {

@@ -920,7 +920,7 @@ function Load-Config {
     $rm = [int](Get-Cfg $w 'repairMax' 3); $numWRepair.Value = [math]::Max(0, [math]::Min(10, $rm))
     $numWRepair.Enabled = $chkWPostCheck.Checked; $lblWRepair.Enabled = $chkWPostCheck.Checked
     $chkWZones.Checked = [bool](Get-Cfg $w 'zoneFix' $true)   # 12.11 rc7 (R16)
-    $txtWPrecomp.Text  =[string](Get-Cfg $w 'precomp' $script:PrecompStd)
+    $txtWPrecomp.Text  = [string](Get-Cfg $w 'precomp' $script:PrecompStd)
     $txtWPrecomp1.Text = [string](Get-Cfg $w 'precomp1' $txtWPrecomp.Text)
     if ($script:OldCalib) { $script:OldCalib.P0 = $txtWPrecomp.Text; $script:OldCalib.P1 = $txtWPrecomp1.Text }   # retablis si conservees
     # Champs --precomp remplis par une ancienne calibration : profil d origine (sauf profil manuel, choisi par l utilisateur)

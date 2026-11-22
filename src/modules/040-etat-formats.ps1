@@ -157,7 +157,7 @@ $script:AsymSignPct = 80
 # sur l image de cette disquette (SRelAsym de l enregistrement dont le facteur est applique, bornee a ContentAsymSRelMin
 # et ContentAsymSRelMax ; Get-WriteFactorPlan, 140 ; Rep.AsymGain, 170). AsymExpGainFallback : gain sans pente mesuree
 # (facteur par defaut, par la marge, mesure d avant la rc6) : mediane des pentes du lecteur qui ecrit sur les essais
-# (0,78 a 0,95, cinq mesures), soit p = 0,85 ; 1,8 au plus (a 1,9, un des trois essais redevient « eloignee »)
+# (cinq mesures, hors depot), soit p = 0,85 ; 1,8 au plus (a 1,9, un des trois essais redevient « eloignee »)
 $script:AsymExpGainFallback = 1.7
 $script:AsymExpOkTol = 0.005
 $script:AsymExpNearTol = 0.02
@@ -168,11 +168,12 @@ $script:AsymExpInPct = 80
 # a WriteZoneMinNs ns au moins ; suites de meme signe fusionnees par-dessus WriteZoneGap cylindres non marques au plus ;
 # zone : WriteZoneMinCyl cylindres au moins, WriteZoneMinTracks pistes retenues au moins, mediane brute de e de meme signe
 # et de WriteZoneMinNs ns au moins. Correction : arrondi de -WriteZoneF x mediane, bornee a +/- WriteZoneCapNs ns, ajoutee
-# a la courbe ecrite de la tete sur les cylindres de la zone (0 a CalHardMaxNs, une valeur nulle reste nulle). Acceptee
-# a la relecture par le lecteur qui ecrit si l ecart median s est rapproche de l attendue d au moins WriteZoneAccept x la
-# correction, sans depasser WriteZoneMinNs ns de l autre cote ; sinon courbe d origine. Valeurs au centre de la region sans
-# zone aggravee des trois essais (L de 8 a 12, S de 6 a 8, f de 0,5 a 0,6) ; f au plus 0,5 : rapport besoin du lecteur
-# cible / ecart du lecteur qui ecrit de 0,45 a 1,7 sur les six zones observees
+# a la courbe ecrite de la tete sur les cylindres de la zone (0 a la borne de la courbe ecrite, une valeur nulle reste
+# nulle). Acceptee a la relecture par le lecteur qui ecrit si, sur WriteZoneMinTracks pistes saines au moins, l ecart
+# median s est rapproche de l attendue d au moins WriteZoneAccept x la correction, sans depasser WriteZoneMinNs ns de
+# l autre cote ; sinon courbe d origine. Un cylindre sans piste retenue n est pas marque. Valeurs au centre de la
+# region sans zone aggravee des trois essais (L de 8 a 12, S de 6 a 8, f de 0,5 a 0,6) ; f au plus 0,5 : rapport besoin
+# du lecteur cible / ecart du lecteur qui ecrit de 0,45 a 1,7 sur les six zones observees
 $script:WriteZoneHalfWin = 2
 $script:WriteZoneMinNs = 8
 $script:WriteZoneGap = 2
