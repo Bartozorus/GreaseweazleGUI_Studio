@@ -184,12 +184,17 @@ $script:WriteZoneCapNs = 15
 $script:WriteZoneAccept = 0.5
 # 12.11 rc8 (R17) : recalage de la courbe croisee par une relecture du lecteur cible (172). Decalage constant par tete, en
 # ns, ajoute a la courbe ecrite pour le lecteur cible : somme des estimations des TargetRecalMaxItems dernieres ecritures
-# relues / (n + 1), au plus +/- TargetRecalCapNs, arrondi au ns a l application et limite a TargetRecalWShare de la valeur
-# du cylindre (garde des disquettes a faible besoin, non eprouvee : elle ne joue jamais sur les essais). Relecture admise :
-# TargetRecalMinTracks pistes retenues au moins par tete, sur TargetRecalMinBlocks blocs de 10 cylindres a
-# TargetRecalBlockTracks pistes au moins ; |ecart median| au plus TargetRecalMaxGapNs (au-dela, l ecart ne vient pas de la
-# courbe croisee). Valeurs de la validation (hors depot, quatre ecritures, une paire de lecteurs, double densite standard)
+# relues / (n + p), p = (1 - TargetRecalFirstShare) / TargetRecalFirstShare, au plus +/- TargetRecalCapNs (Get-TargetRecalNs,
+# 172), arrondi au ns a l application et limite a TargetRecalWShare de la valeur du cylindre (garde des disquettes a faible
+# besoin, non eprouvee : elle ne joue jamais sur les essais). Part de l ecart moyen retenue apres n ecritures relues :
+# f(n) = n / (n + p) ; TargetRecalFirstShare est f(1). 12.11 (decision de l utilisateur pour la version finale) : les trois
+# quarts des la premiere ecriture relue, p = 1/3, puis 6/7 (0,857), 0,9, 12/13 (0,923) et 15/16 (0,9375) ; la rc8 prenait
+# p = 1 (la moitie, puis 0,67, puis 0,75). Relecture admise : TargetRecalMinTracks pistes retenues au moins par tete, sur
+# TargetRecalMinBlocks blocs de 10 cylindres a TargetRecalBlockTracks pistes au moins ; |ecart median| au plus
+# TargetRecalMaxGapNs (au-dela, l ecart ne vient pas de la courbe croisee). Valeurs de la validation (hors depot, quatre
+# ecritures, une paire de lecteurs, double densite standard), sauf TargetRecalFirstShare
 $script:TargetRecalCapNs = 8
+$script:TargetRecalFirstShare = 0.75
 $script:TargetRecalMaxItems = 5
 $script:TargetRecalWShare = 0.25
 $script:TargetRecalMinTracks = 60

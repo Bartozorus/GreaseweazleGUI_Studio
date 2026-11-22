@@ -11,7 +11,9 @@
 # celle de la courbe croisee) -> @{ Ns ; N ; Items ; XDate ; XKey ; Calc ; At } ; $script:LastTargetWrites, « source>cible » ->
 # memoire de la derniere ecriture pour ce lecteur cible (New-TargetWriteMemory). Constantes : 040 (TargetRecal*).
 # Validation (hors depot, quatre ecritures bien reglees, une paire de lecteurs, double densite standard) : decalage constant
-# en ns, f = n / (n + 1), plafond 8 ns ; jamais appris ni applique quand le facteur k de l ecriture n a pas ete mesure.
+# en ns, plafond 8 ns ; jamais appris ni applique quand le facteur k de l ecriture n a pas ete mesure. 12.11, decision de
+# l utilisateur pour la version finale : part de l ecart moyen retenue f = n / (n + p), p = 1/3 (TargetRecalFirstShare,
+# 040 : les trois quarts des la premiere ecriture relue ; rc8 : f = n / (n + 1)).
 
 function Get-TargetRecalKey([string]$src, [string]$tgt, [string]$fam, [int]$h) {
     # Cle du magasin $script:TargetRecal : « source>cible|famille_hN » (N : tete physique du lecteur qui ecrit)
@@ -31,15 +33,23 @@ function Test-TargetRecalValid($e, [string]$xDate) {
 }
 
 function Get-TargetRecalNs($items) {
-    # Recalage d une tete : borne(somme des estimations / (n + 1), +/- TargetRecalCapNs), une decimale ; n : ecritures relues
-    # (TargetRecalMaxItems au plus). Revient a f = n / (n + 1) : 0,5 apres une relecture, puis 0,67, puis 0,75 ; moyenne
-    # retrecie vers 0, sans integrateur, donc sans oscillation. Aucune ecriture : 0
+    # Recalage d une tete : borne(somme des estimations / (n + p), +/- TargetRecalCapNs), une decimale ; n : ecritures relues
+    # (TargetRecalMaxItems au plus) ; p = (1 - F) / F, F = TargetRecalFirstShare (040). Revient a f = n / (n + p) de la
+    # moyenne des estimations ; F = 0,75 (12.11, decision de l utilisateur pour la version finale ; rc8 : p = 1) : 0,75 apres
+    # une relecture, puis 6/7, 0,9, 12/13 et 15/16 ; moyenne retrecie vers 0, sans integrateur, donc sans oscillation.
+    # Calcule sous la forme egale somme x F / (n x F + 1 - F), exacte pour F = 0,75 (n x 0,75 + 0,25 sans erreur
+    # d arrondi : une moitie exacte comme -3,75 reste exacte pour l arrondi au pair de [math]::Round, -3,8). F hors de
+    # ]0 ; 1] : 0 (aucun recalage). Aucune ecriture : 0. Seul calcul du recalage : cumul apres une relecture
+    # (Get-TargetRecalUpdate) et chargement de la configuration (Import-TargetRecal : une entree enregistree par une version
+    # anterieure suit la regle courante)
     $it = @($items | Where-Object { $_ })
     if ($it.Count -eq 0) { return 0.0 }
+    $f = [double]$script:TargetRecalFirstShare
+    if (-not ($f -gt 0 -and $f -le 1)) { return 0.0 }
     $s = 0.0
     foreach ($x in $it) { $s += [double]$x.Est }
     $cap = [double]$script:TargetRecalCapNs
-    return [double][math]::Round([math]::Max(-$cap, [math]::Min($cap, $s / ($it.Count + 1))), 1)
+    return [double][math]::Round([math]::Max(-$cap, [math]::Min($cap, $s * $f / ($it.Count * $f + (1 - $f)))), 1)
 }
 
 function ConvertTo-RecalDate([string]$s) {
@@ -507,7 +517,8 @@ function Export-TargetRecal {
 function Import-TargetRecal($o) {
     # Bloc write.targetRecal -> $script:TargetRecal (vide d abord). Cle « source>cible|famille_hN » et au moins une
     # estimation finie exigees ; Ns et N recalcules sur les estimations (Get-TargetRecalNs), les TargetRecalMaxItems
-    # dernieres. Entree illisible : ignoree et comptee. Rend @{ N ; Bad }
+    # dernieres : la valeur ns enregistree n est jamais reprise, et une entree enregistree par la rc8 (f = n / (n + 1)) suit
+    # la regle courante des le demarrage suivant. Entree illisible : ignoree et comptee. Rend @{ N ; Bad }
     $script:TargetRecal = @{}
     $n = 0; $bad = 0
     if ($null -eq $o -or $o -is [array] -or $o -is [string] -or $o -is [ValueType]) { return @{ N = 0; Bad = 0 } }

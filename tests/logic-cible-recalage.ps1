@@ -10,7 +10,10 @@ $Wt = Get-TestRoot $Wt
 #  U  Get-TargetTransferSpec : recalage 0 (defaut) identique a l appel sans parametre (chaine, valeurs, exces) ; recalage
 #     arrondi au ns, limite a 25 % de la valeur du cylindre, valeur nulle inchangee, borne max(borne, X, D) ; exces apres ;
 #     courbe egale a X (D = Sp) : profil recalcule.
-#  N  cumul : somme des estimations / (n + 1), plafond 8 ns, une decimale.
+#  N  cumul : somme des estimations / (n + p), p = (1 - F) / F, F = TargetRecalFirstShare = 0,75 (version finale : les trois
+#     quarts des la premiere ecriture relue ; rc8 : p = 1), plafond 8 ns, une decimale (arrondi au pair de .NET :
+#     -3,75 -> -3,8) ; N2 f(1) a f(5) exacts (0,75 ; 6/7 ; 0,9 ; 12/13 ; 15/16) et plafond ; N3 la constante commande le
+#     resultat (0,5 : regle de la rc8 ; 1 : moyenne ; hors de ]0 ; 1] : 0).
 #  R  relecture par le lecteur cible (Get-TargetRecalReadback) : estimation exacte (g mesure, borne, repli 1,7 ; pistes en
 #     erreur et zones exclues) ; refus : pas « SUPPORT SAIN », famille, nombre de pistes, tetes, relecture anterieure, peu de
 #     pistes, peu de blocs, facteur non mesure, controle eloigne, ecart median > 12 ns, autre lecteur.
@@ -172,7 +175,29 @@ $n3 = Get-TargetRecalNs @(@{ Est = -20.0 })
 $n4 = Get-TargetRecalNs @(@{ Est = 30.0 }, @{ Est = 30.0 })
 $n5 = Get-TargetRecalNs @(@{ Est = -4.0 }, @{ Est = -4.0 }, @{ Est = -4.0 }, @{ Est = -4.0 }, @{ Est = -4.0 })
 $n6 = Get-TargetRecalNs @(@{ Est = -5.55 })
-Chk 'N1' ((Near $n1 -3.0) -and (Near $n2 -3.0) -and (Near $n3 -8.0) -and (Near $n4 8.0) -and (Near $n5 -3.3) -and (Near (Get-TargetRecalNs @()) 0) -and (Near $n6 -2.8)) "somme/(n+1) : $n1, $n2 ; plafond : $n3, $n4 ; cinq ecritures : $n5 ; une decimale : $n6"
+# Attentes calculees a la main, somme / (n + 1/3) : -6 / (4/3) = -4,5 ; -9 / (7/3) = -3,857 -> -3,9 ; -20 / (4/3) = -15 et
+# 60 / (7/3) = 25,7 : plafond -8 et 8 ; -20 / (16/3) = -3,75 -> -3,8 (au pair) ; -5,55 / (4/3) = -4,1625 -> -4,2. La regle
+# de la rc8 (n + 1) donnait -3,0 ; -3,0 ; -8 ; 8 ; -3,3 ; -2,8
+Chk 'N1' ($script:TargetRecalFirstShare -eq 0.75 -and (Near $n1 -4.5) -and (Near $n2 -3.9) -and (Near $n3 -8.0) -and (Near $n4 8.0) -and (Near $n5 -3.8) -and (Near (Get-TargetRecalNs @()) 0) -and (Near $n6 -4.2)) "somme/(n+1/3) : $n1, $n2 ; plafond : $n3, $n4 ; cinq ecritures : $n5 ; une decimale : $n6"
+# Part f(n) de l ecart moyen m retenue, avec des moyennes dont le produit est exact : f(1) = 3/4 (m -4 : -3) ; f(2) = 6/7
+# (m -7 : -6) ; f(3) = 9/10 (m -5 : -4,5) ; f(4) = 12/13 (m -6,5 : -6) ; f(5) = 15/16 (m -3,2 : -3) ; plafond des deux
+# cotes : m +12 et -12 donneraient +9 et -9
+$f1 = Get-TargetRecalNs @(@{ Est = -4.0 })
+$f2 = Get-TargetRecalNs @(@{ Est = -7.0 }, @{ Est = -7.0 })
+$f3 = Get-TargetRecalNs @(1..3 | ForEach-Object { @{ Est = -5.0 } })
+$f4 = Get-TargetRecalNs @(1..4 | ForEach-Object { @{ Est = -6.5 } })
+$f5 = Get-TargetRecalNs @(1..5 | ForEach-Object { @{ Est = -3.2 } })
+$cp = Get-TargetRecalNs @(@{ Est = 12.0 }); $cm = Get-TargetRecalNs @(@{ Est = -12.0 })
+Chk 'N2' ((Near $f1 -3.0) -and (Near ($f1 / -4.0) 0.75) -and (Near $f2 -6.0) -and (Near ($f2 / -7.0) (6.0 / 7)) -and (Near $f3 -4.5) -and (Near $f4 -6.0) -and (Near $f5 -3.0) -and (Near $cp 8.0) -and (Near $cm -8.0)) "f(1) = $($f1 / -4.0), f(2) = $($f2 / -7.0) ; f(3) a f(5) : $f3, $f4, $f5 ; plafond : $cp, $cm"
+# La constante de 040 commande le resultat : 0,5 redonne la regle de la rc8 (-6 : -3) ; 1, la moyenne (-6 et -3 : -4,5) ;
+# 0 ou 1,5 : aucun recalage
+$fs = $script:TargetRecalFirstShare
+$script:TargetRecalFirstShare = 0.5; $g5 = Get-TargetRecalNs @(@{ Est = -6.0 })
+$script:TargetRecalFirstShare = 1.0; $g10 = Get-TargetRecalNs @(@{ Est = -6.0 }, @{ Est = -3.0 })
+$script:TargetRecalFirstShare = 0.0; $g0 = Get-TargetRecalNs @(@{ Est = -6.0 })
+$script:TargetRecalFirstShare = 1.5; $g15 = Get-TargetRecalNs @(@{ Est = -6.0 })
+$script:TargetRecalFirstShare = $fs
+Chk 'N3' ((Near $g5 -3.0) -and (Near $g10 -4.5) -and (Near $g0 0) -and (Near $g15 0) -and (Near (Get-TargetRecalNs @(@{ Est = -6.0 })) -4.5)) "TargetRecalFirstShare 0,5 : $g5 ; 1 : $g10 ; 0 : $g0 ; 1,5 : $g15 ; 0,75 retablie"
 
 # =====================================================================================================================
 # R : relecture par le lecteur cible
@@ -255,27 +280,27 @@ $rb = New-FkRead @{ 0 = 6.0; 1 = 4.0 } $G
 $ev = Get-TargetRecalReadback $mem $rb 0 $AT '0' '0'
 $up = Get-TargetRecalUpdate 'A' '0' $mem $ev $AT
 $u0 = @($up | Where-Object { $_.Head -eq 0 })[0]; $u1 = @($up | Where-Object { $_.Head -eq 1 })[0]
-Chk 'C1' (@($up).Count -eq 2 -and [string]$u0.Key -eq 'A>0|std_h0' -and (Near ([double]$u0.New.Ns) -3.0) -and (Near ([double]$u1.New.Ns) -2.0) -and [int]$u0.New.N -eq 1 -and [string]$u0.New.XDate -eq $XD -and [string]$u0.New.XKey -eq 'std_h0' -and -not $u0.Reset -and $null -eq $u0.Old) 'premiere relecture : o = est / 2 (-3 et -2), n = 1, date de X gardee'
+Chk 'C1' (@($up).Count -eq 2 -and [string]$u0.Key -eq 'A>0|std_h0' -and (Near ([double]$u0.New.Ns) -4.5) -and (Near ([double]$u1.New.Ns) -3.0) -and [int]$u0.New.N -eq 1 -and [string]$u0.New.XDate -eq $XD -and [string]$u0.New.XKey -eq 'std_h0' -and -not $u0.Reset -and $null -eq $u0.Old) 'premiere relecture : o = 3/4 x est (-4,5 et -3), n = 1, date de X gardee'
 foreach ($u in $up) { $script:TargetRecal[$u.Key] = $u.New }
 $rb = New-FkRead @{ 0 = 4.0; 1 = 4.0 } $G
 $ev = Get-TargetRecalReadback $mem $rb 0 $AT '0' '0'
 $up = Get-TargetRecalUpdate 'A' '0' $mem $ev $AT
 $u0 = @($up | Where-Object { $_.Head -eq 0 })[0]
-Chk 'C2' ([int]$u0.New.N -eq 1 -and [int]@($u0.New.Items)[0].NR -eq 2 -and (Near ([double]@($u0.New.Items)[0].Est) -5.0) -and (Near ([double]$u0.New.Ns) -2.5)) 'meme ecriture relue deux fois : estimation = moyenne des relectures (-5), n = 1'
+Chk 'C2' ([int]$u0.New.N -eq 1 -and [int]@($u0.New.Items)[0].NR -eq 2 -and (Near ([double]@($u0.New.Items)[0].Est) -5.0) -and (Near ([double]$u0.New.Ns) -3.8)) 'meme ecriture relue deux fois : estimation = moyenne des relectures (-5), n = 1 ; o = 3/4 x -5 = -3,75, arrondi au pair -3,8'
 foreach ($u in $up) { $script:TargetRecal[$u.Key] = $u.New }
 $m2 = New-FkMem -id 'W20261122120000' -at '2026-11-22 12:00:00' -o0 -3 -o1 -2
 $rb = New-FkRead @{ 0 = 1.0; 1 = 1.0 } $G
 $ev = Get-TargetRecalReadback $m2 $rb 0 ($AT.AddHours(2)) '0' '0'
 $up = Get-TargetRecalUpdate 'A' '0' $m2 $ev ($AT.AddHours(2))
 $u0 = @($up | Where-Object { $_.Head -eq 0 })[0]
-Chk 'C3' ([int]$u0.New.N -eq 2 -and (Near ([double]@($u0.New.Items)[1].Est) -4.0) -and (Near ([double]$u0.New.Ns) -3.0)) 'deuxieme ecriture (recalee -3, ecart +1) : est -4, o = (-5 - 4) / 3 = -3'
+Chk 'C3' ([int]$u0.New.N -eq 2 -and (Near ([double]@($u0.New.Items)[1].Est) -4.0) -and (Near ([double]$u0.New.Ns) -3.9)) 'deuxieme ecriture (recalee -3, ecart +1) : est -4, o = (-5 - 4) / (2 + 1/3) = -3,857, soit -3,9'
 $items = @(1..6 | ForEach-Object { @{ WriteId = "W$_"; Date = ''; Est = -1.0 * $_; Tracks = 80; NR = 1; Read = '' } })
 $script:TargetRecal['A>0|std_h0'] = @{ Ns = 0; N = 6; Items = $items[0..4]; XDate = $XD; XKey = 'std_h0'; Calc = $script:CalibCalc; At = '' }
 $m6 = New-FkMem -id 'W6'
 $ev = Get-TargetRecalReadback $m6 (New-FkRead @{ 0 = 6.0; 1 = 6.0 } $G) 0 $AT '0' '0'
 $up = Get-TargetRecalUpdate 'A' '0' $m6 $ev $AT
 $u0 = @($up | Where-Object { $_.Head -eq 0 })[0]
-Chk 'C4' ([int]$u0.New.N -eq 5 -and [string]@($u0.New.Items)[0].WriteId -eq 'W2' -and [string]@($u0.New.Items)[4].WriteId -eq 'W6' -and (Near ([double]$u0.New.Ns) (-20.0 / 6) 0.051)) "sixieme ecriture : les cinq dernieres gardees (W2 a W6), o = $($u0.New.Ns)"
+Chk 'C4' ([int]$u0.New.N -eq 5 -and [string]@($u0.New.Items)[0].WriteId -eq 'W2' -and [string]@($u0.New.Items)[4].WriteId -eq 'W6' -and (Near ([double]$u0.New.Ns) -3.8)) "sixieme ecriture : les cinq dernieres gardees (W2 a W6), o = -20 / (5 + 1/3) = -3,75, arrondi au pair : $($u0.New.Ns)"
 $script:TargetRecal['A>0|std_h0'] = @{ Ns = -3; N = 1; Items = @(@{ WriteId = 'W1'; Date = ''; Est = -6.0; Tracks = 80; NR = 1; Read = '' }); XDate = '01/11/2026 10:00'; XKey = 'std_h0'; Calc = $script:CalibCalc; At = '' }
 $script:TargetRecal['A>0|std_h1'] = @{ Ns = -3; N = 1; Items = @(@{ WriteId = 'W1'; Date = ''; Est = -6.0; Tracks = 80; NR = 1; Read = '' }); XDate = $XD; XKey = 'std_h1'; Calc = 'autre'; At = '' }
 $up = Get-TargetRecalUpdate 'A' '0' $m6 $ev $AT
@@ -331,7 +356,7 @@ $memx = New-FkMem; $memx.H['0'].XDate = '23/11/2026 09:00'
 $ev = Get-TargetRecalReadback $memx (New-FkRead @{ 0 = 2.0; 1 = 2.0 } $G) 0 $AT '0' '0'
 $up = Get-TargetRecalUpdate 'A' '0' $memx $ev $AT
 $u0 = @($up | Where-Object { $_.Head -eq 0 })[0]
-Chk 'X2' ($u0.Reset -and [int]$u0.New.N -eq 1 -and (Near ([double]$u0.New.Ns) -1.0) -and [string]$u0.New.XDate -eq '23/11/2026 09:00') 'relecture d une ecriture faite avec la nouvelle courbe : recalage repart de zero'
+Chk 'X2' ($u0.Reset -and [int]$u0.New.N -eq 1 -and (Near ([double]$u0.New.Ns) -1.5) -and [string]$u0.New.XDate -eq '23/11/2026 09:00') 'relecture d une ecriture faite avec la nouvelle courbe : recalage repart de zero'
 
 # =====================================================================================================================
 # O : proposition apres une mesure
@@ -342,8 +367,8 @@ $rb = New-FkRead @{ 0 = 6.0; 1 = 4.0 } $G
 $script:ConfirmAns = $true
 $o1 = Invoke-TargetRecalOffer $res $rb
 $ct = [string]$script:ConfirmArgs.Text
-Chk 'O1' ($o1 -eq 'stored' -and $script:ConfirmN -eq 1 -and (Near ([double]$script:TargetRecal['A>0|std_h0'].Ns) -3.0) -and (Near ([double]$script:TargetRecal['A>0|std_h1'].Ns) -2.0) -and $script:Saves -eq 1 -and (@($script:Log) -join ' ').Contains('Courbe croisée A → 0 recalée')) 'confirmee : magasin, journal, configuration enregistree'
-Chk 'O2' ([string]$script:ConfirmArgs.Check -eq 'Disquette écrite le 22/11/2026 10:00 pour le lecteur 0' -and $ct.Contains('« essai.adf »') -and $ct.Contains('Tête 0 : 80 pistes retenues, écart médian +6,0 ns (trop de précompensation pour le lecteur cible) ; recalage -3,0 ns, au lieu de aucun ; courbe écrite pour le lecteur 0 : -3 ns par rapport à cette écriture') -and $ct.Contains('g = 1,40')) "fenetre : ecriture (date, image), case de la disquette, recalage par tete et effet sur la courbe ecrite"
+Chk 'O1' ($o1 -eq 'stored' -and $script:ConfirmN -eq 1 -and (Near ([double]$script:TargetRecal['A>0|std_h0'].Ns) -4.5) -and (Near ([double]$script:TargetRecal['A>0|std_h1'].Ns) -3.0) -and $script:Saves -eq 1 -and (@($script:Log) -join ' ').Contains('Courbe croisée A → 0 recalée')) 'confirmee : magasin, journal, configuration enregistree'
+Chk 'O2' ([string]$script:ConfirmArgs.Check -eq 'Disquette écrite le 22/11/2026 10:00 pour le lecteur 0' -and $ct.Contains('« essai.adf »') -and $ct.Contains('Tête 0 : 80 pistes retenues, écart médian +6,0 ns (trop de précompensation pour le lecteur cible) ; recalage -4,5 ns, au lieu de aucun ; courbe écrite pour le lecteur 0 : -4 ns par rapport à cette écriture') -and $ct.Contains('g = 1,40')) "fenetre : ecriture (date, image), case de la disquette, recalage par tete (-4,5 ns) et effet sur la courbe ecrite (arrondi au pair : -4 ns)"
 Reset-Fk
 $script:LastTargetWrites['A>0'] = New-FkMem
 $script:ConfirmAns = $false
@@ -474,11 +499,13 @@ $o = $js | ConvertFrom-Json
 $i1 = Import-TargetRecal $o.write.targetRecal
 $i2 = Import-LastTargetWrites $o.write.lastTargetWrite
 $e0 = $script:TargetRecal['A>0|std_h0']; $e1 = $script:TargetRecal['A>0|std_h1']; $lj = $script:LastTargetWrites['A>0']
-Chk 'J1' ([int]$i1.N -eq 2 -and [int]$i1.Bad -eq 0 -and (Near ([double]$e0.Ns) -3.0) -and [int]$e0.N -eq 2 -and [int]@($e0.Items)[0].NR -eq 2 -and [string]@($e0.Items)[1].WriteId -eq 'W2' -and [string]$e0.XDate -eq $XD -and [string]$e0.XKey -eq 'std_h0' -and (Near ([double]$e1.Ns) -1.0) -and @($e1.Items).Count -eq 1) 'recalages relus a l identique (une ou deux ecritures)'
+# ns enregistre (-3,0 et -1,0, regle de la rc8) jamais repris : recalcule au chargement par la regle courante (-9 / (2 + 1/3)
+# = -3,857 -> -3,9 ; -2 x 3/4 = -1,5) ; une entree enregistree par la rc8 la suit donc des le demarrage suivant
+Chk 'J1' ([int]$i1.N -eq 2 -and [int]$i1.Bad -eq 0 -and (Near ([double]$e0.Ns) -3.9) -and [int]$e0.N -eq 2 -and [int]@($e0.Items)[0].NR -eq 2 -and [string]@($e0.Items)[1].WriteId -eq 'W2' -and [string]$e0.XDate -eq $XD -and [string]$e0.XKey -eq 'std_h0' -and (Near ([double]$e1.Ns) -1.5) -and @($e1.Items).Count -eq 1) 'recalages relus (une ou deux ecritures), ns recalcule par la regle courante'
 Chk 'J2' ([int]$i2.N -eq 1 -and $lj -and [string]$lj.Id -eq $mj.Id -and [int]$lj.H['0'].O -eq -3 -and (@($lj.H['0'].Zones) -join ',') -eq ((20..29) -join ',') -and $lj.H['0'].KMeasured -and [string]$lj.H['1'].W -eq $mj.H['1'].W -and (@($lj.Heads) -join ',') -eq '0,1' -and [int]$lj.Tracks -eq 160 -and [string]$lj.Verdict -eq 'ok') 'memoire de l ecriture relue a l identique'
 $bad = ('{ "a": { "x": 1 }, "A>0|std_h0": { "xDate": "12/11/2026 15:20", "items": [] }, "A>0|std_h1": { "xDate": "12/11/2026 15:20", "items": [ { "writeId": "W1", "est": -4 } ] } }' | ConvertFrom-Json)
 $i3 = Import-TargetRecal $bad
-Chk 'J3' ([int]$i3.N -eq 1 -and [int]$i3.Bad -eq 2 -and (Near ([double]$script:TargetRecal['A>0|std_h1'].Ns) -2.0)) 'entrees illisibles ignorees et comptees ; o recalcule sur les estimations'
+Chk 'J3' ([int]$i3.N -eq 1 -and [int]$i3.Bad -eq 2 -and (Near ([double]$script:TargetRecal['A>0|std_h1'].Ns) -3.0)) 'entrees illisibles ignorees et comptees ; o recalcule sur les estimations (-4 x 3/4)'
 
 # =====================================================================================================================
 # K : lecteur renomme ou retire
