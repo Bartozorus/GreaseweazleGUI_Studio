@@ -69,7 +69,7 @@ $script:I18n = [System.Collections.Hashtable]::new([System.StringComparer]::Ordi
 $script:I18n['Préservation, écriture et contrôle de disquettes'] = 'Floppy disk preservation, writing and checking'
 $script:I18n['●  gw.exe prêt'] = '●  gw.exe ready'
 $script:I18n['●  gw.exe introuvable'] = '●  gw.exe not found'
-$script:I18n["A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0 à 3 = bus Shugart (nappe droite) - typiquement le lecteur Amiga`nAu démarrage, l'application sélectionne le premier lecteur qui répond."] = "A/B = IBM-PC bus (twisted cable) - typically the PC drive`n0 to 3 = Shugart bus (straight cable) - typically the Amiga drive`nAt startup, the application selects the first drive that responds."
+# 12.11 (version finale) : infobulle de la liste « Lecteur : » du bandeau remplacee (019 : plus de detection au demarrage)
 $script:I18n['Port COM du Greaseweazle. Vide = détection automatique.'] = 'Greaseweazle COM port. Empty = auto-detect.'
 $script:I18n['Lecteur :'] = 'Drive:'
 $script:I18n['COM :'] = 'COM:'
@@ -3365,6 +3365,10 @@ $script:I18n['mesures de la marque dispersées : mesurez plutôt cette disquette
 $script:I18n["Contrôle après écriture : zone(s) écartée(s) de l'attendu sur {0} % des cylindres écrits de la tête {1} ({2} sur {3}) : facteur de la disquette à revoir, refaites la mesure sur l'image."] = 'Post-write check: zone(s) away from the expected value over {0}% of the written cylinders of head {1} ({2} of {3}): disk factor to be reviewed, redo the measurement on the image.'
 $script:I18n["Contrôle après écriture : zone(s) écartée(s) de l'attendu sur {0} % des cylindres écrits de la tête {1} ({2} sur {3}) : facteur de la disquette à revoir ; pour le mesurer sur l'image avant l'écriture, {4}."] = 'Post-write check: zone(s) away from the expected value over {0}% of the written cylinders of head {1} ({2} of {3}): disk factor to be reviewed; to measure it on the image before writing, {4}.'
 $script:I18n["Contrôle après écriture : zone(s) écartée(s) de l'attendu sur {0} % des cylindres écrits de la tête {1} ({2} sur {3}) : facteur de la disquette à revoir."] = 'Post-write check: zone(s) away from the expected value over {0}% of the written cylinders of head {1} ({2} of {3}): disk factor to be reviewed.'
+
+# --- Version finale : infobulle de la liste « Lecteur : » du bandeau (510), a la place de celle de 010 : plus de detection
+# des lecteurs au demarrage (rc3, R3)
+$script:I18n["A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0 à 3 = bus Shugart (nappe droite) - typiquement le lecteur Amiga`nAu démarrage, l'application ne cherche pas les lecteurs : elle reprend la connexion choisie à la session précédente.`nLa carte « Tester le Greaseweazle » de l'Accueil dit quelles connexions répondent."] = "A/B = IBM-PC bus (twisted cable) - typically the PC drive`n0 to 3 = Shugart bus (straight cable) - typically the Amiga drive`nAt startup, the application does not look for drives: it restores the connection chosen in the previous session.`nThe `"Test the Greaseweazle`" card on the Home tab tells which connections respond."
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 try { Add-Type -AssemblyName System.IO.Compression.FileSystem } catch { }
@@ -34779,7 +34783,9 @@ $cmbDrive = New-Object System.Windows.Forms.ComboBox
 $cmbDrive.Location = '556,34'; $cmbDrive.Width = 45; $cmbDrive.DropDownStyle = 'DropDownList'
 $cmbDrive.Anchor = 'Top,Right'
 [void]$cmbDrive.Items.AddRange(@('A','B','0','1','2','3'))
-$tip.SetToolTip($cmbDrive, (T "A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0 à 3 = bus Shugart (nappe droite) - typiquement le lecteur Amiga`nAu démarrage, l'application sélectionne le premier lecteur qui répond."))
+# 12.11 (version finale) : le demarrage ne cherche plus les lecteurs (rc3, R3) : l infobulle le dit, et renvoie au diagnostic
+# de la carte « Tester le Greaseweazle » de l Accueil
+$tip.SetToolTip($cmbDrive, (T "A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0 à 3 = bus Shugart (nappe droite) - typiquement le lecteur Amiga`nAu démarrage, l'application ne cherche pas les lecteurs : elle reprend la connexion choisie à la session précédente.`nLa carte « Tester le Greaseweazle » de l'Accueil dit quelles connexions répondent."))
 Register-SettingCtl 'drive' $cmbDrive          # 12.8 (point 7) : lecteur de toute l application (fenetre de nettoyage comprise)
 # 12.11 (lot LN-b) : lecteurs enregistres (112). Seul un choix fait dans la liste deroulee vaut confirmation du lecteur
 # branche (Set-DriveHandChoice) ; molette sans effet sur la liste fermee, avec ou sans lecteur enregistre (un geste

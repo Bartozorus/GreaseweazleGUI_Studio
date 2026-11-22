@@ -11,7 +11,7 @@ $script:I18n = [System.Collections.Hashtable]::new([System.StringComparer]::Ordi
 $script:I18n['Préservation, écriture et contrôle de disquettes'] = 'Floppy disk preservation, writing and checking'
 $script:I18n['●  gw.exe prêt'] = '●  gw.exe ready'
 $script:I18n['●  gw.exe introuvable'] = '●  gw.exe not found'
-$script:I18n["A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0 à 3 = bus Shugart (nappe droite) - typiquement le lecteur Amiga`nAu démarrage, l'application sélectionne le premier lecteur qui répond."] = "A/B = IBM-PC bus (twisted cable) - typically the PC drive`n0 to 3 = Shugart bus (straight cable) - typically the Amiga drive`nAt startup, the application selects the first drive that responds."
+# 12.11 (version finale) : infobulle de la liste « Lecteur : » du bandeau remplacee (019 : plus de detection au demarrage)
 $script:I18n['Port COM du Greaseweazle. Vide = détection automatique.'] = 'Greaseweazle COM port. Empty = auto-detect.'
 $script:I18n['Lecteur :'] = 'Drive:'
 $script:I18n['COM :'] = 'COM:'

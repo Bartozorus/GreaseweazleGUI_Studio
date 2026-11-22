@@ -358,11 +358,21 @@ function Get-LbBannerPos {
     return $o
 }
 function Get-LbPosText($o) { return (@($o.Keys | ForEach-Object { "$_ $($o[$_])" }) -join ' ; ') }
-$tip1210 = (T "A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0 à 3 = bus Shugart (nappe droite) - typiquement le lecteur Amiga`nAu démarrage, l'application sélectionne le premier lecteur qui répond.")
+# 12.11 (version finale, adapte a dessein) : infobulle de la liste « Lecteur : » sans la detection au demarrage, retiree en
+# rc3 ($tipBan, 510 et 019) ; celle de la 12.10 ($tip1210, texte seul : sa cle n est plus dans la table) ne sert plus qu a la
+# source d avant le lot (Q1, -Before)
+$tip1210 = "A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0 à 3 = bus Shugart (nappe droite) - typiquement le lecteur Amiga`nAu démarrage, l'application sélectionne le premier lecteur qui répond."
+$tipBan = (T "A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0 à 3 = bus Shugart (nappe droite) - typiquement le lecteur Amiga`nAu démarrage, l'application ne cherche pas les lecteurs : elle reprend la connexion choisie à la session précédente.`nLa carte « Tester le Greaseweazle » de l'Accueil dit quelles connexions répondent.")
 $pos0 = Get-LbBannerPos
 $tip0 = [string]$tip.GetToolTip($cmbDrive)
 $mov = @($pnlTop.Controls | Where-Object { $_.Left -lt 400 -or $_.Top -lt 0 }).Count
-Chk 'U0' ($lit.Count -eq 0 -and $pos0.cmbDrive -ceq '566,34 w45' -and $pos0.lblDrive -ceq '510,37' -and $pos0.lblCom -ceq '622,37' -and $pos0.txtDev -ceq '662,34 w50' -and $mov -eq 0 -and $lblDrive.Text -ceq 'Lecteur :' -and $lblCom.Text -ceq 'COM :' -and $tip0 -ceq $tip1210 -and (Get-LbItems) -ceq 'A,B,0,1,2,3' -and $cmbDrive.Enabled -and $null -eq $script:DriveBanner) "registre vide : positions et tailles du bandeau donnees par les litteraux de la 12.10 (510:8-47 ; absents : $($lit -join ', ')), instructions reelles executees dans une fenetre de 800 px puis Fit-ControlText (+10 px, « Chrono » et « Mode expert » ajustes a leur texte comme en 12.10) : $(Get-LbPosText $pos0) ; libelles « Lecteur : » et « COM : », infobulle de la 12.10, six elements, aucune fonction de disposition appelee"
+Chk 'U0' ($lit.Count -eq 0 -and $pos0.cmbDrive -ceq '566,34 w45' -and $pos0.lblDrive -ceq '510,37' -and $pos0.lblCom -ceq '622,37' -and $pos0.txtDev -ceq '662,34 w50' -and $mov -eq 0 -and $lblDrive.Text -ceq 'Lecteur :' -and $lblCom.Text -ceq 'COM :' -and $tip0 -ceq $tipBan -and (Get-LbItems) -ceq 'A,B,0,1,2,3' -and $cmbDrive.Enabled -and $null -eq $script:DriveBanner) "registre vide : positions et tailles du bandeau donnees par les litteraux de la 12.10 (510:8-47 ; absents : $($lit -join ', ')), instructions reelles executees dans une fenetre de 800 px puis Fit-ControlText (+10 px, « Chrono » et « Mode expert » ajustes a leur texte comme en 12.10) : $(Get-LbPosText $pos0) ; libelles « Lecteur : » et « COM : », infobulle de la 12.11 (sans detection au demarrage), six elements, aucune fonction de disposition appelee"
+# U0b (12.11, version finale) : infobulle d apres le demarrage de la 12.11 : ni « premier lecteur qui repond », ni
+# detection ; connexion reprise, diagnostic de la carte « Tester le Greaseweazle » ; anglais mot pour mot ; ancienne cle
+# retiree de la table
+$tipEn = Invoke-En { T $tipBan }
+$tipEnWant = "A/B = IBM-PC bus (twisted cable) - typically the PC drive`n0 to 3 = Shugart bus (straight cable) - typically the Amiga drive`nAt startup, the application does not look for drives: it restores the connection chosen in the previous session.`nThe `"Test the Greaseweazle`" card on the Home tab tells which connections respond."
+Chk 'U0b' (-not $tip0.Contains('premier lecteur qui répond') -and $tip0.Contains("l'application ne cherche pas les lecteurs : elle reprend la connexion choisie") -and $tip0.Contains('« Tester le Greaseweazle »') -and $tipEn -ceq $tipEnWant -and -not $script:I18n.ContainsKey($tip1210)) "infobulle : « $($tip0 -replace "`n", ' / ') » ; anglais : « $($tipEn -replace "`n", ' / ') »"
 Reset-LbWorld 'u'
 Set-LbTwoOnA
 Select-LbDrive 'Sony MPF920'
@@ -373,7 +383,7 @@ $lblT = [string]$lblDrive.Text; $posT = Get-LbBannerPos
 Select-LbDrive 'A'
 $lblM = [string]$lblDrive.Text; $posM = Get-LbBannerPos
 $tipW = [string]$tip.GetToolTip($cmbDrive)
-$tipWant = $tip1210 + "`n`n" + ((T "Lecteurs : {0}.`nLeurs calibrations sont rangées sous leur nom, quelle que soit leur connexion.`nL'application ne reconnaît pas le lecteur branché : choisissez-le ici chaque fois que vous en changez`n(pour les nommer : Accueil, « Lecteurs »).") -f 'Sony MPF920 (A), TEAC FD-235HF (A)')
+$tipWant = $tipBan + "`n`n" + ((T "Lecteurs : {0}.`nLeurs calibrations sont rangées sous leur nom, quelle que soit leur connexion.`nL'application ne reconnaît pas le lecteur branché : choisissez-le ici chaque fois que vous en changez`n(pour les nommer : Accueil, « Lecteurs »).") -f 'Sony MPF920 (A), TEAC FD-235HF (A)')
 Chk 'U1a' ($lblA -ceq 'Lecteur (A) :' -and $lblT -ceq 'Lecteur (A) :' -and $lblM -ceq 'Lecteur :' -and $cmbDrive.Width -eq 150 -and $posW.cmbDrive -ceq '541,34 w150' -and $posW.lblCom -ceq '702,37' -and $posW.txtDev -ceq '742,34 w50' -and $posW.chkTime -ceq ($pos0.chkTime -replace ',35 ', ',8 ') -and $posW.btnHelpTop -ceq '368,28 w84' -and $posW.chkExpert -ceq '368,5' -and $posW.lblDrive -ceq "$(541 - $pwA),37" -and $posW.lblGwStatus -ceq '566,10' -and $posW.btnHelpTop -ceq $posT.btnHelpTop -and $posW.btnHelpTop -ceq $posM.btnHelpTop -and $tipW -ceq $tipWant) "disposition elargie (maquette approuvee) : liste de 150 px en 541, « COM : » 702, champ 742, « Chrono » remonte en 722,8, etat de gw inchange ; libelle « Lecteur (A) : » pour un lecteur enregistre, « Lecteur : » pour A non enregistre ; « Aide » a la meme place quel que soit le lecteur ; infobulle de la 12.10 suivie des lecteurs : $(Get-LbPosText $posW)"
 # Disposition mesuree en francais et en anglais (instructions reelles de 510 dans une portee d essai), nom le plus large admis
 function Get-LbSubRight {
@@ -448,7 +458,7 @@ Chk 'U1b' ($ub.Count -eq 0) "disposition elargie mesuree dans des fenetres de 80
 # Retour a la 12.10 dans le bandeau du script : registre vide de nouveau, positions et infobulle de depart
 Reset-LbWorld 'u2'
 $pos2 = Get-LbBannerPos
-Chk 'U1c' ((Get-LbPosText $pos2) -ceq (Get-LbPosText $pos0) -and [string]$tip.GetToolTip($cmbDrive) -ceq $tip1210 -and $lblDrive.Text -ceq 'Lecteur :' -and (Get-LbItems) -ceq 'A,B,0,1,2,3') "dernier lecteur retire : bandeau, libelle, infobulle et liste de la 12.10, au pixel pres"
+Chk 'U1c' ((Get-LbPosText $pos2) -ceq (Get-LbPosText $pos0) -and [string]$tip.GetToolTip($cmbDrive) -ceq $tipBan -and $lblDrive.Text -ceq 'Lecteur :' -and (Get-LbItems) -ceq 'A,B,0,1,2,3') "dernier lecteur retire : bandeau, libelle et liste de la 12.10, au pixel pres, infobulle de la 12.11 (sans detection au demarrage)"
 # U2 : textes courts de la ligne d etat (lblWCal, 439 px) et du libelle de la restauration (290 px), deux noms les plus
 # larges admis, francais et anglais ; texte d etat de la fenetre « Lecteurs enregistres »
 $wide2 = $wide
@@ -1463,7 +1473,7 @@ if (-not $Before) {
     }
     Reset-LbWorld 'q'
     $qa = @(); foreach ($c in @($pnlTop.Controls)) { $tx = if ($c -is [System.Windows.Forms.ComboBox]) { (@($c.Items) -join ',') } else { $c.Text }; $qa += "$($c.GetType().Name) $tx $($c.Left),$($c.Top) $($c.Width)x$($c.Height)" }
-    Chk 'Q1' (($qa -join ' ; ') -ceq ($qb.Pos -join ' ; ') -and $qb.Tip -ceq $tip1210 -and [string]$tip.GetToolTip($cmbDrive) -ceq $qb.Tip) "bandeau de la source d avant le lot (instructions de 510) : memes controles, textes, elements de la liste, positions et tailles, meme infobulle ; avant : $($qb.Pos -join ' ; ') ; lot : $($qa -join ' ; ')"
+    Chk 'Q1' (($qa -join ' ; ') -ceq ($qb.Pos -join ' ; ') -and $qb.Tip -ceq $tip1210 -and [string]$tip.GetToolTip($cmbDrive) -ceq $tipBan) "bandeau de la source d avant le lot (instructions de 510) : memes controles, textes, elements de la liste, positions et tailles ; infobulle de la 12.10 avant, de la 12.11 (sans detection au demarrage) dans le lot ; avant : $($qb.Pos -join ' ; ') ; lot : $($qa -join ' ; ')"
 }
 
 # ================================================================ W. choix de l utilisateur, fenetre affichee (12.11 rc2.2)

@@ -18,7 +18,9 @@ $cmbDrive = New-Object System.Windows.Forms.ComboBox
 $cmbDrive.Location = '556,34'; $cmbDrive.Width = 45; $cmbDrive.DropDownStyle = 'DropDownList'
 $cmbDrive.Anchor = 'Top,Right'
 [void]$cmbDrive.Items.AddRange(@('A','B','0','1','2','3'))
-$tip.SetToolTip($cmbDrive, (T "A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0 à 3 = bus Shugart (nappe droite) - typiquement le lecteur Amiga`nAu démarrage, l'application sélectionne le premier lecteur qui répond."))
+# 12.11 (version finale) : le demarrage ne cherche plus les lecteurs (rc3, R3) : l infobulle le dit, et renvoie au diagnostic
+# de la carte « Tester le Greaseweazle » de l Accueil
+$tip.SetToolTip($cmbDrive, (T "A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0 à 3 = bus Shugart (nappe droite) - typiquement le lecteur Amiga`nAu démarrage, l'application ne cherche pas les lecteurs : elle reprend la connexion choisie à la session précédente.`nLa carte « Tester le Greaseweazle » de l'Accueil dit quelles connexions répondent."))
 Register-SettingCtl 'drive' $cmbDrive          # 12.8 (point 7) : lecteur de toute l application (fenetre de nettoyage comprise)
 # 12.11 (lot LN-b) : lecteurs enregistres (112). Seul un choix fait dans la liste deroulee vaut confirmation du lecteur
 # branche (Set-DriveHandChoice) ; molette sans effet sur la liste fermee, avec ou sans lecteur enregistre (un geste
