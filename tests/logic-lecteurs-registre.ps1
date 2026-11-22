@@ -86,6 +86,8 @@ $want = [ordered]@{
               'Update-LegacyCleanDefault', 'Update-LegacyLevelMode', 'Update-LegacyEraseMode', 'Test-ContentLevelSettings', 'Backup-ConfigBeforeRef', 'Export-CurveView', 'Export-DriveCurves', 'Import-DriveCurves',
               'Export-TargetDrives', 'Import-TargetDrives', 'Save-Config', 'Get-Cfg', 'Set-Num', 'Set-Combo', 'Load-Config')
     '140' = @('Get-DriveIds', 'Get-TargetDrive', 'Set-TargetDrive', 'Get-TargetDriveItems', 'Get-TargetCurves', 'Get-TargetWriteInfo')
+    # 12.11 rc8 (R17) : configuration des recalages et de la memoire des ecritures pour un lecteur cible (Save-Config, Load-Config)
+    '172' = @('Export-TargetRecal', 'Export-LastTargetWrites', 'Import-TargetRecal', 'Import-LastTargetWrites', 'Get-TargetRecalNs')
     '220' = @('Get-CurveDate', 'Get-DriveFamilyCurves')
     '230' = @('Set-PrecompBound', 'Test-CurveHd', 'Get-CalibFamilyName', 'Get-Median', 'Get-CurveCalc', 'Get-CurveCalcRef', 'Test-CurveCalcOk', 'Get-CurveCalcText', 'ConvertTo-CurveConfig', 'ConvertTo-LevelConfig', 'ConvertTo-LevelBrandConfig',
               'ConvertFrom-LevelBrandConfig', 'ConvertFrom-LevelConfig', 'ConvertFrom-CurveConfig')
@@ -1317,7 +1319,8 @@ $regOwners = Get-LnSortedText @($regW | Where-Object { $_ -like '112 * script:Dr
 $noCheck = @('Add-NamedDrive', 'Rename-NamedDrive', 'Import-DriveRegistry', 'Repair-DriveRegistry' | Where-Object { $fa = Get-LnFnAst $mods '112' $_; -not $fa -or @($fa.Body.FindAll({ param($x) $x -is $tCmd -and $x.GetCommandName() -eq 'Test-DriveName' }, $true)).Count -eq 0 })
 Chk 'I5b' ($regOwners -ceq "Add-NamedDrive`nImport-DriveRegistry`nRemove-NamedDrive`nRename-NamedDrive`nRepair-DriveRegistry" -and $noCheck.Count -eq 0) "registre affecte par cinq fonctions seulement ($($regOwners -replace "`n", ', ')) ; les quatre qui peuvent y faire entrer un nom passent par Test-DriveName, qui refuse les mots reserves : aucun nom ne peut masquer Count, Keys ou Values ; sans ce passage : $(if ($noCheck.Count) { $noCheck -join ', ' } else { 'aucune' })"
 # I6 : Edit-DriveData est, dans le module 112, la seule fonction qui ecrit un porteur de l identite ; tables neuves
-$carriers = @('script:DriveCurves', 'script:OldCalib', 'script:LevelShifts', 'script:LevelBrands', 'script:ContentMeasures', 'script:TargetDrives')
+# 12.11 rc8 (R17) : recalages des courbes croisees et memoire des ecritures pour un lecteur cible, porteurs (9) et (10)
+$carriers = @('script:DriveCurves', 'script:OldCalib', 'script:LevelShifts', 'script:LevelBrands', 'script:ContentMeasures', 'script:TargetDrives', 'script:TargetRecal', 'script:LastTargetWrites')
 $ast112 = Get-LnAst (Get-LnModule $mods '112')
 $carW = @(); $fieldW = @()
 foreach ($a in $ast112.FindAll({ param($x) $x -is $tAsg }, $true)) {
@@ -1328,7 +1331,7 @@ foreach ($a in $ast112.FindAll({ param($x) $x -is $tAsg }, $true)) {
     if ($a.Left -is $tIdx -and $a.Left.Target -is $tMem -and [string]$a.Left.Target.Extent.Text -eq '$f.O') { $fieldW += "$(Get-LnOwner $a) : $($a.Left.Extent.Text)" }
 }
 $carM = @($ast112.FindAll({ param($x) $x -is $tInv -and $x.Member -is $tStr -and $mutators -contains [string]$x.Member.Value }, $true) | Where-Object { $e = $_.Expression; while ($e -is $tIdx -or $e -is $tMem) { if ($e -is $tIdx) { $e = $e.Target } else { $e = $e.Expression } }; $e -is $tVar -and $carriers -contains [string]$e.VariablePath.UserPath } | ForEach-Object { "$(Get-LnOwner $_) : $($_.Extent.Text)" })
-$carWant = @('$script:DriveCurves', '$script:OldCalib.Curves', '$script:OldCalib.Levels', '$script:LevelShifts', '$script:LevelBrands', '$script:ContentMeasures', '$script:TargetDrives')
+$carWant = @('$script:DriveCurves', '$script:OldCalib.Curves', '$script:OldCalib.Levels', '$script:LevelShifts', '$script:LevelBrands', '$script:ContentMeasures', '$script:TargetDrives', '$script:TargetRecal', '$script:LastTargetWrites')
 $editAst = Get-LnFnAst $mods '112' 'Edit-DriveData'
 $editAsg = @($editAst.Body.FindAll({ param($x) $x -is $tAsg }, $true))
 $scriptAsg = @($editAsg | Where-Object { $_.Left.Extent.Text -like '$script:*' })
@@ -1338,7 +1341,7 @@ foreach ($a in $editAsg) { if ($a.Left -is $tVar -and $newVars -contains $a.Left
 $badInit = @($newVars | Where-Object { -not $inits.ContainsKey($_) -or @($inits[$_] | Where-Object { @('@{}', '[ordered]@{}', '@()') -cnotcontains $_ -and $_ -notmatch '^\$n\w+ \+ |^,' }).Count -gt 0 -or @('@{}', '[ordered]@{}', '@()') -cnotcontains @($inits[$_])[0] })
 $wholeOnly = @($scriptAsg | Where-Object { $_.Left -is $tIdx -or $_.Right -isnot [System.Management.Automation.Language.CommandExpressionAst] -or $_.Right.Expression -isnot $tVar }).Count
 $carOwners = (@($carW | ForEach-Object { ($_ -split ' : ')[0] } | Sort-Object -Unique) -join ','); $fieldOwners = (@($fieldW | ForEach-Object { ($_ -split ' : ')[0] } | Sort-Object -Unique) -join ',')
-Chk 'I6' ($carOwners -ceq 'Edit-DriveData' -and (@($carW | ForEach-Object { ($_ -split ' : ')[1] }) -join ',') -ceq ($carWant -join ',') -and $carM.Count -eq 0 -and $fieldOwners -ceq 'Edit-DriveData' -and $scriptAsg.Count -eq 8 -and $badInit.Count -eq 0 -and $wholeOnly -eq 0 -and $editAst.Extent.Text -notmatch '\$script:PrecompCurves\[') "dans le module 112, Edit-DriveData est la seule fonction qui ecrit un porteur de l identite ($($carWant.Count) tables et les champs Drive et Target ; avec `$script:DriveLast, les huit porteurs) : affectations de tables entieres seulement, chacune construite a partir d une table vide (@{}, [ordered]@{} ou @()), aucun ajout ni retrait dans une table en place ; la vue n y est jamais ecrite (tables : $carOwners ; champs : $fieldOwners ; $($scriptAsg.Count) affectations, $($carM.Count) retrait(s) ou ajout(s) en place, $($badInit.Count) table(s) non neuve(s), $wholeOnly affectation(s) partielle(s))"
+Chk 'I6' ($carOwners -ceq 'Edit-DriveData' -and (@($carW | ForEach-Object { ($_ -split ' : ')[1] }) -join ',') -ceq ($carWant -join ',') -and $carM.Count -eq 0 -and $fieldOwners -ceq 'Edit-DriveData' -and $scriptAsg.Count -eq 10 -and $badInit.Count -eq 0 -and $wholeOnly -eq 0 -and $editAst.Extent.Text -notmatch '\$script:PrecompCurves\[') "dans le module 112, Edit-DriveData est la seule fonction qui ecrit un porteur de l identite ($($carWant.Count) tables et les champs Drive et Target ; avec `$script:DriveLast, les dix porteurs) : affectations de tables entieres seulement, chacune construite a partir d une table vide (@{}, [ordered]@{} ou @()), aucun ajout ni retrait dans une table en place ; la vue n y est jamais ecrite (tables : $carOwners ; champs : $fieldOwners ; $($scriptAsg.Count) affectations, $($carM.Count) retrait(s) ou ajout(s) en place, $($badInit.Count) table(s) non neuve(s), $wholeOnly affectation(s) partielle(s))"
 $rd = [System.IO.File]::ReadAllText((Join-Path $mods 'README.md'), [System.Text.Encoding]::UTF8)
 $ch = [System.IO.File]::ReadAllText((Join-Path $Wt 'CHANGELOG.md'), [System.Text.Encoding]::UTF8)
 $trd = [System.IO.File]::ReadAllText((Join-Path $Wt 'tests\README.md'), [System.Text.Encoding]::UTF8)

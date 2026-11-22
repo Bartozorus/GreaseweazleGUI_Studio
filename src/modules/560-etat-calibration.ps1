@@ -194,6 +194,12 @@ $script:CalConfirm = $null
 # reconstruite par Sync-PrecompCurves au chargement, au changement de lecteur et apres chaque ecriture dans le magasin :
 # tout le code qui lit PrecompCurves lit les courbes du lecteur courant, sans changement
 $script:DriveCurves = @{}
+# 12.11 rc8 (R17) : recalages des courbes croisees (« source>cible|famille_hN » -> @{ Ns ; N ; Items ; XDate ; XKey ; Calc ; At }),
+# memoire de la derniere ecriture pour chaque lecteur cible (« source>cible » -> New-TargetWriteMemory) et memoire en attente
+# de l ecriture en cours (172) ; blocs write.targetRecal et write.lastTargetWrite (120)
+$script:TargetRecal = @{}
+$script:LastTargetWrites = @{}
+$script:TargetWritePending = $null
 $script:PrecompCurves = @{ std = $null; long = $null; std_h0 = $null; std_h1 = $null; long_h0 = $null; long_h1 = $null; hd = $null; hd_h0 = $null; hd_h1 = $null }   # vue du lecteur courant : derniere courbe calibree par famille d image (et par tete : ecriture lente)
 # 12.7 : cles de la haute densite (hd) apres les six cles double densite, dans le meme ordre qu avant
 $script:CurveKeys = @('std', 'long', 'std_h0', 'std_h1', 'long_h0', 'long_h1', 'hd', 'hd_h0', 'hd_h1')

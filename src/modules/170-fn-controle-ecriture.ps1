@@ -729,6 +729,9 @@ function Complete-WriteCheck([switch]$GwError) {
     elseif ($zc.N -gt 0) { $txt += ((T " ; zones écartées de l'attendu corrigées : {0} sur {1}") -f "$($zc.Ok)", "$($zc.N)") }
     if ($rep.Target) { $txt += ((T " (relu par le lecteur {0}, pas par le lecteur cible {1})") -f "$($rep.TargetSrc)", "$($rep.Target)") }
     Append-Log $txt
+    # 12.11 rc8 (R17) : ecriture pour un lecteur cible : memoire de l ecriture gardee (verdict R10, courbe finale et zones),
+    # ou retiree apres une erreur de gw (Complete-TargetWriteMemory, 172) ; rien pour une autre ecriture
+    Complete-TargetWriteMemory (-not $GwError) $rep
     # Bilan exploitable par la restauration (accroche : le controle vide la chaine d etapes, rien ne le suit)
     $short = if ($GwError) { (T 'contrôle interrompu par une erreur gw') } elseif ($lvl -eq 0) { (T "{0}/{1} pistes saines") -f "$nOk", "$n" }
              elseif ($n -eq 0) { (T 'aucune piste mesurée') } else { (T "{0} piste(s) faible(s) : {1}") -f "$($weak.Count)", "$(Format-TrackList $weak)" }
@@ -796,6 +799,7 @@ function Stop-WriteCheck([switch]$GwError) {
     Exit-CheckTab                                         # 12.10 (lot 1, E11) : sans effet si la relecture n a pas commence
     Set-WCalVerdict (T 'Contrôle après écriture interrompu.') 'h1'     # 12.8 (lot 3) : icone d etat dans l onglet Ecriture
     Append-Log (T 'Contrôle après écriture interrompu.')
+    Complete-TargetWriteMemory $false                     # 12.11 rc8 (R17) : ecriture pour un lecteur cible non gardee (172)
     if (@($blank).Count -gt 0) { Append-Log ((T "Contrôle après écriture : piste(s) effacée(s) en haute fréquence et non réécrite(s) après l'arrêt de gw : {0}. Elles sont vierges sur la disquette : réécrivez l'image.") -f "$(Format-TrackList $blank)") }
     Set-QualityStale 'checkabort'                         # 12.8 (lot 3a) : resultat de l onglet Qualite perime
     if ($script:Restore) { Stop-Restore (T 'contrôle des pistes interrompu') }

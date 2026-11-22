@@ -1202,11 +1202,12 @@ function Invoke-AlignAnalysis {
         $lvAl.Items.Clear()
         $total = 0.0; $count = 0; $zo = 0; $zt = 0; $zf = 0; $fb = @(); $so = 0; $sot = 0; $sov = @()   # 12.10 (S13) : so / sot / sov
         $ams = New-Object System.Collections.Generic.List[object]     # 12.11 : metriques des pistes, pour le resume de l asymetrie
+        $amk = @{}                                                    # 12.11 rc8 (R17) : metriques par piste, pour le recalage (172)
         foreach ($tn in ($tracks.Keys | Sort-Object)) {
             $st = $tracks[$tn]; $cyl = [math]::Floor($tn / 2); $hd = $tn % 2; $key = "$cyl.$hd"
             $lab = "$cyl.$hd"
             $m = Get-TrackMetrics $st
-            $ams.Add($m)
+            $ams.Add($m); $amk[$key] = $m
             if ($m.ZoneOoc -gt 0) { $zo += $m.ZoneOoc; $zt++; if ($m.ZoneFarNs -gt $zf) { $zf = $m.ZoneFarNs } }
             if ($m.StructOoc -gt 0) { $so += $m.StructOoc; $sot++ }
             if ($m.StructOver -gt 0) { $sov += $lab }
@@ -1295,6 +1296,9 @@ function Invoke-AlignAnalysis {
         }
     } finally { $lvAl.EndUpdate() }
     Set-QualityResult $res                                # 12.8 (lot 3a) : carte et tableau en couleurs (12.9 : sans graphique)
+    # 12.11 rc8 (R17) : relecture par le lecteur cible d une ecriture gardee en memoire pour lui : recalage de la courbe
+    # croisee propose (confirmation) ou refus dit au journal (Invoke-TargetRecalOffer, 172) ; rien pour une autre mesure
+    [void](Invoke-TargetRecalOffer $res $amk)
 
     if ($script:AlignLoop) { $script:AlignNextAt = (Get-Date).AddSeconds([int]$numAlPause.Value) }
 }

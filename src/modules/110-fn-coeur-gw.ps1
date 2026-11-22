@@ -10,6 +10,7 @@ function Invoke-NextChainStep {
         $script:Chain.Clear(); $script:WriteQueue.Clear()
         Stop-WriteWarmup
         if ($script:Rep) { Stop-WriteCheck }
+        if ($script:TargetWritePending) { Complete-TargetWriteMemory $false }   # 12.11 rc8 (R17) : ecriture pour un lecteur cible non gardee (172)
         Append-Log ((T "ERREUR étape : {0}") -f "$($_.Exception.Message)")
         # Etape de calibration en echec : calibration abandonnee, avec l ecriture qu elle devait preceder
         if ($script:Cal) { Stop-PrecompCalib }
@@ -226,6 +227,7 @@ function Reset-GwSequence {
     $script:Chain.Clear(); $script:WriteQueue.Clear(); $script:Detect = $null; $script:GwPortRetry = $null   # 12.11 rc3 (R5)
     Stop-WriteWarmup
     if ($script:Rep) { Stop-WriteCheck }
+    if ($script:TargetWritePending) { Complete-TargetWriteMemory $false }   # 12.11 rc8 (R17) : ecriture pour un lecteur cible non gardee (172)
     # 12.11 rc4 (R5, partie 2, relecture) : StopBy 'launch' : cause dite par le message d interruption (Get-CalibStopCause,
     # 270), que l etat de la commande gw precedente (code retour, commande incomplete) ne doit pas remplacer
     if ($script:Cal) { $script:Cal.StopBy = 'launch'; Stop-PrecompCalib -GwError }       # 12.8 (VAL01) : passe du nouvel essai : jugement garde

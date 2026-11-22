@@ -1,0 +1,555 @@
+﻿# --- 12.11 rc8 (R17) : recalage de la courbe croisee par une relecture du lecteur cible ---------------------------------
+# Les ecritures pour un lecteur cible (regle rc6 : courbe ecrite = min(k x X, X + (k - 1) x Sp), X courbe croisee, Sp courbe
+# propre du lecteur qui ecrit, k facteur de la disquette ; correction par zones rc7) sont relues par le lecteur cible avec
+# une asymetrie signee legerement positive : quelques ns de trop, que le lecteur qui ecrit ne peut pas voir. Le recalage est
+# un decalage constant par tete, en ns, ajoute a la courbe ecrite apres la regle (Get-TargetTransferSpec, 140), appris sur
+# la relecture par le lecteur cible d une disquette ecrite pour lui (mesure de l onglet Qualite : Invoke-AlignAnalysis,
+# 190). Il est range a cote de la courbe croisee, qu il ne modifie jamais, et lie a la date de la courbe croisee employee
+# (XDate) et au calcul de calibration (Calc) : une nouvelle calibration croisee, ou un autre calcul, le rend sans effet et
+# la relecture suivante repart de zero. Magasins (etat : 560 ; configuration : blocs write.targetRecal et
+# write.lastTargetWrite, 120) : $script:TargetRecal, « source>cible|famille_hN » (N : tete physique du lecteur qui ecrit,
+# celle de la courbe croisee) -> @{ Ns ; N ; Items ; XDate ; XKey ; Calc ; At } ; $script:LastTargetWrites, « source>cible » ->
+# memoire de la derniere ecriture pour ce lecteur cible (New-TargetWriteMemory). Constantes : 040 (TargetRecal*).
+# Validation (hors depot, quatre ecritures bien reglees, une paire de lecteurs, double densite standard) : decalage constant
+# en ns, f = n / (n + 1), plafond 8 ns ; jamais appris ni applique quand le facteur k de l ecriture n a pas ete mesure.
+
+function Get-TargetRecalKey([string]$src, [string]$tgt, [string]$fam, [int]$h) {
+    # Cle du magasin $script:TargetRecal : « source>cible|famille_hN » (N : tete physique du lecteur qui ecrit)
+    return "$src>$tgt|$($fam)_h$h"
+}
+
+function Get-TargetRecalEntry([string]$src, [string]$tgt, [string]$fam, [int]$h) {
+    # Entree brute du magasin, sans condition ; $null sans elle
+    if ($null -eq $script:TargetRecal) { return $null }
+    return $script:TargetRecal[(Get-TargetRecalKey $src $tgt $fam $h)]
+}
+
+function Test-TargetRecalValid($e, [string]$xDate) {
+    # Entree applicable a une ecriture faite avec une courbe croisee de date $xDate : meme date que la courbe qui a servi a
+    # l apprendre, calcul de calibration courant, au moins une ecriture relue
+    return ($null -ne $e -and [string]$e.XDate -ceq $xDate -and [string]$e.Calc -ceq [string]$script:CalibCalc -and @($e.Items | Where-Object { $_ }).Count -gt 0)
+}
+
+function Get-TargetRecalNs($items) {
+    # Recalage d une tete : borne(somme des estimations / (n + 1), +/- TargetRecalCapNs), une decimale ; n : ecritures relues
+    # (TargetRecalMaxItems au plus). Revient a f = n / (n + 1) : 0,5 apres une relecture, puis 0,67, puis 0,75 ; moyenne
+    # retrecie vers 0, sans integrateur, donc sans oscillation. Aucune ecriture : 0
+    $it = @($items | Where-Object { $_ })
+    if ($it.Count -eq 0) { return 0.0 }
+    $s = 0.0
+    foreach ($x in $it) { $s += [double]$x.Est }
+    $cap = [double]$script:TargetRecalCapNs
+    return [double][math]::Round([math]::Max(-$cap, [math]::Min($cap, $s / ($it.Count + 1))), 1)
+}
+
+function ConvertTo-RecalDate([string]$s) {
+    # Date d une memoire ou d un recalage (yyyy-MM-dd HH:mm:ss, culture invariante) ; MinValue si elle est vide ou
+    # illisible (meme forme que les fiches des lecteurs, sans dependre du module 112)
+    $d = [datetime]::MinValue
+    if ($s -and [datetime]::TryParseExact($s, 'yyyy-MM-dd HH:mm:ss', [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::None, [ref]$d)) { return $d }
+    return [datetime]::MinValue
+}
+
+function Get-TargetRecalReads($e) {
+    # Relectures acceptees d une entree (somme des relectures de ses ecritures) et date de la derniere : @{ N ; Last }
+    $n = 0; $last = ''
+    foreach ($x in @($e.Items | Where-Object { $_ })) { $n += [math]::Max(1, [int]$x.NR) }
+    if ($e -and $e.At) { $last = [string]$e.At }
+    return @{ N = $n; Last = $last }
+}
+
+function Test-TargetRecalKMeasured($wf, [int]$h, [bool]$slow) {
+    # Facteur k de la disquette mesure pour la tete physique $h ($wf : Get-WriteFactorPlan, 140) : facteur applique, origine
+    # mesure sur cette disquette ou memoire de la marque ; 'defaut' (k = 1, aucune mesure) : non. Ecriture rapide : facteur
+    # moyen des deux tetes, mesure si les deux le sont
+    if (-not $wf -or -not $wf.Apply -or -not $wf.Src) { return $false }
+    $hs = if ($slow) { @($h) } else { @(0, 1) }
+    foreach ($q in $hs) {
+        $s = [string]$wf.Src[$q]
+        if (-not $s) { $s = [string]$wf.Src["$q"] }
+        if (-not $s -or $s -eq 'defaut') { return $false }
+    }
+    return $true
+}
+
+function Get-TargetRecalPlan($tw, $wf, $xc, [bool]$slow) {
+    # Recalage a passer a Get-TargetTransferSpec pour chaque tete physique d une ecriture pour un lecteur cible
+    # (Get-TargetTransferPlan, 140) : entree du magasin valable pour la courbe croisee employee (meme date, calcul courant :
+    # Test-TargetRecalValid), facteur k mesure pour cette tete (Test-TargetRecalKMeasured), hors profil Manuel ; sinon 0.
+    # Ecriture rapide : moyenne des recalages des deux tetes (0 pour une tete sans entree valable), sur la courbe commune.
+    # Rend @{ O = @{ 0 ; 1 } (ns) ; Used (au moins une entree appliquee) ; Text (segment du journal, '' sans entree) ;
+    # XDate, XKey = @{ 0 ; 1 } (date et cle de la courbe croisee de chaque tete) ; Reads ; Last }
+    $src = [string]$tw.Src; $tgt = [string]$tw.Tgt; $fam = [string]$tw.Fam
+    $l = @($xc | Where-Object { $_ })
+    $r = @{ O = @{ 0 = 0.0; 1 = 0.0 }; Used = $false; Text = ''; XDate = @{ 0 = ''; 1 = '' }; XKey = @{ 0 = ''; 1 = '' }; Reads = 0; Last = '' }
+    if ($l.Count -eq 0) { return $r }
+    $why = New-Object System.Collections.Generic.List[string]
+    $any = $false; $ap = @{ 0 = $false; 1 = $false }
+    $man = [bool](Test-ManualPrecomp)
+    foreach ($h in 0, 1) {
+        $cv = if ($slow) { $l[$(if ($h -eq 0) { 0 } else { $l.Count - 1 })] } else { $l[0] }
+        $r.XDate[$h] = [string]$cv.Date
+        $r.XKey[$h] = $(if ($null -ne $cv.Head) { "$($fam)_h$([int]$cv.Head)" } else { $fam })
+        $e = Get-TargetRecalEntry $src $tgt $fam $h
+        if ($null -eq $e) { continue }
+        $any = $true
+        if ($man) { continue }
+        if (-not (Test-TargetRecalValid $e $r.XDate[$h])) { $why.Add(((T 'tête {0} : courbe croisée recalibrée ou calcul changé depuis le recalage') -f "$h")); continue }
+        if (-not (Test-TargetRecalKMeasured $wf $h $slow)) { $why.Add(((T 'tête {0} : facteur de la disquette non mesuré (k = 1 par défaut)') -f "$h")); continue }
+        $r.O[$h] = [double]$e.Ns; $r.Used = $true; $ap[$h] = $true
+        $rd = Get-TargetRecalReads $e
+        if ([int]$rd.N -gt $r.Reads) { $r.Reads = [int]$rd.N }
+        if ([string]$rd.Last -and (-not $r.Last -or (ConvertTo-RecalDate ([string]$rd.Last)) -gt (ConvertTo-RecalDate $r.Last))) { $r.Last = [string]$rd.Last }
+    }
+    if (-not $slow) { $m = ([double]$r.O[0] + [double]$r.O[1]) / 2; $r.O[0] = $m; $r.O[1] = $m }
+    if (-not $any) { return $r }
+    if ($man) { $r.Text = (T 'recalage du lecteur cible non appliqué : profil Manuel'); return $r }
+    $sg = '+0.0;-0.0;0.0'
+    $lastTxt = if ($r.Last) { (ConvertTo-RecalDate $r.Last).ToString('dd/MM/yyyy', [System.Globalization.CultureInfo]::InvariantCulture) } else { '?' }
+    if ($r.Used) {
+        $hv = @{}; foreach ($h in 0, 1) { $hv[$h] = $(if ($ap[$h]) { (T '{0} ns') -f (Format-UiNum ([double]$r.O[$h]) $sg) } else { (T 'aucun') }) }
+        $vals = if ($slow) { (T 'tête 0 {0}, tête 1 {1}') -f $hv[0], $hv[1] } else { (T '{0} ns, moyenne des deux têtes') -f (Format-UiNum ([double]$r.O[0]) $sg) }
+        $r.Text = (T 'recalage du lecteur cible : {0} ({1} relecture(s), dernière le {2}), arrondi au ns et ajouté à la courbe écrite') -f $vals, "$($r.Reads)", $lastTxt
+        if ($why.Count -gt 0) { $r.Text += ' (' + ((T 'non appliqué : {0}') -f ($why -join ', ')) + ')' }
+    } else {
+        $r.Text = (T 'recalage du lecteur cible non appliqué : {0}') -f ($why -join ', ')
+    }
+    return $r
+}
+
+function New-TargetWriteMemory($tw, $wf, $xp, $rc, [bool]$slow, [string]$userTs, [string]$img, $heads, [bool]$check, [int]$planTracks) {
+    # Memoire d une ecriture pour un lecteur cible, posee au lancement (Start-ImageWrite, 140 : $script:TargetWritePending)
+    # et gardee a la fin de l ecriture (Complete-TargetWriteMemory) : identifiant, lecteurs, famille, image, ecriture lente
+    # ou rapide, tetes logiques ecrites, controle prevu ; par tete logique ecrite (H, cle '0' ou '1') : tete physique qui
+    # l ecrit (hswap compris, Get-WriteHeadSpecs), courbe ecrite (profil --precomp, apres le recalage ; zones de la
+    # correction R16 ajoutees a la fin), recalage applique (O : ns entiers ajoutes, ORecal : valeur du magasin), date et cle
+    # de la courbe croisee employee, facteur k, son origine et s il est mesure, cylindres des zones. $planTracks : pistes
+    # de l operation (Get-WriteErasePlan), repli du nombre de pistes ecrites
+    $map = Get-WriteHeadSpecs $userTs 0 1
+    $hs = @{}
+    foreach ($lh in @($heads | ForEach-Object { [int]$_ } | Sort-Object -Unique)) {
+        $p = [int]$map[$lh]
+        $t = if ($slow) { $xp.T[$p] } else { $xp.T[0] }
+        # Champs absents (plan partiel) : k 1, origine vide (non mesure), recalage 0
+        $kv = 1.0
+        if ($slow) { if ($wf.K -and $null -ne $wf.K[$p]) { $kv = [double]$wf.K[$p] } } elseif ($null -ne $wf.FMean) { $kv = [double]$wf.FMean }
+        $ks = if ($wf.Src) { [string]$wf.Src[$p] } else { '' }
+        $ro = 0.0; $rx = ''; $rk = ''
+        if ($rc) { if ($rc.O) { $ro = [double]$rc.O[$p] }; if ($rc.XDate) { $rx = [string]$rc.XDate[$p] }; if ($rc.XKey) { $rk = [string]$rc.XKey[$p] } }
+        $hs["$lh"] = @{ Phys = $p; W = [string]$t.Spec; O = [int]$t.Recal; ORecal = $ro; XDate = $rx; XKey = $rk
+                         K = [math]::Round($kv, 3); KSrc = $ks; KMeasured = [bool](Test-TargetRecalKMeasured $wf $p $slow); Zones = [int[]]@() }
+    }
+    $now = Get-Date
+    return @{ Id = 'W' + $now.ToString('yyyyMMddHHmmss', [System.Globalization.CultureInfo]::InvariantCulture); Src = [string]$tw.Src; Tgt = [string]$tw.Tgt
+              Fam = [string]$tw.Fam; Image = [System.IO.Path]::GetFileName($img); Slow = $slow; Heads = [int[]]@($hs.Keys | ForEach-Object { [int]$_ } | Sort-Object)
+              Check = $check; Written = @{}; PlanTracks = $planTracks; ImgPath = $img; Tracks = 0; H = $hs; Verdict = ''; Calc = [string]$script:CalibCalc; Date = ''; At = '' }
+}
+
+function Get-TargetWriteZoneCyls($rep, [int]$lh) {
+    # Cylindres des zones de la correction R16 d une tete logique (Rep.Zones, 170 : gardees, reprises ou non jugees),
+    # tries ; aucun sans zone
+    $cs = @{}
+    foreach ($z in @(@($rep.Zones) | Where-Object { $_ -and [int]$_.H -eq $lh })) { for ($c = [int]$z.C0; $c -le [int]$z.C1; $c++) { $cs[$c] = $true } }
+    return ,[int[]]@($cs.Keys | ForEach-Object { [int]$_ } | Sort-Object)
+}
+
+function Complete-TargetWriteMemory([bool]$ok, $rep = $null) {
+    # Fin d une ecriture pour un lecteur cible dont la memoire est en attente ($script:TargetWritePending) : avec controle
+    # (Complete-WriteCheck, Stop-WriteCheck, 170), sinon a la fin de la derniere commande gw write (Update-TargetWriteMemoryGw).
+    # Ecriture reussie : verdict R10 du controle (Get-AsymSummary, Judge : 'ok', 'near', 'off' ; '' sans controle), courbe
+    # finale de chaque tete (Get-RepHeadSpec : zones gardees comprises) et cylindres des zones, pistes ecrites (Rep.Written
+    # ou pistes « Writing Track » des commandes, a defaut celles du plan), date ; memoire gardee pour la paire source>cible
+    # (elle remplace la precedente), une ligne de journal, configuration enregistree (hors restauration). Ecriture
+    # interrompue : memoire de cette paire retiree (la disquette ne porte plus l ecriture precedente), une ligne
+    $p = $script:TargetWritePending; $script:TargetWritePending = $null
+    if (-not $p) { return }
+    if ($null -eq $script:LastTargetWrites) { $script:LastTargetWrites = @{} }
+    $src = [string]$p.Src; $tgt = [string]$p.Tgt
+    $pk = "$src>$tgt"
+    if (-not $ok) {
+        $had = $script:LastTargetWrites.ContainsKey($pk)
+        if ($had) { $script:LastTargetWrites.Remove($pk) }
+        Append-Log ((T "Écriture pour le lecteur cible {0} interrompue : elle ne servira pas à recaler la courbe croisée {1} → {0}.") -f $tgt, $src)
+        if ($had -and -not $script:Restore) { [void](Save-Config) }
+        return
+    }
+    $n = 0
+    if ($rep) {
+        $p.Verdict = [string](Get-AsymSummary @(@($rep.State.Keys) | ForEach-Object { $rep.State[$_] })).Judge
+        foreach ($lk in @($p.H.Keys)) {
+            $sp = Get-RepHeadSpec $rep ([int]$lk)
+            if ($sp) { $p.H[$lk].W = [string]$sp }
+            $p.H[$lk].Zones = Get-TargetWriteZoneCyls $rep ([int]$lk)
+        }
+        $n = @($rep.Written.Keys).Count
+        if ($n -eq 0) { $n = @($rep.State.Keys).Count }
+    } else { $n = @($p.Written.Keys).Count }
+    if ($n -eq 0) { $n = [int]$p.PlanTracks }
+    $p.Tracks = $n
+    $now = Get-Date
+    $p.Date = $now.ToString('dd/MM/yyyy HH:mm', [System.Globalization.CultureInfo]::InvariantCulture)
+    $p.At = $now.ToString('yyyy-MM-dd HH:mm:ss', [System.Globalization.CultureInfo]::InvariantCulture)
+    # Lecteurs tires de la cle (une memoire relue ou deplacee par Edit-DriveData ne les porte pas)
+    foreach ($f in 'Written', 'PlanTracks', 'Check', 'ImgPath', 'Src', 'Tgt') { $p.Remove($f) }
+    $script:LastTargetWrites[$pk] = $p
+    Append-Log ((T "Écriture pour le lecteur cible {0} gardée en mémoire ({1}, {2} piste(s)) : une mesure de cette disquette par le lecteur {0} dans l'onglet « Qualité & alignement » pourra recaler la courbe croisée {3} → {0}.") -f $tgt, "$($p.Date)", "$n", $src)
+    if (-not $script:Restore) { [void](Save-Config) }
+}
+
+function Update-TargetWriteMemoryGw([int]$code, [bool]$incomplete) {
+    # Fin d une commande gw write (minuteur, 600) pendant une ecriture pour un lecteur cible sans controle complet : pistes
+    # « Writing Track » de la commande ajoutees a la memoire en attente ; erreur ou commande incomplete : ecriture
+    # interrompue ; derniere commande de la file (WriteQueue vide) : ecriture terminee. Avec controle : rien (le controle
+    # termine la memoire, 170). Commande d une autre operation (calibration, mesure sur l image) ou d une autre image
+    # (derniere commande gw, GwLastArgs, sans l image de la memoire) : rien
+    $p = $script:TargetWritePending
+    if (-not $p -or $p.Check -or $script:Cal) { return }
+    if (@($script:GwLastArgs) -notcontains ('"' + [string]$p.ImgPath + '"')) { return }
+    foreach ($k in @($script:WriteTracks.Keys)) { $p.Written[[string]$k] = $true }
+    if ($code -ne 0 -or $incomplete) { Complete-TargetWriteMemory $false; return }
+    if ($script:WriteQueue.Count -eq 0) { Complete-TargetWriteMemory $true }
+}
+
+function Get-TargetWriteMemoryFor([string]$tgt) {
+    # Memoire de la derniere ecriture pour le lecteur cible $tgt, toutes sources confondues (la plus recente) :
+    # @{ Key ; Src ; Tgt ; Mem } ; $null sans elle
+    if (-not $tgt -or $null -eq $script:LastTargetWrites) { return $null }
+    $best = $null; $bd = [datetime]::MinValue
+    foreach ($k in @($script:LastTargetWrites.Keys)) {
+        $x = Split-CrossDrive ([string]$k)
+        if (-not $x -or [string]$x.Tgt -cne $tgt) { continue }
+        $m = $script:LastTargetWrites[$k]
+        if (-not $m) { continue }
+        $d = ConvertTo-RecalDate ([string]$m.At)
+        if (-not $best -or $d -gt $bd) { $best = @{ Key = [string]$k; Src = [string]$x.Src; Tgt = [string]$x.Tgt; Mem = $m }; $bd = $d }
+    }
+    return $best
+}
+
+function Get-TargetReadGain([string]$drive, [string]$fam, [int]$h) {
+    # Gain de l asymetrie relue par le lecteur cible : 2 x pente de la derniere mesure sur l image de ce lecteur, de cette
+    # famille et de cette tete (SRelAsym fini et positif, calculs ContentCalc et CalibCalc courants ; plus recente par date,
+    # puis ordre d ajout), bornee a ContentAsymSRelMin et ContentAsymSRelMax ; sans elle, AsymExpGainFallback (040).
+    # Rend @{ G ; Measured }
+    $best = $null; $bd = [datetime]::MinValue; $i = 0
+    foreach ($r in @($script:ContentMeasures)) {
+        $i++
+        if ($null -eq $r -or [string]$r.Drive -cne $drive -or [string]$r.Family -ne $fam -or $null -eq $r.Head -or [int]$r.Head -ne $h) { continue }
+        if ([string]$r.ContentCalc -ne [string]$script:ContentCalc -or [string]$r.Calc -ne [string]$script:CalibCalc) { continue }
+        if ($null -eq $r.SRelAsym) { continue }
+        $s = [double]$r.SRelAsym
+        if ([double]::IsNaN($s) -or [double]::IsInfinity($s) -or $s -le 0) { continue }
+        $d = Get-CurveDate $r
+        if ($null -eq $best -or $d -ge $bd) { $best = $s; $bd = $d }
+    }
+    if ($null -eq $best) { return @{ G = [double]$script:AsymExpGainFallback; Measured = $false } }
+    $s = [math]::Max([double]$script:ContentAsymSRelMin, [math]::Min([double]$script:ContentAsymSRelMax, [double]$best))
+    return @{ G = 2 * $s; Measured = $true }
+}
+
+function Get-TargetReadFamily($tracks) {
+    # Famille d une relecture d apres la cellule mediane de ses pistes lisibles : sous 1 500 ns, haute densite ; sous
+    # PrecompThresholdNs, long track ; sinon standard. Rend @{ Fam ; Cell }
+    $cs = @(foreach ($k in @($tracks.Keys)) { $m = $tracks[$k]; if ($m -and -not $m.Bad -and [double]$m.Cell -gt 0) { [double]$m.Cell } })
+    if ($cs.Count -eq 0) { return @{ Fam = ''; Cell = 0.0 } }
+    $c = [double](Get-Median $cs)
+    $f = if ($c -lt 1500) { 'hd' } elseif ($c -lt [double]$script:PrecompThresholdNs) { 'long' } else { 'std' }
+    return @{ Fam = $f; Cell = $c }
+}
+
+function Get-TargetRecalReadback($mem, $tracks, [int]$health, $at, [string]$drive, [string]$tgt) {
+    # Relecture par le lecteur cible d une disquette ecrite pour lui, jugee par la regle R17 sans rien changer. $mem :
+    # memoire de l ecriture (New-TargetWriteMemory) ; $tracks : cle 'cylindre.tete' -> metriques de la mesure (Get-TrackMetrics,
+    # 190 : Level, Bad, Weak, Ooc, R3, R4, Cell) ; $health : etat du support de la mesure (0 : « SUPPORT SAIN ») ; $at : heure
+    # de la mesure ; $drive : lecteur qui a relu ; $tgt : lecteur cible de l ecriture (cle de la memoire,
+    # Get-TargetWriteMemoryFor : la memoire ne porte pas les lecteurs). Refus de toute la relecture (Why, codes et textes) : aucune memoire ou
+    # autre lecteur que le lecteur cible (1) ; relecture pas « SUPPORT SAIN », une piste illisible, marginale, en erreur ou
+    # instable suffit (2) ; nombre de pistes, tetes ou famille autres que ceux de l ecriture, ou relecture anterieure a
+    # l ecriture (3) ; controle de l ecriture « eloigne de l attendu » (6). Par tete logique ecrite (Heads) : pistes retenues
+    # SAINES, sans erreur par tour, hors cylindres des zones R16, cellule et rapports mesures ; refus de la tete : facteur k
+    # non mesure (5), moins de TargetRecalMinTracks pistes retenues ou moins de TargetRecalMinBlocks blocs de 10 cylindres
+    # a TargetRecalBlockTracks pistes (4), |mediane de e| au-dela de TargetRecalMaxGapNs (7). e(c) = (ecart 3T + ecart 4T)
+    # x cellule / g (Get-TargetReadGain : g de la tete qui relit) ; Est = recalage applique a cette ecriture (O, ns entiers)
+    # - mediane de e : estimation absolue, l ecriture portant deja son recalage. La confirmation de l utilisateur (8) est
+    # demandee par Invoke-TargetRecalOffer. Rend @{ Ok (aucun refus global et une tete retenue) ; Why ; Fam ; Cell ;
+    # Heads = @{ '0' ; '1' -> @{ Ok ; Why ; N ; Blocks ; Med ; Est ; G ; GMeasured ; Phys ; O } } }
+    $r = @{ Ok = $false; Why = New-Object System.Collections.Generic.List[object]; Fam = ''; Cell = 0.0; Heads = @{} }
+    if (-not $mem) { $r.Why.Add(@{ Code = 'nomem'; Text = ((T 'aucune écriture pour le lecteur cible {0} en mémoire') -f $drive) }); return $r }
+    if ($tgt -cne $drive) { $r.Why.Add(@{ Code = 'notarget'; Text = ((T "lecteur {0} : ce n'est pas le lecteur cible de l'écriture ({1})") -f $drive, $tgt) }) }
+    $keys = @($tracks.Keys | ForEach-Object { [string]$_ })
+    $bad = @($keys | Where-Object { $m = $tracks[$_]; -not $m -or $m.Bad -or [int]$m.Level -ne 0 -or $m.Weak })
+    if ($health -ne 0 -or $bad.Count -gt 0) {
+        $bl = if ($bad.Count -gt 0) { Format-TrackList (Sort-TrackKeys $bad) } else { '-' }
+        $r.Why.Add(@{ Code = 'health'; Text = ((T "la relecture n'est pas « SUPPORT SAIN » (piste(s) illisible(s), marginale(s), en erreur ou instable(s) : {0})") -f $bl) })
+    }
+    if ($keys.Count -ne [int]$mem.Tracks) { $r.Why.Add(@{ Code = 'tracks'; Text = ((T "{0} piste(s) relue(s), l'écriture en a écrit {1} : mesurez les mêmes cylindres et les mêmes têtes") -f "$($keys.Count)", "$([int]$mem.Tracks)") }) }
+    $rh = @($keys | ForEach-Object { [int](@($_ -split '\.')[1]) } | Sort-Object -Unique)
+    $wh = @(@($mem.Heads) | ForEach-Object { [int]$_ } | Sort-Object -Unique)
+    if (($rh -join '+') -ne ($wh -join '+')) { $r.Why.Add(@{ Code = 'heads'; Text = ((T 'têtes relues {0}, têtes écrites {1}') -f $(if ($rh.Count) { $rh -join '+' } else { '-' }), ($wh -join '+')) }) }
+    $rf = Get-TargetReadFamily $tracks
+    $r.Fam = [string]$rf.Fam; $r.Cell = [double]$rf.Cell
+    if ($r.Fam -ne [string]$mem.Fam) { $r.Why.Add(@{ Code = 'family'; Text = ((T "famille de la relecture : {0} (cellule médiane {1} ns), celle de l'écriture : {2}") -f $(if ($r.Fam) { Get-CalibFamilyName $r.Fam } else { '-' }), (Format-UiNum $r.Cell '0'), (Get-CalibFamilyName ([string]$mem.Fam))) }) }
+    $wd = ConvertTo-RecalDate ([string]$mem.At)
+    if ($null -ne $at -and $wd -ne [datetime]::MinValue -and ([datetime]$at) -lt $wd) { $r.Why.Add(@{ Code = 'before'; Text = ((T "relecture antérieure à l'écriture du {0}") -f "$($mem.Date)") }) }
+    if ([string]$mem.Verdict -eq 'off') { $r.Why.Add(@{ Code = 'verdict'; Text = (T "le contrôle de cette écriture a jugé l'asymétrie « éloignée de l'attendu »") }) }
+    $nMin = [int]$script:TargetRecalMinTracks; $bMin = [int]$script:TargetRecalMinBlocks; $bTr = [int]$script:TargetRecalBlockTracks; $gMax = [double]$script:TargetRecalMaxGapNs
+    $nOk = 0
+    foreach ($lh in $wh) {
+        $hm = $mem.H["$lh"]
+        $o = @{ Ok = $false; Why = New-Object System.Collections.Generic.List[string]; N = 0; Blocks = 0; Med = $null; Est = $null; G = 0.0; GMeasured = $false; Phys = $lh; O = 0 }
+        if ($hm) { $o.Phys = [int]$hm.Phys; $o.O = [int]$hm.O }
+        $zs = @{}; if ($hm) { foreach ($c in @($hm.Zones)) { $zs[[int]$c] = $true } }
+        $gn = Get-TargetReadGain $drive ([string]$mem.Fam) $lh
+        $o.G = [double]$gn.G; $o.GMeasured = [bool]$gn.Measured
+        $es = New-Object System.Collections.Generic.List[double]; $blk = @{}
+        foreach ($k in $keys) {
+            $pp = @($k -split '\.')
+            if ($pp.Count -ne 2 -or [int]$pp[1] -ne $lh) { continue }
+            $c = [int]$pp[0]; $m = $tracks[$k]
+            if (-not $m -or $m.Bad -or [int]$m.Level -ne 0 -or $m.Weak -or [double]$m.Ooc -ne 0 -or $zs.ContainsKey($c)) { continue }
+            $d3 = [double]$m.R3 - 1.5; $d4 = [double]$m.R4 - 2.0; $cell = [double]$m.Cell
+            if ([double]::IsNaN($d3) -or [double]::IsNaN($d4) -or -not ($cell -gt 0)) { continue }
+            $es.Add(($d3 + $d4) * $cell / $o.G)
+            $b = [int][math]::Floor($c / 10); $blk[$b] = 1 + $(if ($blk.ContainsKey($b)) { [int]$blk[$b] } else { 0 })
+        }
+        $o.N = $es.Count
+        $o.Blocks = @($blk.Keys | Where-Object { [int]$blk[$_] -ge $bTr }).Count
+        if ($es.Count -gt 0) { $o.Med = [double](Get-Median $es.ToArray()); $o.Est = [double]$o.O - [double]$o.Med }
+        if (-not $hm -or -not $hm.KMeasured) { $o.Why.Add(((T "tête {0} : facteur de la disquette non mesuré à l'écriture (k = 1 par défaut)") -f "$lh")) }
+        if ($o.N -lt $nMin) { $o.Why.Add(((T 'tête {0} : {1} piste(s) retenue(s) (saines, sans erreur, hors zones corrigées), il en faut {2}') -f "$lh", "$($o.N)", "$nMin")) }
+        elseif ($o.Blocks -lt $bMin) { $o.Why.Add(((T 'tête {0} : {1} bloc(s) de 10 cylindres ayant au moins {2} pistes retenues, il en faut {3}') -f "$lh", "$($o.Blocks)", "$bTr", "$bMin")) }
+        if ($null -ne $o.Med -and [math]::Abs([double]$o.Med) -gt $gMax) { $o.Why.Add(((T 'tête {0} : écart médian {1} ns, au-delà de ± {2} ns : trop grand pour venir de la courbe croisée, vérifiez le facteur de la disquette') -f "$lh", (Format-UiNum ([double]$o.Med) '+0.0;-0.0;0.0'), (Format-UiNum $gMax '0'))) }
+        $o.Ok = ($o.Why.Count -eq 0)
+        if ($o.Ok) { $nOk++ }
+        $o.Why = [string[]]$o.Why.ToArray()
+        $r.Heads["$lh"] = $o
+    }
+    $r.Ok = ($r.Why.Count -eq 0 -and $nOk -gt 0)
+    # Tableaux et non listes : sous PowerShell 7, @() sur une List[object] de tables echoue (liaison dynamique)
+    $r.Why = [object[]]$r.Why.ToArray()
+    return $r
+}
+
+function Get-TargetRecalUpdate([string]$src, [string]$tgt, $mem, $ev, $now) {
+    # Entrees du magasin apres une relecture admise (Get-TargetRecalReadback), sans rien changer : par tete logique retenue,
+    # entree de sa tete physique (cle Get-TargetRecalKey). Entree d une autre courbe croisee (XDate) ou d un autre calcul :
+    # remise a zero. Ecriture deja relue (meme identifiant) : son estimation devient la moyenne de ses relectures (NR) ;
+    # sinon elle s ajoute, et seules les TargetRecalMaxItems ecritures les plus recentes restent. Ns : Get-TargetRecalNs.
+    # Rend une liste de @{ Key ; Head (logique) ; Phys ; Old (entree d avant ou $null) ; Reset ; New }
+    $out = New-Object System.Collections.Generic.List[object]
+    $stamp = ([datetime]$now).ToString('yyyy-MM-dd HH:mm:ss', [System.Globalization.CultureInfo]::InvariantCulture)
+    $max = [math]::Max(1, [int]$script:TargetRecalMaxItems)
+    foreach ($lk in @($ev.Heads.Keys | Sort-Object)) {
+        $o = $ev.Heads[$lk]
+        if (-not $o.Ok) { continue }
+        $hm = $mem.H[[string]$lk]
+        $key = Get-TargetRecalKey $src $tgt ([string]$mem.Fam) ([int]$o.Phys)
+        $old = $null; if ($script:TargetRecal) { $old = $script:TargetRecal[$key] }
+        $xd = [string]$hm.XDate
+        $reset = ($null -ne $old -and ([string]$old.XDate -cne $xd -or [string]$old.Calc -cne [string]$script:CalibCalc))
+        $items = New-Object System.Collections.Generic.List[object]
+        if ($old -and -not $reset) { foreach ($it in @($old.Items | Where-Object { $_ })) { $items.Add(@{ WriteId = [string]$it.WriteId; Date = [string]$it.Date; Est = [double]$it.Est; Tracks = [int]$it.Tracks; NR = [math]::Max(1, [int]$it.NR); Read = [string]$it.Read }) } }
+        $hit = $null
+        foreach ($it in $items) { if ([string]$it.WriteId -ceq [string]$mem.Id) { $hit = $it } }
+        if ($hit) {
+            # Ecriture deja relue : moyenne de ses relectures, a sa place (ordre des ecritures)
+            $hit.Est = [math]::Round(([double]$hit.Est * [int]$hit.NR + [double]$o.Est) / ([int]$hit.NR + 1), 2)
+            $hit.NR = [int]$hit.NR + 1; $hit.Read = $stamp; $hit.Tracks = [int]$o.N
+        } else {
+            $items.Add(@{ WriteId = [string]$mem.Id; Date = [string]$mem.Date; Est = [math]::Round([double]$o.Est, 2); Tracks = [int]$o.N; NR = 1; Read = $stamp })
+        }
+        while ($items.Count -gt $max) { $items.RemoveAt(0) }
+        $arr = $items.ToArray()
+        $new = @{ Ns = (Get-TargetRecalNs $arr); N = $arr.Count; Items = $arr; XDate = $xd; XKey = [string]$hm.XKey; Calc = [string]$script:CalibCalc; At = $stamp }
+        $out.Add(@{ Key = $key; Head = [int]$lk; Phys = [int]$o.Phys; Old = $old; Reset = $reset; New = $new })
+    }
+    return ,$out.ToArray()
+}
+
+function Get-TargetRecalHeadText($mem, $o, $u, [string]$tgt) {
+    # Ligne d une tete dans la fenetre de confirmation : pistes retenues, ecart median relu, recalage propose et recalage
+    # d avant, effet sur la courbe ecrite pour le lecteur cible par rapport a l ecriture relue (ns entiers, et en % de cette
+    # courbe sur ses cylindres non nuls)
+    $sg = '+0.0;-0.0;0.0'
+    $lk = [int]$u.Head
+    $med = [double]$o.Med
+    $sens = if ($med -gt 0) { (T 'trop de précompensation pour le lecteur cible') } elseif ($med -lt 0) { (T 'pas assez de précompensation pour le lecteur cible') } else { (T 'centrée pour le lecteur cible') }
+    $oldTxt = if ($u.Reset) { (T 'aucun, le précédent est remis à zéro (courbe croisée recalibrée ou calcul changé)') }
+              elseif ($u.Old) { (T '{0} ns sur {1} relecture(s)') -f (Format-UiNum ([double]$u.Old.Ns) $sg), "$((Get-TargetRecalReads $u.Old).N)" }
+              else { (T 'aucun') }
+    $dl = [int][math]::Round([double]$u.New.Ns) - [int]$o.O
+    $hm = $mem.H["$lk"]
+    $pc = @()
+    if ($hm) { foreach ($m in [regex]::Matches([string]$hm.W, '(\d+)\s*=\s*(\d+)')) { $w = [int]$m.Groups[2].Value; if ($w -gt 0) { $pc += 100.0 * $dl / $w } } }
+    $eff = if ($dl -eq 0) { (T 'courbe écrite pour le lecteur {0} inchangée par rapport à cette écriture') -f $tgt }
+           elseif ($pc.Count -gt 0) { (T 'courbe écrite pour le lecteur {0} : {1} ns par rapport à cette écriture ({2} % à {3} % selon le cylindre)') -f $tgt, ('{0:+0;-0;0}' -f $dl), (Format-UiNum ([double]($pc | Measure-Object -Minimum).Minimum) '+0;-0;0'), (Format-UiNum ([double]($pc | Measure-Object -Maximum).Maximum) '+0;-0;0') }
+           else { (T 'courbe écrite pour le lecteur {0} : {1} ns par rapport à cette écriture') -f $tgt, ('{0:+0;-0;0}' -f $dl) }
+    return ((T 'Tête {0} : {1} pistes retenues, écart médian {2} ns ({3}) ; recalage {4} ns, au lieu de {5} ; {6}.') -f "$lk", "$($o.N)", (Format-UiNum $med $sg), $sens, (Format-UiNum ([double]$u.New.Ns) $sg), $oldTxt, $eff)
+}
+
+function Invoke-TargetRecalOffer($res, $tracks) {
+    # Fin d une mesure de l onglet Qualite (Invoke-AlignAnalysis, 190) : quand le lecteur qui a relu est le lecteur cible de
+    # la derniere ecriture gardee en memoire pour lui (Get-TargetWriteMemoryFor), la relecture est jugee par la regle R17
+    # (Get-TargetRecalReadback). Refus : une ligne de journal qui dit pourquoi. Admise : fenetre de confirmation (frmConfirm,
+    # Show-AppConfirm) qui rappelle l ecriture (date, image), demande de confirmer que c est bien cette disquette (case) et
+    # montre le recalage calcule par tete (Get-TargetRecalHeadText) ; confirmee : entrees du magasin remplacees
+    # (Get-TargetRecalUpdate), une ligne de journal, configuration enregistree. Pendant une mesure continue : rien
+    # d evalue, une ligne a la premiere passe. Sans memoire pour ce lecteur : rien (une mesure ordinaire ne dit rien).
+    # Rend 'none', 'loop', 'refused', 'declined' ou 'stored'
+    if (-not $res -or [string]$res.Kind -ne 'measure') { return 'none' }
+    $drv = if ($res.Ctx -and $res.Ctx.Drive) { [string]$res.Ctx.Drive } else { [string]$cmbDrive.Text }
+    $wm = Get-TargetWriteMemoryFor $drv
+    if (-not $wm) { return 'none' }
+    $mem = $wm.Mem; $src = [string]$wm.Src; $tgt = [string]$wm.Tgt
+    if ($script:AlignLoop) {
+        if ([int]$script:QualView.Pass -le 1) { Append-Log ((T "Recalage de la courbe croisée {0} → {1} : non proposé pendant une mesure continue. Faites une mesure simple de toute la disquette écrite le {2} (mêmes cylindres et mêmes têtes que l'écriture).") -f $src, $tgt, "$($mem.Date)") }
+        return 'loop'
+    }
+    $ev = Get-TargetRecalReadback $mem $tracks ([int]$res.Health) $res.At $drv $tgt
+    $hw = @(foreach ($lk in @($ev.Heads.Keys | Sort-Object)) { foreach ($w in @($ev.Heads[$lk].Why)) { $w } })
+    if (-not $ev.Ok) {
+        # Mesure qui ne couvre pas l ecriture (pistes, tetes, famille : une mesure ordinaire de quelques cylindres, par
+        # exemple) : ses seules raisons globales, sans le detail par tete
+        $cmp = (@($ev.Why | Where-Object { @('tracks', 'heads', 'family') -contains [string]$_.Code }).Count -gt 0)
+        $all = @(@($ev.Why | ForEach-Object { [string]$_.Text }) + $(if ($cmp) { @() } else { $hw }))
+        Append-Log ((T 'Recalage de la courbe croisée {0} → {1} sur cette relecture non proposé : {2}.') -f $src, $tgt, ($all -join ' ; '))
+        return 'refused'
+    }
+    if ($hw.Count -gt 0) { Append-Log ((T 'Recalage de la courbe croisée {0} → {1} : {2}.') -f $src, $tgt, ($hw -join ' ; ')) }
+    $up = Get-TargetRecalUpdate $src $tgt $mem $ev (Get-Date)
+    $lines = @(foreach ($u in $up) { Get-TargetRecalHeadText $mem $ev.Heads["$($u.Head)"] $u $tgt })
+    $lines += @($hw)
+    $gt = @(foreach ($lk in @($ev.Heads.Keys | Sort-Object)) { $o = $ev.Heads[$lk]; if ($o.GMeasured) { (T "tête {0} : g = {1}, deux fois la pente mesurée sur l'image") -f "$lk", (Format-UiNum ([double]$o.G) '0.00') } else { (T 'tête {0} : g = {1} par défaut, pente non mesurée') -f "$lk", (Format-UiNum ([double]$o.G) '0.00') } })
+    $txt = ((T "Le lecteur {0} a relu la disquette écrite pour lui par le lecteur {1} le {2} (image « {3} », {4}, {5} pistes).`n`n{6}`n`nÉcart relu = (écart 3T + écart 4T) × cellule / g ({7}). Le recalage moyenne les {8} dernières écritures relues en se rapprochant de leur écart à mesure qu'elles s'ajoutent, au plus ± {9} ns ; arrondi au ns, il s'ajoute à la courbe écrite pour le lecteur {0} (au plus 25 % de sa valeur), sans modifier la courbe croisée. La fenêtre « Lecteurs » le montre et l'annule.`n`nUne autre disquette fausserait le recalage : confirmez que c'est bien celle-là.") -f $tgt, $src, "$($mem.Date)", "$($mem.Image)", (Get-CalibFamilyName ([string]$mem.Fam)), "$([int]$mem.Tracks)", ($lines -join "`n"), ($gt -join ' ; '), "$($script:TargetRecalMaxItems)", (Format-UiNum ([double]$script:TargetRecalCapNs) '0'))
+    $go = [bool](Show-AppConfirm -Title (T 'Recalage de la courbe croisée') -Heading ((T 'Recaler la courbe croisée {0} → {1} sur cette relecture ?') -f $src, $tgt) -Text $txt -Check ((T 'Disquette écrite le {0} pour le lecteur {1}') -f "$($mem.Date)", $tgt) -GoText (T 'Recaler la courbe croisée') -GoGlyph 'Check' -Level 'info' -Picto 'data')
+    if (-not $go) { Append-Log ((T 'Recalage de la courbe croisée {0} → {1} non enregistré : non confirmé.') -f $src, $tgt); return 'declined' }
+    if ($null -eq $script:TargetRecal) { $script:TargetRecal = @{} }
+    $sg = '+0.0;-0.0;0.0'
+    $it = @(foreach ($u in $up) { $script:TargetRecal[[string]$u.Key] = $u.New; (T 'tête {0} {1} ns') -f "$($u.Phys)", (Format-UiNum ([double]$u.New.Ns) $sg) })
+    Append-Log ((T "Courbe croisée {0} → {1} recalée sur la relecture de l'écriture du {2} : {3} ; ajouté aux prochaines écritures pour le lecteur {1} (courbe croisée inchangée).") -f $src, $tgt, "$($mem.Date)", ($it -join ' ; '))
+    [void](Save-Config)
+    return 'stored'
+}
+
+function Remove-TargetRecal([string]$src, [string]$tgt, [string]$fam) {
+    # Recalages des deux tetes d une courbe croisee source>cible d une famille retires du magasin ; rend le nombre retire
+    $n = 0
+    if ($null -eq $script:TargetRecal) { return 0 }
+    foreach ($h in 0, 1) { $k = Get-TargetRecalKey $src $tgt $fam $h; if ($script:TargetRecal.ContainsKey($k)) { $script:TargetRecal.Remove($k); $n++ } }
+    return $n
+}
+
+function Get-TargetRecalSummaryText([string]$src, [string]$tgt, [string]$fam) {
+    # Ligne du recalage d une courbe croisee dans la fenetre « Lecteurs » (112) : valeur par tete, relectures, date de la
+    # derniere ; « sans effet » quand la courbe croisee de la tete a ete recalibree (ou le calcul a change) depuis ; '' sans
+    # recalage
+    $sg = '+0.0;-0.0;0.0'
+    $parts = @(); $reads = 0; $last = ''; $stale = $false
+    foreach ($h in 0, 1) {
+        $e = Get-TargetRecalEntry $src $tgt $fam $h
+        if (-not $e) { continue }
+        $parts += (T 'tête {0} {1} ns') -f "$h", (Format-UiNum ([double]$e.Ns) $sg)
+        $rd = Get-TargetRecalReads $e
+        if ([int]$rd.N -gt $reads) { $reads = [int]$rd.N }
+        if ([string]$rd.Last -and (-not $last -or (ConvertTo-RecalDate ([string]$rd.Last)) -gt (ConvertTo-RecalDate $last))) { $last = [string]$rd.Last }
+        # Courbe croisee qui a servi a l apprendre (XKey ; sans elle, la courbe par tete puis la commune) : absente, d une autre
+        # date, ou calcul change : sans effet
+        $ok = $false
+        $cks = if ([string]$e.XKey) { @([string]$e.XKey) } else { @("$($fam)_h$h", $fam) }
+        foreach ($ck in $cks) { $cv = Get-DriveCurve "$src>$tgt" $ck; if ($cv -and [string]$cv.Date -ceq [string]$e.XDate) { $ok = $true; break } }
+        if (-not $ok -or [string]$e.Calc -cne [string]$script:CalibCalc) { $stale = $true }
+    }
+    if ($parts.Count -eq 0) { return '' }
+    $lt = if ($last) { (ConvertTo-RecalDate $last).ToString('dd/MM/yyyy', [System.Globalization.CultureInfo]::InvariantCulture) } else { '?' }
+    $t = (T 'Recalage de la courbe croisée {0} → {1} ({2}) : {3} ; {4} relecture(s), dernière le {5}.') -f $src, $tgt, (Get-CalibFamilyName $fam), ($parts -join ', '), "$reads", $lt
+    if ($stale) { $t += ' ' + (T 'Sans effet : courbe croisée recalibrée ou calcul changé depuis.') }
+    return $t
+}
+
+function Export-TargetRecal {
+    # Bloc write.targetRecal de la configuration : cle -> { ns ; n ; xDate ; calc ; at ; items : [ { writeId ; date ; est ;
+    # pistes ; nr ; read } ] }, cles triees ; une version anterieure ignore ce bloc
+    $o = [ordered]@{}
+    if ($null -eq $script:TargetRecal) { return $o }
+    foreach ($k in @($script:TargetRecal.Keys | Sort-Object)) {
+        $e = $script:TargetRecal[$k]
+        if (-not $e) { continue }
+        $its = @(foreach ($it in @($e.Items | Where-Object { $_ })) { [ordered]@{ writeId = [string]$it.WriteId; date = [string]$it.Date; est = [math]::Round([double]$it.Est, 2); pistes = [int]$it.Tracks; nr = [math]::Max(1, [int]$it.NR); read = [string]$it.Read } })
+        $o[[string]$k] = [ordered]@{ ns = [double]$e.Ns; n = $its.Count; xDate = [string]$e.XDate; xKey = [string]$e.XKey; calc = [string]$e.Calc; at = [string]$e.At; items = $its }
+    }
+    return $o
+}
+
+function Import-TargetRecal($o) {
+    # Bloc write.targetRecal -> $script:TargetRecal (vide d abord). Cle « source>cible|famille_hN » et au moins une
+    # estimation finie exigees ; Ns et N recalcules sur les estimations (Get-TargetRecalNs), les TargetRecalMaxItems
+    # dernieres. Entree illisible : ignoree et comptee. Rend @{ N ; Bad }
+    $script:TargetRecal = @{}
+    $n = 0; $bad = 0
+    if ($null -eq $o -or $o -is [array] -or $o -is [string] -or $o -is [ValueType]) { return @{ N = 0; Bad = 0 } }
+    foreach ($p in @($o.PSObject.Properties)) {
+        $k = [string]$p.Name; $v = $p.Value
+        try {
+            if ($k -notmatch '^[^>|]+>[^>|]+\|(std|long|hd)_h[01]$' -or $null -eq $v) { $bad++; continue }
+            $its = New-Object System.Collections.Generic.List[object]
+            foreach ($it in @($v.items)) {
+                if ($null -eq $it) { continue }
+                $est = ConvertTo-FiniteOrNull $it.est
+                if ($null -eq $est -or -not [string]$it.writeId) { continue }
+                $its.Add(@{ WriteId = [string]$it.writeId; Date = [string]$it.date; Est = [double]$est; Tracks = [int]$it.pistes; NR = [math]::Max(1, [int]$it.nr); Read = [string]$it.read })
+            }
+            while ($its.Count -gt [math]::Max(1, [int]$script:TargetRecalMaxItems)) { $its.RemoveAt(0) }
+            if ($its.Count -eq 0 -or -not [string]$v.xDate) { $bad++; continue }
+            $arr = $its.ToArray()
+            $script:TargetRecal[$k] = @{ Ns = (Get-TargetRecalNs $arr); N = $arr.Count; Items = $arr; XDate = [string]$v.xDate; XKey = [string]$v.xKey; Calc = [string]$v.calc; At = [string]$v.at }
+            $n++
+        } catch { $bad++ }
+    }
+    return @{ N = $n; Bad = $bad }
+}
+
+function Export-LastTargetWrites {
+    # Bloc write.lastTargetWrite de la configuration : « source>cible » -> memoire de la derniere ecriture pour ce lecteur
+    # cible (Complete-TargetWriteMemory), cles triees ; une version anterieure ignore ce bloc
+    $o = [ordered]@{}
+    if ($null -eq $script:LastTargetWrites) { return $o }
+    foreach ($k in @($script:LastTargetWrites.Keys | Sort-Object)) {
+        $m = $script:LastTargetWrites[$k]
+        if (-not $m) { continue }
+        $hs = [ordered]@{}
+        foreach ($lk in @($m.H.Keys | Sort-Object)) {
+            $h = $m.H[$lk]
+            $hs[[string]$lk] = [ordered]@{ phys = [int]$h.Phys; w = [string]$h.W; o = [int]$h.O; oRecal = [double]$h.ORecal; xDate = [string]$h.XDate; xKey = [string]$h.XKey
+                                          k = [double]$h.K; kSrc = [string]$h.KSrc; kMeasured = [bool]$h.KMeasured; zones = @(@($h.Zones) | ForEach-Object { [int]$_ }) }
+        }
+        $o[[string]$k] = [ordered]@{ id = [string]$m.Id; date = [string]$m.Date; at = [string]$m.At; image = [string]$m.Image; fam = [string]$m.Fam; slow = [bool]$m.Slow
+                                     tracks = [int]$m.Tracks; heads = @(@($m.Heads) | ForEach-Object { [int]$_ }); verdict = [string]$m.Verdict; calc = [string]$m.Calc; h = $hs }
+    }
+    return $o
+}
+
+function Import-LastTargetWrites($o) {
+    # Bloc write.lastTargetWrite -> $script:LastTargetWrites (vide d abord) : cle « source>cible », identifiant, date,
+    # famille et une tete au moins exiges ; entree illisible ignoree et comptee. Rend @{ N ; Bad }
+    $script:LastTargetWrites = @{}
+    $n = 0; $bad = 0
+    if ($null -eq $o -or $o -is [array] -or $o -is [string] -or $o -is [ValueType]) { return @{ N = 0; Bad = 0 } }
+    foreach ($p in @($o.PSObject.Properties)) {
+        $k = [string]$p.Name; $v = $p.Value
+        try {
+            if (-not (Split-CrossDrive $k) -or $null -eq $v -or -not [string]$v.id -or -not [string]$v.at -or -not [string]$v.fam -or $null -eq $v.h) { $bad++; continue }
+            $hs = @{}
+            foreach ($q in @($v.h.PSObject.Properties)) {
+                $h = $q.Value
+                if ([string]$q.Name -notmatch '^[01]$' -or $null -eq $h) { continue }
+                $hs[[string]$q.Name] = @{ Phys = [int]$h.phys; W = [string]$h.w; O = [int]$h.o; ORecal = (Get-ConfigDouble $h.oRecal 0.0); XDate = [string]$h.xDate; XKey = [string]$h.xKey
+                                          K = (Get-ConfigDouble $h.k 1.0); KSrc = [string]$h.kSrc; KMeasured = ($h.kMeasured -eq $true); Zones = [int[]]@(@($h.zones) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ }) }
+            }
+            if ($hs.Count -eq 0) { $bad++; continue }
+            $script:LastTargetWrites[$k] = @{ Id = [string]$v.id; Date = [string]$v.date; At = [string]$v.at; Image = [string]$v.image; Fam = [string]$v.fam; Slow = ($v.slow -eq $true)
+                                              Tracks = [int]$v.tracks; Heads = [int[]]@(@($v.heads) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ }); Verdict = [string]$v.verdict; Calc = [string]$v.calc; H = $hs }
+            $n++
+        } catch { $bad++ }
+    }
+    return @{ N = $n; Bad = $bad }
+}

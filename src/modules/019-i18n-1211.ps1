@@ -592,3 +592,65 @@ $script:I18n[' ; zones corrigées : {0} sur {1}'] = '; zones corrected: {0} of {
 $script:I18n["correction des zones écartées de l'attendu, d'après la relecture par le lecteur qui écrit"] = 'correction of zones away from the expected value, based on the read-back by the writing drive'
 $script:I18n["Corriger les zones écartées de l'attendu (lecteur cible)"] = 'Correct zones away from the expected value (target drive)'
 $script:I18n["Écriture pour un lecteur cible avec le facteur par cylindre, contrôle de toutes les pistes et 2 passes de réécriture au moins : quand plusieurs cylindres voisins ({0} au moins) relus par le lecteur qui écrit s'écartent dans le même sens de l'asymétrie attendue, leurs pistes sont réécrites une fois avec la précompensation décalée de la moitié de l'écart ({1} ns au plus), puis relues. La correction est gardée si la zone se rapproche de l'attendu, sinon la zone reprend sa courbe d'origine. Une piste isolée n'est jamais corrigée.`nLa correction ne s'appuie que sur la relecture par le lecteur qui écrit : elle ne garantit pas la lecture par le lecteur cible."] = "Write for a target drive with the per-cylinder factor, check of all tracks and at least 2 rewrite passes: when several neighbouring cylinders (at least {0}) read back by the writing drive deviate in the same direction from the expected asymmetry, their tracks are rewritten once with the precompensation shifted by half the gap (at most {1} ns), then read back. The correction is kept if the zone moves closer to the expected value; otherwise the zone gets its original curve back. An isolated track is never corrected.`nThe correction relies only on the read-back by the writing drive: it does not guarantee reading by the target drive."
+
+# --- rc8 : recalage de la courbe croisee par une relecture du lecteur cible (172, 112, 120, 140, 240, R17) ------------------
+# Journal de l ecriture pour le lecteur cible (Get-TargetRecalPlan, 172 ; Get-TargetTransferPlan, 140)
+$script:I18n['tête {0} : courbe croisée recalibrée ou calcul changé depuis le recalage'] = 'head {0}: cross curve recalibrated or calculation changed since the adjustment'
+$script:I18n['tête {0} : facteur de la disquette non mesuré (k = 1 par défaut)'] = 'head {0}: disk factor not measured (k = 1 by default)'
+$script:I18n['recalage du lecteur cible non appliqué : profil Manuel'] = 'target drive adjustment not applied: Manual profile'
+$script:I18n['{0} ns'] = '{0} ns'
+$script:I18n['tête 0 {0}, tête 1 {1}'] = 'head 0 {0}, head 1 {1}'
+$script:I18n['{0} ns, moyenne des deux têtes'] = '{0} ns, mean of both heads'
+$script:I18n['recalage du lecteur cible : {0} ({1} relecture(s), dernière le {2}), arrondi au ns et ajouté à la courbe écrite'] = 'target drive adjustment: {0} ({1} read-back(s), last on {2}), rounded to the ns and added to the written curve'
+$script:I18n['non appliqué : {0}'] = 'not applied: {0}'
+$script:I18n['recalage du lecteur cible non appliqué : {0}'] = 'target drive adjustment not applied: {0}'
+# Memoire de l ecriture (172)
+$script:I18n["Écriture pour le lecteur cible {0} interrompue : elle ne servira pas à recaler la courbe croisée {1} → {0}."] = 'Write for target drive {0} interrupted: it will not be used to adjust the cross curve {1} → {0}.'
+$script:I18n["Écriture pour le lecteur cible {0} gardée en mémoire ({1}, {2} piste(s)) : une mesure de cette disquette par le lecteur {0} dans l'onglet « Qualité & alignement » pourra recaler la courbe croisée {3} → {0}."] = 'Write for target drive {0} kept in memory ({1}, {2} track(s)): a measurement of this disk by drive {0} in the "Quality & alignment" tab can adjust the cross curve {3} → {0}.'
+# Relecture par le lecteur cible : raisons d un refus (172)
+$script:I18n['aucune écriture pour le lecteur cible {0} en mémoire'] = 'no write for target drive {0} in memory'
+$script:I18n["lecteur {0} : ce n'est pas le lecteur cible de l'écriture ({1})"] = 'drive {0}: not the target drive of the write ({1})'
+$script:I18n["la relecture n'est pas « SUPPORT SAIN » (piste(s) illisible(s), marginale(s), en erreur ou instable(s) : {0})"] = 'the read-back is not "MEDIA HEALTHY" (unreadable, marginal, failing or unstable track(s): {0})'
+$script:I18n["{0} piste(s) relue(s), l'écriture en a écrit {1} : mesurez les mêmes cylindres et les mêmes têtes"] = '{0} track(s) read back, the write wrote {1}: measure the same cylinders and the same heads'
+$script:I18n['têtes relues {0}, têtes écrites {1}'] = 'heads read back {0}, heads written {1}'
+$script:I18n["famille de la relecture : {0} (cellule médiane {1} ns), celle de l'écriture : {2}"] = 'read-back family: {0} (median cell {1} ns), write family: {2}'
+$script:I18n["relecture antérieure à l'écriture du {0}"] = 'read-back earlier than the write of {0}'
+$script:I18n["le contrôle de cette écriture a jugé l'asymétrie « éloignée de l'attendu »"] = 'the check of this write judged the asymmetry "far from the expected one"'
+$script:I18n["tête {0} : facteur de la disquette non mesuré à l'écriture (k = 1 par défaut)"] = 'head {0}: disk factor not measured at the write (k = 1 by default)'
+$script:I18n['tête {0} : {1} piste(s) retenue(s) (saines, sans erreur, hors zones corrigées), il en faut {2}'] = 'head {0}: {1} track(s) kept (healthy, error-free, outside corrected zones), {2} needed'
+$script:I18n['tête {0} : {1} bloc(s) de 10 cylindres ayant au moins {2} pistes retenues, il en faut {3}'] = 'head {0}: {1} block(s) of 10 cylinders with at least {2} kept tracks, {3} needed'
+$script:I18n['tête {0} : écart médian {1} ns, au-delà de ± {2} ns : trop grand pour venir de la courbe croisée, vérifiez le facteur de la disquette'] = 'head {0}: median gap {1} ns, beyond ± {2} ns: too large to come from the cross curve, check the disk factor'
+# Fenetre de confirmation et journal du recalage (172)
+$script:I18n['trop de précompensation pour le lecteur cible'] = 'too much precompensation for the target drive'
+$script:I18n['pas assez de précompensation pour le lecteur cible'] = 'not enough precompensation for the target drive'
+$script:I18n['centrée pour le lecteur cible'] = 'centred for the target drive'
+$script:I18n['aucun, le précédent est remis à zéro (courbe croisée recalibrée ou calcul changé)'] = 'none, the previous one is reset (cross curve recalibrated or calculation changed)'
+$script:I18n['{0} ns sur {1} relecture(s)'] = '{0} ns over {1} read-back(s)'
+$script:I18n['courbe écrite pour le lecteur {0} inchangée par rapport à cette écriture'] = 'curve written for drive {0} unchanged compared with this write'
+$script:I18n['courbe écrite pour le lecteur {0} : {1} ns par rapport à cette écriture ({2} % à {3} % selon le cylindre)'] = 'curve written for drive {0}: {1} ns compared with this write ({2} % to {3} % depending on the cylinder)'
+$script:I18n['courbe écrite pour le lecteur {0} : {1} ns par rapport à cette écriture'] = 'curve written for drive {0}: {1} ns compared with this write'
+$script:I18n['Tête {0} : {1} pistes retenues, écart médian {2} ns ({3}) ; recalage {4} ns, au lieu de {5} ; {6}.'] = 'Head {0}: {1} tracks kept, median gap {2} ns ({3}); adjustment {4} ns, instead of {5}; {6}.'
+$script:I18n["Recalage de la courbe croisée {0} → {1} : non proposé pendant une mesure continue. Faites une mesure simple de toute la disquette écrite le {2} (mêmes cylindres et mêmes têtes que l'écriture)."] = 'Cross curve adjustment {0} → {1}: not offered during a continuous measurement. Make a single measurement of the whole disk written on {2} (same cylinders and same heads as the write).'
+$script:I18n['Recalage de la courbe croisée {0} → {1} sur cette relecture non proposé : {2}.'] = 'Cross curve adjustment {0} → {1} on this read-back not offered: {2}.'
+$script:I18n['Recalage de la courbe croisée {0} → {1} : {2}.'] = 'Cross curve adjustment {0} → {1}: {2}.'
+$script:I18n["Le lecteur {0} a relu la disquette écrite pour lui par le lecteur {1} le {2} (image « {3} », {4}, {5} pistes).`n`n{6}`n`nÉcart relu = (écart 3T + écart 4T) × cellule / g ({7}). Le recalage moyenne les {8} dernières écritures relues en se rapprochant de leur écart à mesure qu'elles s'ajoutent, au plus ± {9} ns ; arrondi au ns, il s'ajoute à la courbe écrite pour le lecteur {0} (au plus 25 % de sa valeur), sans modifier la courbe croisée. La fenêtre « Lecteurs » le montre et l'annule.`n`nUne autre disquette fausserait le recalage : confirmez que c'est bien celle-là."] = "Drive {0} read back the disk written for it by drive {1} on {2} (image `"{3}`", {4}, {5} tracks).`n`n{6}`n`nRead-back gap = (3T deviation + 4T deviation) × cell / g ({7}). The adjustment averages the last {8} writes read back, getting closer to their gap as they add up, at most ± {9} ns; rounded to the ns, it is added to the curve written for drive {0} (at most 25 % of its value), without changing the cross curve. The `"Drives`" window shows and cancels it.`n`nAnother disk would distort the adjustment: confirm that it is this one."
+$script:I18n['Recalage de la courbe croisée'] = 'Cross curve adjustment'
+$script:I18n['Recaler la courbe croisée {0} → {1} sur cette relecture ?'] = 'Adjust the cross curve {0} → {1} on this read-back?'
+$script:I18n['Disquette écrite le {0} pour le lecteur {1}'] = 'Disk written on {0} for drive {1}'
+$script:I18n['Recaler la courbe croisée'] = 'Adjust the cross curve'
+$script:I18n['Recalage de la courbe croisée {0} → {1} non enregistré : non confirmé.'] = 'Cross curve adjustment {0} → {1} not saved: not confirmed.'
+$script:I18n["Courbe croisée {0} → {1} recalée sur la relecture de l'écriture du {2} : {3} ; ajouté aux prochaines écritures pour le lecteur {1} (courbe croisée inchangée)."] = 'Cross curve {0} → {1} adjusted on the read-back of the write of {2}: {3}; added to the next writes for drive {1} (cross curve unchanged).'
+# Fenetre « Lecteurs » (112, 172)
+$script:I18n['Recalage de la courbe croisée {0} → {1} ({2}) : {3} ; {4} relecture(s), dernière le {5}.'] = 'Cross curve adjustment {0} → {1} ({2}): {3}; {4} read-back(s), last on {5}.'
+$script:I18n['Sans effet : courbe croisée recalibrée ou calcul changé depuis.'] = 'No effect: cross curve recalibrated or calculation changed since.'
+$script:I18n["{0}`n`nLes écritures suivantes pour le lecteur {1} reprennent la courbe écrite sans recalage ; la courbe croisée n'est pas modifiée, et les prochaines relectures par le lecteur {1} repartent de zéro.`n`nL'application copie d'abord la configuration dans « {2}.lecteurs-….bak », dans le même dossier."] = "{0}`n`nThe next writes for drive {1} go back to the written curve without adjustment; the cross curve is not changed, and the next read-backs by drive {1} start from zero.`n`nThe application first copies the configuration to `"{2}.lecteurs-….bak`", in the same folder."
+$script:I18n['Annuler le recalage de la courbe croisée {0} → {1} ?'] = 'Cancel the adjustment of the cross curve {0} → {1}?'
+$script:I18n['Annuler le recalage'] = 'Cancel the adjustment'
+$script:I18n['Annuler le recalage…'] = 'Cancel the adjustment…'
+$script:I18n['Recalage de la courbe croisée {0} → {1} ({2}) annulé : {3} tête(s).'] = 'Cross curve adjustment {0} → {1} ({2}) cancelled: {3} head(s).'
+# Configuration et « Effacer les calibrations » (120, 240)
+$script:I18n['Configuration : {0} recalage(s) de courbe croisée et {1} mémoire(s) d''écriture pour un lecteur cible illisibles, ignorés.'] = 'Configuration: {0} cross curve adjustment(s) and {1} target drive write memory(ies) unreadable, ignored.'
+$script:I18n["Les recalages des courbes croisées ({0}) et la mémoire des dernières écritures pour un lecteur cible ({1}) sont effacés aussi."] = 'The cross curve adjustments ({0}) and the memory of the last writes for a target drive ({1}) are cleared too.'
+$script:I18n["Recalages des courbes croisées ({0}) et mémoire des dernières écritures pour un lecteur cible ({1}) effacés avec les calibrations."] = 'Cross curve adjustments ({0}) and memory of the last writes for a target drive ({1}) cleared with the calibrations.'
+# Memoire de l ecriture non posee (140)
+$script:I18n['Écriture pour le lecteur cible {0} non gardée en mémoire : {1}'] = 'Write for target drive {0} not kept in memory: {1}'

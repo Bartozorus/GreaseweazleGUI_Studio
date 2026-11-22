@@ -469,6 +469,15 @@ function Start-ImageWrite([switch]$NoWarmup) {
     if ($blocker) {
         Append-Log ((T "Contrôle de toutes les pistes non applicable ({0}) : l'analyse de flux est calibrée pour le MFM double densité. Écriture sans contrôle.") -f "$blocker")
     }
+    # 12.11 rc8 (R17) : ecriture pour un lecteur cible avec le facteur par cylindre ($xp) : memoire de l ecriture en attente
+    # (New-TargetWriteMemory, 172), gardee a sa fin (controle : Complete-WriteCheck, 170 ; sans controle : derniere commande
+    # gw write, Update-TargetWriteMemoryGw) pour un recalage sur la relecture par le lecteur cible ; aucune sinon. Une erreur
+    # de la memoire n arrete jamais l ecriture (une ligne de journal, pas de memoire)
+    $script:TargetWritePending = $null
+    if ($tgtDrive -and $xp) {
+        try { $script:TargetWritePending = New-TargetWriteMemory $tw $wf $xp $xp.Recal ([bool]$slow) $userTs ([string]$txtWFile.Text) $heads ([bool]($post -and -not $blocker)) (@($eraseKeys | Where-Object { $_ }).Count) }
+        catch { $script:TargetWritePending = $null; Append-Log ((T 'Écriture pour le lecteur cible {0} non gardée en mémoire : {1}') -f "$tgtDrive", "$($_.Exception.Message)") }
+    }
     # 12.11 (L11) : barre de l onglet pendant l ecriture et son controle (Start-WriteProgress, 160) : plan des commandes de
     # l ecriture (file : effacements, ecritures par tete ; ou ecriture rapide), pose avant le lancement de la premiere ;
     # affichage seulement, file et commandes inchangees
@@ -1623,7 +1632,7 @@ function Get-TargetWriteInfo([string]$img, [string]$fmt, [bool]$slow) {
     return $r
 }
 
-function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec, [int]$cyls, [int]$cap) {
+function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec, [int]$cyls, [int]$cap, [double]$recalNs = 0) {
     # 12.11 (rc2, spec-facteur-croise, regle 4) : courbe ecrite pour le lecteur cible T par le lecteur S, une tete, cylindre
     # par cylindre c de 0 a n - 1 : Sp(c) >= XferMinNs (040) : X(c) x D(c) / Sp(c), le facteur par cylindre de la
     # calibration croisee (X/Sp) applique a la courbe de cette disquette ; sinon (au bord, le besoin propre de S est de
@@ -1641,6 +1650,11 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
     # Rep.AsymExcess) pour l asymetrie attendue a la relecture par S (Get-RepAsymExcess, 170). Sans effet sur la courbe
     # 12.11 rc6 (R15) : D > Sp (la disquette demande plus que la courbe propre de S) : courbe ecrite au plus X + (D - Sp),
     # la hausse reportee en ns et non en rapport (Capped : cylindres concernes) ; D = Sp donne toujours X, D <= Sp inchange
+    # 12.11 rc8 (R17) : $recalNs, recalage du lecteur cible de cette tete (Get-TargetRecalPlan, 172 ; 0 par defaut : courbe
+    # de la rc7, a l octet). Apres l arrondi et la borne de chaque cylindre : oc = arrondi(recalNs), limite a +/-
+    # TargetRecalWShare de la valeur du cylindre (valeur nulle : inchangee), puis au moins 0 et au plus max($cap, X(c),
+    # D(c)) ; Excess (courbe ecrite - D) et le cas « courbe ecrite = X » calcules ensuite. Recal : oc nominal (ns entiers) ;
+    # RecalLimited : cylindres ou la limite de TargetRecalWShare a joue
     $last = 0
     foreach ($s in @($dSpec, $spSpec, $xSpec)) {
         foreach ($m in [regex]::Matches([string]$s, '(\d+)\s*=\s*(\d+)')) { if ([int]$m.Groups[1].Value -gt $last) { $last = [int]$m.Groups[1].Value } }
@@ -1652,9 +1666,10 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
     $n = [math]::Max($cyls, $last + 1)
     $min = [double]$script:XferMinNs
     # Ratio : table simple (une table ordonnee lirait une cle entiere comme un rang)
-    $r = @{ Spec = $xSpec; Values = @(); Ratio = @{}; Added = @(); Borrow = @{}; Pooled = @(); PoolF = $null; Same = $true; Excess = @(); Capped = @() }
+    $r = @{ Spec = $xSpec; Values = @(); Ratio = @{}; Added = @(); Borrow = @{}; Pooled = @(); PoolF = $null; Same = $true; Excess = @(); Capped = @(); Recal = 0; RecalLimited = @() }
     $vals = New-Object int[] $n; $exc = New-Object int[] $n
     $asX = $true; $added = New-Object System.Collections.Generic.List[int]; $pooled = New-Object System.Collections.Generic.List[int]; $capped = New-Object System.Collections.Generic.List[int]
+    $rcN = [int][math]::Round($recalNs); $rcLim = New-Object System.Collections.Generic.List[int]; $r.Recal = $rcN
     $dA = New-Object double[] $n; $spA = New-Object double[] $n; $xA = New-Object double[] $n; $sumD = 0.0; $sumSp = 0.0; $nOk = 0
     for ($c = 0; $c -lt $n; $c++) {
         $dA[$c] = [double](Get-SpecValue $dSpec $c); $spA[$c] = [double](Get-SpecValue $spSpec $c); $xA[$c] = [double](Get-SpecValue $xSpec $c)
@@ -1681,10 +1696,17 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
         # X x k sans borne
         if ($w -gt $x) { $lim = $x + [math]::Max(0.0, $d - $sp); if ($w -gt $lim) { $w = $lim; $capped.Add($c) } }
         $vals[$c] = [int][math]::Max(0.0, [math]::Min([math]::Round($w), [math]::Max([double]$cap, [math]::Max($x, $d))))
+        # 12.11 rc8 (R17) : recalage du lecteur cible, apres l arrondi et la borne
+        if ($rcN -ne 0 -and $vals[$c] -gt 0) {
+            $lim = [int][math]::Floor([double]$script:TargetRecalWShare * $vals[$c])
+            $oc = [math]::Max(-$lim, [math]::Min($lim, $rcN))
+            if ($oc -ne $rcN) { $rcLim.Add($c) }
+            $vals[$c] = [int][math]::Max(0.0, [math]::Min([double]($vals[$c] + $oc), [math]::Max([double]$cap, [math]::Max($x, $d))))
+        }
         $exc[$c] = $vals[$c] - [int]$d
         if ($vals[$c] -ne [int]$x) { $asX = $false }
     }
-    $r.Values = $vals; $r.Added = [int[]]$added.ToArray(); $r.Pooled = [int[]]$pooled.ToArray(); $r.Excess = $exc; $r.Capped = [int[]]$capped.ToArray()
+    $r.Values = $vals; $r.Added = [int[]]$added.ToArray(); $r.Pooled = [int[]]$pooled.ToArray(); $r.Excess = $exc; $r.Capped = [int[]]$capped.ToArray(); $r.RecalLimited = [int[]]$rcLim.ToArray()
     if (-not $asX) { $r.Spec = Build-CurveProfile $vals }
     return $r
 }
@@ -1752,16 +1774,19 @@ function Get-TargetTransferPlan($tw, $wf, $td, [bool]$slow) {
     # profils transmis par tete physique et ligne de journal. D : profils $td (Get-TargetDFields) mis a l echelle par le
     # facteur de cette ecriture comme pour le meme lecteur ($wf, Get-WriteFactorPlan : par tete en ecriture lente, moyenne
     # des deux tetes en ecriture rapide, ConvertTo-ScaledSpec, borne $wf.Hard) ; courbe ecrite : Get-TargetTransferSpec
-    # (D, Sp, X), meme borne. Rend @{ P0 ; P1 ; T = @{ 0 ; 1 } (Get-TargetTransferSpec) ; Line }
+    # (D, Sp, X), meme borne. Rend @{ P0 ; P1 ; T = @{ 0 ; 1 } (Get-TargetTransferSpec) ; Line ; Recal (Get-TargetRecalPlan, rc8) }
     $own = @($tw.Own); $xc = @($tw.Curves); $cap = [int]$wf.Hard
     $d0 = [string]$td.P0; $d1 = [string]$td.P1
     if ($wf.Apply) {
         if ($slow) { $d0 = ConvertTo-ScaledSpec $d0 $wf.F0 $wf.Hard; $d1 = ConvertTo-ScaledSpec $d1 $wf.F1 $wf.Hard }
         else { $d0 = ConvertTo-ScaledSpec $d0 $wf.FMean $wf.Hard; $d1 = $d0 }
     } elseif (-not $slow) { $d1 = $d0 }
-    $t0 = Get-TargetTransferSpec $d0 ([string]$own[0].Spec) ([string]$xc[0].Spec) 0 $cap
-    $t1 = if ($slow) { Get-TargetTransferSpec $d1 ([string]$own[$own.Count - 1].Spec) ([string]$xc[$xc.Count - 1].Spec) 0 $cap } else { $t0 }
-    $r = @{ P0 = $t0.Spec; P1 = $t1.Spec; T = @{ 0 = $t0; 1 = $t1 }; Line = '' }
+    # 12.11 rc8 (R17) : recalage du lecteur cible de chaque tete (Get-TargetRecalPlan, 172 : entree valable pour la courbe
+    # croisee employee, facteur k mesure, hors profil Manuel ; ecriture rapide : moyenne des deux tetes), 0 sans lui
+    $rc = Get-TargetRecalPlan $tw $wf $xc $slow
+    $t0 = Get-TargetTransferSpec $d0 ([string]$own[0].Spec) ([string]$xc[0].Spec) 0 $cap ([double]$rc.O[0])
+    $t1 = if ($slow) { Get-TargetTransferSpec $d1 ([string]$own[$own.Count - 1].Spec) ([string]$xc[$xc.Count - 1].Spec) 0 $cap ([double]$rc.O[1]) } else { $t0 }
+    $r = @{ P0 = $t0.Spec; P1 = $t1.Spec; T = @{ 0 = $t0; 1 = $t1 }; Line = ''; Recal = $rc }
     # Origine de D : mesure de cette disquette ou courbe propre, facteur de cette ecriture (texte de Get-WriteFactorSrcText)
     $kt = @{ own = (T 'courbe du lecteur'); quick = (T 'calibration rapide de cette disquette'); complete = (T 'mesure complète de cette disquette') }
     $src = [string]$tw.Src; $tgt = [string]$tw.Tgt
@@ -1782,6 +1807,8 @@ function Get-TargetTransferPlan($tw, $wf, $td, [bool]$slow) {
     # Relecture m2 : courbe propre de S plus recente que la courbe croisee (S recalibre depuis) : le facteur X/Sp est pris
     # sur la courbe propre courante, note pour interpreter le resultat
     if ((Get-CurveDate $own[0]) -gt (Get-CurveDate $xc[0])) { $r.Line += ' ; ' + ((T 'courbe du lecteur {0} postérieure à la calibration croisée {0} → {1}') -f "$src", "$tgt") }
+    # 12.11 rc8 (R17) : recalage applique (ou garde sans effet, et pourquoi) ; rien sans recalage en memoire
+    if ($rc.Text) { $r.Line += ' ; ' + [string]$rc.Text }
     $r.Line += '.'
     return $r
 }

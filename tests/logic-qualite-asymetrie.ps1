@@ -163,10 +163,13 @@ $defsNew = New-Gen $Wt $genNew $fnNew $asgNew @('$script:CalHardMaxNs')
 $fnX = @('Get-RepAsymExcess', 'Get-RepAsymGain', 'Get-AsymGainText', 'Get-WriteZoneGap', 'Get-WriteZoneScan', 'Get-WriteZoneSpec', 'Get-RepHeadSpec', 'Find-WriteZones', 'Format-WriteZone',
          'Start-WriteZonePass', 'Complete-WriteZonePass', 'Get-WriteZoneCount', 'Invoke-RepNextCmd', 'Complete-WriteCheck', 'Stop-WriteCheck')
 $defsX = @{}
-foreach ($pm in @(@('170-fn-controle-ecriture.ps1', $fnX), @('230-fn-calib-courbe.ps1', @('Get-SpecValue', 'Build-CurveProfile')))) {
+# 12.11 rc8 (R17) : recalage du lecteur cible (172), appele par Invoke-AlignAnalysis et Complete-WriteCheck ; aucune
+# ecriture pour un lecteur cible en memoire ici : sans effet
+$fnR = @('Invoke-TargetRecalOffer', 'Get-TargetWriteMemoryFor', 'Complete-TargetWriteMemory')
+foreach ($pm in @(@('170-fn-controle-ecriture.ps1', $fnX), @('230-fn-calib-courbe.ps1', @('Get-SpecValue', 'Build-CurveProfile')), @('172-fn-recalage-cible.ps1', $fnR))) {
     foreach ($fd in @((Get-Ast (Join-Path $mods $pm[0])).FindAll({ param($x) $x -is $tFn }, $false))) { if (@($pm[1]) -contains $fd.Name) { $defsX[$fd.Name] = $fd.Extent.Text } }
 }
-$missX = @(@($fnX + @('Get-SpecValue', 'Build-CurveProfile')) | Where-Object { -not $defsX.ContainsKey($_) })
+$missX = @(@($fnX + @('Get-SpecValue', 'Build-CurveProfile') + $fnR) | Where-Object { -not $defsX.ContainsKey($_) })
 if ($missX.Count -gt 0) { throw "fonctions $($missX -join ', ') introuvables sous $Wt (lots R10 et R16 absents de cette source ?)" }
 $genX = Join-Path $here 'gen-r10.ps1'
 [System.IO.File]::WriteAllText($genX, ((@($defsX.Keys | Where-Object { @('Invoke-RepNextCmd', 'Complete-WriteCheck', 'Stop-WriteCheck') -notcontains $_ } | Sort-Object | ForEach-Object { $defsX[$_] }) -join "`r`n`r`n") + "`r`n"), $utf8Bom)
@@ -1022,7 +1025,9 @@ Chk 'Z7' ($z7a -and $z7b -and $z7c -and $z7d -and $z7e) "verdict : « $(Get-Shor
 
 # Z8 : textes du lot dans la section « rc7 » de 019, memes jalons
 $iRc7 = $t019.IndexOf('# --- rc7 :'); $badZ = @()
-$zKeys = @([regex]::Matches($t019.Substring([math]::Max(0, $iRc7)), '(?m)^\$script:I18n\[(?:"([^"]+)"|''([^'']+)'')\]') | ForEach-Object { if ($_.Groups[1].Success) { $_.Groups[1].Value.Replace('`n', "`n") } else { $_.Groups[2].Value.Replace("''", "'") } })
+# 12.11 rc8 : la section « rc7 » s arrete a la section suivante (« rc8 »), ou a la fin du module
+$eRc7 = if ($iRc7 -ge 0) { $t019.IndexOf("`n# --- ", $iRc7 + 5) } else { -1 }; if ($eRc7 -lt 0) { $eRc7 = $t019.Length }
+$zKeys = @([regex]::Matches($t019.Substring([math]::Max(0, $iRc7), $eRc7 - [math]::Max(0, $iRc7)), '(?m)^\$script:I18n\[(?:"([^"]+)"|''([^'']+)'')\]') | ForEach-Object { if ($_.Groups[1].Success) { $_.Groups[1].Value.Replace('`n', "`n") } else { $_.Groups[2].Value.Replace("''", "'") } })
 foreach ($k in $zKeys) {
     $ph1 = (@([regex]::Matches($k, '\{\d\}') | ForEach-Object { $_.Value } | Sort-Object -Unique) -join '')
     $ph2 = (@([regex]::Matches([string]$script:I18n[$k], '\{\d\}') | ForEach-Object { $_.Value } | Sort-Object -Unique) -join '')

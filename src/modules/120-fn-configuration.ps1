@@ -685,6 +685,12 @@ function Save-Config {
     # une operation surchargee (D4 : ecriture depuis la Bibliotheque ; lot 2 : restauration), reglages de l onglet
     # Ecriture d avant l operation
     if ($drCfg) { $cfg['drives'] = $drCfg }    # 12.11 : lecteurs enregistres
+    # 12.11 rc8 (R17) : recalages des courbes croisees et derniere ecriture pour chaque lecteur cible (172), blocs
+    # write.targetRecal et write.lastTargetWrite ecrits seulement quand ils ont une entree (fichier de la rc7 sinon) ; une
+    # version anterieure les ignore
+    $trCfg = Export-TargetRecal; $lwCfg = Export-LastTargetWrites
+    if ($trCfg.Count -gt 0) { $cfg.write['targetRecal'] = $trCfg }
+    if ($lwCfg.Count -gt 0) { $cfg.write['lastTargetWrite'] = $lwCfg }
     Export-Settings $cfg
     if ($script:OpOverride) { Set-OpOverrideConfig $cfg }
     try {
@@ -848,6 +854,11 @@ function Load-Config {
     if ($script:DriveReg.Count -gt 0 -or $cmbDrive.Items.Count -gt @($script:SettingDefs['drive'].Codes).Count) { Update-DriveList }
     $tdi = Import-TargetDrives (Get-Cfg $w 'targetDrive' $null)
     if ([int]$tdi.Bad -gt 0) { Append-Log ((T 'Configuration : {0} lecteur(s) cible illisible(s) ou inconnu(s), ignoré(s).') -f "$($tdi.Bad)") }
+    # 12.11 rc8 (R17) : recalages des courbes croisees et derniere ecriture pour chaque lecteur cible (172) ; entree
+    # illisible ignoree, une ligne
+    $tri = Import-TargetRecal (Get-Cfg $w 'targetRecal' $null)
+    $lwi = Import-LastTargetWrites (Get-Cfg $w 'lastTargetWrite' $null)
+    if ([int]$tri.Bad + [int]$lwi.Bad -gt 0) { Append-Log ((T 'Configuration : {0} recalage(s) de courbe croisée et {1} mémoire(s) d''écriture pour un lecteur cible illisibles, ignorés.') -f "$($tri.Bad)", "$($lwi.Bad)") }
     # 12.11 : registre relu dans la copie de secours : lecteurs cibles des lecteurs enregistres retablis depuis elle (une
     # version anterieure les retire), et ligne de journal qui dit ce qui a ete retrouve ; rien sinon
     [void](Restore-DriveRescueTargets $old)

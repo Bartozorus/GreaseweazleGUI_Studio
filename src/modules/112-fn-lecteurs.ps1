@@ -194,7 +194,9 @@ function Edit-DriveData([string]$from, [string]$to, [switch]$Check) {
     # retire si $to est vide. Porteurs, tous ici : (1) cles de $script:DriveCurves, simples et croisees, la source comme
     # la cible ; (2) champs Drive et Target des courbes deplacees ; (3) $script:OldCalib.Curves et .Levels ;
     # (4) $script:LevelShifts ; (5) $script:LevelBrands ; (6) $script:ContentMeasures ; (7) $script:TargetDrives, comme
-    # source et comme cible ; (8) $script:DriveLast. La vue ($script:PrecompCurves) n est jamais ecrite ici :
+    # source et comme cible ; (8) $script:DriveLast ; 12.11 rc8 (R17) : (9) cles de $script:TargetRecal
+    # (« source>cible|famille_hN ») et (10) de $script:LastTargetWrites (« source>cible »), la source comme la cible (leurs
+    # entrees ne portent pas les lecteurs : la cle les dit). La vue ($script:PrecompCurves) n est jamais ecrite ici :
     # l appelant la refait par Sync-PrecompCurves.
     # Jamais de fusion : refus sans effet si $to porte deja une donnee (Get-DriveData : Any) ou si une cle d arrivee
     # existe deja. $to egal a $from a la casse pres (correction de casse d un nom) : admis, ce refus ne s applique pas.
@@ -212,7 +214,7 @@ function Edit-DriveData([string]$from, [string]$to, [switch]$Check) {
     $refuse = if ($toConn) { ((T 'La connexion {0} a déjà des données sans nom de lecteur (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : le nom ne peut pas être retiré seul.') -f $to) } else { ((T 'Le lecteur {0} a déjà des données (courbes, lecteur cible, niveaux, mémoire par marque ou facteurs) : celles de la connexion {1} ne peuvent pas lui être attribuées.') -f $to, $from) }
     # --- Premier temps : calcul, sans effet -------------------------------------------------------------------------
     $fix = @(); $n = 0; $clash = $false
-    $nCurves = @{}; $nOld = [ordered]@{}; $nOldLv = @{}; $nLv = @{}; $nBr = @(); $nCm = @(); $nTd = @{}; $nLast = @{}
+    $nCurves = @{}; $nOld = [ordered]@{}; $nOldLv = @{}; $nLv = @{}; $nBr = @(); $nCm = @(); $nTd = @{}; $nLast = @{}; $nRc = @{}; $nLw = @{}
     $oc = $script:OldCalib
     $hasOld = [bool]($oc -and $null -ne $oc.Curves); $hasOldLv = [bool]($oc -and $null -ne $oc.Levels)
     try {
@@ -283,6 +285,25 @@ function Edit-DriveData([string]$from, [string]$to, [switch]$Check) {
                 $nLast.Add([string]$e.Key, $v)
             }
         }
+        # (9) recalages des courbes croisees : cle « source>cible|famille_hN », comme une cle de courbe croisee ;
+        # (10) memoire des ecritures pour un lecteur cible : cle « source>cible » (Get-DriveMovedKey sur « source>cible|w »)
+        if ($null -ne $script:TargetRecal) {
+            foreach ($e in @($script:TargetRecal.GetEnumerator())) {
+                $nk = [string](Get-DriveMovedKey ([string]$e.Key) $from $to).Key
+                if (-not $nk) { continue }
+                if ($nRc.Contains($nk)) { $clash = $true }
+                $nRc.Add($nk, $e.Value)
+            }
+        }
+        if ($null -ne $script:LastTargetWrites) {
+            foreach ($e in @($script:LastTargetWrites.GetEnumerator())) {
+                $mk = [string](Get-DriveMovedKey ([string]$e.Key + '|w') $from $to).Key
+                if (-not $mk) { continue }
+                $nk = [string](Split-DriveCurveKey $mk).Drive
+                if ($nLw.Contains($nk)) { $clash = $true }
+                $nLw.Add($nk, $e.Value)
+            }
+        }
     } catch {
         if (-not $clash) { $res.Why = ([string]$_.Exception.Message).Trim(); return $res }
     }
@@ -298,6 +319,8 @@ function Edit-DriveData([string]$from, [string]$to, [switch]$Check) {
     $script:ContentMeasures = $nCm
     $script:TargetDrives = $nTd
     $script:DriveLast = $nLast
+    if ($null -ne $script:TargetRecal) { $script:TargetRecal = $nRc }
+    if ($null -ne $script:LastTargetWrites) { $script:LastTargetWrites = $nLw }
     foreach ($f in $fix) { $f.O[[string]$f.F] = [string]$f.V }
     $res.Ok = $true
     return $res
@@ -1556,9 +1579,11 @@ function Get-DrivesStateSamples($font) {
 function Get-DrivesDetailSamples {
     # 12.11 rc4 (R1) : textes les plus longs des zones Info et Help du volet droit (hauteurs fixes : aucun texte coupe)
     $w = 'WWWWWWWWWWWWWWWWW'
+    # 12.11 rc8 (R17) : ligne du recalage de la courbe croisee choisie (Get-TargetRecalSummaryText, 172), sous les autres
+    $rcl = ((T 'Recalage de la courbe croisée {0} → {1} ({2}) : {3} ; {4} relecture(s), dernière le {5}.') -f $w, $w, (T 'Long track 1,89 us'), (((T 'tête {0} {1} ns') -f '0', '-8,0') + ', ' + ((T 'tête {0} {1} ns') -f '1', '-8,0')), '99', '30/10/2026') + ' ' + (T 'Sans effet : courbe croisée recalibrée ou calcul changé depuis.')
     return @{
-        Info = @(((T "Lecteur cible de ses écritures : {0} (réglé dans l'onglet Écriture).") -f $w) + "`n" + ((T 'Aussi rangés sous ce lecteur : niveaux de la calibration rapide ({0}), mémoire par marque ({1}), facteurs mesurés ({2}).') -f '99', '99', '99'),
-                 ((T "Ces calibrations ont été faites en choisissant « {0} » dans la liste « Lecteur : » du bandeau : l'application ne sait pas avec quel lecteur. Elles ne servent que lorsque « {0} » est choisi dans le bandeau. Si elles viennent d'un de vos lecteurs, « Donner un nom… » les range sous son nom.") -f 'A') + "`n" + ((T 'Aussi rangés sous ce lecteur : niveaux de la calibration rapide ({0}), mémoire par marque ({1}), facteurs mesurés ({2}).') -f '99', '99', '99'))
+        Info = @(((T "Lecteur cible de ses écritures : {0} (réglé dans l'onglet Écriture).") -f $w) + "`n" + ((T 'Aussi rangés sous ce lecteur : niveaux de la calibration rapide ({0}), mémoire par marque ({1}), facteurs mesurés ({2}).') -f '99', '99', '99') + "`n" + $rcl,
+                 ((T "Ces calibrations ont été faites en choisissant « {0} » dans la liste « Lecteur : » du bandeau : l'application ne sait pas avec quel lecteur. Elles ne servent que lorsque « {0} » est choisi dans le bandeau. Si elles viennent d'un de vos lecteurs, « Donner un nom… » les range sous son nom.") -f 'A') + "`n" + ((T 'Aussi rangés sous ce lecteur : niveaux de la calibration rapide ({0}), mémoire par marque ({1}), facteurs mesurés ({2}).') -f '99', '99', '99') + "`n" + $rcl)
         Help = @((T "Renommer : tout ce qui est affiché ici suit le lecteur sous son nouveau nom.`nChanger de connexion : rien n'est modifié, le lecteur garde ses calibrations.`nSupprimer : le lecteur et tout ce qui est affiché ici sont retirés, après une copie de la configuration."),
                  ((T "Donner un nom : ces calibrations passent sous le nom choisi ; la connexion {0} garde un lecteur sans nom, sans calibration.`nSupprimer ses calibrations : elles sont retirées, après une copie de la configuration.`nUn lecteur sans nom ne change pas de connexion : donnez-lui d'abord un nom.") -f 'A'))
     }
@@ -1632,7 +1657,12 @@ function New-DrivesDialog {
     $bV = New-Object System.Windows.Forms.Button; $bV.Name = 'btnDrvView'; $bV.Text = (T 'Voir la courbe'); $bV.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $bV.Text 'Diagnostic' 150), 34)
     $bV.Location = New-Object System.Drawing.Point(($xR + $wR - $bV.Width), $yC)
     Set-Btn $bV 'Diagnostic' 'normal'
-    $lblC = New-DrvLabel 'lblDrvCurvesTitle' (T 'Ses calibrations') $xR ($yC + 8) 300 $fS
+    # 12.11 rc8 (R17) : « Annuler le recalage... » de la courbe croisee choisie (Undo-TargetRecalGesture), a gauche de
+    # « Voir la courbe », actif quand elle a un recalage (Update-DrivesDialogRecal) ; titre de la liste raccourci a sa gauche
+    $bR = New-Object System.Windows.Forms.Button; $bR.Name = 'btnDrvRecal'; $bR.Text = (T 'Annuler le recalage…'); $bR.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth $bR.Text 'Delete' 150), 34)
+    $bR.Location = New-Object System.Drawing.Point(($bV.Left - 8 - $bR.Width), $yC); $bR.Enabled = $false
+    Set-Btn $bR 'Delete' 'normal'
+    $lblC = New-DrvLabel 'lblDrvCurvesTitle' (T 'Ses calibrations') $xR ($yC + 8) ([math]::Min(300, $bR.Left - 8 - $xR)) $fS
     $lvC = New-Object System.Windows.Forms.ListView
     $lvC.Name = 'lvDrvCurves'; $lvC.View = 'Details'; $lvC.FullRowSelect = $true; $lvC.MultiSelect = $false; $lvC.HideSelection = $false
     $lvC.HeaderStyle = 'Nonclickable'; $lvC.Font = $f; $lvC.ShowGroups = $true
@@ -1658,11 +1688,13 @@ function New-DrivesDialog {
     $st.Height = [math]::Max(42, (Get-DrvTextHeight (Get-DrivesStateSamples $f) $f $stW))
     $dlg.ClientSize = New-Object System.Drawing.Size(960, ([math]::Max($bAdd.Bottom, $st.Bottom) + 14))
     $dlg.CancelButton = $bClose
-    $dlg.Controls.AddRange(@($intro, $lblL, $lv, $lblBold, $title, $sub, $bA, $bB, $bC, $lblC, $bV, $lvC, $info, $help, $bAdd, $st, $bClose))
-    $s = @{ Dlg = $dlg; Lv = $lv; Title = $title; Sub = $sub; A = $bA; B = $bB; C = $bC; View = $bV; Curves = $lvC; Info = $info; Help = $help; Add = $bAdd; State = $st; Close = $bClose
-            Gdi = $gdi; Bold = $fB; Rows = @(); CRows = @(); Busy = $false }
+    $dlg.Controls.AddRange(@($intro, $lblL, $lv, $lblBold, $title, $sub, $bA, $bB, $bC, $lblC, $bR, $bV, $lvC, $info, $help, $bAdd, $st, $bClose))
+    $s = @{ Dlg = $dlg; Lv = $lv; Title = $title; Sub = $sub; A = $bA; B = $bB; C = $bC; View = $bV; Recal = $bR; Curves = $lvC; Info = $info; Help = $help; Add = $bAdd; State = $st; Close = $bClose
+            Gdi = $gdi; Bold = $fB; Rows = @(); CRows = @(); Busy = $false; InfoBase = '' }
     $script:DrvDlg = $s
     $lv.Add_SelectedIndexChanged({ $s = $script:DrvDlg; if ($s -and -not $s.Busy -and $s.Lv.SelectedItems.Count -gt 0) { Set-DrivesDialogDetail $s } })
+    $lvC.Add_SelectedIndexChanged({ $s = $script:DrvDlg; if ($s -and -not $s.Busy) { Update-DrivesDialogRecal $s } })
+    $bR.Add_Click({ $s = $script:DrvDlg; if ($s) { [void](Undo-TargetRecalGesture $s) } })
     $bA.Add_Click({ $s = $script:DrvDlg; if ($s) { $r = Get-DrivesDialogRow $s; if ($r) { [void](Invoke-DrivesDialogGesture $s $(if ($r.Kind -eq 'rec') { 'rename' } else { 'name' })) } } })
     $bB.Add_Click({ $s = $script:DrvDlg; if ($s) { $r = Get-DrivesDialogRow $s; if ($r) { [void](Invoke-DrivesDialogGesture $s $(if ($r.Kind -eq 'rec') { 'move' } else { 'purge' })) } } })
     $bC.Add_Click({ $s = $script:DrvDlg; if ($s) { [void](Invoke-DrivesDialogGesture $s 'delete') } })
@@ -1728,6 +1760,7 @@ function Set-DrivesDialogDetail($s) {
     if (-not $r) { return }
     $tx = Get-DriveDetailTexts $r
     $s.Title.Text = [string]$tx.Title; $s.Sub.Text = [string]$tx.Sub; $s.Info.Text = [string]$tx.Info; $s.Help.Text = [string]$tx.Help
+    $s.InfoBase = [string]$tx.Info                        # 12.11 rc8 (R17) : texte de base, complete par Update-DrivesDialogRecal
     $named = ($r.Kind -eq 'rec')
     $specs = if ($named) { @(@($s.A, (T 'Renommer…'), '', 'normal'), @($s.B, (T 'Changer de connexion…'), 'Switch', 'normal'), @($s.C, (T 'Supprimer…'), 'Delete', 'normal')) }
              else { @(@($s.A, (T 'Donner un nom…'), '', 'primary'), @($s.B, (T 'Supprimer ses calibrations…'), 'Delete', 'normal')) }
@@ -1756,6 +1789,7 @@ function Set-DrivesDialogDetail($s) {
     if ($s.Curves.Items.Count -gt 0) { $s.Curves.Items[0].Selected = $true }
     $s.Curves.EndUpdate()
     $s.View.Enabled = ($s.Curves.Items.Count -gt 0)
+    Update-DrivesDialogRecal $s                           # 12.11 rc8 (R17) : recalage de la courbe choisie
 }
 
 function Get-DrivesDialogCurveRow($s) {
@@ -1816,6 +1850,48 @@ function Invoke-DrivesDialogGesture($s, [string]$mode) {
     Update-DrivesDialog $s $keep
     Set-DrivesDialogState $s ([string]$res.Text) $false
     return $res
+}
+
+function Undo-TargetRecalGesture($s) {
+    # 12.11 rc8 (R17) : bouton « Annuler le recalage... » de la fenetre « Lecteurs » pour la courbe croisee choisie : refus pendant une
+    # operation (Get-DriveEditRefusal), confirmation (frmConfirm), copie de la configuration d abord (Protect-DriveData,
+    # comme les autres gestes de la fenetre), recalages des deux tetes de la famille retires, journal, enregistrement,
+    # detail a jour. Rend @{ Ok ; Text ; Error }
+    $res = @{ Ok = $false; Text = ''; Error = '' }
+    $c = Get-DrivesDialogCurveRow $s
+    if (-not $c -or [string]$c.Group -eq 'own') { return $res }
+    $x = Split-CrossDrive ([string]$c.StoreDrive)
+    if (-not $x) { return $res }
+    $why = Get-DriveEditRefusal
+    if ($why) { $res.Error = $why; Set-DrivesDialogState $s $why $true; return $res }
+    $fam = [string]$c.Family
+    $sum = Get-TargetRecalSummaryText ([string]$x.Src) ([string]$x.Tgt) $fam
+    if (-not $sum) { return $res }
+    $txt = ((T "{0}`n`nLes écritures suivantes pour le lecteur {1} reprennent la courbe écrite sans recalage ; la courbe croisée n'est pas modifiée, et les prochaines relectures par le lecteur {1} repartent de zéro.`n`nL'application copie d'abord la configuration dans « {2}.lecteurs-….bak », dans le même dossier.") -f $sum, "$($x.Tgt)", [System.IO.Path]::GetFileName([string]$script:ConfigFile))
+    if (-not (Show-AppConfirm -Title (T 'Lecteurs') -Heading ((T 'Annuler le recalage de la courbe croisée {0} → {1} ?') -f "$($x.Src)", "$($x.Tgt)") -Text $txt -GoText (T 'Annuler le recalage') -GoGlyph 'Delete' -Level 'warn')) { return $res }
+    $pr = Protect-DriveData @([string]$x.Src, [string]$x.Tgt)
+    if (-not $pr.Ok) { $res.Error = [string]$pr.Why; Set-DrivesDialogState $s $res.Error $true; return $res }
+    $n = Remove-TargetRecal ([string]$x.Src) ([string]$x.Tgt) $fam
+    $res.Text = (T 'Recalage de la courbe croisée {0} → {1} ({2}) annulé : {3} tête(s).') -f "$($x.Src)", "$($x.Tgt)", (Get-CalibFamilyName $fam), "$n"
+    Append-Log $res.Text
+    [void](Save-Config)
+    $res.Ok = $true
+    Update-DrivesDialogRecal $s
+    Set-DrivesDialogState $s $res.Text $false
+    return $res
+}
+
+function Update-DrivesDialogRecal($s) {
+    # 12.11 rc8 (R17) : fenetre « Lecteurs » : texte du recalage de la courbe croisee choisie (Get-TargetRecalSummaryText, 172) sous les autres
+    # donnees du lecteur (lblDrvInfo, texte de base garde dans InfoBase), bouton « Annuler le recalage... » actif quand elle
+    # en a un
+    if (-not $s -or -not $s.Recal) { return }
+    $c = Get-DrivesDialogCurveRow $s
+    $t = ''
+    if ($c -and [string]$c.Group -ne 'own') { $x = Split-CrossDrive ([string]$c.StoreDrive); if ($x) { $t = Get-TargetRecalSummaryText ([string]$x.Src) ([string]$x.Tgt) ([string]$c.Family) } }
+    $base = [string]$s.InfoBase
+    $s.Info.Text = $(if ($t) { if ($base) { $base + "`n" + $t } else { $t } } else { $base })
+    $s.Recal.Enabled = [bool]$t
 }
 
 function Get-DriveConnChoiceText([string]$conn) {

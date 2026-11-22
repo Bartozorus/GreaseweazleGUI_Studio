@@ -266,6 +266,7 @@ $btnStop.Add_Click({
         Stop-WriteWarmup       # prechauffage d une ecriture lente : chaine d ecriture mise de cote abandonnee, rien n est ecrit
         if ($script:Restore) { Stop-Restore (T 'interrompue par l''utilisateur') }
         if ($script:Rep) { Stop-WriteCheck }
+        if ($script:TargetWritePending) { Complete-TargetWriteMemory $false }   # 12.11 rc8 (R17) : ecriture pour un lecteur cible non gardee (172)
         # 12.11 rc4 (R5, partie 2) : StopBy 'user' : arret demande, cause reconnue par Set-CalibResume (270), qui garde les
         # passes faites d une calibration complete ou croisee pour la reprise
         if ($script:Cal) { $script:Cal.StopBy = 'user'; Stop-PrecompCalib }

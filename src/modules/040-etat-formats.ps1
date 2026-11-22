@@ -182,6 +182,20 @@ $script:WriteZoneMinTracks = 8
 $script:WriteZoneF = 0.5
 $script:WriteZoneCapNs = 15
 $script:WriteZoneAccept = 0.5
+# 12.11 rc8 (R17) : recalage de la courbe croisee par une relecture du lecteur cible (172). Decalage constant par tete, en
+# ns, ajoute a la courbe ecrite pour le lecteur cible : somme des estimations des TargetRecalMaxItems dernieres ecritures
+# relues / (n + 1), au plus +/- TargetRecalCapNs, arrondi au ns a l application et limite a TargetRecalWShare de la valeur
+# du cylindre (garde des disquettes a faible besoin, non eprouvee : elle ne joue jamais sur les essais). Relecture admise :
+# TargetRecalMinTracks pistes retenues au moins par tete, sur TargetRecalMinBlocks blocs de 10 cylindres a
+# TargetRecalBlockTracks pistes au moins ; |ecart median| au plus TargetRecalMaxGapNs (au-dela, l ecart ne vient pas de la
+# courbe croisee). Valeurs de la validation (hors depot, quatre ecritures, une paire de lecteurs, double densite standard)
+$script:TargetRecalCapNs = 8
+$script:TargetRecalMaxItems = 5
+$script:TargetRecalWShare = 0.25
+$script:TargetRecalMinTracks = 60
+$script:TargetRecalMinBlocks = 6
+$script:TargetRecalBlockTracks = 5
+$script:TargetRecalMaxGapNs = 12
 $script:AlignRefLabel = ''
 # 12.8.2 (S11) : zone de l index (Read-ScpFile, Set-ScpTrackPost). gw ecrit les images ADF et a secteurs d index a index
 # (« Terminate at index ») : la jonction d ecriture tombe sur l index, dans l espace entre le dernier et le premier

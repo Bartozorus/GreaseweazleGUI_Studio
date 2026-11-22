@@ -48,6 +48,9 @@ $timer.Add_Tick({
             # (Get-GwEndRule, plus haut).
             $incomplete = [bool]$gwEnd.Incomplete
             $script:GwLastIncomplete = [bool]$incomplete
+            # 12.11 rc8 (R17) : ecriture pour un lecteur cible sans controle complet : memoire gardee a la fin de la derniere
+            # commande gw write, retiree sur une erreur (Update-TargetWriteMemoryGw, 172)
+            if ($wasWrite) { Update-TargetWriteMemoryGw ([int]$code) ([bool]$incomplete) }
             if ($incomplete -and -not $soft) {
                 if ($eraseFailed) { Append-Log (T "ERREUR : l'effacement a échoué (« Command Failed » de gw, code 0) : la suite de l'opération n'est pas lancée. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer.") }
                 else { Append-Log ((T "ERREUR : opération incomplète, gw s'est arrêté après {0} piste(s) sur {1} annoncées avec le code 0. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer.") -f "$($script:ProgSeen.Count)", "$(Get-EndRuleTotal)") }
