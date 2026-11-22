@@ -31,6 +31,12 @@ $Wt = Get-TestRoot $Wt
 # l ecriture : tete refusee, rien propose ; O8 effet annonce limite a 25 % ; M6 memoire precedente de la paire retiree au
 # lancement d une nouvelle ecriture (Set-TargetWritePending) ; K1 lecteur qui ecrit renomme et entrees d une autre paire
 # gardees.
+# Version finale, mesure obligatoire pour apprendre :
+#  L  L1 Test-TargetRecalKLearn ('mesure' seule, les deux tetes en ecriture rapide) face a Test-TargetRecalKMeasured ; L2
+#     'lecteur' applique toujours le recalage (Get-TargetRecalPlan), 'defaut' non ; L3 a L6 memoire d ecritures faites avec
+#     un facteur mesure, de la marque, mele (rapide) ou k = 1 : ligne de fin d ecriture, relecture refusee par tete avec sa
+#     raison, proposition non affichee, memoire gardee ; L7 origine absente ; L8 memoires de la rc8 (sans KLearn) et
+#     configuration ; L9 textes anglais.
 # Non couvert ici : l interface affichee (fenetre de confirmation, fenetre « Lecteurs »), une ecriture et une mesure reelles ;
 # les ecritures « meme lecteur » et sans recalage sont couvertes par les empreintes de logic-cible-facteur.
 Import-TestWinForms
@@ -412,7 +418,7 @@ $rc = @{ O = @{ 0 = -3.4; 1 = 2.0 }; XDate = @{ 0 = $XD; 1 = $XD }; XKey = @{ 0 
 $wfm = @{ Apply = $true; K = @{ 0 = 0.74; 1 = 1.0 }; Src = @{ 0 = 'mesure'; 1 = 'defaut' }; FMean = 0.87 }
 $pm = New-TargetWriteMemory $tw $wfm $xp $rc $true '' 'C:\factice\essai.adf' @(0, 1) $true 0
 $ps = New-TargetWriteMemory $tw $wfm $xp $rc $true 'hswap' 'C:\factice\essai.adf' @(0, 1) $true 0
-Chk 'M1' ([int]$pm.H['0'].Phys -eq 0 -and [int]$pm.H['0'].O -eq -3 -and [string]$pm.H['0'].W -eq '0=50:40=40' -and $pm.H['0'].KMeasured -and -not $pm.H['1'].KMeasured -and [string]$pm.H['1'].KSrc -eq 'defaut' -and [int]$ps.H['0'].Phys -eq 1 -and [string]$ps.H['0'].W -eq '0=48:40=38' -and [string]$pm.Image -eq 'essai.adf') 'memoire : tete physique (hswap), courbe ecrite, recalage applique, k et son origine'
+Chk 'M1' ([int]$pm.H['0'].Phys -eq 0 -and [int]$pm.H['0'].O -eq -3 -and [string]$pm.H['0'].W -eq '0=50:40=40' -and $pm.H['0'].KMeasured -and -not $pm.H['1'].KMeasured -and [string]$pm.H['1'].KSrc -eq 'defaut' -and $pm.H['0'].KLearn -eq $true -and $pm.H['1'].KLearn -eq $false -and [int]$ps.H['0'].Phys -eq 1 -and [string]$ps.H['0'].W -eq '0=48:40=38' -and [string]$pm.Image -eq 'essai.adf') 'memoire : tete physique (hswap), courbe ecrite, recalage applique, k, son origine et s il apprend'
 $script:TargetWritePending = $pm
 $st0 = @{}
 for ($c = 0; $c -lt 80; $c++) { foreach ($h in 0, 1) { $m = @{ Bad = $false; Weak = $false; Level = 0; Ooc = 0.0; R3 = 1.502; R4 = 2.002; Cell = 2000; Asym = 0.004; Score = 40; J = 40 }; $m.AsymExp = 0.004; $m.AsymGap = 0.0; $m.AsymDev = 0.0; $m.AsymHead = "$h"; $st0["$c.$h"] = $m } }
@@ -522,6 +528,108 @@ $kSrc = ($k3.Ok -and $script:TargetRecal.ContainsKey('Ecrit>Cible|std_h0') -and 
 $k2 = Edit-DriveData 'Cible' ''
 $kBc = ([object]::ReferenceEquals($script:TargetRecal['B>C|std_h1'], $bc) -and [object]::ReferenceEquals($script:LastTargetWrites['B>C'], $bm))
 Chk 'K1' ($kOk -and $kSrc -and $k2.Ok -and $kBc -and $script:TargetRecal.Count -eq 1 -and $script:LastTargetWrites.Count -eq 1) 'lecteur cible puis lecteur qui ecrit renommes : recalage et memoire les suivent ; cible retiree : ils sont retires ; ceux d une autre paire restent'
+
+# =====================================================================================================================
+# L : version finale, seul un facteur mesure sur la disquette elle-meme apprend le recalage
+Reset-Fk
+$wM = @{ Apply = $true; K = @{ 0 = 0.74; 1 = 0.80 }; Src = @{ 0 = 'mesure'; 1 = 'mesure' }; FMean = 0.77 }
+$wL = @{ Apply = $true; K = @{ 0 = 0.74; 1 = 0.80 }; Src = @{ 0 = 'lecteur'; 1 = 'lecteur' }; FMean = 0.77 }
+$wD = @{ Apply = $true; K = @{ 0 = 1.0; 1 = 1.0 }; Src = @{ 0 = 'defaut'; 1 = 'defaut' }; FMean = 1.0 }
+$wX = @{ Apply = $true; K = @{ 0 = 0.74; 1 = 0.80 }; Src = @{ 0 = 'mesure'; 1 = 'lecteur' }; FMean = 0.77 }
+$wS = @{ Apply = $true; K = @{ '0' = 0.74; '1' = 0.80 }; Src = @{ '0' = 'mesure'; '1' = 'mesure' }; FMean = 0.77 }
+$wN = @{ Apply = $false; K = @{ 0 = 0.74; 1 = 0.80 }; Src = @{ 0 = 'mesure'; 1 = 'mesure' }; FMean = 0.77 }
+$lrn = @(foreach ($c in @(@($wM, 0, $true), @($wM, 1, $true), @($wS, 1, $true), @($wX, 0, $true), @($wM, 0, $false))) { Test-TargetRecalKLearn $c[0] $c[1] $c[2] })
+$nol = @(foreach ($c in @(@($wL, 0, $true), @($wX, 1, $true), @($wD, 0, $true), @($wN, 0, $true), @($wX, 0, $false), @($wL, 1, $false), @($null, 0, $true))) { Test-TargetRecalKLearn $c[0] $c[1] $c[2] })
+$app = @(foreach ($c in @(@($wL, 0, $true), @($wX, 1, $true), @($wX, 0, $false), @($wL, 1, $false))) { Test-TargetRecalKMeasured $c[0] $c[1] $c[2] })
+Chk 'L1' ((@($lrn | Where-Object { $_ -ne $true }).Count -eq 0) -and (@($nol | Where-Object { $_ -ne $false }).Count -eq 0) -and (@($app | Where-Object { $_ -ne $true }).Count -eq 0) -and -not (Test-TargetRecalKMeasured $wD 0 $true)) "apprend : 'mesure' (cles nombre ou texte ; rapide : les deux tetes) ; n apprend pas : 'lecteur', 'defaut', facteur non applique, rapide mele ; 'lecteur' et rapide mele s appliquent toujours ($(($lrn + $nol + $app) -join ','))"
+# Application inchangee : une ecriture avec le facteur de la marque recoit le recalage, une ecriture a k = 1 non
+$twL = @{ Src = 'A'; Tgt = '0'; Fam = 'std' }
+$xcL = @($script:DriveCurves['A>0|std_h0'], $script:DriveCurves['A>0|std_h1'])
+$script:TargetRecal['A>0|std_h0'] = @{ Ns = -3.4; N = 1; Items = @(@{ WriteId = 'W1'; Date = '22/11/2026 10:00'; Est = -4.5; Tracks = 80; NR = 1; Read = '2026-11-22 11:00:00' }); XDate = $XD; XKey = 'std_h0'; Calc = $script:CalibCalc; At = '2026-11-22 11:00:00' }
+$script:TargetRecal['A>0|std_h1'] = @{ Ns = 2.6; N = 1; Items = @(@{ WriteId = 'W1'; Date = '22/11/2026 10:00'; Est = 3.5; Tracks = 80; NR = 1; Read = '2026-11-22 11:00:00' }); XDate = $XD; XKey = 'std_h1'; Calc = $script:CalibCalc; At = '2026-11-22 11:00:00' }
+$pLr = Get-TargetRecalPlan $twL $wL $xcL $true
+$pDf = Get-TargetRecalPlan $twL $wD $xcL $true
+$pLf = Get-TargetRecalPlan @{ Src = 'A'; Tgt = '0'; Fam = 'std' } $wX $xcL $false
+Chk 'L2' ($pLr.Used -and (Near ([double]$pLr.O[0]) -3.4) -and (Near ([double]$pLr.O[1]) 2.6) -and -not ([string]$pLr.Text).Contains('non appliqué') -and -not $pDf.Used -and (Near ([double]$pDf.O[0]) 0) -and ([string]$pDf.Text).Contains('k = 1 par défaut') -and $pLf.Used -and (Near ([double]$pLf.O[0]) -0.4)) "facteur de la marque : recalage applique ($([string]$pLr.Text)) ; k = 1 : non ; rapide mele : applique (moyenne -0,4)"
+$script:TargetRecal = @{}
+# Memoires faites par le code reel (New-TargetWriteMemory, Complete-TargetWriteMemory sans controle, 160 pistes du plan),
+# date posee ensuite sur une valeur fictive anterieure a la relecture
+$xpL = @{ T = @{ 0 = @{ Spec = '0=50:40=40'; Recal = 0 }; 1 = @{ Spec = '0=48:40=38'; Recal = 0 } } }
+$rcL = @{ O = @{ 0 = 0.0; 1 = 0.0 }; XDate = @{ 0 = $XD; 1 = $XD }; XKey = @{ 0 = 'std_h0'; 1 = 'std_h1' } }
+function New-FkDone($wf, [bool]$slow) {
+    $script:LastTargetWrites = @{}; $script:Log.Clear(); $script:Saves = 0
+    $script:TargetWritePending = (New-TargetWriteMemory $twL $wf $xpL $rcL $slow '' 'C:\factice\essai.adf' @(0, 1) $false 160)
+    Complete-TargetWriteMemory $true
+    $m = $script:LastTargetWrites['A>0']
+    if ($m) { $m.At = '2026-11-22 10:00:00'; $m.Date = '22/11/2026 10:00' }
+    return $m
+}
+$resL = @{ Kind = 'measure'; Health = 0; At = $AT; Ctx = @{ Drive = '0'; Heads = '0+1'; Revs = 3 } }
+$rbL = New-FkRead @{ 0 = 6.0; 1 = 4.0 } $G
+$howS = "cochez « Mesurer la disquette avant l'écriture lente », avec la mesure « sur l'image à écrire »"
+$howF = "écrivez l'image en écriture lente, avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »"
+# L3 : ecriture lente, tete 0 mesuree sur la disquette, tete 1 de la marque : la tete 0 seule apprend
+$mX = New-FkDone $wX $true
+$lX = (@($script:Log) -join ' ')
+$evX = Get-TargetRecalReadback $mX $rbL 0 $AT '0' '0' 'A'
+$script:Log.Clear(); $script:ConfirmN = 0; $script:ConfirmAns = $true
+$oX = Invoke-TargetRecalOffer $resL $rbL
+$lXo = (@($script:Log) -join ' ')
+Chk 'L3' ($mX -and $mX.H['0'].KLearn -eq $true -and $mX.H['1'].KLearn -eq $false -and $mX.H['1'].KMeasured -eq $true -and [string]$mX.H['1'].KSrc -ceq 'lecteur' -and $lX.Contains('gardée en mémoire') -and $lX.Contains("La tête 1 ne servira pas à ce recalage : son facteur n'a pas été mesuré sur la disquette elle-même.") -and $evX.Ok -and $evX.Heads['0'].Ok -and -not $evX.Heads['1'].Ok -and (@($evX.Heads['1'].Why) -join ' ').Contains('tête 1 : facteur de la disquette repris des mesures du lecteur pour la marque, pas mesuré sur cette disquette : cette relecture ne peut pas recaler la courbe croisée') -and $oX -eq 'stored' -and $script:TargetRecal.ContainsKey('A>0|std_h0') -and -not $script:TargetRecal.ContainsKey('A>0|std_h1') -and $lXo.Contains('repris des mesures du lecteur')) "tete 0 mesuree, tete 1 de la marque : seule la tete 0 apprend ; la ligne de fin d ecriture et le journal de la relecture le disent"
+# L4 : ecriture lente avec le facteur de la marque sur les deux tetes : rien a apprendre ; ligne de fin d ecriture sans
+# promesse, avec la consigne ; memoire gardee : la relecture est refusee avec sa raison, sans fenetre
+$script:TargetRecal = @{}
+$mL = New-FkDone $wL $true
+$lL = (@($script:Log) -join ' ')
+$script:Log.Clear(); $script:ConfirmN = 0
+$oL = Invoke-TargetRecalOffer $resL $rbL
+$lLo = (@($script:Log) -join ' ')
+Chk 'L4' ($mL -and $script:Saves -eq 1 -and $lL.StartsWith('Écriture pour le lecteur cible 0 terminée (') -and $lL.Contains("elle ne pourra pas recaler la courbe croisée A → 0, car son facteur n'a pas été mesuré sur la disquette elle-même. Pour qu'une écriture recale cette courbe, $howS.") -and -not $lL.Contains('pourra recaler la courbe croisée A → 0.') -and -not $lL.Contains('gardée en mémoire') -and $oL -eq 'refused' -and $script:ConfirmN -eq 0 -and $script:TargetRecal.Count -eq 0 -and $lLo.Contains('non proposé') -and $lLo.Contains('tête 0 : facteur de la disquette repris des mesures du lecteur pour la marque') -and $lLo.Contains('tête 1 : facteur de la disquette repris') -and -not $lLo.Contains('aucune écriture')) "facteur de la marque : « $lL » ; relecture : « $lLo »"
+# L5 : ecriture rapide aux origines melees : facteur moyen, aucune tete n apprend ; rapide aux deux tetes mesurees : apprend
+$mF = New-FkDone $wX $false
+$lF = (@($script:Log) -join ' ')
+$evF = Get-TargetRecalReadback $mF $rbL 0 $AT '0' '0' 'A'
+$mFm = New-FkDone $wM $false
+$evFm = Get-TargetRecalReadback $mFm $rbL 0 $AT '0' '0' 'A'
+Chk 'L5' ($mF.H['0'].KLearn -eq $false -and $mF.H['1'].KLearn -eq $false -and $mF.H['0'].KMeasured -eq $true -and $lF.Contains("Pour qu'une écriture recale cette courbe, $howF.") -and -not $evF.Ok -and (@($evF.Heads['0'].Why) -join ' ').Contains("tête 0 : écriture rapide avec le facteur moyen des deux têtes, dont une n'a pas été mesurée sur cette disquette") -and (@($evF.Heads['1'].Why) -join ' ').Contains('repris des mesures du lecteur') -and $mFm.H['0'].KLearn -eq $true -and $evFm.Ok -and $evFm.Heads['0'].Ok -and $evFm.Heads['1'].Ok) 'ecriture rapide melee : aucune tete n apprend (raison par tete) ; rapide aux deux tetes mesurees : les deux apprennent'
+# L6 : k = 1 par defaut : ni applique ni appris
+$mD = New-FkDone $wD $true
+$lD = (@($script:Log) -join ' ')
+$evD = Get-TargetRecalReadback $mD $rbL 0 $AT '0' '0' 'A'
+Chk 'L6' ($mD.H['0'].KLearn -eq $false -and $mD.H['0'].KMeasured -eq $false -and $lD.Contains('elle ne pourra pas recaler') -and -not $evD.Ok -and (@($evD.Heads['0'].Why) -join ' ').Contains("tête 0 : facteur de la disquette non mesuré à l'écriture (k = 1 par défaut)")) 'k = 1 : ligne de fin d ecriture sans promesse, relecture refusee (k = 1 par defaut)'
+# L7 : origine du facteur absente (memoire sans kSrc, relue de la configuration) : tete qui n apprend pas, raison claire
+$js7 = '{ "A>0": { "id": "W20261122100000", "date": "22/11/2026 10:00", "at": "2026-11-22 10:00:00", "image": "essai.adf", "fam": "std", "slow": true, "tracks": 160, "heads": [0, 1], "verdict": "ok", "calc": "' + $script:CalibCalc + '",' +
+       ' "h": { "0": { "phys": 0, "w": "0=40:40=32:70=24", "o": 0, "xDate": "' + $XD + '", "xKey": "std_h0", "k": 0.74, "kMeasured": true }, "1": { "phys": 1, "w": "0=38:40=30:70=22", "o": 0, "xDate": "' + $XD + '", "xKey": "std_h1", "k": 0.74, "kSrc": "autre", "kMeasured": true } } } }'
+$i7 = Import-LastTargetWrites ($js7 | ConvertFrom-Json)
+$m7 = $script:LastTargetWrites['A>0']
+$ev7 = Get-TargetRecalReadback $m7 $rbL 0 $AT '0' '0' 'A'
+$memE = New-FkMem; $memE.H['0'].KSrc = ''
+Chk 'L7' ([int]$i7.N -eq 1 -and $null -eq $m7.H['0'].KLearn -and -not $ev7.Ok -and (@($ev7.Heads['0'].Why) -join ' ').Contains('tête 0 : origine du facteur de la disquette inconnue') -and (@($ev7.Heads['1'].Why) -join ' ').Contains('tête 1 : origine du facteur de la disquette inconnue') -and (Get-TargetWriteKLearnWhy $memE '0').Contains('inconnue') -and (Get-TargetWriteKLearnWhy $null '0').Contains('inconnue')) 'kSrc absent ou inconnu : la tete n apprend pas, « origine inconnue »'
+# L8 : memoires de la rc8 (KSrc, KMeasured, sans KLearn) : lente 'mesure' apprend ; rapide aux deux tetes 'mesure' apprend ;
+# rapide a une seule tete ecrite (origine de l autre inconnue) ou a l autre tete 'lecteur' : non. Configuration : KLearn
+# null garde tel quel (un faux ecrit a sa place priverait la memoire de la rc8 de l apprentissage), vrai et faux relus
+$r8s = New-FkMem
+$r8f = New-FkMem; $r8f.Slow = $false
+$r8o = New-FkMem; $r8o.Slow = $false; $r8o.H.Remove('1'); $r8o.Heads = [int[]]@(0)
+$r8m = New-FkMem; $r8m.Slow = $false; $r8m.H['1'].KSrc = 'lecteur'
+$okR8 = ((Get-TargetWriteKLearnWhy $r8s '0') -eq '' -and (Get-TargetWriteKLearnWhy $r8f '1') -eq '' -and (Get-TargetWriteKLearnWhy $r8o '0').Contains('inconnue') -and (Get-TargetWriteKLearnWhy $r8m '0').Contains('écriture rapide'))
+$script:LastTargetWrites = @{ 'A>0' = (New-FkMem); 'B>0' = $mX }
+$o8 = (@{ write = @{ lastTargetWrite = (Export-LastTargetWrites) } } | ConvertTo-Json -Depth 8) | ConvertFrom-Json
+$i8 = Import-LastTargetWrites $o8.write.lastTargetWrite
+$a8 = $script:LastTargetWrites['A>0']; $b8 = $script:LastTargetWrites['B>0']
+Chk 'L8' ($okR8 -and [int]$i8.N -eq 2 -and $null -eq $a8.H['0'].KLearn -and (Get-TargetWriteKLearnWhy $a8 '0') -eq '' -and $b8.H['0'].KLearn -eq $true -and $b8.H['1'].KLearn -eq $false -and (Get-TargetWriteKLearnWhy $b8 '0') -eq '' -and (Get-TargetWriteKLearnWhy $b8 '1').Contains('repris des mesures')) 'memoires de la rc8 : lente et rapide mesurees apprennent, rapide a une tete ou melee non ; configuration : KLearn null, vrai et faux relus'
+# L9 : textes anglais (cles T() identiques a la table, controle I1 de check-source pour toutes les cles)
+$keys9 = @('tête {0} : facteur de la disquette repris des mesures du lecteur pour la marque, pas mesuré sur cette disquette : cette relecture ne peut pas recaler la courbe croisée',
+           'tête {0} : origine du facteur de la disquette inconnue : cette relecture ne peut pas recaler la courbe croisée',
+           "tête {0} : écriture rapide avec le facteur moyen des deux têtes, dont une n'a pas été mesurée sur cette disquette : cette relecture ne peut pas recaler la courbe croisée",
+           "Écriture pour le lecteur cible {0} terminée ({1}, {2} piste(s)) : elle ne pourra pas recaler la courbe croisée {3} → {0}, car son facteur n'a pas été mesuré sur la disquette elle-même. Pour qu'une écriture recale cette courbe, {4}.",
+           "La tête {0} ne servira pas à ce recalage : son facteur n'a pas été mesuré sur la disquette elle-même.")
+$script:Lang = 'en'
+$mLe = New-FkDone $wL $true
+$lLe = (@($script:Log) -join ' ')
+$wLe = Get-TargetWriteKLearnWhy $mLe '0'
+$script:Lang = 'fr'
+Chk 'L9' (@($keys9 | Where-Object { -not $script:I18n.ContainsKey($_) }).Count -eq 0 -and $lLe.Contains('cannot be used to adjust the cross curve A → 0, because its factor was not measured on the disk itself. For a write to adjust this curve, check "Measure the disk before the slow write"') -and $wLe.Contains("head 0: disk factor taken from the drive's measurements for the brand")) "anglais : « $lLe » ; « $wLe »"
 
 # =====================================================================================================================
 "=== bilan logic-cible-recalage : $($script:NChk - $script:Fail) conformes sur $($script:NChk)$(if ($script:Fail) { " ; NON CONFORMES : $($script:FailIds -join ', ')" }) ; $([int]$sw.Elapsed.TotalSeconds) s"

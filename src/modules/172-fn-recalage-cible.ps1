@@ -13,7 +13,11 @@
 # Validation (hors depot, quatre ecritures bien reglees, une paire de lecteurs, double densite standard) : decalage constant
 # en ns, plafond 8 ns ; jamais appris ni applique quand le facteur k de l ecriture n a pas ete mesure. 12.11, decision de
 # l utilisateur pour la version finale : part de l ecart moyen retenue f = n / (n + p), p = 1/3 (TargetRecalFirstShare,
-# 040 : les trois quarts des la premiere ecriture relue ; rc8 : f = n / (n + 1)).
+# 040 : les trois quarts des la premiere ecriture relue ; rc8 : f = n / (n + 1)) ; seule une ecriture dont le facteur k a
+# ete mesure sur la disquette elle-meme (origine 'mesure') apprend le recalage a sa relecture (Test-TargetRecalKLearn a
+# l ecriture, Get-TargetWriteKLearnWhy a la relecture) ; un facteur repris des mesures du lecteur pour la marque
+# ('lecteur') applique le recalage sans l apprendre (Test-TargetRecalKMeasured), sa relecture n est pas proposee et le
+# journal dit pourquoi. Les ecritures deja relues du magasin (Items) ne portent pas l origine de leur k : elles restent.
 
 function Get-TargetRecalKey([string]$src, [string]$tgt, [string]$fam, [int]$h) {
     # Cle du magasin $script:TargetRecal : « source>cible|famille_hN » (N : tete physique du lecteur qui ecrit)
@@ -69,9 +73,11 @@ function Get-TargetRecalReads($e) {
 }
 
 function Test-TargetRecalKMeasured($wf, [int]$h, [bool]$slow) {
-    # Facteur k de la disquette mesure pour la tete physique $h ($wf : Get-WriteFactorPlan, 140) : facteur applique, origine
-    # mesure sur cette disquette ou memoire de la marque ; 'defaut' (k = 1, aucune mesure) : non. Ecriture rapide : facteur
-    # moyen des deux tetes, mesure si les deux le sont
+    # APPLICATION du recalage (Get-TargetRecalPlan) : facteur k de la disquette mesure pour la tete physique $h ($wf :
+    # Get-WriteFactorPlan, 140) : facteur applique, origine mesure sur cette disquette ('mesure') ou mesures du lecteur pour
+    # la marque ('lecteur' : derniere, ou mediane des 3 dernieres) ; 'defaut' (k = 1, aucune mesure) : non. Ecriture
+    # rapide : facteur moyen des deux tetes, mesure si les deux le sont. L apprentissage est plus strict :
+    # Test-TargetRecalKLearn
     if (-not $wf -or -not $wf.Apply -or -not $wf.Src) { return $false }
     $hs = if ($slow) { @($h) } else { @(0, 1) }
     foreach ($q in $hs) {
@@ -82,10 +88,61 @@ function Test-TargetRecalKMeasured($wf, [int]$h, [bool]$slow) {
     return $true
 }
 
+function Test-TargetRecalKLearn($wf, [int]$h, [bool]$slow) {
+    # APPRENTISSAGE du recalage (12.11, decision de l utilisateur pour la version finale : mesure obligatoire) : ecriture
+    # dont la relecture par le lecteur cible pourra recaler la courbe croisee pour la tete physique $h : facteur applique
+    # (Test-TargetRecalKMeasured) et mesure sur cette disquette elle-meme (origine 'mesure'), pour cette tete en ecriture
+    # lente, pour les deux tetes en ecriture rapide (facteur moyen). Facteur repris des mesures du lecteur pour la marque
+    # ('lecteur') : applique, jamais appris ; 'defaut' : ni l un ni l autre. Garde dans la memoire de l ecriture (KLearn,
+    # New-TargetWriteMemory), lue a la relecture par Get-TargetWriteKLearnWhy
+    if (-not (Test-TargetRecalKMeasured $wf $h $slow)) { return $false }
+    $hs = if ($slow) { @($h) } else { @(0, 1) }
+    foreach ($q in $hs) {
+        $s = [string]$wf.Src[$q]
+        if (-not $s) { $s = [string]$wf.Src["$q"] }
+        if ($s -cne 'mesure') { return $false }
+    }
+    return $true
+}
+
+function Get-TargetWriteKLearnWhy($mem, [string]$lk) {
+    # Raison, pour le journal, pour laquelle la tete logique $lk d une ecriture gardee en memoire (New-TargetWriteMemory) ne
+    # peut pas recaler la courbe croisee ; '' quand elle le peut. Origine du facteur de cette tete (KSrc) : 'lecteur' (mesures
+    # du lecteur pour la marque), 'defaut' (k = 1) ou absente et inconnue (prudence) : refus. Origine 'mesure' : memoire de la
+    # version finale, KLearn et KMeasured (Test-TargetRecalKLearn a l ecriture : en ecriture rapide, l autre tete compte
+    # aussi) ; memoire de la rc8, sans KLearn : KMeasured, et en ecriture rapide l origine 'mesure' des deux tetes ecrites
+    # (une seule tete ecrite : origine de l autre inconnue, refus)
+    $hm = $null
+    if ($mem -and $mem.H) { $hm = $mem.H[$lk] }
+    $ks = if ($hm) { [string]$hm.KSrc } else { '' }
+    if ($ks -ceq 'lecteur') { return ((T 'tête {0} : facteur de la disquette repris des mesures du lecteur pour la marque, pas mesuré sur cette disquette : cette relecture ne peut pas recaler la courbe croisée') -f $lk) }
+    if ($ks -ceq 'defaut') { return ((T "tête {0} : facteur de la disquette non mesuré à l'écriture (k = 1 par défaut)") -f $lk) }
+    $unk = (T 'tête {0} : origine du facteur de la disquette inconnue : cette relecture ne peut pas recaler la courbe croisée') -f $lk
+    if ($ks -cne 'mesure') { return $unk }
+    $fast = (T "tête {0} : écriture rapide avec le facteur moyen des deux têtes, dont une n'a pas été mesurée sur cette disquette : cette relecture ne peut pas recaler la courbe croisée") -f $lk
+    $km = ($hm.KMeasured -eq $true)
+    if ($null -ne $hm.KLearn) {
+        if ($hm.KLearn -eq $true -and $km) { return '' }
+        if (-not $mem.Slow) { return $fast }
+        return $unk
+    }
+    if ($mem.Slow) { if ($km) { return '' } else { return $unk } }
+    # Memoire de la rc8, ecriture rapide : KMeasured faux avec cette tete 'mesure' : l autre etait a k = 1
+    if (-not $km) { return $fast }
+    foreach ($q in '0', '1') {
+        $x = $mem.H[$q]
+        if (-not $x) { return $unk }
+        if ([string]$x.KSrc -cne 'mesure') { return $fast }
+    }
+    return ''
+}
+
 function Get-TargetRecalPlan($tw, $wf, $xc, [bool]$slow) {
     # Recalage a passer a Get-TargetTransferSpec pour chaque tete physique d une ecriture pour un lecteur cible
     # (Get-TargetTransferPlan, 140) : entree du magasin valable pour la courbe croisee employee (meme date, calcul courant :
-    # Test-TargetRecalValid), facteur k mesure pour cette tete (Test-TargetRecalKMeasured), hors profil Manuel ; sinon 0.
+    # Test-TargetRecalValid), facteur k mesure pour cette tete (Test-TargetRecalKMeasured : sur cette disquette ou par les
+    # mesures du lecteur pour la marque ; la version finale n exige la mesure sur la disquette que pour l apprentissage,
+    # Test-TargetRecalKLearn), hors profil Manuel ; sinon 0.
     # Ecriture rapide : moyenne des recalages des deux tetes (0 pour une tete sans entree valable), sur la courbe commune.
     # Rend @{ O = @{ 0 ; 1 } (ns) ; Used (au moins une entree appliquee) ; Text (segment du journal, '' sans entree) ;
     # XDate, XKey = @{ 0 ; 1 } (date et cle de la courbe croisee de chaque tete) ; Reads ; Last }
@@ -133,8 +190,10 @@ function New-TargetWriteMemory($tw, $wf, $xp, $rc, [bool]$slow, [string]$userTs,
     # ou rapide, tetes logiques ecrites, controle prevu ; par tete logique ecrite (H, cle '0' ou '1') : tete physique qui
     # l ecrit (hswap compris, Get-WriteHeadSpecs), courbe ecrite (profil --precomp, apres le recalage ; zones de la
     # correction R16 ajoutees a la fin), recalage applique (O : ns entiers ajoutes, ORecal : valeur du magasin), date et cle
-    # de la courbe croisee employee, facteur k, son origine et s il est mesure, cylindres des zones. $planTracks : pistes
-    # de l operation (Get-WriteErasePlan), repli du nombre de pistes ecrites
+    # de la courbe croisee employee, facteur k, son origine (KSrc, origine de la tete physique), s il est mesure
+    # (KMeasured : le recalage s applique) et s il apprend (KLearn, version finale : mesure sur la disquette elle-meme,
+    # Test-TargetRecalKLearn), cylindres des zones. $planTracks : pistes de l operation (Get-WriteErasePlan), repli du
+    # nombre de pistes ecrites
     $map = Get-WriteHeadSpecs $userTs 0 1
     $hs = @{}
     foreach ($lh in @($heads | ForEach-Object { [int]$_ } | Sort-Object -Unique)) {
@@ -147,7 +206,7 @@ function New-TargetWriteMemory($tw, $wf, $xp, $rc, [bool]$slow, [string]$userTs,
         $ro = 0.0; $rx = ''; $rk = ''
         if ($rc) { if ($rc.O) { $ro = [double]$rc.O[$p] }; if ($rc.XDate) { $rx = [string]$rc.XDate[$p] }; if ($rc.XKey) { $rk = [string]$rc.XKey[$p] } }
         $hs["$lh"] = @{ Phys = $p; W = [string]$t.Spec; O = [int]$t.Recal; ORecal = $ro; XDate = $rx; XKey = $rk
-                         K = [math]::Round($kv, 3); KSrc = $ks; KMeasured = [bool](Test-TargetRecalKMeasured $wf $p $slow); Zones = [int[]]@() }
+                         K = [math]::Round($kv, 3); KSrc = $ks; KMeasured = [bool](Test-TargetRecalKMeasured $wf $p $slow); KLearn = [bool](Test-TargetRecalKLearn $wf $p $slow); Zones = [int[]]@() }
     }
     $now = Get-Date
     return @{ Id = 'W' + $now.ToString('yyyyMMddHHmmss', [System.Globalization.CultureInfo]::InvariantCulture); Src = [string]$tw.Src; Tgt = [string]$tw.Tgt
@@ -212,7 +271,19 @@ function Complete-TargetWriteMemory([bool]$ok, $rep = $null) {
     # Lecteurs tires de la cle (une memoire relue ou deplacee par Edit-DriveData ne les porte pas)
     foreach ($f in 'Written', 'PlanTracks', 'Check', 'ImgPath', 'Src', 'Tgt') { $p.Remove($f) }
     $script:LastTargetWrites[$pk] = $p
-    Append-Log ((T "Écriture pour le lecteur cible {0} gardée en mémoire ({1}, {2} piste(s)) : une mesure de cette disquette par le lecteur {0} dans l'onglet « Qualité & alignement » pourra recaler la courbe croisée {3} → {0}.") -f $tgt, "$($p.Date)", "$n", $src)
+    # Version finale (mesure obligatoire) : tetes dont le facteur n a pas ete mesure sur la disquette elle-meme
+    # (Get-TargetWriteKLearnWhy). Aucune tete ne peut apprendre : la ligne ne promet plus de recalage et dit comment faire
+    # (consigne de Get-WriteFactorHint, 140) ; la memoire est gardee quand meme : une relecture par le lecteur cible dit
+    # alors pourquoi elle n est pas proposee, et non qu aucune ecriture n est en memoire
+    $noL = @(foreach ($lk in @($p.H.Keys | ForEach-Object { [string]$_ } | Sort-Object)) { if (Get-TargetWriteKLearnWhy $p $lk) { $lk } })
+    if ($noL.Count -gt 0 -and $noL.Count -ge @($p.H.Keys).Count) {
+        $how = if ([bool]$p.Slow) { (T "cochez « Mesurer la disquette avant l'écriture lente », avec la mesure « sur l'image à écrire »") } else { (T "écrivez l'image en écriture lente, avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »") }
+        Append-Log ((T "Écriture pour le lecteur cible {0} terminée ({1}, {2} piste(s)) : elle ne pourra pas recaler la courbe croisée {3} → {0}, car son facteur n'a pas été mesuré sur la disquette elle-même. Pour qu'une écriture recale cette courbe, {4}.") -f $tgt, "$($p.Date)", "$n", $src, $how)
+    } else {
+        $line = (T "Écriture pour le lecteur cible {0} gardée en mémoire ({1}, {2} piste(s)) : une mesure de cette disquette par le lecteur {0} dans l'onglet « Qualité & alignement » pourra recaler la courbe croisée {3} → {0}.") -f $tgt, "$($p.Date)", "$n", $src
+        if ($noL.Count -gt 0) { $line += ' ' + ((T "La tête {0} ne servira pas à ce recalage : son facteur n'a pas été mesuré sur la disquette elle-même.") -f ($noL -join ', ')) }
+        Append-Log $line
+    }
     if (-not $script:Restore) { [void](Save-Config) }
 }
 
@@ -287,8 +358,9 @@ function Get-TargetRecalReadback($mem, $tracks, [int]$health, $at, [string]$driv
     # instable suffit (2) ; nombre de pistes, tetes ou famille autres que ceux de l ecriture, ou relecture anterieure a
     # l ecriture (3) ; controle de l ecriture « eloigne de l attendu » (6). Par tete logique ecrite (Heads) : pistes retenues
     # SAINES, sans erreur par tour, hors cylindres des zones R16, cellule et rapports mesures ; refus de la tete : facteur k
-    # non mesure (5), moins de TargetRecalMinTracks pistes retenues ou moins de TargetRecalMinBlocks blocs de 10 cylindres
-    # a TargetRecalBlockTracks pistes (4), |mediane de e| au-dela de TargetRecalMaxGapNs (7). e(c) = (ecart 3T + ecart 4T)
+    # non mesure sur la disquette elle-meme (5 ; version finale : origine 'lecteur', 'defaut' ou inconnue, ecriture rapide
+    # dont une tete n est pas 'mesure' : Get-TargetWriteKLearnWhy), moins de TargetRecalMinTracks pistes retenues ou moins
+    # de TargetRecalMinBlocks blocs de 10 cylindres a TargetRecalBlockTracks pistes (4), |mediane de e| au-dela de TargetRecalMaxGapNs (7). e(c) = (ecart 3T + ecart 4T)
     # x cellule / g (Get-TargetReadGain : g de la tete qui relit) ; Est = recalage applique a cette ecriture (O, ns entiers)
     # - mediane de e : estimation absolue, l ecriture portant deja son recalage. La confirmation de l utilisateur (8) est
     # demandee par Invoke-TargetRecalOffer. Rend @{ Ok (aucun refus global et une tete retenue) ; Why ; Fam ; Cell ;
@@ -339,7 +411,9 @@ function Get-TargetRecalReadback($mem, $tracks, [int]$health, $at, [string]$driv
         $o.N = $es.Count
         $o.Blocks = @($blk.Keys | Where-Object { [int]$blk[$_] -ge $bTr }).Count
         if ($es.Count -gt 0) { $o.Med = [double](Get-Median $es.ToArray()); $o.Est = [double]$o.O - [double]$o.Med }
-        if (-not $hm -or -not $hm.KMeasured) { $o.Why.Add(((T "tête {0} : facteur de la disquette non mesuré à l'écriture (k = 1 par défaut)") -f "$lh")) }
+        # Version finale (mesure obligatoire) : facteur de cette tete mesure sur la disquette elle-meme, sinon la raison
+        $kw = Get-TargetWriteKLearnWhy $mem "$lh"
+        if ($kw) { $o.Why.Add($kw) }
         if ($src -and $hm) {
             $cur = $false
             $cks = if ([string]$hm.XKey) { @([string]$hm.XKey) } else { @("$($mem.Fam)_h$([int]$hm.Phys)", [string]$mem.Fam) }
@@ -545,7 +619,9 @@ function Import-TargetRecal($o) {
 
 function Export-LastTargetWrites {
     # Bloc write.lastTargetWrite de la configuration : « source>cible » -> memoire de la derniere ecriture pour ce lecteur
-    # cible (Complete-TargetWriteMemory), cles triees ; une version anterieure ignore ce bloc
+    # cible (Complete-TargetWriteMemory), cles triees ; une version anterieure ignore ce bloc. Version finale : kLearn par
+    # tete (Test-TargetRecalKLearn), null pour une memoire de la rc8 qui ne l a pas (Get-TargetWriteKLearnWhy decide alors
+    # d apres kSrc ; un faux ecrit a sa place la priverait de l apprentissage)
     $o = [ordered]@{}
     if ($null -eq $script:LastTargetWrites) { return $o }
     foreach ($k in @($script:LastTargetWrites.Keys | Sort-Object)) {
@@ -555,7 +631,8 @@ function Export-LastTargetWrites {
         foreach ($lk in @($m.H.Keys | Sort-Object)) {
             $h = $m.H[$lk]
             $hs[[string]$lk] = [ordered]@{ phys = [int]$h.Phys; w = [string]$h.W; o = [int]$h.O; oRecal = [double]$h.ORecal; xDate = [string]$h.XDate; xKey = [string]$h.XKey
-                                          k = [double]$h.K; kSrc = [string]$h.KSrc; kMeasured = [bool]$h.KMeasured; zones = @(@($h.Zones) | ForEach-Object { [int]$_ }) }
+                                          k = [double]$h.K; kSrc = [string]$h.KSrc; kMeasured = [bool]$h.KMeasured; kLearn = $(if ($null -ne $h.KLearn) { [bool]$h.KLearn } else { $null })
+                                          zones = @(@($h.Zones) | ForEach-Object { [int]$_ }) }
         }
         $o[[string]$k] = [ordered]@{ id = [string]$m.Id; date = [string]$m.Date; at = [string]$m.At; image = [string]$m.Image; fam = [string]$m.Fam; slow = [bool]$m.Slow
                                      tracks = [int]$m.Tracks; heads = @(@($m.Heads) | ForEach-Object { [int]$_ }); verdict = [string]$m.Verdict; calc = [string]$m.Calc; h = $hs }
@@ -565,7 +642,8 @@ function Export-LastTargetWrites {
 
 function Import-LastTargetWrites($o) {
     # Bloc write.lastTargetWrite -> $script:LastTargetWrites (vide d abord) : cle « source>cible », identifiant, date,
-    # famille et une tete au moins exiges ; entree illisible ignoree et comptee. Rend @{ N ; Bad }
+    # famille et une tete au moins exiges ; entree illisible ignoree et comptee. kLearn absent ou null (memoire de la rc8) :
+    # KLearn $null ; kSrc absent : KSrc vide, tete qui n apprend pas (Get-TargetWriteKLearnWhy). Rend @{ N ; Bad }
     $script:LastTargetWrites = @{}
     $n = 0; $bad = 0
     if ($null -eq $o -or $o -is [array] -or $o -is [string] -or $o -is [ValueType]) { return @{ N = 0; Bad = 0 } }
@@ -578,7 +656,8 @@ function Import-LastTargetWrites($o) {
                 $h = $q.Value
                 if ([string]$q.Name -notmatch '^[01]$' -or $null -eq $h) { continue }
                 $hs[[string]$q.Name] = @{ Phys = [int]$h.phys; W = [string]$h.w; O = [int]$h.o; ORecal = (Get-ConfigDouble $h.oRecal 0.0); XDate = [string]$h.xDate; XKey = [string]$h.xKey
-                                          K = (Get-ConfigDouble $h.k 1.0); KSrc = [string]$h.kSrc; KMeasured = ($h.kMeasured -eq $true); Zones = [int[]]@(@($h.zones) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ }) }
+                                          K = (Get-ConfigDouble $h.k 1.0); KSrc = [string]$h.kSrc; KMeasured = ($h.kMeasured -eq $true); KLearn = $(if ($null -ne $h.kLearn) { ($h.kLearn -eq $true) } else { $null })
+                                          Zones = [int[]]@(@($h.zones) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ }) }
             }
             if ($hs.Count -eq 0) { $bad++; continue }
             $script:LastTargetWrites[$k] = @{ Id = [string]$v.id; Date = [string]$v.date; At = [string]$v.at; Image = [string]$v.image; Fam = [string]$v.fam; Slow = ($v.slow -eq $true)
