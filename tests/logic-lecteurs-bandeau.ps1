@@ -480,6 +480,10 @@ function Test-LbDialog([string]$lang) {
         foreach ($t in @(Get-DrivesStateSamples $f)) { $s.State.Text = [string]$t; $h = $s.State.GetPreferredSize((New-Object System.Drawing.Size($s.State.Width, 0))).Height; if ($h -gt $s.State.Height) { $o.Bad += "etat coupe ($h > $($s.State.Height)) : $(([string]$t).Substring(0, 30))" } }
         $smp = Get-DrivesDetailSamples
         foreach ($t in @($smp.Info)) { $s.Info.Text = [string]$t; $h = $s.Info.GetPreferredSize((New-Object System.Drawing.Size($s.Info.Width, 0))).Height; if ($h -gt $s.Info.Height) { $o.Bad += "Info coupee ($h > $($s.Info.Height))" } }
+        # Rendu de la rc8 : deux exemples de trois lignes (lecteur nomme, lecteur sans nom), et non un texte qui les met bout a
+        # bout : zone Info haute du plus haut des deux
+        $hMax = 0; foreach ($t in @($smp.Info)) { $hMax = [math]::Max($hMax, (Get-DrvTextHeight @([string]$t) $s.Info.Font $s.Info.Width)) }
+        if (@($smp.Info).Count -ne 2 -or @($smp.Info | Where-Object { ([string]$_).Split("`n").Count -ne 3 }).Count -gt 0 -or $s.Info.Height -ne $hMax) { $o.Bad += "exemples de la zone Info : $(@($smp.Info).Count) (2 de 3 lignes attendus), hauteur $($s.Info.Height) pour $hMax" }
         foreach ($t in @($smp.Help)) { $s.Help.Text = [string]$t; $h = $s.Help.GetPreferredSize((New-Object System.Drawing.Size($s.Help.Width, 0))).Height; if ($h -gt $s.Help.Height) { $o.Bad += "Help coupee ($h > $($s.Help.Height))" } }
         foreach ($k in @('rec', 'conn')) {
             $i = -1; for ($j = 0; $j -lt @($s.Rows).Count; $j++) { if ($i -lt 0 -and $s.Rows[$j].Kind -eq $k) { $i = $j } }
@@ -1147,7 +1151,10 @@ $tx5 = Get-DriveDetailTexts (Get-LbRow 'Atelier PC')
 $p5.texts = ($tx5.Sub -ceq 'Connexion A (nappe PC avec twist)  ·  lecteur choisi dans le bandeau' -and $tx5.Info.StartsWith("Lecteur cible de ses écritures : Amiga 500 (0) (réglé dans l'onglet Écriture).") -and $tx5.Help.StartsWith('Renommer : '))
 $s = New-DrivesDialog
 $p5.dlg = ([string](Get-DrivesDialogRow $s).Drive -ceq 'Atelier PC' -and $s.Curves.Items.Count -eq 4 -and $s.Curves.Groups.Count -eq 2 -and "$($s.A.Text)|$($s.B.Text)|$($s.C.Text)" -ceq 'Renommer…|Changer de connexion…|Supprimer…' -and $s.Lv.Items.Count -eq 9)
+# Rendu de la rc8 : en-tetes des courbes croisees sans double parenthese (le lecteur se lit deja « nom (connexion) »)
+$p5.groups = ([string]$s.Curves.Groups[1].Header -ceq 'Courbes croisées écrites par ce lecteur pour le lecteur cible Amiga 500 (0)')
 Update-DrivesDialog $s 'Amiga 500'
+$p5.groups = ($p5.groups -and [string]$s.Curves.Groups[0].Header -ceq 'Courbes croisées écrites par le lecteur Atelier PC (A) pour ce lecteur')
 $s.Curves.Items[0].Selected = $true
 $script:CurveShown.Clear(); $chk0 = [string]$script:DriveChecked
 $v5 = Show-DrivesDialogCurve $s
@@ -1201,6 +1208,13 @@ $e.Yes.Checked = $true
 $a1 = Get-DriveEditDialogAnswer $e
 $c1 = Confirm-DriveEditDialog $e
 $p5.editDlg = (-not $c0 -and $e0 -ceq (T 'Donnez un nom au lecteur.') -and $e.AskOn -and $a0.Conn -ceq '2' -and -not $a0.Adopt -and $a0.Pick -and $a1.Adopt -and $c1 -and $e.Answer.Name -ceq 'Atelier 2' -and $e.Pick.Text.Contains('connexion 2'))
+# Rendu de la rc8 : options hautes de leur texte reel : « Non » (une ligne, entiere sur sa largeur moins 22 px) haut d une
+# ligne, « Oui » (deux lignes) plus haut, a 4 px dessous, panneau 8 px sous lui ; date et heure de la question insecables
+$tfE = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
+$hNoTxt = [System.Windows.Forms.TextRenderer]::MeasureText([string]$e.No.Text, $e.No.Font, (New-Object System.Drawing.Size(($e.No.Width - 22), 10000)), $tfE).Height
+$hLine = [System.Windows.Forms.TextRenderer]::MeasureText('W', $e.No.Font, (New-Object System.Drawing.Size(($e.No.Width - 22), 10000)), $tfE).Height
+$p5.askLayout = ($hNoTxt -eq $hLine -and $e.No.Height -eq (Get-DeOptionHeight 'W' $e.No.Font $e.No.Width) -and $e.Yes.Height -gt $e.No.Height -and $e.Yes.Top -eq $e.No.Bottom + 4 -and
+                 $e.Ask.Height -eq $e.Yes.Bottom + 8 -and $e.No.Right -le $e.Ask.ClientSize.Width -and ([string]$e.AskText.Text).Contains('07/10/2026' + [char]0x00A0 + '10:00'))
 $script:DeDlg = $null; Clear-DlgGdi $e.Dlg $e.Gdi
 $e = New-DriveEditDialog 'name' (Get-LbRow '2')
 $en = @($e.Conns | Where-Object { $_.Enabled } | ForEach-Object { [string]$_.Tag })

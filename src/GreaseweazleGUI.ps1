@@ -3147,8 +3147,6 @@ $script:I18n['aucun lecteur nommé'] = 'no named drive'
 $script:I18n['1 lecteur nommé'] = '1 named drive'
 $script:I18n['{0} lecteurs nommés'] = '{0} named drives'
 $script:I18n['Connexion {0}'] = 'Connection {0}'
-$script:I18n['Écrites par ce lecteur pour le lecteur cible {0} (courbes croisées)'] = 'Written by this drive for target drive {0} (cross curves)'
-$script:I18n['Écrites par le lecteur {0} pour ce lecteur (courbes croisées)'] = 'Written by drive {0} for this drive (cross curves)'
 $script:I18n['Écrites et relues par ce lecteur (courbes propres)'] = 'Written and read back by this drive (own curves)'
 $script:I18n['Écrites et relues sur la connexion {0}, sans nom de lecteur'] = 'Written and read back on connection {0}, without a drive name'
 $script:I18n['Connexion {0} ({1})'] = 'Connection {0} ({1})'
@@ -3329,6 +3327,9 @@ $script:I18n['Annuler le recalage de la courbe croisée {0} → {1} ?'] = 'Cance
 $script:I18n['Annuler le recalage'] = 'Cancel the adjustment'
 $script:I18n['Annuler le recalage…'] = 'Cancel the adjustment…'
 $script:I18n['Recalage de la courbe croisée {0} → {1} ({2}) annulé : {3} tête(s).'] = 'Cross curve adjustment {0} → {1} ({2}) cancelled: {3} head(s).'
+# Rendu de la rc8 : en-tetes des groupes de courbes croisees sans double parenthese (112, remplacent ceux de la rc4)
+$script:I18n['Courbes croisées écrites par ce lecteur pour le lecteur cible {0}'] = 'Cross curves written by this drive for target drive {0}'
+$script:I18n['Courbes croisées écrites par le lecteur {0} pour ce lecteur'] = 'Cross curves written by drive {0} for this drive'
 # Configuration et « Effacer les calibrations » (120, 240)
 $script:I18n['Configuration : {0} recalage(s) de courbe croisée et {1} mémoire(s) d''écriture pour un lecteur cible illisibles, ignorés.'] = 'Configuration: {0} cross curve adjustment(s) and {1} target drive write memory(ies) unreadable, ignored.'
 $script:I18n["Les recalages des courbes croisées ({0}) et la mémoire des dernières écritures pour un lecteur cible ({1}) sont effacés aussi."] = 'The cross curve adjustments ({0}) and the memory of the last writes for a target drive ({1}) are cleared too.'
@@ -7096,9 +7097,10 @@ function Get-DriveCurveRows([string]$drive) {
 }
 
 function Get-DriveCurveGroupText($row, [string]$drive, [bool]$named) {
-    # 12.11 rc4 (R1) : en-tete d un groupe de courbes du detail d un lecteur
-    if ($row.Group -eq 'out') { return ((T 'Écrites par ce lecteur pour le lecteur cible {0} (courbes croisées)') -f (Get-DriveLabel ([string]$row.Other))) }
-    if ($row.Group -eq 'in') { return ((T 'Écrites par le lecteur {0} pour ce lecteur (courbes croisées)') -f (Get-DriveLabel ([string]$row.Other))) }
+    # 12.11 rc4 (R1) : en-tete d un groupe de courbes du detail d un lecteur. rc8 (rendu) : courbes croisees nommees en tete,
+    # sans parenthese finale (le lecteur se lit deja « nom (connexion) »)
+    if ($row.Group -eq 'out') { return ((T 'Courbes croisées écrites par ce lecteur pour le lecteur cible {0}') -f (Get-DriveLabel ([string]$row.Other))) }
+    if ($row.Group -eq 'in') { return ((T 'Courbes croisées écrites par le lecteur {0} pour ce lecteur') -f (Get-DriveLabel ([string]$row.Other))) }
     if ($named) { return (T 'Écrites et relues par ce lecteur (courbes propres)') }
     return ((T 'Écrites et relues sur la connexion {0}, sans nom de lecteur') -f $drive)
 }
@@ -7407,10 +7409,14 @@ function Get-DrivesDetailSamples {
     # 12.11 rc4 (R1) : textes les plus longs des zones Info et Help du volet droit (hauteurs fixes : aucun texte coupe)
     $w = 'WWWWWWWWWWWWWWWWW'
     # 12.11 rc8 (R17) : ligne du recalage de la courbe croisee choisie (Get-TargetRecalSummaryText, 172), sous les autres
-    $rcl = ((T 'Recalage de la courbe croisée {0} → {1} ({2}) : {3} ; {4} relecture(s), dernière le {5}.') -f $w, $w, (T 'Long track 1,89 us'), (((T 'tête {0} {1} ns') -f '0', '-8,0') + ', ' + ((T 'tête {0} {1} ns') -f '1', '-8,0')), '99', '30/10/2026') + ' ' + (T 'Sans effet : courbe croisée recalibrée ou calcul changé depuis.')
+    # rc8 (rendu) : valeur par tete insecable (espaces insecables, signe moins U+2212) comme dans
+    # Get-TargetRecalSummaryText ; un element de @() par exemple (parentheses : la virgule passe avant +, les deux exemples
+    # ne formaient qu un texte)
+    $nb = [string][char]0x00A0; $v8 = [string][char]0x2212 + '8,0'
+    $rcl = ((T 'Recalage de la courbe croisée {0} → {1} ({2}) : {3} ; {4} relecture(s), dernière le {5}.') -f $w, $w, (T 'Long track 1,89 us'), (((T 'tête {0} {1} ns') -f '0', $v8).Replace(' ', $nb) + ', ' + ((T 'tête {0} {1} ns') -f '1', $v8).Replace(' ', $nb)), '99', '30/10/2026') + ' ' + (T 'Sans effet : courbe croisée recalibrée ou calcul changé depuis.')
     return @{
-        Info = @(((T "Lecteur cible de ses écritures : {0} (réglé dans l'onglet Écriture).") -f $w) + "`n" + ((T 'Aussi rangés sous ce lecteur : niveaux de la calibration rapide ({0}), mémoire par marque ({1}), facteurs mesurés ({2}).') -f '99', '99', '99') + "`n" + $rcl,
-                 ((T "Ces calibrations ont été faites en choisissant « {0} » dans la liste « Lecteur : » du bandeau : l'application ne sait pas avec quel lecteur. Elles ne servent que lorsque « {0} » est choisi dans le bandeau. Si elles viennent d'un de vos lecteurs, « Donner un nom… » les range sous son nom.") -f 'A') + "`n" + ((T 'Aussi rangés sous ce lecteur : niveaux de la calibration rapide ({0}), mémoire par marque ({1}), facteurs mesurés ({2}).') -f '99', '99', '99') + "`n" + $rcl)
+        Info = @((((T "Lecteur cible de ses écritures : {0} (réglé dans l'onglet Écriture).") -f $w) + "`n" + ((T 'Aussi rangés sous ce lecteur : niveaux de la calibration rapide ({0}), mémoire par marque ({1}), facteurs mesurés ({2}).') -f '99', '99', '99') + "`n" + $rcl),
+                 (((T "Ces calibrations ont été faites en choisissant « {0} » dans la liste « Lecteur : » du bandeau : l'application ne sait pas avec quel lecteur. Elles ne servent que lorsque « {0} » est choisi dans le bandeau. Si elles viennent d'un de vos lecteurs, « Donner un nom… » les range sous son nom.") -f 'A') + "`n" + ((T 'Aussi rangés sous ce lecteur : niveaux de la calibration rapide ({0}), mémoire par marque ({1}), facteurs mesurés ({2}).') -f '99', '99', '99') + "`n" + $rcl))
         Help = @((T "Renommer : tout ce qui est affiché ici suit le lecteur sous son nouveau nom.`nChanger de connexion : rien n'est modifié, le lecteur garde ses calibrations.`nSupprimer : le lecteur et tout ce qui est affiché ici sont retirés, après une copie de la configuration."),
                  ((T "Donner un nom : ces calibrations passent sous le nom choisi ; la connexion {0} garde un lecteur sans nom, sans calibration.`nSupprimer ses calibrations : elles sont retirées, après une copie de la configuration.`nUn lecteur sans nom ne change pas de connexion : donnez-lui d'abord un nom.") -f 'A'))
     }
@@ -7435,6 +7441,16 @@ function Get-DrvTextHeight([string[]]$texts, $font, [int]$w) {
     foreach ($t in @($texts)) { $l.Text = [string]$t; $h0 = $l.GetPreferredSize((New-Object System.Drawing.Size($w, 0))).Height; if ($h0 -gt $h) { $h = $h0 } }
     $l.Dispose()
     return $h
+}
+
+function Get-DeOptionHeight([string]$text, $font, [int]$w) {
+    # 12.11 rc8 (rendu) : hauteur d une option a retour a la ligne (RadioButton, case en haut a gauche) de $w px de large
+    # pour son texte : texte sur $w - 22 px, le plus haut du decoupage d un Label (Get-DrvTextHeight) et de celui de
+    # TextRenderer avec ses marges (le plus strict), plus 4 px. Une ligne de texte : une ligne de haut
+    $wt = $w - 22
+    $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
+    $h = [System.Windows.Forms.TextRenderer]::MeasureText($text, $font, (New-Object System.Drawing.Size($wt, 10000)), $tf).Height
+    return ([math]::Max($h, (Get-DrvTextHeight @($text) $font $wt)) + 4)
 }
 
 function New-DrivesDialog {
@@ -7729,10 +7745,12 @@ function Get-DriveConnChoiceText([string]$conn) {
 }
 
 function Get-DriveAskText([string]$conn) {
-    # 12.11 rc4 (R1) : question de « Ajouter un lecteur » quand la connexion a des courbes sans nom de lecteur ; vide sinon
+    # 12.11 rc4 (R1) : question de « Ajouter un lecteur » quand la connexion a des courbes sans nom de lecteur ; vide sinon.
+    # rc8 (rendu) : date et heure de la derniere courbe insecables (jamais coupees en fin de ligne)
     $dt = Get-DriveData $conn
     if ((@($dt['Keys']).Count + @($dt['Cross']).Count) -eq 0) { return '' }
-    return ((T 'La connexion {0} a déjà des calibrations sans nom de lecteur : {1}. Ont-elles été faites avec ce lecteur ?') -f $conn, (Get-DriveDataText $dt))
+    $dtx = (Get-DriveDataText $dt) -replace '(\d{2}/\d{2}/\d{4}) (\d{2}:\d{2})', ('$1' + [string][char]0x00A0 + '$2')
+    return ((T 'La connexion {0} a déjà des calibrations sans nom de lecteur : {1}. Ont-elles été faites avec ce lecteur ?') -f $conn, $dtx)
 }
 
 function New-DriveEditDialog([string]$mode, $row) {
@@ -7794,15 +7812,20 @@ function New-DriveEditDialog([string]$mode, $row) {
     if ($mode -eq 'add' -or $mode -eq 'name') {
         $pAsk = New-Object System.Windows.Forms.Panel; $pAsk.Name = 'pnlDeAsk'; $pAsk.BackColor = [System.Drawing.Color]::FromArgb(253, 243, 230); $pAsk.Location = New-Object System.Drawing.Point(16, $y)
         $askS = @(); $noS = @()
-        foreach ($c in $codes) { $askS += ((T 'La connexion {0} a déjà des calibrations sans nom de lecteur : {1}. Ont-elles été faites avec ce lecteur ?') -f $c, ((T '{0} courbe(s) dont {1} croisée(s), dernière : {2}') -f '99', '99', '30/10/2026 09:00')); $noS += ((T "Non, c'est un autre lecteur : il part sans calibration. Ces calibrations restent sous « {0} ».") -f ((T '{0} (sans nom)') -f $c)) }
+        $nb = [string][char]0x00A0                        # rc8 (rendu) : date et heure insecables, comme Get-DriveAskText
+        foreach ($c in $codes) { $askS += ((T 'La connexion {0} a déjà des calibrations sans nom de lecteur : {1}. Ont-elles été faites avec ce lecteur ?') -f $c, ((T '{0} courbe(s) dont {1} croisée(s), dernière : {2}') -f '99', '99', ('30/10/2026' + $nb + '09:00'))); $noS += ((T "Non, c'est un autre lecteur : il part sans calibration. Ces calibrations restent sous « {0} ».") -f ((T '{0} (sans nom)') -f $c)) }
         $wI = $W - 20
         $lAsk = New-DrvLabel 'lblDeAsk' '' 10 8 $wI $fS (Get-DrvTextHeight $askS $fS $wI)
         $yesT = (T "Oui : elles deviennent les siennes et sont rangées sous son nom. Rien n'est recalculé ; la configuration est d'abord copiée.")
-        $hNo = (Get-DrvTextHeight $noS $f ($wI - 24)) + 4; $hYes = (Get-DrvTextHeight @($yesT) $f ($wI - 24)) + 4
+        # rc8 (rendu) : options sur la largeur du panneau moins 4 px a droite, hauteur selon leur texte (Get-DeOptionHeight) ;
+        # « Non » remesure sur le texte de la connexion choisie par Update-DriveEditDialog
+        $wO = $W - 14
+        $hNo = 0; foreach ($nt in $noS) { $hNo = [math]::Max($hNo, (Get-DeOptionHeight $nt $f $wO)) }
+        $hYes = Get-DeOptionHeight $yesT $f $wO
         $rbNo = New-Object System.Windows.Forms.RadioButton; $rbNo.Name = 'rbDeNo'; $rbNo.Font = $f; $rbNo.AutoSize = $false; $rbNo.UseMnemonic = $false; $rbNo.CheckAlign = 'TopLeft'; $rbNo.TextAlign = 'TopLeft'
-        $rbNo.Location = New-Object System.Drawing.Point(10, ($lAsk.Bottom + 6)); $rbNo.Size = New-Object System.Drawing.Size($wI, $hNo)
+        $rbNo.Location = New-Object System.Drawing.Point(10, ($lAsk.Bottom + 6)); $rbNo.Size = New-Object System.Drawing.Size($wO, $hNo)
         $rbYes = New-Object System.Windows.Forms.RadioButton; $rbYes.Name = 'rbDeYes'; $rbYes.Font = $f; $rbYes.AutoSize = $false; $rbYes.UseMnemonic = $false; $rbYes.CheckAlign = 'TopLeft'; $rbYes.TextAlign = 'TopLeft'
-        $rbYes.Location = New-Object System.Drawing.Point(10, ($rbNo.Bottom + 4)); $rbYes.Size = New-Object System.Drawing.Size($wI, $hYes); $rbYes.Text = $yesT
+        $rbYes.Location = New-Object System.Drawing.Point(10, ($rbNo.Bottom + 4)); $rbYes.Size = New-Object System.Drawing.Size($wO, $hYes); $rbYes.Text = $yesT
         if ($mode -eq 'name') { $rbYes.Checked = $true } else { $rbNo.Checked = $true }
         $pAsk.Controls.AddRange(@($lAsk, $rbNo, $rbYes))
         $pAsk.Size = New-Object System.Drawing.Size($W, ($rbYes.Bottom + 8))
@@ -7843,6 +7866,10 @@ function Update-DriveEditDialog($e) {
         if ($q) {
             $e.AskText.Text = $q
             $e.No.Text = (T "Non, c'est un autre lecteur : il part sans calibration. Ces calibrations restent sous « {0} ».") -f ((T '{0} (sans nom)') -f $c)
+            # rc8 (rendu) : « Non » haut de son texte reel, « Oui » et le bas du panneau a la suite
+            $e.No.Height = Get-DeOptionHeight ([string]$e.No.Text) $e.No.Font $e.No.Width
+            $e.Yes.Top = $e.No.Bottom + 4
+            $e.Ask.Height = $e.Yes.Bottom + 8
             $y = $e.Ask.Bottom + 10
         }
         $e.Pick.Text = (T "C'est le lecteur branché en ce moment sur la connexion {0} : le choisir dans le bandeau") -f $c
@@ -15475,8 +15502,10 @@ function Show-WriteCheckTable($rep) {
     # 12.11 rc7 (R16) : zones ecartees de l attendu corrigees (Get-WriteZoneCount) a la suite de la ligne de la carte.
     # Relecture rc7 : AsymLineBare, forme courte sans elles, derniere forme de la carte (Render-QualityCard, 195) : une
     # ligne trop longue perd le nombre de zones (repris par le verdict, infobulle) plutot que d etre coupee
+    # Rendu de la rc8 : AsymLineCompact (ni le nom du lecteur cible ni « pour le lecteur cible ») suivie des zones, avant
+    # AsymLineBare : le nombre de zones tient a la taille par defaut
     $zc = Get-WriteZoneCount $rep
-    if ($res.AsymLine -and $zc.N -gt 0) { $zt = (T ' ; zones corrigées : {0} sur {1}') -f "$($zc.Ok)", "$($zc.N)"; $res.AsymLineBare = $res.AsymLineShort; $res.AsymLine += $zt; $res.AsymLineShort += $zt }
+    if ($res.AsymLine -and $zc.N -gt 0) { $zt = (T ' ; zones corrigées : {0} sur {1}') -f "$($zc.Ok)", "$($zc.N)"; $res.AsymLineBare = $res.AsymLineShort; $res.AsymLineCompact = (Get-AsymExpLine $asum $asymFor -Compact) + $zt; $res.AsymLine += $zt; $res.AsymLineShort += $zt }
     if ($res.AsymText) { Append-Log ((T "Contrôle après écriture : {0}") -f $res.AsymText) }
     Set-QualityResult $res
 }
@@ -16044,8 +16073,9 @@ function Invoke-TargetRecalOffer($res, $tracks) {
     $up = Get-TargetRecalUpdate $src $tgt $mem $ev (Get-Date)
     $lines = @(foreach ($u in $up) { Get-TargetRecalHeadText $mem $ev.Heads["$($u.Head)"] $u $tgt })
     $lines += @($hw)
+    # rc8 (rendu) : g des deux tetes separes par T(' ; ') comme les listes de Format-WritePlan (145) : « ; » en anglais
     $gt = @(foreach ($lk in @($ev.Heads.Keys | Sort-Object)) { $o = $ev.Heads[$lk]; if ($o.GMeasured) { (T "tête {0} : g = {1}, deux fois la pente mesurée sur l'image") -f "$lk", (Format-UiNum ([double]$o.G) '0.00') } else { (T 'tête {0} : g = {1} par défaut, pente non mesurée') -f "$lk", (Format-UiNum ([double]$o.G) '0.00') } })
-    $txt = ((T "Le lecteur {0} a relu la disquette écrite pour lui par le lecteur {1} le {2} (image « {3} », {4}, {5} pistes).`n`n{6}`n`nÉcart relu = (écart 3T + écart 4T) × cellule / g ({7}). Le recalage moyenne les {8} dernières écritures relues en se rapprochant de leur écart à mesure qu'elles s'ajoutent, au plus ± {9} ns ; arrondi au ns, il s'ajoute à la courbe écrite pour le lecteur {0} (au plus 25 % de sa valeur), sans modifier la courbe croisée. La fenêtre « Lecteurs » le montre et l'annule.`n`nUne autre disquette fausserait le recalage : confirmez que c'est bien celle-là.") -f $tgt, $src, "$($mem.Date)", "$($mem.Image)", (Get-CalibFamilyName ([string]$mem.Fam)), "$([int]$mem.Tracks)", ($lines -join "`n"), ($gt -join ' ; '), "$($script:TargetRecalMaxItems)", (Format-UiNum ([double]$script:TargetRecalCapNs) '0'))
+    $txt = ((T "Le lecteur {0} a relu la disquette écrite pour lui par le lecteur {1} le {2} (image « {3} », {4}, {5} pistes).`n`n{6}`n`nÉcart relu = (écart 3T + écart 4T) × cellule / g ({7}). Le recalage moyenne les {8} dernières écritures relues en se rapprochant de leur écart à mesure qu'elles s'ajoutent, au plus ± {9} ns ; arrondi au ns, il s'ajoute à la courbe écrite pour le lecteur {0} (au plus 25 % de sa valeur), sans modifier la courbe croisée. La fenêtre « Lecteurs » le montre et l'annule.`n`nUne autre disquette fausserait le recalage : confirmez que c'est bien celle-là.") -f $tgt, $src, "$($mem.Date)", "$($mem.Image)", (Get-CalibFamilyName ([string]$mem.Fam)), "$([int]$mem.Tracks)", ($lines -join "`n"), ($gt -join (T ' ; ')), "$($script:TargetRecalMaxItems)", (Format-UiNum ([double]$script:TargetRecalCapNs) '0'))
     $go = [bool](Show-AppConfirm -Title (T 'Recalage de la courbe croisée') -Heading ((T 'Recaler la courbe croisée {0} → {1} sur cette relecture ?') -f $src, $tgt) -Text $txt -Check ((T 'Disquette écrite le {0} pour le lecteur {1}') -f "$($mem.Date)", $tgt) -GoText (T 'Recaler la courbe croisée') -GoGlyph 'Check' -Level 'info' -Picto 'data')
     if (-not $go) { Append-Log ((T 'Recalage de la courbe croisée {0} → {1} non enregistré : non confirmé.') -f $src, $tgt); return 'declined' }
     if ($null -eq $script:TargetRecal) { $script:TargetRecal = @{} }
@@ -16067,13 +16097,15 @@ function Remove-TargetRecal([string]$src, [string]$tgt, [string]$fam) {
 function Get-TargetRecalSummaryText([string]$src, [string]$tgt, [string]$fam) {
     # Ligne du recalage d une courbe croisee dans la fenetre « Lecteurs » (112) : valeur par tete, relectures, date de la
     # derniere ; « sans effet » quand la courbe croisee de la tete a ete recalibree (ou le calcul a change) depuis ; '' sans
-    # recalage
+    # recalage. rc8 (rendu) : « tete 1 -2,3 ns » insecable (jamais coupe entre la tete, la valeur et l unite) : espaces
+    # insecables, et signe moins U+2212 (le trait d union, coupure possible apres lui, renvoyait « 2,3 ns » a la ligne)
     $sg = '+0.0;-0.0;0.0'
+    $nb = [string][char]0x00A0
     $parts = @(); $reads = 0; $last = ''; $stale = $false
     foreach ($h in 0, 1) {
         $e = Get-TargetRecalEntry $src $tgt $fam $h
         if (-not $e) { continue }
-        $parts += (T 'tête {0} {1} ns') -f "$h", (Format-UiNum ([double]$e.Ns) $sg)
+        $parts += ((T 'tête {0} {1} ns') -f "$h", (Format-UiNum ([double]$e.Ns) $sg).Replace('-', [string][char]0x2212)).Replace(' ', $nb)
         $rd = Get-TargetRecalReads $e
         if ([int]$rd.N -gt $reads) { $reads = [int]$rd.N }
         if ([string]$rd.Last -and (-not $last -or (ConvertTo-RecalDate ([string]$rd.Last)) -gt (ConvertTo-RecalDate $last))) { $last = [string]$rd.Last }
@@ -18017,16 +18049,18 @@ function Get-AsymSummaryText($s, [switch]$Always, $For = $null) {
     return ''
 }
 
-function Get-AsymExpLine($s, $For, [switch]$Short) {
+function Get-AsymExpLine($s, $For, [switch]$Short, [switch]$Compact) {
     # 12.11 rc6 (R14) : ligne de la carte de l onglet Qualite pour le controle d une ecriture destinee au lecteur cible
     # $For.Target (pistes a asymetrie attendue, Get-AsymSummary) : jugement (Judge), medianes attendue et mesuree signees,
     # et, quand l asymetrie n est pas conforme, le sens de l ecart en clair et sa taille en ns (GapNs : mesuree sous
     # l attendue = disquette sous-compensee pour le lecteur cible, au-dessus = sur-compensee). Rien sur le score ou la
-    # lecture du lecteur cible. -Short : sans le nom du lecteur cible (nom long, carte etroite). '' sans asymetrie attendue
+    # lecture du lecteur cible. -Short : sans le nom du lecteur cible (nom long, carte etroite). '' sans asymetrie attendue.
+    # rc8 (rendu) : -Compact, ni le nom du lecteur cible ni « pour le lecteur cible » (forme de la carte suivie des zones
+    # corrigees, Show-WriteCheckTable, 170)
     if ($null -eq $s -or -not $For -or [int]$s.N -le 0 -or [int]$s.NExp -le 0) { return '' }
     $sg = '+0.000;-0.000;0.000'
     $e = Format-UiNum ([double]$s.ExpMed) $sg; $me = Format-UiNum ([double]$s.MeasMed) $sg
-    $head = if ($Short) {
+    $head = if ($Short -or $Compact) {
         switch ([string]$s.Judge) {
             'ok'    { (T "Asymétrie conforme à l'attendu (attendue {0}, mesurée {1})") -f $e, $me }
             'near'  { (T "Asymétrie proche de l'attendu (attendue {0}, mesurée {1})") -f $e, $me }
@@ -18042,7 +18076,7 @@ function Get-AsymExpLine($s, $For, [switch]$Short) {
     if ([string]$s.Judge -eq 'ok') { return $head }
     $g = [double]$s.GapNs
     $n = "$([math]::Max(1, [int][math]::Round([math]::Abs($g))))"
-    $dir = if ($Short) {
+    $dir = if ($Short -and -not $Compact) {
         if ($g -lt 0) { (T "disquette sous-compensée pour le lecteur cible d'environ {0} ns") -f $n } else { (T "disquette sur-compensée pour le lecteur cible d'environ {0} ns") -f $n }
     } else {
         if ($g -lt 0) { (T "disquette sous-compensée d'environ {0} ns") -f $n } else { (T "disquette sur-compensée d'environ {0} ns") -f $n }
@@ -18937,8 +18971,9 @@ function Get-QualityCardModel($v) {
         if ($r.Kind -eq 'check' -and $r.AsymLine) {
             $m.Line3 = [string]$r.AsymLine; $m.Line3Short = [string]$r.AsymLineShort
             # Relecture rc7 (R16) : zones corrigees a la suite de la ligne ; forme courte sans elles quand aucune ne tient
-            # (Res.AsymLineBare : le nombre de zones reste dans le verdict, infobulle)
-            if ($r.AsymLineBare) { $m.Line3More = @([string]$r.AsymLineBare) }
+            # (Res.AsymLineBare : le nombre de zones reste dans le verdict, infobulle). Rendu de la rc8 : avant elle, la forme
+            # compacte avec les zones (Res.AsymLineCompact), qui tient a la taille par defaut
+            if ($r.AsymLineBare) { $m.Line3More = @(@([string]$r.AsymLineCompact, [string]$r.AsymLineBare) | Where-Object { $_ }) }
             if ($show) { $m.Line3Ink = Get-QualInk $(switch ([string]$r.AsymJudge) { 'ok' { 0 } 'near' { 2 } default { 3 } }) }
         }
         if ($show) {

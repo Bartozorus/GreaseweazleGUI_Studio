@@ -411,8 +411,9 @@ function Get-QualityCardModel($v) {
         if ($r.Kind -eq 'check' -and $r.AsymLine) {
             $m.Line3 = [string]$r.AsymLine; $m.Line3Short = [string]$r.AsymLineShort
             # Relecture rc7 (R16) : zones corrigees a la suite de la ligne ; forme courte sans elles quand aucune ne tient
-            # (Res.AsymLineBare : le nombre de zones reste dans le verdict, infobulle)
-            if ($r.AsymLineBare) { $m.Line3More = @([string]$r.AsymLineBare) }
+            # (Res.AsymLineBare : le nombre de zones reste dans le verdict, infobulle). Rendu de la rc8 : avant elle, la forme
+            # compacte avec les zones (Res.AsymLineCompact), qui tient a la taille par defaut
+            if ($r.AsymLineBare) { $m.Line3More = @(@([string]$r.AsymLineCompact, [string]$r.AsymLineBare) | Where-Object { $_ }) }
             if ($show) { $m.Line3Ink = Get-QualInk $(switch ([string]$r.AsymJudge) { 'ok' { 0 } 'near' { 2 } default { 3 } }) }
         }
         if ($show) {

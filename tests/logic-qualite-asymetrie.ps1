@@ -650,10 +650,10 @@ $wOffS = "Asymétrie éloignée de l'attendu (attendue +0,025, mesurée +0,039) 
 $wU = "Lecteur cible Atelier 2 : asymétrie éloignée de l'attendu (attendue +0,060, mesurée +0,039) ; disquette sous-compensée d'environ 21 ns"
 $sNearY = @{ N = 10; NExp = 10; Judge = 'near'; ExpMed = 0.051; MeasMed = 0.040; GapNs = -0.3 }
 $y2a = ([string]$resX.AsymLine -ceq $wOk -and [string]$resX.AsymJudge -ceq 'ok' -and [string]$resX.AsymLineShort -ceq "Asymétrie conforme à l'attendu (attendue +0,035, mesurée +0,039)" -and [string]$resH.AsymLine -ceq $wOff -and [string]$resH.AsymLineShort -ceq $wOffS -and [string]$resH.AsymJudge -ceq 'off' -and [string]$resU.AsymLine -ceq $wU)
-$y2b = ((Get-AsymExpLine $sNearY $forX) -ceq "Lecteur cible Atelier 2 : asymétrie proche de l'attendu (attendue +0,051, mesurée +0,040) ; disquette sous-compensée d'environ 1 ns" -and (Get-AsymExpLine $sNearY $null) -ceq '' -and (Get-AsymExpLine $sumX $forX) -ceq '' -and (Get-AsymExpLine $null $forX) -ceq '')
+$y2b = ((Get-AsymExpLine $sNearY $forX) -ceq "Lecteur cible Atelier 2 : asymétrie proche de l'attendu (attendue +0,051, mesurée +0,040) ; disquette sous-compensée d'environ 1 ns" -and (Get-AsymExpLine $sNearY $forX -Compact) -ceq "Asymétrie proche de l'attendu (attendue +0,051, mesurée +0,040) ; disquette sous-compensée d'environ 1 ns" -and (Get-AsymExpLine $sNearY $null) -ceq '' -and (Get-AsymExpLine $sumX $forX) -ceq '' -and (Get-AsymExpLine $null $forX) -ceq '')
 $y2c = ([string]$resL.AsymLine -ceq '' -and [string]$resL.AsymJudge -ceq '' -and -not $resM.ContainsKey('AsymLine') -and -not (([string]$resX.AsymLine + [string]$resH.AsymLine + $wU) -match 'score|lira|prédit'))
 $script:Lang = 'en'
-$y2d = ((Get-AsymExpLine $sumH $forX) -ceq 'Target drive Atelier 2: asymmetry far from the expected one (expected +0.025, measured +0.039); disk over-compensated by about 14 ns' -and (Get-AsymExpLine $sumH $forX -Short) -ceq 'Asymmetry far from the expected one (expected +0.025, measured +0.039); disk over-compensated for the target drive by about 14 ns' -and (Get-AsymExpLine $sNearY $forX -Short) -ceq 'Asymmetry close to the expected one (expected +0.051, measured +0.040); disk under-compensated for the target drive by about 1 ns')
+$y2d = ((Get-AsymExpLine $sumH $forX) -ceq 'Target drive Atelier 2: asymmetry far from the expected one (expected +0.025, measured +0.039); disk over-compensated by about 14 ns' -and (Get-AsymExpLine $sumH $forX -Short) -ceq 'Asymmetry far from the expected one (expected +0.025, measured +0.039); disk over-compensated for the target drive by about 14 ns' -and (Get-AsymExpLine $sNearY $forX -Short) -ceq 'Asymmetry close to the expected one (expected +0.051, measured +0.040); disk under-compensated for the target drive by about 1 ns' -and (Get-AsymExpLine $sNearY $forX -Compact) -ceq 'Asymmetry close to the expected one (expected +0.051, measured +0.040); disk under-compensated by about 1 ns' -and (Get-AsymExpLine $sumH $forX -Compact -Short) -ceq (Get-AsymExpLine $sumH $forX -Compact))
 $script:Lang = 'fr'
 Chk 'Y2' ($y2a -and $y2b -and $y2c -and $y2d) "ligne de la carte : « $wOk » ($y2a) ; « proche », taille au moins 1 ns, sans lecteur cible ou sans asymetrie attendue : rien ($y2b) ; controle sans exces memorise et mesure : aucune ligne, aucune prediction du lecteur cible ($y2c) ; anglais, formes longue et courte ($y2d)"
 # Y3 : colonnes du tableau : en fin de ligne avec un exces memorise, retirees sans lui, par une mesure et a la reinitialisation
@@ -711,7 +711,7 @@ if ($okSrc) {
     $wid = { param($s) [System.Windows.Forms.TextRenderer]::MeasureText($s, $fS, (New-Object System.Drawing.Size(32000, 100)), $tfY).Width }
     $sW = @{ N = 160; NExp = 160; Judge = 'off'; ExpMed = -0.123; MeasMed = -0.456; GapNs = 128.4 }
     $forW = @{ Target = 'Lecteur B-235'; Src = 'Banc 1' }; $forL = @{ Target = ('Lecteur au nom vraiment très long ' * 2); Src = 'Banc 1' }
-    $worstL = 0; $worstS = 0; $longPick = @(); $zoneCut = @()
+    $worstL = 0; $worstS = 0; $longPick = @(); $zoneCut = @(); $zoneLost = @()
     foreach ($lang in 'fr', 'en') {
         $script:Lang = $lang
         foreach ($g in 128.4, -128.4) {
@@ -719,10 +719,16 @@ if ($okSrc) {
             $lw = & $wid (Get-AsymExpLine $sW $forW); if ($lw -gt $worstL) { $worstL = $lw }
             $sl = Get-AsymExpLine $sW $forL -Short; $swd = & $wid $sl; if ($swd -gt $worstS) { $worstS = $swd }
             if ((Get-QualFitText (Get-AsymExpLine $sW $forL) $sl $fS $avail) -cne $sl) { $longPick += "$lang/$g" }
-            # Relecture rc7 (R16) : zones corrigees a la suite (formes de Show-WriteCheckTable, 170) : la forme retenue tient
-            $zt = (T ' ; zones corrigées : {0} sur {1}') -f '10', '10'; $sb = Get-AsymExpLine $sW $forW -Short
-            $zPick = Get-QualFitText ((Get-AsymExpLine $sW $forW) + $zt) ($sb + $zt) $fS $avail @($sb)
-            if ((& $wid $zPick) -gt $avail) { $zoneCut += "$lang/$g" }
+            # Relecture rc7 (R16) : zones corrigees a la suite (formes de Show-WriteCheckTable, 170) : la forme retenue tient.
+            # Rendu de la rc8 : forme compacte avec les zones avant la forme courte sans elles : le nombre de zones reste sur
+            # la carte, nom du lecteur cible court ou long
+            $zt = (T ' ; zones corrigées : {0} sur {1}') -f '10', '10'
+            foreach ($fz in $forW, $forL) {
+                $sb = Get-AsymExpLine $sW $fz -Short
+                $zPick = Get-QualFitText ((Get-AsymExpLine $sW $fz) + $zt) ($sb + $zt) $fS $avail @(((Get-AsymExpLine $sW $fz -Compact) + $zt), $sb)
+                if ((& $wid $zPick) -gt $avail) { $zoneCut += "$lang/$g" }
+                if (-not $zPick.EndsWith($zt)) { $zoneLost += "$lang/$g/$(([string]$fz.Target).Length)" }
+            }
         }
     }
     $script:Lang = 'fr'
@@ -740,8 +746,8 @@ if ($okSrc) {
         }
         $script:Lang = 'fr'; $gr.Dispose(); $bmp.Dispose(); $fB.Dispose(); $fM.Dispose()
     } else { $cutC += 'polices ou colonnes introuvables' }
-    $y6 = ($worstL -le $avail -and $worstS -le $avail -and $longPick.Count -eq 0 -and $cutC.Count -eq 0 -and $zoneCut.Count -eq 0)
-    $y6d = "ligne de la carte, lecteur « Lecteur B-235 », valeurs a 3 decimales et 128 ns, francais et anglais : $worstL px ; forme courte : $worstS px ; pour $avail px utiles ; nom long : forme courte retenue (en defaut : $(if ($longPick.Count) { $longPick -join ' ' } else { 'aucun' })) ; avec « zones corrigees : 10 sur 10 » : forme retenue entiere (en defaut : $(if ($zoneCut.Count) { $zoneCut -join ' ' } else { 'aucun' })) ; en-tetes et cases des colonnes coupes : $(if ($cutC.Count) { $cutC -join ', ' } else { 'aucun' })"
+    $y6 = ($worstL -le $avail -and $worstS -le $avail -and $longPick.Count -eq 0 -and $cutC.Count -eq 0 -and $zoneCut.Count -eq 0 -and $zoneLost.Count -eq 0)
+    $y6d = "ligne de la carte, lecteur « Lecteur B-235 », valeurs a 3 decimales et 128 ns, francais et anglais : $worstL px ; forme courte : $worstS px ; pour $avail px utiles ; nom long : forme courte retenue (en defaut : $(if ($longPick.Count) { $longPick -join ' ' } else { 'aucun' })) ; avec « zones corrigees : 10 sur 10 » : forme retenue entiere (en defaut : $(if ($zoneCut.Count) { $zoneCut -join ' ' } else { 'aucun' })), nombre de zones sur la carte, nom court ou long (en defaut : $(if ($zoneLost.Count) { $zoneLost -join ' ' } else { 'aucun' })) ; en-tetes et cases des colonnes coupes : $(if ($cutC.Count) { $cutC -join ', ' } else { 'aucun' })"
     $fS.Dispose()
 }
 Chk 'Y6' $y6 $y6d
@@ -980,8 +986,13 @@ $v7 = @{ State = 'result'; Kind = 'check'; Reason = ''; At = [datetime]::new(202
 $c7 = Get-QualityCardModel $v7
 $bare7 = [string]$res7.AsymLineBare
 $f7 = New-Object System.Drawing.Font('Segoe UI', [single]8.25)
-$z7d = ($bare7 -and ([string]$res7.AsymLineShort) -ceq ($bare7 + ' ; zones corrigées : 1 sur 3') -and @($c7.Line3More).Count -eq 1 -and [string]@($c7.Line3More)[0] -ceq $bare7 -and
-        (Get-QualFitText $c7.Line3 $c7.Line3Short $f7 32000 $c7.Line3More) -ceq [string]$c7.Line3 -and (Get-QualFitText $c7.Line3 $c7.Line3Short $f7 40 $c7.Line3More) -ceq $bare7)
+# Rendu de la rc8 : forme compacte avec les zones (ni le nom du lecteur cible ni « pour le lecteur cible ») avant la forme
+# sans elles ; a la largeur utile de la carte de 530 (768 - 22 px), le nombre de zones reste
+$cmp7 = [string]$res7.AsymLineCompact
+$z7d = ($bare7 -and ([string]$res7.AsymLineShort) -ceq ($bare7 + ' ; zones corrigées : 1 sur 3') -and $cmp7.EndsWith(' ; zones corrigées : 1 sur 3') -and -not $cmp7.Contains('Atelier 2') -and -not $cmp7.Contains('pour le lecteur cible') -and
+        @($c7.Line3More).Count -eq 2 -and [string]@($c7.Line3More)[0] -ceq $cmp7 -and [string]@($c7.Line3More)[1] -ceq $bare7 -and
+        (Get-QualFitText $c7.Line3 $c7.Line3Short $f7 32000 $c7.Line3More) -ceq [string]$c7.Line3 -and (Get-QualFitText $c7.Line3 $c7.Line3Short $f7 40 $c7.Line3More) -ceq $bare7 -and
+        (Get-QualFitText $c7.Line3 $c7.Line3Short $f7 746 $c7.Line3More).EndsWith(' ; zones corrigées : 1 sur 3'))
 $f7.Dispose()
 $r = New-ZRep $zMain $zWeak
 $null = Invoke-WriteCheckAnalysis
@@ -1021,7 +1032,7 @@ $script:RLog.Clear()
 Invoke-ZStop $r
 $log7f = @($script:RLog)
 $z7e = ($log7e.Count -eq 2 -and $log7e[0] -ceq 'Contrôle après écriture interrompu.' -and $log7e[1] -ceq $w7e -and $null -eq $script:Rep -and ($log7f -join '|') -ceq 'Contrôle après écriture interrompu.')
-Chk 'Z7' ($z7a -and $z7b -and $z7c -and $z7d -and $z7e) "verdict : « $(Get-Short $t7 200) » ; ligne de la carte terminee par « zones corrigees : 1 sur 3 » ($z7a) ; libelles de la passe 1 avec des zones ($z7b) ; passe interrompue par gw (ici avant toute commande) : « $(Get-Short $t7g 90) », sans dire les pistes reecrites ($z7c) ; carte : forme courte sans les zones quand rien d autre ne tient ($z7d) ; Arreter pendant la passe 1 : pistes effacees non reecrites dites vierges, rien avant tout effacement ($z7e)"
+Chk 'Z7' ($z7a -and $z7b -and $z7c -and $z7d -and $z7e) "verdict : « $(Get-Short $t7 200) » ; ligne de la carte terminee par « zones corrigees : 1 sur 3 » ($z7a) ; libelles de la passe 1 avec des zones ($z7b) ; passe interrompue par gw (ici avant toute commande) : « $(Get-Short $t7g 90) », sans dire les pistes reecrites ($z7c) ; carte : forme compacte avec les zones a 746 px, forme courte sans les zones quand rien d autre ne tient ($z7d) ; Arreter pendant la passe 1 : pistes effacees non reecrites dites vierges, rien avant tout effacement ($z7e)"
 
 # Z8 : textes du lot dans la section « rc7 » de 019, memes jalons
 $iRc7 = $t019.IndexOf('# --- rc7 :'); $badZ = @()

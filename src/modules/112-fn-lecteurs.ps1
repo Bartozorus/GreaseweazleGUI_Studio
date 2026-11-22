@@ -1269,9 +1269,10 @@ function Get-DriveCurveRows([string]$drive) {
 }
 
 function Get-DriveCurveGroupText($row, [string]$drive, [bool]$named) {
-    # 12.11 rc4 (R1) : en-tete d un groupe de courbes du detail d un lecteur
-    if ($row.Group -eq 'out') { return ((T 'Écrites par ce lecteur pour le lecteur cible {0} (courbes croisées)') -f (Get-DriveLabel ([string]$row.Other))) }
-    if ($row.Group -eq 'in') { return ((T 'Écrites par le lecteur {0} pour ce lecteur (courbes croisées)') -f (Get-DriveLabel ([string]$row.Other))) }
+    # 12.11 rc4 (R1) : en-tete d un groupe de courbes du detail d un lecteur. rc8 (rendu) : courbes croisees nommees en tete,
+    # sans parenthese finale (le lecteur se lit deja « nom (connexion) »)
+    if ($row.Group -eq 'out') { return ((T 'Courbes croisées écrites par ce lecteur pour le lecteur cible {0}') -f (Get-DriveLabel ([string]$row.Other))) }
+    if ($row.Group -eq 'in') { return ((T 'Courbes croisées écrites par le lecteur {0} pour ce lecteur') -f (Get-DriveLabel ([string]$row.Other))) }
     if ($named) { return (T 'Écrites et relues par ce lecteur (courbes propres)') }
     return ((T 'Écrites et relues sur la connexion {0}, sans nom de lecteur') -f $drive)
 }
@@ -1580,10 +1581,14 @@ function Get-DrivesDetailSamples {
     # 12.11 rc4 (R1) : textes les plus longs des zones Info et Help du volet droit (hauteurs fixes : aucun texte coupe)
     $w = 'WWWWWWWWWWWWWWWWW'
     # 12.11 rc8 (R17) : ligne du recalage de la courbe croisee choisie (Get-TargetRecalSummaryText, 172), sous les autres
-    $rcl = ((T 'Recalage de la courbe croisée {0} → {1} ({2}) : {3} ; {4} relecture(s), dernière le {5}.') -f $w, $w, (T 'Long track 1,89 us'), (((T 'tête {0} {1} ns') -f '0', '-8,0') + ', ' + ((T 'tête {0} {1} ns') -f '1', '-8,0')), '99', '30/10/2026') + ' ' + (T 'Sans effet : courbe croisée recalibrée ou calcul changé depuis.')
+    # rc8 (rendu) : valeur par tete insecable (espaces insecables, signe moins U+2212) comme dans
+    # Get-TargetRecalSummaryText ; un element de @() par exemple (parentheses : la virgule passe avant +, les deux exemples
+    # ne formaient qu un texte)
+    $nb = [string][char]0x00A0; $v8 = [string][char]0x2212 + '8,0'
+    $rcl = ((T 'Recalage de la courbe croisée {0} → {1} ({2}) : {3} ; {4} relecture(s), dernière le {5}.') -f $w, $w, (T 'Long track 1,89 us'), (((T 'tête {0} {1} ns') -f '0', $v8).Replace(' ', $nb) + ', ' + ((T 'tête {0} {1} ns') -f '1', $v8).Replace(' ', $nb)), '99', '30/10/2026') + ' ' + (T 'Sans effet : courbe croisée recalibrée ou calcul changé depuis.')
     return @{
-        Info = @(((T "Lecteur cible de ses écritures : {0} (réglé dans l'onglet Écriture).") -f $w) + "`n" + ((T 'Aussi rangés sous ce lecteur : niveaux de la calibration rapide ({0}), mémoire par marque ({1}), facteurs mesurés ({2}).') -f '99', '99', '99') + "`n" + $rcl,
-                 ((T "Ces calibrations ont été faites en choisissant « {0} » dans la liste « Lecteur : » du bandeau : l'application ne sait pas avec quel lecteur. Elles ne servent que lorsque « {0} » est choisi dans le bandeau. Si elles viennent d'un de vos lecteurs, « Donner un nom… » les range sous son nom.") -f 'A') + "`n" + ((T 'Aussi rangés sous ce lecteur : niveaux de la calibration rapide ({0}), mémoire par marque ({1}), facteurs mesurés ({2}).') -f '99', '99', '99') + "`n" + $rcl)
+        Info = @((((T "Lecteur cible de ses écritures : {0} (réglé dans l'onglet Écriture).") -f $w) + "`n" + ((T 'Aussi rangés sous ce lecteur : niveaux de la calibration rapide ({0}), mémoire par marque ({1}), facteurs mesurés ({2}).') -f '99', '99', '99') + "`n" + $rcl),
+                 (((T "Ces calibrations ont été faites en choisissant « {0} » dans la liste « Lecteur : » du bandeau : l'application ne sait pas avec quel lecteur. Elles ne servent que lorsque « {0} » est choisi dans le bandeau. Si elles viennent d'un de vos lecteurs, « Donner un nom… » les range sous son nom.") -f 'A') + "`n" + ((T 'Aussi rangés sous ce lecteur : niveaux de la calibration rapide ({0}), mémoire par marque ({1}), facteurs mesurés ({2}).') -f '99', '99', '99') + "`n" + $rcl))
         Help = @((T "Renommer : tout ce qui est affiché ici suit le lecteur sous son nouveau nom.`nChanger de connexion : rien n'est modifié, le lecteur garde ses calibrations.`nSupprimer : le lecteur et tout ce qui est affiché ici sont retirés, après une copie de la configuration."),
                  ((T "Donner un nom : ces calibrations passent sous le nom choisi ; la connexion {0} garde un lecteur sans nom, sans calibration.`nSupprimer ses calibrations : elles sont retirées, après une copie de la configuration.`nUn lecteur sans nom ne change pas de connexion : donnez-lui d'abord un nom.") -f 'A'))
     }
@@ -1608,6 +1613,16 @@ function Get-DrvTextHeight([string[]]$texts, $font, [int]$w) {
     foreach ($t in @($texts)) { $l.Text = [string]$t; $h0 = $l.GetPreferredSize((New-Object System.Drawing.Size($w, 0))).Height; if ($h0 -gt $h) { $h = $h0 } }
     $l.Dispose()
     return $h
+}
+
+function Get-DeOptionHeight([string]$text, $font, [int]$w) {
+    # 12.11 rc8 (rendu) : hauteur d une option a retour a la ligne (RadioButton, case en haut a gauche) de $w px de large
+    # pour son texte : texte sur $w - 22 px, le plus haut du decoupage d un Label (Get-DrvTextHeight) et de celui de
+    # TextRenderer avec ses marges (le plus strict), plus 4 px. Une ligne de texte : une ligne de haut
+    $wt = $w - 22
+    $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
+    $h = [System.Windows.Forms.TextRenderer]::MeasureText($text, $font, (New-Object System.Drawing.Size($wt, 10000)), $tf).Height
+    return ([math]::Max($h, (Get-DrvTextHeight @($text) $font $wt)) + 4)
 }
 
 function New-DrivesDialog {
@@ -1902,10 +1917,12 @@ function Get-DriveConnChoiceText([string]$conn) {
 }
 
 function Get-DriveAskText([string]$conn) {
-    # 12.11 rc4 (R1) : question de « Ajouter un lecteur » quand la connexion a des courbes sans nom de lecteur ; vide sinon
+    # 12.11 rc4 (R1) : question de « Ajouter un lecteur » quand la connexion a des courbes sans nom de lecteur ; vide sinon.
+    # rc8 (rendu) : date et heure de la derniere courbe insecables (jamais coupees en fin de ligne)
     $dt = Get-DriveData $conn
     if ((@($dt['Keys']).Count + @($dt['Cross']).Count) -eq 0) { return '' }
-    return ((T 'La connexion {0} a déjà des calibrations sans nom de lecteur : {1}. Ont-elles été faites avec ce lecteur ?') -f $conn, (Get-DriveDataText $dt))
+    $dtx = (Get-DriveDataText $dt) -replace '(\d{2}/\d{2}/\d{4}) (\d{2}:\d{2})', ('$1' + [string][char]0x00A0 + '$2')
+    return ((T 'La connexion {0} a déjà des calibrations sans nom de lecteur : {1}. Ont-elles été faites avec ce lecteur ?') -f $conn, $dtx)
 }
 
 function New-DriveEditDialog([string]$mode, $row) {
@@ -1967,15 +1984,20 @@ function New-DriveEditDialog([string]$mode, $row) {
     if ($mode -eq 'add' -or $mode -eq 'name') {
         $pAsk = New-Object System.Windows.Forms.Panel; $pAsk.Name = 'pnlDeAsk'; $pAsk.BackColor = [System.Drawing.Color]::FromArgb(253, 243, 230); $pAsk.Location = New-Object System.Drawing.Point(16, $y)
         $askS = @(); $noS = @()
-        foreach ($c in $codes) { $askS += ((T 'La connexion {0} a déjà des calibrations sans nom de lecteur : {1}. Ont-elles été faites avec ce lecteur ?') -f $c, ((T '{0} courbe(s) dont {1} croisée(s), dernière : {2}') -f '99', '99', '30/10/2026 09:00')); $noS += ((T "Non, c'est un autre lecteur : il part sans calibration. Ces calibrations restent sous « {0} ».") -f ((T '{0} (sans nom)') -f $c)) }
+        $nb = [string][char]0x00A0                        # rc8 (rendu) : date et heure insecables, comme Get-DriveAskText
+        foreach ($c in $codes) { $askS += ((T 'La connexion {0} a déjà des calibrations sans nom de lecteur : {1}. Ont-elles été faites avec ce lecteur ?') -f $c, ((T '{0} courbe(s) dont {1} croisée(s), dernière : {2}') -f '99', '99', ('30/10/2026' + $nb + '09:00'))); $noS += ((T "Non, c'est un autre lecteur : il part sans calibration. Ces calibrations restent sous « {0} ».") -f ((T '{0} (sans nom)') -f $c)) }
         $wI = $W - 20
         $lAsk = New-DrvLabel 'lblDeAsk' '' 10 8 $wI $fS (Get-DrvTextHeight $askS $fS $wI)
         $yesT = (T "Oui : elles deviennent les siennes et sont rangées sous son nom. Rien n'est recalculé ; la configuration est d'abord copiée.")
-        $hNo = (Get-DrvTextHeight $noS $f ($wI - 24)) + 4; $hYes = (Get-DrvTextHeight @($yesT) $f ($wI - 24)) + 4
+        # rc8 (rendu) : options sur la largeur du panneau moins 4 px a droite, hauteur selon leur texte (Get-DeOptionHeight) ;
+        # « Non » remesure sur le texte de la connexion choisie par Update-DriveEditDialog
+        $wO = $W - 14
+        $hNo = 0; foreach ($nt in $noS) { $hNo = [math]::Max($hNo, (Get-DeOptionHeight $nt $f $wO)) }
+        $hYes = Get-DeOptionHeight $yesT $f $wO
         $rbNo = New-Object System.Windows.Forms.RadioButton; $rbNo.Name = 'rbDeNo'; $rbNo.Font = $f; $rbNo.AutoSize = $false; $rbNo.UseMnemonic = $false; $rbNo.CheckAlign = 'TopLeft'; $rbNo.TextAlign = 'TopLeft'
-        $rbNo.Location = New-Object System.Drawing.Point(10, ($lAsk.Bottom + 6)); $rbNo.Size = New-Object System.Drawing.Size($wI, $hNo)
+        $rbNo.Location = New-Object System.Drawing.Point(10, ($lAsk.Bottom + 6)); $rbNo.Size = New-Object System.Drawing.Size($wO, $hNo)
         $rbYes = New-Object System.Windows.Forms.RadioButton; $rbYes.Name = 'rbDeYes'; $rbYes.Font = $f; $rbYes.AutoSize = $false; $rbYes.UseMnemonic = $false; $rbYes.CheckAlign = 'TopLeft'; $rbYes.TextAlign = 'TopLeft'
-        $rbYes.Location = New-Object System.Drawing.Point(10, ($rbNo.Bottom + 4)); $rbYes.Size = New-Object System.Drawing.Size($wI, $hYes); $rbYes.Text = $yesT
+        $rbYes.Location = New-Object System.Drawing.Point(10, ($rbNo.Bottom + 4)); $rbYes.Size = New-Object System.Drawing.Size($wO, $hYes); $rbYes.Text = $yesT
         if ($mode -eq 'name') { $rbYes.Checked = $true } else { $rbNo.Checked = $true }
         $pAsk.Controls.AddRange(@($lAsk, $rbNo, $rbYes))
         $pAsk.Size = New-Object System.Drawing.Size($W, ($rbYes.Bottom + 8))
@@ -2016,6 +2038,10 @@ function Update-DriveEditDialog($e) {
         if ($q) {
             $e.AskText.Text = $q
             $e.No.Text = (T "Non, c'est un autre lecteur : il part sans calibration. Ces calibrations restent sous « {0} ».") -f ((T '{0} (sans nom)') -f $c)
+            # rc8 (rendu) : « Non » haut de son texte reel, « Oui » et le bas du panneau a la suite
+            $e.No.Height = Get-DeOptionHeight ([string]$e.No.Text) $e.No.Font $e.No.Width
+            $e.Yes.Top = $e.No.Bottom + 4
+            $e.Ask.Height = $e.Yes.Bottom + 8
             $y = $e.Ask.Bottom + 10
         }
         $e.Pick.Text = (T "C'est le lecteur branché en ce moment sur la connexion {0} : le choisir dans le bandeau") -f $c

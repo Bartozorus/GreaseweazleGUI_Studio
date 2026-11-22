@@ -677,8 +677,10 @@ function Show-WriteCheckTable($rep) {
     # 12.11 rc7 (R16) : zones ecartees de l attendu corrigees (Get-WriteZoneCount) a la suite de la ligne de la carte.
     # Relecture rc7 : AsymLineBare, forme courte sans elles, derniere forme de la carte (Render-QualityCard, 195) : une
     # ligne trop longue perd le nombre de zones (repris par le verdict, infobulle) plutot que d etre coupee
+    # Rendu de la rc8 : AsymLineCompact (ni le nom du lecteur cible ni « pour le lecteur cible ») suivie des zones, avant
+    # AsymLineBare : le nombre de zones tient a la taille par defaut
     $zc = Get-WriteZoneCount $rep
-    if ($res.AsymLine -and $zc.N -gt 0) { $zt = (T ' ; zones corrigées : {0} sur {1}') -f "$($zc.Ok)", "$($zc.N)"; $res.AsymLineBare = $res.AsymLineShort; $res.AsymLine += $zt; $res.AsymLineShort += $zt }
+    if ($res.AsymLine -and $zc.N -gt 0) { $zt = (T ' ; zones corrigées : {0} sur {1}') -f "$($zc.Ok)", "$($zc.N)"; $res.AsymLineBare = $res.AsymLineShort; $res.AsymLineCompact = (Get-AsymExpLine $asum $asymFor -Compact) + $zt; $res.AsymLine += $zt; $res.AsymLineShort += $zt }
     if ($res.AsymText) { Append-Log ((T "Contrôle après écriture : {0}") -f $res.AsymText) }
     Set-QualityResult $res
 }

@@ -947,16 +947,18 @@ function Get-AsymSummaryText($s, [switch]$Always, $For = $null) {
     return ''
 }
 
-function Get-AsymExpLine($s, $For, [switch]$Short) {
+function Get-AsymExpLine($s, $For, [switch]$Short, [switch]$Compact) {
     # 12.11 rc6 (R14) : ligne de la carte de l onglet Qualite pour le controle d une ecriture destinee au lecteur cible
     # $For.Target (pistes a asymetrie attendue, Get-AsymSummary) : jugement (Judge), medianes attendue et mesuree signees,
     # et, quand l asymetrie n est pas conforme, le sens de l ecart en clair et sa taille en ns (GapNs : mesuree sous
     # l attendue = disquette sous-compensee pour le lecteur cible, au-dessus = sur-compensee). Rien sur le score ou la
-    # lecture du lecteur cible. -Short : sans le nom du lecteur cible (nom long, carte etroite). '' sans asymetrie attendue
+    # lecture du lecteur cible. -Short : sans le nom du lecteur cible (nom long, carte etroite). '' sans asymetrie attendue.
+    # rc8 (rendu) : -Compact, ni le nom du lecteur cible ni « pour le lecteur cible » (forme de la carte suivie des zones
+    # corrigees, Show-WriteCheckTable, 170)
     if ($null -eq $s -or -not $For -or [int]$s.N -le 0 -or [int]$s.NExp -le 0) { return '' }
     $sg = '+0.000;-0.000;0.000'
     $e = Format-UiNum ([double]$s.ExpMed) $sg; $me = Format-UiNum ([double]$s.MeasMed) $sg
-    $head = if ($Short) {
+    $head = if ($Short -or $Compact) {
         switch ([string]$s.Judge) {
             'ok'    { (T "Asymétrie conforme à l'attendu (attendue {0}, mesurée {1})") -f $e, $me }
             'near'  { (T "Asymétrie proche de l'attendu (attendue {0}, mesurée {1})") -f $e, $me }
@@ -972,7 +974,7 @@ function Get-AsymExpLine($s, $For, [switch]$Short) {
     if ([string]$s.Judge -eq 'ok') { return $head }
     $g = [double]$s.GapNs
     $n = "$([math]::Max(1, [int][math]::Round([math]::Abs($g))))"
-    $dir = if ($Short) {
+    $dir = if ($Short -and -not $Compact) {
         if ($g -lt 0) { (T "disquette sous-compensée pour le lecteur cible d'environ {0} ns") -f $n } else { (T "disquette sur-compensée pour le lecteur cible d'environ {0} ns") -f $n }
     } else {
         if ($g -lt 0) { (T "disquette sous-compensée d'environ {0} ns") -f $n } else { (T "disquette sur-compensée d'environ {0} ns") -f $n }

@@ -347,8 +347,12 @@ Chk 'O2' ([string]$script:ConfirmArgs.Check -eq 'Disquette écrite le 22/11/2026
 Reset-Fk
 $script:LastTargetWrites['A>0'] = New-FkMem
 $script:ConfirmAns = $false
+# Rendu de la rc8 : fenetre en anglais, g des deux tetes separes par « ; » (T(' ; ')), jamais par le « ; » francais
+$script:Lang = 'en'
 $o2 = Invoke-TargetRecalOffer $res $rb
-Chk 'O3' ($o2 -eq 'declined' -and $script:TargetRecal.Count -eq 0 -and $script:Saves -eq 0) 'non confirmee : rien n est garde'
+$script:Lang = 'fr'
+$ctEn = [string]$script:ConfirmArgs.Text
+Chk 'O3' ($o2 -eq 'declined' -and $script:TargetRecal.Count -eq 0 -and $script:Saves -eq 0 -and $ctEn.Contains('; head 1: g = ') -and -not $ctEn.Contains(' ; ')) "non confirmee : rien n est garde ; fenetre en anglais sans « ; » francais"
 $script:ConfirmAns = $true; $script:AlignLoop = $true; $script:QualView = @{ Pass = 1 }
 $o3 = Invoke-TargetRecalOffer $res $rb
 $script:AlignLoop = $false
@@ -427,7 +431,12 @@ Reset-Fk
 $script:TargetRecal['A>0|std_h0'] = @{ Ns = -3.7; N = 1; Items = @(@{ WriteId = 'W1'; Date = ''; Est = -7.4; Tracks = 80; NR = 2; Read = '2026-11-22 11:00:00' }); XDate = $XD; XKey = 'std_h0'; Calc = $script:CalibCalc; At = '2026-11-22 11:00:00' }
 $script:TargetRecal['A>0|std_h1'] = @{ Ns = -2.3; N = 1; Items = @(@{ WriteId = 'W1'; Date = ''; Est = -4.6; Tracks = 80; NR = 2; Read = '2026-11-22 11:00:00' }); XDate = $XD; XKey = 'std_h1'; Calc = $script:CalibCalc; At = '2026-11-22 11:00:00' }
 $sm = Get-TargetRecalSummaryText 'A' '0' 'std'
-Chk 'D1' ($sm -eq 'Recalage de la courbe croisée A → 0 (Standard 2 us) : tête 0 -3,7 ns, tête 1 -2,3 ns ; 2 relecture(s), dernière le 22/11/2026.') "texte : $sm"
+# Rendu de la rc8 : valeur de chaque tete insecable (espaces insecables entre la tete, la valeur et l unite, signe moins
+# U+2212 au lieu du trait d union, apres lequel le texte se coupait), en anglais aussi
+$nbD = [string][char]0x00A0; $mnD = [string][char]0x2212
+$script:Lang = 'en'; $smEn = Get-TargetRecalSummaryText 'A' '0' 'std'; $script:Lang = 'fr'
+Chk 'D1' ($sm -ceq ('Recalage de la courbe croisée A → 0 (Standard 2 us) : ' + 'tête 0 -3,7 ns'.Replace(' ', $nbD).Replace('-', $mnD) + ', ' + 'tête 1 -2,3 ns'.Replace(' ', $nbD).Replace('-', $mnD) + ' ; 2 relecture(s), dernière le 22/11/2026.') -and
+          $smEn.Contains('head 0 -3.7 ns'.Replace(' ', $nbD).Replace('-', $mnD) + ', ' + 'head 1 -2.3 ns'.Replace(' ', $nbD).Replace('-', $mnD) + '; 2 read-back(s)')) "texte : $sm ; anglais : $smEn"
 $lvC = New-Object System.Windows.Forms.ListView; [void]$lvC.Items.Add('Standard 2 us'); [void]$lvC.Items.Add('Standard 2 us'); $lvC.Items[1].Selected = $true
 $s = @{ Curves = $lvC; CRows = @(@{ Group = 'own'; StoreDrive = 'A'; Family = 'std' }, @{ Group = 'out'; Other = '0'; StoreDrive = 'A>0'; Family = 'std' }); Info = (New-Object System.Windows.Forms.Label); Recal = (New-Object System.Windows.Forms.Button); State = (New-Object System.Windows.Forms.Label); InfoBase = 'Lecteur cible de ses écritures : 0.' }
 Update-DrivesDialogRecal $s

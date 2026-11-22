@@ -467,8 +467,6 @@ $script:I18n['aucun lecteur nommé'] = 'no named drive'
 $script:I18n['1 lecteur nommé'] = '1 named drive'
 $script:I18n['{0} lecteurs nommés'] = '{0} named drives'
 $script:I18n['Connexion {0}'] = 'Connection {0}'
-$script:I18n['Écrites par ce lecteur pour le lecteur cible {0} (courbes croisées)'] = 'Written by this drive for target drive {0} (cross curves)'
-$script:I18n['Écrites par le lecteur {0} pour ce lecteur (courbes croisées)'] = 'Written by drive {0} for this drive (cross curves)'
 $script:I18n['Écrites et relues par ce lecteur (courbes propres)'] = 'Written and read back by this drive (own curves)'
 $script:I18n['Écrites et relues sur la connexion {0}, sans nom de lecteur'] = 'Written and read back on connection {0}, without a drive name'
 $script:I18n['Connexion {0} ({1})'] = 'Connection {0} ({1})'
@@ -649,6 +647,9 @@ $script:I18n['Annuler le recalage de la courbe croisée {0} → {1} ?'] = 'Cance
 $script:I18n['Annuler le recalage'] = 'Cancel the adjustment'
 $script:I18n['Annuler le recalage…'] = 'Cancel the adjustment…'
 $script:I18n['Recalage de la courbe croisée {0} → {1} ({2}) annulé : {3} tête(s).'] = 'Cross curve adjustment {0} → {1} ({2}) cancelled: {3} head(s).'
+# Rendu de la rc8 : en-tetes des groupes de courbes croisees sans double parenthese (112, remplacent ceux de la rc4)
+$script:I18n['Courbes croisées écrites par ce lecteur pour le lecteur cible {0}'] = 'Cross curves written by this drive for target drive {0}'
+$script:I18n['Courbes croisées écrites par le lecteur {0} pour ce lecteur'] = 'Cross curves written by drive {0} for this drive'
 # Configuration et « Effacer les calibrations » (120, 240)
 $script:I18n['Configuration : {0} recalage(s) de courbe croisée et {1} mémoire(s) d''écriture pour un lecteur cible illisibles, ignorés.'] = 'Configuration: {0} cross curve adjustment(s) and {1} target drive write memory(ies) unreadable, ignored.'
 $script:I18n["Les recalages des courbes croisées ({0}) et la mémoire des dernières écritures pour un lecteur cible ({1}) sont effacés aussi."] = 'The cross curve adjustments ({0}) and the memory of the last writes for a target drive ({1}) are cleared too.'

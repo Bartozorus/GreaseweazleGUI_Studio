@@ -440,8 +440,9 @@ function Invoke-TargetRecalOffer($res, $tracks) {
     $up = Get-TargetRecalUpdate $src $tgt $mem $ev (Get-Date)
     $lines = @(foreach ($u in $up) { Get-TargetRecalHeadText $mem $ev.Heads["$($u.Head)"] $u $tgt })
     $lines += @($hw)
+    # rc8 (rendu) : g des deux tetes separes par T(' ; ') comme les listes de Format-WritePlan (145) : « ; » en anglais
     $gt = @(foreach ($lk in @($ev.Heads.Keys | Sort-Object)) { $o = $ev.Heads[$lk]; if ($o.GMeasured) { (T "tête {0} : g = {1}, deux fois la pente mesurée sur l'image") -f "$lk", (Format-UiNum ([double]$o.G) '0.00') } else { (T 'tête {0} : g = {1} par défaut, pente non mesurée') -f "$lk", (Format-UiNum ([double]$o.G) '0.00') } })
-    $txt = ((T "Le lecteur {0} a relu la disquette écrite pour lui par le lecteur {1} le {2} (image « {3} », {4}, {5} pistes).`n`n{6}`n`nÉcart relu = (écart 3T + écart 4T) × cellule / g ({7}). Le recalage moyenne les {8} dernières écritures relues en se rapprochant de leur écart à mesure qu'elles s'ajoutent, au plus ± {9} ns ; arrondi au ns, il s'ajoute à la courbe écrite pour le lecteur {0} (au plus 25 % de sa valeur), sans modifier la courbe croisée. La fenêtre « Lecteurs » le montre et l'annule.`n`nUne autre disquette fausserait le recalage : confirmez que c'est bien celle-là.") -f $tgt, $src, "$($mem.Date)", "$($mem.Image)", (Get-CalibFamilyName ([string]$mem.Fam)), "$([int]$mem.Tracks)", ($lines -join "`n"), ($gt -join ' ; '), "$($script:TargetRecalMaxItems)", (Format-UiNum ([double]$script:TargetRecalCapNs) '0'))
+    $txt = ((T "Le lecteur {0} a relu la disquette écrite pour lui par le lecteur {1} le {2} (image « {3} », {4}, {5} pistes).`n`n{6}`n`nÉcart relu = (écart 3T + écart 4T) × cellule / g ({7}). Le recalage moyenne les {8} dernières écritures relues en se rapprochant de leur écart à mesure qu'elles s'ajoutent, au plus ± {9} ns ; arrondi au ns, il s'ajoute à la courbe écrite pour le lecteur {0} (au plus 25 % de sa valeur), sans modifier la courbe croisée. La fenêtre « Lecteurs » le montre et l'annule.`n`nUne autre disquette fausserait le recalage : confirmez que c'est bien celle-là.") -f $tgt, $src, "$($mem.Date)", "$($mem.Image)", (Get-CalibFamilyName ([string]$mem.Fam)), "$([int]$mem.Tracks)", ($lines -join "`n"), ($gt -join (T ' ; ')), "$($script:TargetRecalMaxItems)", (Format-UiNum ([double]$script:TargetRecalCapNs) '0'))
     $go = [bool](Show-AppConfirm -Title (T 'Recalage de la courbe croisée') -Heading ((T 'Recaler la courbe croisée {0} → {1} sur cette relecture ?') -f $src, $tgt) -Text $txt -Check ((T 'Disquette écrite le {0} pour le lecteur {1}') -f "$($mem.Date)", $tgt) -GoText (T 'Recaler la courbe croisée') -GoGlyph 'Check' -Level 'info' -Picto 'data')
     if (-not $go) { Append-Log ((T 'Recalage de la courbe croisée {0} → {1} non enregistré : non confirmé.') -f $src, $tgt); return 'declined' }
     if ($null -eq $script:TargetRecal) { $script:TargetRecal = @{} }
@@ -463,13 +464,15 @@ function Remove-TargetRecal([string]$src, [string]$tgt, [string]$fam) {
 function Get-TargetRecalSummaryText([string]$src, [string]$tgt, [string]$fam) {
     # Ligne du recalage d une courbe croisee dans la fenetre « Lecteurs » (112) : valeur par tete, relectures, date de la
     # derniere ; « sans effet » quand la courbe croisee de la tete a ete recalibree (ou le calcul a change) depuis ; '' sans
-    # recalage
+    # recalage. rc8 (rendu) : « tete 1 -2,3 ns » insecable (jamais coupe entre la tete, la valeur et l unite) : espaces
+    # insecables, et signe moins U+2212 (le trait d union, coupure possible apres lui, renvoyait « 2,3 ns » a la ligne)
     $sg = '+0.0;-0.0;0.0'
+    $nb = [string][char]0x00A0
     $parts = @(); $reads = 0; $last = ''; $stale = $false
     foreach ($h in 0, 1) {
         $e = Get-TargetRecalEntry $src $tgt $fam $h
         if (-not $e) { continue }
-        $parts += (T 'tête {0} {1} ns') -f "$h", (Format-UiNum ([double]$e.Ns) $sg)
+        $parts += ((T 'tête {0} {1} ns') -f "$h", (Format-UiNum ([double]$e.Ns) $sg).Replace('-', [string][char]0x2212)).Replace(' ', $nb)
         $rd = Get-TargetRecalReads $e
         if ([int]$rd.N -gt $reads) { $reads = [int]$rd.N }
         if ([string]$rd.Last -and (-not $last -or (ConvertTo-RecalDate ([string]$rd.Last)) -gt (ConvertTo-RecalDate $last))) { $last = [string]$rd.Last }
