@@ -15927,7 +15927,8 @@ function New-TargetWriteMemory($tw, $wf, $xp, $rc, [bool]$slow, [string]$userTs,
     # Aucune tete n apprend : consigne de la ligne de fin d ecriture decidee maintenant, d apres l onglet au lancement
     # (Get-TargetWriteLearnHow) ; How, comme ImgPath, n est pas garde dans la memoire finale
     $how = ''
-    if (@($hs.Values | Where-Object { $_.KLearn }).Count -eq 0) { $how = Get-TargetWriteLearnHow $wf $slow $img }
+    # Consigne seulement : une erreur ici ne prive pas l ecriture de sa memoire (raison du refus a la relecture)
+    if (@($hs.Values | Where-Object { $_.KLearn }).Count -eq 0) { try { $how = Get-TargetWriteLearnHow $wf $slow $img } catch { $how = '' } }
     $now = Get-Date
     return @{ Id = 'W' + $now.ToString('yyyyMMddHHmmss', [System.Globalization.CultureInfo]::InvariantCulture); Src = [string]$tw.Src; Tgt = [string]$tw.Tgt
               Fam = [string]$tw.Fam; Image = [System.IO.Path]::GetFileName($img); Slow = $slow; Heads = [int[]]@($hs.Keys | ForEach-Object { [int]$_ } | Sort-Object)
