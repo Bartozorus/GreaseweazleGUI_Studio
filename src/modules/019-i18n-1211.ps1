@@ -620,6 +620,7 @@ $script:I18n["tête {0} : facteur de la disquette non mesuré à l'écriture (k 
 $script:I18n['tête {0} : {1} piste(s) retenue(s) (saines, sans erreur, hors zones corrigées), il en faut {2}'] = 'head {0}: {1} track(s) kept (healthy, error-free, outside corrected zones), {2} needed'
 $script:I18n['tête {0} : {1} bloc(s) de 10 cylindres ayant au moins {2} pistes retenues, il en faut {3}'] = 'head {0}: {1} block(s) of 10 cylinders with at least {2} kept tracks, {3} needed'
 $script:I18n['tête {0} : écart médian {1} ns, au-delà de ± {2} ns : trop grand pour venir de la courbe croisée, vérifiez le facteur de la disquette'] = 'head {0}: median gap {1} ns, beyond ± {2} ns: too large to come from the cross curve, check the disk factor'
+$script:I18n['tête {0} : courbe croisée recalibrée ou calcul changé depuis cette écriture, le recalage ne vaudrait plus pour la courbe croisée actuelle'] = 'head {0}: cross curve recalibrated or calculation changed since this write, the adjustment would no longer apply to the current cross curve'
 # Fenetre de confirmation et journal du recalage (172)
 $script:I18n['trop de précompensation pour le lecteur cible'] = 'too much precompensation for the target drive'
 $script:I18n['pas assez de précompensation pour le lecteur cible'] = 'not enough precompensation for the target drive'

@@ -472,10 +472,11 @@ function Start-ImageWrite([switch]$NoWarmup) {
     # 12.11 rc8 (R17) : ecriture pour un lecteur cible avec le facteur par cylindre ($xp) : memoire de l ecriture en attente
     # (New-TargetWriteMemory, 172), gardee a sa fin (controle : Complete-WriteCheck, 170 ; sans controle : derniere commande
     # gw write, Update-TargetWriteMemoryGw) pour un recalage sur la relecture par le lecteur cible ; aucune sinon. Une erreur
-    # de la memoire n arrete jamais l ecriture (une ligne de journal, pas de memoire)
+    # de la memoire n arrete jamais l ecriture (une ligne de journal, pas de memoire). Relecture de la rc8 : memoire de
+    # l ecriture precedente pour la meme paire retiree des le lancement (Set-TargetWritePending, 172)
     $script:TargetWritePending = $null
     if ($tgtDrive -and $xp) {
-        try { $script:TargetWritePending = New-TargetWriteMemory $tw $wf $xp $xp.Recal ([bool]$slow) $userTs ([string]$txtWFile.Text) $heads ([bool]($post -and -not $blocker)) (@($eraseKeys | Where-Object { $_ }).Count) }
+        try { Set-TargetWritePending (New-TargetWriteMemory $tw $wf $xp $xp.Recal ([bool]$slow) $userTs ([string]$txtWFile.Text) $heads ([bool]($post -and -not $blocker)) (@($eraseKeys | Where-Object { $_ }).Count)) }
         catch { $script:TargetWritePending = $null; Append-Log ((T 'Écriture pour le lecteur cible {0} non gardée en mémoire : {1}') -f "$tgtDrive", "$($_.Exception.Message)") }
     }
     # 12.11 (L11) : barre de l onglet pendant l ecriture et son controle (Start-WriteProgress, 160) : plan des commandes de

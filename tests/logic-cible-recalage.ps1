@@ -24,6 +24,10 @@ $Wt = Get-TestRoot $Wt
 #  D  fenetre « Lecteurs » : texte du recalage, « Annuler le recalage » (copie de la configuration d abord).
 #  E  « Effacer les calibrations » efface les recalages et la memoire ; X nouvelle calibration croisee ; J configuration ;
 #  K  lecteur renomme ou retire (Edit-DriveData).
+# Relecture de la rc8 : U4 atteint vraiment la borne ; R16, O9 courbe croisee recalibree (ou calcul change) depuis
+# l ecriture : tete refusee, rien propose ; O8 effet annonce limite a 25 % ; M6 memoire precedente de la paire retiree au
+# lancement d une nouvelle ecriture (Set-TargetWritePending) ; K1 lecteur qui ecrit renomme et entrees d une autre paire
+# gardees.
 # Non couvert ici : l interface affichee (fenetre de confirmation, fenetre « Lecteurs »), une ecriture et une mesure reelles ;
 # les ecritures « meme lecteur » et sans recalage sont couvertes par les empreintes de logic-cible-facteur.
 Import-TestWinForms
@@ -86,7 +90,7 @@ $script:ConfigFile = Join-Path $here 'GreaseweazleGUI.json'
 $script:WriteQueue = New-Object System.Collections.Queue
 $script:WriteTracks = @{}; $script:GwLastArgs = @(); $script:Cal = $null; $script:Restore = $null; $script:AlignLoop = $false
 $script:QualView = @{ Pass = 0 }
-$XD = '16/11/2026 16:48'
+$XD = '12/11/2026 15:20'
 function New-FkCurve([string]$drive, [string]$tgt, $head, [string]$spec, [string]$date = $XD) {
     return @{ Drive = $drive; Target = $tgt; Head = $head; Date = $date; Spec = $spec; Values = @(); Method = 'motif'; Calc = $script:CalibCalc; Test = 'fine'; Family = 'Standard 2 us' }
 }
@@ -105,8 +109,8 @@ function Reset-Fk {
 }
 function New-FkMem([string]$id = 'W20261122100000', [string]$at = '2026-11-22 10:00:00', [int]$o0 = 0, [int]$o1 = 0, [string]$verdict = 'ok', [bool]$k0 = $true, [bool]$k1 = $true) {
     return @{ Id = $id; Date = '22/11/2026 10:00'; At = $at; Image = 'essai.adf'; Fam = 'std'; Slow = $true; Tracks = 160; Heads = [int[]]@(0, 1); Verdict = $verdict; Calc = $script:CalibCalc
-              H = @{ '0' = @{ Phys = 0; W = '0=40:40=32:70=24'; O = $o0; ORecal = [double]$o0; XDate = $XD; XKey = 'std_h0'; K = 0.72; KSrc = $(if ($k0) { 'mesure' } else { 'defaut' }); KMeasured = $k0; Zones = [int[]]@() }
-                     '1' = @{ Phys = 1; W = '0=38:40=30:70=22'; O = $o1; ORecal = [double]$o1; XDate = $XD; XKey = 'std_h1'; K = 0.72; KSrc = $(if ($k1) { 'mesure' } else { 'defaut' }); KMeasured = $k1; Zones = [int[]]@() } } }
+              H = @{ '0' = @{ Phys = 0; W = '0=40:40=32:70=24'; O = $o0; ORecal = [double]$o0; XDate = $XD; XKey = 'std_h0'; K = 0.74; KSrc = $(if ($k0) { 'mesure' } else { 'defaut' }); KMeasured = $k0; Zones = [int[]]@() }
+                     '1' = @{ Phys = 1; W = '0=38:40=30:70=22'; O = $o1; ORecal = [double]$o1; XDate = $XD; XKey = 'std_h1'; K = 0.74; KSrc = $(if ($k1) { 'mesure' } else { 'defaut' }); KMeasured = $k1; Zones = [int[]]@() } } }
 }
 # Relecture synthetique : e(c) = e0 + ((c mod 5) - 2) x 0,5 ns (mediane e0 sur 80 cylindres), d3 = d4 = e x g / cellule / 2
 function New-FkRead([hashtable]$e0, [hashtable]$g, [int]$nCyl = 80, [int[]]$heads = @(0, 1), [double]$cell = 2000) {
@@ -150,10 +154,13 @@ Chk 'U2' ($ok -and [int]$r.Recal -eq -3 -and (@($r.RecalLimited) -join ',') -eq 
 $ok = $true
 for ($c = 0; $c -lt 84; $c++) { if ([int]$r.Excess[$c] -ne [int]$r.Values[$c] - (Get-FkV '0=8:20=4:60=0' $c)) { $ok = $false } }
 Chk 'U3' $ok 'exces (courbe ecrite - D) calcule apres le recalage'
-# Borne : courbe deja a la borne max(borne, X, D), recalage positif sans effet au-dessus
-$hb = Get-TargetTransferSpec '0=410' '0=400' '0=390' 84 400 5
-$hn = Get-TargetTransferSpec '0=410' '0=400' '0=390' 84 400
-Chk 'U4' ([int]$hb.Values[0] -le 410 -and [int]$hb.Values[0] -ge [int]$hn.Values[0] -and [int]$hb.Values[0] -eq [math]::Min([int]$hn.Values[0] + 5, 410)) "recalage +5 borne a max(borne, X, D) : $($hn.Values[0]) -> $($hb.Values[0])"
+# Borne (relecture rc8 : cas qui l atteint vraiment) : X 420, D 410, Sp 400 : 420 x 410 / 400 = 430,5, ramene a X + (D - Sp)
+# = 430, puis a max(borne 400, X 420, D 410) = 420 ; recalage +5 sans effet au-dessus. Sous la borne (X 390 : 400) : +5 entier
+$hb = Get-TargetTransferSpec '0=410' '0=400' '0=420' 84 400 5
+$hn = Get-TargetTransferSpec '0=410' '0=400' '0=420' 84 400
+$lb = Get-TargetTransferSpec '0=410' '0=400' '0=390' 84 400 5
+$ln = Get-TargetTransferSpec '0=410' '0=400' '0=390' 84 400
+Chk 'U4' ([int]$hn.Values[0] -eq 420 -and [int]$hb.Values[0] -eq 420 -and [int]$ln.Values[0] -eq 400 -and [int]$lb.Values[0] -eq 405) "recalage +5 borne a max(borne, X, D) : a la borne $($hn.Values[0]) -> $($hb.Values[0]) ; dessous $($ln.Values[0]) -> $($lb.Values[0])"
 $sx = Get-TargetTransferSpec '0=40:40=30:70=26' '0=40:40=30:70=26' '0=60:40=44:70=36' 84 400 -2
 Chk 'U5' ([string]$sx.Spec -ceq (Build-CurveProfile $sx.Values) -and [string]$sx.Spec -ceq '0=58:40=42:70=34') "D = Sp avec recalage -2 : profil recalcule ($($sx.Spec))"
 
@@ -227,6 +234,18 @@ $ev2 = Get-TargetRecalReadback $mem $rb2 0 $AT '0' '0'
 Chk 'R14' (-not $ev.Heads['0'].Ok -and $ev.Heads['1'].Ok -and $ev2.Heads['0'].Ok -and (@($ev.Heads['0'].Why) -join ' ').Contains('12')) 'ecart median 12,5 ns : tete refusee ; 11,5 ns : retenue'
 $ev = Get-TargetRecalReadback $mem $rb2 0 $AT 'B' '0'
 Chk 'R15' (-not $ev.Ok -and (Test-FkWhy $ev 'notarget')) 'relu par un autre lecteur que le lecteur cible : refusee'
+# Relecture rc8 : lecteur qui a ecrit connu ($src) : courbe croisee de la tete recalibree depuis l ecriture, ou calcul de
+# calibration change : tete refusee ; courbe inchangee : retenue
+$rb = New-FkRead @{ 0 = 3.0; 1 = 3.0 } $G
+$evA = Get-TargetRecalReadback $mem $rb 0 $AT '0' '0' 'A'
+$script:DriveCurves['A>0|std_h1'] = (New-FkCurve 'A' '0' 1 '0=58:40=42:70=34' '23/11/2026 09:00')
+$evB = Get-TargetRecalReadback $mem $rb 0 $AT '0' '0' 'A'
+$memc = New-FkMem; $memc.Calc = 'autre'
+$evC = Get-TargetRecalReadback $memc $rb 0 $AT '0' '0' 'A'
+$memn = New-FkMem; $memn.H['0'].XKey = ''
+$evN = Get-TargetRecalReadback $memn $rb 0 $AT '0' '0' 'A'
+Reset-Fk
+Chk 'R16' ($evA.Ok -and $evA.Heads['0'].Ok -and $evA.Heads['1'].Ok -and $evB.Ok -and $evB.Heads['0'].Ok -and -not $evB.Heads['1'].Ok -and (@($evB.Heads['1'].Why) -join ' ').Contains('recalibrée') -and -not $evC.Ok -and -not $evC.Heads['0'].Ok -and -not $evC.Heads['1'].Ok -and $evN.Heads['0'].Ok) 'courbe croisee de la tete 1 recalibree depuis l ecriture : tete 1 refusee ; calcul change : les deux ; cle absente : courbe de la tete reprise'
 
 # =====================================================================================================================
 # C : cumul dans le magasin
@@ -267,10 +286,10 @@ Chk 'C5' (@($up | Where-Object { $_.Reset -and [int]$_.New.N -eq 1 }).Count -eq 
 Reset-Fk
 $own = @($script:DriveCurves['A|std_h0'], $script:DriveCurves['A|std_h1']); $xc = @($script:DriveCurves['A>0|std_h0'], $script:DriveCurves['A>0|std_h1'])
 $tw = @{ Src = 'A'; Tgt = '0'; Fam = 'std'; Own = $own; Curves = $xc; Xfer = $true }
-$wf = @{ Apply = $true; F0 = 0.72; F1 = 0.80; FMean = 0.76; Hard = 400; K = @{ 0 = 0.72; 1 = 0.80 }; Src = @{ 0 = 'mesure'; 1 = 'lecteur' }; SrcText = @{ 0 = 'k 0,72'; 1 = 'k 0,80' } }
+$wf = @{ Apply = $true; F0 = 0.74; F1 = 0.80; FMean = 0.77; Hard = 400; K = @{ 0 = 0.74; 1 = 0.80 }; Src = @{ 0 = 'mesure'; 1 = 'lecteur' }; SrcText = @{ 0 = 'k 0,74'; 1 = 'k 0,80' } }
 $td = @{ P0 = $own[0].Spec; P1 = $own[1].Spec; Kind = @{ 0 = 'own'; 1 = 'own' } }
 $p0 = Get-TargetTransferPlan $tw $wf $td $true
-$d0 = ConvertTo-ScaledSpec $own[0].Spec 0.72 400; $d1 = ConvertTo-ScaledSpec $own[1].Spec 0.80 400
+$d0 = ConvertTo-ScaledSpec $own[0].Spec 0.74 400; $d1 = ConvertTo-ScaledSpec $own[1].Spec 0.80 400
 $e0 = Get-TargetTransferSpec $d0 $own[0].Spec $xc[0].Spec 0 400; $e1 = Get-TargetTransferSpec $d1 $own[1].Spec $xc[1].Spec 0 400
 Chk 'A1' ([string]$p0.P0 -ceq [string]$e0.Spec -and [string]$p0.P1 -ceq [string]$e1.Spec -and -not ([string]$p0.Line).Contains('recalage') -and -not $p0.Recal.Used) 'sans recalage en memoire : profils de la regle rc7 et journal sans recalage'
 $script:TargetRecal['A>0|std_h0'] = @{ Ns = -3.4; N = 1; Items = @(@{ WriteId = 'W1'; Date = '22/11/2026 10:00'; Est = -6.8; Tracks = 80; NR = 1; Read = '2026-11-22 11:00:00' }); XDate = $XD; XKey = 'std_h0'; Calc = $script:CalibCalc; At = '2026-11-22 11:00:00' }
@@ -345,13 +364,23 @@ $script:Log.Clear()
 $o6 = Invoke-TargetRecalOffer $res (New-FkRead @{ 0 = 6.0; 1 = 4.0 } $G 3)
 $lt = (@($script:Log) -join ' ')
 Chk 'O7' ($o6 -eq 'refused' -and $script:ConfirmN -eq 0 -and $lt.Contains('6 piste(s) relue(s), l''écriture en a écrit 160') -and -not $lt.Contains('il en faut')) 'mesure de quelques cylindres : refus en une raison (pistes), sans le detail par tete'
+# Relecture rc8 : effet annonce par la fenetre limite comme l application (25 % de chaque valeur) : courbe 8 et 4 ns,
+# recalage -3 : -2 et -1 ns, soit -25 % partout (et non -38 % et -75 %)
+$memw = New-FkMem; $memw.H['0'].W = '0=8:20=4:60=0'
+$ht = Get-TargetRecalHeadText $memw @{ Med = 6.0; N = 80; O = 0 } @{ Head = 0; Reset = $false; Old = $null; New = @{ Ns = -3.0 } } '0'
+Chk 'O8' ($ht.Contains('-3 ns par rapport à cette écriture (-25 % à -25 % selon le cylindre)')) "fenetre : effet limite a 25 % de la courbe ($ht)"
+# Relecture rc8 : la proposition passe le lecteur qui a ecrit : courbe croisee recalibree depuis l ecriture, rien n est propose
+$script:LastTargetWrites['A>0'] = New-FkMem; $script:Log.Clear(); $script:ConfirmN = 0
+$script:DriveCurves['A>0|std_h0'] = (New-FkCurve 'A' '0' 0 '0=61:40=45:70=37' '23/11/2026 09:00'); $script:DriveCurves['A>0|std_h1'] = (New-FkCurve 'A' '0' 1 '0=59:40=43:70=35' '23/11/2026 09:00')
+$o9 = Invoke-TargetRecalOffer $res $rb
+Chk 'O9' ($o9 -eq 'refused' -and $script:ConfirmN -eq 0 -and $script:TargetRecal.Count -eq 0 -and (@($script:Log) -join ' ').Contains('recalibrée ou calcul changé depuis cette écriture')) 'courbe croisee recalibree depuis l ecriture : aucune fenetre, raison au journal'
 
 # =====================================================================================================================
 # M : memoire de l ecriture
 Reset-Fk
 $xp = @{ T = @{ 0 = @{ Spec = '0=50:40=40'; Recal = -3 }; 1 = @{ Spec = '0=48:40=38'; Recal = 2 } } }
 $rc = @{ O = @{ 0 = -3.4; 1 = 2.0 }; XDate = @{ 0 = $XD; 1 = $XD }; XKey = @{ 0 = 'std_h0'; 1 = 'std_h1' } }
-$wfm = @{ Apply = $true; K = @{ 0 = 0.72; 1 = 1.0 }; Src = @{ 0 = 'mesure'; 1 = 'defaut' }; FMean = 0.86 }
+$wfm = @{ Apply = $true; K = @{ 0 = 0.74; 1 = 1.0 }; Src = @{ 0 = 'mesure'; 1 = 'defaut' }; FMean = 0.87 }
 $pm = New-TargetWriteMemory $tw $wfm $xp $rc $true '' 'C:\factice\essai.adf' @(0, 1) $true 0
 $ps = New-TargetWriteMemory $tw $wfm $xp $rc $true 'hswap' 'C:\factice\essai.adf' @(0, 1) $true 0
 Chk 'M1' ([int]$pm.H['0'].Phys -eq 0 -and [int]$pm.H['0'].O -eq -3 -and [string]$pm.H['0'].W -eq '0=50:40=40' -and $pm.H['0'].KMeasured -and -not $pm.H['1'].KMeasured -and [string]$pm.H['1'].KSrc -eq 'defaut' -and [int]$ps.H['0'].Phys -eq 1 -and [string]$ps.H['0'].W -eq '0=48:40=38' -and [string]$pm.Image -eq 'essai.adf') 'memoire : tete physique (hswap), courbe ecrite, recalage applique, k et son origine'
@@ -385,6 +414,12 @@ $script:TargetWritePending = (New-TargetWriteMemory $tw $wfm $xp $rc $true '' 'C
 $script:GwLastArgs = @('write', '"C:\factice\essai.adf"')
 Update-TargetWriteMemoryGw 1 $false
 Chk 'M5' ($null -eq $script:TargetWritePending -and -not $script:LastTargetWrites.ContainsKey('A>0')) 'sans controle, erreur de gw : memoire retiree'
+# Relecture rc8 : au lancement d une nouvelle ecriture pour la paire A>0, la memoire precedente de cette paire est retiree
+# tout de suite (fenetre fermee ou arret brutal pendant l ecriture : elle ne reste pas) ; celle d une autre paire reste
+$script:LastTargetWrites['A>0'] = New-FkMem; $script:LastTargetWrites['B>0'] = New-FkMem -id 'W20261121100000'
+Set-TargetWritePending (New-TargetWriteMemory $tw $wfm $xp $rc $true '' 'C:\factice\essai.adf' @(0, 1) $true 0)
+Chk 'M6' ($null -ne $script:TargetWritePending -and [string]$script:TargetWritePending.Tgt -eq '0' -and -not $script:LastTargetWrites.ContainsKey('A>0') -and $script:LastTargetWrites.ContainsKey('B>0') -and $null -eq (Get-TargetWriteMemoryFor '0').Mem.Src -and [string](Get-TargetWriteMemoryFor '0').Src -eq 'B') 'nouvelle ecriture A>0 lancee : memoire precedente de A>0 retiree, celle de B>0 gardee'
+$script:TargetWritePending = $null
 
 # =====================================================================================================================
 # D : fenetre « Lecteurs »
@@ -432,7 +467,7 @@ $i2 = Import-LastTargetWrites $o.write.lastTargetWrite
 $e0 = $script:TargetRecal['A>0|std_h0']; $e1 = $script:TargetRecal['A>0|std_h1']; $lj = $script:LastTargetWrites['A>0']
 Chk 'J1' ([int]$i1.N -eq 2 -and [int]$i1.Bad -eq 0 -and (Near ([double]$e0.Ns) -3.0) -and [int]$e0.N -eq 2 -and [int]@($e0.Items)[0].NR -eq 2 -and [string]@($e0.Items)[1].WriteId -eq 'W2' -and [string]$e0.XDate -eq $XD -and [string]$e0.XKey -eq 'std_h0' -and (Near ([double]$e1.Ns) -1.0) -and @($e1.Items).Count -eq 1) 'recalages relus a l identique (une ou deux ecritures)'
 Chk 'J2' ([int]$i2.N -eq 1 -and $lj -and [string]$lj.Id -eq $mj.Id -and [int]$lj.H['0'].O -eq -3 -and (@($lj.H['0'].Zones) -join ',') -eq ((20..29) -join ',') -and $lj.H['0'].KMeasured -and [string]$lj.H['1'].W -eq $mj.H['1'].W -and (@($lj.Heads) -join ',') -eq '0,1' -and [int]$lj.Tracks -eq 160 -and [string]$lj.Verdict -eq 'ok') 'memoire de l ecriture relue a l identique'
-$bad = ('{ "a": { "x": 1 }, "A>0|std_h0": { "xDate": "16/11/2026 16:48", "items": [] }, "A>0|std_h1": { "xDate": "16/11/2026 16:48", "items": [ { "writeId": "W1", "est": -4 } ] } }' | ConvertFrom-Json)
+$bad = ('{ "a": { "x": 1 }, "A>0|std_h0": { "xDate": "12/11/2026 15:20", "items": [] }, "A>0|std_h1": { "xDate": "12/11/2026 15:20", "items": [ { "writeId": "W1", "est": -4 } ] } }' | ConvertFrom-Json)
 $i3 = Import-TargetRecal $bad
 Chk 'J3' ([int]$i3.N -eq 1 -and [int]$i3.Bad -eq 2 -and (Near ([double]$script:TargetRecal['A>0|std_h1'].Ns) -2.0)) 'entrees illisibles ignorees et comptees ; o recalcule sur les estimations'
 
@@ -441,10 +476,16 @@ Chk 'J3' ([int]$i3.N -eq 1 -and [int]$i3.Bad -eq 2 -and (Near ([double]$script:T
 Reset-Fk
 $script:TargetRecal['A>0|std_h0'] = @{ Ns = -3.0; N = 1; Items = @(@{ WriteId = 'W1'; Est = -6.0; NR = 1 }); XDate = $XD; Calc = $script:CalibCalc; At = '' }
 $script:LastTargetWrites['A>0'] = New-FkMem
+# Relecture rc8 : entrees d une autre paire (B>C), qui doivent rester telles quelles a chaque geste
+$bc = @{ Ns = -1.0; N = 1; Items = @(@{ WriteId = 'W9'; Est = -2.0; NR = 1 }); XDate = $XD; Calc = $script:CalibCalc; At = '' }; $bm = New-FkMem -id 'W20261120100000'
+$script:TargetRecal['B>C|std_h1'] = $bc; $script:LastTargetWrites['B>C'] = $bm
 $k1 = Edit-DriveData '0' 'Cible'
 $kOk = ($k1.Ok -and $script:TargetRecal.ContainsKey('A>Cible|std_h0') -and -not $script:TargetRecal.ContainsKey('A>0|std_h0') -and $script:LastTargetWrites.ContainsKey('A>Cible') -and $null -ne (Get-TargetWriteMemoryFor 'Cible'))
+$k3 = Edit-DriveData 'A' 'Ecrit'
+$kSrc = ($k3.Ok -and $script:TargetRecal.ContainsKey('Ecrit>Cible|std_h0') -and $script:LastTargetWrites.ContainsKey('Ecrit>Cible') -and [string](Get-TargetWriteMemoryFor 'Cible').Src -eq 'Ecrit')
 $k2 = Edit-DriveData 'Cible' ''
-Chk 'K1' ($kOk -and $k2.Ok -and $script:TargetRecal.Count -eq 0 -and $script:LastTargetWrites.Count -eq 0) 'lecteur cible renomme : recalage et memoire le suivent ; retire : ils sont retires'
+$kBc = ([object]::ReferenceEquals($script:TargetRecal['B>C|std_h1'], $bc) -and [object]::ReferenceEquals($script:LastTargetWrites['B>C'], $bm))
+Chk 'K1' ($kOk -and $kSrc -and $k2.Ok -and $kBc -and $script:TargetRecal.Count -eq 1 -and $script:LastTargetWrites.Count -eq 1) 'lecteur cible puis lecteur qui ecrit renommes : recalage et memoire les suivent ; cible retiree : ils sont retires ; ceux d une autre paire restent'
 
 # =====================================================================================================================
 "=== bilan logic-cible-recalage : $($script:NChk - $script:Fail) conformes sur $($script:NChk)$(if ($script:Fail) { " ; NON CONFORMES : $($script:FailIds -join ', ')" }) ; $([int]$sw.Elapsed.TotalSeconds) s"

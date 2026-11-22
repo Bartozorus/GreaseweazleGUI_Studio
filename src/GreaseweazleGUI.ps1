@@ -3300,6 +3300,7 @@ $script:I18n["tête {0} : facteur de la disquette non mesuré à l'écriture (k 
 $script:I18n['tête {0} : {1} piste(s) retenue(s) (saines, sans erreur, hors zones corrigées), il en faut {2}'] = 'head {0}: {1} track(s) kept (healthy, error-free, outside corrected zones), {2} needed'
 $script:I18n['tête {0} : {1} bloc(s) de 10 cylindres ayant au moins {2} pistes retenues, il en faut {3}'] = 'head {0}: {1} block(s) of 10 cylinders with at least {2} kept tracks, {3} needed'
 $script:I18n['tête {0} : écart médian {1} ns, au-delà de ± {2} ns : trop grand pour venir de la courbe croisée, vérifiez le facteur de la disquette'] = 'head {0}: median gap {1} ns, beyond ± {2} ns: too large to come from the cross curve, check the disk factor'
+$script:I18n['tête {0} : courbe croisée recalibrée ou calcul changé depuis cette écriture, le recalage ne vaudrait plus pour la courbe croisée actuelle'] = 'head {0}: cross curve recalibrated or calculation changed since this write, the adjustment would no longer apply to the current cross curve'
 # Fenetre de confirmation et journal du recalage (172)
 $script:I18n['trop de précompensation pour le lecteur cible'] = 'too much precompensation for the target drive'
 $script:I18n['pas assez de précompensation pour le lecteur cible'] = 'not enough precompensation for the target drive'
@@ -11992,10 +11993,11 @@ function Start-ImageWrite([switch]$NoWarmup) {
     # 12.11 rc8 (R17) : ecriture pour un lecteur cible avec le facteur par cylindre ($xp) : memoire de l ecriture en attente
     # (New-TargetWriteMemory, 172), gardee a sa fin (controle : Complete-WriteCheck, 170 ; sans controle : derniere commande
     # gw write, Update-TargetWriteMemoryGw) pour un recalage sur la relecture par le lecteur cible ; aucune sinon. Une erreur
-    # de la memoire n arrete jamais l ecriture (une ligne de journal, pas de memoire)
+    # de la memoire n arrete jamais l ecriture (une ligne de journal, pas de memoire). Relecture de la rc8 : memoire de
+    # l ecriture precedente pour la meme paire retiree des le lancement (Set-TargetWritePending, 172)
     $script:TargetWritePending = $null
     if ($tgtDrive -and $xp) {
-        try { $script:TargetWritePending = New-TargetWriteMemory $tw $wf $xp $xp.Recal ([bool]$slow) $userTs ([string]$txtWFile.Text) $heads ([bool]($post -and -not $blocker)) (@($eraseKeys | Where-Object { $_ }).Count) }
+        try { Set-TargetWritePending (New-TargetWriteMemory $tw $wf $xp $xp.Recal ([bool]$slow) $userTs ([string]$txtWFile.Text) $heads ([bool]($post -and -not $blocker)) (@($eraseKeys | Where-Object { $_ }).Count)) }
         catch { $script:TargetWritePending = $null; Append-Log ((T 'Écriture pour le lecteur cible {0} non gardée en mémoire : {1}') -f "$tgtDrive", "$($_.Exception.Message)") }
     }
     # 12.11 (L11) : barre de l onglet pendant l ecriture et son controle (Start-WriteProgress, 160) : plan des commandes de
@@ -15747,6 +15749,16 @@ function New-TargetWriteMemory($tw, $wf, $xp, $rc, [bool]$slow, [string]$userTs,
               Check = $check; Written = @{}; PlanTracks = $planTracks; ImgPath = $img; Tracks = 0; H = $hs; Verdict = ''; Calc = [string]$script:CalibCalc; Date = ''; At = '' }
 }
 
+function Set-TargetWritePending($p) {
+    # Memoire d une ecriture pour un lecteur cible mise en attente au lancement (Start-ImageWrite, 140 ; $p :
+    # New-TargetWriteMemory). Relecture de la rc8 : la memoire de l ecriture precedente pour la meme paire source>cible est
+    # retiree des maintenant, et non a la fin : ce n est plus la derniere ecriture pour ce lecteur cible, et une ecriture
+    # coupee sans fin traitee (fenetre fermee pendant l ecriture, arret brutal) ne doit pas la laisser proposer sur une
+    # disquette en partie reecrite. Le retrait est enregistre par le Save-Config du lancement de gw (Start-Gw, 110)
+    $script:TargetWritePending = $p
+    if ($p -and $null -ne $script:LastTargetWrites) { $script:LastTargetWrites.Remove("$([string]$p.Src)>$([string]$p.Tgt)") }
+}
+
 function Get-TargetWriteZoneCyls($rep, [int]$lh) {
     # Cylindres des zones de la correction R16 d une tete logique (Rep.Zones, 170 : gardees, reprises ou non jugees),
     # tries ; aucun sans zone
@@ -15859,7 +15871,7 @@ function Get-TargetReadFamily($tracks) {
     return @{ Fam = $f; Cell = $c }
 }
 
-function Get-TargetRecalReadback($mem, $tracks, [int]$health, $at, [string]$drive, [string]$tgt) {
+function Get-TargetRecalReadback($mem, $tracks, [int]$health, $at, [string]$drive, [string]$tgt, [string]$src = '') {
     # Relecture par le lecteur cible d une disquette ecrite pour lui, jugee par la regle R17 sans rien changer. $mem :
     # memoire de l ecriture (New-TargetWriteMemory) ; $tracks : cle 'cylindre.tete' -> metriques de la mesure (Get-TrackMetrics,
     # 190 : Level, Bad, Weak, Ooc, R3, R4, Cell) ; $health : etat du support de la mesure (0 : « SUPPORT SAIN ») ; $at : heure
@@ -15875,6 +15887,10 @@ function Get-TargetRecalReadback($mem, $tracks, [int]$health, $at, [string]$driv
     # - mediane de e : estimation absolue, l ecriture portant deja son recalage. La confirmation de l utilisateur (8) est
     # demandee par Invoke-TargetRecalOffer. Rend @{ Ok (aucun refus global et une tete retenue) ; Why ; Fam ; Cell ;
     # Heads = @{ '0' ; '1' -> @{ Ok ; Why ; N ; Blocks ; Med ; Est ; G ; GMeasured ; Phys ; O } } }
+    # Relecture de la rc8 : $src, lecteur qui a ecrit (Invoke-TargetRecalOffer) : refus aussi d une tete dont la courbe
+    # croisee employee par l ecriture (XKey, a defaut la courbe par tete puis la commune ; XDate) n est plus celle du magasin,
+    # ou dont le calcul de calibration a change depuis l ecriture : le recalage appris ne vaudrait que pour l ancienne courbe
+    # (Test-TargetRecalValid) et la fenetre annoncerait un effet qu il n aurait pas. $src vide : pas de ce controle
     $r = @{ Ok = $false; Why = New-Object System.Collections.Generic.List[object]; Fam = ''; Cell = 0.0; Heads = @{} }
     if (-not $mem) { $r.Why.Add(@{ Code = 'nomem'; Text = ((T 'aucune écriture pour le lecteur cible {0} en mémoire') -f $drive) }); return $r }
     if ($tgt -cne $drive) { $r.Why.Add(@{ Code = 'notarget'; Text = ((T "lecteur {0} : ce n'est pas le lecteur cible de l'écriture ({1})") -f $drive, $tgt) }) }
@@ -15918,6 +15934,12 @@ function Get-TargetRecalReadback($mem, $tracks, [int]$health, $at, [string]$driv
         $o.Blocks = @($blk.Keys | Where-Object { [int]$blk[$_] -ge $bTr }).Count
         if ($es.Count -gt 0) { $o.Med = [double](Get-Median $es.ToArray()); $o.Est = [double]$o.O - [double]$o.Med }
         if (-not $hm -or -not $hm.KMeasured) { $o.Why.Add(((T "tête {0} : facteur de la disquette non mesuré à l'écriture (k = 1 par défaut)") -f "$lh")) }
+        if ($src -and $hm) {
+            $cur = $false
+            $cks = if ([string]$hm.XKey) { @([string]$hm.XKey) } else { @("$($mem.Fam)_h$([int]$hm.Phys)", [string]$mem.Fam) }
+            foreach ($ck in $cks) { $cv = Get-DriveCurve "$src>$tgt" $ck; if ($cv -and [string]$cv.Date -ceq [string]$hm.XDate) { $cur = $true; break } }
+            if (-not $cur -or [string]$mem.Calc -cne [string]$script:CalibCalc) { $o.Why.Add(((T 'tête {0} : courbe croisée recalibrée ou calcul changé depuis cette écriture, le recalage ne vaudrait plus pour la courbe croisée actuelle') -f "$lh")) }
+        }
         if ($o.N -lt $nMin) { $o.Why.Add(((T 'tête {0} : {1} piste(s) retenue(s) (saines, sans erreur, hors zones corrigées), il en faut {2}') -f "$lh", "$($o.N)", "$nMin")) }
         elseif ($o.Blocks -lt $bMin) { $o.Why.Add(((T 'tête {0} : {1} bloc(s) de 10 cylindres ayant au moins {2} pistes retenues, il en faut {3}') -f "$lh", "$($o.Blocks)", "$bTr", "$bMin")) }
         if ($null -ne $o.Med -and [math]::Abs([double]$o.Med) -gt $gMax) { $o.Why.Add(((T 'tête {0} : écart médian {1} ns, au-delà de ± {2} ns : trop grand pour venir de la courbe croisée, vérifiez le facteur de la disquette') -f "$lh", (Format-UiNum ([double]$o.Med) '+0.0;-0.0;0.0'), (Format-UiNum $gMax '0'))) }
@@ -15971,7 +15993,8 @@ function Get-TargetRecalUpdate([string]$src, [string]$tgt, $mem, $ev, $now) {
 function Get-TargetRecalHeadText($mem, $o, $u, [string]$tgt) {
     # Ligne d une tete dans la fenetre de confirmation : pistes retenues, ecart median relu, recalage propose et recalage
     # d avant, effet sur la courbe ecrite pour le lecteur cible par rapport a l ecriture relue (ns entiers, et en % de cette
-    # courbe sur ses cylindres non nuls)
+    # courbe sur ses cylindres non nuls ; relecture de la rc8 : decalage de chaque cylindre limite a TargetRecalWShare de sa
+    # valeur, comme Get-TargetTransferSpec, pour ne jamais annoncer plus que ce qui sera ecrit)
     $sg = '+0.0;-0.0;0.0'
     $lk = [int]$u.Head
     $med = [double]$o.Med
@@ -15982,7 +16005,7 @@ function Get-TargetRecalHeadText($mem, $o, $u, [string]$tgt) {
     $dl = [int][math]::Round([double]$u.New.Ns) - [int]$o.O
     $hm = $mem.H["$lk"]
     $pc = @()
-    if ($hm) { foreach ($m in [regex]::Matches([string]$hm.W, '(\d+)\s*=\s*(\d+)')) { $w = [int]$m.Groups[2].Value; if ($w -gt 0) { $pc += 100.0 * $dl / $w } } }
+    if ($hm) { foreach ($m in [regex]::Matches([string]$hm.W, '(\d+)\s*=\s*(\d+)')) { $w = [int]$m.Groups[2].Value; if ($w -gt 0) { $lw = [int][math]::Floor([double]$script:TargetRecalWShare * $w); $pc += 100.0 * [math]::Max(-$lw, [math]::Min($lw, $dl)) / $w } } }
     $eff = if ($dl -eq 0) { (T 'courbe écrite pour le lecteur {0} inchangée par rapport à cette écriture') -f $tgt }
            elseif ($pc.Count -gt 0) { (T 'courbe écrite pour le lecteur {0} : {1} ns par rapport à cette écriture ({2} % à {3} % selon le cylindre)') -f $tgt, ('{0:+0;-0;0}' -f $dl), (Format-UiNum ([double]($pc | Measure-Object -Minimum).Minimum) '+0;-0;0'), (Format-UiNum ([double]($pc | Measure-Object -Maximum).Maximum) '+0;-0;0') }
            else { (T 'courbe écrite pour le lecteur {0} : {1} ns par rapport à cette écriture') -f $tgt, ('{0:+0;-0;0}' -f $dl) }
@@ -16007,7 +16030,7 @@ function Invoke-TargetRecalOffer($res, $tracks) {
         if ([int]$script:QualView.Pass -le 1) { Append-Log ((T "Recalage de la courbe croisée {0} → {1} : non proposé pendant une mesure continue. Faites une mesure simple de toute la disquette écrite le {2} (mêmes cylindres et mêmes têtes que l'écriture).") -f $src, $tgt, "$($mem.Date)") }
         return 'loop'
     }
-    $ev = Get-TargetRecalReadback $mem $tracks ([int]$res.Health) $res.At $drv $tgt
+    $ev = Get-TargetRecalReadback $mem $tracks ([int]$res.Health) $res.At $drv $tgt $src
     $hw = @(foreach ($lk in @($ev.Heads.Keys | Sort-Object)) { foreach ($w in @($ev.Heads[$lk].Why)) { $w } })
     if (-not $ev.Ok) {
         # Mesure qui ne couvre pas l ecriture (pistes, tetes, famille : une mesure ordinaire de quelques cylindres, par
