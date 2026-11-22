@@ -353,6 +353,15 @@ $script:ContentAsymJackMax = 0.15
 $script:ContentAsymKMin = 0.1
 $script:ContentAsymExtrap = 1.5
 $script:ContentAsymMargeGap = 0.3
+# 12.11 (version finale, R12) : facteur de la marque disperse. Une ecriture sans mesure sur l image applique la mediane
+# des 3 dernieres mesures de la marque pour ce lecteur, cette famille et cette tete (Get-DriveK, 274). Des disquettes d une
+# meme marque, ecrites avec la meme image par le meme lecteur, peuvent demander des facteurs nettement differents : la
+# mediane est alors loin du facteur d une disquette donnee. Etendue (max - min) des mesures qui donnent le facteur,
+# arrondies a 0,01 comme au journal, strictement au-dessus de WriteFactorSpreadMax : la ligne « Ce qui va se passer »,
+# l infobulle de la case de la mesure et le journal de l ecriture conseillent de mesurer la disquette sur l image au lieu
+# d appliquer la mediane (Get-WriteFactorHint, 140). Texte seulement : le facteur applique ne change pas. Avant cette
+# version : 0,2 ou plus, journal seulement
+$script:WriteFactorSpreadMax = 0.15
 $script:WFactorNote = $null                                                 # 12.8.1 : complement « facteur » du libelle du profil (Update-WriteFactorNote)
 $script:WTargetHead = ''                                                    # 12.10 (relecture de la RC) : refus du lecteur cible en tete du libelle du profil (Sync-WTargetHead)
 $script:WProfilePath = ''                                                   # 12.10 (relecture de la RC) : image du libelle du profil (Update-PrecompForImage, Sync-WTargetHead)

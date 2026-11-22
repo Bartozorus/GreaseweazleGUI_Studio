@@ -670,3 +670,12 @@ $script:I18n["choisissez le test standard ou fin dans « Calibration précomp »
 $script:I18n["écrivez l'image en écriture lente, avec le test standard ou fin dans « Calibration précomp », « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »"] = 'write the image as a slow write, with the standard or fine test in "Precomp calibration", "Measure the disk before the slow write" checked and the "on the image to write" measure'
 $script:I18n["La tête {0} ne servira pas à ce recalage : son facteur n'a pas été mesuré sur la disquette elle-même."] = 'Head {0} will not be used for this adjustment: its factor was not measured on the disk itself.'
 $script:I18n["Recalage de la courbe croisée {0} → {1} sur cette relecture non proposé : l'écriture du {2} ne peut pas recaler la courbe croisée ({3})."] = 'Cross curve adjustment {0} → {1} on this read-back not offered: the write of {2} cannot adjust the cross curve ({3}).'
+
+# --- Version finale, R12 : facteur de la marque disperse (Get-WriteFactorHint, Get-WriteFactorAdvice, 140 ; Get-WritePlan,
+# 145) : journal de l ecriture, ligne « Ce qui va se passer » et sa forme courte, infobulle de la case de la mesure. La
+# ligne des mesures de la marque qui varient (018) est retiree
+$script:I18n['tête {0} : étendue {1} sur {2} mesures'] = 'head {0}: range {1} over {2} measurements'
+$script:I18n['étendue {0} sur {1} mesures'] = 'range {0} over {1} measurements'
+$script:I18n["Facteur de la marque « {0} » dispersé sur ce lecteur ({1}) : la médiane appliquée peut être loin du facteur de cette disquette ; pour mesurer celle-ci au lieu d'appliquer la médiane, {2}."] = 'Factor of brand "{0}" spread out on this drive ({1}): the applied median may be far from the factor of this disk; to measure this disk instead of applying the median, {2}.'
+$script:I18n["médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : mesurez plutôt cette disquette sur l'image"] = 'median factor of brand "{0}" applied, measurements spread out ({1}): measure this disk on the image instead'
+$script:I18n['mesures de la marque dispersées : mesurez plutôt cette disquette'] = 'brand measurements spread out: measure this disk instead'

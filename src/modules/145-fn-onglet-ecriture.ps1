@@ -130,11 +130,13 @@ function Get-WritePlan {
     # journal, aucune fenetre ; lit l image (appelant : Get-WritePlanCached)
     # 12.11 rc4 (R9) : Verify, decision de la verification de gw (Get-WriteVerifyPlan, 140), et son segment apres celui
     # du controle ; $null avec un refus
+    # 12.11 (version finale, R12) : Spread, ligne du facteur de la marque disperse (Get-WriteFactorAdvice, 140), reprise en
+    # tete de l infobulle de la case de la mesure (Update-WLevelSpreadTip) ; '' sans conseil ou avec un refus
     $img = [string]$txtWFile.Text; $fmt = [string]$cmbWFmt.Text
     $slow = [bool]$chkWSlow.Checked
     $mode = if ($slow) { 'slow' } else { 'fast' }
     $userTs = ([string]$txtWTracks.Text).Trim()
-    $r = @{ Refuse = ''; Segs = @(); Verify = $null }
+    $r = @{ Refuse = ''; Segs = @(); Verify = $null; Spread = '' }
     $ex = $false; try { $ex = [bool](Test-Path -LiteralPath $img) } catch { }
     if (-not $ex) { $r.Refuse = (T 'Fichier image introuvable.'); return $r }
     $tw = Get-TargetWriteInfo $img $fmt $slow
@@ -180,6 +182,10 @@ function Get-WritePlan {
     }
     if ($nw) { $mt = (T 'sans mesure de la disquette ({0})') -f "$nw"; $ms = (T 'sans mesure de la disquette') }
     if ($mt) { [void]$sg.Add(@{ T = $mt; Crit = $mc; S = $ms }) }
+    # 12.11 (version finale, R12) : facteur de la marque disperse (Get-WriteFactorAdvice, 140 : memes gardes, memes mesures
+    # et meme consigne que la ligne de journal de l ecriture) ; segment critique, forme courte sans les valeurs
+    $fa = Get-WriteFactorAdvice $img $fmt $slow
+    if ($fa) { [void]$sg.Add(@{ T = [string]$fa.Seg; Crit = $true; S = [string]$fa.Short }); $r.Spread = [string]$fa.Line }
     # Tetes
     $hs = @($wh.Gw)
     $ht = if ($hs.Count -eq 1) { (T 'écriture de la tête {0} seule') -f "$($hs[0])" } elseif ($hs.Count -ge 2 -and -not $slow) { (T 'écriture des deux têtes ensemble') } elseif ($hs.Count -ge 2) { (T 'écriture tête 0 puis tête 1') } else { '' }
@@ -257,11 +263,14 @@ function Get-WritePlanSig {
     if ($script:LevelShifts) { $ls = (@(@($script:LevelShifts.Keys) | Sort-Object | ForEach-Object { $x = $script:LevelShifts[$_]; if ($x) { "$_=$($x.Model)|$($x.Spec)|$(@($x.Values).Count)" } }) -join ';') }
     $rs = if ($script:Restore) { "1|$(if ($script:Restore.Saved) { $script:Restore.Saved.CalMode })" } else { '0' }
     $rs += "|$([bool]$script:LevelPostForce)"
+    # 12.11 (version finale, R12) : marque choisie et mesures memorisees (facteur de la marque, Get-WriteFactorAdvice, 140)
+    $km = New-Object System.Text.StringBuilder
+    foreach ($m in @($script:ContentMeasures)) { if ($m) { [void]$km.Append("$($m.Drive)|$($m.Family)|$($m.Head)|$($m.Brand)|$($m.Etat)|$($m.Method)|$($m.K)|$($m.Date)|$($m.ContentCalc)|$($m.Calc);") } }
     $parts = @([string]$script:Lang, $img, $fi, [string]$cmbWFmt.Text, [string]$cmbDrive.Text, (Get-DriveLabel ([string]$cmbDrive.Text)), (Get-TargetDrive),
                "$($chkWSlow.Checked)|$($chkWPreErase.Checked)|$($chkWEraseEmpty.Checked)|$($chkWPostCheck.Checked)|$($numWRepair.Value)|$($chkWLevel.Checked)|$($cmbWCalMode.SelectedIndex)",
                "$($cmbWProfile.SelectedIndex)|$($chkWPrecomp.Checked)|$($chkWHard.Checked)|$($chkWTG43.Checked)", [string]$txtWPrecomp.Text, [string]$txtWPrecomp1.Text, [string]$txtWTracks.Text, [string]$cmbWDensel.Text,
                [string](Get-Setting 'calMode'), [string](Get-Setting 'levelBeforeWriteMode'), (@(Get-WriteAdvChanges) -join '|'),
-               $rs, "$($script:ScpStatsOk)|$($script:CalHardNsUser)", $cv.ToString(), $ls)
+               $rs, "$($script:ScpStatsOk)|$($script:CalHardNsUser)", $cv.ToString(), $ls, [string]$script:LevelBrand, $km.ToString())
     return ($parts -join "`n")
 }
 
@@ -342,15 +351,17 @@ function Update-WritePlanUi([switch]$Typing) {
     # Update-WLevelUi) : phrase deja affichee gardee. Erreur du calcul : texte du lot L9, rien au journal ni a l ecran
     # ($script:WPlanError la garde). Appels : fin d Update-WLevelUi (140), Update-WAdvLink, Register-WAdvCtl,
     # Register-WPlanCtl
+    # 12.11 (version finale, R12) : infobulle de la case de la mesure accordee au plan affiche (Update-WLevelSpreadTip)
     if (-not $lblWPlan) { return }
     if ($script:UiReady -and [string]$txtWFile.Text) {
-        if (($Typing -or $script:WProfileBuilding) -and $script:WPlanCur) { return }
+        if (($Typing -or $script:WProfileBuilding) -and $script:WPlanCur) { Update-WLevelSpreadTip ([string]$script:WPlanCur.Spread); return }
         $p = $null
         try { $p = Get-WritePlanCached; $script:WPlanError = '' } catch { $script:WPlanError = [string]$_.Exception.Message; $script:WPlanMemo = $null }
-        if ($p) { $script:WPlanCur = $p; Update-WVerifyUi $p.Verify; Show-WritePlan; return }
+        if ($p) { $script:WPlanCur = $p; Update-WVerifyUi $p.Verify; Update-WLevelSpreadTip ([string]$p.Spread); Show-WritePlan; return }
     }
     $script:WPlanCur = $null; $script:WPlanFull = ''
     Update-WVerifyUi
+    Update-WLevelSpreadTip ''
     $ch = @(Get-WriteAdvChanges)
     $t = ''
     if ($ch.Count -gt 0) {
@@ -359,6 +370,17 @@ function Update-WritePlanUi([switch]$Typing) {
     }
     $lblWPlan.ResetForeColor()
     if ($lblWPlan.Text -cne $t) { $lblWPlan.Text = $t } else { Update-WPlanTip }
+}
+
+function Update-WLevelSpreadTip([string]$line) {
+    # 12.11 (version finale, R12) : infobulle de la case « Mesurer la disquette » : celle que vient de poser Update-WLevelUi
+    # (140, $script:WLevelTipCur), precedee de la ligne du facteur de la marque disperse du plan affiche (Get-WritePlan,
+    # Spread : meme texte que le journal de l ecriture) ; sans conseil, celle d Update-WLevelUi telle quelle. Affichage
+    # seulement. Appel : Update-WritePlanUi
+    if (-not $chkWLevel -or -not $tip -or -not $script:WLevelTipCur) { return }
+    $t = [string]$script:WLevelTipCur
+    if ($line) { $t = $line + "`n" + $t }
+    if ([string]$tip.GetToolTip($chkWLevel) -cne $t) { $tip.SetToolTip($chkWLevel, $t) }
 }
 
 function Update-WVerifyUi($vp = $null) {

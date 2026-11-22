@@ -199,8 +199,8 @@ $script:I18n['Bibliothèque : écriture refusée. Onglet Écriture rétabli : {0
 $script:I18n["80 cylindres par défaut, nombre non lisible dans l'image"] = '80 cylinders by default, count not readable from the image'
 $script:I18n['{0} cylindres pour le format {1} : {2} dans la définition de gw, {0} au moins pour la calibration'] = '{0} cylinders for format {1}: {2} in the gw definition, at least {0} for the calibration'
 # Conseil de mesure de la disquette (140 Get-WriteFactorHint) ; relecture de la finalisation : consigne selon l ecriture
-# (lente : cocher la case ; rapide : ecrire en ecriture lente avec la case cochee)
-$script:I18n["Les mesures de la marque « {0} » sur ce lecteur varient de {1} d'une disquette à l'autre : pour mesurer celle-ci avant l'écriture, {2}."] = 'Measurements of brand "{0}" on this drive vary by {1} from one disk to another: to measure this disk before writing, {2}.'
+# (lente : cocher la case ; rapide : ecrire en ecriture lente avec la case cochee). 12.11 (version finale, R12) : ligne des
+# mesures de la marque qui varient remplacee par celle du facteur de la marque disperse (019)
 $script:I18n["Aucun facteur mesuré pour la marque « {0} » sur ce lecteur : en long track, le meilleur facteur s'écarte souvent de 1 ; pour le mesurer, {1}."] = 'No measured factor for brand "{0}" on this drive: in long track, the best factor often differs from 1; to measure it, {1}.'
 $script:I18n["cochez « Mesurer la disquette avant l'écriture lente », avec la mesure « sur l'image à écrire »"] = 'check "Measure the disk before the slow write", with the "on the image to write" measure'
 $script:I18n["écrivez l'image en écriture lente, avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »"] = 'write the image as a slow write, with "Measure the disk before the slow write" checked and the "on the image to write" measure'

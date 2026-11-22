@@ -76,6 +76,9 @@ function Update-WLevelUi {
               elseif ($tw.Xfer) { ((T "Écriture pour le lecteur cible {1} : la disquette est mesurée par le lecteur {0}, celui qui écrit, comme pour une écriture ordinaire ; le facteur de la calibration croisée {0} → {1} est ensuite appliqué à la courbe de cette disquette, cylindre par cylindre.") -f "$($tw.Src)", "$($tw.Tgt)") + "`n" + [string]$script:WLevelTip }
               elseif ($tw.Tgt -and $tw.Why) { ((T "Lecteur cible {0} sans effet sur cette écriture : {1}.") -f "$($tw.Tgt)", "$($tw.Why)") + "`n" + [string]$script:WLevelTip }
               else { [string]$script:WLevelTip }
+        # 12.11 (version finale, R12) : infobulle gardee, que la ligne « Ce qui va se passer » fait preceder du conseil du
+        # facteur de la marque disperse (Update-WLevelSpreadTip, 145, appelee par Update-WritePlanUi ci-dessous)
+        $script:WLevelTipCur = $tt
         $tip.SetToolTip($chkWLevel, $tt)
     }
     # 12.11 (L10) : ligne « Ce qui va se passer » (Update-WritePlanUi, 145) : memes appels que la case de la mesure (image,
@@ -1425,7 +1428,7 @@ function Get-WriteFactorPlan([string]$img, [string]$fmt, [bool]$slow, $next = $n
     return $r
 }
 
-function Get-WriteFactorHint([string]$img, [string]$fmt, [bool]$slow, [string]$drive, [string]$fam, [string]$brand, $src) {
+function Get-WriteFactorHint([string]$img, [string]$fmt, [bool]$slow, [string]$drive, [string]$fam, [string]$brand, $src, [switch]$Spread) {
     # Finalisation 12.10 (analyse long track du 08/11/2026 : le meilleur facteur varie de +/- 0,2 d une disquette a l autre
     # d une meme marque) : ligne de journal qui conseille de mesurer la disquette, rendue a Get-WriteFactorPlan quand le
     # facteur s applique (profil Auto, --precomp coche, double densite, courbe du lecteur, sans lecteur cible), chaine vide
@@ -1439,29 +1442,55 @@ function Get-WriteFactorHint([string]$img, [string]$fmt, [bool]$slow, [string]$d
     # non cochee pour cette ecriture (Test-WriteLevelWanted), image qui recouvre tout le motif (Get-LevelWriteSkip) et
     # mesurable sur son contenu (Test-ContentMeasurable : MFM double densite, champ Pistes vide, courbe du lecteur assez
     # longue, 20 cylindres)
+    # 12.11 (version finale, R12) : mesures de la marque dispersees, etendue au-dessus de WriteFactorSpreadMax (040 ; avant :
+    # 0,2 ou plus) : par tete dont le facteur vient de la memoire de la marque (Src lecteur), etendue (max - min, mesures
+    # arrondies a 0,01 comme au journal) des mesures qui le donnent (Get-DriveK : les 3 dernieres, dont il est la mediane ;
+    # une seule mesure : aucune etendue) et leur nombre. Texte par tete en ecriture lente (facteur par tete), plus grande
+    # etendue en ecriture rapide (facteur moyen des deux tetes), et consigne de mesurer cette disquette sur l image au lieu
+    # d appliquer la mediane. Spread : ce conseil seul (pas celui du long track sans mesure), rendu @{ Line : ligne de
+    # journal ; Seg, Short : segment de la ligne « Ce qui va se passer » et sa forme courte } apres les memes gardes, ''
+    # sans conseil (Get-WriteFactorAdvice). Texte seulement : aucun facteur ni aucune ecriture ne change
     if ($script:Restore -or $cmbWCalMode.SelectedIndex -eq 2) { return '' }
     if (Test-WriteLevelWanted $(if ($slow) { 'slow' } else { 'fast' })) { return '' }
-    $spread = -1.0
+    $wide = @()
     foreach ($h in 0, 1) {
         if ([string]$src[$h] -ne 'lecteur') { continue }
         $dr = Get-DriveK $drive $fam $h $brand
         if ([int]$dr.N -lt 2) { continue }
         $ks = @(@($dr.Ks) | ForEach-Object { [math]::Round([double]$_, 2) })
         $sp = [math]::Round([double]($ks | Measure-Object -Maximum).Maximum - [double]($ks | Measure-Object -Minimum).Minimum, 2)
-        if ($sp -gt $spread) { $spread = $sp }
+        if ($sp -gt [double]$script:WriteFactorSpreadMax) { $wide += ,@{ H = $h; Sp = $sp; N = [int]$dr.N } }
     }
     $bn = if ($brand.Trim()) { $brand.Trim() } else { (T '(non précisée)') }
     # Relecture de la finalisation : consigne selon l ecriture. Ecriture lente : case Mesurer la disquette decochee (sinon
     # Test-WriteLevelWanted ci-dessus) : la cocher. Ecriture rapide : jamais mesuree, case cochee ou non (Test-WriteLevelWanted
     # rend faux hors ecriture lente) : ecrire en ecriture lente, sans demander de cocher une case peut-etre deja cochee
     $how = if ($slow) { (T "cochez « Mesurer la disquette avant l'écriture lente », avec la mesure « sur l'image à écrire »") } else { (T "écrivez l'image en écriture lente, avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »") }
-    $line = ''
-    if ($spread -ge 0.2) { $line = (T "Les mesures de la marque « {0} » sur ce lecteur varient de {1} d'une disquette à l'autre : pour mesurer celle-ci avant l'écriture, {2}.") -f "$bn", (Format-UiNum $spread '0.00'), "$how" }
-    elseif ($fam -eq 'long' -and [string]$src[0] -eq 'defaut' -and [string]$src[1] -eq 'defaut') { $line = (T "Aucun facteur mesuré pour la marque « {0} » sur ce lecteur : en long track, le meilleur facteur s'écarte souvent de 1 ; pour le mesurer, {1}.") -f "$bn", "$how" }
+    $line = ''; $det = ''
+    if ($wide.Count -gt 0) {
+        if ($slow) { $det = (@($wide | ForEach-Object { (T 'tête {0} : étendue {1} sur {2} mesures') -f "$($_.H)", (Format-UiNum ([double]$_.Sp) '0.00'), "$($_.N)" }) -join (T ' ; ')) }
+        else { $w = $wide[0]; foreach ($x in $wide) { if ([double]$x.Sp -gt [double]$w.Sp) { $w = $x } }; $det = (T 'étendue {0} sur {1} mesures') -f (Format-UiNum ([double]$w.Sp) '0.00'), "$($w.N)" }
+        $line = (T "Facteur de la marque « {0} » dispersé sur ce lecteur ({1}) : la médiane appliquée peut être loin du facteur de cette disquette ; pour mesurer celle-ci au lieu d'appliquer la médiane, {2}.") -f "$bn", "$det", "$how"
+    }
+    elseif (-not $Spread -and $fam -eq 'long' -and [string]$src[0] -eq 'defaut' -and [string]$src[1] -eq 'defaut') { $line = (T "Aucun facteur mesuré pour la marque « {0} » sur ce lecteur : en long track, le meilleur facteur s'écarte souvent de 1 ; pour le mesurer, {1}.") -f "$bn", "$how" }
     if (-not $line) { return '' }
     if (Get-LevelWriteSkip $img $fmt $txtWTracks.Text) { return '' }
     try { if (-not (Test-ContentMeasurable $img $fmt).Ok) { return '' } } catch { return '' }
+    if ($Spread) { return @{ Line = $line; Seg = ((T "médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : mesurez plutôt cette disquette sur l'image") -f "$bn", "$det"); Short = (T 'mesures de la marque dispersées : mesurez plutôt cette disquette') } }
     return $line
+}
+
+function Get-WriteFactorAdvice([string]$img, [string]$fmt, [bool]$slow) {
+    # 12.11 (version finale, R12) : conseil du facteur de la marque disperse avant le clic, pour la ligne « Ce qui va se
+    # passer » (Get-WritePlan, 145) et l infobulle de la case de la mesure (Update-WLevelSpreadTip, 145) : facteur que
+    # recevrait l ecriture du bouton ECRIRE sans mesure sur l image qui la precede (Get-WriteFactorPlan -Peek), puis
+    # Get-WriteFactorHint -Spread : memes gardes, memes mesures et meme texte que la ligne de journal de l ecriture.
+    # @{ Line ; Seg ; Short }, $null sans conseil ; aucune ligne de journal, aucune fenetre
+    $wf = Get-WriteFactorPlan $img $fmt $slow $null -Peek
+    if (-not $wf.Apply) { return $null }
+    $h = Get-WriteFactorHint $img $fmt $slow ([string]$cmbDrive.Text) ([string]$wf.Fam) ([string]$wf.Brand) $wf.Src -Spread
+    if (-not $h) { return $null }
+    return $h
 }
 
 function Get-WriteFactorNote([string]$path) {
