@@ -424,10 +424,10 @@ $script:TargetWritePending = $null
 # =====================================================================================================================
 # D : fenetre « Lecteurs »
 Reset-Fk
-$script:TargetRecal['A>0|std_h0'] = @{ Ns = -3.4; N = 1; Items = @(@{ WriteId = 'W1'; Date = ''; Est = -6.8; Tracks = 80; NR = 2; Read = '2026-11-22 11:00:00' }); XDate = $XD; XKey = 'std_h0'; Calc = $script:CalibCalc; At = '2026-11-22 11:00:00' }
-$script:TargetRecal['A>0|std_h1'] = @{ Ns = -2.8; N = 1; Items = @(@{ WriteId = 'W1'; Date = ''; Est = -5.6; Tracks = 80; NR = 2; Read = '2026-11-22 11:00:00' }); XDate = $XD; XKey = 'std_h1'; Calc = $script:CalibCalc; At = '2026-11-22 11:00:00' }
+$script:TargetRecal['A>0|std_h0'] = @{ Ns = -3.7; N = 1; Items = @(@{ WriteId = 'W1'; Date = ''; Est = -7.4; Tracks = 80; NR = 2; Read = '2026-11-22 11:00:00' }); XDate = $XD; XKey = 'std_h0'; Calc = $script:CalibCalc; At = '2026-11-22 11:00:00' }
+$script:TargetRecal['A>0|std_h1'] = @{ Ns = -2.3; N = 1; Items = @(@{ WriteId = 'W1'; Date = ''; Est = -4.6; Tracks = 80; NR = 2; Read = '2026-11-22 11:00:00' }); XDate = $XD; XKey = 'std_h1'; Calc = $script:CalibCalc; At = '2026-11-22 11:00:00' }
 $sm = Get-TargetRecalSummaryText 'A' '0' 'std'
-Chk 'D1' ($sm -eq 'Recalage de la courbe croisée A → 0 (Standard 2 us) : tête 0 -3,4 ns, tête 1 -2,8 ns ; 2 relecture(s), dernière le 22/11/2026.') "texte : $sm"
+Chk 'D1' ($sm -eq 'Recalage de la courbe croisée A → 0 (Standard 2 us) : tête 0 -3,7 ns, tête 1 -2,3 ns ; 2 relecture(s), dernière le 22/11/2026.') "texte : $sm"
 $lvC = New-Object System.Windows.Forms.ListView; [void]$lvC.Items.Add('Standard 2 us'); [void]$lvC.Items.Add('Standard 2 us'); $lvC.Items[1].Selected = $true
 $s = @{ Curves = $lvC; CRows = @(@{ Group = 'own'; StoreDrive = 'A'; Family = 'std' }, @{ Group = 'out'; Other = '0'; StoreDrive = 'A>0'; Family = 'std' }); Info = (New-Object System.Windows.Forms.Label); Recal = (New-Object System.Windows.Forms.Button); State = (New-Object System.Windows.Forms.Label); InfoBase = 'Lecteur cible de ses écritures : 0.' }
 Update-DrivesDialogRecal $s
@@ -445,7 +445,7 @@ Chk 'D3' ($keep -and $g2.Ok -and $script:TargetRecal.Count -eq 0 -and $script:Pr
 # =====================================================================================================================
 # E : « Effacer les calibrations »
 Reset-Fk
-$script:TargetRecal['A>0|std_h0'] = @{ Ns = -3.4; N = 1; Items = @(@{ WriteId = 'W1'; Est = -6.8; NR = 1 }); XDate = $XD; Calc = $script:CalibCalc; At = '' }
+$script:TargetRecal['A>0|std_h0'] = @{ Ns = -3.7; N = 1; Items = @(@{ WriteId = 'W1'; Est = -7.4; NR = 1 }); XDate = $XD; Calc = $script:CalibCalc; At = '' }
 $script:LastTargetWrites['A>0'] = New-FkMem
 $script:PrecompStd = '0=140'; $script:PrecompStdDefault = '0=140'; $script:PrecompLong = '0=140'; $script:PrecompLongDefault = '0=140'
 function Get-CalibResetAfterText { return 'ensuite' }
