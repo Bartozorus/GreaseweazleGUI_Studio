@@ -248,7 +248,7 @@ function Test-GwPortRetry([int]$code) {
     if ($code -eq 0 -or -not $script:GwPortLost -or $script:Detect) { return $false }
     $cmd = 'gw ' + (@($script:GwLastArgs) -join ' ')
     if ($script:GwPortRetried) {
-        $step = if ($script:Cal -and $lblWCal.Visible -and [string]$lblWCal.Text) { "$($lblWCal.Text) ; $cmd" } else { $cmd }
+        $step = if ($script:Cal -and $lblWCal.Visible -and [string]$lblWCal.Text) { ([string]$lblWCal.Text) + (T ' ; ') + $cmd } else { $cmd }
         Append-Log ((T "ERREUR : Greaseweazle déconnecté : gw n'a pas pu ouvrir son port, ni à la commande ni à la nouvelle tentative. Vérifiez le câble USB, le concentrateur USB et l'alimentation des lecteurs, puis relancez l'opération. Étape atteinte : {0}") -f "$step")
         # Corrections de relecture : lecture de prechauffage (GwSoft) comprise : la regle commune arrete la sequence, au lieu
         # de passer a l etape suivante, qui se heurterait au meme port

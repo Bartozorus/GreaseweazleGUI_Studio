@@ -392,7 +392,7 @@ function Get-AsymGainText($gains, $measured) {
         if ($measured -and $measured[$h]) { (T "tête {0} : g = {1}, deux fois la pente mesurée sur l'image") -f "$h", $g }
         else { (T 'tête {0} : g = {1} par défaut, pente non mesurée') -f "$h", $g }
     })
-    return ((T 'Contrôle après écriture : asymétrie attendue = g × excès de précompensation / cellule ; {0}.') -f ($it -join ' ; '))
+    return ((T 'Contrôle après écriture : asymétrie attendue = g × excès de précompensation / cellule ; {0}.') -f ($it -join (T ' ; ')))
 }
 
 function Get-WriteZoneGap($rep, [string]$k) {
@@ -552,7 +552,7 @@ function Start-WriteZonePass($rep, $zs) {
     }
     $rep.Zones = @($zs); $rep.ZonePass = $true
     $it = @(foreach ($z in $zs) { (T '{0} : écart médian {1} ns, correction {2} ns') -f (Format-WriteZone $z), (Format-UiNum ([double]$z.E0) '+0.0;-0.0;0.0'), ('{0:+0;-0;0}' -f [int]$z.Dz) })
-    Append-Log ((T "Contrôle après écriture : {0} zone(s) écartée(s) de l'attendu à la relecture par le lecteur {1} ({2}). Leurs {3} piste(s) sont réécrites à la passe {4}/{5} avec la précompensation décalée sur ces cylindres, puis relues ; une zone qui ne se rapproche pas de l'attendu reprend sa courbe d'origine.") -f "$(@($zs).Count)", "$($rep.TargetSrc)", ($it -join ' ; '), "$($all.Count)", "$($rep.Round)", "$($rep.Max)")
+    Append-Log ((T "Contrôle après écriture : {0} zone(s) écartée(s) de l'attendu à la relecture par le lecteur {1} ({2}). Leurs {3} piste(s) sont réécrites à la passe {4}/{5} avec la précompensation décalée sur ces cylindres, puis relues ; une zone qui ne se rapproche pas de l'attendu reprend sa courbe d'origine.") -f "$(@($zs).Count)", "$($rep.TargetSrc)", ($it -join (T ' ; ')), "$($all.Count)", "$($rep.Round)", "$($rep.Max)")
     # 12.11 (version finale) : conseil par tete dont les zones couvrent presque tous les cylindres ecrits, a la suite de la
     # ligne des zones (Get-WriteZoneHeadAdvice) ; texte seulement
     foreach ($l in @(Get-WriteZoneHeadAdvice $rep $zs)) { Append-Log $l }

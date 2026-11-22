@@ -478,18 +478,18 @@ function Get-CalibBackInfo($item) {
     $calcTxt = if ($item.CalcOk) { Get-CurveCalcText $cv0 } else { Get-CurveCalcText $cv0 -Plain }
     # 12.11 (relecture de L7) : colonne « Calcul » de la fenetre (New-CalibBackDialog, 250), decidee ici
     $res.CalcText = if ($item.CalcOk) { $calcTxt } else { (T '{0} (autre calcul)') -f $calcTxt }
-    $t += ((T "À rétablir : {0} ; calibration du {1}, {2}, calcul {3}.") -f ($res.Labels -join ' ; '), [string]$item.Date, (Get-CalibBackTestText ([string]$item.Test)), $calcTxt)
+    $t += ((T "À rétablir : {0} ; calibration du {1}, {2}, calcul {3}.") -f ($res.Labels -join (T ' ; ')), [string]$item.Date, (Get-CalibBackTestText ([string]$item.Test)), $calcTxt)
     $t += $why
     if ($res.Ok) {
         # 12.11 (relecture de L7) : courbes en place remplacees, puis, a part, courbes en attente du choix (elles ne sont pas
         # en place) ; sans aucune des deux, pas de copie (Backup vide) ; une courbe ajoutee n est retiree par aucun retour
         $rp = @(@($res.Replace) | ForEach-Object { Get-DriveCurveLabel $_ })
-        if ($rp.Count -gt 0) { $t += ((T 'Courbes en place remplacées : {0}.') -f ($rp -join ' ; ')) } else { $t += (T "Aucune courbe en place n'est remplacée.") }
+        if ($rp.Count -gt 0) { $t += ((T 'Courbes en place remplacées : {0}.') -f ($rp -join (T ' ; '))) } else { $t += (T "Aucune courbe en place n'est remplacée.") }
         $pd = @(@($res.Pending) | ForEach-Object { Get-DriveCurveLabel $_ })
-        if ($pd.Count -gt 0) { $t += ((T "Courbes en attente du choix « garder ou recalibrer » retirées de l'attente : {0}.") -f ($pd -join ' ; ')) }
+        if ($pd.Count -gt 0) { $t += ((T "Courbes en attente du choix « garder ou recalibrer » retirées de l'attente : {0}.") -f ($pd -join (T ' ; '))) }
         $addOnly = @(@($res.Add) | Where-Object { @($res.Pending) -notcontains $_ })
         if (@($res.Backup).Count -eq 0) { $t += (T "Aucune copie n'est faite avant ce retour : il ne s'annule pas par ce bouton, qui rétablit des courbes et n'en retire aucune.") }
-        elseif ($addOnly.Count -gt 0) { $t += ((T 'Courbes ajoutées, sans courbe en place : {0}. Elles restent en place si vous annulez ce retour.') -f ((@($addOnly | ForEach-Object { Get-DriveCurveLabel $_ })) -join ' ; ')) }
+        elseif ($addOnly.Count -gt 0) { $t += ((T 'Courbes ajoutées, sans courbe en place : {0}. Elles restent en place si vous annulez ce retour.') -f ((@($addOnly | ForEach-Object { Get-DriveCurveLabel $_ })) -join (T ' ; '))) }
         if ($res.OtherCalc) { $t += ((T "Calcul {0}, autre que le calcul actuel (v{1}) : ces courbes seront conservées telles quelles, comme avec « Conserver ces courbes » au démarrage ; une nouvelle calibration peut donner une courbe plus juste.") -f (Get-CurveCalcText $cv0 -Plain), (Get-CurveCalcRef $cv0)) }
         if ($res.HeadsStale) { $t += ((T "Ces courbes par tête sont plus anciennes que la courbe commune en place de ce lecteur ({0}) : l'écriture lente ne les appliquera pas tant que cette courbe commune est plus récente.") -f $oneDate) }
         $t += (T "Les niveaux de la calibration rapide mesurés avec les courbes remplacées ne s'appliqueront plus. Les autres courbes, les réglages, la mémoire par marque et les facteurs mesurés ne changent pas.")
@@ -609,7 +609,7 @@ function Restore-CalibBack($item, [switch]$Confirmed) {
     $pbWCal.Visible = $false; $lblWCal.Visible = $true; $lblWCal.Text = (T 'Calibration précédente rétablie.')
     $rp = @($repl | ForEach-Object { Get-DriveCurveLabel $_ })
     $cv0 = $item.Curves[$names[0]]
-    Append-Log ((T "Calibration précédente rétablie : {0} (calibration du {1}, calcul {2}), lue dans {3}. Courbes remplacées : {4}.") -f ($info.Labels -join ' ; '), [string]$item.Date, (Get-CurveCalcText $cv0), [string]$item.File, $(if ($rp.Count -gt 0) { $rp -join ' ; ' } else { (T 'aucune') }))
+    Append-Log ((T "Calibration précédente rétablie : {0} (calibration du {1}, calcul {2}), lue dans {3}. Courbes remplacées : {4}.") -f ($info.Labels -join (T ' ; ')), [string]$item.Date, (Get-CurveCalcText $cv0), [string]$item.File, $(if ($rp.Count -gt 0) { $rp -join (T ' ; ') } else { (T 'aucune') }))
     [void](Save-Config)
     return $true
 }

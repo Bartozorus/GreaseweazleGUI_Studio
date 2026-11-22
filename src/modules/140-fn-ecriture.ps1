@@ -1834,7 +1834,7 @@ function Get-TargetTransferPlan($tw, $wf, $td, [bool]$slow) {
             if ($wf.Apply) { $x += ' ' + ((T '× {0} ({1})') -f (Format-UiNum $(if ($h -eq 0) { $wf.F0 } else { $wf.F1 }) '0.00'), "$($wf.SrcText[$h])") }
             (T 'tête {0} : {1}') -f "$h", $x
         }) -join ', '
-        $sum = @(foreach ($h in 0, 1) { (T 'tête {0} : {1}') -f "$h", (Get-TargetTransferSummary $r.T[$h]).Text }) -join ' ; '
+        $sum = @(foreach ($h in 0, 1) { (T 'tête {0} : {1}') -f "$h", (Get-TargetTransferSummary $r.T[$h]).Text }) -join (T ' ; ')
     } else {
         $o = [string]$kt[[string]$td.Kind[0]]
         if ($wf.Apply) { $o += ' ' + ((T '× {0}, moyenne des deux têtes') -f (Format-UiNum $wf.FMean '0.00')) }
@@ -1844,9 +1844,9 @@ function Get-TargetTransferPlan($tw, $wf, $td, [bool]$slow) {
     $r.Line = (T "Écriture pour le lecteur cible {0} : courbe de cette disquette (lecteur {1}, {2}) × facteur par cylindre de la calibration croisée {1} → {0} ({3}) ; {4}") -f "$tgt", "$src", "$o", (Get-TargetCurvesText $src $tgt ([string]$tw.Fam) $xc), "$sum"
     # Relecture m2 : courbe propre de S plus recente que la courbe croisee (S recalibre depuis) : le facteur X/Sp est pris
     # sur la courbe propre courante, note pour interpreter le resultat
-    if ((Get-CurveDate $own[0]) -gt (Get-CurveDate $xc[0])) { $r.Line += ' ; ' + ((T 'courbe du lecteur {0} postérieure à la calibration croisée {0} → {1}') -f "$src", "$tgt") }
+    if ((Get-CurveDate $own[0]) -gt (Get-CurveDate $xc[0])) { $r.Line += (T ' ; ') + ((T 'courbe du lecteur {0} postérieure à la calibration croisée {0} → {1}') -f "$src", "$tgt") }
     # 12.11 rc8 (R17) : recalage applique (ou garde sans effet, et pourquoi) ; rien sans recalage en memoire
-    if ($rc.Text) { $r.Line += ' ; ' + [string]$rc.Text }
+    if ($rc.Text) { $r.Line += (T ' ; ') + [string]$rc.Text }
     $r.Line += '.'
     return $r
 }

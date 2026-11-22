@@ -5289,7 +5289,7 @@ function Test-GwPortRetry([int]$code) {
     if ($code -eq 0 -or -not $script:GwPortLost -or $script:Detect) { return $false }
     $cmd = 'gw ' + (@($script:GwLastArgs) -join ' ')
     if ($script:GwPortRetried) {
-        $step = if ($script:Cal -and $lblWCal.Visible -and [string]$lblWCal.Text) { "$($lblWCal.Text) ; $cmd" } else { $cmd }
+        $step = if ($script:Cal -and $lblWCal.Visible -and [string]$lblWCal.Text) { ([string]$lblWCal.Text) + (T ' ; ') + $cmd } else { $cmd }
         Append-Log ((T "ERREUR : Greaseweazle déconnecté : gw n'a pas pu ouvrir son port, ni à la commande ni à la nouvelle tentative. Vérifiez le câble USB, le concentrateur USB et l'alimentation des lecteurs, puis relancez l'opération. Étape atteinte : {0}") -f "$step")
         # Corrections de relecture : lecture de prechauffage (GwSoft) comprise : la regle commune arrete la sequence, au lieu
         # de passer a l etape suivante, qui se heurterait au meme port
@@ -6727,7 +6727,7 @@ function Restore-DriveRescueTargets($old = $null) {
     $cal = @()
     if ($script:DriveReg) { foreach ($e in @($script:DriveReg.GetEnumerator())) { $cal += ((T '{0} : {1}') -f [string]$e.Value.Name, (Get-DriveDataText (Get-DriveData ([string]$e.Value.Name) $old))) } }
     $tg = if ($done.Count -gt 0) { (@($done | ForEach-Object { "$($_.Src) → $($_.Tgt)" }) -join ', ') } else { (T 'aucun') }
-    Append-Log ((T "Lecteurs relus dans la copie de secours ({0}) : le fichier de configuration ne les contenait pas (enregistré par une version antérieure, ou copie plus ancienne remise à sa place). Calibrations rangées sous leurs noms : {1}. Lecteurs cibles rétablis depuis cette copie : {2}. Vérifiez le lecteur choisi et son lecteur cible avant d'écrire.") -f "$(Get-DriveRescuePath)", ($cal -join ' ; '), $tg)
+    Append-Log ((T "Lecteurs relus dans la copie de secours ({0}) : le fichier de configuration ne les contenait pas (enregistré par une version antérieure, ou copie plus ancienne remise à sa place). Calibrations rangées sous leurs noms : {1}. Lecteurs cibles rétablis depuis cette copie : {2}. Vérifiez le lecteur choisi et son lecteur cible avant d'écrire.") -f "$(Get-DriveRescuePath)", ($cal -join (T ' ; ')), $tg)
     foreach ($d in $done) { $d }
 }
 
@@ -13431,7 +13431,7 @@ function Get-TargetTransferPlan($tw, $wf, $td, [bool]$slow) {
             if ($wf.Apply) { $x += ' ' + ((T '× {0} ({1})') -f (Format-UiNum $(if ($h -eq 0) { $wf.F0 } else { $wf.F1 }) '0.00'), "$($wf.SrcText[$h])") }
             (T 'tête {0} : {1}') -f "$h", $x
         }) -join ', '
-        $sum = @(foreach ($h in 0, 1) { (T 'tête {0} : {1}') -f "$h", (Get-TargetTransferSummary $r.T[$h]).Text }) -join ' ; '
+        $sum = @(foreach ($h in 0, 1) { (T 'tête {0} : {1}') -f "$h", (Get-TargetTransferSummary $r.T[$h]).Text }) -join (T ' ; ')
     } else {
         $o = [string]$kt[[string]$td.Kind[0]]
         if ($wf.Apply) { $o += ' ' + ((T '× {0}, moyenne des deux têtes') -f (Format-UiNum $wf.FMean '0.00')) }
@@ -13441,9 +13441,9 @@ function Get-TargetTransferPlan($tw, $wf, $td, [bool]$slow) {
     $r.Line = (T "Écriture pour le lecteur cible {0} : courbe de cette disquette (lecteur {1}, {2}) × facteur par cylindre de la calibration croisée {1} → {0} ({3}) ; {4}") -f "$tgt", "$src", "$o", (Get-TargetCurvesText $src $tgt ([string]$tw.Fam) $xc), "$sum"
     # Relecture m2 : courbe propre de S plus recente que la courbe croisee (S recalibre depuis) : le facteur X/Sp est pris
     # sur la courbe propre courante, note pour interpreter le resultat
-    if ((Get-CurveDate $own[0]) -gt (Get-CurveDate $xc[0])) { $r.Line += ' ; ' + ((T 'courbe du lecteur {0} postérieure à la calibration croisée {0} → {1}') -f "$src", "$tgt") }
+    if ((Get-CurveDate $own[0]) -gt (Get-CurveDate $xc[0])) { $r.Line += (T ' ; ') + ((T 'courbe du lecteur {0} postérieure à la calibration croisée {0} → {1}') -f "$src", "$tgt") }
     # 12.11 rc8 (R17) : recalage applique (ou garde sans effet, et pourquoi) ; rien sans recalage en memoire
-    if ($rc.Text) { $r.Line += ' ; ' + [string]$rc.Text }
+    if ($rc.Text) { $r.Line += (T ' ; ') + [string]$rc.Text }
     $r.Line += '.'
     return $r
 }
@@ -15325,7 +15325,7 @@ function Get-AsymGainText($gains, $measured) {
         if ($measured -and $measured[$h]) { (T "tête {0} : g = {1}, deux fois la pente mesurée sur l'image") -f "$h", $g }
         else { (T 'tête {0} : g = {1} par défaut, pente non mesurée') -f "$h", $g }
     })
-    return ((T 'Contrôle après écriture : asymétrie attendue = g × excès de précompensation / cellule ; {0}.') -f ($it -join ' ; '))
+    return ((T 'Contrôle après écriture : asymétrie attendue = g × excès de précompensation / cellule ; {0}.') -f ($it -join (T ' ; ')))
 }
 
 function Get-WriteZoneGap($rep, [string]$k) {
@@ -15485,7 +15485,7 @@ function Start-WriteZonePass($rep, $zs) {
     }
     $rep.Zones = @($zs); $rep.ZonePass = $true
     $it = @(foreach ($z in $zs) { (T '{0} : écart médian {1} ns, correction {2} ns') -f (Format-WriteZone $z), (Format-UiNum ([double]$z.E0) '+0.0;-0.0;0.0'), ('{0:+0;-0;0}' -f [int]$z.Dz) })
-    Append-Log ((T "Contrôle après écriture : {0} zone(s) écartée(s) de l'attendu à la relecture par le lecteur {1} ({2}). Leurs {3} piste(s) sont réécrites à la passe {4}/{5} avec la précompensation décalée sur ces cylindres, puis relues ; une zone qui ne se rapproche pas de l'attendu reprend sa courbe d'origine.") -f "$(@($zs).Count)", "$($rep.TargetSrc)", ($it -join ' ; '), "$($all.Count)", "$($rep.Round)", "$($rep.Max)")
+    Append-Log ((T "Contrôle après écriture : {0} zone(s) écartée(s) de l'attendu à la relecture par le lecteur {1} ({2}). Leurs {3} piste(s) sont réécrites à la passe {4}/{5} avec la précompensation décalée sur ces cylindres, puis relues ; une zone qui ne se rapproche pas de l'attendu reprend sa courbe d'origine.") -f "$(@($zs).Count)", "$($rep.TargetSrc)", ($it -join (T ' ; ')), "$($all.Count)", "$($rep.Round)", "$($rep.Max)")
     # 12.11 (version finale) : conseil par tete dont les zones couvrent presque tous les cylindres ecrits, a la suite de la
     # ligne des zones (Get-WriteZoneHeadAdvice) ; texte seulement
     foreach ($l in @(Get-WriteZoneHeadAdvice $rep $zs)) { Append-Log $l }
@@ -16406,10 +16406,10 @@ function Invoke-TargetRecalOffer($res, $tracks) {
         # exemple) : ses seules raisons globales, sans le detail par tete
         $cmp = (@($ev.Why | Where-Object { @('tracks', 'heads', 'family') -contains [string]$_.Code }).Count -gt 0)
         $all = @(@($ev.Why | ForEach-Object { [string]$_.Text }) + $(if ($cmp) { @() } else { $hw }))
-        Append-Log ((T 'Recalage de la courbe croisée {0} → {1} sur cette relecture non proposé : {2}.') -f $src, $tgt, ($all -join ' ; '))
+        Append-Log ((T 'Recalage de la courbe croisée {0} → {1} sur cette relecture non proposé : {2}.') -f $src, $tgt, ($all -join (T ' ; ')))
         return 'refused'
     }
-    if ($hw.Count -gt 0) { Append-Log ((T 'Recalage de la courbe croisée {0} → {1} : {2}.') -f $src, $tgt, ($hw -join ' ; ')) }
+    if ($hw.Count -gt 0) { Append-Log ((T 'Recalage de la courbe croisée {0} → {1} : {2}.') -f $src, $tgt, ($hw -join (T ' ; '))) }
     $up = Get-TargetRecalUpdate $src $tgt $mem $ev (Get-Date)
     $lines = @(foreach ($u in $up) { Get-TargetRecalHeadText $mem $ev.Heads["$($u.Head)"] $u $tgt })
     $lines += @($hw)
@@ -16421,7 +16421,7 @@ function Invoke-TargetRecalOffer($res, $tracks) {
     if ($null -eq $script:TargetRecal) { $script:TargetRecal = @{} }
     $sg = '+0.0;-0.0;0.0'
     $it = @(foreach ($u in $up) { $script:TargetRecal[[string]$u.Key] = $u.New; (T 'tête {0} {1} ns') -f "$($u.Phys)", (Format-UiNum ([double]$u.New.Ns) $sg) })
-    Append-Log ((T "Courbe croisée {0} → {1} recalée sur la relecture de l'écriture du {2} : {3} ; ajouté aux prochaines écritures pour le lecteur {1} (courbe croisée inchangée).") -f $src, $tgt, "$($mem.Date)", ($it -join ' ; '))
+    Append-Log ((T "Courbe croisée {0} → {1} recalée sur la relecture de l'écriture du {2} : {3} ; ajouté aux prochaines écritures pour le lecteur {1} (courbe croisée inchangée).") -f $src, $tgt, "$($mem.Date)", ($it -join (T ' ; ')))
     [void](Save-Config)
     return 'stored'
 }
@@ -19360,7 +19360,7 @@ function Get-QualityCardModel($v) {
     $tips += (T "État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter. Erreurs comptées sans le premier intervalle de la lecture ni, en double densité, le raccord d'écriture dans la zone de ± 1 ms autour de l'index ; stabilité mesurée sur des tours alignés (double densité, 3 tours ou plus).`nIndépendant du contenu : comparable d'une disquette à l'autre.")
     $tips += (T "Score de qualité de lecture (plus bas = mieux). Dépend du contenu : à comparer uniquement sur une même image`n(deux lecteurs, deux précompensations, deux réglages).")
     $m.Tip = ($tips -join "`n").Trim()
-    $m.Access = @(@($m.Chip, "$($m.Score) $($m.Level)".Trim(), $m.State, $m.Line3) | Where-Object { $_ -and $_ -ne [string][char]0x2013 }) -join ' ; '
+    $m.Access = @(@($m.Chip, "$($m.Score) $($m.Level)".Trim(), $m.State, $m.Line3) | Where-Object { $_ -and $_ -ne [string][char]0x2013 }) -join (T ' ; ')
     return $m
 }
 
@@ -22822,18 +22822,18 @@ function Get-CalibBackInfo($item) {
     $calcTxt = if ($item.CalcOk) { Get-CurveCalcText $cv0 } else { Get-CurveCalcText $cv0 -Plain }
     # 12.11 (relecture de L7) : colonne « Calcul » de la fenetre (New-CalibBackDialog, 250), decidee ici
     $res.CalcText = if ($item.CalcOk) { $calcTxt } else { (T '{0} (autre calcul)') -f $calcTxt }
-    $t += ((T "À rétablir : {0} ; calibration du {1}, {2}, calcul {3}.") -f ($res.Labels -join ' ; '), [string]$item.Date, (Get-CalibBackTestText ([string]$item.Test)), $calcTxt)
+    $t += ((T "À rétablir : {0} ; calibration du {1}, {2}, calcul {3}.") -f ($res.Labels -join (T ' ; ')), [string]$item.Date, (Get-CalibBackTestText ([string]$item.Test)), $calcTxt)
     $t += $why
     if ($res.Ok) {
         # 12.11 (relecture de L7) : courbes en place remplacees, puis, a part, courbes en attente du choix (elles ne sont pas
         # en place) ; sans aucune des deux, pas de copie (Backup vide) ; une courbe ajoutee n est retiree par aucun retour
         $rp = @(@($res.Replace) | ForEach-Object { Get-DriveCurveLabel $_ })
-        if ($rp.Count -gt 0) { $t += ((T 'Courbes en place remplacées : {0}.') -f ($rp -join ' ; ')) } else { $t += (T "Aucune courbe en place n'est remplacée.") }
+        if ($rp.Count -gt 0) { $t += ((T 'Courbes en place remplacées : {0}.') -f ($rp -join (T ' ; '))) } else { $t += (T "Aucune courbe en place n'est remplacée.") }
         $pd = @(@($res.Pending) | ForEach-Object { Get-DriveCurveLabel $_ })
-        if ($pd.Count -gt 0) { $t += ((T "Courbes en attente du choix « garder ou recalibrer » retirées de l'attente : {0}.") -f ($pd -join ' ; ')) }
+        if ($pd.Count -gt 0) { $t += ((T "Courbes en attente du choix « garder ou recalibrer » retirées de l'attente : {0}.") -f ($pd -join (T ' ; '))) }
         $addOnly = @(@($res.Add) | Where-Object { @($res.Pending) -notcontains $_ })
         if (@($res.Backup).Count -eq 0) { $t += (T "Aucune copie n'est faite avant ce retour : il ne s'annule pas par ce bouton, qui rétablit des courbes et n'en retire aucune.") }
-        elseif ($addOnly.Count -gt 0) { $t += ((T 'Courbes ajoutées, sans courbe en place : {0}. Elles restent en place si vous annulez ce retour.') -f ((@($addOnly | ForEach-Object { Get-DriveCurveLabel $_ })) -join ' ; ')) }
+        elseif ($addOnly.Count -gt 0) { $t += ((T 'Courbes ajoutées, sans courbe en place : {0}. Elles restent en place si vous annulez ce retour.') -f ((@($addOnly | ForEach-Object { Get-DriveCurveLabel $_ })) -join (T ' ; '))) }
         if ($res.OtherCalc) { $t += ((T "Calcul {0}, autre que le calcul actuel (v{1}) : ces courbes seront conservées telles quelles, comme avec « Conserver ces courbes » au démarrage ; une nouvelle calibration peut donner une courbe plus juste.") -f (Get-CurveCalcText $cv0 -Plain), (Get-CurveCalcRef $cv0)) }
         if ($res.HeadsStale) { $t += ((T "Ces courbes par tête sont plus anciennes que la courbe commune en place de ce lecteur ({0}) : l'écriture lente ne les appliquera pas tant que cette courbe commune est plus récente.") -f $oneDate) }
         $t += (T "Les niveaux de la calibration rapide mesurés avec les courbes remplacées ne s'appliqueront plus. Les autres courbes, les réglages, la mémoire par marque et les facteurs mesurés ne changent pas.")
@@ -22953,7 +22953,7 @@ function Restore-CalibBack($item, [switch]$Confirmed) {
     $pbWCal.Visible = $false; $lblWCal.Visible = $true; $lblWCal.Text = (T 'Calibration précédente rétablie.')
     $rp = @($repl | ForEach-Object { Get-DriveCurveLabel $_ })
     $cv0 = $item.Curves[$names[0]]
-    Append-Log ((T "Calibration précédente rétablie : {0} (calibration du {1}, calcul {2}), lue dans {3}. Courbes remplacées : {4}.") -f ($info.Labels -join ' ; '), [string]$item.Date, (Get-CurveCalcText $cv0), [string]$item.File, $(if ($rp.Count -gt 0) { $rp -join ' ; ' } else { (T 'aucune') }))
+    Append-Log ((T "Calibration précédente rétablie : {0} (calibration du {1}, calcul {2}), lue dans {3}. Courbes remplacées : {4}.") -f ($info.Labels -join (T ' ; ')), [string]$item.Date, (Get-CurveCalcText $cv0), [string]$item.File, $(if ($rp.Count -gt 0) { $rp -join (T ' ; ') } else { (T 'aucune') }))
     [void](Save-Config)
     return $true
 }

@@ -622,10 +622,10 @@ function Invoke-TargetRecalOffer($res, $tracks) {
         # exemple) : ses seules raisons globales, sans le detail par tete
         $cmp = (@($ev.Why | Where-Object { @('tracks', 'heads', 'family') -contains [string]$_.Code }).Count -gt 0)
         $all = @(@($ev.Why | ForEach-Object { [string]$_.Text }) + $(if ($cmp) { @() } else { $hw }))
-        Append-Log ((T 'Recalage de la courbe croisée {0} → {1} sur cette relecture non proposé : {2}.') -f $src, $tgt, ($all -join ' ; '))
+        Append-Log ((T 'Recalage de la courbe croisée {0} → {1} sur cette relecture non proposé : {2}.') -f $src, $tgt, ($all -join (T ' ; ')))
         return 'refused'
     }
-    if ($hw.Count -gt 0) { Append-Log ((T 'Recalage de la courbe croisée {0} → {1} : {2}.') -f $src, $tgt, ($hw -join ' ; ')) }
+    if ($hw.Count -gt 0) { Append-Log ((T 'Recalage de la courbe croisée {0} → {1} : {2}.') -f $src, $tgt, ($hw -join (T ' ; '))) }
     $up = Get-TargetRecalUpdate $src $tgt $mem $ev (Get-Date)
     $lines = @(foreach ($u in $up) { Get-TargetRecalHeadText $mem $ev.Heads["$($u.Head)"] $u $tgt })
     $lines += @($hw)
@@ -637,7 +637,7 @@ function Invoke-TargetRecalOffer($res, $tracks) {
     if ($null -eq $script:TargetRecal) { $script:TargetRecal = @{} }
     $sg = '+0.0;-0.0;0.0'
     $it = @(foreach ($u in $up) { $script:TargetRecal[[string]$u.Key] = $u.New; (T 'tête {0} {1} ns') -f "$($u.Phys)", (Format-UiNum ([double]$u.New.Ns) $sg) })
-    Append-Log ((T "Courbe croisée {0} → {1} recalée sur la relecture de l'écriture du {2} : {3} ; ajouté aux prochaines écritures pour le lecteur {1} (courbe croisée inchangée).") -f $src, $tgt, "$($mem.Date)", ($it -join ' ; '))
+    Append-Log ((T "Courbe croisée {0} → {1} recalée sur la relecture de l'écriture du {2} : {3} ; ajouté aux prochaines écritures pour le lecteur {1} (courbe croisée inchangée).") -f $src, $tgt, "$($mem.Date)", ($it -join (T ' ; ')))
     [void](Save-Config)
     return 'stored'
 }

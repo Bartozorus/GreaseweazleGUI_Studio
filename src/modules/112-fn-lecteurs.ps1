@@ -850,7 +850,7 @@ function Restore-DriveRescueTargets($old = $null) {
     $cal = @()
     if ($script:DriveReg) { foreach ($e in @($script:DriveReg.GetEnumerator())) { $cal += ((T '{0} : {1}') -f [string]$e.Value.Name, (Get-DriveDataText (Get-DriveData ([string]$e.Value.Name) $old))) } }
     $tg = if ($done.Count -gt 0) { (@($done | ForEach-Object { "$($_.Src) → $($_.Tgt)" }) -join ', ') } else { (T 'aucun') }
-    Append-Log ((T "Lecteurs relus dans la copie de secours ({0}) : le fichier de configuration ne les contenait pas (enregistré par une version antérieure, ou copie plus ancienne remise à sa place). Calibrations rangées sous leurs noms : {1}. Lecteurs cibles rétablis depuis cette copie : {2}. Vérifiez le lecteur choisi et son lecteur cible avant d'écrire.") -f "$(Get-DriveRescuePath)", ($cal -join ' ; '), $tg)
+    Append-Log ((T "Lecteurs relus dans la copie de secours ({0}) : le fichier de configuration ne les contenait pas (enregistré par une version antérieure, ou copie plus ancienne remise à sa place). Calibrations rangées sous leurs noms : {1}. Lecteurs cibles rétablis depuis cette copie : {2}. Vérifiez le lecteur choisi et son lecteur cible avant d'écrire.") -f "$(Get-DriveRescuePath)", ($cal -join (T ' ; ')), $tg)
     foreach ($d in $done) { $d }
 }
 

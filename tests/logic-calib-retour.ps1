@@ -365,7 +365,9 @@ Chk 'R4c' ($f4.Text.StartsWith('À rétablir : Standard 2 us (tête 0), lecteur 
 $script:Lang = 'en'
 $f4e = Get-CalibBackInfo $i4
 $script:Lang = 'fr'
-Chk 'R4d' ($f4e.Text.StartsWith('To restore: Standard 2 us (head 0), drive A ; Standard 2 us (head 1), drive A; calibrated on 01/10/2026 10:00, fine test, calculation v12.10.') -and $f4e.Text.Contains('Curves in place replaced: ') -and $f4e.Text.Contains('These per-head curves are older than the common curve in place for this drive (10/10/2026 10:00)') -and $f4e.Text.Contains('Copy read: GreaseweazleGUI.json.ref-std-20261001-1000.bak, dated 02/10/2026 10:00.')) "detail anglais : $(($f4e.Text -split "`n")[0])"
+# 12.11 (version finale, adapte a dessein) : liste des courbes separee par T(' ; ') : « ; » de l anglais, sans espace avant
+# (avant : « ; » francais ecrit en dur)
+Chk 'R4d' ($f4e.Text.StartsWith('To restore: Standard 2 us (head 0), drive A; Standard 2 us (head 1), drive A; calibrated on 01/10/2026 10:00, fine test, calculation v12.10.') -and $f4e.Text.Contains('Curves in place replaced: ') -and $f4e.Text.Contains('These per-head curves are older than the common curve in place for this drive (10/10/2026 10:00)') -and $f4e.Text.Contains('Copy read: GreaseweazleGUI.json.ref-std-20261001-1000.bak, dated 02/10/2026 10:00.')) "detail anglais : $(($f4e.Text -split "`n")[0])"
 # Relecture de L7 : ligne mixte (une tete remplacee, l autre ajoutee) : copie faite, la courbe ajoutee reste apres une
 # annulation, et le detail le dit
 Chk 'R4g' ((@($f4.Backup) -join ',') -ceq 'A|std_h0' -and $f4.Text.Contains('Courbes ajoutées, sans courbe en place : Standard 2 us (tête 1), lecteur A. Elles restent en place si vous annulez ce retour.') -and -not $f4.Text.Contains("Aucune copie n'est faite") -and $f4e.Text.Contains('Curves added, with no curve in place: Standard 2 us (head 1), drive A. They stay in place if you undo this return.')) 'detail d une ligne mixte : copie de la tete remplacee (Backup), tete ajoutee qui reste en place si le retour est annule, francais et anglais'

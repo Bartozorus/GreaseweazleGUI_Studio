@@ -454,7 +454,7 @@ function Get-QualityCardModel($v) {
     $tips += (T "État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter. Erreurs comptées sans le premier intervalle de la lecture ni, en double densité, le raccord d'écriture dans la zone de ± 1 ms autour de l'index ; stabilité mesurée sur des tours alignés (double densité, 3 tours ou plus).`nIndépendant du contenu : comparable d'une disquette à l'autre.")
     $tips += (T "Score de qualité de lecture (plus bas = mieux). Dépend du contenu : à comparer uniquement sur une même image`n(deux lecteurs, deux précompensations, deux réglages).")
     $m.Tip = ($tips -join "`n").Trim()
-    $m.Access = @(@($m.Chip, "$($m.Score) $($m.Level)".Trim(), $m.State, $m.Line3) | Where-Object { $_ -and $_ -ne [string][char]0x2013 }) -join ' ; '
+    $m.Access = @(@($m.Chip, "$($m.Score) $($m.Level)".Trim(), $m.State, $m.Line3) | Where-Object { $_ -and $_ -ne [string][char]0x2013 }) -join (T ' ; ')
     return $m
 }
 

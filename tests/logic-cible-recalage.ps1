@@ -427,6 +427,22 @@ $script:LastTargetWrites['A>0'] = New-FkMem; $script:Log.Clear(); $script:Confir
 $script:DriveCurves['A>0|std_h0'] = (New-FkCurve 'A' '0' 0 '0=61:40=45:70=37' '23/11/2026 09:00'); $script:DriveCurves['A>0|std_h1'] = (New-FkCurve 'A' '0' 1 '0=59:40=43:70=35' '23/11/2026 09:00')
 $o9 = Invoke-TargetRecalOffer $res $rb
 Chk 'O9' ($o9 -eq 'refused' -and $script:ConfirmN -eq 0 -and $script:TargetRecal.Count -eq 0 -and (@($script:Log) -join ' ').Contains('recalibrée ou calcul changé depuis cette écriture')) 'courbe croisee recalibree depuis l ecriture : aucune fenetre, raison au journal'
+# O10 (12.11, version finale) : lignes de journal de la proposition, listes separees par T(' ; ') comme les voisines : en
+# anglais « ; » sans espace avant, jamais le « ; » francais ; en francais, « ; » inchange. Recalage enregistre (deux
+# tetes) ; relecture refusee pour les deux tetes (ecart median de 12,5 ns, au-dela de 12)
+$rbF = New-FkRead @{ 0 = 12.5; 1 = 12.5 } $G
+$o10 = @{}
+foreach ($lg in 'fr', 'en') {
+    $script:Lang = $lg
+    Reset-Fk; $script:LastTargetWrites['A>0'] = New-FkMem; $script:ConfirmAns = $true
+    [void](Invoke-TargetRecalOffer $res $rb); $o10["$lg-ok"] = [string]@($script:Log)[-1]
+    Reset-Fk; $script:LastTargetWrites['A>0'] = New-FkMem
+    [void](Invoke-TargetRecalOffer $res $rbF); $o10["$lg-ref"] = [string]@($script:Log)[-1]
+}
+$script:Lang = 'fr'; Reset-Fk
+$o10ok = ($o10['en-ok'].Contains(': head 0 -4.5 ns; head 1 -3.0 ns; added to the next writes') -and $o10['en-ref'].Contains('12.5 ns, beyond ± 12 ns') -and $o10['en-ref'].Contains('disk factor; head 1: median gap +12.5 ns') -and
+          -not ($o10['en-ok'] + $o10['en-ref']).Contains(' ; ') -and $o10['fr-ok'].Contains(' : tête 0 -4,5 ns ; tête 1 -3,0 ns ; ajouté aux prochaines écritures') -and $o10['fr-ref'].Contains('facteur de la disquette ; tête 1 : écart médian +12,5 ns'))
+Chk 'O10' $o10ok "anglais : « $($o10['en-ok']) » ; « $($o10['en-ref']) » ; francais : « $($o10['fr-ok']) »"
 
 # =====================================================================================================================
 # M : memoire de l ecriture

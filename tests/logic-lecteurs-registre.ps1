@@ -1293,7 +1293,9 @@ $t019 = [System.IO.File]::ReadAllText((Get-LnModule $mods '019'), [System.Text.E
 $lnbAt = ([System.IO.File]::ReadAllText((Get-LnModule $mods '112'), [System.Text.Encoding]::UTF8)).IndexOf('# ============================== LN-b')
 if ($lnbAt -lt 0) { $lnbAt = [int]::MaxValue }
 $used112 = @((Get-LnAst (Get-LnModule $mods '112')).FindAll({ param($x) $x -is $tCmd -and $x.GetCommandName() -eq 'T' -and $x.Extent.StartOffset -lt $lnbAt }, $true) | ForEach-Object { [string]$_.CommandElements[1].Value } | Sort-Object -Unique)
-$known = @($TX.Keys | ForEach-Object { Fr $_ }) + @('aucune', 'aucun', 'Ancienne sauvegarde de configuration supprimée ({1} gardées) : {0}')
+# 12.11 (version finale) : separateur des listes T(' ; ') (cle de la section L10 de 019), reemploye par la ligne de la copie
+# de secours
+$known = @($TX.Keys | ForEach-Object { Fr $_ }) + @('aucune', 'aucun', 'Ancienne sauvegarde de configuration supprimée ({1} gardées) : {0}', ' ; ')
 $unk = @($used112 | Where-Object { $known -cnotcontains $_ })
 Chk 'I3' ($i3.Count -eq 0 -and $unk.Count -eq 0 -and $t019.Contains('# --- LN-a : lecteurs enregistres, socle sans interface')) "$(@($TX.Keys).Count) textes du socle : entree anglaise mot pour mot (section « LN-a » de 019), memes parametres {n} ; chaque cle de T() du module 112 est l un d eux ou une cle existante reemployee ; ecarts : $(@($i3 + $unk) -join ', ')"
 # I5 : la vue n est ecrite que par 240 ; le registre et last ne sont ecrits que par les fonctions du module 112
