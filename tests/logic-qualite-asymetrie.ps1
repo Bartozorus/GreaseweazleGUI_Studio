@@ -29,13 +29,16 @@ $Wt = Get-TestRoot $Wt
 #           fin de ligne, en-tete, anglais, douze colonnes sans asymetrie attendue ; X7 la mesure simple de l onglet
 #           reste inchangee sur les memes pistes, et seul l affichage du controle pose l asymetrie attendue (arbre
 #           syntaxique de tous les modules) ; X8 infobulle de la carte et couleur des lignes au journal ; X9 table I18n ;
-#  Y1 a Y7  12.11 rc6 (R14) : asymetrie attendue visible dans l onglet. Y1 ecart median en ns (constante du modele) ; Y2
+#  Y1 a Y8  12.11 rc6 (R14) : asymetrie attendue visible dans l onglet. Y1 ecart median en ns (constante du modele) ; Y2
 #           ligne de la carte (Show-WriteCheckTable reelle, Get-AsymExpLine) : jugement, medianes, sous- ou
 #           sur-compensee d environ N ns, forme courte, anglais, rien sans asymetrie attendue ; Y3 colonnes « Attendue » et
 #           « Ecart » du tableau, retirees sans exces memorise, par une mesure et a la reinitialisation ; Y4 carte
 #           (Get-QualityCardModel reelle) : ligne, encre du jugement, grisee, mesure sans ligne ; Y5 place de la ligne
 #           (Set-QualityCardRoom reelle, positions lues dans 530, vrais controles jamais affiches) ; Y6 textes entiers a la
 #           taille par defaut (ligne de la carte, en-tetes et cases des colonnes, polices lues dans 195 et 500) ; Y7 I18n ;
+#           Y8 (12.11 finale, affichage) ordre d affichage des colonnes (« Asym. », « Attendue », « Ecart » apres « Etat »),
+#           rangee du guide et ligne du guide ou des zones instables reservees seulement quand elles servent
+#           (Set-QualityRowsRoom reelle composee avec Set-QualityCardRoom, positions lues dans 530) ;
 #  Z1 a Z8  12.11 rc7 (R16) : correction par zones, jeu fictif de 160 pistes passe par la vraie Invoke-WriteCheckAnalysis.
 #           Z1 piste isolee, deux voisines, 9 cylindres : aucune zone ; 10 cylindres : une zone ; trou de pistes faibles
 #           (plus de 2 cylindres : suite coupee) ; Z2 zones, plafond, commandes de la passe 1 ; Z3 acceptation, repli,
@@ -630,10 +633,10 @@ Chk 'X9' ($badX.Count -eq 0) "sept textes du lot dans la section « rc4 » de 01
 # ---------------------------------------------------------------- Y : asymetrie attendue dans l onglet (R14)
 "--- Y : asymetrie attendue dans l onglet (12.11 rc6, R14)"
 # Fonctions de la carte (195) absentes de la source de la 12.10 : chargees a part, comme Get-RepAsymExcess
-$fdY = @((Get-Ast (Join-Path $mods '195-fn-qualite-affichage.ps1')).FindAll({ param($x) $x -is $tFn -and @('Set-QualityCardRoom', 'Get-QualFitText', 'Update-QualityView', 'Render-QualityCard') -contains $x.Name }, $false))
+$fdY = @((Get-Ast (Join-Path $mods '195-fn-qualite-affichage.ps1')).FindAll({ param($x) $x -is $tFn -and @('Set-QualityCardRoom', 'Get-QualFitText', 'Update-QualityView', 'Render-QualityCard', 'Set-QualityRowsRoom') -contains $x.Name }, $false))
 $defsY = @{}; foreach ($fd in $fdY) { $defsY[$fd.Name] = $fd.Extent.Text }
 $genY = Join-Path $here 'gen-r14.ps1'
-[System.IO.File]::WriteAllText($genY, (($defsY['Set-QualityCardRoom'], $defsY['Get-QualFitText']) -join "`r`n`r`n") + "`r`n", $utf8Bom)
+[System.IO.File]::WriteAllText($genY, (($defsY['Set-QualityCardRoom'], $defsY['Get-QualFitText'], $defsY['Set-QualityRowsRoom']) -join "`r`n`r`n") + "`r`n", $utf8Bom)   # 12.11 finale : Set-QualityRowsRoom (Y8)
 . $genY
 # Y1 : ecart median en ns (constante du modele) : X5 (ecart +0,004 partout, cellule 2000 ns) : 4 ns ; $repH (tete 0 +0,004,
 # tete 1 +0,024) : mediane de 4 et 24 = 14 ns ; exces de 60 ns (attendue 0,060, mesurees 0,034 et 0,044) : -21 ns
@@ -778,6 +781,58 @@ foreach ($p in @(
     if (-not ([string]$script:I18n[$p[0]] -ceq $p[1]) -or $iRc6 -lt 0 -or $at -lt $iRc6 -or $ph1 -ne $ph2) { $badY += $p[0] }
 }
 Chk 'Y7' ($badY.Count -eq 0) "treize textes du lot dans la section « rc6 » (R14) de 019, memes jalons : en defaut $(if ($badY.Count) { $badY -join ' | ' } else { 'aucun' })"
+# Y8 (12.11 finale, affichage) : colonnes « Asym. », « Attendue » et « Ecart » affichees juste apres « Etat » (ordre
+# d affichage seulement : index, cases et largeurs inchanges), ordre de toujours sans elles et apres deux ajouts ; rangee
+# du guide et ligne $lblAlReco reservees seulement quand elles servent (vraie Set-QualityRowsRoom, composee avec la vraie
+# Set-QualityCardRoom ; positions et hauteurs lues dans 530, vrais controles jamais affiches) : bas du tableau fixe
+$dispOrd = { (@(@($lvAl.Columns) | Sort-Object { $_.DisplayIndex } | ForEach-Object { $_.Text }) -join ' ') }
+Reset-State
+$null = Show-WriteCheckTable (New-CheckRepX @{ 0 = [int[]]@(60); 1 = [int[]]@(60) })
+$o12 = & $dispOrd; Set-AlExpColumns $true; $o12b = & $dispOrd
+$i12 = (@(@($lvAl.Columns) | ForEach-Object { $_.Text }) -join ' ')
+$null = Show-WriteCheckTable (New-CheckRepX $null); $o10 = & $dispOrd
+$idx10 = (@(@($lvAl.Columns) | ForEach-Object { "$($_.Index)=$($_.DisplayIndex)" }) -join ' ')
+$y8a = ($o12 -ceq 'Piste État Asym. Attendue Écart Erreurs Trous Stab Jitter ns Score vs réf Cell ns' -and $o12b -ceq $o12 -and
+        $i12 -ceq 'Piste État Erreurs Trous Stab Jitter ns Score vs réf Asym. Cell ns Attendue Écart' -and
+        $o10 -ceq 'Piste État Erreurs Trous Stab Jitter ns Score vs réf Asym. Cell ns' -and $idx10 -ceq '0=0 1=1 2=2 3=3 4=4 5=5 6=6 7=7 8=8 9=9')
+$posR = @{}
+foreach ($n in 'pnlQualCard', 'lblAlReco', 'lvAl') { $mm = [regex]::Match($s530, "\`$$n\.Location = '(\d+),(\d+)'; \`$$n\.Size = '(\d+),(\d+)'"); if ($mm.Success) { $posR[$n] = @([int]$mm.Groups[2].Value, [int]$mm.Groups[4].Value) } }
+$mRow = [regex]::Match($s530, '\$script:AlGuideRowH = (\d+); \$script:AlBannerRowH = (\d+)')
+$y8b = $false; $y8d = 'positions ou hauteurs de rangee introuvables dans 530'
+if ($posR.Count -eq 3 -and $mRow.Success -and $defsY['Set-QualityRowsRoom']) {
+    $gR = [int]$mRow.Groups[1].Value; $bR = [int]$mRow.Groups[2].Value
+    $lvKeep = $lvAl
+    $pnlQualCard = New-Object System.Windows.Forms.Panel; $pnlQualCard.Top = $posR.pnlQualCard[0]; $pnlQualCard.Height = $posR.pnlQualCard[1]
+    $lblAlReco = New-Object System.Windows.Forms.Label; $lblAlReco.Top = $posR.lblAlReco[0]; $lblAlReco.Height = $posR.lblAlReco[1]; $lblAlReco.Visible = $false
+    $lvAl = New-Object System.Windows.Forms.ListView; $lvAl.Top = $posR.lvAl[0]; $lvAl.Height = $posR.lvAl[1]
+    $chkAlGuide = New-Object System.Windows.Forms.CheckBox
+    $script:QualCardRoom = 0; $script:AlGuideRowH = $gR; $script:AlBannerRowH = $bR; $script:AlGuideRoom = 0; $script:AlBannerRoom = 0
+    $snapR = { "$($pnlQualCard.Top)/$($pnlQualCard.Height) $($lblAlReco.Top)/$([int]$lblAlReco.Visible) $($lvAl.Top)/$($lvAl.Height)/$($lvAl.Bottom)" }
+    $c0 = $posR.pnlQualCard[0]; $ch = $posR.pnlQualCard[1]; $r0 = $posR.lblAlReco[0]; $v0 = $posR.lvAl[0]; $bot = $posR.lvAl[0] + $posR.lvAl[1]
+    $r = @()
+    $r += & $snapR; Set-QualityRowsRoom; $r += & $snapR                                                          # 0, 1 : rien
+    $lblAlReco.Visible = $true; $lblAlReco.Text = 'bandeau fictif'; Set-QualityRowsRoom; $r += & $snapR          # 2 : bandeau
+    $chkAlGuide.Checked = $true; Set-QualityRowsRoom; $r += & $snapR                                             # 3 : guide
+    Set-QualityCardRoom $true; $r += & $snapR                                                                    # 4 : ligne 3
+    $chkAlGuide.Checked = $false; Set-QualityRowsRoom; $r += & $snapR                                            # 5 : bandeau seul
+    $lblAlReco.Text = ''; Set-QualityRowsRoom; $r += & $snapR                                                    # 6 : texte efface
+    Set-QualityRowsRoom; $r += & $snapR                                                                          # 7 : second appel
+    Set-QualityCardRoom $false; $r += & $snapR                                                                   # 8 : retour
+    $want = @("$c0/$ch $r0/0 $v0/$($bot - $v0)/$bot", "$c0/$ch $r0/0 $v0/$($bot - $v0)/$bot",
+              "$c0/$ch $r0/1 $($v0 + $bR)/$($bot - $v0 - $bR)/$bot",
+              "$($c0 + $gR)/$ch $($r0 + $gR)/1 $($v0 + $gR + $bR)/$($bot - $v0 - $gR - $bR)/$bot",
+              "$($c0 + $gR)/$($ch + 20) $($r0 + $gR + 20)/1 $($v0 + $gR + $bR + 20)/$($bot - $v0 - $gR - $bR - 20)/$bot",
+              "$c0/$($ch + 20) $($r0 + 20)/1 $($v0 + $bR + 20)/$($bot - $v0 - $bR - 20)/$bot",
+              "$c0/$($ch + 20) $($r0 + 20)/0 $($v0 + 20)/$($bot - $v0 - 20)/$bot", "$c0/$($ch + 20) $($r0 + 20)/0 $($v0 + 20)/$($bot - $v0 - 20)/$bot",
+              "$c0/$ch $r0/0 $v0/$($bot - $v0)/$bot")
+    $bad = @(); for ($i = 0; $i -lt $want.Count; $i++) { if ($r[$i] -cne $want[$i]) { $bad += "$i : $($r[$i]) (attendu $($want[$i]))" } }
+    # Places de 530 : tableau 4 px sous la carte ; ligne 3 px sous la carte, tableau 4 px sous elle quand elle sert
+    $gaps = ($v0 -eq $c0 + $ch + 4 -and $r0 -ge $c0 + $ch + 3 -and $r0 + $posR.lblAlReco[1] + 4 -eq $v0 + $bR)
+    $y8b = ($bad.Count -eq 0 -and $gaps -and $script:AlGuideRoom -eq 0 -and $script:AlBannerRoom -eq 0)
+    $y8d = "sequence : $($r -join ' | ') ; ecarts a l attendu : $(if ($bad.Count) { $bad -join ' ; ' } else { 'aucun' }) ; ecarts de 530 ($gaps)"
+    $lvAl = $lvKeep; $pnlQualCard = $null; $lblAlReco = $null; $chkAlGuide = $null; $script:QualCardRoom = 0; $script:AlGuideRoom = 0; $script:AlBannerRoom = 0
+}
+Chk 'Y8' ($y8a -and $y8b) "ordre d affichage : controle pour un lecteur cible « $o12 » (index « $i12 ») ; sans exces « $o10 » ($idx10) ($y8a) ; rangees reservees : $y8d"
 
 # ---------------------------------------------------------------- Z : correction par zones (R16)
 "--- Z : correction par zones d une ecriture pour un lecteur cible (12.11 rc7, R16)"

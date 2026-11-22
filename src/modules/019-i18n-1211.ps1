@@ -689,3 +689,6 @@ $script:I18n["Contrôle après écriture : zone(s) écartée(s) de l'attendu sur
 # --- Version finale : infobulle de la liste « Lecteur : » du bandeau (510), a la place de celle de 010 : plus de detection
 # des lecteurs au demarrage (rc3, R3)
 $script:I18n["A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0 à 3 = bus Shugart (nappe droite) - typiquement le lecteur Amiga`nAu démarrage, l'application ne cherche pas les lecteurs : elle reprend la connexion choisie à la session précédente.`nLa carte « Tester le Greaseweazle » de l'Accueil dit quelles connexions répondent."] = "A/B = IBM-PC bus (twisted cable) - typically the PC drive`n0 to 3 = Shugart bus (straight cable) - typically the Amiga drive`nAt startup, the application does not look for drives: it restores the connection chosen in the previous session.`nThe `"Test the Greaseweazle`" card on the Home tab tells which connections respond."
+
+# 12.11 finale, affichage : infobulle des boutons a icone seule de « Diskdefs : » (onglets Ecriture et Lecture, 520 et 530)
+$script:I18n['Choisir un fichier diskdefs (*.cfg) : définitions de formats personnalisées, passées à gw par --diskdefs.'] = 'Choose a diskdefs file (*.cfg): custom format definitions, passed to gw with --diskdefs.'

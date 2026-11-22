@@ -985,11 +985,16 @@ function Get-AsymExpLine($s, $For, [switch]$Short, [switch]$Compact) {
 function Set-AlExpColumns([bool]$on) {
     # 12.11 rc6 (R14) : colonnes « Attendue » et « Ecart » du tableau de l onglet Qualite (asymetrie attendue et ecart
     # mesuree - attendue, signes), en fin de ligne pour ne deplacer aucune autre colonne ; seulement pour le controle d une
-    # ecriture destinee a un lecteur cible (Show-WriteCheckTable, 170) ; retirees pour une mesure et a la reinitialisation
+    # ecriture destinee a un lecteur cible (Show-WriteCheckTable, 170) ; retirees pour une mesure et a la reinitialisation.
+    # 12.11 finale (affichage) : affichees juste apres « Etat », avec « Asym. » (ordre d affichage seulement : index, cases
+    # et export inchanges) : les douze colonnes ne tiennent pas dans la largeur visible du tableau a la taille par defaut
+    # (757 px ; « Etat » de 222 px et plus), ces trois-la restent visibles sans defilement ; retirees : ordre de toujours
     if ($on -and $lvAl.Columns.Count -eq 10) {
         [void]$lvAl.Columns.Add((T 'Attendue'), 80); [void]$lvAl.Columns.Add((T 'Écart'), 70)
+        $lvAl.Columns[8].DisplayIndex = 2; $lvAl.Columns[10].DisplayIndex = 3; $lvAl.Columns[11].DisplayIndex = 4
     } elseif (-not $on) {
         while ($lvAl.Columns.Count -gt 10) { $lvAl.Columns.RemoveAt($lvAl.Columns.Count - 1) }
+        if ($lvAl.Columns.Count -eq 10) { $lvAl.Columns[8].DisplayIndex = 8 }
     }
 }
 

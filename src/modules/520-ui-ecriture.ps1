@@ -361,6 +361,7 @@ $txtWDiskdefs = New-Object System.Windows.Forms.TextBox
 $txtWDiskdefs.Location = '78,134'; $txtWDiskdefs.Width = 184
 $btnWDiskdefs = New-Object System.Windows.Forms.Button
 $btnWDiskdefs.Text = '...'; $btnWDiskdefs.Location = '266,134'; $btnWDiskdefs.Width = 32
+$tip.SetToolTip($btnWDiskdefs, (T 'Choisir un fichier diskdefs (*.cfg) : définitions de formats personnalisées, passées à gw par --diskdefs.'))   # 12.11 finale (affichage) : bouton a icone seule (540)
 $btnWDiskdefs.Add_Click({
     $d = New-Object System.Windows.Forms.OpenFileDialog
     $d.Filter = (T 'diskdefs|*.cfg|Tous|*.*'); $d.InitialDirectory = $script:AppDir

@@ -46,6 +46,7 @@ $txtRDiskdefs = New-Object System.Windows.Forms.TextBox
 $txtRDiskdefs.Location = '250,135'; $txtRDiskdefs.Width = 325
 $btnRDiskdefs = New-Object System.Windows.Forms.Button
 $btnRDiskdefs.Text = '...'; $btnRDiskdefs.Location = '580,134'; $btnRDiskdefs.Width = 30
+$tip.SetToolTip($btnRDiskdefs, (T 'Choisir un fichier diskdefs (*.cfg) : définitions de formats personnalisées, passées à gw par --diskdefs.'))   # 12.11 finale (affichage) : bouton a icone seule (540)
 $btnRDiskdefs.Add_Click({
     $d = New-Object System.Windows.Forms.OpenFileDialog
     $d.Filter = (T 'diskdefs|*.cfg|Tous|*.*'); $d.InitialDirectory = $script:AppDir
@@ -230,9 +231,16 @@ $script:AlFg = @{
     3 = [System.Drawing.Color]::White
 }
 $script:AlNames = @{ 0='EXCELLENT'; 1=(T 'BON'); 2=(T 'MOYEN'); 3=(T 'MAUVAIS') }
+# 12.11 finale (affichage) : rangee des boutons du guide et ligne du guide ou des zones instables ($lblAlReco) reservees
+# seulement quand elles servent (Set-QualityRowsRoom, 195) : hauteur de chacune avec ses ecarts (boutons de 26 px et 4 px ;
+# ligne de 21 px, 3 px au-dessus et 4 px au-dessous, au lieu des 4 px entre carte et tableau), place reservee courante
+$script:AlGuideRowH = 30; $script:AlBannerRowH = 24
+$script:AlGuideRoom = 0; $script:AlBannerRoom = 0
 
+# 12.11 finale (affichage) : rangee 1 : liste a 170 px (« Standard (0-70 pas 10) » entier), champ des cylindres a 160 px,
+# liste des tetes et suite decalees : aucun libelle ne touche son champ, en francais et en anglais
 $cmbAlPreset = New-Object System.Windows.Forms.ComboBox
-$cmbAlPreset.Location = '70,11'; $cmbAlPreset.Width = 160; $cmbAlPreset.DropDownStyle = 'DropDownList'
+$cmbAlPreset.Location = '70,11'; $cmbAlPreset.Width = 170; $cmbAlPreset.DropDownStyle = 'DropDownList'
 [void]$cmbAlPreset.Items.AddRange(@((T 'Rapide (5 cylindres)'),(T 'Standard (0-70 pas 10)'),(T 'Complet (0-79)'),(T 'Personnalisé')))
 $tip.SetToolTip($cmbAlPreset, (T "Rapide : contrôle en 30 s. Standard : tri de collection. Complet : état exhaustif d'une disquette (2-3 min)."))
 $cmbAlPreset.Add_SelectedIndexChanged({
@@ -245,24 +253,24 @@ $cmbAlPreset.Add_SelectedIndexChanged({
 Register-SettingCtl 'alignPreset' $cmbAlPreset   # 12.8 (point 7) : enregistre par son code (align.presetCode), plus par son texte traduit
 
 $txtAlCyls = New-Object System.Windows.Forms.TextBox
-$txtAlCyls.Location = '305,11'; $txtAlCyls.Width = 170
+$txtAlCyls.Location = '315,11'; $txtAlCyls.Width = 160
 $tip.SetToolTip($txtAlCyls, (T 'Cylindres mesurés (0-83), séparés par des virgules.'))
 $txtAlCyls.Add_TextChanged({ if ($cmbAlPreset.SelectedIndex -ne 3 -and $txtAlCyls.Focused) { $cmbAlPreset.SelectedIndex = 3 } })
 
 $cmbAlHead = New-Object System.Windows.Forms.ComboBox
-$cmbAlHead.Location = '530,11'; $cmbAlHead.Width = 55; $cmbAlHead.DropDownStyle = 'DropDownList'
+$cmbAlHead.Location = '537,11'; $cmbAlHead.Width = 55; $cmbAlHead.DropDownStyle = 'DropDownList'
 [void]$cmbAlHead.Items.AddRange(@('0','1','0+1'))
 
 $numAlRevs = New-Object System.Windows.Forms.NumericUpDown
-$numAlRevs.Location = '645,11'; $numAlRevs.Width = 45
+$numAlRevs.Location = '648,11'; $numAlRevs.Width = 45
 $numAlRevs.Minimum = 1; $numAlRevs.Maximum = 10
 $tip.SetToolTip($numAlRevs, (T "Tours lus par piste : 3 suffit, 5 pour une disquette douteuse. En double densité et à partir de 3 tours, la stabilité compare des tours alignés ; avec 2, elle compare le nombre de flux de chaque tour, que l'index de certains lecteurs fait varier."))   # 12.8.2
 
 $chkAlLoop = New-Object System.Windows.Forms.CheckBox
-$chkAlLoop.Text = (T 'Continu'); $chkAlLoop.Location = '700,12'; $chkAlLoop.Width = 75
+$chkAlLoop.Text = (T 'Continu'); $chkAlLoop.Location = '703,12'; $chkAlLoop.Width = 75
 $tip.SetToolTip($chkAlLoop, (T 'Répète la mesure en boucle (réglage mécanique). STOP pour arrêter.'))
 $numAlPause = New-Object System.Windows.Forms.NumericUpDown
-$numAlPause.Location = '700,36'; $numAlPause.Width = 45; $numAlPause.Visible = $false
+$numAlPause.Location = '703,36'; $numAlPause.Width = 45; $numAlPause.Visible = $false
 $numAlPause.Minimum = 0; $numAlPause.Maximum = 60
 
 $btnAlStart = New-Object System.Windows.Forms.Button
@@ -279,7 +287,9 @@ $btnAlStart.Add_Click({
 })
 
 $btnAlRef = New-Object System.Windows.Forms.Button
-$btnAlRef.Text = (T 'Fixer comme référence'); $btnAlRef.Location = '240,40'; $btnAlRef.Size = '175,40'
+# 12.11 finale (affichage) : 190 px (texte francais entier sans elargissement par Fit-ControlText), « Reinitialiser » et
+# la case du guide a sa suite
+$btnAlRef.Text = (T 'Fixer comme référence'); $btnAlRef.Location = '240,40'; $btnAlRef.Size = '190,40'
 $tip.SetToolTip($btnAlRef, (T "Mémorise la dernière mesure comme référence (ex. : lecteur Amiga sur la même disquette).`nLes mesures suivantes affichent l'écart en %."))
 $btnAlRef.Add_Click({
     if (-not $script:AlignLast) { [void](Show-AppMessage (T 'Faites d''abord une mesure.') (T 'Référence') 'OK' 'Information'); return }
@@ -291,7 +301,7 @@ $btnAlRef.Add_Click({
 })
 
 $btnAlReset = New-Object System.Windows.Forms.Button
-$btnAlReset.Text = (T 'Réinitialiser'); $btnAlReset.Location = '424,40'; $btnAlReset.Size = '120,40'
+$btnAlReset.Text = (T 'Réinitialiser'); $btnAlReset.Location = '438,40'; $btnAlReset.Size = '120,40'
 $tip.SetToolTip($btnAlReset, (T 'Efface le meilleur score, la tendance, la référence et le guide.'))
 $btnAlReset.Add_Click({
     $script:AlignBest = @{}; $script:AlignPrev = $null; $script:AlignRef = $null; $script:AlignLast = $null; $script:AlignLastInfo = $null
@@ -303,22 +313,25 @@ $btnAlReset.Add_Click({
 })
 
 $chkAlGuide = New-Object System.Windows.Forms.CheckBox
-$chkAlGuide.Text = (T 'Mode réglage du lecteur (guide)'); $chkAlGuide.Location = '556,48'; $chkAlGuide.Width = 220
+$chkAlGuide.Text = (T 'Mode réglage du lecteur (guide)'); $chkAlGuide.Location = '566,48'; $chkAlGuide.Width = 220
 $tip.SetToolTip($chkAlGuide, (T 'Affiche les boutons du guide d''alignement (positions du stepper, recommandations avancer/reculer).'))
 $chkAlGuide.Add_CheckedChanged({
     $v = $chkAlGuide.Checked
     $btnAlPos0.Visible = $v; $btnAlPlus.Visible = $v; $btnAlMinus.Visible = $v; $lblAlPos.Visible = $v; $lblAlReco.Visible = $v
     $numAlPause.Visible = $v
+    Set-QualityRowsRoom                                  # 12.11 finale (affichage) : rangee du guide et ligne du guide
 })
 
+# 12.11 finale (affichage) : sous le bouton MESURER, sans le chevaucher (y = 78 en 12.10 : 2 px sur lui)
 $lblAlRef = New-Object System.Windows.Forms.Label
-$lblAlRef.Location = '10,78'; $lblAlRef.AutoSize = $true; $lblAlRef.Text = (T 'Aucune référence'); $lblAlRef.ForeColor = 'Gray'
+$lblAlRef.Location = '10,80'; $lblAlRef.AutoSize = $true; $lblAlRef.Text = (T 'Aucune référence'); $lblAlRef.ForeColor = 'Gray'
 
 # 12.10 : export du tableau des pistes (Export-AlignTable, 190) : bouton de 26 px a droite de la ligne de la reference, seule
 # place libre (ligne des boutons pleine jusqu a x = 776, carte de resultat des y = 126), a la hauteur des boutons du guide
-# (26 px, meme exception a la regle des deux hauteurs) ; menu contextuel et Ctrl+C du tableau plus bas (Copy-AlignTable)
+# (26 px, meme exception a la regle des deux hauteurs) ; menu contextuel et Ctrl+C du tableau plus bas (Copy-AlignTable).
+# 12.11 finale (affichage) : sous la case du guide (y = 72), 29 px, sa hauteur preferee
 $btnAlExport = New-Object System.Windows.Forms.Button
-$btnAlExport.Text = (T 'Exporter le tableau'); $btnAlExport.Location = '648,74'; $btnAlExport.Size = '130,26'; $btnAlExport.Anchor = 'Top,Right'
+$btnAlExport.Text = (T 'Exporter le tableau'); $btnAlExport.Location = '648,72'; $btnAlExport.Size = '130,29'; $btnAlExport.Anchor = 'Top,Right'
 $tip.SetToolTip($btnAlExport, (T "Enregistre le tableau des pistes dans un fichier CSV (séparateur de la langue du poste) ou texte tabulé, précédé de l'en-tête du résultat. Clic droit sur le tableau ou Ctrl+C : copie dans le presse-papiers."))
 $btnAlExport.Add_Click({
     if ($lvAl.Items.Count -eq 0) { Append-Log (T 'Qualité : aucun tableau à exporter (lancez une mesure ou un contrôle).'); return }
@@ -333,21 +346,23 @@ $btnAlExport.Add_Click({
 
 # --- Guide (visible en mode reglage). 12.8 (lot 5) : exception ecrite a la regle des deux hauteurs (34 et 40 px) : 26 px,
 # seule hauteur qui tient entre la reference (y = 78) et la carte de qualite (y = 126, maquette D14 verifiee par la
-# suite quality, Q0)
+# suite quality, Q0). 12.11 finale (affichage) : rangee sous la reference (y = 104) ; la carte et le tableau descendent
+# de AlGuideRowH px quand elle est affichee, et seulement alors (Set-QualityRowsRoom, 195) ; largeurs du francais (texte
+# entier sans elargissement par Fit-ControlText, qui les faisait se chevaucher de 4 px)
 $btnAlPos0 = New-Object System.Windows.Forms.Button
-$btnAlPos0.Text = (T 'Repère (position 0)'); $btnAlPos0.Location = '10,96'; $btnAlPos0.Size = '155,26'; $btnAlPos0.Visible = $false
+$btnAlPos0.Text = (T 'Repère (position 0)'); $btnAlPos0.Location = '10,104'; $btnAlPos0.Size = '166,26'; $btnAlPos0.Visible = $false
 $tip.SetToolTip($btnAlPos0, (T "Point de départ : stepper à sa position d'origine (trait de repère). Mesure la position 0 et démarre le guide."))
 $btnAlPos0.Add_Click({ $script:AlPos = 0; $script:AlLastMove = 0; $script:AlPosScores = @{}; $script:AlignLoop = $false; Start-AlignCycle })
 $btnAlPlus = New-Object System.Windows.Forms.Button
-$btnAlPlus.Text = (T "J'ai tourné +1 cran"); $btnAlPlus.Location = '172,96'; $btnAlPlus.Size = '160,26'; $btnAlPlus.Visible = $false
+$btnAlPlus.Text = (T "J'ai tourné +1 cran"); $btnAlPlus.Location = '180,104'; $btnAlPlus.Size = '163,26'; $btnAlPlus.Visible = $false
 $tip.SetToolTip($btnAlPlus, (T "À cliquer APRÈS avoir tourné le stepper d'un petit cran dans le sens '+'. Lance la mesure."))
 $btnAlPlus.Add_Click({ if ($null -eq $script:AlPos) { $script:AlPos = 0 }; $script:AlPos += 1; $script:AlLastMove = 1; $script:AlignLoop = $false; Start-AlignCycle })
 $btnAlMinus = New-Object System.Windows.Forms.Button
-$btnAlMinus.Text = (T "J'ai tourné -1 cran"); $btnAlMinus.Location = '339,96'; $btnAlMinus.Size = '160,26'; $btnAlMinus.Visible = $false
+$btnAlMinus.Text = (T "J'ai tourné -1 cran"); $btnAlMinus.Location = '347,104'; $btnAlMinus.Size = '160,26'; $btnAlMinus.Visible = $false
 $tip.SetToolTip($btnAlMinus, (T "À cliquer APRÈS avoir tourné le stepper d'un petit cran dans le sens '-'. Lance la mesure."))
 $btnAlMinus.Add_Click({ if ($null -eq $script:AlPos) { $script:AlPos = 0 }; $script:AlPos -= 1; $script:AlLastMove = -1; $script:AlignLoop = $false; Start-AlignCycle })
 $lblAlPos = New-Object System.Windows.Forms.Label
-$lblAlPos.Location = '508,101'; $lblAlPos.AutoSize = $true; $lblAlPos.Text = ''; $lblAlPos.ForeColor = 'Gray'; $lblAlPos.Visible = $false
+$lblAlPos.Location = '512,109'; $lblAlPos.AutoSize = $true; $lblAlPos.Text = ''; $lblAlPos.ForeColor = 'Gray'; $lblAlPos.Visible = $false
 
 # --- Carte de resultat (12.8, lot 3b, variante A : D14) : score de lecture (barres de signal, niveau, tendance) a gauche,
 # etat du support a droite, pastille « en cours » ou « perime » (D16). Remplace le bandeau d etat et la ligne de score de
@@ -355,20 +370,28 @@ $lblAlPos.Location = '508,101'; $lblAlPos.AutoSize = $true; $lblAlPos.Text = '';
 # l infobulle (Update-QualityView)
 $pnlQualCard = New-Object System.Windows.Forms.Panel
 $pnlQualCard.Name = 'pnlQualCard'
-$pnlQualCard.Location = '10,126'; $pnlQualCard.Size = '768,58'; $pnlQualCard.Anchor = 'Top,Left,Right'
+# 12.11 finale (affichage) : y = 104 sans le guide (126 en 12.10 : rangee du guide reservee meme masquee)
+$pnlQualCard.Location = '10,104'; $pnlQualCard.Size = '768,58'; $pnlQualCard.Anchor = 'Top,Left,Right'
 $pnlQualCard.BackColor = [System.Drawing.Color]::White; $pnlQualCard.BackgroundImageLayout = 'None'
 $pnlQualCard.AccessibleRole = 'StaticText'
 $pnlQualCard.Add_Resize({ Render-QualityCard })
 
+# 12.11 finale (affichage) : ligne du guide ou des zones instables, 3 px sous la carte, 21 px (sa hauteur preferee) ; le
+# tableau ne descend sous elle que quand elle sert : guide affiche, ou ligne affichee avec un texte (Set-QualityRowsRoom,
+# 195, aussi a chaque changement de son texte ou de sa visibilite)
 $lblAlReco = New-Object System.Windows.Forms.Label
-$lblAlReco.Location = '10,188'; $lblAlReco.Size = '768,20'; $lblAlReco.Anchor = 'Top,Left,Right'
+$lblAlReco.Location = '10,165'; $lblAlReco.Size = '768,21'; $lblAlReco.Anchor = 'Top,Left,Right'
 $lblAlReco.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Bold)
 $lblAlReco.TextAlign = 'MiddleCenter'; $lblAlReco.Text = ''; $lblAlReco.ForeColor = 'DimGray'; $lblAlReco.Visible = $false
+$lblAlReco.Add_TextChanged({ Set-QualityRowsRoom })
+$lblAlReco.Add_VisibleChanged({ Set-QualityRowsRoom })
 
 # 12.10 (lot 1, D8) : graphique des scores par cylindre retire (D-Q5) : le tableau prend sa place (y = 210, 56 px de
-# plus) ; bas inchange (326), donc meme marge au bas de l onglet par l ancrage
+# plus) ; bas inchange (326), donc meme marge au bas de l onglet par l ancrage. 12.11 finale (affichage) : 4 px sous la
+# carte (y = 166), bas a 6 px du bas de l onglet (334) : a la taille par defaut, journal affiche, deux lignes entieres
+# apres le controle d une ecriture pour un lecteur cible (carte haute de QualCardLine3H px de plus, barre horizontale)
 $lvAl = New-Object System.Windows.Forms.ListView
-$lvAl.Location = '10,210'; $lvAl.Size = '768,116'; $lvAl.Anchor = 'Top,Bottom,Left,Right'
+$lvAl.Location = '10,166'; $lvAl.Size = '768,168'; $lvAl.Anchor = 'Top,Bottom,Left,Right'
 $lvAl.View = 'Details'; $lvAl.FullRowSelect = $true; $lvAl.GridLines = $false; $lvAl.Font = $monoBig
 $lvAl.OwnerDraw = $true; $lvAl.HeaderStyle = 'Nonclickable'
 $lvAl.BackColor = [System.Drawing.Color]::White
@@ -382,12 +405,18 @@ $lvAl.Add_DrawColumnHeader({
     $e.Graphics.DrawString($e.Header.Text, $bold, [System.Drawing.Brushes]::White, $r, (Get-QualSf $(if ($e.ColumnIndex -eq 0) { 'hnear' } else { 'hcenter' })))
 })
 $lvAl.Add_DrawSubItem({ param($s0, $e) Draw-AlSubItem $e $lvAl.Font })
+# 12.11 finale (affichage) : lignes de 22 px (image de 21 px ; 25 px avec 24), icones de 16 px inchangees : deux lignes
+# entieres a la taille par defaut apres le controle d une ecriture pour un lecteur cible (voir $lvAl)
 $imgRow = New-Object System.Windows.Forms.ImageList
-$imgRow.ImageSize = New-Object System.Drawing.Size(1, 24)
+$imgRow.ImageSize = New-Object System.Drawing.Size(1, 21)
 $lvAl.SmallImageList = $imgRow
-# 12.8 (lot 3b) : colonnes Etat et Score elargies pour l icone de 16 px (140 -> 162, 65 -> 80)
-foreach ($c in @(@((T 'Piste'),60),@((T 'État'),162),@((T 'Erreurs'),70),@((T 'Trous'),78),@('Stab',55),@((T 'Jitter ns'),80),@('Score',80),@((T 'vs réf'),70),@('Asym.',70),@((T 'Cell ns'),75))) {
-    [void]$lvAl.Columns.Add($c[0], $c[1])
+# 12.8 (lot 3b) : colonnes Etat et Score elargies pour l icone de 16 px (140 -> 162, 65 -> 80). 12.11 finale (affichage) :
+# largeurs au plus juste : au moins celle de l en-tete en gras dans la langue de l interface (mesure + 8 px, ses marges de
+# dessin), sinon celle des cases (texte de Consolas 10,5, marges, icone de la colonne Score) : les dix colonnes d une
+# mesure tiennent dans la largeur visible du tableau a la taille par defaut (757 px, barre verticale comprise ; colonne
+# Etat de 222 px, Show-AlignTable), en francais et en anglais
+foreach ($c in @(@((T 'Piste'),50),@((T 'État'),162),@((T 'Erreurs'),56),@((T 'Trous'),54),@('Stab',46),@((T 'Jitter ns'),56),@('Score',56),@((T 'vs réf'),62),@('Asym.',64),@((T 'Cell ns'),56))) {
+    [void]$lvAl.Columns.Add($c[0], [int][math]::Max([int]$c[1], [System.Windows.Forms.TextRenderer]::MeasureText([string]$c[0], $bold).Width + 8))
 }
 
 # 12.10 : clic droit et Ctrl+C sur le tableau : copie en tabulations (Copy-AlignTable, 190) ; export aussi au menu
@@ -405,8 +434,8 @@ $lvAl.Add_KeyDown({
     }
 })
 
-$tabAl.Controls.AddRange(@((New-Label (T 'Mesure :') '10,14'), $cmbAlPreset, (New-Label (T 'Cylindres :') '238,14'), $txtAlCyls,
-    (New-Label (T 'Têtes :') '488,14'), $cmbAlHead, (New-Label (T 'Tours :') '598,14'), $numAlRevs, $chkAlLoop, $numAlPause,
+$tabAl.Controls.AddRange(@((New-Label (T 'Mesure :') '10,14'), $cmbAlPreset, (New-Label (T 'Cylindres :') '248,14'), $txtAlCyls,
+    (New-Label (T 'Têtes :') '488,14'), $cmbAlHead, (New-Label (T 'Tours :') '600,14'), $numAlRevs, $chkAlLoop, $numAlPause,
     $btnAlStart, $btnAlRef, $btnAlReset, $chkAlGuide, $lblAlRef, $btnAlExport,
     $btnAlPos0, $btnAlPlus, $btnAlMinus, $lblAlPos, $pnlQualCard, $lblAlReco, $lvAl))
 Update-QualityView                                        # 12.8 (lot 3) : carte vide (« Aucune mesure »)

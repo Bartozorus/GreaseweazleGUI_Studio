@@ -400,8 +400,12 @@ function Show-AppConfirm([string]$Title, [string]$Heading, [string]$Text, [strin
     $fH = New-Object System.Drawing.Font('Segoe UI Semibold', 11); $gdi.Add($fH)
     $lblH = New-Object System.Windows.Forms.Label
     $lblH.Name = 'lblConfirmTitle'; $lblH.Text = $Heading; $lblH.UseMnemonic = $false; $lblH.Font = $fH; $lblH.ForeColor = $pal.Ink
+    # 12.11 finale (affichage) : hauteur du titre, la plus grande de la mesure du texte (+ 2) et de celle du Label, comme le
+    # texte ci-dessous : le Label compte 3 a 4 px de plus que la mesure, et le bas de la derniere ligne d un titre de deux
+    # lignes etait coupe (« Recaler la courbe croisee ... »)
     $hH = [System.Windows.Forms.TextRenderer]::MeasureText($Heading, $fH, (New-Object System.Drawing.Size($tw, 10000)), $tf).Height
-    $lblH.Location = New-Object System.Drawing.Point(118, 10); $lblH.Size = New-Object System.Drawing.Size($tw, ($hH + 2))
+    $hH = [math]::Max($hH + 2, $lblH.GetPreferredSize((New-Object System.Drawing.Size($tw, 0))).Height)
+    $lblH.Location = New-Object System.Drawing.Point(118, 10); $lblH.Size = New-Object System.Drawing.Size($tw, $hH)
     $lblT = New-Object System.Windows.Forms.Label
     $lblT.Name = 'lblConfirmText'; $lblT.Text = $Text; $lblT.UseMnemonic = $false; $lblT.ForeColor = $pal.Body; $lblT.Font = $dlg.Font
     # 12.10 (captures du wiki) : hauteur, la plus grande de la mesure du texte et de celle du Label (son propre decoupage

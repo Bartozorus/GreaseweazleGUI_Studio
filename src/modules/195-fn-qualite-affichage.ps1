@@ -490,6 +490,25 @@ function Set-QualityCardRoom([bool]$extra) {
     if ($lvAl) { $lvAl.Top += $d; $lvAl.Height -= $d }
 }
 
+function Set-QualityRowsRoom {
+    # 12.11 finale (affichage) : rangee des boutons du guide (AlGuideRowH px, sous la reference) reservee seulement guide
+    # affiche : la carte, la ligne $lblAlReco et le tableau descendent d autant ; ligne $lblAlReco (AlBannerRowH px, sous la
+    # carte) reservee seulement guide affiche, ou ligne affichee avec un texte (zones instables, Set-UnstableBanner, 190) :
+    # le tableau descend d autant. Bas du tableau fixe ; se compose avec Set-QualityCardRoom (decalages). Ligne vide hors
+    # guide : masquee (elle couvrirait le haut du tableau). Visible lu tel que l affiche la fenetre : onglet masque, ligne
+    # comptee absente, puis recalculee quand l onglet s affiche (VisibleChanged). Appels (530) : case du guide, texte et
+    # visibilite de $lblAlReco
+    if (-not $pnlQualCard -or -not $lblAlReco -or -not $lvAl -or -not $chkAlGuide) { return }
+    $guide = [bool]$chkAlGuide.Checked
+    $txt = [bool][string]$lblAlReco.Text
+    if (-not $guide -and -not $txt) { $lblAlReco.Visible = $false }
+    $dg = $(if ($guide) { [int]$script:AlGuideRowH } else { 0 }) - [int]$script:AlGuideRoom
+    $db = $(if ($guide -or ($txt -and $lblAlReco.Visible)) { [int]$script:AlBannerRowH } else { 0 }) - [int]$script:AlBannerRoom
+    $script:AlGuideRoom += $dg; $script:AlBannerRoom += $db
+    if ($dg -ne 0) { $pnlQualCard.Top += $dg; $lblAlReco.Top += $dg }
+    if ($dg + $db -ne 0) { $lvAl.Top += ($dg + $db); $lvAl.Height -= ($dg + $db) }
+}
+
 function Get-QualFitText([string]$long, [string]$short, $font, [int]$w, [string[]]$more = @()) {
     # Texte long s il tient sur $w px, sinon sa forme courte (sans les details repris dans l infobulle) ; 12.8 (FIX3) : puis
     # les formes plus courtes $more, dans l ordre ; aucune ne tient : la derniere (coupee par des points de suspension)
