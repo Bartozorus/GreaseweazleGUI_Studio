@@ -78,6 +78,15 @@ jobs:
             if ($in) { $out += $l }
           }
           $body = if ($out.Count -gt 0) { (($out -join "`n").Trim()) } else { "Voir le CHANGELOG du dépôt pour la version $ver." }
+          # Notes d'une release GitHub : 125 000 caractères au plus ; softprops/action-gh-release (v3) coupe le corps, notes
+          # générées comprises, sans avertissement. Au-delà de 120 000 caractères, la section « Pour les développeurs » est
+          # remplacée par un renvoi au CHANGELOG du dépôt ; encore trop long : échec explicite plutôt qu'une coupe muette.
+          $max = 120000
+          if ($body.Length -gt $max) {
+            $i = $body.IndexOf("`n### Pour les développeurs")
+            if ($i -gt 0) { $body = $body.Substring(0, $i).TrimEnd() + "`n`n### Pour les développeurs`n`nLe détail technique de cette version, trop long pour les notes de la release, est dans la section $ver de CHANGELOG.md, dans le dépôt." }
+            if ($body.Length -gt $max) { throw "Notes de la version $ver trop longues ($($body.Length) caractères, limite $max)." }
+          }
           if ($env:PRE -eq 'true') { $body = "> Préversion $($env:TAG) : version d'essai, publiée pour validation sur matériel réel avant la $ver définitive. La version recommandée reste la dernière version publiée.`n`n" + $body }
           [System.IO.File]::WriteAllText('release-notes.md', $body + "`n", (New-Object System.Text.UTF8Encoding($false)))
           Get-Content release-notes.md
