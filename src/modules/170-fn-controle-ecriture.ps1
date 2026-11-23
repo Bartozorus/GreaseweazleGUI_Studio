@@ -424,6 +424,8 @@ function Get-WriteZoneScan($rep) {
     # @{ H ; C0 ; C1 ; E0 ; Dz ; N (pistes retenues) ; State 'pending' ; E1 ; Tracks : pistes de la zone, Start-WriteZonePass }
     # Relecture rc7 : un cylindre sans piste retenue (piste faible, ignoree, non jugee, hors du controle) n est pas marque :
     # une suite s arrete apres plus de WriteZoneGap cylindres sans piste retenue, comme apres des cylindres non marques
+    # 12.11 (version finale, relecture du banc) : E0Map, cle -> e de chacune des N pistes retenues de la zone (celles de
+    # E0), pour juger la zone sur les memes pistes a sa relecture (Complete-WriteZonePass)
     $sMin = [double]$script:WriteZoneMinNs; $hw = [int]$script:WriteZoneHalfWin; $cap = [double]$script:WriteZoneCapNs
     foreach ($h in 0, 1) {
         $pl = New-Object System.Collections.Generic.List[object]
@@ -431,7 +433,7 @@ function Get-WriteZoneScan($rep) {
             $p = @(([string]$k) -split '\.')
             if ($p.Count -ne 2 -or [int]$p[1] -ne $h) { continue }
             $e = Get-WriteZoneGap $rep ([string]$k)
-            if ($null -ne $e) { $pl.Add(@{ C = [int]$p[0]; E = [double]$e }) }
+            if ($null -ne $e) { $pl.Add(@{ C = [int]$p[0]; E = [double]$e; K = [string]$k }) }
         }
         $pts = @($pl | Sort-Object -Property @{ Expression = { [int]$_.C } })
         $n = $pts.Count
@@ -461,7 +463,8 @@ function Get-WriteZoneScan($rep) {
             $md = [double](Get-Median $vals)
             if ([math]::Sign($md) -ne [int]$r.S -or [math]::Abs($md) -lt $sMin) { continue }
             $dz = [int][math]::Round([math]::Max(-$cap, [math]::Min($cap, -[double]$script:WriteZoneF * $md)))
-            @{ H = $h; C0 = $c0; C1 = $c1; E0 = $md; Dz = $dz; N = $vals.Count; State = 'pending'; E1 = $null; Tracks = @() }
+            $mp = @{}; for ($q = [int]$r.I0; $q -le [int]$r.I1; $q++) { $mp[[string]$pts[$q].K] = [double]$pts[$q].E }
+            @{ H = $h; C0 = $c0; C1 = $c1; E0 = $md; Dz = $dz; N = $vals.Count; E0Map = $mp; State = 'pending'; E1 = $null; Tracks = @() }
         }
     }
 }
@@ -529,7 +532,9 @@ function Start-WriteZonePass($rep, $zs) {
     # profil commun de Rep.Base en est retire et donne aux deux tetes, une reecriture par tete ensuite), pistes de chaque
     # zone (perimetre du controle, tete et cylindres de la zone, hors pistes ignorees et zones instables non jugees : ce que
     # le controle ne reecrit jamais), une ligne de journal. Rend les cles des pistes des zones (Invoke-WriteCheckAnalysis
-    # les ajoute aux pistes faibles de la passe : meme effacement, meme reecriture, meme relecture)
+    # les ajoute aux pistes faibles de la passe : meme effacement, meme reecriture, meme relecture). Version finale : les
+    # pistes faibles de la zone a la detection sont reecrites aussi, mais seules celles de E0Map jugent la zone
+    # (Complete-WriteZonePass)
     if ($null -eq $rep.HeadPrecomp) {
         $pc = Get-RepHeadSpec $rep 0
         $b = [string[]]@($rep.Base); $i = [array]::IndexOf($b, '--precomp')
@@ -606,27 +611,44 @@ function Get-WriteZoneHeadAdvice($rep, $zs) {
 function Complete-WriteZonePass($rep, $weak) {
     # 12.11 rc7 (R16) : analyse de la passe 1 d une correction par zones (Invoke-WriteCheckAnalysis, Round 1), sur la
     # relecture par le lecteur qui ecrit : par zone, E1, mediane de e (Get-WriteZoneGap : pistes SAINES, attendue du plan)
-    # sur ses pistes. Acceptee (State 'ok') si (E0 - E1) x signe(E0) >= WriteZoneAccept x |Dz| (rapprochee de l attendue
+    # sur ses pistes appariees (ci-dessous). Acceptee (State 'ok') si (E0P - E1) x signe(E0) >= WriteZoneAccept x |Dz|
+    # (rapprochee de l attendue
     # d au moins la moitie du decalage) et E1 x signe(E0) >= -WriteZoneMinNs (pas plus de 8 ns de l autre cote) ; sinon, ou
     # sans piste saine relue, reprise (State 'back') : profil d origine sur ses cylindres et ses pistes ajoutees aux pistes
     # faibles de la passe suivante. Une seule tentative par zone. Profils des passes suivantes : origine + zones acceptees.
     # Une ligne de journal par zone. Rend les pistes faibles de la passe suivante. Relecture rc7 : jugee sur
     # WriteZoneMinTracks pistes saines relues au moins, comme sa detection ; moins (pistes devenues faibles) : reprise
+    # 12.11 (version finale, relecture du banc) : jugement sur des pistes appariees, celles retenues a la detection (E0Map,
+    # Get-WriteZoneScan) et saines a la relecture (Get-WriteZoneGap non nul ; toutes relues : elles sont dans Tracks).
+    # E0P, mediane de leur e a la detection, remplace E0 dans le critere ; E1, mediane de leur e a la relecture ; NP, leur
+    # nombre (WriteZoneMinTracks au moins, sinon reprise). Une piste faible a la detection (reecrite, dans Tracks) ne compte
+    # pas, meme guerie : sur une zone dont l ecart change par paliers, elle deplacait la mediane de la relecture sans aucun
+    # effet de la correction (banc : relecture identique sur les pistes de E0, zone pourtant gardee) ; une piste devenue
+    # faible sort des deux medianes. E0 (detection) reste celui de la ligne des zones, du sens du critere et du conseil
+    # (Get-WriteZoneHeadAdvice) ; journal : E0P et, s il differe de E0, le nombre de pistes appariees
     $back = New-Object System.Collections.Generic.List[string]
     $nMin = [int]$script:WriteZoneMinTracks
     foreach ($z in @($rep.Zones)) {
         if ([string]$z.State -ne 'pending') { continue }
-        $vals = @(foreach ($k in @($z.Tracks)) { $e = Get-WriteZoneGap $rep ([string]$k); if ($null -ne $e) { [double]$e } })
+        $v0 = New-Object System.Collections.Generic.List[double]; $v1 = New-Object System.Collections.Generic.List[double]
+        if ($z.E0Map) { foreach ($k in @($z.E0Map.Keys)) { $e = Get-WriteZoneGap $rep ([string]$k); if ($null -ne $e) { $v0.Add([double]$z.E0Map[$k]); $v1.Add([double]$e) } } }
+        $np = $v1.Count; $z.NP = $np
         $ok = $false; $sg = [math]::Sign([double]$z.E0)
-        if ($vals.Count -gt 0) { $z.E1 = [double](Get-Median $vals) }
-        if ($vals.Count -ge $nMin) {
-            $ok = (([double]$z.E0 - [double]$z.E1) * $sg -ge [double]$script:WriteZoneAccept * [math]::Abs([int]$z.Dz) -and [double]$z.E1 * $sg -ge -[double]$script:WriteZoneMinNs)
+        if ($np -gt 0) { $z.E0P = [double](Get-Median $v0); $z.E1 = [double](Get-Median $v1) }
+        if ($np -ge $nMin) {
+            $ok = (([double]$z.E0P - [double]$z.E1) * $sg -ge [double]$script:WriteZoneAccept * [math]::Abs([int]$z.Dz) -and [double]$z.E1 * $sg -ge -[double]$script:WriteZoneMinNs)
         }
         $z.State = $(if ($ok) { 'ok' } else { 'back' })
         $e0 = Format-UiNum ([double]$z.E0) '+0.0;-0.0;0.0'; $dz = '{0:+0;-0;0}' -f [int]$z.Dz
-        if ($vals.Count -lt $nMin) { Append-Log ((T "Zone écartée de l'attendu, {0} : écart médian {1} ns avant la correction de {2} ns, {3} piste(s) saine(s) relue(s) après, il en faut {4} : correction reprise, courbe d'origine sur ces cylindres, pistes réécrites à la passe suivante.") -f (Format-WriteZone $z), $e0, $dz, "$($vals.Count)", "$nMin") }
-        elseif ($ok) { Append-Log ((T "Zone écartée de l'attendu, {0} : écart médian {1} ns avant, {2} ns après la correction de {3} ns (relecture par le lecteur {4}) : correction gardée.") -f (Format-WriteZone $z), $e0, (Format-UiNum ([double]$z.E1) '+0.0;-0.0;0.0'), $dz, "$($rep.TargetSrc)") }
-        else { Append-Log ((T "Zone écartée de l'attendu, {0} : écart médian {1} ns avant, {2} ns après la correction de {3} ns (relecture par le lecteur {4}) : correction reprise, courbe d'origine sur ces cylindres, pistes réécrites à la passe suivante.") -f (Format-WriteZone $z), $e0, (Format-UiNum ([double]$z.E1) '+0.0;-0.0;0.0'), $dz, "$($rep.TargetSrc)") }
+        if ($np -lt $nMin) { Append-Log ((T "Zone écartée de l'attendu, {0} : écart médian {1} ns avant la correction de {2} ns, {3} piste(s) saine(s) aux deux relectures, il en faut {4} : correction reprise, courbe d'origine sur ces cylindres, pistes réécrites à la passe suivante.") -f (Format-WriteZone $z), $e0, $dz, "$np", "$nMin") }
+        else {
+            $e0p = Format-UiNum ([double]$z.E0P) '+0.0;-0.0;0.0'; $e1 = Format-UiNum ([double]$z.E1) '+0.0;-0.0;0.0'
+            $same = ([double]$z.E0P -eq [double]$z.E0)
+            if ($ok -and $same) { Append-Log ((T "Zone écartée de l'attendu, {0} : écart médian {1} ns avant, {2} ns après la correction de {3} ns (relecture par le lecteur {4}) : correction gardée.") -f (Format-WriteZone $z), $e0p, $e1, $dz, "$($rep.TargetSrc)") }
+            elseif ($ok) { Append-Log ((T "Zone écartée de l'attendu, {0} : écart médian {1} ns avant, {2} ns après la correction de {3} ns (relecture par le lecteur {4}, sur les {5} pistes saines aux deux relectures) : correction gardée.") -f (Format-WriteZone $z), $e0p, $e1, $dz, "$($rep.TargetSrc)", "$np") }
+            elseif ($same) { Append-Log ((T "Zone écartée de l'attendu, {0} : écart médian {1} ns avant, {2} ns après la correction de {3} ns (relecture par le lecteur {4}) : correction reprise, courbe d'origine sur ces cylindres, pistes réécrites à la passe suivante.") -f (Format-WriteZone $z), $e0p, $e1, $dz, "$($rep.TargetSrc)") }
+            else { Append-Log ((T "Zone écartée de l'attendu, {0} : écart médian {1} ns avant, {2} ns après la correction de {3} ns (relecture par le lecteur {4}, sur les {5} pistes saines aux deux relectures) : correction reprise, courbe d'origine sur ces cylindres, pistes réécrites à la passe suivante.") -f (Format-WriteZone $z), $e0p, $e1, $dz, "$($rep.TargetSrc)", "$np") }
+        }
         if (-not $ok) { foreach ($k in @($z.Tracks)) { if (-not $back.Contains([string]$k)) { $back.Add([string]$k) } } }
     }
     $rep.ZonePass = $false

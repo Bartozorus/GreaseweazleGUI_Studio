@@ -169,9 +169,10 @@ $script:AsymExpInPct = 80
 # zone : WriteZoneMinCyl cylindres au moins, WriteZoneMinTracks pistes retenues au moins, mediane brute de e de meme signe
 # et de WriteZoneMinNs ns au moins. Correction : arrondi de -WriteZoneF x mediane, bornee a +/- WriteZoneCapNs ns, ajoutee
 # a la courbe ecrite de la tete sur les cylindres de la zone (0 a la borne de la courbe ecrite, une valeur nulle reste
-# nulle). Acceptee a la relecture par le lecteur qui ecrit si, sur WriteZoneMinTracks pistes saines au moins, l ecart
-# median s est rapproche de l attendue d au moins WriteZoneAccept x la correction, sans depasser WriteZoneMinNs ns de
-# l autre cote ; sinon courbe d origine. Un cylindre sans piste retenue n est pas marque. Valeurs au centre de la
+# nulle). Acceptee a la relecture par le lecteur qui ecrit si, sur WriteZoneMinTracks pistes saines au moins aux deux
+# relectures (version finale : medianes d avant et d apres sur ces memes pistes), l ecart median s est rapproche de
+# l attendue d au moins WriteZoneAccept x la correction, sans depasser WriteZoneMinNs ns de l autre cote ; sinon courbe
+# d origine. Un cylindre sans piste retenue n est pas marque. Valeurs au centre de la
 # region sans zone aggravee des trois essais (L de 8 a 12, S de 6 a 8, f de 0,5 a 0,6) ; f au plus 0,5 : rapport besoin
 # du lecteur cible / ecart du lecteur qui ecrit de 0,45 a 1,7 sur les six zones observees
 $script:WriteZoneHalfWin = 2

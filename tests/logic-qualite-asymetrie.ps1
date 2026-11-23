@@ -54,6 +54,12 @@ $Wt = Get-TestRoot $Wt
 #           l ecriture (How : mesure, facteur de la marque et geste de mesure, aucune consigne ; KSrc, precaution, ne change
 #           pas le texte), perimetre de chaque tete et pourcentage tronque (relecture), anglais ; Z10 vraie Invoke-WriteCheckAnalysis :
 #           ligne juste apres celle des zones, zones et commandes de la passe 1 inchangees ;
+#  Z11      12.11 (version finale, relecture du banc) : zone jugee sur les pistes saines aux deux relectures, medianes d avant
+#           et d apres sur ces memes pistes (vraies Invoke-WriteCheckAnalysis et Complete-WriteZonePass) : ecart par paliers,
+#           piste faible a la detection guerie, relecture identique : reprise, « 0 sur 1 » (scenario du banc) ; correction
+#           efficace : gardee ; pistes devenues faibles hors des deux medianes (reprise ou gardee, nombre de pistes au
+#           journal) ; 7 pistes appariees sur 15 saines : reprise, 8 : gardee ; bords exacts (Get-WriteZoneGap remplacee) :
+#           0,5 x |Dz|, 8 ns de l autre cote, deux sens ; textes ;
 #  Q0 a Q7  equivalence avec la 12.10, avec -Before <racine d une copie de la source de la 12.10> (aucune dans le depot ;
 #           sans elle, une ligne « saute ») : les memes pistes factices passent par les fonctions des deux versions,
 #           chacune chargee dans sa portee. Q1 mesure, deux passes (lignes du tableau au signe pres, derniere mesure,
@@ -1028,9 +1034,10 @@ function Test-ZAccept([double]$e1, [switch]$Bad, [int]$NWeak = 0) {
     return [string]$r.Zones[0].State
 }
 $z4 = @((Test-ZAccept 10.4), (Test-ZAccept 10.6), (Test-ZAccept (-7.9)), (Test-ZAccept (-8.1)), (Test-ZAccept 7 -Bad))
-$z4l = @($script:RLog | Where-Object { $_ -ceq "Zone écartée de l'attendu, tête 0 c20-39 : écart médian +14,0 ns avant la correction de -7 ns, 0 piste(s) saine(s) relue(s) après, il en faut 8 : correction reprise, courbe d'origine sur ces cylindres, pistes réécrites à la passe suivante." }).Count -eq 1
+# 12.11 (version finale, relecture du banc) : nombre de pistes saines aux deux relectures (cas Z11)
+$z4l = @($script:RLog | Where-Object { $_ -ceq "Zone écartée de l'attendu, tête 0 c20-39 : écart médian +14,0 ns avant la correction de -7 ns, 0 piste(s) saine(s) aux deux relectures, il en faut 8 : correction reprise, courbe d'origine sur ces cylindres, pistes réécrites à la passe suivante." }).Count -eq 1
 $z4 += @((Test-ZAccept 7 -NWeak 12), (Test-ZAccept 7 -NWeak 13))
-$z4m = @($script:RLog | Where-Object { $_ -like "Zone écartée de l'attendu, tête 0 c20-39 : écart médian +14,0 ns avant la correction de -7 ns, 7 piste(s) saine(s) relue(s) après, il en faut 8 :*" }).Count -eq 1
+$z4m = @($script:RLog | Where-Object { $_ -like "Zone écartée de l'attendu, tête 0 c20-39 : écart médian +14,0 ns avant la correction de -7 ns, 7 piste(s) saine(s) aux deux relectures, il en faut 8 :*" }).Count -eq 1
 Chk 'Z4' (($z4 -join ' ') -ceq 'ok back ok back back ok back' -and $z4l -and $z4m) "ecart median apres la correction de -7 ns : +10,4 / +10,6 / -7,9 / -8,1 / pistes toutes faibles / +7 avec 8 pistes saines sur 20 / +7 avec 7 -> $($z4 -join ' / ') (ok back ok back back ok back attendu) ; lignes de journal sans piste saine ($z4l) et avec 7 pistes saines ($z4m)"
 
 # Z5 : sans correction par zones, commandes de la rc6 : case decochee (Rep.ZoneFix faux), ecriture meme lecteur (sans exces),
@@ -1217,6 +1224,96 @@ $null = Invoke-WriteCheckAnalysis
 $cmd10b = @(Get-ZCmds $r10b)
 $z10 = ($i10 -ge 0 -and $i10 + 1 -lt $log10.Count -and $log10[$i10 + 1] -ceq $adv10 -and @($log10 | Where-Object { $_ -like '*facteur de la disquette à revoir*' }).Count -eq 1 -and $zz10 -ceq 'h0 c0-71 20.0 -10 pending' -and ($cmd10 -join "`n") -ceq ($cmd10b -join "`n") -and @($script:RLog | Where-Object { $_ -like '*facteur de la disquette à revoir.' }).Count -eq 1)
 Chk 'Z10' $z10 "zone $zz10 : ligne suivante « $(if ($i10 -ge 0 -and $i10 + 1 -lt $log10.Count) { $log10[$i10 + 1] } else { 'absente' }) » ; commandes de la passe 1 identiques sans ZoneAdvice ($($cmd10.Count)) ; sans ZoneAdvice : le fait seul"
+
+# Z11 (12.11, version finale, relecture du banc) : zone jugee sur des pistes appariees, retenues a la detection et saines a
+# la relecture ; ecarts medians d avant et d apres sur ces memes pistes (vraies Invoke-WriteCheckAnalysis et
+# Complete-WriteZonePass). Ecart par paliers dans la zone de la tete 0 c20-39 (c20-29 et c30-39). Valeurs « avant » :
+# ce que donnait le jugement de la rc7 (apres sur toutes les pistes saines relues de la zone, avant de la detection)
+$zR = "(relecture par le lecteur Banc 1)"; $zBack = "correction reprise, courbe d'origine sur ces cylindres, pistes réécrites à la passe suivante."
+function Invoke-ZPair([double[]]$before, $weak0, [double[]]$after, $weak1) {
+    # Detection (controle complet) puis relecture de la passe 1 ; rend le controle, journal de la relecture dans RLog
+    $script:ZB = $before; $script:ZA = $after
+    $r = New-ZRep { param($c, $h) if ($h -eq 0 -and $c -ge 20 -and $c -le 29) { $script:ZB[0] } elseif ($h -eq 0 -and $c -ge 30 -and $c -le 39) { $script:ZB[1] } else { 0 } } $weak0
+    $null = Invoke-WriteCheckAnalysis
+    Set-ZReads $r { param($c, $h) if ($h -eq 0 -and $c -ge 20 -and $c -le 29) { $script:ZA[0] } elseif ($h -eq 0 -and $c -ge 30 -and $c -le 39) { $script:ZA[1] } else { 0 } } $weak1
+    $script:RLog.Clear()
+    $null = Invoke-WriteCheckAnalysis
+    return $r
+}
+function Get-ZLine($rep) { return @($script:RLog | Where-Object { $_ -like 'Zone écartée*' }) -join ' | ' }
+$z11 = [ordered]@{}; $z11d = [ordered]@{}
+# a) scenario du banc : +10 / +30 ns, piste 25.0 faible a la detection (et 60.1 hors zone), guerie a la relecture,
+#    relecture identique sur les 19 pistes de E0 : reprise, « 0 sur 1 » (rc7 : apres sur 20 pistes, +20, gardee)
+$ra = Invoke-ZPair @(10, 30) @('25.0', '60.1') @(10, 30) @()
+$la = Get-ZLine $ra
+$z11['a) banc : reprise'] = ((Get-ZZones $ra) -ceq 'h0 c20-39 30.0 -15 back' -and [int]$ra.Zones[0].N -eq 19 -and [int]$ra.Zones[0].NP -eq 19 -and @($ra.Zones[0].Tracks) -contains '25.0' -and
+    $la -ceq "Zone écartée de l'attendu, tête 0 c20-39 : écart médian +30,0 ns avant, +30,0 ns après la correction de -15 ns $zR : $zBack" -and @($ra.Weak) -contains '25.0' -and [string]$ra.HeadPrecomp[0] -ceq '0=40:40=80')
+$z11d['a'] = "$(Get-ZZones $ra), $($ra.Zones[0].NP) pistes appariees : $la"
+$ra.Weak = @(); $script:RLog.Clear()
+$ta = Invoke-ZComplete $ra
+$z11['a) banc : verdict 0 sur 1'] = ($ta -like "*; zones écartées de l'attendu corrigées : 0 sur 1 (relu par le lecteur Banc 1, pas par le lecteur cible Atelier 2)" -and ([string]$script:LastRes.AsymLine).EndsWith(' ; zones corrigées : 0 sur 1'))
+$z11d['a verdict'] = Get-Short $ta 220
+# b) correction efficace sur les pistes appariees : +12 / +40 -> +6 / +34, 35.0 faible a la detection puis guerie a +34 :
+#    gardee (rc7 : apres sur 20 pistes, +20, reprise)
+$rb = Invoke-ZPair @(12, 40) @('35.0') @(6, 34) @()
+$lb = Get-ZLine $rb
+$z11['b) efficace : gardee'] = ((Get-ZZones $rb) -ceq 'h0 c20-39 12.0 -6 ok' -and [int]$rb.Zones[0].NP -eq 19 -and
+    $lb -ceq "Zone écartée de l'attendu, tête 0 c20-39 : écart médian +12,0 ns avant, +6,0 ns après la correction de -6 ns $zR : correction gardée." -and [string]$rb.HeadPrecomp[0] -ceq '0=40:20=34:40=80')
+$z11d['b'] = "$(Get-ZZones $rb) : $lb"
+# c) pistes saines a la detection devenues faibles (37.0 a 39.0) : hors des deux medianes. +10 / +30 relue identique : E0 de
+#    la detection +20 (20 pistes), +10 sur les 17 appariees : reprise (avant de la detection : gardee) ; +10 / +30 -> +2 / +20 :
+#    gardee ; la ligne dit sur combien de pistes
+$rc = Invoke-ZPair @(10, 30) @() @(10, 30) @('37.0', '38.0', '39.0')
+$lc = Get-ZLine $rc
+$z11['c) devenues faibles, relue identique : reprise'] = ((Get-ZZones $rc) -ceq 'h0 c20-39 20.0 -10 back' -and [int]$rc.Zones[0].NP -eq 17 -and [math]::Abs([double]$rc.Zones[0].E0P - 10) -lt 0.01 -and
+    $lc -ceq "Zone écartée de l'attendu, tête 0 c20-39 : écart médian +10,0 ns avant, +10,0 ns après la correction de -10 ns (relecture par le lecteur Banc 1, sur les 17 pistes saines aux deux relectures) : $zBack")
+$z11d['c'] = "$(Get-ZZones $rc) : $lc"
+$rc2 = Invoke-ZPair @(10, 30) @() @(2, 20) @('37.0', '38.0', '39.0')
+$lc2 = Get-ZLine $rc2
+$z11['c) devenues faibles, efficace : gardee'] = ((Get-ZZones $rc2) -ceq 'h0 c20-39 20.0 -10 ok' -and
+    $lc2 -ceq "Zone écartée de l'attendu, tête 0 c20-39 : écart médian +10,0 ns avant, +2,0 ns après la correction de -10 ns (relecture par le lecteur Banc 1, sur les 17 pistes saines aux deux relectures) : correction gardée.")
+$z11d['c2'] = "$(Get-ZZones $rc2) : $lc2"
+# d) 12 pistes retenues a +14 sur c20-39 (8 faibles a la detection, deux par deux) ; a la relecture (+7) les 8 gueries et 5
+#    retenues devenues faibles : 15 pistes saines relues, 7 appariees : reprise ; 4 devenues faibles : 8 appariees, gardee
+$w0 = @('24.0', '25.0', '27.0', '28.0', '30.0', '31.0', '33.0', '34.0')
+$rd = Invoke-ZPair @(14, 14) $w0 @(7, 7) @('35.0', '36.0', '37.0', '38.0', '39.0')
+$ld = Get-ZLine $rd
+$rd8 = Invoke-ZPair @(14, 14) $w0 @(7, 7) @('36.0', '37.0', '38.0', '39.0')
+$ld8 = Get-ZLine $rd8
+$z11['d) 7 appariees sur 15 saines : reprise, 8 : gardee'] = ((Get-ZZones $rd) -ceq 'h0 c20-39 14.0 -7 back' -and [int]$rd.Zones[0].N -eq 12 -and [int]$rd.Zones[0].NP -eq 7 -and
+    $ld -ceq "Zone écartée de l'attendu, tête 0 c20-39 : écart médian +14,0 ns avant la correction de -7 ns, 7 piste(s) saine(s) aux deux relectures, il en faut 8 : $zBack" -and
+    (Get-ZZones $rd8) -ceq 'h0 c20-39 14.0 -7 ok' -and [int]$rd8.Zones[0].NP -eq 8 -and $ld8 -ceq "Zone écartée de l'attendu, tête 0 c20-39 : écart médian +14,0 ns avant, +7,0 ns après la correction de -7 ns $zR : correction gardée.")
+$z11d['d'] = "$(Get-ZZones $rd) : $ld ; $(Get-ZZones $rd8)"
+# e) bords, Complete-WriteZonePass reelle avec Get-WriteZoneGap remplacee (valeurs exactes) : 8 pistes a +14 et 8 a +40 a la
+#    detection (E0 +27, correction -14), les 8 a +40 devenues faibles (E0 apparie +14) : apres +7, rapprochement de 7 = 0,5 x 14
+#    (gardee), +7,01 (reprise) ; 8 pistes a +14 (correction -7) : apres -8 (gardee), -8,01 (reprise) ; sens negatif, 8 pistes
+#    a -14 (correction +7) : apres +8 (gardee), +8,01 (reprise), -10,5 (gardee), -10,51 (reprise)
+function Test-ZEdge([double]$e0, [int]$dz, [hashtable]$map, [hashtable]$after) {
+    $script:ZAfter = $after
+    function Get-WriteZoneGap($rep, [string]$k) { if ($script:ZAfter.ContainsKey($k)) { return [double]$script:ZAfter[$k] }; return $null }
+    $z = @{ H = 0; C0 = 20; C1 = 39; E0 = $e0; Dz = $dz; N = $map.Count; E0Map = $map; State = 'pending'; E1 = $null; Tracks = (Sort-TrackKeys @($map.Keys)) }
+    $script:RLog.Clear()
+    $null = Complete-WriteZonePass @{ Zones = @($z); ZonePass = $true; TargetSrc = 'Banc 1' } @()
+    return [string]$z.State
+}
+function New-ZMap([int]$c0, [int]$n, [double]$v) { $m = @{}; for ($c = $c0; $c -lt $c0 + $n; $c++) { $m["$c.0"] = $v }; return $m }
+$mHalf = New-ZMap 20 8 14; foreach ($k in @((New-ZMap 28 8 40).Keys)) { $mHalf[$k] = 40.0 }
+$e11 = @((Test-ZEdge 27 -14 $mHalf (New-ZMap 20 8 7)))
+$l11 = @($script:RLog)
+$e11 += @((Test-ZEdge 27 -14 $mHalf (New-ZMap 20 8 7.01)),
+          (Test-ZEdge 14 -7 (New-ZMap 20 8 14) (New-ZMap 20 8 (-8))), (Test-ZEdge 14 -7 (New-ZMap 20 8 14) (New-ZMap 20 8 (-8.01))),
+          (Test-ZEdge (-14) 7 (New-ZMap 20 8 (-14)) (New-ZMap 20 8 8)), (Test-ZEdge (-14) 7 (New-ZMap 20 8 (-14)) (New-ZMap 20 8 8.01)),
+          (Test-ZEdge (-14) 7 (New-ZMap 20 8 (-14)) (New-ZMap 20 8 (-10.5))), (Test-ZEdge (-14) 7 (New-ZMap 20 8 (-14)) (New-ZMap 20 8 (-10.51))))
+$z11['e) bords'] = (($e11 -join ' ') -ceq 'ok back ok back ok back ok back' -and ($l11 -join '|') -ceq "Zone écartée de l'attendu, tête 0 c20-39 : écart médian +14,0 ns avant, +7,0 ns après la correction de -14 ns (relecture par le lecteur Banc 1, sur les 8 pistes saines aux deux relectures) : correction gardée.")
+$z11d['e'] = "$($e11 -join ' ') (ok back ok back ok back ok back attendu) ; $($l11 -join '|')"
+# f) textes : cle du nombre de pistes remplacee dans la section « rc7 », deux cles nouvelles, memes jalons, anglais
+$k11 = @("Zone écartée de l'attendu, {0} : écart médian {1} ns avant la correction de {2} ns, {3} piste(s) saine(s) aux deux relectures, il en faut {4} : correction reprise, courbe d'origine sur ces cylindres, pistes réécrites à la passe suivante.",
+         "Zone écartée de l'attendu, {0} : écart médian {1} ns avant, {2} ns après la correction de {3} ns (relecture par le lecteur {4}, sur les {5} pistes saines aux deux relectures) : correction gardée.",
+         "Zone écartée de l'attendu, {0} : écart médian {1} ns avant, {2} ns après la correction de {3} ns (relecture par le lecteur {4}, sur les {5} pistes saines aux deux relectures) : correction reprise, courbe d'origine sur ces cylindres, pistes réécrites à la passe suivante.")
+$bad11 = @($k11 | Where-Object { -not $script:I18n.ContainsKey($_) -or (@([regex]::Matches($_, '\{\d\}') | ForEach-Object { $_.Value } | Sort-Object -Unique) -join '') -ne (@([regex]::Matches([string]$script:I18n[$_], '\{\d\}') | ForEach-Object { $_.Value } | Sort-Object -Unique) -join '') })
+$z11['f) textes'] = ($bad11.Count -eq 0 -and -not $script:I18n.ContainsKey("Zone écartée de l'attendu, {0} : écart médian {1} ns avant la correction de {2} ns, {3} piste(s) saine(s) relue(s) après, il en faut {4} : correction reprise, courbe d'origine sur ces cylindres, pistes réécrites à la passe suivante.") -and
+    [string]$script:I18n[$k11[1]] -ceq 'Zone away from the expected value, {0}: median gap {1} ns before, {2} ns after the {3} ns correction (read back by drive {4}, over the {5} tracks healthy at both read-backs): correction kept.')
+Chk 'Z11' (@($z11.Keys | Where-Object { -not $z11[$_] }).Count -eq 0) "$(@($z11d.Keys | ForEach-Object { "$_ : $($z11d[$_])" }) -join ' || ') ; ecarts : $(@($z11.Keys | Where-Object { -not $z11[$_] }) -join ', ')"
 
 # ---------------------------------------------------------------- Q : equivalence avec la source d avant
 "--- Q : equivalence avec la 12.10 (-Before)"
