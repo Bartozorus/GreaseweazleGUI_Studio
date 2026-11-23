@@ -27,7 +27,11 @@ param(
 )
 
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
-$script:Version = '12.10'
+$script:Version = '12.11'
+# 12.11 rc2.1 : version montree a l utilisateur (titre de la fenetre, ligne de demarrage du journal, en-tete du journal
+# exporte, rapport de restauration, export « Qualite & alignement ») ; $script:Version reste celle des donnees, des
+# calibrations, de la configuration et du controle du workflow de publication. 12.11 finale : egale a $script:Version
+$script:VersionLabel = '12.11'
 # Version du calcul de calibration (motif de test, mesure du decalage, ajustement de la courbe, verification), enregistree
 # avec chaque courbe : a changer seulement quand ce calcul change. Une courbe faite avec ce calcul est reprise par les
 # versions suivantes de l application ; une courbe d un autre calcul n est reprise que si l utilisateur la conserve.
@@ -45,8 +49,10 @@ $script:CalibCalcHd = '12.7'
 # 12.8.1 : version de la mesure de la disquette sur l image (marge comptee sur le contenu de l image, facteur k par tete),
 # enregistree avec chaque mesure (write.driveFactors) : une mesure d une autre version n est plus le facteur du lecteur
 # (Get-DriveK). Distincte de CalibCalc : la calibration du lecteur (courbe V) ne change pas. 12.9 : modele « K-ns », Huber,
-# facteur au-dela de 1, marque : les mesures 12.8.x ne sont plus appliquees
-$script:ContentCalc = '12.9'
+# facteur au-dela de 1, marque : les mesures 12.8.x ne sont plus appliquees. 12.11 (rc6, R15) : facteur regle par
+# l asymetrie relue (point ou elle s annule) et non plus par l optimum de la marge : k change de sens, les mesures 12.9 ne
+# sont plus appliquees
+$script:ContentCalc = '12.11'
 $script:CalibAlgo = 'seg1'       # famille de modele de la courbe (information enregistree avec chaque courbe)
 $script:OldCalib = $null         # calibrations d un autre calcul, mises de cote au chargement en attendant le choix
 

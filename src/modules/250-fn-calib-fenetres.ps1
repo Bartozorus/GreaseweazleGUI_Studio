@@ -60,6 +60,7 @@ function Show-CalibReview($cal, [string[]]$issues, [bool]$toWrite, [bool]$offerF
             elseif ($cal.Cross) { ((T "Conserver la courbe : elle est enregistrée pour les écritures du lecteur {0} destinées au lecteur {1} (courbe croisée « {0} → {1} »), sans modifier la courbe propre du lecteur {0}.`nAbandonner la courbe : la courbe croisée précédente, s'il y en avait une, est rétablie.") -f "$($cal.Cross.Src)", "$($cal.Cross.Tgt)") }
             elseif ($tgtR -and [string]$cal.Family -eq 'hd') { ((T "Conserver la courbe : elle est enregistrée comme courbe propre du lecteur {0}, appliquée à ses écritures haute densité sans lecteur cible ; avec le lecteur cible {1} choisi, ses écritures haute densité en profil Auto sont refusées (la calibration croisée n'existe qu'en double densité).`nAbandonner la courbe : la calibration précédente est rétablie.") -f "$($cal.Drive)", "$tgtR") }
             elseif ($tgtR) { ((T "Conserver la courbe : elle est enregistrée comme courbe propre du lecteur {0}, appliquée à ses écritures sans lecteur cible ; avec le lecteur cible {1} choisi, ses écritures appliquent la courbe croisée {0} → {1} (refusées sans elle).`nAbandonner la courbe : la calibration précédente est rétablie.") -f "$($cal.Drive)", "$tgtR") }
+            elseif ($script:DriveReg.Count -gt 0 -and (Test-DriveRegistered ([string]$cal.Drive))) { ((T "Conserver la courbe : elle est enregistrée pour le lecteur {0} et appliquée à ses prochaines écritures.`nAbandonner la courbe : la calibration précédente est rétablie.") -f "$($cal.Drive)") }   # 12.11 (lot LN-b) : lecteur enregistre nomme
             else { (T "Conserver la courbe : elle est enregistrée et appliquée aux prochaines écritures.`nAbandonner la courbe : la calibration précédente est rétablie.") }
     if ($offerFull) { $head += "`n" + (T "Calibration complète : la courbe du lecteur est mesurée de nouveau en test fin, après un avertissement ; elle devient la nouvelle référence de forme.") }
     # 12.8 (S3, W-M1) : mesure complete de cette disquette proposee par la calibration rapide avant une ecriture lente
@@ -524,7 +525,7 @@ function Show-CalibSurface($opt, [string]$text) {
     return @{ Choice = 'stop'; Swap = $false }
 }
 
-function Show-CrossCalibDialog([string]$src, [string[]]$targets, [string]$family, [bool]$fine, [string]$imgInfo, [bool]$slow, [int]$minSwaps, [int]$maxSwaps) {
+function Show-CrossCalibDialog([string]$src, [string[]]$targets, [string]$family, [bool]$fine, [string]$imgInfo, [bool]$slow, [int]$minSwaps, [int]$maxSwaps, [string]$preselect = '') {
     # 12.10 : fenetre de choix d une calibration croisee (bouton de l onglet Ecriture, Start-CrossCalib, 270) : lecteur cible
     # (lecteurs du bandeau sauf la source $src), famille (standard ou long track, preselectionnee d apres l image de
     # l onglet Ecriture), test (standard ou fin, preselectionne d apres la liste « Calibration precomp »). Bandeau au
@@ -543,7 +544,7 @@ function Show-CrossCalibDialog([string]$src, [string[]]$targets, [string]$family
     $txt += "`n" + ((T "Courbes : {0} (case « Écriture lente » de l'onglet).") -f $(if ($slow) { (T 'une courbe par tête') } else { (T 'courbe commune') }))
     $ban = New-DlgBanner $dlg 16 $W (T 'Calibration croisée : écrire avec ce lecteur pour un autre lecteur') $txt 'info' (New-DlgPicto 'drive') $gdi 'lblCrossText'
     $y = $ban.Bottom + 14
-    $rows = @(@{ Name = 'cmbCrossTarget'; Label = (T 'Lecteur cible :'); Items = @($targets); Index = 0 },
+    $rows = @(@{ Name = 'cmbCrossTarget'; Label = (T 'Lecteur cible :'); Items = @($targets); Index = (Get-CrossTargetIndex $targets $preselect) },   # 12.11 : $preselect, lecteur cible de l onglet Ecriture, preselectionne (240) ; sinon le premier
               @{ Name = 'cmbCrossFamily'; Label = (T 'Famille :'); Items = @((Get-CalibFamilyName 'std'), (Get-CalibFamilyName 'long')); Index = $(if ($family -eq 'long') { 1 } else { 0 }) },
               @{ Name = 'cmbCrossTest'; Label = (T 'Test :'); Items = @((T 'Test standard : 1 cylindre sur 10'), (T 'Test fin : tous les cylindres')); Index = $(if ($fine) { 1 } else { 0 }) })
     $lw = 0
@@ -587,4 +588,125 @@ function Show-CrossCalibDialog([string]$src, [string[]]$targets, [string]$family
         $res.Fine = ($cmbs['cmbCrossTest'].SelectedIndex -eq 1)
     } finally { Clear-DlgGdi $dlg $gdi }
     return $res
+}
+
+function New-CalibBackDialog($items, [int]$nFiles, [string[]]$skipped) {
+    # 12.11 (L7) : fenetre « Revenir a une calibration precedente » (frmCalibBack), construite sans etre affichee
+    # (Show-CalibBackDialog l affiche), au modele de frmCrossCalib : bandeau (New-DlgBanner, lblCalBackText), liste
+    # lvCalBack (une ligne par calibration, une seule selection), detail lblCalBackInfo, pied lblCalBackSkip (copies
+    # illisibles ou sans courbe), « Retablir cette calibration » (btnCalBackGo, principal, inactif sans selection et pour
+    # une ligne qui ne peut pas etre retablie) et « Fermer » (btnCalBackClose : CancelButton et focus initial ; aucun
+    # AcceptButton, Entree ne retablit rien). Colonnes « Lecteur » et « Calcul », detail et bouton viennent de Get-CalibBackInfo (240), la
+    # fonction qui decide : la fenetre ne decide rien. Rend @{ Dlg ; Lv ; Info ; Skip ; Go ; Close ; Items ; Infos ; Gdi }
+    $W = 966
+    $gdi = New-Object System.Collections.Generic.List[object]
+    $dlg = New-Object System.Windows.Forms.Form
+    $dlg.Name = 'frmCalibBack'; $dlg.Text = (T 'Revenir à une calibration précédente')
+    $dlg.FormBorderStyle = 'FixedDialog'; $dlg.MaximizeBox = $false; $dlg.MinimizeBox = $false; $dlg.ShowInTaskbar = $false
+    $dlg.StartPosition = 'CenterParent'; $dlg.Icon = $form.Icon; $dlg.Font = $form.Font; $dlg.BackColor = [System.Drawing.Color]::White
+    $leaf = [System.IO.Path]::GetFileName([string]$script:ConfigFile)
+    $txt = (T "Calibrations complètes trouvées dans {0} copie(s) de la configuration, différentes des courbes en place. Choisissez une ligne, puis « Rétablir cette calibration ». Seules les courbes de cette ligne changent ; l'état actuel est d'abord copié dans un fichier « {1}.ref-….bak », d'où ce retour s'annule de la même façon.") -f "$nFiles", "$leaf"
+    $ban = New-DlgBanner $dlg 16 $W (T 'Quelle calibration rétablir ?') $txt 'info' (New-DlgPicto 'curve') $gdi 'lblCalBackText'
+    $y = $ban.Bottom + 14
+    $lv = New-Object System.Windows.Forms.ListView
+    $lv.Name = 'lvCalBack'; $lv.View = 'Details'; $lv.FullRowSelect = $true; $lv.MultiSelect = $false; $lv.HideSelection = $false
+    $lv.HeaderStyle = 'Nonclickable'; $lv.Font = $dlg.Font
+    $lv.Location = New-Object System.Drawing.Point(16, $y); $lv.Size = New-Object System.Drawing.Size($W, 200)
+    # Colonnes : la derniere (« Copie », nom de la copie sans celui du fichier de configuration) prend la largeur qui reste
+    # quand la barre verticale parait (213 px : « ref-long+std-<date>.bak » entier). Largeurs mesurees en Segoe UI 9.75, marge
+    # de 12 px : date, nom de lecteur le plus large admis, familles, tests, calcul « v12.10 (other calculation) » entiers ; un
+    # texte plus long (lecteur avec son nom de l epoque, courbe conservee, copie a suffixe -r) est coupe dans la liste et se
+    # lit en entier dans le detail
+    $cols = @(@((T 'Calibration du'), 122), @((T 'Lecteur'), 138), @((T 'Famille'), 128), @((T 'Courbes'), 80), @((T 'Test'), 98), @((T 'Calcul'), 166))
+    $used = 0
+    foreach ($c in $cols) { [void]$lv.Columns.Add([string]$c[0], [int]$c[1]); $used += [int]$c[1] }
+    [void]$lv.Columns.Add((T 'Copie'), [int][math]::Max(120, $W - 4 - [System.Windows.Forms.SystemInformation]::VerticalScrollBarWidth - $used))
+    $infos = @()
+    foreach ($it in @($items)) {
+        $inf = Get-CalibBackInfo $it
+        $infos += ,$inf
+        $calc = [string]$inf.CalcText   # 12.11 (relecture) : texte decide par Get-CalibBackInfo
+        $copy = [string]$it.FileName
+        if ($leaf -and $copy.StartsWith($leaf + '.', [System.StringComparison]::OrdinalIgnoreCase)) { $copy = $copy.Substring($leaf.Length + 1) }
+        $row = New-Object System.Windows.Forms.ListViewItem([string]$it.Date)
+        foreach ($s in @([string]$inf.DriveText, (Get-CalibFamilyName ([string]$it.Family)), (Get-CalibBackHeadsText @($it.CurveKeys)), (Get-CalibBackTestText ([string]$it.Test)), $calc, $copy)) { [void]$row.SubItems.Add([string]$s) }
+        if (-not $inf.Ok) { $row.ForeColor = [System.Drawing.Color]::Gray }
+        [void]$lv.Items.Add($row)
+    }
+    $y = $lv.Bottom + 10
+    # Detail : hauteur du plus long des textes, pour que rien ne bouge d une ligne a l autre
+    $tf = [System.Windows.Forms.TextFormatFlags]::WordBreak -bor [System.Windows.Forms.TextFormatFlags]::NoPrefix
+    $h = 3 * [System.Windows.Forms.TextRenderer]::MeasureText('X', $dlg.Font).Height
+    foreach ($inf in $infos) { $h = [math]::Max($h, [System.Windows.Forms.TextRenderer]::MeasureText([string]$inf.Text, $dlg.Font, (New-Object System.Drawing.Size($W, 10000)), $tf).Height) }
+    $lbl = New-Object System.Windows.Forms.Label
+    $lbl.Name = 'lblCalBackInfo'; $lbl.AutoSize = $false; $lbl.UseMnemonic = $false; $lbl.Font = $dlg.Font
+    $lbl.Location = New-Object System.Drawing.Point(16, $y); $lbl.Size = New-Object System.Drawing.Size($W, ($h + 4))
+    $y = $lbl.Bottom + 8
+    $skip = New-Object System.Windows.Forms.Label
+    $skip.Name = 'lblCalBackSkip'; $skip.AutoSize = $false; $skip.UseMnemonic = $false; $skip.Font = $dlg.Font; $skip.ForeColor = [System.Drawing.Color]::DimGray
+    $skip.Location = New-Object System.Drawing.Point(16, $y)
+    if (@($skipped).Count -gt 0) {
+        $skip.Text = (T 'Copies illisibles ou sans courbe, non listées : {0}.') -f ((@($skipped) | ForEach-Object { [string]$_ }) -join ', ')
+        $skip.Size = New-Object System.Drawing.Size($W, ([System.Windows.Forms.TextRenderer]::MeasureText($skip.Text, $dlg.Font, (New-Object System.Drawing.Size($W, 10000)), $tf).Height + 4))
+        $y = $skip.Bottom + 8
+    } else { $skip.Size = New-Object System.Drawing.Size($W, 0); $skip.Visible = $false }
+    $y += 4
+    $btnGo = New-Object System.Windows.Forms.Button
+    $btnGo.Name = 'btnCalBackGo'; $btnGo.Text = (T 'Rétablir cette calibration'); $btnGo.Size = New-Object System.Drawing.Size((Get-DlgButtonWidth (T 'Rétablir cette calibration') 'History' 170), 34)
+    $btnGo.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $btnCl = New-Object System.Windows.Forms.Button
+    $btnCl.Name = 'btnCalBackClose'; $btnCl.Text = (T 'Fermer'); $btnCl.Size = New-Object System.Drawing.Size(110, 34)
+    $btnCl.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    Set-Btn $btnCl '' 'normal'
+    Set-PrimaryEnabled $btnGo $false 'History'
+    $btnCl.Location = New-Object System.Drawing.Point((16 + $W - $btnCl.Width), $y)
+    $btnGo.Location = New-Object System.Drawing.Point(($btnCl.Left - 8 - $btnGo.Width), $y)
+    $dlg.ClientSize = New-Object System.Drawing.Size(($W + 32), ($y + 34 + 16))
+    $dlg.Controls.AddRange(@($lv, $lbl, $skip, $btnGo, $btnCl))
+    $dlg.CancelButton = $btnCl; $dlg.ActiveControl = $btnCl   # pas d AcceptButton : Entree ne retablit rien
+    $st = @{ Dlg = $dlg; Lv = $lv; Info = $lbl; Skip = $skip; Go = $btnGo; Close = $btnCl; Items = @($items); Infos = $infos; Gdi = $gdi }
+    $lv.Tag = $st
+    $lv.Add_SelectedIndexChanged({ Update-CalibBackDialog $this.Tag (Get-CalibBackDialogIndex $this) })
+    return $st
+}
+
+function Get-CalibBackDialogIndex($lv) {
+    # 12.11 (L7) : rang de la ligne selectionnee de lvCalBack, -1 sans selection ; lu sur les lignes elles-memes (Selected),
+    # juste que la liste ait ou non son handle (SelectedIndices reste vide tant que la liste n a pas ete affichee)
+    if (-not $lv) { return -1 }
+    for ($i = 0; $i -lt $lv.Items.Count; $i++) { if ($lv.Items[$i].Selected) { return $i } }
+    return -1
+}
+
+function Update-CalibBackDialog($st, [int]$i) {
+    # 12.11 (L7) : selection de la liste de frmCalibBack : detail et bouton « Retablir cette calibration » de la ligne $i
+    # (-1 : aucune), tires de Get-CalibBackInfo
+    if (-not $st) { return }
+    $infos = @($st.Infos)
+    if ($i -ge 0 -and $i -lt $infos.Count) { $st.Info.Text = [string]$infos[$i].Text; Set-PrimaryEnabled $st.Go ([bool]$infos[$i].Ok) 'History' }
+    else { $st.Info.Text = ''; Set-PrimaryEnabled $st.Go $false 'History' }
+}
+
+function Get-CalibBackDialogPick($st, $dr) {
+    # 12.11 (L7) : ligne choisie dans frmCalibBack : « Retablir cette calibration » (OK) sur une ligne selectionnee que
+    # Get-CalibBackInfo dit retablissable ; sinon $null (« Fermer », Echap, croix)
+    if (-not $st -or $dr -ne [System.Windows.Forms.DialogResult]::OK) { return $null }
+    $i = Get-CalibBackDialogIndex $st.Lv
+    $items = @($st.Items); $infos = @($st.Infos)
+    if ($i -lt 0 -or $i -ge $items.Count -or -not [bool]$infos[$i].Ok) { return $null }
+    return $items[$i]
+}
+
+function Show-CalibBackDialog($items, [int]$nFiles, [string[]]$skipped) {
+    # 12.11 (L7) : affiche frmCalibBack (New-CalibBackDialog) ; rend la ligne choisie ou $null
+    $st = New-CalibBackDialog $items $nFiles $skipped
+    $dlg = $st.Dlg
+    [void](Set-DlgFit $dlg ([System.Windows.Forms.Screen]::FromControl($form).WorkingArea))
+    $dlg.Add_Shown({ $this.Activate() })
+    $pick = $null
+    try {
+        $dr = $dlg.ShowDialog($form)
+        $pick = Get-CalibBackDialogPick $st $dr
+    } finally { Clear-DlgGdi $dlg $st.Gdi }
+    return $pick
 }

@@ -34,6 +34,35 @@ $script:LibDatRx       = $null             # FIX4B : expressions du format clrma
 $script:ProgTotal      = 0
 $script:ProgSeen       = $null
 $script:ProgOp         = ''
+# 12.11 : progression par piste (110), affichage seulement. Commande gw en cours ou derniere commande : verbe de l annonce
+# de gw (ProgHead : Reading, Writing, Erasing, Converting), derniere piste vue (ProgKey), numero d essai (ProgRetry),
+# pistes terminees (ProgDone : une ligne d ecriture ou d effacement annonce une piste commencee, non finie ; jamais
+# decroissant pendant une commande), affichage a refaire (ProgDirty), commande en echec ou gw non lance (ProgFailed :
+# l etat de fin de sequence ne remplace pas cet affichage). Etape de plusieurs commandes (passe de calibration,
+# conditionnement, passe de la mesure sur l image) : plan (ProgPlan, New-ProgPlan) et poids de la commande en cours dans ce
+# plan (ProgCmd). Fin de sequence : etat en attente (SeqEnd, Set-SeqEnd) et commandes lancees depuis le dernier repos
+# (SeqCmds), appliques par Update-SeqEnd (minuteur principal). Aucune decision d ecriture, de controle, de calibration ni
+# de restauration ne lit ces variables ; seule exception, ProgHead, lu par Get-EndRuleTotal pour que la regle de fin
+# d une commande reste celle de la 12.10 pendant un gw convert (total annonce non compte)
+$script:ProgHead       = ''
+$script:ProgKey        = ''
+$script:ProgRetry      = ''
+$script:ProgDone       = 0
+$script:ProgDirty      = $false
+$script:ProgFailed     = $false
+$script:ProgCmd        = $null
+$script:ProgPlan       = $null
+$script:SeqEnd         = $null
+$script:SeqCmds        = 0
+# 12.11 (L11) : barre de l onglet Ecriture pendant une ecriture et son controle (Start-WriteProgress, 160) : etapes de
+# l operation (prechauffage, ecriture, passes du controle), leur poids estime et la plus grande valeur affichee ; $null hors
+# d une ecriture, et pendant une restauration (onglet verrouille). Affichage seulement
+$script:WriteProg      = $null
+# 12.11 : poids estimes d une commande gw dans un plan (Get-GwCmdUnits), en secondes : part fixe, puis par piste selon la
+# commande et ses options (effacement ; ecriture, pre-effacement, verification ; relecture : base, par tour, sans --revs).
+# Releves dans les journaux d un seul utilisateur (deux lecteurs a 300 tr/min) : seules leurs proportions servent, pour
+# repartir l avancement d une etape entre ses commandes ; aucune duree affichee n en est tiree
+$script:ProgCost       = @{ Fixed = 5.0; Erase = 0.23; Write = 0.40; PreErase = 0.21; Verify = 0.58; ReadBase = 0.2; ReadRev = 0.2; ReadNoRevs = 0.3 }
 $script:ConfirmDlg     = $null   # 12.8 (D3) : bouton principal de la fenetre frmConfirm ouverte (Set-ConfirmGo)
 # 12.8 (S3) : reponse de la derniere fenetre frmConfirm ('go', 'alt' : second bouton, 'close'), texte de sa liste de marque
 $script:ConfirmChoice  = ''
@@ -48,12 +77,18 @@ $script:AlignBest   = @{}
 $script:AlignPrev   = $null
 $script:AlignTmp    = $null
 $script:AlignLast   = $null     # derniere mesure : cle 'cyl.tete' -> @{Score;Jitter;Asym;Err;Stab;Cell}
+$script:AlignLastInfo = $null   # 12.11 rc3 (R7) : lecteur, tetes et heure de la derniere mesure (New-AlignLastInfo, 190)
 $script:GwIsWrite   = $false    # le gw en cours est un 'write' : on capture les retries de verification
 $script:GwIsErase   = $false    # 12.8.2 : le gw en cours est un 'erase' (pistes effacees, « Command Failed » avec le code 0)
 $script:GwCmdFailed = $false    # 12.8.2 : « Command Failed » d un gw erase en cours (Get-GwEndRule)
 $script:EraseLog    = $null     # 12.8.2 : pistes effacees et ecrites de l operation en cours (Start-ImageWrite, 170)
 $script:GwSoft      = $false    # le gw en cours est une lecture de prechauffage : code retour et piste manquante sans effet
 $script:GwLastCode  = 0         # code retour du dernier gw termine (prechauffage)
+# 12.11 rc3 (R5) : gw sans port (« could not open port » : rien lu ni ecrit) : une nouvelle tentative de la meme commande
+# (Test-GwPortRetry, Invoke-GwPortRetry, 110) : derniere commande lancee par Start-Gw, drapeaux de la commande en cours,
+# tentative en attente (@{ Args ; Soft ; At }) et son delai en ms
+$script:GwLastArgs  = @(); $script:GwLastSoft = $false; $script:GwPortLost = $false; $script:GwPortRetried = $false
+$script:GwPortRetry = $null; $script:GwPortRetryMs = 3000
 $script:GwLastIncomplete = $false   # dernier gw termine avec le code 0 mais incomplet (prechauffage)
 $script:GwDriveKey  = $null     # lecteur du gw en cours s il peut faire tourner le moteur (DriveActivity, mise a jour par le
                                 # minuteur a la fin de la commande, seulement si le moteur a tourne)
@@ -70,6 +105,10 @@ $script:AlignRef    = $null     # reference memorisee (meme structure)
 # (verdict du controle apres ecriture) et du verdict de la restauration
 $script:QualView = @{ State = 'empty'; Kind = ''; Reason = ''; At = $null; Has = $false; Pass = 0; Drive = ''; Heads = ''; Revs = 0; NCyl = 0; RunText = ''; Res = $null }
 $script:QualCard = $null
+# 12.11 rc6 (R14) : hauteur de la ligne de l asymetrie attendue sur la carte (Set-QualityCardRoom, 195) et hauteur ajoutee
+# en ce moment (0 : carte de 58 px de toujours)
+$script:QualCardLine3H = 20
+$script:QualCardRoom = 0
 $script:QualGdi = @{}
 $script:WCalIcon = $null
 $script:WTabNotice = $null      # 12.8 (FIX-PISTES) : avis de fin d une operation de la Bibliotheque (Set-WTabNotice)
@@ -96,6 +135,79 @@ $script:JitterWatch = $script:JitterStdWatch        # jitter (ns) sous lequel un
 # controle de la copie (Test-SrcOverErr). Ni la calibration, ni le controle de surface, ni les courbes n utilisent
 # Get-HealthLevel (CalSurfOocFloor, 560 : borne CRITIQUE de 20, inchangee).
 $script:HealthErrOk = 2
+# 12.11 : poids de l asymetrie dans le score de lecture d une piste (Get-TrackScore, 190 : valeur de toujours, lue aussi
+# par Get-AsymSummary pour la part de l asymetrie dans le score moyen) et part des pistes lisibles, en pourcentage, qui
+# doivent porter le meme signe pour que le resume de l asymetrie le dise (Get-AsymSummary ; lectures gardees du
+# 02/11/2026, un lecteur en long track : toutes les pistes ou presque portaient le signe de l ecriture)
+$script:ScoreAsymK = 2000
+$script:AsymSignPct = 80
+# 12.11 rc4 (R10) : asymetrie attendue d une disquette ecrite pour un lecteur cible avec le facteur par cylindre et relue
+# par le lecteur qui l a ecrite (controle apres ecriture). La piste porte e ns de precompensation de plus (ou de moins)
+# que ce lecteur n en aurait ecrit pour lui-meme sur cette disquette (courbe ecrite - D, Get-TargetTransferSpec, 140) :
+# gw deplace d autant chaque transition entre un intervalle de 2 cellules et un intervalle plus long, les intervalles de
+# 2 cellules sont relus plus courts, ceux de 3 et de 4 plus longs, et les rapports moyens 3T/2T et 4T/2T s ecartent de
+# 1,5 et de 2 dans le meme sens. Gain g : asymetrie attendue = g x e / cellule (Get-AsymExpected, 190),
+# moitie sur chacun des deux rapports. Modele ideal (lecteur qui restitue tout le deplacement ecrit, voisins
+# independants) : 2,75 ; la constante retenue, plus basse, est celle qui tient sur le seul essai disponible (un couple de
+# lecteurs, famille standard) : a revoir avec d autres essais, d ou les tolerances larges. AsymExpOkTol : ecart median
+# mesuree - attendue au plus pour « conforme a l attendu », avec AsymExpInPct % des pistes au moins dont l ecart reste
+# dans la classe verte de l asymetrie (Get-AlLevel) ; AsymExpNearTol : au plus pour « proche de l attendu » ; au-dela :
+# « eloignee de l attendu » (Get-AsymSummary, 190)
+# 12.11 rc7 (R16) : le gain n est plus une constante : par tete, g = 2 x pente de l asymetrie relue mesuree par la mesure
+# sur l image de cette disquette (SRelAsym de l enregistrement dont le facteur est applique, bornee a ContentAsymSRelMin
+# et ContentAsymSRelMax ; Get-WriteFactorPlan, 140 ; Rep.AsymGain, 170). AsymExpGainFallback : gain sans pente mesuree
+# (facteur par defaut, par la marge, mesure d avant la rc6) : mediane des pentes du lecteur qui ecrit sur les essais
+# (cinq mesures, hors depot), soit p = 0,85 ; 1,8 au plus (a 1,9, un des trois essais redevient « eloignee »)
+$script:AsymExpGainFallback = 1.7
+$script:AsymExpOkTol = 0.005
+$script:AsymExpNearTol = 0.02
+$script:AsymExpInPct = 80
+# 12.11 rc7 (R16) : correction par zones d une ecriture pour un lecteur cible (Get-WriteZoneScan, 170), au controle complet,
+# tete par tete, sur l ecart mesuree - attendue des pistes saines converti en ns (e = ecart x cellule / g). Lissage :
+# mediane de e sur les cylindres c - WriteZoneHalfWin a c + WriteZoneHalfWin ; cylindre marque du signe de cette mediane
+# a WriteZoneMinNs ns au moins ; suites de meme signe fusionnees par-dessus WriteZoneGap cylindres non marques au plus ;
+# zone : WriteZoneMinCyl cylindres au moins, WriteZoneMinTracks pistes retenues au moins, mediane brute de e de meme signe
+# et de WriteZoneMinNs ns au moins. Correction : arrondi de -WriteZoneF x mediane, bornee a +/- WriteZoneCapNs ns, ajoutee
+# a la courbe ecrite de la tete sur les cylindres de la zone (0 a la borne de la courbe ecrite, une valeur nulle reste
+# nulle). Acceptee a la relecture par le lecteur qui ecrit si, sur WriteZoneMinTracks pistes saines au moins aux deux
+# relectures (version finale : medianes d avant et d apres sur ces memes pistes), l ecart median s est rapproche de
+# l attendue d au moins WriteZoneAccept x la correction, sans depasser WriteZoneMinNs ns de l autre cote ; sinon courbe
+# d origine. Un cylindre sans piste retenue n est pas marque. Valeurs au centre de la
+# region sans zone aggravee des trois essais (L de 8 a 12, S de 6 a 8, f de 0,5 a 0,6) ; f au plus 0,5 : rapport besoin
+# du lecteur cible / ecart du lecteur qui ecrit de 0,45 a 1,7 sur les six zones observees
+$script:WriteZoneHalfWin = 2
+$script:WriteZoneMinNs = 8
+$script:WriteZoneGap = 2
+$script:WriteZoneMinCyl = 10
+$script:WriteZoneMinTracks = 8
+$script:WriteZoneF = 0.5
+$script:WriteZoneCapNs = 15
+$script:WriteZoneAccept = 0.5
+# 12.11 (version finale) : conseil d une correction par zones. Zones d une tete, de meme sens, qui couvrent au moins
+# WriteZoneHeadPct % de ses cylindres ecrits (perimetre du controle) : l ecart a l attendu porte sur presque toute la tete,
+# ce que donne un facteur de la disquette errone (il multiplie toute la courbe de la tete), et non la forme de la courbe
+# croisee ; une ligne de journal conseille de revoir ce facteur (Get-WriteZoneHeadAdvice, 170). Texte seulement : zones et
+# reecritures inchangees
+$script:WriteZoneHeadPct = 80
+# 12.11 rc8 (R17) : recalage de la courbe croisee par une relecture du lecteur cible (172). Decalage constant par tete, en
+# ns, ajoute a la courbe ecrite pour le lecteur cible : somme des estimations des TargetRecalMaxItems dernieres ecritures
+# relues / (n + p), p = (1 - TargetRecalFirstShare) / TargetRecalFirstShare, au plus +/- TargetRecalCapNs (Get-TargetRecalNs,
+# 172), arrondi au ns a l application et limite a TargetRecalWShare de la valeur du cylindre (garde des disquettes a faible
+# besoin, non eprouvee : elle ne joue jamais sur les essais). Part de l ecart moyen retenue apres n ecritures relues :
+# f(n) = n / (n + p) ; TargetRecalFirstShare est f(1). 12.11 (decision de l utilisateur pour la version finale) : les trois
+# quarts des la premiere ecriture relue, p = 1/3, puis 6/7 (0,857), 0,9, 12/13 (0,923) et 15/16 (0,9375) ; la rc8 prenait
+# p = 1 (la moitie, puis 0,67, puis 0,75). Relecture admise : TargetRecalMinTracks pistes retenues au moins par tete, sur
+# TargetRecalMinBlocks blocs de 10 cylindres a TargetRecalBlockTracks pistes au moins ; |ecart median| au plus
+# TargetRecalMaxGapNs (au-dela, l ecart ne vient pas de la courbe croisee). Valeurs de la validation (hors depot, quatre
+# ecritures, une paire de lecteurs, double densite standard), sauf TargetRecalFirstShare
+$script:TargetRecalCapNs = 8
+$script:TargetRecalFirstShare = 0.75
+$script:TargetRecalMaxItems = 5
+$script:TargetRecalWShare = 0.25
+$script:TargetRecalMinTracks = 60
+$script:TargetRecalMinBlocks = 6
+$script:TargetRecalBlockTracks = 5
+$script:TargetRecalMaxGapNs = 12
 $script:AlignRefLabel = ''
 # 12.8.2 (S11) : zone de l index (Read-ScpFile, Set-ScpTrackPost). gw ecrit les images ADF et a secteurs d index a index
 # (« Terminate at index ») : la jonction d ecriture tombe sur l index, dans l espace entre le dernier et le premier
@@ -227,11 +339,80 @@ $script:ContentKeepMeasures = [int]$script:SettingDefs['contentKeepMeasures'].De
 # Sony -> TEAC, facteur total d environ 2,6 ; marge au-dessus). 12.10 : la correction « lecteur cible » Dk de la 12.8.1
 # (champs par tete et sa borne) est retiree, remplacee par la liste « Lecteur cible » et les courbes croisees (140, 220)
 $script:ContentFMax = 4.0
+# 12.11 (rc2) : ecriture pour un lecteur cible (Get-TargetTransferSpec, 140) : besoin propre du lecteur qui ecrit (Sp) a
+# partir duquel le facteur par cylindre de la calibration croisee (X/Sp) s applique a la courbe de cette disquette ; en
+# dessous, l ecart de la disquette (D - Sp) est reporte en ns (un rapport y multiplierait le bruit de mesure)
+$script:XferMinNs = 10
+# 12.11 rc6 (R15) : facteur de la disquette par l asymetrie relue (Get-ContentAsymFit, 274) : moindres carres sans
+# constante A = s.w + g.V(c), k = -g/s, sur les relectures de la mesure sur l image. « Determine » si : au moins
+# ContentAsymMinCyl cylindres a 2 niveaux lisibles ; s > 0 et s x cellule / 2 dans [ContentAsymSRelMin ; ContentAsymSRelMax]
+# (pente relue rapportee aux 2 / cellule de l asymetrie attendue ; observe 0,65 a 0,95) ; t de s >= ContentAsymMinT ;
+# erreur-type de k <= ContentAsymSeKMax ou ecart-type du jackknife par zone de 5 cylindres <= ContentAsymJackMax ; k dans
+# [ContentAsymKMin ; ContentFMax] et au plus ContentAsymExtrap x le plus haut niveau ecrit. Seuils estimes sur 5 mesures
+# reelles (une paire de lecteurs, famille standard), a revoir avec d autres essais. ContentAsymMargeGap : ecart avec le
+# facteur par la marge au-dela duquel le journal le signale (l asymetrie reste retenue)
+$script:ContentAsymMinCyl = 24
+$script:ContentAsymSRelMin = 0.4
+$script:ContentAsymSRelMax = 1.5
+$script:ContentAsymMinT = 10.0
+$script:ContentAsymSeKMax = 0.10
+$script:ContentAsymJackMax = 0.15
+$script:ContentAsymKMin = 0.1
+$script:ContentAsymExtrap = 1.5
+$script:ContentAsymMargeGap = 0.3
+# 12.11 (version finale, R12) : facteur de la marque disperse. Une ecriture sans mesure sur l image applique la mediane
+# des 3 dernieres mesures de la marque pour ce lecteur, cette famille et cette tete (Get-DriveK, 274). Des disquettes d une
+# meme marque, ecrites avec la meme image par le meme lecteur, peuvent demander des facteurs nettement differents : la
+# mediane est alors loin du facteur d une disquette donnee. Etendue (max - min) des mesures qui donnent le facteur,
+# arrondies a 0,01 comme au journal, strictement au-dessus de WriteFactorSpreadMax : la ligne « Ce qui va se passer »,
+# l infobulle de la case de la mesure et le journal de l ecriture conseillent de mesurer la disquette sur l image au lieu
+# d appliquer la mediane (Get-WriteFactorHint, 140). Texte seulement : le facteur applique ne change pas. Avant cette
+# version : 0,2 ou plus, journal seulement
+$script:WriteFactorSpreadMax = 0.15
 $script:WFactorNote = $null                                                 # 12.8.1 : complement « facteur » du libelle du profil (Update-WriteFactorNote)
 $script:WTargetHead = ''                                                    # 12.10 (relecture de la RC) : refus du lecteur cible en tete du libelle du profil (Sync-WTargetHead)
 $script:WProfilePath = ''                                                   # 12.10 (relecture de la RC) : image du libelle du profil (Update-PrecompForImage, Sync-WTargetHead)
 $script:WProfileLabel = $null                                               # 12.10 (relecture de la RC) : dernier libelle du profil pose par Sync-WTargetHead
 $script:WProfileBuilding = $false                                           # 12.10 (relecture de la RC) : Update-PrecompForImage en cours (gestionnaire de $chkWPrecomp, 520)
+# 12.11 : lecteurs enregistres (112-fn-lecteurs). Un lecteur de disquette peut recevoir un nom : le nom devient son identite
+# (texte de la liste du bandeau, cle de rangement de ses courbes), la connexion (A, B, 0 a 3) un attribut de sa fiche, lu
+# par la seule fonction Get-DriveConn. Registre vide (personne n a enregistre de lecteur) : cles, blocs de la configuration
+# et arguments de gw sont ceux de la 12.10. DriveReg et DriveLast ne sont ecrits que par les fonctions du module 112.
+#   DriveReg         registre, dans l ordre d enregistrement : nom -> fiche @{ Name ; Conn ; Id ; Created ; From ; At }
+#                    (Id : identifiant date, jamais deduit d un compteur ; From, At : connexion dont le lecteur non
+#                    enregistre a recu ce nom, et date de cette attribution) ; table insensible a la casse, lue par
+#                    enumeration (Get-DriveRecord)
+#   DriveLast        connexion -> dernier lecteur enregistre choisi sur elle ; absent : le lecteur non enregistre
+#                    (12.11 rc2.2 : au chargement, sans dernier lecteur, le premier lecteur enregistre sur elle,
+#                    Import-DriveRegistry)
+#   DriveHandled     lecteur du bandeau pour lequel le gestionnaire du changement de lecteur (520) s est execute en dernier
+#                    (12.11 rc2.2 : choix fait dans la liste deroulee, qui ne leve pas TextChanged)
+#   DriveChecked     lecteur choisi a la main ou confirme depuis le dernier changement (jamais enregistre) ; DriveCur :
+#                    lecteur du bandeau avant le changement en cours (lot LN-b)
+#   DriveRescued     registre relu dans la copie de secours (<configuration>.lecteurs) pendant cette session
+#   DriveRescueText  contenu utile de la copie de secours, lu au chargement ou ecrit en dernier ; $null tant qu elle n a
+#                    ete ni lue ni ecrite dans la session
+#   DriveRescuePairs couples « source, cible » lus dans la copie de secours, en attente de retablissement apres la
+#                    lecture des lecteurs cibles (Restore-DriveRescueTargets) ; $null hors de ce cas
+#   DriveBlockKeep   bloc drives ecrit meme avec une liste vide, le temps de l enregistrement de Protect-DriveData
+#   DriveNameMax     longueur d un nom, en caracteres ; DriveListWidth : largeur en pixels de la liste du bandeau elargie
+#                    et de la liste « Lecteur cible » (un nom doit s y afficher en entier) ; DriveBackupKeep : copies
+#                    <configuration>.lecteurs-*.bak gardees
+#   DriveReserved    mots refuses comme noms (Test-DriveName) : proprietes d une table, qu une cle de ce nom masquerait
+#                    (une fiche « Count » mettrait en defaut la garde « registre non vide », $script:DriveReg.Count -gt 0)
+$script:DriveReg = [ordered]@{}
+$script:DriveLast = @{}
+$script:DriveChecked = ''
+$script:DriveCur = ''
+$script:DriveRescued = $false
+$script:DriveRescueText = $null
+$script:DriveRescuePairs = $null
+$script:DriveHandled = ''
+$script:DriveBlockKeep = $false
+$script:DriveNameMax = 24
+$script:DriveListWidth = 150
+$script:DriveBackupKeep = 5
+$script:DriveReserved = @('Count', 'Keys', 'Values', 'Item', 'IsFixedSize', 'IsReadOnly', 'IsSynchronized', 'SyncRoot', 'PSObject', 'PSBase', 'PSAdapted', 'PSExtended', 'PSTypeNames')
 
 $Formats = @('(auto)','amiga.amigados','amiga.amigados_hd','atarist.720','atarist.800','atarist.880',
              'ibm.360','ibm.720','ibm.1440','ibm.scan','commodore.1541','mac.800','raw.250','raw.500')

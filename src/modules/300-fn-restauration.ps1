@@ -45,6 +45,9 @@ function Set-RestoreFormat([string]$fmt) {
 function Update-RsDrive {
     # 12.8 (D10) : lecteur de la restauration, celui du bandeau (Update-SettingDependents 'drive')
     if (-not $lblRsDrive) { return }
+    # 12.11 (lot LN-b) : lecteur enregistre dans le bandeau : texte court, son nom et sa connexion (Get-DriveLabel, 112) :
+    # avec un nom, le texte de la 12.10 depasserait les 290 px du libelle
+    if ($script:DriveReg.Count -gt 0 -and (Test-DriveRegistered ([string]$cmbDrive.Text))) { $lblRsDrive.Text = (T '{0}  (bandeau)') -f (Get-DriveLabel ([string]$cmbDrive.Text)); return }
     $lblRsDrive.Text = (T "{0}  (choix « Lecteur » du bandeau)") -f "$(Get-Setting 'drive')"
 }
 
@@ -255,7 +258,7 @@ function Update-RsRules {
     # flux ou haute densite, et ecriture avec la courbe croisee pour un format haute densite refuse
     $pl = Get-RestorePlan $src $tg (Get-RestoreFormat)
     if ($pl.Kind -eq 'target') {
-        $t = (T "Règles appliquées à la copie : écriture tête par tête par le lecteur {0} avec la courbe croisée {0} → {1}, telle quelle, sans calibration ni mesure de la destination, effacement avant l'écriture, vérification par gw, {2} essais par piste, contrôle de toutes les pistes ({3} passes de réécriture au plus), puis relecture par le lecteur {0} et comparaison avec l'original.") -f "$src", "$tg", "$($r.WriteRetries)", "$($r.RepairPasses)"
+        $t = (T "Règles appliquées à la copie : écriture tête par tête par le lecteur {0} avec la courbe croisée {0} → {1} et, si le lecteur {0} a sa courbe, son facteur de marque, sans calibration ni mesure de la destination, effacement avant l'écriture, vérification par gw, {2} essais par piste, contrôle de toutes les pistes ({3} passes de réécriture au plus), puis relecture par le lecteur {0} et comparaison avec l'original.") -f "$src", "$tg", "$($r.WriteRetries)", "$($r.RepairPasses)"
     } elseif ($pl.Kind -eq 'flux') {
         $t = (T "Règles appliquées à la copie : copie exacte du flux, écrite telle quelle par gw (ni précompensation, ni vérification par gw), sans calibration du lecteur ni mesure de la destination, écriture tête par tête, effacement avant l'écriture, contrôle de toutes les pistes ({0} passes de réécriture au plus), sans comparaison secteur par secteur avec l'original.") -f "$($r.RepairPasses)"
     } elseif ($pl.Kind -eq 'refused' -and $pl.Ti.BlockKind -eq 'hd') {
@@ -343,6 +346,9 @@ function Start-Restore {
         Append-Log ((T "Restauration refusée : opération en cours ({0}).") -f "$busy")
         [void](Show-AppMessage (T 'Une opération est déjà en cours : attendez sa fin ou cliquez sur « Arrêter ».') (T 'Restauration') 'OK' 'Information'); return
     }
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, lecteur branche confirme s il y a lieu (Confirm-DriveIdentity, 112) ;
+    # refus : restauration non lancee
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity)) { return }
     if (-not (Test-Path -LiteralPath $script:GwExe)) {
         [void](Show-AppMessage ((T "gw.exe introuvable : {0}`n`nPlacez ce script dans le même répertoire que gw.exe.") -f "$($script:GwExe)") (T 'Erreur') 'OK' 'Error'); return
     }
@@ -667,6 +673,7 @@ function Enter-RestoreWait([string]$extra) {
     # (relecture de la RC9) icone neutre a cote de la consigne, au lieu de la coche de la lecture terminee
     $stTrack.Text = ''; $stBar.Visible = $false; $stOp.Image = $script:StIcons.idle
     $stOp.Text = (T 'Restauration : changez de disquette, puis cliquez sur « Continuer ».')
+    Clear-SeqEnd    # 12.11 : la consigne remplace l etat de fin de sequence en attente (calibration terminee juste avant, 110)
     Append-Log ((T "Restauration : en attente de la disquette de destination dans le lecteur {0}.") -f "$($r.Drive)")
     try { [System.Media.SystemSounds]::Exclamation.Play() } catch { }
 }
@@ -1081,7 +1088,7 @@ function Complete-RestoreCompare {
 function Write-RestoreReport([bool]$ok, [string]$verdict) {
     $r = $script:Restore
     $L = New-Object System.Collections.Generic.List[string]
-    $L.Add(((T "Greaseweazle Studio v{0} - rapport de restauration") -f "$($script:Version)"))
+    $L.Add(((T "Greaseweazle Studio v{0} - rapport de restauration") -f "$($script:VersionLabel)"))
     $L.Add(((T "Date        : {0}, durée {1} min") -f (Get-Date -Format 'dd/MM/yyyy HH:mm'), "$([math]::Round(((Get-Date) - $r.Start).TotalMinutes, 1))"))
     $L.Add(((T "Disquette   : {0}") -f "$($r.Name)"))
     $L.Add(((T "Mode        : {0}") -f $(if ($r.Mode -eq 'sector') { (T "secteur par secteur, format {0}") -f "$($r.Fmt)" } elseif ($r.Mode -eq 'flux') { (T 'copie exacte du flux') } else { (T 'format détecté à la lecture') })))
@@ -1111,7 +1118,7 @@ function Write-RestoreReport([bool]$ok, [string]$verdict) {
     if (-not $pk) { $pp = Get-RestorePlan ([string]$r.Drive) ([string]$r.TgtChoice) $(if ($r.Mode -eq 'flux') { '' } elseif ($r.Mode -eq 'sector') { [string]$r.Fmt } else { 'auto' }); $pk = [string]$pp.Kind }
     $rtg = if ($r.Target) { [string]$r.Target } else { [string]$r.TgtChoice }
     if ($pk -eq 'flux') { $rl = (T "Règles      : lecture {0} tours ; copie exacte du flux, écrite telle quelle par gw (ni précompensation, ni vérification gw), sans calibration du lecteur ni mesure de la destination ; écriture tête par tête, effacement avant l'écriture ; contrôle de toutes les pistes, {1} passes de réécriture au plus ; pas de comparaison secteur par secteur.") -f "$($rr.ReadRevs)", "$($rr.RepairPasses)" }
-    elseif ($pk -eq 'target') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête par le lecteur {5} avec la courbe croisée {5} → {6}, telle quelle, sans calibration ni mesure de la destination, effacement avant l'écriture, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale par le lecteur {5} sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)", "$($r.Drive)", "$rtg" }
+    elseif ($pk -eq 'target') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture tête par tête par le lecteur {5} avec la courbe croisée {5} → {6} et, si le lecteur {5} a sa courbe, son facteur de marque, sans calibration ni mesure de la destination, effacement avant l'écriture, vérification gw, {3} essais par piste ; contrôle de toutes les pistes, {4} passes de réécriture au plus ; relecture finale par le lecteur {5} sans nouvel essai.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$($rr.WriteRetries)", "$($rr.RepairPasses)", "$($r.Drive)", "$rtg" }
     elseif ($pk -eq 'refused' -and $pp -and $pp.Ti.BlockKind -eq 'hd') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture pour le lecteur cible {3} non atteinte (elle serait refusée en haute densité : la calibration croisée n'existe qu'en double densité).") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$rtg" }
     elseif ($pk -eq 'refused' -and $pp) { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture pour le lecteur cible {3} non atteinte (elle serait refusée sans courbe croisée standard {4} → {3}).") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$rtg", "$($r.Drive)" }
     elseif ($pk -eq 'refused') { $rl = (T "Règles      : lecture {0} tours, {1} essais x {2} séries ; écriture pour le lecteur cible {3} refusée, rien n'a été écrit.") -f "$($rr.ReadRevs)", "$($rr.ReadRetries)", "$($rr.SeekRetries + 1)", "$rtg" }
@@ -1236,5 +1243,16 @@ function Close-Restore {
     # toute commande gw, par exemple fenetre « Calibration precomp » annulee) : la consigne d Enter-RestoreWait, que seule
     # une commande gw remplace (Start-Progress), ne reste pas dans la barre d etat ; etat neutre du demarrage
     if ($r -and ($r.Waiting -or [string]$stOp.Text -eq (T 'Restauration : changez de disquette, puis cliquez sur « Continuer ».'))) { $stOp.Text = (T 'Prêt.'); $stOp.Image = $script:StIcons.idle }
+    # 12.11 : autre fin : la barre d etat annoncera le resultat de la restauration une fois l application au repos
+    # (Set-SeqEnd, 110), d apres l icone du verdict que Show-RestoreResult vient de poser (h0 reussie, h1 reussie avec
+    # reserve, h2 echouee). Elle gardait « Lecture termine(e) », le compteur et la barre de la derniere relecture. Echec
+    # sur une erreur gw ou gw non lance : l etat de la commande reste affiche (Update-SeqEnd, Set-GwLaunchFailedStatus)
+    elseif ($r) {
+        switch ([string]$script:RsResultIcon) {
+            'h0' { Set-SeqEnd (T 'Restauration réussie') 'ok' }
+            'h1' { Set-SeqEnd (T 'Restauration réussie avec réserve') 'idle' }
+            'h2' { Set-SeqEnd (T 'Restauration échouée') 'err' }
+        }
+    }
     Update-RsCalib
 }

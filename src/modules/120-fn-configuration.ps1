@@ -89,6 +89,9 @@ function Set-SettingCtlValue($c, [string]$k, $v) {
     # propriete modifiee seulement si elle change (pas d evenement inutile)
     if ($c -is [System.Windows.Forms.CheckBox]) { if ($c.Checked -ne [bool]$v) { $c.Checked = [bool]$v } }
     elseif ($c -is [System.Windows.Forms.ComboBox]) {
+        # 12.11 (lot LN-b) : avec des lecteurs enregistres, la liste du bandeau porte des lecteurs et le reglage drive leur
+        # connexion : le lecteur choisi reste s il est sur cette connexion, sinon le lecteur retenu pour elle (112)
+        if ($k -eq 'drive' -and $script:DriveReg.Count -gt 0) { Sync-DriveCombo; return }
         $i = [array]::IndexOf([string[]]$script:SettingDefs[$k].Codes, [string]$v)
         if ($i -lt $c.Items.Count -and $c.SelectedIndex -ne $i) { $c.SelectedIndex = $i }
     }
@@ -123,8 +126,10 @@ function Register-SettingCtl([string]$k, $c) {
     # puis Load-Config, initialisent les controles au demarrage
     if (-not $script:SettingCtl.ContainsKey($k)) { $script:SettingCtl[$k] = New-Object System.Collections.ArrayList }
     [void]$script:SettingCtl[$k].Add($c); $script:SettingOf[$c] = $k
+    # 12.11 (lot LN-b) : liste du bandeau, element au-dela des six connexions (lecteur enregistre) : le reglage drive recoit
+    # sa connexion (Get-DriveConn, 112)
     if ($c -is [System.Windows.Forms.CheckBox]) { $c.Add_CheckedChanged({ if (-not $script:SettingSync) { Set-Setting $script:SettingOf[$this] $this.Checked $this } }) }
-    elseif ($c -is [System.Windows.Forms.ComboBox]) { $c.Add_SelectedIndexChanged({ if (-not $script:SettingSync -and $this.SelectedIndex -ge 0) { $kk = $script:SettingOf[$this]; Set-Setting $kk $script:SettingDefs[$kk].Codes[$this.SelectedIndex] $this } }) }
+    elseif ($c -is [System.Windows.Forms.ComboBox]) { $c.Add_SelectedIndexChanged({ if (-not $script:SettingSync -and $this.SelectedIndex -ge 0) { $kk = $script:SettingOf[$this]; $cd = $script:SettingDefs[$kk].Codes[$this.SelectedIndex]; if ($kk -eq 'drive' -and $this.SelectedIndex -ge @($script:SettingDefs[$kk].Codes).Count) { $cd = Get-DriveConn ([string]$this.SelectedItem) }; Set-Setting $kk $cd $this } }) }
     elseif ($c -is [System.Windows.Forms.NumericUpDown]) { $c.Add_ValueChanged({ if (-not $script:SettingSync) { Set-Setting $script:SettingOf[$this] $this.Value $this } }) }
 }
 
@@ -262,7 +267,7 @@ function Test-ContentLevelSettings($cfg) {
 
 # --- Configuration -------------------------------------------------------------
 function Set-Defaults {
-    $script:CalHardNs = $script:CalHardNsDefault; $script:CalHardNsUser = $script:CalHardNs; Set-CalibScale ''   # 12.7 : bareme double densite
+    Set-PrecompBound $true   # 12.7 : bareme double densite ; 12.11 rc4 (R2) : borne de precompensation automatique, liste des options avancees a jour (230)
     $script:HomeCalFmt = 'amiga.amigados'
     $txtDev.Text = ''
     $chkTime.Checked = $false
@@ -291,6 +296,7 @@ function Set-Defaults {
     $txtWPrecomp1.Text = $script:PrecompStd
     $chkWPostCheck.Checked = $true
     $numWRepair.Value = 3
+    $chkWZones.Checked = $true                 # 12.11 rc7 (R16) : correction par zones (lecteur cible)
     # 12.8 (point 7) : reglages de la table (lecteur, mode de calibration, ecriture lente, prechauffages et leur duree,
     # mesure de la disquette, profil precomp, seuil de famille, carte « Calibrer le lecteur », mesure de l onglet
     # Qualite, seuils de jitter, nettoyage de l onglet Outils) : defauts de la table, y compris le seuil precompThresholdNs
@@ -359,7 +365,7 @@ function Set-Defaults {
     Update-TargetDriveUi
 }
 
-function Backup-ConfigBeforeRef([string[]]$keys, [string]$why = 'replace') {
+function Backup-ConfigBeforeRef([string[]]$keys, [string]$why = 'replace', [string]$Protect = '') {
     # 12.8 (lot 1c, point 4) : copie octet pour octet du fichier de configuration sur disque (dernier etat enregistre, qui
     # contient encore la reference en place), juste avant qu une reference existante soit remplacee ($why 'replace' :
     # Complete-PrecompCalib, toute calibration complete) ou effacee ('reset' : Reset-CalibProfiles). Rien si aucune des
@@ -370,6 +376,12 @@ function Backup-ConfigBeforeRef([string[]]$keys, [string]$why = 'replace') {
     # Rotation : ConfigRefBackupKeep copies gardees, les plus anciennes <fichier>.ref-*.bak supprimees (copies de
     # l application seulement), une ligne de journal par fichier. Echec de la copie : une ligne de journal, l operation
     # continue, sans rotation. Retablir une copie reste manuel (application fermee). Renvoie le chemin de la copie ou $null
+    # 12.11 (L7) : motif 'back' (Restore-CalibBack, 240 : retour a une calibration precedente, qui annule le retour si la
+    # copie echoue) : si le nom calcule existe deja (annuler un retour : la copie d origine de la calibration retablie
+    # porte la date de la courbe remplacee), la copie prend le suffixe -r<AAAAMMJJ-HHmmss> avant .bak, puis -2, -3... si ce
+    # nom existe aussi : un retour n ecrase jamais une copie. Elle reste couverte par la rotation <fichier>.ref-*.bak.
+    # Fichier de configuration absent : echec note comme celui de la copie. $Protect : copie que la rotation de cet appel
+    # ne supprime jamais (la copie lue par le retour)
     $oc = $script:OldCalib
     $cvs = @{}
     foreach ($k in @($keys | Where-Object { $_ } | Sort-Object -Unique)) {
@@ -381,32 +393,43 @@ function Backup-ConfigBeforeRef([string[]]$keys, [string]$why = 'replace') {
     }
     if ($cvs.Count -eq 0) { return $null }
     $cfg = [string]$script:ConfigFile
-    if (-not $cfg -or -not (Test-Path -LiteralPath $cfg -PathType Leaf)) { return $null }
+    if (-not $cfg -or (-not (Test-Path -LiteralPath $cfg -PathType Leaf) -and $why -ne 'back')) { return $null }
     $newest = @($cvs.Keys | Sort-Object { Get-CurveDate $cvs[$_] } -Descending)[0]
     $dt = Get-CurveDate $cvs[$newest]
     $stamp = if ($dt -ne [datetime]::MinValue) { $dt.ToString('yyyyMMdd-HHmm', [System.Globalization.CultureInfo]::InvariantCulture) } else { 'sans-date' }
     $fams = @($cvs.Keys | ForEach-Object { $ck = (Split-DriveCurveKey $_).Key; if ($ck -like 'hd*') { 'hd' } elseif ($ck -like 'long*') { 'long' } else { 'std' } } | Sort-Object -Unique)
     $leaf = [System.IO.Path]::GetFileName($cfg); $dir = Split-Path -Parent $cfg
     $bak = Join-Path $dir ($leaf + '.ref-' + ($fams -join '+') + '-' + $stamp + '.bak')
+    if ($why -eq 'back' -and (Test-Path -LiteralPath $bak)) {
+        # 12.11 (L7, m6) : nom deja pris : suffixe -r<date de la copie>, puis -2, -3... (jamais d ecrasement)
+        $rb = Join-Path $dir ($leaf + '.ref-' + ($fams -join '+') + '-' + $stamp + '-r' + (Get-Date).ToString('yyyyMMdd-HHmmss', [System.Globalization.CultureInfo]::InvariantCulture))
+        $bak = $rb + '.bak'; $i = 1
+        while (Test-Path -LiteralPath $bak) { $i++; $bak = $rb + '-' + $i + '.bak' }
+    }
     $famTxt = (@($fams | ForEach-Object { Get-CalibFamilyName $_ })) -join ', '
     $dateTxt = [string]$cvs[$newest].Date
     try {
-        # File.Copy : copie du fichier seul (jamais dans un dossier de ce nom), remplace une copie de meme nom
-        [System.IO.File]::Copy($cfg, $bak, $true)
+        # File.Copy : copie du fichier seul (jamais dans un dossier de ce nom), remplace une copie de meme nom ; 12.11 :
+        # jamais avec le motif back
+        [System.IO.File]::Copy($cfg, $bak, ($why -ne 'back'))
         [System.IO.File]::SetLastWriteTime($bak, (Get-Date))
     } catch {
         $msg = ([string]$(if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $_.Exception.Message })).Trim().TrimEnd('.')
         if ($why -eq 'reset') { Append-Log ((T "Configuration non sauvegardée avant l'effacement des calibrations ({0}) : {1}. L'effacement continue sans copie.") -f "$famTxt", "$msg") }
+        elseif ($why -eq 'back') { Append-Log ((T "Configuration non sauvegardée avant le retour à une calibration précédente ({0}) : {1}. Retour annulé : rien n'est modifié.") -f "$famTxt", "$msg") }
         else { Append-Log ((T "Configuration non sauvegardée avant le remplacement de la référence {0} : {1}. La calibration continue sans copie.") -f "$famTxt", "$msg") }
         return $null
     }
     if ($why -eq 'reset') { Append-Log ((T "Configuration sauvegardée avant l'effacement des calibrations (référence {0} du {1}) : {2}") -f "$famTxt", "$dateTxt", "$bak") }
+    elseif ($why -eq 'back') { Append-Log ((T "Configuration sauvegardée avant le retour à une calibration précédente (référence {0} du {1}) : {2}") -f "$famTxt", "$dateTxt", "$bak") }
     else { Append-Log ((T "Configuration sauvegardée avant le remplacement de la référence {0} du {1} : {2}") -f "$famTxt", "$dateTxt", "$bak") }
     $keep = [math]::Max(1, [int]$script:ConfigRefBackupKeep)
+    $protName = if ($Protect) { [System.IO.Path]::GetFileName($Protect) } else { '' }
     try {
         $bakName = [System.IO.Path]::GetFileName($bak)
         $all = @(Get-ChildItem -LiteralPath $dir -File -ErrorAction Stop | Where-Object { $_.Name -like ($leaf + '.ref-*.bak') -and $_.Name -ne $bakName } | Sort-Object LastWriteTime -Descending)
         foreach ($f in @($all | Select-Object -Skip ($keep - 1))) {
+            if ($protName -and $f.Name -eq $protName) { continue }   # 12.11 (L7) : copie lue par le retour, jamais supprimee ici
             try { Remove-Item -LiteralPath $f.FullName -Force -ErrorAction Stop; Append-Log ((T "Ancienne sauvegarde de configuration supprimée ({1} gardées) : {0}") -f "$($f.FullName)", "$keep") } catch { }
         }
     } catch { }
@@ -479,6 +502,66 @@ function Import-DriveCurves($pcv, $dcv, [string]$drive) {
     return @{ Old = $old; N = $n; Migrated = $migrated; Drives = @($drives.Keys | Sort-Object) }
 }
 
+function Read-DriveCurves($pcv, $dcv, [string]$drive) {
+    # 12.11 (L7) : courbes d une configuration lues sans effet sur le magasin (retour a une calibration precedente,
+    # Read-CalibBackup) : memes regles qu au chargement, par Import-DriveCurves elle-meme, appelee telle quelle, le magasin
+    # en place etant remis ensuite, meme en cas d erreur (finally) ; une seule lecture des blocs, et Import-DriveCurves
+    # reste celle de la 12.10. Rend @{ Curves (cle de magasin -> courbe du calcul actuel ou conservee) ; Old (courbes d un
+    # autre calcul) ; N ; Migrated ; Drives }
+    $keep = $script:DriveCurves
+    $r = $null; $cur = @{}
+    try {
+        $r = Import-DriveCurves $pcv $dcv $drive
+        $cur = $script:DriveCurves
+    } finally { $script:DriveCurves = $keep }
+    return @{ Curves = $cur; Old = $r.Old; N = $r.N; Migrated = $r.Migrated; Drives = $r.Drives }
+}
+
+function Read-CalibBackup([string]$path) {
+    # 12.11 (L7) : une copie de la configuration (<fichier>.*.bak : copies .ref-, .calib-, .lecteurs- et copies manuelles),
+    # lue sans rien changer : toutes ses courbes, du calcul actuel ou non (Read-DriveCurves : bloc driveCurves, sinon
+    # courbes d une configuration 12.9 rangees sous leur lecteur, a defaut sous le lecteur de cette copie), et son bloc
+    # drives (registre des lecteurs enregistres de son epoque, $null sans bloc ; Resolve-DriveOfEra, 112). Lecture dans un
+    # try : fichier absent ou illisible, JSON tronque : Ok faux, Why (message). Sans bloc write ou sans courbe : Ok vrai,
+    # aucune courbe. Rend @{ Ok ; Why ; Path ; Name ; When (date de la copie) ; Curves (cle de magasin -> courbe, cles
+    # triees) ; Drives ; Drive (lecteur de la copie, global.drive) }
+    $res = @{ Ok = $false; Why = ''; Path = $path; Name = ''; When = [datetime]::MinValue; Curves = [ordered]@{}; Drives = $null; Drive = '' }
+    try {
+        $res.Name = [System.IO.Path]::GetFileName($path)
+        $fi = New-Object System.IO.FileInfo($path)
+        if (-not $fi.Exists) { throw (New-Object System.IO.FileNotFoundException($path)) }
+        $res.When = $fi.LastWriteTime
+        $cfg = [System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+        $res.Drives = Get-Cfg $cfg 'drives' $null
+        $res.Drive = [string](ConvertTo-SettingValue 'drive' (Get-Cfg (Get-Cfg $cfg 'global' $null) 'drive' $null))
+        $w = Get-Cfg $cfg 'write' $null
+        if ($w) {
+            $rd = Read-DriveCurves (Get-Cfg $w 'precompCurves' $null) (Get-Cfg $w 'driveCurves' $null) $res.Drive
+            foreach ($sk in @(@($rd.Curves.Keys) + @($rd.Old.Keys) | Sort-Object -Unique)) {
+                $cv = $rd.Curves[$sk]; if (-not $cv) { $cv = $rd.Old[$sk] }
+                if ($cv) { $res.Curves[[string]$sk] = $cv }
+            }
+        }
+        $res.Ok = $true
+    } catch {
+        $res.Ok = $false; $res.Curves = [ordered]@{}
+        $res.Why = ([string]$(if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $_.Exception.Message })).Trim().TrimEnd('.')
+    }
+    return $res
+}
+
+function Get-CalibBackFiles([int]$Max = 40) {
+    # 12.11 (L7) : copies lues par le retour a une calibration precedente : <fichier>.*.bak du dossier de la configuration
+    # (copies .ref- et .calib- de l application, .lecteurs- des lecteurs enregistres, copies manuelles), les $Max plus
+    # recentes. La copie de secours du registre (<fichier>.lecteurs) n en est pas. Chemins rendus un a un
+    $cfg = [string]$script:ConfigFile
+    if (-not $cfg) { return }
+    $leaf = [System.IO.Path]::GetFileName($cfg); $dir = Split-Path -Parent $cfg
+    if (-not $dir -or -not (Test-Path -LiteralPath $dir -PathType Container)) { return }
+    $fs = @(Get-ChildItem -LiteralPath $dir -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like ($leaf + '.*.bak') } | Sort-Object -Property @{ Expression = { $_.LastWriteTime }; Descending = $true }, @{ Expression = { $_.Name }; Descending = $true })
+    foreach ($f in @($fs | Select-Object -First ([math]::Max(1, $Max)))) { [string]$f.FullName }
+}
+
 function Export-TargetDrives {
     # 12.10 : bloc write.targetDrive : lecteur cible des ecritures par lecteur source (Set-TargetDrive, 140), « source » ->
     # « cible », sources triees ; entrees sans effet (cible vide, egale a la source ou inconnue : Get-TargetDrive) omises ;
@@ -529,6 +612,10 @@ function Save-Config {
     # le bloc targetCorrection de la correction « lecteur cible » Dk n est plus ecrit (une 12.9 relit sa configuration sans lui)
     $cmCfg = @(@($script:ContentMeasures) | Where-Object { $_ } | ForEach-Object { ConvertTo-ContentConfig $_ })
     $tdCfg = Export-TargetDrives
+    # 12.11 : lecteurs enregistres (Export-DriveRegistry, 112) : bloc drives, au premier niveau ; $null tant que personne
+    # n a enregistre de lecteur (le fichier garde les cles exactes de la 12.10) ; une 12.10 ignore ce bloc et le perd si
+    # elle enregistre : la copie de secours <fichier>.lecteurs le garde (Save-DriveRescue, apres l ecriture reussie)
+    $drCfg = Export-DriveRegistry
     $cfg = [ordered]@{
         _comment = (T 'Configuration GreaseweazleGUI - régénérée automatiquement. Supprimable sans risque.')
         _saved   = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
@@ -538,7 +625,7 @@ function Save-Config {
             split = $split.SplitterDistance; maximized = ($form.WindowState -eq 'Maximized')
             logVisible = -not $split.Panel2Collapsed
         }
-        global   = @{ device = $txtDev.Text; time = [bool]$chkTime.Checked; detectNone = [bool]$script:DetectNone }
+        global   = @{ device = $txtDev.Text; time = [bool]$chkTime.Checked }   # 12.11 rc3 (R3) : detectNone retire (plus de detection au demarrage)
         library  = @{ root = $txtLibRoot.Text; imagesOnly = [bool]$chkLibImgOnly.Checked }
         write    = @{
             file = $txtWFile.Text; format = $cmbWFmt.Text
@@ -549,9 +636,11 @@ function Save-Config {
             retries = [int]$numWRetries.Value
             precompOn = [bool]$chkWPrecomp.Checked; precomp = $txtWPrecomp.Text; precomp1 = $txtWPrecomp1.Text
             postCheck = [bool]$chkWPostCheck.Checked; repairMax = [int]$numWRepair.Value
+            zoneFix = [bool]$chkWZones.Checked  # 12.11 rc7 (R16) : correction par zones au controle d une ecriture pour un lecteur cible ; une version anterieure ignore cette cle
             precompStd = $(if ($oc -and $oc.Std -and -not $script:PrecompCurves['std']) { $oc.Std } else { $script:PrecompStd })
             precompLong = $(if ($oc -and $oc.Long -and -not $script:PrecompCurves['long']) { $oc.Long } else { $script:PrecompLong })
             precompMaxNs = [int]$script:CalHardNsUser   # borne des valeurs calibrees (300 a 470 ns, 400 par defaut ; 12.7 : celle de la double densite, la haute densite en prend la moitie)
+            precompMaxAuto = [bool]$script:CalHardAuto  # 12.11 rc4 (R2) : borne automatique (precompMaxNs vaut alors 400) ; faux : valeur choisie, 400 ns comprise ; une version anterieure ignore cette cle
             calibVersion = $script:Version     # version de l application qui a enregistre (information)
             calibCalc = $script:CalibCalc      # calcul de calibration courant ; chaque courbe porte le sien (calc)
             calibAlgo = $script:CalibAlgo
@@ -595,10 +684,18 @@ function Save-Config {
     # compare.formatChoice ; library.dat, lot 4b), puis, pendant
     # une operation surchargee (D4 : ecriture depuis la Bibliotheque ; lot 2 : restauration), reglages de l onglet
     # Ecriture d avant l operation
+    if ($drCfg) { $cfg['drives'] = $drCfg }    # 12.11 : lecteurs enregistres
+    # 12.11 rc8 (R17) : recalages des courbes croisees et derniere ecriture pour chaque lecteur cible (172), blocs
+    # write.targetRecal et write.lastTargetWrite ecrits seulement quand ils ont une entree (fichier de la rc7 sinon) ; une
+    # version anterieure les ignore
+    $trCfg = Export-TargetRecal; $lwCfg = Export-LastTargetWrites
+    if ($trCfg.Count -gt 0) { $cfg.write['targetRecal'] = $trCfg }
+    if ($lwCfg.Count -gt 0) { $cfg.write['lastTargetWrite'] = $lwCfg }
     Export-Settings $cfg
     if ($script:OpOverride) { Set-OpOverrideConfig $cfg }
     try {
         $cfg | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $script:ConfigFile -Encoding UTF8
+        if ($drCfg) { [void](Save-DriveRescue $drCfg) }   # 12.11 : copie de secours du registre, si son contenu a change
         return $true
     } catch {
         Append-Log ((T "ERREUR sauvegarde configuration : {0}") -f "$($_.Exception.Message)")
@@ -650,7 +747,6 @@ function Load-Config {
     $g = Get-Cfg $cfg 'global' $null
     $txtDev.Text = [string](Get-Cfg $g 'device' '')
     $chkTime.Checked = [bool](Get-Cfg $g 'time' $false)
-    $script:DetectNone = [bool](Get-Cfg $g 'detectNone' $false)
 
     $l = Get-Cfg $cfg 'library' $null
     $txtLibRoot.Text = [string](Get-Cfg $l 'root' '')
@@ -698,6 +794,14 @@ function Load-Config {
     $ldDrive = [string](ConvertTo-SettingValue 'drive' (Get-Cfg (Get-Cfg $cfg 'global' $null) 'drive' $null))
     $imp = Import-DriveCurves $pcv $(if ($fromBak) { $null } else { Get-Cfg $w 'driveCurves' $null }) $ldDrive
     $old = $imp.Old
+    # 12.11 : lecteurs enregistres (112) : bloc drives, sinon copie de secours du registre ; rien pour une configuration
+    # qui n en a jamais eu. Les courbes sont deja rangees : une courbe sans lecteur d une configuration 12.9 reste sous la
+    # connexion relue, jamais sous un nom
+    Import-DriveRegistry $cfg $old
+    # 12.11 (lot LN-b) : lecteur de la configuration : le dernier lecteur enregistre choisi sur la connexion relue s il y
+    # est toujours (12.11 rc2.2 : sans dernier lecteur, le premier lecteur enregistre sur elle, Import-DriveRegistry),
+    # sinon le lecteur non enregistre (vue, profils de famille et courbes mises de cote de ce lecteur)
+    if ($script:DriveReg.Count -gt 0) { $ldDrive = Get-DriveForConn $ldDrive }
     Sync-PrecompCurves $ldDrive
     if ($imp.Migrated) { Append-Log ((T "Configuration d'une version antérieure : {0} courbe(s) de calibration rangée(s) par lecteur ({1}).") -f "$($imp.N + $old.Count)", ((@($imp.Drives)) -join ', ')) }
     # Profil de famille : celui de la courbe commune reprise du lecteur (Sync-PrecompCurves) ; mis de cote avec sa courbe ;
@@ -741,13 +845,29 @@ function Load-Config {
     $script:ContentMeasures = @(); $cmBad = 0
     foreach ($o in @(Get-Cfg $w 'driveFactors' @())) { $rec = ConvertFrom-ContentConfig $o; if ($rec) { $script:ContentMeasures += ,$rec } else { $cmBad++ } }
     if ($cmBad -gt 0) { Append-Log ((T 'Configuration : {0} facteur(s) mesuré(s) illisible(s), ignoré(s).') -f "$cmBad") }
+    # 12.11 : une identite sans fiche n est jamais devinee : fiche sans connexion pour tout nom admis trouve dans les
+    # donnees lues (Repair-DriveRegistry, 112 ; bloc targetDrive lu brut, avant qu Import-TargetDrives ecarte les lecteurs
+    # inconnus) ; aucune pour une configuration dont toutes les donnees citent une connexion (12.10)
+    [void](Repair-DriveRegistry $old (Get-Cfg $w 'targetDrive' $null))
+    # 12.11 (lot LN-b) : liste du bandeau (les six connexions, puis les lecteurs enregistres qui ont une connexion) et sa
+    # disposition (Update-DriveList, 112) ; registre vide et liste de six elements : rien (12.10)
+    if ($script:DriveReg.Count -gt 0 -or $cmbDrive.Items.Count -gt @($script:SettingDefs['drive'].Codes).Count) { Update-DriveList }
     $tdi = Import-TargetDrives (Get-Cfg $w 'targetDrive' $null)
     if ([int]$tdi.Bad -gt 0) { Append-Log ((T 'Configuration : {0} lecteur(s) cible illisible(s) ou inconnu(s), ignoré(s).') -f "$($tdi.Bad)") }
+    # 12.11 rc8 (R17) : recalages des courbes croisees et derniere ecriture pour chaque lecteur cible (172) ; entree
+    # illisible ignoree, une ligne
+    $tri = Import-TargetRecal (Get-Cfg $w 'targetRecal' $null)
+    $lwi = Import-LastTargetWrites (Get-Cfg $w 'lastTargetWrite' $null)
+    if ([int]$tri.Bad + [int]$lwi.Bad -gt 0) { Append-Log ((T 'Configuration : {0} recalage(s) de courbe croisée et {1} mémoire(s) d''écriture pour un lecteur cible illisibles, ignorés.') -f "$($tri.Bad)", "$($lwi.Bad)") }
+    # 12.11 : registre relu dans la copie de secours : lecteurs cibles des lecteurs enregistres retablis depuis elle (une
+    # version anterieure les retire), et ligne de journal qui dit ce qui a ete retrouve ; rien sinon
+    [void](Restore-DriveRescueTargets $old)
     # Revue 12.8.2 : facteurs d un autre calcul qui ne s appliquent plus (aucune mesure du calcul actuel pour ce lecteur,
     # cette famille et cette tete, Get-StaleDriveFactors) : une ligne a chaque demarrage, jusqu a une nouvelle mesure
     $sdf = Get-StaleDriveFactors
-    # 12.9 : facteurs d un autre calcul de mesure sur l image (ContentCalc avant la 12.9) : texte de la montee de calcul
-    if ([int]$sdf.Content -gt 0) { Append-Log (T "Facteurs mesurés sur l'image avant la 12.9 : le calcul a changé (marque, courbure en ns, facteur au-delà de 1), ils ne sont plus appliqués. Refaites une mesure sur l'image pour chaque marque.") }
+    # 12.9 : facteurs d un autre calcul de mesure sur l image (ContentCalc avant la 12.9) : texte de la montee de calcul.
+    # 12.11 rc6 (R15) : ContentCalc 12.11 (facteur par l asymetrie) : texte de cette montee
+    if ([int]$sdf.Content -gt 0) { Append-Log (T "Facteurs mesurés sur l'image avant la 12.11 : le facteur se règle désormais par l'asymétrie de lecture, ils ne sont plus appliqués. Refaites une mesure sur l'image pour chaque marque.") }
     # Synthese C (A2) : mesures du calcul actuel relues sans etat (configuration reecrite par une version anterieure, qui
     # retire les champs de la 12.9) : Get-DriveK ne les retient plus ; une ligne a chaque demarrage, jusqu a une nouvelle
     # mesure du calcul actuel pour ce lecteur, cette famille et cette tete (comme Get-StaleDriveFactors)
@@ -777,27 +897,40 @@ function Load-Config {
     if ($lostProf) { Append-Log (T 'Profil de famille calibré sans courbe (version antérieure à 12.1) : profil d''origine rétabli.') }
     # Borne des valeurs calibrees : reglage de la configuration, ramene a 300..470 ns ; valeur illisible : defaut, signale
     $hraw = Get-Cfg $w 'precompMaxNs' $null
-    $hn = $script:CalHardNsDefault; $hd = 0.0
+    $hn = $script:CalHardNsDefault; $hd = 0.0; $hread = $false
     if ($null -ne $hraw) {
         if ($hraw -isnot [bool] -and $hraw -isnot [array] -and [double]::TryParse(([string]$hraw).Trim(), [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$hd) -and -not [double]::IsNaN($hd) -and -not [double]::IsInfinity($hd)) {
-            $hn = [int][math]::Round([math]::Max(-1e9, [math]::Min(1e9, $hd)))
+            $hn = [int][math]::Round([math]::Max(-1e9, [math]::Min(1e9, $hd))); $hread = $true
         } else { Append-Log ((T "Borne de précompensation (precompMaxNs) illisible ({0}) : {1} ns par défaut.") -f "$hraw", "$($script:CalHardNsDefault)") }
     }
     $script:CalHardNs = [int][math]::Max($script:CalHardMinNs, [math]::Min($script:CalHardMaxNs, $hn))
     if ($script:CalHardNs -ne $hn) { Append-Log ((T "Borne de précompensation (precompMaxNs) de {0} ns ramenée à {1} ns : elle va de {2} à {3} ns. Au-delà de 470 ns, la précompensation déplacerait une transition d'un quart de cellule en long track (1,89 us).") -f "$hraw", "$($script:CalHardNs)", "$($script:CalHardMinNs)", "$($script:CalHardMaxNs)") }
     elseif ($script:CalHardNs -ne $script:CalHardNsDefault) { Append-Log ((T "Borne de précompensation réglée dans la configuration (precompMaxNs) : {0} ns, au lieu de {1} ns par défaut.") -f "$($script:CalHardNs)", "$($script:CalHardNsDefault)") }
-    $script:CalHardNsUser = $script:CalHardNs; Set-CalibScale ''   # 12.7 : borne configuree, bareme double densite
+    # 12.11 rc4 (R2) : borne automatique ou valeur choisie (liste « Borne de precompensation » des options avancees).
+    # Configuration d une version anterieure, sans la cle precompMaxAuto : 400 ns = automatique, toute autre valeur =
+    # valeur reglee, comme avant. 400 ns choisi : valeur de 400 ns lue avec precompMaxAuto a faux. Une valeur autre que
+    # 400 ns reste une valeur reglee quoi que dise la cle (fichier modifie a la main, comme avant)
+    $hauto = Get-Cfg $w 'precompMaxAuto' $null
+    $hset = ($script:CalHardNs -ne $script:CalHardNsDefault -or ($hread -and $null -ne $hauto -and $hauto -isnot [array] -and ([string]$hauto).Trim() -eq 'False'))
+    if ($hset -and $script:CalHardNs -eq $script:CalHardNsDefault) { Append-Log ((T "Borne de précompensation choisie : {0} ns en standard comme en long track (en automatique : {1} ns en long track) ; la haute densité en prend la moitié.") -f "$($script:CalHardNs)", "$($script:CalHardMaxNs)") }
+    Set-PrecompBound (-not $hset) ([int]$script:CalHardNs)   # 12.7 : borne configuree, bareme double densite ; 12.11 rc4 : Set-PrecompBound (230)
     # 12.8 (point 7) : reglages de la table, sauf ceux de l ecriture lente lus plus bas, a la place qu ils avaient en 12.7
     # (apres les champs --precomp) : lecteur, mode de calibration, duree du prechauffage (lignes de journal d une valeur
     # illisible ou ramenee a 0..30 min), profil precomp (code, sinon ancien texte francais ou anglais), seuil de famille,
     # carte « Calibrer le lecteur », mesure de l onglet Qualite, seuils de jitter, nettoyage de l onglet Outils
     $lateKeys = @('slowWrite', 'warmSlowWrite', 'warmFullCalib', 'levelBeforeWrite', 'levelBeforeWriteMode')
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, aucune ligne « Lecteur choisi » au chargement (« avant : A » ne
+    # serait que la valeur de Set-Defaults), puis bandeau sur le lecteur retenu pour la connexion du reglage : le reglage
+    # seul ne change pas de lecteur sur une meme connexion (Sync-DriveCombo)
+    if ($script:DriveReg.Count -gt 0) { $script:DriveCur = '' }
     Import-Settings $cfg -Except $lateKeys
+    if ($script:DriveReg.Count -gt 0) { Set-Combo $cmbDrive (Get-DriveForConn ([string](Get-Setting 'drive'))); $script:DriveCur = [string]$cmbDrive.Text }
     Update-LegacyCleanDefault $cfg             # 12.8 (D9) : ancien defaut du nettoyage de l onglet Outils
     Test-ContentLevelSettings $cfg             # 12.8.1 : niveaux de la mesure sur l image, controles ensemble
     $chkWPostCheck.Checked = [bool](Get-Cfg $w 'postCheck' $true)
     $rm = [int](Get-Cfg $w 'repairMax' 3); $numWRepair.Value = [math]::Max(0, [math]::Min(10, $rm))
     $numWRepair.Enabled = $chkWPostCheck.Checked; $lblWRepair.Enabled = $chkWPostCheck.Checked
+    $chkWZones.Checked = [bool](Get-Cfg $w 'zoneFix' $true)   # 12.11 rc7 (R16)
     $txtWPrecomp.Text  = [string](Get-Cfg $w 'precomp' $script:PrecompStd)
     $txtWPrecomp1.Text = [string](Get-Cfg $w 'precomp1' $txtWPrecomp.Text)
     if ($script:OldCalib) { $script:OldCalib.P0 = $txtWPrecomp.Text; $script:OldCalib.P1 = $txtWPrecomp1.Text }   # retablis si conservees

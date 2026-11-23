@@ -11,6 +11,7 @@
 .gitattributes text eol=lf
 .editorconfig text eol=lf
 LICENSE text eol=lf
+tests/*.txt text eol=lf
 
 # Binaires
 *.ico binary

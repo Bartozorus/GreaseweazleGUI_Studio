@@ -194,6 +194,25 @@ function Start-HomeCalib([string]$name, [string]$test, [bool]$heads, [int]$nCyl,
     return $res
 }
 
+function Get-HomeCrossChoice([string]$name, [bool]$heads, [int]$nCyl, [bool]$fine) {
+    # 12.11 rc4 (R4) : choix du bouton « Calibration croisee pour un lecteur cible... » de la fenetre de la carte
+    return @{ Cross = $true; Name = $name; Heads = $heads; NCyl = $nCyl; Fine = $fine; Test = $(if ($fine) { 'fine' } else { 'std' }) }
+}
+
+function Start-HomeCrossCalib($ch) {
+    # 12.11 rc4 (R4, maquettes 05a et 05b approuvees) : calibration croisee lancee depuis la carte « Calibrer le
+    # lecteur » : Start-CrossCalib (270) avec le type, les cylindres et la case « une courbe par tete » de la carte (memes
+    # refus, chacun affiche par elle) ; lancee : meme suivi sur la carte que les autres calibrations de la carte
+    # (Update-HomeCalibCard). Rend le resultat de Start-CrossCalib
+    $r = Start-CrossCalib -HomeFmt ([string]$ch.Name) -HomeCyl ([int]$ch.NCyl) -HomeHeads ([bool]$ch.Heads) -HomeFine ([bool]$ch.Fine)
+    if ($r.Started) {
+        $script:HomeCalFmt = [string]$ch.Name
+        $script:HomeCalBusy = $true
+        Update-HomeCalibCard
+    }
+    return $r
+}
+
 function Update-HomeCalibCard {
     # Carte « Calibrer le lecteur » : progression d une calibration lancee depuis l Accueil (texte de la barre de l onglet
     # Ecriture), puis son bilan jusqu a la prochaine ouverture de la carte. Minuterie principale et Start-HomeCalib.
@@ -276,11 +295,29 @@ function Get-HomeProgTitle($cal, $ww) {
     return ((T "Préchauffage avant l'écriture lente : lecteur {0}") -f "$($ww.Drive)")
 }
 
+function Get-CalibDoneTitle([string]$kind) {
+    # 12.11 : titre du bilan d une calibration selon sa fin ('ok', 'warn', 'abandon', autre : arretee), extrait de
+    # Update-HomeProgress : seule source du titre de la zone de l Accueil et de la barre d etat en fin de calibration
+    switch ($kind) {
+        'ok'      { return (T 'Calibration terminée : courbe convergée') }
+        'warn'    { return (T 'Calibration terminée avec réserves : voir le journal') }
+        'abandon' { return (T 'Calibration abandonnée') }
+        default   { return (T 'Calibration arrêtée') }
+    }
+}
+
 function Set-HomeProgDone($cal, [string]$kind, [string]$detail = '') {
     # Bilan d une calibration lancee depuis l Accueil (Complete-PrecompCalib, Complete-LevelCalib, Stop-PrecompCalib) :
     # 'ok', 'warn' (reserves acceptees), 'abandon' (refusee dans la fenetre de decision), 'stop' (arretee, sans mesure
     # exploitable). Detail : premiere raison de la fenetre de decision, sinon le libelle de l onglet Ecriture. Proc : gw
     # en cours a la fin (arret), qui n est pas une nouvelle operation. Sans effet pour une calibration lancee ailleurs.
+    # 12.11 : barre d etat en fin de sequence (Set-SeqEnd, 110), quel que soit le point de depart : meme titre que la zone
+    # de l Accueil, pour une calibration du lecteur seulement (test standard ou fin : complete, B, croisee). Calibration
+    # rapide, mesure de la disquette sur l image (autres modes) et mesure complete d une seule disquette (DiskOnly) : le
+    # titre ne les decrit pas, rien n est pose (regle generale d Update-SeqEnd). Calibration arretee ('stop') : le titre ne
+    # remplace pas un etat deja en attente (-IfNone : restauration arretee pendant la calibration de son lecteur, dont le
+    # verdict « Restauration echouee » vient d etre pose par Stop-Restore, appelee avant Stop-PrecompCalib)
+    if ($cal -and @('std', 'fine') -contains [string]$cal.Mode -and -not $cal.DiskOnly) { Set-SeqEnd (Get-CalibDoneTitle $kind) $(if ($kind -eq 'ok') { 'ok' } else { 'idle' }) -IfNone:($kind -eq 'stop') }
     if (-not $cal -or -not $cal.Home) { return }
     if ($detail) { $detail = $detail.Substring(0, 1).ToUpper() + $detail.Substring(1) } else { $detail = [string]$lblWCal.Text }
     $script:HomeProgDone = @{ Kind = $kind; Detail = $detail; Family = [string]$cal.Family; Slow = [bool]$cal.Slow; Proc = $script:GwProc
@@ -320,7 +357,7 @@ function Update-HomeProgress {
     # zone ; le bouton « Afficher journal » de la barre reste disponible
     $logLink = [bool]$split.Panel2Collapsed -and [bool]$tabs.Enabled
     if ($mode -eq 'done') {
-        $title = switch ([string]$d.Kind) { 'ok' { (T 'Calibration terminée : courbe convergée') } 'warn' { (T 'Calibration terminée avec réserves : voir le journal') } 'abandon' { (T 'Calibration abandonnée') } default { (T 'Calibration arrêtée') } }
+        $title = Get-CalibDoneTitle ([string]$d.Kind)   # 12.11 : meme titre que la barre d etat en fin de calibration
         $src = [string]$d.Detail; $bar = $false; $curveLink = [bool]$d.Curve; $closeLink = $true
     } else {
         # Fenetre de decision ouverte (mode hold) : calibration terminee, barre et detail de sa fin gardes
@@ -502,7 +539,8 @@ function Show-HomeCalib {
     $chkWarm = New-Object System.Windows.Forms.CheckBox
     $chkWarm.Name = 'chkHcWarm'; $chkWarm.Location = '572,318'; $chkWarm.Size = '372,36'; $chkWarm.Checked = ($wm -gt 0 -and [bool](Get-Setting 'warmFullCalib')); $chkWarm.Enabled = ($wm -gt 0)
     $chkWarm.Text = if ($wm -gt 0) { (T "Préchauffer le lecteur avant la calibration complète ({0} au plus de lecture sans écriture)") -f "$wmt" } else { (T "Préchauffer le lecteur avant la calibration complète (désactivé : durée du préchauffage à 0)") }
-    $htip.SetToolTip($chkWarm, (T "Avant une calibration complète (bouton « Calibrer », carte « Calibrer le lecteur » de l'Accueil, calibration automatique avant une écriture) : lectures sans écriture des cylindres de test avant la première passe, pour stabiliser la température du lecteur ; réduites ou sautées si le lecteur vient de servir. Décochée : la calibration commence tout de suite.`nMême réglage dans l'onglet Écriture et dans la fenêtre de la carte « Calibrer le lecteur ». Durée : champ « Durée du préchauffage » de l'onglet Écriture.`nLa calibration rapide (test rapide) n'a pas de préchauffage propre : avant une écriture lente, elle suit la case « Préchauffer le lecteur avant l'écriture lente »."))
+    # 12.11 (L12a) : case et duree du prechauffage de l onglet Ecriture dans ses options avancees (lot L9) : l infobulle le dit
+    $htip.SetToolTip($chkWarm, (T "Avant une calibration complète (bouton « Calibrer », carte « Calibrer le lecteur » de l'Accueil, calibration automatique avant une écriture) : lectures sans écriture des cylindres de test avant la première passe, pour stabiliser la température du lecteur ; réduites ou sautées si le lecteur vient de servir. Décochée : la calibration commence tout de suite.`nMême réglage dans les options avancées de l'onglet Écriture et dans la fenêtre de la carte « Calibrer le lecteur ». Durée : champ « Durée du préchauffage », dans les options avancées de l'onglet Écriture.`nLa calibration rapide (test rapide) n'a pas de préchauffage propre : avant une écriture lente, elle suit la case « Préchauffer le lecteur avant l'écriture lente »."))
     $rbStd = New-Object System.Windows.Forms.RadioButton;   $rbStd.Name = 'rbHcStd';     $rbStd.Location = '572,356';   $rbStd.Size = '372,36'
     $rbFine = New-Object System.Windows.Forms.RadioButton;  $rbFine.Name = 'rbHcFine';   $rbFine.Location = '572,394';  $rbFine.Size = '372,36'
     $rbQuick = New-Object System.Windows.Forms.RadioButton; $rbQuick.Name = 'rbHcQuick'; $rbQuick.Location = '572,432'; $rbQuick.Size = '372,36'
@@ -515,9 +553,15 @@ function Show-HomeCalib {
     $btnClose = New-Object System.Windows.Forms.Button; $btnClose.Name = 'btnHcClose'; $btnClose.Text = (T 'Fermer'); $btnClose.Size = New-Object System.Drawing.Size(110, 34); $btnClose.Location = '834,628'
     $btnGo = New-Object System.Windows.Forms.Button; $btnGo.Name = 'btnHcGo'; $btnGo.Text = (T 'Calibrer'); $btnGo.Size = New-Object System.Drawing.Size(160, 34); $btnGo.Location = '666,628'
     $btnClose.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
-    Set-Btn $btnCurve 'Diagnostic' 'normal'; Set-Btn $btnGo 'Play' 'primary'; Set-Btn $btnClose '' 'normal'
+    # 12.11 rc4 (R4, maquette 05a approuvee) : « Calibration croisee pour un lecteur cible... » : ferme la fenetre, puis
+    # Start-HomeCrossCalib ouvre la fenetre de choix de la calibration croisee avec le type, les cylindres et la case
+    # « une courbe par tete » choisis ici ; explication en infobulle
+    $btnCross = New-Object System.Windows.Forms.Button; $btnCross.Name = 'btnHcCross'; $btnCross.Text = (T 'Calibration croisée pour un lecteur cible…')
+    $btnCross.Size = New-Object System.Drawing.Size([math]::Max(300, (Get-DlgButtonWidth $btnCross.Text 'Switch' 300)), 34); $btnCross.Location = New-Object System.Drawing.Point(($btnCurve.Right + 8), 628)
+    $htip.SetToolTip($btnCross, ((T '« Calibration croisée pour un lecteur cible… » : {0} écrit, un autre lecteur relit. Pour les disquettes écrites ici puis lues par cet autre lecteur.') -f "$($cmbDrive.Text)"))
+    Set-Btn $btnCurve 'Diagnostic' 'normal'; Set-Btn $btnGo 'Play' 'primary'; Set-Btn $btnClose '' 'normal'; Set-Btn $btnCross 'Switch' 'normal'
     $dlg.CancelButton = $btnClose                     # pas d AcceptButton : Entree dans la liste ne lance rien
-    $dlg.Controls.AddRange(@($intro, $lv, $tbInfo, $lblCyl, $numCyl, $chkHeads, $chkWarm, $rbStd, $rbFine, $rbQuick, $lblQuick, $lblWarn, $btnCurve, $btnGo, $btnClose))
+    $dlg.Controls.AddRange(@($intro, $lv, $tbInfo, $lblCyl, $numCyl, $chkHeads, $chkWarm, $rbStd, $rbFine, $rbQuick, $lblQuick, $lblWarn, $btnCurve, $btnCross, $btnGo, $btnClose))
     # Mode par defaut : reglage calMode, celui de l onglet Ecriture (test standard, fin ou rapide) ; rapide indisponible :
     # test fin
     $prevFmt = [string]$script:HomeCalFmt
@@ -544,6 +588,12 @@ function Show-HomeCalib {
                        WarmEn = [bool]$s.Warm.Enabled; WarmChk = [bool]$s.Warm.Checked; QuickEn = [bool]$s.Quick.Enabled }
         $s.Dlg.DialogResult = [System.Windows.Forms.DialogResult]::OK
     })
+    $btnCross.Add_Click({
+        $s = $script:HcDlg
+        if ($s.Lv.SelectedItems.Count -eq 0 -or -not $s.Lv.SelectedItems[0].Tag.Cal) { return }
+        $s.Choice = Get-HomeCrossChoice ([string]$s.Lv.SelectedItems[0].Tag.Name) ([bool]$s.Heads.Checked) ([int]$s.Cyl.Value) ([bool]$s.Fine.Checked)
+        $s.Dlg.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    })
     $dlg.Add_Shown({ $s = $script:HcDlg; if ($s) { if ($s.Lv.SelectedItems.Count -gt 0) { $s.Lv.SelectedItems[0].EnsureVisible() }; [void]$s.Lv.Focus() } })
     if ($sel) { $sel.Selected = $true; $sel.Focused = $true }
     Update-HomeCalibDialog
@@ -559,6 +609,14 @@ function Show-HomeCalib {
     if ($dr -ne [System.Windows.Forms.DialogResult]::OK -or -not $ch) {
         # Type change sans calibration : cylindres retenus effaces (ils valaient pour l ancien type)
         if ($last -and $last -ne $prevFmt) { Set-Setting 'homeCalCyls' 0 }
+        [void](Save-Config); return
+    }
+    if ($ch.Cross) {
+        # 12.11 rc4 (R4) : refus deja affiches par Start-CrossCalib (aucun second message) ; cylindres et case retenus
+        # comme pour une calibration de la carte
+        $r = Start-HomeCrossCalib $ch
+        if ($r.Started) { Set-Setting 'homeCalHeads' $ch.Heads; Set-Setting 'homeCalCyls' $ch.NCyl }
+        elseif ($last -and $last -ne $prevFmt) { Set-Setting 'homeCalCyls' 0 }
         [void](Save-Config); return
     }
     $r = Start-HomeCalib $ch.Name $ch.Test $ch.Heads $ch.NCyl $ch.Warm

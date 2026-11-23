@@ -22,6 +22,9 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     $cx = $script:CalCrossAsk; $script:CalCrossAsk = $null
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     $script:Cal = $null
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, lecteur branche confirme s il y a lieu (Confirm-DriveIdentity, 112) ;
+    # refus : calibration non lancee ($script:Cal vide, que lisent les appelants)
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity)) { return }
     $chk = Test-CalibImage $Geom
     if (-not $chk) { return }
     $img = $chk.Img; $family = $chk.Family; $nCyl = $chk.NCyl; $maxCyl = $chk.MaxCyl; $cylSrc = $chk.CylSrc
@@ -41,6 +44,21 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     # lecteur », calibration B : celui de A), sinon reglage warmFullCalib (case de l onglet Ecriture : bouton Calibrer,
     # calibration automatique avant une ecriture, restauration)
     $noWarm = if ($PSBoundParameters.ContainsKey('NoWarmup')) { [bool]$NoWarmup } else { -not [bool](Get-Setting 'warmFullCalib') }
+    # 12.11 rc4 (R5, partie 2) : une calibration interrompue est gardee en memoire ($script:CalResume, Set-CalibResume). Meme
+    # calibration et memes reglages (Get-CalibResumeOffer) : fenetre « Reprendre a l etape N » ou « Recommencer »
+    # (Show-CalibResumeDialog), avant l avertissement d usure. Reprendre : etat retabli, passe interrompue rejouee en entier
+    # (Resume-PrecompCalib). Recommencer : passes gardees abandonnees, lancement ordinaire. Fenetre fermee : rien n est lance,
+    # la calibration reste a reprendre. Autre calibration : l avertissement dit en tete que la lancer abandonne les passes
+    # gardees (abandon a la creation de l etat, plus bas)
+    if ($script:CalResume) {
+        $ro = Get-CalibResumeOffer $family $cyls $maxCyl $slow $fine $img $Geom $cx ([bool]($redo -or $do -or $fb -or $LevelAfter -or $script:Restore -or $script:AfterCalib))
+        if ($ro.Offer) {
+            $rc = Show-CalibResumeDialog $script:CalResume
+            if ($rc -eq 'resume') { [void](Resume-PrecompCalib $img $Geom $nCyl $noWarm); return }
+            if ($rc -ne 'restart') { return }
+            Clear-CalibResume (T 'calibration recommencée à votre demande')
+        } elseif ($ro.Note) { Append-Log ([string]$ro.Note); $Intro = [string]$ro.Note + "`n`n" + $Intro }
+    }
     # Duree estimee : passes d ecriture et de relecture, plus le prechauffage du lecteur (borne haute : il est reduit ou
     # saute si le lecteur vient de servir, plan recalcule apres l avertissement par Start-CalibWarmup)
     # 12.8.2 (revue) : effacement haute frequence de chaque passe en double densite compris (Get-CalibEraseEst, 150)
@@ -119,7 +137,7 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     if ($cx) {
         # 12.10 : calibration croisee : texte en tete (lecteurs, echanges de disquette estimes, duree hors echanges), case
         # obligatoire (la disquette est dans la source), jamais de demarrage automatique ; reponse au journal
-        $sw = Get-CrossSwapEstimate $nPassEst $fine ([int]$script:CalMaxRetest)
+        $sw = Get-CrossSwapEstimate $nPassEst $fine ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify)   # 12.11 : au moins : une seule verification
         $ci = ((T "Calibration croisée : le lecteur {0} écrit le motif de test, le lecteur {1} le relit. Avant chaque relecture, puis avant l'écriture suivante, l'application vous demande de déplacer la disquette d'un lecteur à l'autre : {2} échanges au moins, {3} au plus. La durée estimée ne compte pas ces échanges. La courbe obtenue sert aux écritures du lecteur {0} destinées au lecteur {1} ; la courbe propre du lecteur {0} n'est pas modifiée.") -f "$($cx.Src)", "$($cx.Tgt)", "$($sw.Min)", "$($sw.Max)") + "`n`n"
         $rc = Show-TimedConfirm 'frmCalibConfirm' (T 'Calibration precomp') ($Intro + $ci + $body + "`n`n" + $wear) (T 'Lancer la calibration') 'Diagnostic' '' ((T "J'ai inséré une disquette sacrifiée (sans valeur, jamais l'original) dans le lecteur {0}, celui qui écrit") -f "$($cx.Src)") '' (T "Pas de démarrage automatique : cochez la case, puis cliquez sur « Lancer la calibration ».") -Seconds 0 -NeedCheck -Heading (T 'Calibration croisée : la disquette sacrifiée reçoit le motif de test') -Level 'warn' -Picto 'warn'
         $ans = @{ Ok = ($rc.Ok -and $rc.Checked); Swap = $false; Auto = $false }
@@ -134,9 +152,11 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         $bi = Get-LevelBrandItems ([string]$cmbDrive.Text) @($do.Ref.Units) $family
         # 12.8 (S3-HIGH) : duree avec la mesure directe et les nouveaux essais, au plus ($minDisk)
         $m1 = (T "Mesure complète de cette disquette sur le lecteur {0} : la précompensation est mesurée sur ses {1} cylindres (2 faces), environ {2} min ({3} min au plus si des cylindres demandent plus de {4} ns ou restent non convergés), puis l'image est écrite. La référence du lecteur n'est pas modifiée. La courbe obtenue est mémorisée pour la marque choisie ci-dessous ; sans marque, elle ne sert qu'à cette écriture.") -f "$($cmbDrive.Text)", "$nCyl", "$minutes", "$minDisk", "$mxDisk"
-        # Texte : M1 et usure du support (le detail de la calibration, $body, reste au journal)
+        # Texte : M1 et usure du support (le detail de la calibration, $body, reste au journal). 12.11 rc4 (R5, partie 2,
+        # relecture) : $Intro en tete, comme les quatre autres avertissements : sur ce chemin (Start-DiskMeasure, sans
+        # -Intro), il ne porte que la phrase d une calibration interrompue gardee, que ce lancement abandonnerait
         $cq = @{ Title = (T 'Calibration precomp'); Heading = (T 'Mesure complète de cette disquette'); Level = 'warn'; Picto = 'warn'
-                 Text = ($m1 + "`n`n" + $wear)
+                 Text = ($Intro + $m1 + "`n`n" + $wear)
                  Check = (T "Cette disquette sera effacée, puis l'image y sera écrite.")
                  GoText = (T 'Lancer la mesure complète'); GoGlyph = 'Diagnostic'
                  Combo = @{ Label = (T 'Marque de la disquette insérée :'); Items = $bi.Items; Text = [string]$do.Brand
@@ -174,8 +194,8 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     # @() autour du if : une seule unite resterait sinon une hashtable nue ($cal.Units[0] = $null)
     Set-CalibScale $family     # 12.7 : bareme de la famille (amplitudes haute densite), apres les sorties anticipees
     # 12.8 (S3) : borne de la courbe de cette disquette (Get-DiskHardNs : plafond par disquette, ou precompMaxNs reglee sous
-    # 400 ns) pendant la mesure complete, retablie a sa fin (Reset-DiskHardNs)
-    if ($do) { Set-DiskHardNs @{ DiskOnly = $true; HardNs = [int]$do.HardNs } }
+    # 400 ns) pendant la mesure complete, retablie a sa fin (Reset-DiskHardNs). 12.11 : calculee ici, le motif cree, sur les cellules de la piste ecrite (CapBits, Get-DiskCapBits : piste la plus longue de l image, codec du format, ou format gw au-dela de 250 kbit/s ; 0 si elle n est pas connue : 470 ns, comme en 12.10)
+    if ($do) { $do.CapBits = Get-DiskCapBits ([int]$pat.CapBits) ([string]$cmbWFmt.Text) ([bool]$pat.Known); $do.HardNs = Get-DiskHardNs ([int]$do.CapBits); Set-DiskHardNs @{ DiskOnly = $true; HardNs = [int]$do.HardNs } }
     $units = @(if ($slow) { (New-CalibUnit 0), (New-CalibUnit 1) } else { New-CalibUnit $null })
     foreach ($u in $units) { foreach ($c in $cyls) { $u.Results[[int]$c] = @{} } }
     $script:Cal = @{
@@ -213,6 +233,12 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         # Invoke-CalibAnalysis), meme bareme que VOff (double densite)
         Slope = [bool]$script:CalSlopeOn
     }
+    # 12.11 rc4 (R5, partie 2) : une calibration commence : les passes gardees d une calibration interrompue sont abandonnees.
+    # ResumeKind : calibration que l on peut reprendre apres une interruption, complete ou croisee, lancee pour elle-meme (ni
+    # calibration B, ni mesure complete d une disquette, ni restauration, ni ecriture, mesure ou remise de disquette a la
+    # suite) ; PassLog : noms des passes terminees (Add-CalibPassDone). Hors du litteral, que les tests recopient tel quel
+    if ($script:CalResume) { Clear-CalibResume (T 'une autre calibration commence') }
+    $script:Cal.ResumeKind = [bool](-not ($redo -or $do -or $LevelAfter -or $ans.Swap -or $script:Restore -or $script:AfterCalib)); $script:Cal.PassLog = @()
     if ($cx) {
         # 12.10 : calibration croisee : source (Drive, le lecteur qui ecrit) et cible (le lecteur qui relit) ; disquette dans
         # la source au depart (DiskAt 'S', 'T' dans la cible), echanges comptes (Swaps), invite en cours (SwapHold) ; pas une
@@ -224,16 +250,24 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
         else { Append-Log ((T "=== Calibration croisée : écriture par le lecteur {0}, relecture par le lecteur {1}, image {2} ({3}, {4}) ===") -f "$($cx.Src)", "$($cx.Tgt)", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$modeTxt") }
         Append-Log ((T "Cylindres de test : {0} ({1})") -f "$cylList", "$cylSrc")
         Append-Log ((T "Motif de test : HFE de données pseudo-aléatoires généré, {0} cylindres, {1} cellules par piste ({2}), soit {3} ns par cellule à 300 tr/min. L'image ne fixe que la densité et le nombre de cylindres, son contenu n'est pas écrit.") -f "$nCyl", "$($pat.Bits)", "$($pat.Source)", "$([math]::Round($pat.CellNs, 1))")
-        Append-Log ((T "Calibration croisée : la courbe mesure le besoin du lecteur {1} à la relecture des écritures du lecteur {0} ; elle est enregistrée sous la clé « {0}>{1} », pour les écritures du lecteur {0} destinées au lecteur {1}. Pour ces écritures, le contrôle après écriture relit avec le lecteur {0} (pas avec le lecteur cible) ; la mesure de la disquette et la calibration rapide ne sont pas faites.") -f "$($cx.Src)", "$($cx.Tgt)")
+        # 12.11 (finale) : regles des ecritures pour le lecteur cible depuis la rc2 : courbe de la disquette (mesuree au motif
+        # par le lecteur qui ecrit si cette mesure est demandee, sinon sa courbe) x facteur de la disquette (mesure sur l image
+        # si cette mesure est demandee, sinon facteur de marque, Get-WriteFactorPlan : aussi apres une mesure au motif ou
+        # complete ; aucune mesure en restauration) x facteur par cylindre de la calibration croisee, hausse ajoutee en ns
+        # (Get-TargetTransferPlan, Get-TargetTransferSpec, 140) ; sans courbe propre, courbe croisee telle quelle
+        # (Get-TargetWriteInfo, Xfer) ; jamais de calibration automatique. Avant : ni mesure de la disquette ni calibration
+        # rapide annoncees (regle de la 12.10)
+        Append-Log ((T "Calibration croisée : la courbe mesure le besoin du lecteur {1} à la relecture des écritures du lecteur {0} ; elle est enregistrée sous la clé « {0}>{1} », pour les écritures du lecteur {0} destinées au lecteur {1}. Pour ces écritures, la courbe que le lecteur {0} écrirait pour lui-même sur cette disquette est multipliée, cylindre par cylindre, par le facteur de cette calibration (courbe croisée rapportée à la courbe du lecteur {0} ; une hausse au-delà de la courbe du lecteur {0} est ajoutée en ns). Cette courbe est celle de la disquette (mesurée au motif par le lecteur {0} si cette mesure est demandée, sinon la courbe du lecteur {0}) multipliée par le facteur de la disquette (mesuré sur l'image par le lecteur {0} si cette mesure est demandée, sinon le facteur de marque du lecteur {0}) ; aucune mesure en restauration. Sans courbe du lecteur {0} pour la famille, la courbe croisée est écrite telle quelle, sans mesure. Jamais de calibration automatique ; le contrôle après écriture relit avec le lecteur {0} (pas avec le lecteur cible).") -f "$($cx.Src)", "$($cx.Tgt)")
     }
     elseif ($do) {
-        # 12.8 (S3) : mesure complete de cette disquette : marque, borne de la courbe, reference en place (Get-LevelRef)
+        # 12.8 (S3) : mesure complete de cette disquette : marque, borne (12.11 : au-dela du seuil, quart de la cellule de la piste ecrite, Get-DiskCapNs et Get-DiskCapBits), reference en place (Get-LevelRef)
         $script:Cal.DiskOnly = $true; $script:Cal.Brand = [string]$do.Brand; $script:Cal.HardNs = [int]$do.HardNs; $script:Cal.DiskRef = $do.Ref
         Append-Log ((T "=== Mesure complète de cette disquette : lecteur {0}, image {1} ({2}, {3}) ; référence du lecteur inchangée ===") -f "$($cmbDrive.Text)", "$([System.IO.Path]::GetFileName($img))", "$famTxt", "$modeTxt")
         if ($do.Brand) { Append-Log ((T 'Marque de la disquette insérée : « {0} ».') -f "$($do.Brand)") }
-        $thr = Get-DiskOverNs
-        if ([int]$do.HardNs -gt $thr) { Append-Log ((T "Borne de la courbe de cette disquette : {0} ns ; au-delà de {1} ns, contrôle après écriture imposé.") -f "$($do.HardNs)", "$thr") }
-        else { Append-Log ((T "Borne de la courbe de cette disquette : {0} ns (precompMaxNs).") -f "$($do.HardNs)") }
+        # 12.11 (lot L4b) : ligne de la borne tiree de la decision du plafond (Get-DiskBoundText, 265) : quart de la cellule de la
+        # piste ecrite si elle est connue (CapBits), ligne de la 12.10 sinon (470 ns), borne precompMaxNs au plus au seuil.
+        # 12.11 (L12a) : le motif dit si ces cellules sont celles de la piste la plus longue de l image (IPF, HFE aux pistes inegales)
+        Append-Log (Get-DiskBoundText ([int]$do.HardNs) ([int]$do.CapBits) $pat)
         # 12.8 (S3-HIGH) : duree estimee et ecritures par piste au plus (avertissement M1)
         Append-Log ((T "Durée estimée de la mesure : environ {0} min ; {1} min au plus avec la mesure directe des cylindres dont le besoin dépasse {2} ns et {3} nouveaux essais au plus des cylindres non convergés.") -f "$minutes", "$minDisk", "$mxDisk", "$($script:CalDiskMaxRetest)")
         # 12.9 (correction 1) : l ecriture de conditionnement du lecteur est comptee
@@ -259,7 +293,12 @@ function Start-PrecompCalib([switch]$ForceFine, [string]$Intro = '', [switch]$Le
     Start-CalibWarmup      # prechauffage du lecteur s il y a lieu, puis premiere passe de mesure
 }
 
-function Start-CrossCalib {
+function Start-CrossCalib([string]$HomeFmt = '', [int]$HomeCyl = 0, $HomeHeads = $null, [bool]$HomeFine = $false) {
+    # 12.11 rc4 (R4, maquettes 05a et 05b approuvees) : lancee aussi depuis la fenetre de la carte « Calibrer le lecteur »
+    # de l Accueil (Start-HomeCrossCalib, 200) : $HomeFmt (type de disquette choisi), $HomeCyl (cylindres), $HomeHeads
+    # (une courbe par tete), $HomeFine (test fin preselectionne) remplacent l image et les cases de l onglet Ecriture ;
+    # type d une autre famille que standard ou long track : refus avant la fenetre de choix. Memes refus que depuis
+    # l onglet Ecriture
     # 12.10 : bouton a icone « Calibrer pour un lecteur cible... » de l onglet Ecriture (btnWCross) : calibration croisee, le
     # lecteur du bandeau (source) ecrit le motif, un autre lecteur (cible) le relit, la disquette passant de l un a l autre
     # a la main (Invoke-CalibSwap). Fenetre de choix (Show-CrossCalibDialog, 250) : cible parmi les lecteurs du bandeau,
@@ -274,7 +313,9 @@ function Start-CrossCalib {
     if ($busy) { $res.Why = "$busy"; [void](Show-AppMessage ((T "Calibration croisée impossible : opération en cours ({0}).") -f "$busy") (T 'Calibration precomp') 'OK' 'Warning'); return $res }
     if ($script:CalRedo) { $res.Why = (T 'calibration B'); [void](Show-AppMessage (T "Calibration croisée impossible : une calibration B (« Refaire sur une autre disquette ») est en cours ou en attente de décision.") (T 'Calibration precomp') 'OK' 'Warning'); return $res }
     $src = [string]$cmbDrive.Text
-    $targets = Get-CrossCalibTargets @($cmbDrive.Items | ForEach-Object { [string]$_ }) $src
+    # 12.11 (lot LN-b) : -OtherConn : avec des lecteurs enregistres, les lecteurs de la connexion de la source ne sont pas
+    # proposes (les deux lecteurs sont branches en meme temps, chacun sur sa connexion) ; la fenetre de choix le dit
+    $targets = Get-CrossCalibTargets @($cmbDrive.Items | ForEach-Object { [string]$_ }) $src -OtherConn
     if ($targets.Count -eq 0) { $res.Why = (T 'aucun autre lecteur'); [void](Show-AppMessage (T 'Calibration croisée impossible : aucun autre lecteur dans la liste du bandeau.') (T 'Calibration precomp') 'OK' 'Warning'); return $res }
     # 12.10 (relecture de la RC) : image de l onglet Ecriture d apres le controle de la calibration elle-meme
     # (Get-CalibImageCheck, 260, celui de Test-CalibImage au debut de Start-PrecompCalib) : annoncee et reprise seulement si
@@ -290,32 +331,56 @@ function Start-CrossCalib {
     if ($eb) { $res.Why = [string]$eb.Why; [void](Show-AppMessage ([string]$eb.Why) ([string]$eb.Title) 'OK' ([string]$eb.Icon)); return $res }
     $sb = Get-CalibSettingBlock
     if ($sb) { $res.Why = $sb; [void](Show-AppMessage $sb (T 'Calibration precomp') 'OK' 'Warning'); return $res }
-    $ic = Get-CalibImageCheck
-    $imgFam = if ($ic.Ok) { [string]$ic.Family } else { '' }
-    if (@('std', 'long') -notcontains $imgFam) { $imgFam = '' }
-    $imgInfo = if ($imgFam) { (T "Image de l'onglet Écriture : {0} ({1}) ; avec cette famille, ses cylindres sont ceux de la calibration ; avec l'autre, 80 cylindres à la densité de la famille.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))", (Get-CalibFamilyName $imgFam) }
-               else { (T "Aucune image calibrable dans l'onglet Écriture : 80 cylindres, à la densité de la famille choisie.") }
+    $hInfo = $null
+    if ($HomeFmt) {
+        $hInfo = Get-HomeCalibInfo $HomeFmt
+        if (@('std', 'long') -notcontains [string]$hInfo.Cal) { $res.Why = (T 'famille sans calibration croisée'); [void](Show-AppMessage ((T 'Calibration croisée impossible pour {0} : seules les familles {1} et {2} se calibrent pour un lecteur cible.') -f [string]$hInfo.Label, (Get-CalibFamilyName 'std'), (Get-CalibFamilyName 'long')) (T 'Calibration precomp') 'OK' 'Warning'); return $res }
+        $imgFam = [string]$hInfo.Cal
+        $HomeCyl = [math]::Max(2, [math]::Min(84, $HomeCyl))
+        $imgInfo = (T "Type de disquette choisi dans l'Accueil : {0} ({1}), {2} cylindres ; avec l'autre famille, 80 cylindres à sa densité.") -f [string]$hInfo.Label, (Get-CalibFamilyName $imgFam), "$HomeCyl"
+    } else {
+        $ic = Get-CalibImageCheck
+        $imgFam = if ($ic.Ok) { [string]$ic.Family } else { '' }
+        if (@('std', 'long') -notcontains $imgFam) { $imgFam = '' }
+        $imgInfo = if ($imgFam) { (T "Image de l'onglet Écriture : {0} ({1}) ; avec cette famille, ses cylindres sont ceux de la calibration ; avec l'autre, 80 cylindres à la densité de la famille.") -f "$([System.IO.Path]::GetFileName($txtWFile.Text))", (Get-CalibFamilyName $imgFam) }
+                   else { (T "Aucune image calibrable dans l'onglet Écriture : 80 cylindres, à la densité de la famille choisie.") }
+    }
+    if ($script:DriveReg.Count -gt 0) {
+        $allT = Get-CrossCalibTargets @($cmbDrive.Items | ForEach-Object { [string]$_ }) $src
+        $sameC = @($allT | Where-Object { $targets -cnotcontains $_ })
+        if ($sameC.Count -gt 0) { $imgInfo += "`n" + ((T 'Non proposés, parce qu''ils sont sur la connexion {0} du lecteur qui écrit : {1}. Les deux lecteurs d''une calibration croisée sont branchés en même temps, chacun sur sa connexion.') -f (Get-DriveConn $src), (Format-ConnDrives $sameC)) }
+    }
     $nPassEst = @($script:CalCoarse).Count + [int]$script:CalMaxVerify
-    $swF = Get-CrossSwapEstimate $nPassEst $true ([int]$script:CalMaxRetest); $swS = Get-CrossSwapEstimate $nPassEst $false ([int]$script:CalMaxRetest)
-    $ch = Show-CrossCalibDialog $src $targets $(if ($imgFam) { $imgFam } else { 'std' }) ($cmbWCalMode.SelectedIndex -eq 1) $imgInfo ([bool]$chkWSlow.Checked) ([int]$swF.Min) ([int]$swS.Max)
+    $swF = Get-CrossSwapEstimate $nPassEst $true ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify); $swS = Get-CrossSwapEstimate $nPassEst $false ([int]$script:CalMaxRetest) ([int]$script:CalMaxVerify)   # 12.11 : au moins : une seule verification
+    $slow0 = if ($null -ne $HomeHeads) { [bool]$HomeHeads } else { [bool]$chkWSlow.Checked }
+    $fine0 = if ($hInfo) { $HomeFine } else { ($cmbWCalMode.SelectedIndex -eq 1) }
+    $ch = Show-CrossCalibDialog $src $targets $(if ($imgFam) { $imgFam } else { 'std' }) $fine0 $imgInfo $slow0 ([int]$swF.Min) ([int]$swS.Max) (Get-TargetDrive $src)   # 12.11 : lecteur cible de l onglet Ecriture preselectionne
     if (-not $ch.Ok) { $res.Why = (T 'annulée'); Append-Log (T "Calibration croisée : fenêtre de choix fermée, rien n'est lancé."); return $res }
     $tgt = [string]$ch.Target; $fam = [string]$ch.Family; $test = $(if ($ch.Fine) { 'fine' } else { 'std' })
+    # 12.11 (lot LN-b) : lecteur cible confirme quand sa connexion porte plusieurs lecteurs (Confirm-DriveIdentity -Target,
+    # 112), avant que la demande soit posee : refus, rien n est lance
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity -Target $tgt)) { $res.Why = (T 'Opération annulée : lecteur branché non confirmé.'); return $res }
     Append-Log ((T "Calibration croisée demandée : écriture par le lecteur {0}, relecture par le lecteur {1}, famille {2}, {3}.") -f "$src", "$tgt", (Get-CalibFamilyName $fam), $(if ($ch.Fine) { (T 'test fin') } else { (T 'test standard') }))
     $geom = $null
-    if ($fam -ne $imgFam) {
+    if ($fam -ne $imgFam -or $hInfo) {
         # Image de geometrie du type de la famille (comme Start-HomeCalib) : amiga.amigados (standard, 101 344 cellules),
-        # app.long (long track) ; seuil de famille de la configuration respecte (Get-ImageFamily)
+        # app.long (long track) ; seuil de famille de la configuration respecte (Get-ImageFamily). 12.11 rc4 (R4) : depuis
+        # l Accueil, avec la famille du type choisi, ce type et ses cylindres
         $name = if ($fam -eq 'long') { 'app.long' } else { 'amiga.amigados' }
+        $nG = 80
+        if ($hInfo -and $fam -eq $imgFam) { $name = $HomeFmt; $nG = $HomeCyl }
         $info = Get-HomeCalibInfo $name
-        try { $gimg = New-CalibGeometry $info 80 }
+        try { $gimg = New-CalibGeometry $info $nG }
         catch { $res.Why = "$($_.Exception.Message)"; [void](Show-AppMessage ((T "Calibration croisée impossible : image de géométrie impossible à créer : {0}") -f "$($_.Exception.Message)") (T 'Calibration precomp') 'OK' 'Error'); return $res }
         if ((Get-ImageFamily $gimg) -ne $fam) { $res.Why = (T 'seuil de famille'); [void](Show-AppMessage ((T "Calibration croisée impossible : avec le seuil de famille precompThresholdNs de {0} ns, ce type serait calibré dans une autre famille que {1}.") -f "$($script:PrecompThresholdNs)", (Get-CalibFamilyName $fam)) (T 'Calibration precomp') 'OK' 'Warning'); return $res }
         # Origine des cylindres sans parentheses : la ligne de journal des cylindres de test la met deja entre parentheses
-        $geom = @{ Img = $gimg; Label = [string]$info.Label; Fmt = $name; BitsSrc = [string]$info.BitsSrc; CylSrc = (T "80 cylindres, faute d'image de cette famille dans l'onglet Écriture") }
+        $cs = if ($hInfo -and $fam -eq $imgFam) { (T "{0} cylindres choisis dans l'Accueil") -f "$nG" } elseif ($hInfo) { (T '80 cylindres, à la densité de la famille choisie') } else { (T "80 cylindres, faute d'image de cette famille dans l'onglet Écriture") }
+        $geom = @{ Img = $gimg; Label = [string]$info.Label; Fmt = $name; BitsSrc = [string]$info.BitsSrc; CylSrc = $cs }
     }
     $script:AfterCalib = ''
     $script:CalCrossAsk = @{ Src = $src; Tgt = $tgt }
-    if ($geom) { Start-PrecompCalib -Geom $geom -Test $test } else { Start-PrecompCalib -Test $test }
+    if ($null -ne $HomeHeads) { Start-PrecompCalib -Geom $geom -Test $test -Heads ([bool]$HomeHeads) }
+    elseif ($geom) { Start-PrecompCalib -Geom $geom -Test $test } else { Start-PrecompCalib -Test $test }
     $script:CalCrossAsk = $null
     $res.Started = [bool]($script:Cal -and $script:Cal.Cross)
     return $res
@@ -332,7 +397,7 @@ function Start-DiskMeasure($lr, [string]$brand) {
         Append-Log (T "Mesure complète de cette disquette impossible : elle demande la référence du lecteur par tête (écriture lente). Écriture annulée.")
         return
     }
-    $script:CalDiskOnly = @{ Brand = [string]$brand; HardNs = (Get-DiskHardNs); Ref = $lr }
+    $script:CalDiskOnly = @{ Brand = [string]$brand; HardNs = 0; Ref = $lr }   # 12.11 : HardNs pose par Start-PrecompCalib (Get-DiskHardNs des cellules de la piste ecrite, qu il garde dans CapBits)
     $script:AfterCalib = 'write'
     Start-PrecompCalib -ForceFine -Heads $true
     $script:CalDiskOnly = $null      # deja remis a $null par Start-PrecompCalib (premiere instruction)
@@ -360,7 +425,7 @@ function Set-DiskHardNs($x) {
 function Reset-DiskHardNs {
     # 12.8 (S3) : borne de precompMaxNs retablie a la fin de la mesure complete de cette disquette (fin, arret, aucune
     # mesure exploitable) : bareme de la famille en cours
-    Set-CalibScale $(if ([string]$script:CalScaleFam -eq 'hd') { 'hd' } else { '' })
+    Set-CalibScale $(if (@('hd', 'long') -contains [string]$script:CalScaleFam) { [string]$script:CalScaleFam } else { '' })   # 12.11 rc3 (R2) : bareme long track garde
 }
 
 function Start-DiskReach($cal) {
@@ -595,9 +660,13 @@ function Update-CalibProgress {
     # 12.10 (relecture de la RC) : texte court, entier sur la ligne de lblWCal (520 : largeur fixe, 439 px a la taille
     # minimale de la fenetre) : « controle de surface, decision demandee (lecteur A). » mesurait 445 px, la lettre du
     # lecteur passait sous les points de suspension
+    # 12.11 (lot LN-b) : lecteur enregistre : texte court, le nom en tete (en fin de texte, il passerait sous les points de
+    # suspension) ; de meme pour l echange de disquette ci-dessous
+    if ($cal.Hold -and $script:DriveReg.Count -gt 0 -and (Test-DriveRegistered ([string]$cal.Drive))) { $lblWCal.Text = (T '{0} : contrôle de surface, décision demandée') -f "$($cal.Drive)"; return }
     if ($cal.Hold) { $lblWCal.Text = (T "Calibration en attente : décision sur le contrôle de surface (lecteur {0}).") -f "$($cal.Drive)"; return }
     # 12.10 : calibration croisee en attente d un echange de disquette (Invoke-CalibSwap). 12.10 (relecture des captures) :
     # texte court, sur une ligne a la taille minimale de la fenetre (439 px a x = 320), anglais compris
+    if ($cal.SwapHold -and $script:DriveReg.Count -gt 0 -and ((Test-DriveRegistered ([string]$cal.SwapHold.From)) -or (Test-DriveRegistered ([string]$cal.SwapHold.To)))) { $lblWCal.Text = (T '{0} → {1} : déplacez la disquette') -f "$($cal.SwapHold.From)", "$($cal.SwapHold.To)"; return }
     if ($cal.SwapHold) { $lblWCal.Text = (T "Calibration croisée : déplacez la disquette du lecteur {0} vers le lecteur {1}") -f "$($cal.SwapHold.From)", "$($cal.SwapHold.To)"; return }
     # Libelles au format court du prechauffage de l ecriture : avancement et temps restant en tete, details ensuite entre
     # parentheses (libelle coupe a la largeur de l onglet a la taille minimale de la fenetre)
@@ -627,9 +696,16 @@ function Update-CalibProgress {
     }
     $tp = [math]::Max(1, [int]$cal.TotalPasses)
     $total = $tp + $cw
-    if ($cal.CondRun) { $done = [math]::Min(0.98, $elapsed / [math]::Max(1.0, $cw * $pass)) * $cw }
+    # 12.11 : avancement de l etape en cours (passe ou conditionnement) d apres les pistes que gw efface, ecrit puis relit
+    # (plan de l etape, Get-ProgPlanFrac, 110), a la place du temps ecoule rapporte aux durees des passes precedentes, qui
+    # restait a 98 % ou sautait quand une passe portait sur moins de pistes. $null sans plan, ou tant que le plan n a recu
+    # aucune commande : calcul par le temps de la 12.10, a l identique. Passes comptees a parts egales et temps restant
+    # inchanges ; affichage seulement
+    $pf = if ($script:ProgPlan) { Get-ProgPlanFrac } else { $null }
+    if ($cal.CondRun) { $done = $(if ($null -ne $pf) { [double]$pf } else { [math]::Min(0.98, $elapsed / [math]::Max(1.0, $cw * $pass)) }) * $cw }
     else {
-        $frac = if ($cal.Phase -eq 'write') { [math]::Min(0.98, $elapsed / $avgW) * ($avgW / $pass) }
+        $frac = if ($null -ne $pf) { [double]$pf }
+                elseif ($cal.Phase -eq 'write') { [math]::Min(0.98, $elapsed / $avgW) * ($avgW / $pass) }
                 else { ($avgW / $pass) + [math]::Min(0.98, $elapsed / $avgR) * ($avgR / $pass) }
         $done = [math]::Min($total, $(if ($cal.Cond) { $cw } else { 0.0 }) + $cal.PassesDone + $frac)
     }
@@ -643,7 +719,9 @@ function Update-CalibProgress {
                 else { (T "Calibration : {0} %, reste environ {1} (conditionnement du lecteur, écriture sans relecture)") }
         $lblWCal.Text = ($fmtC -f "$pct", (Format-CalDuration $remaining)); return
     }
-    $phaseTxt = if ($cal.Phase -eq 'write') { (T 'écriture') } else { (T 'relecture') }
+    # 12.11 : « effacement » pendant un gw erase de la passe (commande en cours : $script:GwProc et $script:GwIsErase, 110) ;
+    # avant, la phase d ecriture disait « ecriture » pendant son effacement haute frequence
+    $phaseTxt = if ($script:GwProc -and $script:GwIsErase) { (T 'effacement') } elseif ($cal.Phase -eq 'write') { (T 'écriture') } else { (T 'relecture') }
     # 12.8.1 : mesure de la disquette sur l image (276) : ValueTxt « tete 0 puis tete 1 »
     $fmt = if ($cal.Mode -eq 'content') { (T "Mesure de la disquette sur l'image : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
            elseif ($cal.Mode -eq 'level') { (T "Calibration rapide : {4} %, reste environ {5} (passe {0}/{1}, {2}, {3})") }
@@ -672,6 +750,7 @@ function Stop-PrecompCalib([switch]$GwError) {
     if ($script:CalRedo -and $script:CalRedo.Stage -eq 'running') { $script:CalRedo.Stage = 'interrupted'; if (-not $script:CalRedo.Why) { $script:CalRedo.Why = (T 'calibration interrompue') } }
     $cal = $script:Cal
     $script:Cal = $null
+    $script:ProgPlan = $null                              # 12.11 : plan de la passe interrompue retire (barre de progression)
     if ($cal -and $cal.DiskOnly) { Reset-DiskHardNs }     # 12.8 (S3) : borne de precompMaxNs retablie
     # 12.9 (D6) : statut du JSON compagnon ; synthese C (A5) : seulement apres une passe analysee (arret pendant le
     # prechauffage ou erreur gw a la premiere ecriture : aucun JSON seul, qui compterait comme une mesure gardee)
@@ -679,9 +758,258 @@ function Stop-PrecompCalib([switch]$GwError) {
     $pbWCal.Visible = $false
     $lblWCal.Text = (T 'Calibration precomp interrompue.')
     Append-Log (T 'Calibration precomp interrompue.')
+    # 12.11 rc4 (R5, partie 2) : calibration complete ou croisee lancee pour elle-meme (ResumeKind) : cause reconnue, etape
+    # atteinte et reprise possible au journal ; passes faites gardees en memoire pour la reprise (Set-CalibResume). Rien
+    # n est enregistre dans la configuration. Une erreur ici ne doit pas empecher la fin de l arret (bilan, ecriture et
+    # restauration a la suite, appel depuis le minuteur principal) : rien n est garde, l erreur est notee au journal
+    if ($cal -and $cal.ResumeKind) { try { Set-CalibResume $cal ([bool]$GwError) } catch { $script:CalResume = $null; Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)") } }
     Set-HomeProgDone $cal 'stop'
     if ($script:AfterCalib) { $script:AfterCalib = ''; Append-Log (T 'Écriture annulée : calibration interrompue.') }
     if ($script:Restore) { Stop-Restore (T 'calibration interrompue') }
+}
+
+# --- Reprise d une calibration interrompue (12.11 rc4, R5 partie 2) ------------------------------------------------------
+# Calibration complete ou croisee lancee pour elle-meme (ResumeKind, Start-PrecompCalib), interrompue par une erreur de gw
+# ou par « Arreter » entre l entree d une passe et son analyse (ResumeOk : New-CalibPass, Add-CalibPassDone), une passe au
+# moins terminee : son etat, celui de l entree de la passe interrompue, est garde en memoire ($script:CalResume). Au
+# lancement suivant de la meme calibration avec les memes reglages, une fenetre propose de la reprendre : la passe
+# interrompue est rejouee en entier par New-CalibPass, puis la calibration suit son cours. Aucune mesure n est copiee ni
+# recalculee : le resultat est celui des memes mesures sans interruption. Rien n est enregistre : l etat est perdu a la
+# fermeture de l application, et abandonne des qu une autre calibration commence.
+
+function Get-CalibStepInfo($cal) {
+    # Etape en cours d une calibration : numero (passes terminees + 1), nom de la passe (vocabulaire du journal de
+    # New-CalibPass) et ce qui la precedait a l interruption (prechauffage, conditionnement du lecteur). Seule a nommer une
+    # etape : lue par Add-CalibPassDone, le message d interruption (Set-CalibResume) et les textes de la reprise
+    # (Get-CalibResumeText, Get-CalibResumeOffer)
+    $st = [string]$cal.Stage; $pre = ''
+    if ($st -eq 'warmup') { $st = $(if ($cal.WarmNext) { [string]$cal.WarmNext } else { 'coarse' }); $pre = (T 'préchauffage du lecteur') }
+    elseif ($cal.CondRun) { $pre = (T 'conditionnement du lecteur') }
+    $name = switch ($st) {
+        'coarse'  { (T 'passe de mesure {0}/{1}') -f "$([int]$cal.Index + 1)", "$(@($cal.Values).Count)" }
+        'bracket' { (T 'encadrement') }
+        'densify' { (T "mesure complémentaire {0}") -f "$($cal.DensePass)" }
+        'reach'   { (T 'mesure directe') }
+        default   { if ([int]$cal.Retests -gt 0) { (T 'vérification {0} du nouvel essai') -f "$($cal.VerifyCount)" } else { (T 'vérification {0}') -f "$($cal.VerifyCount)" } }
+    }
+    return @{ N = 1 + [int]$cal.PassesDone; Name = [string]$name; Pre = [string]$pre }
+}
+
+function Add-CalibPassDone($cal) {
+    # Invoke-CalibAnalysis, la passe relue et avant qu elle soit comptee : l etat n est plus celui de l entree de la passe
+    # (ResumeOk faux : une interruption pendant l analyse ne se reprend pas) ; nom de la passe ajoute a PassLog, pour le
+    # message d interruption et la fenetre de reprise. Ne touche a aucune mesure
+    $cal.ResumeOk = $false
+    $cal.PassLog = @(@($cal.PassLog) | Where-Object { $_ }) + @([string](Get-CalibStepInfo $cal).Name)
+}
+
+function Get-CalibStopCause($cal, [bool]$gwError) {
+    # Cause reconnue de l interruption d une calibration (Stop-PrecompCalib) : @{ Kind ; Text }. 'user' : arret demande
+    # (StopBy 'user' : bouton « Arreter », 540 ; invite d echange annulee, Invoke-CalibSwap). 'gw' : erreur de gw (GwError) :
+    # releve absent ou illisible (StopBy 'scp', Invoke-CalibAnalysis), port du Greaseweazle introuvable apres la nouvelle
+    # tentative (GwPortLost, 110), commande incomplete ou code retour (minuteur principal, 600), sinon gw non lance
+    # (Reset-GwSequence, 110 : StopBy 'launch', lu avant l etat de la commande gw precedente, que le lancement manque n a
+    # pas remis a zero : lecture de prechauffage en echec). '' : cause non reconnue (erreur d une etape, arret decide
+    # pendant l analyse) : ni message ni reprise
+    if (-not $gwError) {
+        if ([string]$cal.StopBy -eq 'user') { return @{ Kind = 'user'; Text = (T 'arrêt à votre demande') } }
+        return @{ Kind = ''; Text = '' }
+    }
+    if ([string]$cal.StopBy -eq 'scp') { return @{ Kind = 'gw'; Text = (T 'relevé de la passe absent ou illisible') } }
+    if ([string]$cal.StopBy -eq 'launch') { return @{ Kind = 'gw'; Text = (T "gw n'a pas pu être lancé") } }
+    if ($script:GwPortLost) { return @{ Kind = 'gw'; Text = (T "Greaseweazle déconnecté, gw n'a pas pu ouvrir son port, même à la nouvelle tentative") } }
+    if ($script:GwLastIncomplete) { return @{ Kind = 'gw'; Text = (T 'commande gw incomplète (disquette protégée en écriture ou absente, lecteur en défaut ?)') } }
+    if ([int]$script:GwLastCode -ne 0) { return @{ Kind = 'gw'; Text = ((T 'erreur de gw (code retour {0})') -f "$([int]$script:GwLastCode)") } }
+    return @{ Kind = 'gw'; Text = (T "gw n'a pas pu être lancé") }
+}
+
+function Get-CalibResumeLabel($cal) {
+    # Nom d une calibration gardee, pour le journal et la fenetre de reprise : lecteurs, famille, test
+    $tt = if ([string]$cal.Mode -eq 'fine') { (T 'test fin') } else { (T 'test standard') }
+    if ($cal.Cross) { return ((T 'calibration croisée {0} → {1}, {2}, {3}') -f "$($cal.Cross.Src)", "$($cal.Cross.Tgt)", (Get-CalibFamilyName ([string]$cal.Family)), "$tt") }
+    return ((T 'calibration du lecteur {0}, {1}, {2}') -f "$($cal.Drive)", (Get-CalibFamilyName ([string]$cal.Family)), "$tt")
+}
+
+function Get-CalibResumeDisk($cal) {
+    # Lecteur ou se trouve la disquette d une calibration gardee : @{ Drive ; Role }. Calibration croisee : celui que le
+    # journal annoncait a l interruption (DiskAt, pose par Invoke-CalibSwap a chaque echange fait ; echange annule : la
+    # disquette est restee ou elle etait)
+    if ($cal.Cross -and [string]$cal.DiskAt -eq 'T') { return @{ Drive = [string]$cal.Cross.Tgt; Role = (T 'celui qui relit') } }
+    if ($cal.Cross) { return @{ Drive = [string]$cal.Cross.Src; Role = (T 'celui qui écrit') } }
+    return @{ Drive = [string]$cal.Drive; Role = '' }
+}
+
+function Get-CalibResumeSig($cal) {
+    # Reglages, hors des cles de la calibration, qui parametrent ses commandes gw et son calcul : options de lecteur des
+    # ecritures, des relectures et des effacements, mode d effacement, borne de precompensation. Releves a l interruption
+    # (Set-CalibResume) et au lancement suivant (Get-CalibResumeOffer) : la reprise n est proposee que s ils n ont pas
+    # change. Le port du Greaseweazle (--device) et la connexion des lecteurs n en font pas partie : ils peuvent changer
+    # quand la carte est rebranchee
+    $hd = ([string]$cal.Family -eq 'hd' -or [int]$cal.PatternBits -ge 150000)
+    return (@((@(Get-CalibDriveArgs) -join ' '), (@(Get-DriveReadArgs) -join ' '), (@(Get-EraseDriveArgs) -join ' '), [string](Get-EraseMode $hd), "$([bool]$script:CalHardAuto)", "$([int]$script:CalHardNsUser)") -join ' | ')
+}
+
+function Get-CalibResumeMismatch($cal, [string]$family, [int[]]$cyls, [int]$maxCyl, [bool]$slow, [bool]$fine, [string]$drive, $cx, [string]$img, $geom) {
+    # '' si le lancement est celui de la calibration gardee $cal, sinon le nom de la premiere difference : lecteur qui
+    # ecrit, lecteur cible d une calibration croisee, famille, test, courbe par tete, type de disquette ou image, cylindres
+    # de test, densite du motif. Modele : Get-CalibRedoMismatch (240, calibration B) ; ici le type de disquette se lit dans
+    # Geom et non dans Home, que la calibration croisee met a faux
+    if ([string]$cal.Drive -ne $drive) { return (T 'lecteur') }
+    $t0 = if ($cal.Cross) { [string]$cal.Cross.Tgt } else { '' }
+    $t1 = if ($cx) { [string]$cx.Tgt } else { '' }
+    if ([bool]$cal.Cross -ne [bool]$cx -or $t0 -ne $t1 -or ($cx -and [string]$cal.Cross.Src -ne [string]$cx.Src)) { return (T 'lecteur cible') }
+    if ([string]$cal.Family -ne $family) { return (T 'famille') }
+    if (([string]$cal.Mode -eq 'fine') -ne $fine) { return (T 'mode de test') }
+    if ([bool]$cal.Slow -ne $slow) { return (T 'courbe par tête') }
+    if ([bool]$cal.Geom -ne [bool]$geom) { return (T 'type de disquette') }
+    if ($cal.Geom -and [string]$cal.Geom.Fmt -ne [string]$geom.Fmt) { return (T 'type de disquette') }
+    if (-not $cal.Geom -and [string]$cal.Image -ne $img) { return (T 'image') }
+    $a0 = if ($null -ne $cal.Cyls0) { @($cal.Cyls0) } else { @($cal.Cyls) }
+    if ([int]$cal.MaxCyl -ne $maxCyl -or ($a0 -join ',') -ne (@($cyls) -join ',')) { return (T 'cylindres de test') }
+    if ([int](Get-PatternBits $family $img).Bits -ne [int]$cal.PatternBits) { return (T 'densité du motif') }
+    return ''
+}
+
+function Get-CalibResumeOffer([string]$family, [int[]]$cyls, [int]$maxCyl, [bool]$slow, [bool]$fine, [string]$img, $geom, $cx, [bool]$other) {
+    # Lancement d une calibration (Start-PrecompCalib) alors qu une calibration interrompue est gardee : @{ Offer ; Why ;
+    # Note }. Offer : meme calibration (Get-CalibResumeMismatch), memes reglages (Get-CalibResumeSig), lancee pour elle-meme
+    # ($other faux : ni calibration B, ni mesure complete d une disquette, ni repli de la calibration rapide, ni
+    # restauration, ni ecriture ou mesure a la suite). Sinon Why dit ce qui differe, et Note la phrase mise au journal et en
+    # tete de l avertissement de la calibration : la lancer abandonne les passes gardees. Ne modifie rien
+    $r = @{ Offer = $false; Why = ''; Note = '' }
+    $rs = $script:CalResume
+    if (-not $rs -or -not $rs.Cal) { return $r }
+    $cal = $rs.Cal
+    $why = ''
+    if ($other) { $why = (T "ce lancement n'est pas une calibration du lecteur faite pour elle-même") }
+    else {
+        $d = Get-CalibResumeMismatch $cal $family $cyls $maxCyl $slow $fine ([string]$cmbDrive.Text) $cx $img $geom
+        if (-not $d -and [string]$rs.Sig -cne [string](Get-CalibResumeSig $cal)) { $d = (T "options de lecteur de l'onglet Écriture ou borne de précompensation") }
+        if ($d) { $why = (T 'ce qui diffère : {0}') -f "$d" }
+    }
+    if (-not $why) { $r.Offer = $true; return $r }
+    $r.Why = [string]$why
+    $r.Note = (T "Une calibration interrompue est gardée en mémoire ({0}, à reprendre à l'étape {1}) : ce lancement ne peut pas la reprendre ({2}). Si vous lancez cette calibration, ses passes faites seront abandonnées.") -f (Get-CalibResumeLabel $cal), "$((Get-CalibStepInfo $cal).N)", "$why"
+    return $r
+}
+
+function Get-CalibResumeText($rs) {
+    # Textes de la reprise, tires de l etat garde $rs (un seul endroit, pour la fenetre et le journal) : @{ Heading ; Text ;
+    # Go ; Alt ; Log ; LogDisk }. La fenetre dit la cause et l etape de l interruption, les passes gardees, ce que fait
+    # chaque bouton, que la disquette doit etre la meme et dans quel lecteur elle doit se trouver
+    $cal = $rs.Cal
+    $si = Get-CalibStepInfo $cal; $dk = Get-CalibResumeDisk $cal
+    $pl = @(@($cal.PassLog) | Where-Object { $_ })
+    $done = $pl -join ', '
+    $t = (T "La {0} a été interrompue à l'étape {1} ({2}) : {3}.") -f (Get-CalibResumeLabel $cal), "$($si.N)", "$($si.Name)", "$($rs.Cause)"
+    $t += "`n" + ((T "Passes faites, gardées en mémoire : {0}.") -f "$done")
+    $t += "`n`n" + ((T "Reprendre : l'étape {0} ({1}) est rejouée en entier, ses pistes de nouveau effacées, écrites puis relues (une écriture de plus que prévu sur ces pistes). La calibration continue ensuite avec les mesures gardées : son résultat est calculé comme sans interruption.") -f "$($si.N)", "$($si.Name)")
+    if ($cal.Cross) { $t += "`n" + ((T "Utilisez la même disquette. Elle doit se trouver dans le lecteur {0}, {1} : c'est là que le journal l'annonçait à l'interruption. Si vous l'avez déplacée, remettez-la dans ce lecteur avant de reprendre ; l'application demandera ensuite chaque échange, comme avant.") -f "$($dk.Drive)", "$($dk.Role)") }
+    else { $t += "`n" + ((T "Utilisez la même disquette, dans le lecteur {0}.") -f "$($dk.Drive)") }
+    $t += "`n`n" + (T "Recommencer : les mesures gardées sont abandonnées, et la calibration repart de son avertissement.")
+    $t += "`n" + (T "Fermer : rien n'est lancé ; la calibration reste à reprendre tant que l'application est ouverte et qu'aucune autre calibration du lecteur ni mesure complète d'une disquette ne commence ; une calibration rapide ou une mesure sur l'image ne l'abandonne pas.")
+    $log = (T "=== Calibration reprise à l'étape {0} ({1}) : {2} passe(s) gardée(s) ({3}) ; l'étape interrompue est rejouée en entier ===") -f "$($si.N)", "$($si.Name)", "$($pl.Count)", "$done"
+    $logDisk = if ($cal.Cross) { (T "Calibration croisée reprise : disquette attendue dans le lecteur {0}, {1}, là où le journal l'annonçait à l'interruption.") -f "$($dk.Drive)", "$($dk.Role)" } else { '' }
+    return @{ Heading = (T 'Reprendre la calibration interrompue ?'); Text = [string]$t; Go = ((T "Reprendre à l'étape {0}") -f "$($si.N)"); Alt = (T 'Recommencer'); Log = [string]$log; LogDisk = [string]$logDisk }
+}
+
+function Show-CalibResumeDialog($rs) {
+    # Fenetre de reprise d une calibration interrompue (frmConfirm, Show-AppConfirm) : bouton principal « Reprendre a
+    # l etape N », second bouton « Recommencer », puis Fermer ; sans case a cocher : le texte dit quelle disquette et quel
+    # lecteur. Niveau « warn », comme les autres confirmations qui ecrivent le motif : « Reprendre » efface et reecrit
+    # aussitot les pistes de test, sans repasser par l avertissement d usure. Renvoie 'resume', 'restart' ou 'close'
+    # (Fermer, Echap, la croix) ; Show-AppConfirm note la reponse au journal
+    $t = Get-CalibResumeText $rs
+    $cq = @{ Title = (T 'Calibration precomp'); Heading = [string]$t.Heading; Text = [string]$t.Text; Level = 'warn'; Picto = 'warn'
+             GoText = [string]$t.Go; GoGlyph = 'Diagnostic'; AltText = [string]$t.Alt }
+    $script:ConfirmChoice = $null
+    if (Show-AppConfirm @cq) { return 'resume' }
+    if ([string]$script:ConfirmChoice -eq 'alt') { return 'restart' }
+    return 'close'
+}
+
+function Clear-CalibResume([string]$why) {
+    # Passes gardees d une calibration interrompue abandonnees, raison au journal ; sans effet sans calibration gardee.
+    # Libelle de l onglet Ecriture qui annoncait la reprise (Set-CalibResume, Lbl), s il est encore affiche : remis a
+    # « Calibration precomp interrompue. » (« Recommencer » puis avertissement refuse : plus rien a reprendre)
+    $rs = $script:CalResume; $script:CalResume = $null
+    if (-not $rs -or -not $rs.Cal) { return }
+    Append-Log ((T "Calibration interrompue ({0}) : passes gardées abandonnées ({1}).") -f (Get-CalibResumeLabel $rs.Cal), "$why")
+    if ($rs.Lbl -and [string]$lblWCal.Text -ceq [string]$rs.Lbl) { $lblWCal.Text = (T 'Calibration precomp interrompue.') }
+}
+
+function Set-CalibResume($cal, [bool]$gwError) {
+    # Stop-PrecompCalib, calibration que l on peut reprendre (ResumeKind), apres la ligne « Calibration precomp
+    # interrompue. » : message d interruption (cause reconnue, etape atteinte, reprise possible ou non) et, pour une erreur
+    # de gw ou un arret demande entre l entree d une passe et son analyse (ResumeOk), une passe au moins terminee, etat
+    # garde pour la reprise ($script:CalResume : l objet $cal lui-meme, que plus rien ne modifie). Cause non reconnue : rien.
+    # Passe du nouvel essai dont la fin est differee (RetestEnd, etat ramene a la derniere verification) : rien de garde
+    $cause = Get-CalibStopCause $cal $gwError
+    if (-not $cause.Kind) { return }
+    $si = Get-CalibStepInfo $cal
+    $at = if ($si.Pre) { (T '{0}, pendant le {1}') -f "$($si.Name)", "$($si.Pre)" } else { [string]$si.Name }
+    if ([int]$cal.PassesDone -lt 1) {
+        Append-Log ((T "Calibration interrompue à l'étape {0} ({1}) : {2}. Aucune passe n'était terminée : rien n'est gardé, la calibration est à recommencer.") -f "$($si.N)", "$at", "$($cause.Text)")
+        return
+    }
+    if (-not $cal.ResumeOk -or $cal.RetestEnd) { return }
+    $script:CalResume = @{ Cal = $cal; At = (Get-Date); Cause = [string]$cause.Text; Sig = [string](Get-CalibResumeSig $cal) }
+    $msg = (T "Calibration interrompue à l'étape {0} ({1}) : {2}. Passes faites, gardées en mémoire : {3}.") -f "$($si.N)", "$at", "$($cause.Text)", (@(@($cal.PassLog) | Where-Object { $_ }) -join ', ')
+    $msg += ' ' + ((T "Reprise possible tant que l'application reste ouverte : relancez la même calibration (mêmes lecteurs, même famille, même test, même choix d'une courbe par tête, même image ou même type de disquette, mêmes options de lecteur et même borne de précompensation), avec la même disquette ; une fenêtre proposera de reprendre à l'étape {0}, rejouée en entier.") -f "$($si.N)")
+    if ($cal.Cross) { $dk = Get-CalibResumeDisk $cal; $msg += ' ' + ((T "La disquette est dans le lecteur {0}, {1}.") -f "$($dk.Drive)", "$($dk.Role)") }
+    Append-Log $msg
+    # Libelle de l onglet Ecriture, repris par le bilan de l Accueil (Set-HomeProgDone, appelee ensuite par
+    # Stop-PrecompCalib) : texte court, sur une ligne a la taille minimale de la fenetre
+    $lblWCal.Text = (T "Calibration interrompue : relancez-la pour reprendre à l'étape {0}.") -f "$($si.N)"
+    # Libelle garde avec l etat : Clear-CalibResume le retire s il est encore affiche (reprise qui n existe plus)
+    $script:CalResume.Lbl = [string]$lblWCal.Text
+}
+
+function Resume-PrecompCalib([string]$img, $geom, [int]$nCyl, [bool]$noWarm) {
+    # Reprise de la calibration gardee, choisie dans la fenetre de reprise (Start-PrecompCalib, qui vient de controler le
+    # lancement : memes cles, memes reglages). L etat garde redevient la calibration en cours, tel quel : aucune mesure
+    # n est copiee ni recalculee. Seuls changent ce qui tient au deroule et non au calcul : motif de test regenere (graine
+    # fixe : meme contenu, au cas ou une autre mesure l aurait remplace), bareme de la famille pose de nouveau
+    # (Set-CalibScale, comme Restart-PrecompCalib), etape ramenee de « prechauffage » a la passe qui le suivait, attentes et
+    # file des ecritures remises a zero, choix du prechauffage de ce lancement, heure de debut decalee de la duree de
+    # l interruption (duree totale et temps restant). Puis, comme au debut d une calibration : disquette ramenee dans le
+    # lecteur qui ecrit (calibration croisee : invite d echange si elle n y est pas), prechauffage du lecteur selon son
+    # activite recente (Start-CalibWarmup), et New-CalibPass, qui rejoue la passe interrompue en entier. $true si la
+    # calibration est repartie
+    $rs = $script:CalResume
+    if (-not $rs -or -not $rs.Cal) { return $false }
+    if ($script:GwProc -and -not $script:GwProc.HasExited) { return $false }
+    $cal = $rs.Cal
+    if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
+    try { $pat = New-CalibPattern ([string]$cal.Family) $img $nCyl }
+    catch { [void](Show-AppMessage ((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)") (T 'Calibration precomp') 'OK' 'Error'); return $false }
+    if ([int]$pat.Bits -ne [int]$cal.PatternBits) { Clear-CalibResume (T 'densité du motif différente'); return $false }
+    $txt = Get-CalibResumeText $rs
+    $script:CalResume = $null
+    Set-CalibScale ([string]$cal.Family)
+    $cal.Pattern = $pat.Path; $cal.Image = $img
+    if ($geom) { $cal.Geom = $geom }
+    if ([string]$cal.Stage -eq 'warmup') { $cal.Stage = $(if ($cal.WarmNext) { [string]$cal.WarmNext } else { 'coarse' }) }
+    $cal.CondRun = $false; $cal.Hold = $false; $cal.AutoStart = $false
+    if ($cal.Cross) { $cal.SwapHold = $null }
+    $cal.Writes.Clear(); $cal.ReadArgs = @(); $cal.StopBy = $null; $cal.ResumeOk = $true
+    $cal.NoWarmup = [bool]$noWarm
+    $now = Get-Date
+    if ($cal.StartTime -is [datetime] -and $rs.At -is [datetime]) { $cal.StartTime = $cal.StartTime.Add($now - $rs.At) }
+    $cal.PassStart = $now; $cal.PhaseStart = $now; $cal.Phase = 'write'
+    $script:AlignLoop = $false; $script:AlignNextAt = $null
+    $script:Cal = $cal
+    Append-Log ([string]$txt.Log)
+    if ($txt.LogDisk) { Append-Log ([string]$txt.LogDisk) }
+    $pbWCal.Visible = $true; $lblWCal.Visible = $true
+    Update-CalibProgress
+    $script:Chain.Clear()
+    if ($cal.Cross) {
+        $script:Chain.Enqueue({ Invoke-CalibSwap 'S' })
+        $script:Chain.Enqueue({ Start-CalibWarmup })
+        Invoke-NextChainStep
+    } else { Start-CalibWarmup }
+    return $true
 }
 
 function Restart-PrecompCalib($cal, [bool]$swap) {
@@ -698,6 +1026,7 @@ function Restart-PrecompCalib($cal, [bool]$swap) {
     # 12.9 (correction 1) : nouvelle disquette, nouveau conditionnement ; unites recreees ci-dessus (Coarse vide)
     $cal.CondRun = $false; $cal.CondDone = $false; $cal.CondSec = 0.0; $cal.PassW = @{}
     $cal.AutoStart = $false; $cal.Disk = 1 + [int]$cal.Disk; $cal.Retests = 0
+    $cal.PassLog = @()     # 12.11 rc4 (R5, partie 2) : nouvelle disquette, aucune passe terminee a reprendre
     # 12.10 : calibration croisee : la nouvelle disquette est dans la source (le lecteur qui ecrit) ; echanges comptes gardes
     if ($cal.Cross) { $cal.DiskAt = 'S'; Append-Log ((T "Calibration croisée reprise : la nouvelle disquette est dans le lecteur {0}, celui qui écrit.") -f "$($cal.Cross.Src)") }
     Append-Log ((T "=== Calibration precomp reprise sur une autre disquette (disquette {0}) : mêmes réglages, cylindres {1} ===") -f "$($cal.Disk)", "$($cal.CylList)")
@@ -888,6 +1217,7 @@ function Start-CalibCondition($cal) {
     if ($hfC) { Append-Log ((T "Calibration : conditionnement du lecteur {0} avant la première passe de mesure : effacement haute fréquence puis écriture du motif sur les cylindres {1} (2 faces), sans relecture, pour que les passes de mesure partent d'un lecteur en écriture.") -f "$($cal.Drive)", "0-$([int]$cal.MaxCyl)") }
     else { Append-Log ((T "Calibration : conditionnement du lecteur {0} avant la première passe de mesure : écriture du motif avec pré-effacement sur les cylindres {1} (2 faces), sans relecture, pour que les passes de mesure partent d'un lecteur en écriture.") -f "$($cal.Drive)", "0-$([int]$cal.MaxCyl)") }
     Add-CalibWriteCmds $cal @(,@($cal.CondTSpec, $cal.Spec))
+    New-ProgPlan @($cal.Writes.ToArray())   # 12.11 : plan du conditionnement pour la barre de progression (110)
     $cal.PassStart = Get-Date; $cal.PhaseStart = $cal.PassStart; $cal.Phase = 'write'
     Update-CalibProgress
     $script:Chain.Clear()
@@ -941,6 +1271,7 @@ function Invoke-CalibSwap([string]$to) {
     if (-not $q.Ok) {
         $script:Chain.Clear()
         Append-Log ((T "Calibration croisée arrêtée à votre demande (échange {0} annulé) ; la disquette est dans le lecteur {1}.") -f "$n", "$from")
+        $cal.StopBy = 'user'       # 12.11 rc4 (R5, partie 2) : arret demande, cause reconnue par Set-CalibResume
         Stop-PrecompCalib
         return
     }
@@ -1079,7 +1410,14 @@ function New-CalibPass {
     # Add-CalibWriteCmds, partagee avec le conditionnement du lecteur (Start-CalibCondition)
     Add-CalibWriteCmds $cal $writes
     $cal.ReadArgs  = @('read') + (Get-CalibDriveArgsFor 'read') + @(Get-DriveReadArgs) + @('--revs=3', "--tracks=$readTs", "`"$($cal.Scp)`"")   # 12.10 : lecteur cible en croise
+    # 12.11 : plan de la passe pour la barre de progression (110) : ses effacements, ses ecritures, puis sa relecture,
+    # tels qu ils viennent d etre construits ; ne lance rien et ne modifie aucune commande
+    New-ProgPlan (@($cal.Writes.ToArray()) + ,$cal.ReadArgs)
     $cal.PassStart = Get-Date; $cal.PhaseStart = $cal.PassStart; $cal.Phase = 'write'
+    # 12.11 rc4 (R5, partie 2) : entree de la passe : jusqu a son analyse (Add-CalibPassDone), l etat de la calibration est
+    # celui d ou cette passe se rejoue en entier (commandes ci-dessus reconstruites par cette fonction) : une interruption
+    # par une erreur de gw ou par « Arreter » peut etre reprise (Set-CalibResume)
+    $cal.ResumeOk = $true; $cal.StopBy = $null
     Update-CalibProgress
     $script:Chain.Clear()
     # 12.10 : calibration croisee : disquette ramenee dans la source avant les ecritures, portee dans la cible avant la
@@ -1221,11 +1559,16 @@ function Invoke-CalibAnalysis {
     if (-not $cal) { return }
     # 12.8 (VAL01) : releve absent ou illisible : erreur de la passe (GwError : passe du nouvel essai, jugement de la
     # derniere verification garde ; sinon abandon, comme en 12.7)
-    if (-not (Test-Path -LiteralPath $cal.Scp)) { Append-Log (T 'Calibration : fichier SCP absent, analyse impossible.'); Stop-PrecompCalib -GwError; return }
-    try { $tracks = Read-ScpFile $cal.Scp ([int]$cal.PatternBits) } catch { Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)"); Stop-PrecompCalib -GwError; return }
+    # 12.11 rc4 (R5, partie 2) : StopBy 'scp' : cause du message d interruption (Get-CalibStopCause) ; la passe n est pas analysee
+    if (-not (Test-Path -LiteralPath $cal.Scp)) { Append-Log (T 'Calibration : fichier SCP absent, analyse impossible.'); $cal.StopBy = 'scp'; Stop-PrecompCalib -GwError; return }
+    try { $tracks = Read-ScpFile $cal.Scp ([int]$cal.PatternBits) } catch { Append-Log ((T "Calibration : {0}") -f "$($_.Exception.Message)"); $cal.StopBy = 'scp'; Stop-PrecompCalib -GwError; return }
+    # 12.11 rc4 (R5, partie 2) : la passe est relue, son analyse commence : plus de reprise a l entree de cette passe, nom de
+    # la passe garde pour le message d interruption et la fenetre de reprise (Add-CalibPassDone) ; sans effet sur le calcul
+    if ($cal.ResumeKind) { Add-CalibPassDone $cal }
     $cal.ReadDurs += ((Get-Date) - $cal.PhaseStart).TotalSeconds
     $cal.PassesDone++
-    # 12.10 : asymetrie de reference de la famille sur ce lecteur (onglet Qualite, Set-TrackAsymRef) : rapports 3T/2T et
+    $script:ProgPlan = $null   # 12.11 : passe comptee : son plan est retire (la barre ne compte pas la passe deux fois)
+    # 12.10 : releve de l asymetrie du motif (12.11 : garde pour l etude, plus lu par l onglet Qualite) : rapports 3T/2T et
     # 4T/2T du motif relu a la premiere verification complete (tous les cylindres ecrits a la courbe), par piste
     if ($cal.Stage -eq 'verify' -and [int]$cal.VerifyCount -eq 1 -and [int]$cal.Retests -eq 0 -and $null -eq $cal.AsymRef) { $cal.AsymRef = Get-TracksAsym $tracks }
     foreach ($u in $cal.Units) {
@@ -2043,6 +2386,18 @@ function Complete-CalibRetestEnd {
     Complete-PrecompCalib
 }
 
+function Test-InnerZoneBreak([int[]]$bk) {
+    # 12.11 rc4 (decision de l utilisateur) : changement de sens du besoin (Breaks de la courbe, journal de la calibration)
+    # dont la chute tombe entre c43 et c44, ou tout pres : premier cylindre de 42 a 45 et, avec deux cylindres, le second
+    # a 46 au plus. Fonction pure ; texte seulement
+    $b = @($bk)
+    if ($b.Count -lt 1) { return $false }
+    $c = [int]$b[0]
+    if ($c -lt 42 -or $c -gt 45) { return $false }
+    if ($b.Count -ge 2 -and [int]$b[1] -gt 46) { return $false }
+    return $true
+}
+
 function Write-CalibDentLog($u) {
     # 12.9 (correction 4) : bilan des dents locales du besoin suivies par la courbe d une unite (Warn.Dents, Get-CalibWarnings :
     # toujours un tableau ; filtre par securite : unite ou fixture sans ce champ, ou @($null) compte 1)
@@ -2216,12 +2571,16 @@ function Complete-PrecompCalib {
             if ($ov.Count -gt 0) {
                 $top = [int](@($u.Fit.Values) | Measure-Object -Maximum).Maximum
                 Append-Log ($u.Prefix + ((T "Courbe de cette disquette au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns) : plafond porté à {3} ns pour cette disquette seulement ; contrôle après écriture imposé.") -f "$thr", (Format-CylList $ov), "$top", "$($cal.HardNs)"))
+                Append-Log ($u.Prefix + (Get-DiskOverAdviceText $thr))   # 12.11 : conseil d essai sur la machine cible
                 $issues.Add($u.Prefix + ((T "courbe de cette disquette au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns, plafond porté à {3} ns pour cette disquette seulement) : contrôle après écriture imposé") -f "$thr", (Format-CylList $ov), "$top", "$($cal.HardNs)")); $kinds.Add('over')
             }
         }
         $bk = @($u.Warn.Breaks)
         if ($bk.Count -ge 2) { Append-Log ($u.Prefix + ((T "Changement de sens du besoin entre c{0} et c{1} : courbe monotone par segments. La même signature sur une autre disquette désigne le lecteur, sinon le support.") -f "$($bk[0])", "$($bk[1])")) }
         elseif ($bk.Count -eq 1) { Append-Log ($u.Prefix + ((T "Le besoin redescend à partir de c{0} : courbe monotone par segments. La même signature sur une autre disquette désigne le lecteur, sinon le support.") -f "$($bk[0])")) }
+        # 12.11 rc4 (decision de l utilisateur) : chute entre c43 et c44, ou tout pres (Test-InnerZoneBreak) : signature
+        # physique de la zone interieure des lecteurs, dite au journal ; texte seulement, aucun calcul change
+        if (Test-InnerZoneBreak ([int[]]$bk)) { Append-Log ($u.Prefix + (T "Cette chute du besoin vers les cylindres 43 et 44 est une signature connue de nombreux lecteurs 3,5 pouces (zone intérieure du disque) : la courbe est correcte, rien à refaire.")) }
         Write-CalibDentLog $u        # 12.9 (correction 4)
         if ($u.Warn.Dev.Count -gt 0) { Append-Log ($u.Prefix + ((T "Écart à la courbe de plus de {1} ns et de trois incertitudes (courbe moins mesure) : {0}.") -f ($u.Warn.Dev -join ', '), (Format-UiNum $script:CalDevNs))) }
         # Calibration precedente du meme lecteur (encore en memoire, remplacee plus bas) : la forme de la courbe tient au
@@ -2357,7 +2716,7 @@ function Complete-PrecompCalib {
             Res = [double[]]@($cs | ForEach-Object { if (@($u.Warn.Contra) -contains $_ -or @($u.ContraMoved) -contains $_) { [double]::NaN } elseif (@($u.Witness) -contains $_ -and $u.VerifyPrev.ContainsKey($_) -and -not $u.Warn.Drift.Sys.ContainsKey($_)) { [math]::Round($(if ([bool]$cal.VOff) { [double]$u.VerifyPrev[$_].Shift } elseif ($u.VerifyPrev[$_].Meas -and $null -ne $u.VerifyPrev[$_].Meas.Raw) { [double]$u.VerifyPrev[$_].Meas.Raw } else { [double]$u.VerifyPrev[$_].Shift }), 1) } elseif ($u.Verify.ContainsKey($_)) { [math]::Round($(if ([bool]$cal.VOff -or $null -eq $u.Verify[$_].Raw) { [double]$u.Verify[$_].Shift } else { [double]$u.Verify[$_].Raw }), 1) } else { [double]::NaN } })
             Converged = ($u.Warn.NonConv.Count -eq 0); MaxX = $maxX; MaxNs = [int]$script:CalHardNs
             # 12.10 : asymetrie de reference de la famille sur ce lecteur (Get-UnitAsymRef) : cylindres, ecarts 3T/2T - 1,5 et
-            # 4T/2T - 2 du motif relu a la verification 1 ; lus par l onglet Qualite et le controle (Get-AsymRefTable, 190)
+            # 4T/2T - 2 du motif relu a la verification 1 ; 12.11 : gardes pour l etude, plus lus par l onglet Qualite
             AsymCyl = [int[]]@($asym.Cyl); AsymD3 = [double[]]@($asym.D3); AsymD4 = [double[]]@($asym.D4)
             Contra = [int[]]@(@($u.Warn.Contra) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ } | Sort-Object)
             # 12.9 (correction 4) : toutes les dents de la courbe (confirmees, en attente, ou non confirmees a la derniere

@@ -27,7 +27,8 @@ function Get-IpfCellInfo([string]$path) {
     if ($bits.Count -eq 0) { throw (T 'Aucune piste formatée dans l''IPF') }
     $sorted = $bits | Sort-Object
     $med = [int64]$sorted[[int]($sorted.Count / 2)]
-    return @{ CellNs = [double](200000000.0 / $med); Bits = $med; Tracks = $n; DosTracks = $dos; Source = (T 'IPF (bits par piste)') }
+    # 12.11 : MaxBits, piste la plus longue (cellule la plus courte) : plafond par disquette (Get-PatternBits, 240)
+    return @{ CellNs = [double](200000000.0 / $med); Bits = $med; MaxBits = [int64]($bits | Measure-Object -Maximum).Maximum; Tracks = $n; DosTracks = $dos; Source = (T 'IPF (bits par piste)') }
 }
 
 # SCP : cellule mesuree sur les premieres pistes presentes (revolution 0)
@@ -65,6 +66,9 @@ function Get-HfeCellInfo([string]$path) {
         if ($rate -le 0) { throw (T 'Débit HFE nul') }
         if ($rate -lt 100 -or $rate -gt 1000) { throw ((T "Débit HFE invalide ({0} kbit/s)") -f "$rate") }
         $bits = [int64](400 * [int]$rate); $src = ((T "HFE (débit {0} kbit/s)") -f "$rate")
+        # 12.11 : MaxBits, piste la plus longue lue dans la table des pistes ; 0 : densite tiree du seul debit de l en-tete
+        # (HFE v3, table inexploitable), longueur des pistes inconnue : plafond par disquette de 470 ns (Get-PatternBits, 240)
+        $max = [int64]0
         # 12.10 (lot 1, B1) : octet d encodage (offset 11, table EncodingType de hfe.py) : FM 0x02, 0x03, 0x04, 0x0E, 0x14 ;
         # GCR 0x06 a 0x09 (Apple II), 0x10 (Macintosh), 0x12 (C64), 0x13 (Victor 9000) ; codage propre 0x0F (M2FM du DEC
         # RX02) ; MFM 0x00, 0x01, 0x05, 0x0C, 0x0D ; 0xFF (valeur que gw ecrit par defaut) et autres : inconnu (''), MFM
@@ -87,14 +91,14 @@ function Get-HfeCellInfo([string]$path) {
                 }) | Sort-Object)
                 if ($lens.Count -gt 0 -and $lens.Count -ge [math]::Ceiling($nCyl / 2)) {
                     $med = [int64]$lens[[int][math]::Floor($lens.Count / 2)]
-                    if ($med -ge 20000 -and $med -le 600000) { $bits = $med; $src = ((T "HFE ({0} bits par piste, débit {1} kbit/s)") -f "$med", "$rate") }
+                    if ($med -ge 20000 -and $med -le 600000) { $bits = $med; $max = [int64]$lens[$lens.Count - 1]; $src = ((T "HFE ({0} bits par piste, débit {1} kbit/s)") -f "$med", "$rate") }
                 }
             }
         }
     } finally { $fs.Dispose() }
     $cell = [double](200000000.0 / $bits)
-    if ($dbl) { $cell *= 2; $bits = [int64][math]::Floor($bits / 2) }   # 12.10 (lot 1, B1) : double debit (FM, Apple II)
-    return @{ CellNs = $cell; Bits = $bits; Tracks = -1; DosTracks = -1; Source = $src; EncByte = $eb; Enc = $enc; DoubleRate = $dbl }
+    if ($dbl) { $cell *= 2; $bits = [int64][math]::Floor($bits / 2); $max = [int64][math]::Floor($max / 2) }   # 12.10 (lot 1, B1) : double debit (FM, Apple II)
+    return @{ CellNs = $cell; Bits = $bits; MaxBits = $max; Tracks = -1; DosTracks = -1; Source = $src; EncByte = $eb; Enc = $enc; DoubleRate = $dbl }
 }
 
 function Get-CurveDate($cv) {

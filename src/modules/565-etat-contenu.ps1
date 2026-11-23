@@ -16,7 +16,7 @@ $script:ContentBlocks = 8; $script:ContentBlockLen = 5; $script:ContentMinBlocks
 $script:ContentQ = 1e-3; $script:ContentTolM = 1e-6; $script:ContentMaxIt = 50; $script:ContentT0Tol = 0.05
 $script:ContentZMax = 5e-4; $script:ContentCellsTol = 0.02; $script:ContentFluxMin = 0.5
 $script:ContentMinCyl = 20; $script:ContentMinLevelCyl = 6; $script:ContentResumeMax = 1
-$script:ContentEstWrite = 1.25; $script:ContentEstRead = 0.85     # s par piste (balayages du 25/10/2026)
+$script:ContentEstWrite = 0.67; $script:ContentEstRead = 0.85     # s par piste (balayages du 25/10/2026) ; 12.11 rc3 (R8) : ecriture sans verification de gw, 1,25 s moins la verification (ProgCost.Verify, 0,58 s) [estimation]
 $script:EraseEstTrack = 0.37         # 12.8.2 : s par piste effacee en haute frequence (essai E5 du 27/10/2026 : 52 pistes en 19 s)
 $script:ContentScpName = 'contenu-mesure.scp'   # relecture unique quand contentKeepMeasures vaut 0 (plafond du facteur ContentFMax : 040)
 # 12.9 (critique de la phase A, § 3.1) : modele « K-ns » (y = a_passe + g_cylindre - Q (W - k V)^2, 274), facteur k de 0 a

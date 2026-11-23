@@ -8,6 +8,8 @@ $timer.Add_Tick({
             $gwDoneTick = $true
             Read-GwOutput $true
             $code = $script:GwProc.ExitCode
+            # 12.11 rc3 (R5) : port du Greaseweazle introuvable : nouvelle tentative posee, fin de la commande non traitee
+            if (Test-GwPortRetry $code) { return }
             # Lecture de prechauffage : code retour et pistes manquantes sans effet, l etape suivante a toujours lieu
             $soft = [bool]$script:GwSoft; $script:GwSoft = $false; $script:GwLastCode = $code
             # 12.8.1 (spec-1281.md § A.7) : mesure de la disquette sur l image, gw arrete sur une piste refusee a la
@@ -15,7 +17,9 @@ $timer.Add_Tick({
             # prechauffage (ni « operation incomplete », ni arret de la sequence) ; l etape suivante (Invoke-ContentWriteNext)
             # garde la piste et reprend la tete. Toute autre erreur gw suit la regle commune. Regle : Get-GwEndRule (110)
             $eraseFailed = ([bool]$script:GwIsErase -and [bool]$script:GwCmdFailed); $script:GwIsErase = $false   # 12.8.2
-            $gwEnd = Get-GwEndRule $code $soft ([bool]$script:GwIsWrite) ([bool]$script:GwWriteSummary) ([int]$script:ProgTotal) ([int]$script:ProgSeen.Count) $script:GwVerifyFail $(if ($script:Cal) { [string]$script:Cal.Mode } else { '' }) $eraseFailed
+            # 12.11 : total annonce lu par Get-EndRuleTotal (110) : 0 pour gw convert, dont l annonce donne maintenant un total
+            # a la barre d etat ; la regle de fin reste celle de la 12.10 pour toutes les commandes
+            $gwEnd = Get-GwEndRule $code $soft ([bool]$script:GwIsWrite) ([bool]$script:GwWriteSummary) (Get-EndRuleTotal) ([int]$script:ProgSeen.Count) $script:GwVerifyFail $(if ($script:Cal) { [string]$script:Cal.Mode } else { '' }) $eraseFailed
             $soft = [bool]$gwEnd.Soft
             # Activite du lecteur : seulement si le moteur a tourne (code 0, ou au moins une piste lue ou ecrite) ;
             # nouvelle serie si la commande a commence CalWarmupGapMin apres la fin de la precedente
@@ -44,9 +48,12 @@ $timer.Add_Tick({
             # (Get-GwEndRule, plus haut).
             $incomplete = [bool]$gwEnd.Incomplete
             $script:GwLastIncomplete = [bool]$incomplete
+            # 12.11 rc8 (R17) : ecriture pour un lecteur cible sans controle complet : memoire gardee a la fin de la derniere
+            # commande gw write, retiree sur une erreur (Update-TargetWriteMemoryGw, 172)
+            if ($wasWrite) { Update-TargetWriteMemoryGw ([int]$code) ([bool]$incomplete) }
             if ($incomplete -and -not $soft) {
                 if ($eraseFailed) { Append-Log (T "ERREUR : l'effacement a échoué (« Command Failed » de gw, code 0) : la suite de l'opération n'est pas lancée. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer.") }
-                else { Append-Log ((T "ERREUR : opération incomplète, gw s'est arrêté après {0} piste(s) sur {1} annoncées avec le code 0. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer.") -f "$($script:ProgSeen.Count)", "$($script:ProgTotal)") }
+                else { Append-Log ((T "ERREUR : opération incomplète, gw s'est arrêté après {0} piste(s) sur {1} annoncées avec le code 0. Vérifier le lecteur, le câble USB et l'alimentation, puis relancer.") -f "$($script:ProgSeen.Count)", "$(Get-EndRuleTotal)") }
                 $script:Chain.Clear(); $script:WriteQueue.Clear()
                 Stop-WriteWarmup        # defensif : une lecture de prechauffage est « soft »
                 $why = (T 'opération gw incomplète : disquette protégée en écriture, absente, ou lecteur en défaut ? Voir le journal')
@@ -88,9 +95,11 @@ $timer.Add_Tick({
             Read-GwOutput $false
         }
     }
+    # 12.11 rc3 (R5) : nouvelle tentative de la commande gw sans port, a son heure (Test-GwPortRetry, 110)
+    if ($script:GwPortRetry -and -not $script:GwProc -and (Get-Date) -ge $script:GwPortRetry.At) { Invoke-GwPortRetry }
     # Ecriture apres une calibration rapide de la Bibliotheque, terminee (gw, etapes, controle et calibration finis) :
     # champs --precomp remis au profil de la reference, le profil decale ne valait que pour la disquette ecrite
-    if ($script:LevelFieldsPending -and -not $script:GwProc -and $script:Chain.Count -eq 0 -and -not $script:Rep -and -not $script:Cal -and -not $script:WriteWarm) {
+    if ($script:LevelFieldsPending -and -not $script:GwProc -and -not $script:GwPortRetry -and $script:Chain.Count -eq 0 -and -not $script:Rep -and -not $script:Cal -and -not $script:WriteWarm) {
         $script:LevelFieldsPending = $false
         if ($cmbWProfile.SelectedIndex -eq 0 -and -not $script:Restore) {
             Update-PrecompForImage $txtWFile.Text
@@ -103,6 +112,9 @@ $timer.Add_Tick({
     if ($script:UnattendedRun) { Update-CalibUnattended $gwDoneTick }
     # Calibration precomp : barre globale et temps restant ; prechauffage d une ecriture lente
     if ($script:Cal) { Update-CalibProgress } elseif ($script:WriteWarm) { Update-WriteWarmupProgress }
+    # 12.11 (L11) : barre et libelle de l onglet Ecriture pendant une ecriture et son controle, puis leur etat de fin
+    # (Update-WriteProgress, 160) ; avant Update-HomeProgress et Update-SeqEnd, qui retire le plan au repos
+    if ($script:WriteProg) { Update-WriteProgress }
     if ($script:HomeCalBusy) { Update-HomeCalibCard }     # carte Calibration de l Accueil : progression, puis bilan
     # 12.7 : bareme de calibration remis a la double densite une fois l application au repos (filet de securite ; chaque
     # calibration pose le sien a son debut). Fenetre principale (ShowDialog, donc modale) exclue, comme pour Resume-CalibRedo
@@ -114,7 +126,7 @@ $timer.Add_Tick({
     # 12.8 (VAL01) : erreur gw pendant la passe du nouvel essai (Stop-PrecompCalib -GwError) : fin de la calibration sur le
     # jugement de la derniere verification, ici une fois gw fini, sans etape en attente ni autre fenetre modale (la fin peut
     # ouvrir la fenetre de decision, jamais pendant le traitement de la fin de gw). Bouton Arreter entre-temps : abandon
-    if ($script:Cal -and $script:Cal.RetestEnd -and -not $script:GwProc -and $script:Chain.Count -eq 0 -and @([System.Windows.Forms.Application]::OpenForms | Where-Object { $_.Modal -and $_.Visible -and -not [object]::ReferenceEquals($_, $form) }).Count -eq 0) { Complete-CalibRetestEnd }
+    if ($script:Cal -and $script:Cal.RetestEnd -and -not $script:GwProc -and -not $script:GwPortRetry -and $script:Chain.Count -eq 0 -and @([System.Windows.Forms.Application]::OpenForms | Where-Object { $_.Modal -and $_.Visible -and -not [object]::ReferenceEquals($_, $form) }).Count -eq 0) { Complete-CalibRetestEnd }
     Update-HomeProgress                                   # 12.7 : zone de progression de l Accueil, puis bilan
     # Bouton « Passer le prechauffage » : visible pendant tout prechauffage (ecriture lente, calibration), inactif une fois
     # clique ; Enregistrer et Reinitialiser (inactifs pendant une operation) lui cedent leur place dans la barre
@@ -124,14 +136,12 @@ $timer.Add_Tick({
     if ($wshow -and $btnWarmSkip.Enabled -eq [bool]$wcur.WarmSkip) { $btnWarmSkip.Enabled = -not [bool]$wcur.WarmSkip }
     # Restauration : etape en cours et chien de garde
     if ($script:Restore) { Update-RestoreProgress }
-    # Detection des lecteurs au demarrage, fenetre affichee et aucune operation en cours (12.8, D20 : Get-AppBusy, comme
-    # Start-DriveDetect ; detection gardee en attente, et non abandonnee, pendant un prechauffage ou la mesure continue)
-    if ($script:DetectAt -and (Get-Date) -ge $script:DetectAt -and -not $script:GwProc -and -not (Get-AppBusy)) {
-        $script:DetectAt = $null
-        Start-DriveDetect 'auto'
-    }
+    # 12.11 : fin de sequence : une fois l application au repos, la barre d etat annonce le resultat de l operation
+    # (Set-SeqEnd), sans compteur ni barre ; jamais sur l echec de la derniere commande gw (110)
+    Update-SeqEnd
+    # 12.11 rc3 (R3) : plus de detection des lecteurs au demarrage (seule la carte « Tester le Greaseweazle » en lance une)
     # Alignement : passe suivante en mode continu
-    if ($script:AlignLoop -and $script:AlignNextAt -and -not $script:GwProc -and -not $script:Cal -and -not $script:Rep -and -not $script:Restore -and $script:Chain.Count -eq 0 -and (Get-Date) -ge $script:AlignNextAt) {
+    if ($script:AlignLoop -and $script:AlignNextAt -and -not $script:GwProc -and -not $script:GwPortRetry -and -not $script:Cal -and -not $script:Rep -and -not $script:Restore -and $script:Chain.Count -eq 0 -and (Get-Date) -ge $script:AlignNextAt) {
         $script:AlignNextAt = $null
         Start-AlignCycle
     }
@@ -139,6 +149,9 @@ $timer.Add_Tick({
     # continue (analyse faite apres la fin de gw, mesure suivante attendue) et sortie sans commande gw (Arreter, erreur
     # d analyse, autre operation)
     if (-not $script:GwProc -and [bool]$script:QualPauseBar -ne ((Get-AppBusy) -eq 'quality')) { Set-Busy $false }
+    # 12.11 (lot LN-b) : liste « Lecteur : » du bandeau inactive pendant toute operation, sauf la pause d une mesure
+    # continue (Update-DriveLock, 112), avec ou sans lecteur enregistre
+    Update-DriveLock
     # Recherche bibliotheque terminee ?
     if ($script:LibAsync -and $script:LibAsync.IsCompleted) { Complete-LibSearch }
     # Indexation en cours / terminee
@@ -202,11 +215,13 @@ $form.Add_Shown({
     # Bibliotheque chargee une fois la fenetre visible (racine reseau possible)
     $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
     try { Update-Library; if ($txtWFile.Text) { Update-PrecompForImage $txtWFile.Text } else { Update-CurveButton '' } } finally { $form.Cursor = [System.Windows.Forms.Cursors]::Default }
-    # Calibrations d un autre calcul : choix de l utilisateur, puis detection des lecteurs (qui lance gw)
+    # Calibrations d un autre calcul : choix de l utilisateur. 12.11 rc3 (R3) : plus de detection des lecteurs ensuite
     Resolve-OldCalibrations
-    if (Test-Path -LiteralPath $script:GwExe) { $script:DetectAt = (Get-Date).AddSeconds(1) }   # detection des lecteurs
 })
 Fit-ControlText $form
+# 12.11 (L9) : onglet Ecriture : controles a la suite de leur libelle ou de la case qui les precede, cadre des options
+# avancees selon « Mode expert », lien (Set-WriteTabLayout, 145) ; apres Fit-ControlText, qui fixe la largeur des cases
+Set-WriteTabLayout
 
 # --- Demarrage -----------------------------------------------------------------
 Set-Defaults
@@ -214,7 +229,7 @@ $loaded = Load-Config
 Update-TabSet
 Update-CurveButton ''
 
-Append-Log "Greaseweazle Studio v$($script:Version)"
+Append-Log "Greaseweazle Studio v$($script:VersionLabel)"
 Append-Log ((T "Répertoire  : {0}") -f "$($script:AppDir)")
 if (Test-Path -LiteralPath $script:GwExe) { Append-Log (T 'gw.exe      : trouvé') }
 else { Append-Log (T 'gw.exe      : ABSENT - placez ce script dans le répertoire de gw.exe') }

@@ -18,8 +18,15 @@ $cmbDrive = New-Object System.Windows.Forms.ComboBox
 $cmbDrive.Location = '556,34'; $cmbDrive.Width = 45; $cmbDrive.DropDownStyle = 'DropDownList'
 $cmbDrive.Anchor = 'Top,Right'
 [void]$cmbDrive.Items.AddRange(@('A','B','0','1','2','3'))
-$tip.SetToolTip($cmbDrive, (T "A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0 à 3 = bus Shugart (nappe droite) - typiquement le lecteur Amiga`nAu démarrage, l'application sélectionne le premier lecteur qui répond."))
+# 12.11 (version finale) : le demarrage ne cherche plus les lecteurs (rc3, R3) : l infobulle le dit, et renvoie au diagnostic
+# de la carte « Tester le Greaseweazle » de l Accueil
+$tip.SetToolTip($cmbDrive, (T "A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0 à 3 = bus Shugart (nappe droite) - typiquement le lecteur Amiga`nAu démarrage, l'application ne cherche pas les lecteurs : elle reprend la connexion choisie à la session précédente.`nLa carte « Tester le Greaseweazle » de l'Accueil dit quelles connexions répondent."))
 Register-SettingCtl 'drive' $cmbDrive          # 12.8 (point 7) : lecteur de toute l application (fenetre de nettoyage comprise)
+# 12.11 (lot LN-b) : lecteurs enregistres (112). Seul un choix fait dans la liste deroulee vaut confirmation du lecteur
+# branche (Set-DriveHandChoice) ; molette sans effet sur la liste fermee, avec ou sans lecteur enregistre (un geste
+# involontaire changeait de lecteur) : evenement marque traite ; liste deroulee, la molette la fait defiler comme avant
+$cmbDrive.Add_SelectionChangeCommitted({ Set-DriveHandChoice $this.DroppedDown })
+$cmbDrive.Add_MouseWheel({ if (-not $this.DroppedDown -and $_ -is [System.Windows.Forms.HandledMouseEventArgs]) { $_.Handled = $true } })
 
 $txtDev = New-Object System.Windows.Forms.TextBox
 $txtDev.Location = '652,34'; $txtDev.Width = 50; $txtDev.Anchor = 'Top,Right'
@@ -34,7 +41,7 @@ $tip.SetToolTip($chkTime, (T 'Affiche le temps écoulé après chaque commande g
 $chkExpert = New-Object System.Windows.Forms.CheckBox
 $chkExpert.Text = (T 'Mode expert'); $chkExpert.Location = '404,5'; $chkExpert.AutoSize = $true; $chkExpert.Anchor = 'Top,Right'
 $chkExpert.BackColor = [System.Drawing.Color]::Transparent; $chkExpert.ForeColor = [System.Drawing.Color]::White
-$tip.SetToolTip($chkExpert, (T "Décoché : seuls les onglets utiles au quotidien sont affichés (Accueil, Restauration, Bibliothèque, Écriture, Lecture, Qualité).`nCoché : tous les onglets, y compris Conversion, Comparaison, Outils, Délais et Commande libre."))
+$tip.SetToolTip($chkExpert, (T "Décoché : seuls les onglets utiles au quotidien sont affichés (Accueil, Restauration, Bibliothèque, Écriture, Lecture, Qualité).`nCoché : tous les onglets, y compris Conversion, Comparaison, Outils, Délais et Commande libre.") + "`n" + (T "Coché : affiche aussi les options avancées de l'onglet Écriture."))   # 12.11 (L9) : options avancees de l onglet Ecriture (Set-WriteTabLayout, 145)
 
 # Aide en ligne (wiki) pour l onglet affiche ; touche F1. 12.8 (lot 5) : hauteur de 34 px (deux hauteurs de bouton, 34 et
 # 40 px), centree sur la rangee du lecteur ; case « Mode expert » remontee de 4 px au-dessus
@@ -42,9 +49,24 @@ $btnHelpTop = New-Object System.Windows.Forms.Button
 $btnHelpTop.Text = (T 'Aide'); $btnHelpTop.Location = '404,28'; $btnHelpTop.Size = '84,34'; $btnHelpTop.Anchor = 'Top,Right'
 $btnHelpTop.Add_Click({ Open-HelpForTab })
 $tip.SetToolTip($btnHelpTop, (T 'Ouvre le guide en ligne de l''onglet affiché (touche F1).'))
+# 12.11 rc4 (R1, maquette 01a approuvee) : bouton en texte « Lecteurs... » sur la premiere rangee du bandeau, qui ne
+# deplace aucun controle : en haut a droite sans lecteur nomme (bord droit de « Chrono »), sinon a droite de « Mode
+# expert » (Set-DriveBannerLayout, 112) ; ouvre la fenetre « Lecteurs » (Show-DrivesDialog, 112)
+$btnDrivesTop = New-Object System.Windows.Forms.Button
+$btnDrivesTop.Name = 'btnDrivesTop'; $btnDrivesTop.Text = (T 'Lecteurs…'); $btnDrivesTop.Location = '694,5'; $btnDrivesTop.Size = '88,24'; $btnDrivesTop.Anchor = 'Top,Right'
+$btnDrivesTop.FlatStyle = 'Flat'; $btnDrivesTop.FlatAppearance.BorderSize = 1; $btnDrivesTop.UseVisualStyleBackColor = $false
+$btnDrivesTop.BackColor = [System.Drawing.Color]::White; $btnDrivesTop.ForeColor = [System.Drawing.Color]::FromArgb(40, 46, 58)
+$btnDrivesTop.FlatAppearance.BorderColor = [System.Drawing.Color]::FromArgb(196, 204, 216)
+$btnDrivesTop.Add_Click({ Show-DrivesDialog })
+$tip.SetToolTip($btnDrivesTop, (T 'Lecteurs : noms, connexions et calibrations de chaque lecteur'))
 
-$pnlTop.Controls.AddRange(@($lblGwStatus, (New-BannerLabel (T 'Lecteur :') '500,37'), $cmbDrive,
-    (New-BannerLabel (T 'COM :') '612,37'), $txtDev, $chkTime, $chkExpert, $btnHelpTop))
+# 12.11 (lot LN-b) : libelles nommes : texte et place du libelle du lecteur, place de « COM : » selon les lecteurs
+# enregistres (Set-DriveBannerLayout, 112 : positions de la 12.10 sans lecteur enregistre ayant une connexion)
+$lblDrive = New-BannerLabel (T 'Lecteur :') '500,37'
+$lblCom = New-BannerLabel (T 'COM :') '612,37'
+$pnlTop.Controls.AddRange(@($lblGwStatus, $lblDrive, $cmbDrive,
+    $lblCom, $txtDev, $chkTime, $chkExpert, $btnHelpTop, $btnDrivesTop))
+$script:DriveBanner = $null      # 12.11 (lot LN-b) : positions de la 12.10, relevees au premier appel de Set-DriveBannerLayout
 
 # --- Separateur onglets / journal ----------------------------------------------
 $split = New-Object System.Windows.Forms.SplitContainer
@@ -59,6 +81,10 @@ $split.Dock = 'Fill'
 $tabs = New-Object System.Windows.Forms.TabControl
 $tabs.Dock = 'Fill'
 $tabs.Padding = New-Object System.Drawing.Point(12, 5)
+# 12.11 (L9) : onglets sur plusieurs rangees plutot que des fleches : en mode expert, les onze onglets sur deux rangees a la
+# taille par defaut de la fenetre (26 px de hauteur en moins pour chaque onglet) ; les six onglets courants tiennent sur une
+# rangee. Comportement de Windows : la rangee de l onglet choisi passe devant
+$tabs.Multiline = $true
 
 # ============================== BIBLIOTHEQUE ===================================
 $tabL = New-TabPage (T 'Bibliothèque')
@@ -236,7 +262,8 @@ $tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T 'Test rapi
 # 12.10 (relecture de la RC) : ecriture lente, liste « Mesure » a « complete, au motif » : mesure complete de cette disquette
 # (Get-LevelBeforeWriteKind, Start-LevelBeforeWrite)
 $tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T "Avec « complète, au motif » dans la liste « Mesure : » de l'onglet Écriture, cette mesure est une mesure complète de cette disquette, sur tous ses cylindres (26 à 31 min)."))
-$tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T "Écriture lente : le lecteur est d'abord préchauffé par des lectures sans écriture (case « Préchauffer le lecteur avant l'écriture lente » de l'onglet Écriture ; bouton « Passer le préchauffage » pendant l'attente)."))
+# 12.11 (L12a) : la case du prechauffage est dans les options avancees de l onglet Ecriture (lot L9) : l infobulle le dit
+$tip.SetToolTip($btnLibSlow, $tip.GetToolTip($btnLibSlow) + "`n" + (T "Écriture lente : le lecteur est d'abord préchauffé par des lectures sans écriture (case « Préchauffer le lecteur avant l'écriture lente », dans les options avancées de l'onglet Écriture ; bouton « Passer le préchauffage » pendant l'attente)."))
 $btnLibSlow.Add_Click({ Start-UnattendedWrite; Start-LibWrite 'slow' })   # 12.9 (S1) : ecriture sans surveillance
 
 $btnLibOpen = New-Object System.Windows.Forms.Button

@@ -22,17 +22,23 @@
 # qu aux pistes a bits (images secteur ou bitcell), jamais aux flux SCP/RAW.
 $script:Cal = $null
 $script:CalRedo = $null   # calibration B (« Refaire sur une autre disquette ») : courbe A en memoire ; Stage 'confirm', 'running' ou 'interrupted'
+# 12.11 rc4 (R5, partie 2) : calibration complete ou croisee interrompue par une erreur de gw ou par « Arreter », gardee en
+# memoire pour etre reprise a la passe interrompue : @{ Cal (etat a l entree de cette passe) ; At ; Cause ; Sig (reglages,
+# Get-CalibResumeSig) }. Posee par Set-CalibResume (Stop-PrecompCalib, 270), proposee au lancement suivant de la meme
+# calibration (Start-PrecompCalib), abandonnee des qu une autre calibration commence ; jamais enregistree : perdue a la
+# fermeture de l application
+$script:CalResume = $null
 $script:CalCoarse    = @(0, 30, 100)   # passes de mesure : trois niveaux, repartis par cylindre (12.9, correction 2)
 # 12.10 : niveaux proportionnes a la famille (Get-CalLevels) : en long track (cellule 1,89 us) le besoin vaut 1,4 a 1,7 fois
 # celui du standard (TEAC du 02/11/2026 : 105 a 439 ns) et tous les cylindres depassaient 100 ns : plus aucun zero interpole,
 # decalage commun de l ecriture non evaluable, toute la courbe extrapolee ou encadree. Facteur sur CalCoarse : 0/60/200 ns
 $script:CalLevelKLong = 2.0
-# 12.10 : correction de l asymetrie de l onglet Qualite par la reference du motif (Set-TrackAsymRef, 190). Desactivee par
-# defaut : le 02/11/2026 au soir, la meme image ecrite au facteur mesure sur la disquette (0,7) a donne des ecarts 3T/4T
-# bruts nuls et une asymetrie « corrigee » plus forte (0,04 a 0,11) : la reference du motif (zero de la calibration) et
-# la mesure sur l image ne s accordent pas en long track ; a instruire au banc et sur materiel avant d activer. Le releve
-# (AsymCyl, AsymD3, AsymD4) reste enregistre avec chaque courbe
-$script:QualAsymRefOn = $false
+# 12.11 : correction de l asymetrie de l onglet Qualite par la reference du motif retiree (fonctions et drapeau de la
+# 12.10, livres desactives). Lectures gardees du 02/11/2026 (un lecteur, long track) : l asymetrie n est pas un biais de
+# lecture du lecteur, elle suit la precompensation ecrite ; retrancher le releve du motif, ecrit a la courbe entiere,
+# n etait juste qu a ce niveau et penalisait une ecriture au facteur mesure. Le releve (AsymCyl, AsymD3, AsymD4 : ecarts
+# 3T/2T - 1,5 et 4T/2T - 2 du motif relu a la premiere verification, Get-TracksAsym, Get-UnitAsymRef) reste enregistre
+# avec chaque courbe, pour l etude ; plus aucun code ne le relit
 # 12.9 (correction 3) : 0, 30 et 100 ns au lieu de 0, 100 et 200 : la corde qui donne le zero des besoins courants (5 a
 # 85 ns au lecteur A) est courte et proche du zero (biais de courbure +0,91 -> +0,19 ns, v129\cal2\donnees) ; un besoin
 # au-dela de 100 ns est encadre (CalBracketMargin, CalBracketStep et CalMaxNs inchanges).
@@ -42,12 +48,12 @@ $script:CalMaxNs     = 300
 # Borne absolue d une valeur de precomp (zero estime, courbe, verification, plafond Sat/plancher des residus) : gw 1.23
 # n impose aucune borne (PrecompSpec int(v), Precomp.apply sans clamp) ; en MFM 2 us, un intervalle court ecrit vaut
 # 4 us - 2t, 400 ns = 0,2 cellule ; simulation du PLL de gw : premier echec vers 540 ns (2 us), 507 ns (long track
-# 1,89 us). Reglable dans la configuration (write.precompMaxNs), de 300 ns (plafond des mesures) a 470 ns (un quart de
-# cellule long track : chaque intervalle ecrit atteint alors sa frontiere de decision) ; chaque courbe enregistre la borne
-# de son calcul (maxNs).
+# 1,89 us). Reglage write.precompMaxNs : de 300 ns (plafond des mesures) a CalHardMaxNs, 470 ns (un quart de cellule long
+# track : chaque intervalle ecrit y atteint sa frontiere de decision) ; chaque courbe enregistre la borne de son calcul (maxNs).
 $script:CalHardNsDefault = 400
 $script:CalHardMinNs = 300
-$script:CalHardMaxNs = 470
+$script:CalHardMaxNs = 470   # 12.11 : borne haute du reglage precompMaxNs, et repli sans densite du plafond par disquette ci-dessous
+$script:CalDiskCapCell = 0.25; $script:CalDiskCapMaxNs = 500   # 12.11 : plafond par disquette (Get-DiskCapNs, 265) : part de la cellule de l image, et ns au plus
 $script:CalHardNs    = $script:CalHardNsDefault
 # Zero extrapole au-dela de CalMaxNs incertain (plus de CalTrendSig ns, 25 % de 50 ns) ou sans pente propre : combine avec
 # la tendance de la courbe, droite sur les CalTrendN derniers cylindres fiables, a CalTrendSpan cylindres au plus en test
@@ -188,6 +194,12 @@ $script:CalConfirm = $null
 # reconstruite par Sync-PrecompCurves au chargement, au changement de lecteur et apres chaque ecriture dans le magasin :
 # tout le code qui lit PrecompCurves lit les courbes du lecteur courant, sans changement
 $script:DriveCurves = @{}
+# 12.11 rc8 (R17) : recalages des courbes croisees (« source>cible|famille_hN » -> @{ Ns ; N ; Items ; XDate ; XKey ; Calc ; At }),
+# memoire de la derniere ecriture pour chaque lecteur cible (« source>cible » -> New-TargetWriteMemory) et memoire en attente
+# de l ecriture en cours (172) ; blocs write.targetRecal et write.lastTargetWrite (120)
+$script:TargetRecal = @{}
+$script:LastTargetWrites = @{}
+$script:TargetWritePending = $null
 $script:PrecompCurves = @{ std = $null; long = $null; std_h0 = $null; std_h1 = $null; long_h0 = $null; long_h1 = $null; hd = $null; hd_h0 = $null; hd_h1 = $null }   # vue du lecteur courant : derniere courbe calibree par famille d image (et par tete : ecriture lente)
 # 12.7 : cles de la haute densite (hd) apres les six cles double densite, dans le meme ordre qu avant
 $script:CurveKeys = @('std', 'long', 'std_h0', 'std_h1', 'long_h0', 'long_h1', 'hd', 'hd_h0', 'hd_h1')
@@ -240,8 +252,8 @@ $script:LevelNwcDelta       = 24     # base de confirmation d une pente nulle (n
 $script:LevelAdaptTrigF1    = $false # declenchement des la passe 1 sur une forme non conforme a f = 1 (non retenu, § 2.3)
 # 12.8 (F3R, decisions du 21/10/2026, v128\c3\final\v3f.py) : terme de centre hc ((c - C0)+ / (n - 1 - C0))^2 de la forme
 # adaptee, ajuste sur les controles (passe 3) ou repris d un refus de la passe de mesure (e3) ; reglages (H) de
-# c3-variantes.md § 2.1. Plafond par disquette : CalHardMaxNs (470 ns), borne haute de write.precompMaxNs, pour la seule
-# courbe adaptee dont le besoin depasse CalHardNs (la reference et toute calibration complete restent a CalHardNs)
+# c3-variantes.md § 2.1. Plafond par disquette (12.11 : Get-DiskCapNs, quart de la cellule de l image, et non plus
+# CalHardMaxNs) pour la seule courbe adaptee dont le besoin depasse CalHardNs (reference et calibration complete : CalHardNs)
 $script:LevelCenterC0       = 60     # debut du terme de centre (= LevelAdaptCtlLo)
 $script:LevelCenterMinOther = 3.0    # appui : un autre cylindre du centre, meme sens, au moins max(3 ns ; 1 et.)
 $script:LevelCenterOpp      = 8.0    # aucun cylindre du centre en sens contraire au-dela de max(8 ns ; 2 et.)
@@ -269,8 +281,8 @@ $script:CalCrossAsk = $null
 # Set-Defaults et « Effacer les calibrations » (les courbes croisees, elles, sont effacees)
 $script:TargetDrives = @{}
 # 12.8 (S3, decision du 21/10/2026) : mesure complete de cette disquette demandee par Start-DiskMeasure (@{ Brand ; HardNs ;
-# Ref }) : lue et remise a $null au debut de Start-PrecompCalib (signature inchangee : enveloppes de make-test) ;
-# calibration rapide relancee sans marque apres la garde de la passe 1 (W-M2) : lu et remis a $false par Start-LevelCalib
+# Ref } ; 12.11 : HardNs et CapBits poses par Start-PrecompCalib, la densite du motif connue) : lue et remise a $null au debut de
+# Start-PrecompCalib (signature inchangee : make-test) ; relance sans marque (W-M2) : lu et remis a $false par Start-LevelCalib
 $script:CalDiskOnly = $null
 $script:LevelNoBrand = $false
 # 12.7 : bareme de la calibration par famille. Les amplitudes ci-dessus (ns de precompensation, ou de decalage rapporte a
@@ -288,6 +300,10 @@ $script:CalSigMax        = 50.0    # incertitude maximale d un zero (ns)
 $script:CalInterpDefault = 100     # cible d une passe de mesure sans aucune estimation (ns)
 $script:CalHdK           = 0.5     # rapport des cellules haute et double densite (1 us / 2 us) (H)
 $script:CalHardNsUser    = $script:CalHardNs   # borne configuree (precompMaxNs), celle de la double densite
+# 12.11 rc4 (R2) : reglage automatique de la borne (liste « Borne de precompensation » des options avancees de l onglet
+# Ecriture, Set-PrecompBound, 230) : borne propre a la famille (CalHardNsDefault ; CalHardMaxNs en long track,
+# Set-CalibScale) ; faux : CalHardNsUser choisie, la meme dans toutes les familles, 400 ns comprise (write.precompMaxAuto)
+$script:CalHardAuto      = $true
 $script:CalScaleDd = @{ CalCoarse = $script:CalCoarse; CalMaxNs = $script:CalMaxNs; CalBracketMargin = $script:CalBracketMargin
     CalBracketStep = $script:CalBracketStep; CalTrendSig = $script:CalTrendSig; CalTrendRefSig = $script:CalTrendRefSig
     CalContraMaxNs = $script:CalContraMaxNs; CalDevNs = $script:CalDevNs; CalDenseStep = $script:CalDenseStep

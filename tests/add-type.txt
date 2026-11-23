@@ -1,0 +1,7 @@
+# Empreintes SHA-256 des blocs Add-Type qui compilent (texte du bloc, blancs reduits a une espace), lues par
+# tests/check-source.ps1 (A1). Modifier un bloc C# impose de mettre cette liste a jour dans le meme commit.
+91fc13ca151573f837168e952f6419a923e20eb819fdbeadea80a8917de4a5ba  030-csharp.ps1:4
+82bcc0e0d9291d5d4f91fc0ac6dec80aeb8c4dd076d3d10db4539cb8bde541b6  030-csharp.ps1:32
+f1d94a1ce82da06db75854c131fc6522e87bd9d3b68167e827342895c2e1618d  030-csharp.ps1:296
+8bc389dd290e9dd92b66c1a2d88fcdf1427023a8e33952076a5f907259af8665  030-csharp.ps1:366
+d5a7e4629b85a2bd12b0fb1f69f2e3289ca622ea981d10849da173357fbb185a  500-fenetre-theme.ps1:22

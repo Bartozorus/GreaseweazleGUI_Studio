@@ -81,8 +81,11 @@ function Test-ContentMeasurable([string]$img, [string]$fmt) {
     $bl = Get-ContentBlocks $nc ([int]$script:ContentBlocks) ([int]$script:ContentBlockLen) ([int]$script:ContentMaxCyl) ([int]$script:ContentMinBlocks)
     if (-not $bl.Ok) { $r.Why = (T "moins de 20 cylindres dans l'image"); return $r }
     # Borne des valeurs ecrites : precompMaxNs de la double densite (CalHardNsUser, comme Get-WriteFactorPlan), a defaut
-    # CalHardNs (bareme d une calibration haute densite pas encore retabli par le minuteur)
+    # CalHardNs (bareme d une calibration haute densite pas encore retabli par le minuteur). 12.11 rc4 (decision de
+    # l utilisateur) : en reglage automatique, long track borne comme sa reference (CalHardMaxNs, 470 ns), comme
+    # Get-WriteFactorPlan (140)
     $hard = [int]$script:CalHardNsUser; if ($hard -le 0) { $hard = [int]$script:CalHardNs }
+    if ([bool]$script:CalHardAuto -and $fam -eq 'long') { $hard = [int]$script:CalHardMaxNs }
     $lv = Get-ContentLevels
     $pre = Get-ContentImageSkip $img ([int[]]$bl.Cyls)
     $plan = Get-ContentPlan ([int[]]@(Get-RecValues $c0)) ([int[]]@(Get-RecValues $c1)) $nc $lv $hard $pre
@@ -98,8 +101,8 @@ function Test-ContentMeasurable([string]$img, [string]$fmt) {
 }
 
 function Get-ContentWriteArgs($cal, $w) {
-    # Commande gw write d une tete a la passe en cours (A.5) : memes options que l ecriture lente (Start-ImageWrite,
-    # 140:135-162 : --pre-erase, --erase-empty et --no-verify selon les cases, --retries, Get-WriteFormatArgs), puis le
+    # Commande gw write d une tete a la passe en cours (A.5) : options de l ecriture lente (Start-ImageWrite,
+    # 140:135-162 : --pre-erase et --erase-empty selon les cases, Get-WriteFormatArgs), --no-verify toujours, puis le
     # --precomp du plan de la passe et de la tete restreint aux cylindres de la commande ($w = @{ H ; Cyls ; Resume } :
     # commande complete, ou reprise apres un arret de gw), --tracks=c=<cylindres>:h=<tete> et l image. Jamais --tracks=h=
     # seul : ces commandes ne se confondent pas avec l ecriture finale (regex de rpm_analyse.precomp_journal).
@@ -112,8 +115,11 @@ function Get-ContentWriteArgs($cal, $w) {
     $a = @('write') + (Get-CommonArgs)
     if ($chkWPreErase.Checked -and [string]$ct.EraseMode -ne 'hfreq') { $a += '--pre-erase' }
     if ($chkWEraseEmpty.Checked) { $a += '--erase-empty' }
-    if ($chkWNoVerify.Checked)   { $a += '--no-verify' }
-    $a += "--retries=$($numWRetries.Value)"
+    # 12.11 rc3 (R8) : toujours --no-verify, quelle que soit la case « Sans verification » : la relecture en flux qui suit
+    # la passe est la mesure ; la verification de gw relisait chaque piste et reecrivait celle d un niveau bas qu elle ne
+    # decodait pas (piste mesuree biaisee). Sans --retries : gw ne reecrit une piste que sur un echec de sa verification,
+    # comme les ecritures de la calibration (Add-CalibWriteCmds, 270). L ecriture finale de l image garde la case (140)
+    $a += '--no-verify'
     $a += Get-WriteFormatArgs
     $a += @('--precomp', (Get-BracketSpec $sel), "--tracks=c=$(Format-CylRanges ([int[]]@($w.Cyls))):h=$([int]$w.H)", "`"$($cal.Image)`"")
     return ,([string[]]$a)
@@ -121,7 +127,7 @@ function Get-ContentWriteArgs($cal, $w) {
 
 function Get-ContentMeasureMinutes([int]$nTracks, [int]$passes = 3, [switch]$NoWarmup) {
     # Duree estimee de la mesure avant l ecriture de l image (A.6) : 3 passes de nTracks pistes ecrites (ContentEstWrite,
-    # 1,25 s par piste, ecriture verifiee) et relues (ContentEstRead, 0,85 s par piste, 3 tours), plus le prechauffage du
+    # 0,67 s par piste, ecriture sans verification depuis la 12.11 rc3) et relues (ContentEstRead, 0,85 s par piste, 3 tours), plus le prechauffage du
     # reglage warmFullCalib (borne haute : reduit ou saute si le lecteur vient de servir). 12.8.2 (revue) : effacement haute
     # frequence de chaque passe compris (Get-ContentEraseEst). 12.9 : $passes (1 : 4e passe adaptative), NoWarmup : sans
     # le prechauffage
@@ -167,6 +173,35 @@ function Get-ContentBrandKText($dr) {
     return ((T 'k 1, aucune mesure de ce lecteur pour la marque « {0} »{1}') -f "$bn", "$oth")
 }
 
+function Get-ContentAsymWhyText($af) {
+    # 12.11 rc6 (R15) : raison d un facteur par l asymetrie non determine (Get-ContentAsymFit, Why), seuils de 040
+    switch ([string]$af.Why) {
+        'peu' { return (T '{0} cylindres à 2 niveaux lisibles, il en faut {1}') -f "$($af.NCyl)", "$($script:ContentAsymMinCyl)" }
+        'pente' { return (T 'pente de l''asymétrie {0} × 2/cellule, hors de {1} à {2}') -f (Format-ContentNum $af.SRel '0.00'), (Format-UiNum ([double]$script:ContentAsymSRelMin) '0.0#'), (Format-UiNum ([double]$script:ContentAsymSRelMax) '0.0#') }
+        'tpente' { return (T 'pente de l''asymétrie peu marquée (t = {0}, il faut {1})') -f (Format-ContentNum $af.TS '0.0'), (Format-UiNum ([double]$script:ContentAsymMinT) '0.#') }
+        'incert' { return (T 'k = {0} ± {1}, incertitude au-delà de {2}') -f (Format-ContentNum $af.K '0.00'), (Format-ContentNum $af.SeK '0.00'), (Format-UiNum ([double]$script:ContentAsymSeKMax) '0.00') }
+        'borne' { return (T 'k = {0} hors de {1} à {2}') -f (Format-ContentNum $af.K '0.00'), (Format-UiNum ([double]$script:ContentAsymKMin) '0.0#'), (Format-UiNum ([double]$script:ContentFMax) '0.0#') }
+        'extrap' { return (T 'k = {0} au-delà de {1} fois le plus haut niveau écrit ({2})') -f (Format-ContentNum $af.K '0.00'), (Format-UiNum ([double]$script:ContentAsymExtrap) '0.0#'), (Format-UiNum ([double]$af.KTop) '0.00') }
+        default { return (T 'ajustement impossible') }
+    }
+}
+
+function Get-ContentAsymText($af) {
+    # 12.11 rc6 (R15) : ligne de journal du facteur par l asymetrie d une tete (sans le prefixe de tete) : resultat et sa
+    # precision quand il est determine, sinon la raison (Get-ContentAsymWhyText) et le repli sur la marge
+    if ($af.Det) {
+        return (T 'Facteur par l''asymétrie : k = {0} ± {1} (jackknife par zone {2} ; pente {3} × 2/cellule, t = {4} ; {5} cylindres à 2 niveaux au moins, {6} pistes ; écart-type résiduel {7}).') -f (Format-ContentNum $af.K '0.00'), (Format-ContentNum $af.SeK '0.00'), (Format-ContentNum $af.Jack '0.00'), (Format-ContentNum $af.SRel '0.00'), (Format-ContentNum $af.TS '0'), "$($af.NCyl)", "$($af.N)", (Format-ContentNum $af.Sd '0.0000')
+    }
+    return (T 'Facteur par l''asymétrie non déterminé ({0}) : la marge décide.') -f (Get-ContentAsymWhyText $af)
+}
+
+function Get-ContentAppliedAsymText([string]$pre, $ch, [double]$kM) {
+    # 12.11 rc6 (R15) : ligne « facteur applique » d une tete dont l asymetrie est retenue (Get-ContentAsymChoice) ; Gap :
+    # facteur de la marge et seuil d ecart
+    if ($ch.Gap) { return (T '{0}Facteur appliqué : k = {1}, par l''asymétrie ; la marge donnait k = {2}, écart au-delà de {3}.') -f "$pre", (Format-UiNum ([double]$ch.K) '0.00'), (Format-ContentNum $kM '0.00'), (Format-UiNum ([double]$script:ContentAsymMargeGap) '0.0#') }
+    return (T '{0}Facteur appliqué : k = {1}, par l''asymétrie.') -f "$pre", (Format-UiNum ([double]$ch.K) '0.00')
+}
+
 function Start-ContentMeasure($chk) {
     # Lancement de la mesure sur l image (A.8, A.9), $chk : Test-ContentMeasurable. Refus si gw tourne ; confirmation
     # frmConfirm sans case ni compte a rebours, reponse notee au journal par Show-AppConfirm : « Mesurer puis ecrire »
@@ -177,6 +212,9 @@ function Start-ContentMeasure($chk) {
     # avant ou apres la confirmation) : ecriture annulee, une ligne de journal (revue 12.8.1, point 7)
     $refusTxt = (T 'Écriture annulée : une commande gw est déjà en cours, mesure de la disquette non lancée.')
     if ($script:GwProc -and -not $script:GwProc.HasExited) { $script:AfterCalib = ''; Append-Log $refusTxt; return }
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, lecteur branche confirme s il y a lieu (Confirm-DriveIdentity, 112) ;
+    # refus : ecriture annulee, comme le refus qui precede
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity)) { $script:AfterCalib = ''; return }
     $drive = [string]$chk.Drive; $img = [string]$chk.Img; $fam = [string]$chk.Fam; $plan = $chk.Plan
     $lv = [double[]]@($chk.Levels)
     $cyls = [int[]]@($plan.Cyls | Sort-Object -Unique)
@@ -196,6 +234,10 @@ function Start-ContentMeasure($chk) {
                  GoText = (T 'Mesurer puis écrire'); GoGlyph = 'Diagnostic'; AltText = (T 'Écrire sans mesure')
                  Combo = @{ Label = (T 'Marque de la disquette insérée :'); Items = $bi.Items; Text = [string]$script:LevelBrand
                             Tip = (T "Nom libre : marque, année ou lot. Le facteur mesuré est mémorisé pour ce lecteur et cette marque ; « Écrire sans mesure » applique celui de la marque choisie (courbe du lecteur telle quelle si la marque n'a pas de mesure).") } }
+        # 12.11 (rc2, relecture B5) : ecriture pour un lecteur cible avec la courbe propre de ce lecteur (Get-TargetWriteInfo,
+        # Xfer) : la courbe obtenue est ensuite multipliee par le facteur par cylindre (Get-TargetTransferPlan, 140)
+        $twc = Get-TargetWriteInfo $img $cmbWFmt.Text $true
+        if ($twc.Xfer) { $cq.Text += "`n`n" + ((T "Écriture pour le lecteur cible {1} : la courbe ainsi obtenue (niveau mesuré, ou facteur de la marque avec « Écrire sans mesure ») est ensuite multipliée, cylindre par cylindre, par le facteur de la calibration croisée {0} → {1} ; sans mesure ni facteur de la marque, la courbe croisée est écrite telle quelle.") -f "$drive", "$($twc.Tgt)") }
         # 12.8.2 (revue) : effacement haute frequence de chaque passe (New-ContentPass), compris dans la duree
         if ((Get-ContentEraseEst) -gt 0) { $cq.Text += "`n`n" + (T "Case « Effacer avant d'écrire » cochée : ces pistes sont effacées en haute fréquence avant chaque passe, durée comprise.") }
         $script:ConfirmChoice = $null
@@ -300,6 +342,10 @@ function New-ContentPass {
     $cal.ValueTxt = (T 'tête 0 puis tête 1')
     Append-Log ((T "Mesure sur l'image : passe {0}/{1}, {2}") -f "$($p + 1)", "$($cal.TotalPasses)", "$($cal.ValueTxt), $($bk -join ' ; ')")
     $cal.Phase = 'write'; $cal.PassStart = Get-Date; $cal.PhaseStart = $cal.PassStart
+    # 12.11 : plan de la passe pour la barre de progression (110) : ses effacements, une ecriture par tete (memes
+    # arguments que la commande lancee, Get-ContentWriteArgs), puis sa relecture ; une reprise apres un arret de gw
+    # (Register-ContentWriteStop) n y est pas prevue : elle allonge le plan sans faire reculer la barre
+    New-ProgPlan (@(foreach ($w in $ct.Todo) { if ($w.Erase) { ,([string[]]$w.Erase) } else { ,(Get-ContentWriteArgs $cal $w) } }) + ,([string[]]$cal.ReadArgs))
     Update-CalibProgress
     $script:Chain.Clear()
     Invoke-ContentWriteNext
@@ -371,11 +417,27 @@ function Register-ContentWriteStop($cal, $w, $vStop) {
     Append-Log ((T "Mesure sur l'image : nouvel arrêt de gw sur la tête {0} à cette passe (piste {1}.{0}) : cylindres {2} non écrits à cette passe, écartés de la mesure.") -f "$h", "$sc", (Format-CylRanges $rest))
 }
 
+function Get-ContentTrackAsym($revs) {
+    # 12.11 rc6 (R15) : asymetrie signee d une piste relue de la mesure sur l image, calculee comme au controle apres
+    # ecriture : chaque tour analyse (ScpStats.Analyze, comme Read-ScpFile), rapports 3T/2T et 4T/2T moyennes sur les tours
+    # (Get-TrackMetrics, 190), A = (R3 - 1,5) + (R4 - 2) ; Cell : cellule relue moyenne (ns). Piste absente ou illisible
+    # (un tour sans cellule mesuree, Get-TrackMetrics Bad), rapport non mesure, analyse compilee absente : A NaN
+    $o = @{ A = [double]::NaN; Cell = [double]::NaN }
+    if ($null -eq $revs -or -not $script:ScpStatsOk) { return $o }
+    $ls = @(foreach ($rv in @($revs)) { if ($null -ne $rv -and $null -ne $rv.Flux) { [ScpStats]::Analyze([int[]]$rv.Flux, [double]$rv.DurNs) } })
+    if ($ls.Count -eq 0) { return $o }
+    $m = Get-TrackMetrics $ls
+    if ($m.Bad) { return $o }
+    $o.A = ([double]$m.R3 - 1.5) + ([double]$m.R4 - 2.0); $o.Cell = [double]$m.Cell
+    return $o
+}
+
 function Get-ContentPassStats([string]$scp, $ct, [int]$pass) {
     # Bilan de la relecture d une passe (point de substitution des fins de test) : tours bruts du SCP (Read-ScpTrackRevs,
     # ScpStats.Decode), puis, pour chaque piste ecrite a la passe (cylindres de chaque tete dans le plan, sans les
     # cylindres non ecrits apres un arret de gw), marge fixe et comptes (Get-ContentTrackStats). Ecrit dans le pipeline une
-    # lecture @{ C ; H ; P ; K ; W ; NRev ; Mfix ; N ; Z ; ZFrac ; Cells ; Flux } par piste ; piste absente du SCP : NRev = 0.
+    # lecture @{ C ; H ; P ; K ; W ; NRev ; Mfix ; N ; Z ; ZFrac ; Cells ; Flux ; A ; Cell (12.11 rc6, Get-ContentTrackAsym) }
+    # par piste ; piste absente du SCP : NRev = 0.
     # Fichier sans en-tete SCP : exception (relecture illisible, T-B25 dans Invoke-ContentAnalysis)
     $revs = Read-ScpTrackRevs $scp
     if ($null -eq $revs) { throw (T 'fichier sans en-tête SCP') }
@@ -386,8 +448,9 @@ function Get-ContentPassStats([string]$scp, $ct, [int]$pass) {
             $tn = [int]$c * 2 + $h
             $tr = if ($revs.Tracks.ContainsKey($tn)) { $revs.Tracks[$tn] } else { $null }
             $st = Get-ContentTrackStats $tr ([int]$revs.Res) ([int]$ct.Ncell0)
+            $as = Get-ContentTrackAsym $tr   # 12.11 rc6 (R15) : asymetrie signee (A) et cellule relue
             @{ C = [int]$c; H = $h; P = $pass; K = [double]$ph.H[$h].K[[int]$c]; W = [int]$ph.H[$h].W[[int]$c]; NRev = [int]$st.NRev; Mfix = [double]$st.Mfix
-               N = [int64]$st.N; Z = [int64]$st.Z; ZFrac = [double]$st.ZFrac; Cells = $st.Cells; Flux = $st.Flux }
+               N = [int64]$st.N; Z = [int64]$st.Z; ZFrac = [double]$st.ZFrac; Cells = $st.Cells; Flux = $st.Flux; A = [double]$as.A; Cell = [double]$as.Cell }
         }
     }
 }
@@ -408,6 +471,7 @@ function Invoke-ContentAnalysis {
     foreach ($s in $stats) { if ($null -ne $s) { $ct.Obs.Add($s) } }
     Write-ContentPassLog $cal $stats
     $cal.PassesDone++
+    $script:ProgPlan = $null   # 12.11 : passe comptee : son plan est retire (270, Invoke-CalibAnalysis)
     $ct.Pass = [int]$ct.Pass + 1
     # 12.9 (D6) : fichier compagnon a jour apres chaque passe (statut « en cours » si la mesure s arrete ensuite)
     Save-ContentCompanion $cal 'en cours'
@@ -454,22 +518,28 @@ function Get-ContentHeadFits($ct) {
     # Huber et ajustement « K-ns » (Get-ContentFactorNs, etat compris). Rend @{ Ex ; Rows ; HC ; W ; Fit } (tables par tete,
     # Fit $null sans donnees suffisantes)
     $ex = Get-ContentExclusions $ct.Obs ([double]$script:ContentZMax) ([double]$script:ContentCellsTol) ([double]$script:ContentFluxMin)
-    $rows = @{ 0 = @(); 1 = @() }
+    # 12.11 rc6 (R15) : ARows, lignes de l asymetrie par tete @{ C ; K ; W ; V ; A ; Cell } (memes exclusions, lecture dont
+    # l asymetrie est mesuree, Mfix non exige), et Asym, facteur par l asymetrie (Get-ContentAsymFit)
+    $rows = @{ 0 = @(); 1 = @() }; $arows = @{ 0 = @(); 1 = @() }
     foreach ($o in $ct.Obs) {
         if ($null -eq $o) { continue }
         $h = [int]$o.H; $c = [int]$o.C
-        if ($ex.ContainsKey("$c.$h") -or [int]$o.NRev -le 0 -or [double]::IsNaN([double]$o.Mfix)) { continue }
+        if ($ex.ContainsKey("$c.$h") -or [int]$o.NRev -le 0) { continue }
         $vv = @($ct.V[$h]); $vc = 0.0
         if ($vv.Count -gt 0) { $vc = if ($c -lt $vv.Count) { [double]$vv[$c] } else { [double]$vv[$vv.Count - 1] } }
         $vc = [math]::Max(0.0, [math]::Min([double]$ct.Hard, $vc))
+        $av = if ($null -ne $o.A) { [double]$o.A } else { [double]::NaN }
+        if (-not [double]::IsNaN($av)) { $arows[$h] += ,@{ C = $c; K = [double]$o.K; W = [int]$o.W; V = $vc; A = $av; Cell = $(if ($null -ne $o.Cell) { [double]$o.Cell } else { [double]::NaN }) } }
+        if ([double]::IsNaN([double]$o.Mfix)) { continue }
         $rows[$h] += ,@{ P = [string]$o.P; C = $c; K = [double]$o.K; W = [int]$o.W; V = $vc; Y = [double]$o.Mfix }
     }
-    $hc = @{}; $wts = @{}; $fit = @{ 0 = $null; 1 = $null }
+    $hc = @{}; $wts = @{}; $fit = @{ 0 = $null; 1 = $null }; $asy = @{}
     foreach ($h in 0, 1) {
         $hc[$h] = Get-ContentHeadCheck $rows[$h] ([int]$script:ContentMinCyl) ([int]$script:ContentMinLevelCyl)
         if ($hc[$h].Ok) { $wts[$h] = Get-ContentHuberWeights $rows[$h]; $fit[$h] = Get-ContentFactorNs $rows[$h] $wts[$h] }
+        $asy[$h] = Get-ContentAsymFit $arows[$h]
     }
-    return @{ Ex = $ex; Rows = $rows; HC = $hc; W = $wts; Fit = $fit }
+    return @{ Ex = $ex; Rows = $rows; HC = $hc; W = $wts; Fit = $fit; ARows = $arows; Asym = $asy }
 }
 
 function Get-ContentCompanion($cal, [string]$status) {
@@ -488,14 +558,17 @@ function Get-ContentCompanion($cal, [string]$status) {
     $reads = @(foreach ($o in $ct.Obs) {
         if ($null -eq $o) { continue }
         [ordered]@{ p = [int]$o.P + 1; c = [int]$o.C; h = [int]$o.H; k = [double]$o.K; w = [int]$o.W; nRev = [int]$o.NRev
-                    mfix = (ConvertTo-FiniteOrNull $o.Mfix); n = [int64]$o.N; z = [int64]$o.Z }
+                    mfix = (ConvertTo-FiniteOrNull $o.Mfix); n = [int64]$o.N; z = [int64]$o.Z; asym = (ConvertTo-FiniteOrNull $o.A); cell = (ConvertTo-FiniteOrNull $o.Cell) }
     })
     $res = @(foreach ($r in @($ct.Res)) {
         if ($null -eq $r) { continue }
         [ordered]@{ h = [int]$r.H; etat = [string]$r.Etat; k = (ConvertTo-FiniteOrNull $r.K); seK = (ConvertTo-FiniteOrNull $r.SeK); q = (ConvertTo-FiniteOrNull $r.Q)
                     tQ = (ConvertTo-FiniteOrNull $r.TQ); chi2Ddl = (ConvertTo-FiniteOrNull $r.Chi2Ddl); s = (ConvertTo-FiniteOrNull $r.S); nCyl = [int]$r.NCyl; nObs = [int]$r.N
                     kApplied = (ConvertTo-FiniteOrNull $r.KApplied); src = [string]$r.Src; low = [string[]]@(@($r.LowTxt) | Where-Object { $_ })
-                    zones = @(@($r.Zones) | Where-Object { $null -ne $_ } | ForEach-Object { [ordered]@{ z = [int]$_.Z; v = (ConvertTo-FiniteOrNull $_.V); x = (ConvertTo-FiniteOrNull $_.X); seX = (ConvertTo-FiniteOrNull $_.SeX) } }) }
+                    zones = @(@($r.Zones) | Where-Object { $null -ne $_ } | ForEach-Object { [ordered]@{ z = [int]$_.Z; v = (ConvertTo-FiniteOrNull $_.V); x = (ConvertTo-FiniteOrNull $_.X); seX = (ConvertTo-FiniteOrNull $_.SeX) } })
+                    # 12.11 rc6 (R15) : facteur par l asymetrie et methode appliquee
+                    by = [string]$r.By; kAsym = (ConvertTo-FiniteOrNull $r.KAsym); seKAsym = (ConvertTo-FiniteOrNull $r.SeKAsym); jackAsym = (ConvertTo-FiniteOrNull $r.JackAsym)
+                    sRelAsym = (ConvertTo-FiniteOrNull $r.SRelAsym); tAsym = (ConvertTo-FiniteOrNull $r.TAsym); nCylAsym = [int]$r.NCylAsym; asymDet = [bool]$r.AsymDet; asymWhy = [string]$r.AsymWhy }
     })
     $ne = @(@($ct.Skip.Keys) | Sort-Object | ForEach-Object { [string]$_ })
     $pre = @(@($ct.PreSkip.Keys) | Sort-Object | ForEach-Object { "$_=$($ct.PreSkip[$_])" })
@@ -565,6 +638,9 @@ function Complete-ContentMeasure($cal) {
     $date = Get-Date -Format 'dd/MM/yyyy HH:mm'
     $brand = [string]$ct.Brand
     $kk = @{ 0 = 1.0; 1 = 1.0 }; $src = @{ 0 = 'defaut'; 1 = 'defaut' }; $recs = @(); $res = @(); $sum = @{}
+    # 12.11 rc7 (R16) : pente de l asymetrie relue de chaque tete dont le facteur applique vient de l asymetrie ($null sinon),
+    # transmise a l ecriture qui suit (WriteFactorNext.SRel : gain de l asymetrie attendue du controle, Get-WriteFactorPlan)
+    $sRel = @{ 0 = $null; 1 = $null }
     $kMax = if ([double]$script:ContentKMax -gt 0) { [double]$script:ContentKMax } else { 2.0 }
     foreach ($h in 0, 1) {
         $pre = (T '[tête {0}] ') -f "$h"
@@ -572,27 +648,47 @@ function Complete-ContentMeasure($cal) {
         # k memorise du lecteur pour la marque (avant l enregistrement de cette mesure), repli des etats plate, peu, echec
         $dr = Get-DriveK $drive $fam $h $brand
         $mem = if ([string]$dr.Src -eq 'lecteur') { [double]$dr.K } else { $null }
-        if ($fit -and $fit.Ok) {
+        # 12.11 rc6 (R15) : facteur par l asymetrie (Get-ContentHeadFits, Get-ContentAsymFit), au journal avant celui de la
+        # marge ; retenu quand il est determine (Get-ContentAsymChoice), sinon la marge decide comme avant
+        $af = if ($hf.Asym) { $hf.Asym[$h] } else { $null }
+        $aDet = [bool]($af -and $af.Det)
+        if ($af) { Append-Log ($pre + (Get-ContentAsymText $af)) }
+        $fitOk = [bool]($fit -and $fit.Ok)
+        $ch = Get-ContentAsymChoice $af $(if ($fitOk) { [string]$fit.Etat } else { 'echec' }) $(if ($fitOk) { [double]$fit.K } else { [double]::NaN }) $mem $kMax
+        $asF = @{ By = [string]$ch.By; AsymDet = $aDet; AsymWhy = $(if ($af) { [string]$af.Why } else { '' }); KAsym = $(if ($af) { [double]$af.K } else { [double]::NaN })
+                  SeKAsym = $(if ($af) { [double]$af.SeK } else { [double]::NaN }); JackAsym = $(if ($af) { [double]$af.Jack } else { [double]::NaN })
+                  SRelAsym = $(if ($af) { [double]$af.SRel } else { [double]::NaN }); TAsym = $(if ($af) { [double]$af.TS } else { [double]::NaN }); NCylAsym = $(if ($af) { [int]$af.NCyl } else { 0 }) }
+        if ($fitOk) {
             $etat = [string]$fit.Etat
-            $ap = Get-ContentAppliedK $etat ([double]$fit.K) $mem $kMax
+            $ap = @{ K = [double]$ch.K; Src = [string]$ch.Src }
             $kk[$h] = [double]$ap.K; $src[$h] = [string]$ap.Src
             Append-Log ((T '{0}Facteur mesuré : k = {1} ± {2} (courbure commune en ns {3} /ns, t = {4} ; écart entre zones χ²/ddl {5} ; {6} cylindres, {7} pistes dont {8} pondérées ; écart-type résiduel {9} ns).') -f "$pre", (Format-ContentNum $fit.K '0.00'), (Format-ContentNum $fit.SeK '0.00'), (Format-ContentNum $fit.Q '0.0000'), (Format-ContentNum $fit.TQ '0.0'), (Format-ContentNum $fit.Chi2Ddl '0.0'), "$($fit.NCyl)", "$($fit.N)", "$($fit.NPond)", (Format-ContentNum $fit.S '0.0'))
             if (@($fit.Zones).Count -gt 0) { Append-Log ((T '{0}Optimums par zone (cylindres : k) : {1}.') -f "$pre", ((@($fit.Zones) | ForEach-Object { "c$($_.Cyl) : $(Format-ContentNum $_.K '0.00')" }) -join ' ; ')) }
             $kAp = Format-UiNum ([double]$ap.K) '0.00'
             $apTxt = Get-ContentBrandKText $dr
-            switch ($etat) {
+            # 12.11 rc6 (R15) : asymetrie retenue : l etat de la marge seul, sans « facteur applique »
+            if ($aDet) {
+                switch ($etat) {
+                    'plate' { Append-Log ((T '{0}Marge plate (t = {1}, il faut au moins 2) : pas de facteur par la marge.') -f "$pre", (Format-ContentNum $fit.TQ '0.0')) }
+                    'peu' { Append-Log ((T '{0}Facteur par la marge peu déterminé : k = {1} ± {2}.') -f "$pre", (Format-ContentNum $fit.K '0.00'), (Format-ContentNum $fit.SeK '0.00')) }
+                    'haute' { Append-Log ((T '{0}Optimum de la marge au-delà de la borne {1} du facteur.') -f "$pre", (Format-UiNum $kMax '0.##')) }
+                    'basse' { Append-Log ((T '{0}Optimum de la marge au-delà de la borne {1} du facteur.') -f "$pre", (Format-UiNum 0.0 '0.##')) }
+                }
+            }
+            else { switch ($etat) {
                 'plate' { Append-Log ((T '{0}Marge plate : la marge de lecture varie trop peu avec le niveau de précompensation pour situer l''optimum (t = {1}, il faut au moins 2). Facteur appliqué : {2}.') -f "$pre", (Format-ContentNum $fit.TQ '0.0'), "$apTxt") }
                 'peu' { Append-Log ((T '{0}Facteur peu déterminé : k = {1} ± {2} (incertitude au-delà de 0,25). Facteur appliqué : {3}.') -f "$pre", (Format-ContentNum $fit.K '0.00'), (Format-ContentNum $fit.SeK '0.00'), "$apTxt") }
                 'haute' { Append-Log ((T '{0}Optimum au-delà de la borne {1} du facteur : k = {1} retenu.') -f "$pre", (Format-UiNum $kMax '0.##')) }
                 'basse' { Append-Log ((T '{0}Optimum au-delà de la borne {1} du facteur : k = {1} retenu.') -f "$pre", (Format-UiNum 0.0 '0.##')) }
-            }
+            } }
             $lowTxt = [string[]]@(@($fit.Low) | ForEach-Object { "c$($_.C) p$([int]$_.P + 1)" })
             if ($lowTxt.Count -gt 0) { Append-Log ((T '{0}Pistes à marge anormale, moins prises en compte : {1}.') -f "$pre", ($lowTxt -join ' ; ')) }
-            $sum[$h] = switch ($etat) {
+            if ($aDet) { Append-Log (Get-ContentAppliedAsymText $pre $ch ([double]$fit.K)) }
+            $sum[$h] = if ($aDet) { (T 'k {0} mesuré par l''asymétrie') -f "$kAp" } else { switch ($etat) {
                 'plate' { if ([string]$ap.Src -eq 'lecteur') { (T 'marge plate, k {0} de la marque') -f "$kAp" } else { (T 'k 1 par défaut') } }
                 'peu' { if ([string]$ap.Src -eq 'lecteur') { (T 'peu déterminé, k {0} de la marque') -f "$kAp" } else { (T 'k 1 par défaut') } }
                 default { (T 'k {0} mesuré') -f "$kAp" }
-            }
+            } }
             # Enregistrement de mesure (C.2) avec la marque et l etat : k mesure (borne a [0 ; kMax] sauf marge plate ou peu
             # determinee), courbe ecrite W_h = facteur applique x V_h, bornee a 0..max(borne, v) (Get-ContentScaledValues)
             $f = [double](Limit-WriteFactor ([double]$ap.K) ([double]$script:ContentFMax)).F   # 12.10 : sans la correction Dk
@@ -600,17 +696,42 @@ function Complete-ContentMeasure($cal) {
             $nEx = @(@(@($ct.PreSkip.Keys) + @($ex.Keys)) | Where-Object { (([string]$_) -split '\.')[1] -eq "$h" }).Count
             $kr = [double]$fit.K
             if (@('mesure', 'haute', 'basse') -contains $etat) { $kr = [math]::Min([math]::Max($kr, 0.0), $kMax) }
+            # 12.11 rc6 (R15) : asymetrie retenue : k par l asymetrie, etat 'mesure' (memoire de la marque, Get-DriveK), erreur-
+            # type et cylindres de l asymetrie ; facteur et etat de la marge gardes a part (KMarge, EtatMarge)
+            if ($aDet) { $kr = [double]$af.K; $sRel[$h] = [double]$af.SRel }
             $recs += ,@{ Model = 'contenu'; Drive = $drive; Family = $fam; Head = $h; Date = $date; Image = [System.IO.Path]::GetFileName([string]$cal.Image)
                          K = $(if ([double]::IsNaN($kr)) { $kr } else { [math]::Round($kr, 3) }); KVertex = $(if ([double]::IsNaN([double]$fit.K)) { $null } else { [math]::Round([double]$fit.K, 3) })
-                         Bound = $(switch ($etat) { 'haute' { 'high' } 'basse' { 'low' } default { '' } }); Flat = ($etat -eq 'plate')
-                         SeK = [double]$fit.SeK; B1 = [double]::NaN; B2 = [double]::NaN; Gain = [double]::NaN; S = [double]$fit.S
-                         NCyl = [int]$fit.NCyl; NObs = [int]$fit.N; NExcl = [int]$nEx; Levels = [double[]]@($ct.Levels); F = $f
+                         Bound = $(if ($aDet) { '' } else { switch ($etat) { 'haute' { 'high' } 'basse' { 'low' } default { '' } } }); Flat = (-not $aDet -and $etat -eq 'plate')
+                         SeK = $(if ($aDet) { [double]$af.SeK } else { [double]$fit.SeK }); B1 = [double]::NaN; B2 = [double]::NaN; Gain = [double]::NaN; S = [double]$fit.S
+                         NCyl = $(if ($aDet) { [int]$af.NCyl } else { [int]$fit.NCyl }); NObs = $(if ($aDet) { [int]$af.N } else { [int]$fit.N }); NExcl = [int]$nEx; Levels = [double[]]@($ct.Levels); F = $f
                          Values = $vals; Spec = (Build-CurveProfile $vals); RefKey = [string]$ct.RefKeys[$h]; RefDate = [string]$ct.RefDates[$h]
                          Calc = [string]$script:CalibCalc; ContentCalc = [string]$script:ContentCalc; Version = [string]$script:Version
-                         Brand = $brand; Etat = $etat; Q = [double]$fit.Q; TQ = [double]$fit.TQ; Chi2Ddl = [double]$fit.Chi2Ddl; NPass = @($ct.Plan.Pass).Count
-                         Zones = @(@($fit.Zones) | ForEach-Object { @{ Z = [int]$_.Z; K = [double]$_.K } }) }
-            $res += ,@{ H = $h; Etat = $etat; K = [double]$fit.K; SeK = [double]$fit.SeK; Q = [double]$fit.Q; TQ = [double]$fit.TQ; Chi2Ddl = [double]$fit.Chi2Ddl
-                        S = [double]$fit.S; NCyl = [int]$fit.NCyl; N = [int]$fit.N; KApplied = [double]$ap.K; Src = [string]$ap.Src; LowTxt = $lowTxt; Zones = @($fit.Zones) }
+                         Brand = $brand; Etat = $(if ($aDet) { 'mesure' } else { $etat }); Q = [double]$fit.Q; TQ = [double]$fit.TQ; Chi2Ddl = [double]$fit.Chi2Ddl; NPass = @($ct.Plan.Pass).Count
+                         Zones = @(@($fit.Zones) | ForEach-Object { @{ Z = [int]$_.Z; K = [double]$_.K } })
+                         Method = $(if ($aDet) { 'asym' } else { 'marge' }); KAsym = [double]$asF.KAsym; SeKAsym = [double]$asF.SeKAsym; SRelAsym = [double]$asF.SRelAsym
+                         KMarge = [double]$fit.K; EtatMarge = $etat }
+            $res += ,(@{ H = $h; Etat = $etat; K = [double]$fit.K; SeK = [double]$fit.SeK; Q = [double]$fit.Q; TQ = [double]$fit.TQ; Chi2Ddl = [double]$fit.Chi2Ddl
+                         S = [double]$fit.S; NCyl = [int]$fit.NCyl; N = [int]$fit.N; KApplied = [double]$ap.K; Src = [string]$ap.Src; LowTxt = $lowTxt; Zones = @($fit.Zones) } + $asF)
+        } elseif ($aDet) {
+            # 12.11 rc6 (R15) : marge non mesuree, asymetrie determinee : elle est appliquee et memorisee
+            $kk[$h] = [double]$ch.K; $src[$h] = 'mesure'; $sRel[$h] = [double]$af.SRel
+            $why = if (-not $hc.Ok -and [string]$hc.Why -eq 'peu') { (T 'trop peu de pistes exploitables ({0} cylindres)') -f "$($hc.NCyl)" } else { (T 'ajustement impossible') }
+            Append-Log ((T '{0}Facteur par la marge non mesuré ({1}).') -f "$pre", "$why")
+            Append-Log (Get-ContentAppliedAsymText $pre $ch ([double]::NaN))
+            $sum[$h] = (T 'k {0} mesuré par l''asymétrie') -f (Format-UiNum ([double]$ch.K) '0.00')
+            $f = [double](Limit-WriteFactor ([double]$ch.K) ([double]$script:ContentFMax)).F
+            $vals = Get-ContentScaledValues @($ct.V[$h]) $f ([int]$ct.Hard)
+            $nEx = @(@(@($ct.PreSkip.Keys) + @($ex.Keys)) | Where-Object { (([string]$_) -split '\.')[1] -eq "$h" }).Count
+            $nan = [double]::NaN
+            $recs += ,@{ Model = 'contenu'; Drive = $drive; Family = $fam; Head = $h; Date = $date; Image = [System.IO.Path]::GetFileName([string]$cal.Image)
+                         K = [math]::Round([double]$af.K, 3); KVertex = $null; Bound = ''; Flat = $false
+                         SeK = [double]$af.SeK; B1 = $nan; B2 = $nan; Gain = $nan; S = $nan
+                         NCyl = [int]$af.NCyl; NObs = [int]$af.N; NExcl = [int]$nEx; Levels = [double[]]@($ct.Levels); F = $f
+                         Values = $vals; Spec = (Build-CurveProfile $vals); RefKey = [string]$ct.RefKeys[$h]; RefDate = [string]$ct.RefDates[$h]
+                         Calc = [string]$script:CalibCalc; ContentCalc = [string]$script:ContentCalc; Version = [string]$script:Version
+                         Brand = $brand; Etat = 'mesure'; Q = $nan; TQ = $nan; Chi2Ddl = $nan; NPass = @($ct.Plan.Pass).Count; Zones = @()
+                         Method = 'asym'; KAsym = [double]$af.K; SeKAsym = [double]$af.SeK; SRelAsym = [double]$af.SRel; KMarge = $nan; EtatMarge = 'echec' }
+            $res += ,(@{ H = $h; Etat = 'echec'; K = $nan; KApplied = [double]$ch.K; Src = 'mesure' } + $asF)
         } else {
             # Tete non mesuree (donnees insuffisantes ou ajustement impossible) : k memorise du lecteur pour la marque, 1 sans
             # mesure de la marque (jamais celui d une autre marque)
@@ -618,7 +739,7 @@ function Complete-ContentMeasure($cal) {
             $why = if (-not $hc.Ok -and [string]$hc.Why -eq 'peu') { (T 'trop peu de pistes exploitables ({0} cylindres)') -f "$($hc.NCyl)" } else { (T 'ajustement impossible') }
             Append-Log ((T '{0}Facteur non mesuré ({1}) : facteur du lecteur appliqué ({2}).') -f "$pre", "$why", (Get-ContentBrandKText $dr))
             $sum[$h] = if ([string]$dr.Src -eq 'lecteur') { (T 'non mesuré, k {0} de la marque') -f (Format-UiNum ([double]$dr.K) '0.00') } else { (T 'k 1 par défaut') }
-            $res += ,@{ H = $h; Etat = 'echec'; K = [double]::NaN; KApplied = [double]$dr.K; Src = [string]$dr.Src }
+            $res += ,(@{ H = $h; Etat = 'echec'; K = [double]::NaN; KApplied = [double]$dr.K; Src = [string]$dr.Src } + $asF)
         }
     }
     $ct.Res = $res
@@ -635,7 +756,10 @@ function Complete-ContentMeasure($cal) {
     if ($script:AfterCalib -ne 'write') { $script:WriteFactorNext = $null; return }
     $script:AfterCalib = ''
     $script:WriteFactorNext = @{ Drive = $drive; Fam = $fam; Img = [string]$cal.Image; K = @{ 0 = [double]$kk[0]; 1 = [double]$kk[1] }
-                                 Src = @{ 0 = [string]$src[0]; 1 = [string]$src[1] }; Date = $date; Brand = $brand }
-    Append-Log ((T "Mesure de la disquette sur l'image terminée en {0} : écriture de l'image avec le facteur mesuré.") -f "$durTxt")
+                                 Src = @{ 0 = [string]$src[0]; 1 = [string]$src[1] }; Date = $date; Brand = $brand; SRel = $sRel }
+    # 12.11 rc6 (R15) : « avec le facteur mesuré » seulement quand les deux tetes ecrivent un facteur mesure sur cette
+    # disquette ; sinon le facteur de chaque tete (resume de la barre)
+    if ([string]$src[0] -eq 'mesure' -and [string]$src[1] -eq 'mesure') { Append-Log ((T "Mesure de la disquette sur l'image terminée en {0} : écriture de l'image avec le facteur mesuré.") -f "$durTxt") }
+    else { Append-Log ((T "Mesure de la disquette sur l'image terminée en {0} : écriture de l'image (tête 0 : {1} ; tête 1 : {2}).") -f "$durTxt", "$($sum[0])", "$($sum[1])") }
     Start-ImageWrite -NoWarmup:([bool]$cal.WarmSkip)
 }

@@ -44,11 +44,10 @@ $cardCheck   = New-HomeCard 'Diagnostic' (T 'Vérifier une disquette ou un lecte
 $cardCalib   = New-HomeCard 'Stopwatch' (T 'Calibrer le lecteur') (T 'Choisir un type de disquette, voir sa courbe et calibrer le lecteur : complète ou rapide.') '14,248' { Show-HomeCalib }
 $cardTest    = New-HomeCard 'Usb' (T 'Tester le Greaseweazle') (T 'Vérifier que la carte répond (gw info), puis détecter les lecteurs branchés (A, B, 0 à 3).') '14,340' {
     if (Get-AppBusy) { return }                           # 12.8 (D20) : aussi pendant un prechauffage ou la mesure continue
-    $script:DetectAt = $null                              # la detection complete remplace la detection automatique en attente
     $script:InfoArgs = @('info'); if ($txtDev.Text.Trim()) { $script:InfoArgs += "--device=$($txtDev.Text.Trim())" }
     $script:Chain.Clear()
     $script:Chain.Enqueue({ Start-Gw $script:InfoArgs })
-    $script:Chain.Enqueue({ Start-DriveDetect 'full' })
+    $script:Chain.Enqueue({ Start-DriveDetect })
     Invoke-NextChainStep
 }
 $cardHelp    = New-HomeCard 'Help' (T 'Guide pas à pas') (T 'Ouvrir l''aide en ligne : premiers pas, glossaire des termes, dépannage.') '397,340' { Open-Help 'Premiers-pas' }
@@ -60,7 +59,11 @@ $script:HomeCalDesc = $cardCalib.Controls[3].Text      # description d origine, 
 # avertissement (« Limite de precompensation atteinte... ») tenait sur trois lignes, la 3e coupee a mi-hauteur
 $cardCalib.Controls[3].AutoEllipsis = $true
 $cardCalib.Controls[3].Add_TextChanged({ Update-HomeCalDescTip })
-$tabH.Controls.AddRange(@($lblHTitle, $lblHSub, $pnlHomeProg, $cardRestore, $cardWrite, $cardRead, $cardCheck, $cardCalib, $cardClean, $cardTest, $cardHelp, $cardJitter))
+# 12.11 (lot LN-b) : lecteurs enregistres (fenetre frmDrives, 112), dernier emplacement libre de l Accueil ; description
+# de Get-DrivesCardText (fiches sans connexion comptees), mise a jour par Update-DriveList
+$cardDrives  = New-HomeCard 'Pin' (T 'Lecteurs') (Get-DrivesCardText) '397,432' { Show-DrivesDialog }
+$script:DrvDlg = $null
+$tabH.Controls.AddRange(@($lblHTitle, $lblHSub, $pnlHomeProg, $cardRestore, $cardWrite, $cardRead, $cardCheck, $cardCalib, $cardClean, $cardTest, $cardHelp, $cardJitter, $cardDrives))
 
 # ============================== RESTAURATION : INTERFACE =======================
 # Assistant : lecture de l original, changement de disquette, ecriture stricte, controle et comparaison. La logique
@@ -117,7 +120,7 @@ $txtRsName.Location = '78,51'; $txtRsName.Width = 292
 $tip.SetToolTip($txtRsDir, (T "Dossier où sont enregistrés la lecture de l'original, la relecture de la copie et le rapport de restauration."))
 $tip.SetToolTip($txtRsName, (T 'Nom des fichiers enregistrés, par exemple « Workbench 1.3 ». Vide : date et heure.'))
 $grpRsDir.Controls.AddRange(@((New-Label (T 'Dossier :') '12,24'), $txtRsDir, $btnRsDir, (New-Label (T 'Nom :') '12,54'), $txtRsName))
-Set-Cue $txtRsDir (T 'Documents\Greaseweazle Studio\Restaurations')
+Set-Cue $txtRsDir (T '…\Greaseweazle Studio\Restaurations')   # 12.11 : repere raccourci (283 px pour un champ de 256 px : il etait coupe) ; fin du dossier par defaut de Get-RestoreDefaultDir (300)
 Set-Cue $txtRsName (T 'vide = date et heure')
 
 $btnRsStart = New-Object System.Windows.Forms.Button
@@ -197,7 +200,7 @@ $script:NoviceTabs = @($tabH, $tabRs, $tabL, $tabW, $tabR, $tabAl)
 $chkExpert.Add_CheckedChanged({ Update-TabSet })
 
 # Textes indicatifs des champs vides et infobulles des champs qui n en avaient pas
-Set-Cue $txtLibRoot   (T 'Dossier qui contient vos images disque (bouton à droite pour le choisir)')
+Set-Cue $txtLibRoot   (T 'Dossier de vos images disque'); $tip.SetToolTip($txtLibRoot, (T 'Dossier qui contient vos images disque (bouton à droite pour le choisir)'))   # 12.11 : repere raccourci (429 px pour un champ de 240 px : il etait coupe), son texte complet passe en infobulle
 Set-Cue $txtLibFilter (T 'Nom d''image à rechercher')
 Set-Cue $txtWFile     (T 'Image à écrire : ADF, IPF, SCP, HFE, IMG... (bouton à droite)')
 Set-Cue $txtWTracks   (T 'vide = toutes les pistes')
@@ -245,10 +248,14 @@ $flowButtons.BackColor = $script:Theme.Window; $flowButtons.Dock = 'Bottom'; $fl
 $btnStop = New-BarButton (T 'Arrêter') 105
 $btnStop.Enabled = $false; $btnStop.Font = $bold
 $btnStop.Add_Click({
-    $script:Detect = $null; $script:DetectAt = $null
+    $script:Detect = $null
     # 12.8 (D20) : Get-AppBusy ; la mesure continue seule (quality) s arrete plus bas, sans « Interrompu ». $script:GwProc
     # seul : gw termine mais pas encore traite par le minuteur, chaine et operations arretees quand meme
     $busy = Get-AppBusy
+    # 12.11 rc3 (R5) : nouvelle tentative de gw en attente (Test-GwPortRetry) abandonnee ; aucun gw ne finira pour remettre
+    # la barre de boutons au repos : Set-Busy plus bas ; corrections de relecture : ni la barre d etat (« ... en cours ») :
+    # Stop-Progress avec le code de la commande sans port, comme a la fin d un gw arrete
+    $portWait = $script:GwPortRetry; $script:GwPortRetry = $null
     if ($script:GwProc -or ($busy -and $busy -ne 'quality')) {
         if ($script:GwProc -and -not $script:GwProc.HasExited) {
             try { $script:GwProc.Kill($true) } catch { try { $script:GwProc.Kill() } catch { } }
@@ -259,12 +266,16 @@ $btnStop.Add_Click({
         Stop-WriteWarmup       # prechauffage d une ecriture lente : chaine d ecriture mise de cote abandonnee, rien n est ecrit
         if ($script:Restore) { Stop-Restore (T 'interrompue par l''utilisateur') }
         if ($script:Rep) { Stop-WriteCheck }
-        if ($script:Cal) { Stop-PrecompCalib }
+        if ($script:TargetWritePending) { Complete-TargetWriteMemory $false }   # 12.11 rc8 (R17) : ecriture pour un lecteur cible non gardee (172)
+        # 12.11 rc4 (R5, partie 2) : StopBy 'user' : arret demande, cause reconnue par Set-CalibResume (270), qui garde les
+        # passes faites d une calibration complete ou croisee pour la reprise
+        if ($script:Cal) { $script:Cal.StopBy = 'user'; Stop-PrecompCalib }
         Append-Log (T '*** Interrompu par l''utilisateur ***')
         # 12.8 (lot 3a) : mesure de qualite interrompue : resultat affiche perime (le controle l est par Stop-WriteCheck)
         if ($script:QualView.State -eq 'run') { Set-QualityStale $(if ($script:QualView.Kind -eq 'check') { 'checkabort' } else { 'stop' }) }
     }
     if ($script:AlignLoop) { $script:AlignLoop = $false; $script:AlignNextAt = $null; Append-Log (T 'Mesure continue arrêtée.') }
+    if ($portWait -and -not $script:GwProc) { Stop-Progress ([int]$portWait.Code); Set-Busy $false }
 })
 
 $btnLogToggle = New-BarButton (T 'Masquer journal') 140
@@ -278,7 +289,7 @@ $btnSaveLog.Add_Click({
     $d = New-Object System.Windows.Forms.SaveFileDialog
     $d.Filter = (T 'Texte|*.txt'); $d.InitialDirectory = $script:AppDir
     $d.FileName = "gw-log-$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
-    if ($d.ShowDialog() -eq 'OK') { $txtLog.Text | Set-Content -LiteralPath $d.FileName -Encoding UTF8 }
+    if ($d.ShowDialog() -eq 'OK') { Export-LogFile $d.FileName }   # 12.11 : en-tete (version, date, lecteur, lecteur cible) puis journal (110)
 })
 
 $btnCfgSave = New-BarButton (T 'Enregistrer') 115
@@ -287,15 +298,16 @@ $btnCfgSave.Add_Click({ if (Save-Config) { Append-Log ((T "Paramètres enregistr
 $btnCfgReset = New-BarButton (T 'Réinitialiser') 120
 $btnCfgReset.Add_Click({
     # 12.8 (lot 5, D3) : question simple, par Show-AppMessage en Oui / Non (texte ecrit au journal), pas par frmConfirm
-    $r = Show-AppMessage (T "Remettre tous les paramètres de l'interface à leurs valeurs par défaut et supprimer le fichier de configuration ?`n`n(Aucun effet sur le Greaseweazle, ni sur vos fichiers image, ni sur l'index de la bibliothèque.)") `
+    # 12.11 rc4 (R1, maquette 06b approuvee) : le texte dit ce que fait le code : reglages remis par defaut (Set-Defaults,
+    # qui garde lecteurs, courbes et lecteurs cibles), configuration reenregistree aussitot (avant : fichier supprime,
+    # lecteurs et calibrations dependant du prochain enregistrement)
+    $r = Show-AppMessage (T "Remettre tous les réglages de l'interface à leurs valeurs par défaut ?`n`nVos lecteurs et leurs calibrations ne sont pas touchés : ils gardent leur nom, leur connexion, leurs courbes et leur lecteur cible ; la liste « Lecteur : » du bandeau revient à la connexion par défaut. La configuration est réenregistrée aussitôt.`n`nPour effacer les calibrations : onglet Écriture, options avancées, « Effacer les calibrations ». Pour retirer un lecteur : bouton « Lecteurs… » du bandeau, puis « Supprimer… ».`n`n(Aucun effet sur le Greaseweazle, ni sur vos fichiers image, ni sur l'index de la bibliothèque.)") `
         (T 'Réinitialiser les paramètres') 'YesNo' 'Question'
     if ($r -eq 'Yes') {
         Set-Defaults
         Update-Library
-        if (Test-Path -LiteralPath $script:ConfigFile) {
-            try { Remove-Item -LiteralPath $script:ConfigFile -Force; Append-Log (T 'Configuration supprimée, valeurs par défaut restaurées.') }
-            catch { Append-Log ((T "Impossible de supprimer la configuration : {0}") -f "$($_.Exception.Message)") }
-        } else { Append-Log (T 'Valeurs par défaut restaurées.') }
+        if (Save-Config) { Append-Log (T 'Valeurs par défaut restaurées ; lecteurs et calibrations gardés, configuration réenregistrée.') }
+        else { Append-Log (T 'Valeurs par défaut restaurées ; configuration non réenregistrée (voir le journal).') }
     }
 })
 
@@ -327,8 +339,15 @@ $stTrack = New-Object System.Windows.Forms.ToolStripStatusLabel
 $stTrack.Text = ''; $stTrack.AutoSize = $true; $stTrack.ForeColor = $script:Theme.Accent2
 $stTrack.Font = New-Object System.Drawing.Font('Consolas', 9.75, [System.Drawing.FontStyle]::Bold)
 $stBar = New-Object System.Windows.Forms.ToolStripProgressBar
-$stBar.Size = New-Object System.Drawing.Size(280, 18); $stBar.Visible = $false; $stBar.MarqueeAnimationSpeed = 30
+$stBar.Size = New-Object System.Drawing.Size(280, 18); $stBar.MarqueeAnimationSpeed = 30
 [void]$status.Items.AddRange(@($stOp, $stTrack, $stBar))
+# 12.11 : hauteur de la barre d etat independante de $stBar, masquee au repos (110, 300) : la barre de progression et ses
+# marges depassent les libelles d un pixel, et la barre d etat raccourcie au repos deplacait tous les onglets d un pixel au
+# debut et a la fin de chaque operation. Hauteur minimale = hauteur preferee mesuree ici, avec les vrais elements, avant
+# tout masquage de la barre (hors fenetre, une barre masquee puis montree n est plus comptee) : celle que la barre visible
+# donne pendant une operation. La taille reste automatique (tests/logic-barre-etat-hauteur.ps1).
+$status.MinimumSize = New-Object System.Drawing.Size(0, $status.GetPreferredSize([System.Drawing.Size]::Empty).Height)
+$stBar.Visible = $false
 
 # --- Journal (panneau bas du separateur, repliable) ---
 $txtLog = New-Object System.Windows.Forms.RichTextBox
@@ -344,6 +363,9 @@ $script:LogColors = @{
     dim  = [System.Drawing.Color]::FromArgb(165, 170, 178)
     std  = [System.Drawing.Color]::FromArgb(232, 234, 238)
 }
+# 12.11 : journal borne (Limit-LogText, 110) : au-dela de LogMaxChars caracteres, le debut est retire pour n en garder que
+# LogKeepChars, et une marque en premiere ligne le dit (LogCut : caracteres retires depuis le dernier « Vider », marque en place)
+$script:LogMaxChars = 400000; $script:LogKeepChars = 250000; $script:LogCut = @{ N = 0; Mark = '' }
 $split.Panel2.Controls.Add($txtLog)
 
 # ============================== HABILLAGE (icones) =============================

@@ -321,7 +321,7 @@ function Get-QualityCardModel($v) {
     $edge = [System.Drawing.Color]::FromArgb(205, 212, 224)
     $m = @{ Back = $wh; Bar = $edge; Icon = 'none'; Badge = ''; GreyIcon = $false; Score = [string][char]0x2013; ScoreInk = $th.Muted
             Caption = (T 'score · plus bas = mieux'); CaptionInk = $th.Muted; Level = ''; LevelInk = $th.Muted; Line2 = ''; Line2Short = ''; Line2More = @()
-            Line2Ink = $th.Muted; StateIcon = ''; State = ''; StateInk = $th.Muted; Sub = ''; SubShort = ''; SubInk = $th.Muted; Chip = ''; ChipBack = $th.Muted
+            Line2Ink = $th.Muted; Line3 = ''; Line3Short = ''; Line3More = @(); Line3Ink = $th.Muted; StateIcon = ''; State = ''; StateInk = $th.Muted; Sub = ''; SubShort = ''; SubInk = $th.Muted; Chip = ''; ChipBack = $th.Muted
             Tip = ''; Access = '' }
     $r = $v.Res
     $at = if ($r -and $r.At -is [datetime]) { $r.At.ToString('HH:mm') } else { '' }
@@ -406,6 +406,16 @@ function Get-QualityCardModel($v) {
             }
             if ($bad -gt 0) { $fullL2 = $m.Line2 }
         }
+        # 12.11 rc6 (R14) : controle d une ecriture destinee a un lecteur cible : ligne de l asymetrie attendue sous le score et
+        # l etat (Res.AsymLine, Show-WriteCheckTable, 170), encre de son jugement ; grise avec le resultat
+        if ($r.Kind -eq 'check' -and $r.AsymLine) {
+            $m.Line3 = [string]$r.AsymLine; $m.Line3Short = [string]$r.AsymLineShort
+            # Relecture rc7 (R16) : zones corrigees a la suite de la ligne ; forme courte sans elles quand aucune ne tient
+            # (Res.AsymLineBare : le nombre de zones reste dans le verdict, infobulle). Rendu de la rc8 : avant elle, la forme
+            # compacte avec les zones (Res.AsymLineCompact), qui tient a la taille par defaut
+            if ($r.AsymLineBare) { $m.Line3More = @(@([string]$r.AsymLineCompact, [string]$r.AsymLineBare) | Where-Object { $_ }) }
+            if ($show) { $m.Line3Ink = Get-QualInk $(switch ([string]$r.AsymJudge) { 'ok' { 0 } 'near' { 2 } default { 3 } }) }
+        }
         if ($show) {
             $m.Bar = $(if ($count -le 0) { $th.Danger } else { Get-QualLevelColor $lvl })
             $m.ScoreInk = Get-QualInk $lvl; $m.LevelInk = Get-QualInk $lvl
@@ -432,19 +442,19 @@ function Get-QualityCardModel($v) {
     # 244,245,247) : gris plus fonce (Get-QualDimInk), pour un contraste >= 4,5:1 ; sur fond blanc, Theme.Muted (4,69:1)
     if ($m.Back.ToArgb() -ne $wh.ToArgb()) {
         $dim = Get-QualDimInk
-        foreach ($k in @('ScoreInk', 'CaptionInk', 'LevelInk', 'Line2Ink', 'StateInk', 'SubInk')) { if ($m[$k].ToArgb() -eq $th.Muted.ToArgb()) { $m[$k] = $dim } }
+        foreach ($k in @('ScoreInk', 'CaptionInk', 'LevelInk', 'Line2Ink', 'Line3Ink', 'StateInk', 'SubInk')) { if ($m[$k].ToArgb() -eq $th.Muted.ToArgb()) { $m[$k] = $dim } }
     }
     # Infobulle : etat d affichage, textes complets du resultat (listes de pistes), puis les deux definitions
     $tips = @()
     if ($m.Chip) { $tips += ($m.Chip + ' : ' + $m.Line2) } elseif ($v.State -eq 'empty' -and $m.Line2) { $tips += $m.Line2 }
     if ($prevTip) { $tips += $prevTip }
     if ($show -eq $true -and $fullL2) { $tips += $fullL2 }
-    if ($r -and $null -ne $show) { if ($r.HealthText) { $tips += [string]$r.HealthText }; if ($r.ScoreText) { $tips += [string]$r.ScoreText } }
+    if ($r -and $null -ne $show) { if ($r.HealthText) { $tips += [string]$r.HealthText }; if ($r.ScoreText) { $tips += [string]$r.ScoreText }; if ($r.AsymText) { $tips += [string]$r.AsymText } }   # 12.11 : AsymText, resume de l asymetrie (Get-AsymSummaryText, 190)
     $tips += ''
     $tips += (T "État du support : basé uniquement sur les erreurs, les trous de signal, la stabilité entre tours et le jitter. Erreurs comptées sans le premier intervalle de la lecture ni, en double densité, le raccord d'écriture dans la zone de ± 1 ms autour de l'index ; stabilité mesurée sur des tours alignés (double densité, 3 tours ou plus).`nIndépendant du contenu : comparable d'une disquette à l'autre.")
     $tips += (T "Score de qualité de lecture (plus bas = mieux). Dépend du contenu : à comparer uniquement sur une même image`n(deux lecteurs, deux précompensations, deux réglages).")
     $m.Tip = ($tips -join "`n").Trim()
-    $m.Access = @(@($m.Chip, "$($m.Score) $($m.Level)".Trim(), $m.State) | Where-Object { $_ -and $_ -ne [string][char]0x2013 }) -join ' ; '
+    $m.Access = @(@($m.Chip, "$($m.Score) $($m.Level)".Trim(), $m.State, $m.Line3) | Where-Object { $_ -and $_ -ne [string][char]0x2013 }) -join (T ' ; ')
     return $m
 }
 
@@ -452,6 +462,7 @@ function Get-QualityCardModel($v) {
 function Update-QualityView {
     # Rendu de $script:QualView : carte de resultat, infobulle et tableau (gris hors resultat, D16)
     $script:QualCard = Get-QualityCardModel $script:QualView
+    Set-QualityCardRoom ([bool]$script:QualCard.Line3)      # 12.11 rc6 (R14) : ligne de l asymetrie attendue
     # 12.8 (FIX3) : bandeau orange des zones instables de la derniere mesure (Set-UnstableBanner) grise comme la carte tant
     # que ce resultat n est pas le resultat courant (mesure en cours, perime) ; le guide d alignement, qui utilise la meme
     # ligne, garde ses couleurs
@@ -463,6 +474,80 @@ function Update-QualityView {
     $tip.SetToolTip($pnlQualCard, $script:QualCard.Tip)
     $pnlQualCard.AccessibleName = $script:QualCard.Access
     if ($lvAl) { $lvAl.Invalidate() }
+}
+
+function Set-QualityCardRoom([bool]$extra) {
+    # 12.11 rc6 (R14) : carte haute de QualCardLine3H px de plus quand elle porte la ligne de l asymetrie attendue (controle
+    # d une ecriture pour un lecteur cible) : la ligne du guide et le tableau descendent d autant, le bas du tableau ne
+    # bouge pas ; sans cette ligne (mesure, carte vide), positions de toujours (530)
+    if (-not $pnlQualCard) { return }
+    $want = $(if ($extra) { [int]$script:QualCardLine3H } else { 0 })
+    $d = $want - [int]$script:QualCardRoom
+    if ($d -eq 0) { return }
+    $script:QualCardRoom = $want
+    $pnlQualCard.Height += $d
+    if ($lblAlReco) { $lblAlReco.Top += $d }
+    # 12.11 (version finale, relecture du rendu) : hauteur du tableau tiree de son parent (Set-QualityTableHeight), et non
+    # plus par difference ; sans parent, comme avant
+    if ($lvAl) { $lvAl.Top += $d; if ($lvAl.Parent) { Set-QualityTableHeight } else { $lvAl.Height -= $d } }
+}
+
+function Set-QualityTableHeight {
+    # 12.11 (version finale, relecture du rendu) : bas du tableau a AlTableBottomGap px (530 : 6) du bas de l onglet, hauteur
+    # tiree de la zone cliente de son parent, 0 au moins. Avant, par differences : une hauteur negative demandee (onglet
+    # court : mode expert, journal au plus haut, ligne 3 de la carte puis guide) etait ramenee a 0 par Windows, l ancrage du
+    # bas se recalculait sur elle et le tableau gardait une marge basse fausse jusqu au redemarrage. Appels : Set-QualityCardRoom,
+    # Set-QualityRowsRoom et changement de taille de l onglet (530), qui retablit la marge apres une hauteur ramenee a 0.
+    # Sans parent (tableau hors fenetre) : rien
+    if (-not $lvAl -or -not $lvAl.Parent) { return }
+    $h = [math]::Max(0, [int]$lvAl.Parent.ClientSize.Height - [int]$script:AlTableBottomGap - [int]$lvAl.Top)
+    if ($lvAl.Height -ne $h) { $lvAl.Height = $h }
+}
+
+function Set-QualityRowsRoom {
+    # 12.11 finale (affichage) : rangee des boutons du guide (AlGuideRowH px, sous la reference) reservee seulement guide
+    # affiche : la carte, la ligne $lblAlReco et le tableau descendent d autant ; ligne $lblAlReco (AlBannerRowH px, sous la
+    # carte) reservee seulement guide affiche, ou ligne affichee avec un texte (zones instables, Set-UnstableBanner, 190) :
+    # le tableau descend d autant. Bas du tableau fixe ; se compose avec Set-QualityCardRoom (decalages). Ligne vide hors
+    # guide : masquee (elle couvrirait le haut du tableau). Visible lu tel que l affiche la fenetre : onglet masque, ligne
+    # comptee absente, puis recalculee quand l onglet s affiche (VisibleChanged). Appels (530) : case du guide, texte et
+    # visibilite de $lblAlReco
+    if (-not $pnlQualCard -or -not $lblAlReco -or -not $lvAl -or -not $chkAlGuide) { return }
+    $guide = [bool]$chkAlGuide.Checked
+    $txt = [bool][string]$lblAlReco.Text
+    if (-not $guide -and -not $txt) { $lblAlReco.Visible = $false }
+    $dg = $(if ($guide) { [int]$script:AlGuideRowH } else { 0 }) - [int]$script:AlGuideRoom
+    $db = $(if ($guide -or ($txt -and $lblAlReco.Visible)) { [int]$script:AlBannerRowH } else { 0 }) - [int]$script:AlBannerRoom
+    $script:AlGuideRoom += $dg; $script:AlBannerRoom += $db
+    if ($dg -ne 0) { $pnlQualCard.Top += $dg; $lblAlReco.Top += $dg }
+    # 12.11 (version finale, relecture du rendu) : hauteur tiree du parent (Set-QualityTableHeight) ; sans parent, comme avant
+    if ($dg + $db -ne 0) { $lvAl.Top += ($dg + $db); if ($lvAl.Parent) { Set-QualityTableHeight } else { $lvAl.Height -= ($dg + $db) } }
+}
+
+function Set-AlNumColumnWidths {
+    # 12.11 (version finale, relecture du rendu) : colonnes des nombres du tableau (index 2 a 9, d « Erreurs » a « Cell ns »)
+    # elargies a leur plus longue case quand elle ne tient pas dans la largeur de 530 ($script:AlColMin : au moins l en-tete),
+    # ramenees a celle-ci sinon : un score ou des erreurs de 1 000 et plus se lisent entiers (cases dessinees sur une ligne,
+    # points de suspension, Draw-AlSubItem : texte dans la case moins 8 px, moins 26 px pour « Score » et son icone).
+    # Police des cases a chasse fixe : la case la plus longue en caracteres est mesuree (GDI+, format des cases). Appels :
+    # fin du remplissage du tableau (Invoke-AlignAnalysis, 190 ; Show-WriteCheckTable, 170). Affichage seulement
+    if (-not $lvAl -or -not $script:AlColMin) { return }
+    $n = [math]::Min([math]::Min(10, $lvAl.Columns.Count), @($script:AlColMin).Count)
+    $bmp = New-Object System.Drawing.Bitmap(1, 1)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    try {
+        for ($i = 2; $i -lt $n; $i++) {
+            $long = ''
+            foreach ($it in $lvAl.Items) { if ($it.SubItems.Count -gt $i) { $t = [string]$it.SubItems[$i].Text; if ($t.Length -gt $long.Length) { $long = $t } } }
+            $w = [int]@($script:AlColMin)[$i]
+            if ($long) {
+                $pad = $(if ($i -eq 6) { 26 } else { 8 })
+                $tw = [int][math]::Ceiling($g.MeasureString($long, $lvAl.Font, 10000, (Get-QualSf 'center')).Width) + $pad + 1
+                if ($tw -gt $w) { $w = $tw }
+            }
+            if ($lvAl.Columns[$i].Width -ne $w) { $lvAl.Columns[$i].Width = $w }
+        }
+    } finally { $g.Dispose(); $bmp.Dispose() }
 }
 
 function Get-QualFitText([string]$long, [string]$short, $font, [int]$w, [string[]]$more = @()) {
@@ -526,6 +611,11 @@ function Render-QualityCard {
         [System.Windows.Forms.TextRenderer]::DrawText($g, $m.Level, $fLevel, (New-Object System.Drawing.Rectangle($lay.Lx, 4, [math]::Max(10, $lvW), 26)), $m.LevelInk, $m.Back, $tf)
         $l2 = Get-QualFitText $m.Line2 $m.Line2Short $fSmall $lay.L2W $m.Line2More
         [System.Windows.Forms.TextRenderer]::DrawText($g, $l2, $fSmall, (New-Object System.Drawing.Rectangle($lay.Lx, 32, $lay.L2W, 20)), $m.Line2Ink, $m.Back, $tf)
+        # 12.11 rc6 (R14) : ligne de l asymetrie attendue, sur toute la largeur sous le pictogramme (Set-QualityCardRoom)
+        if ($m.Line3) {
+            $l3 = Get-QualFitText $m.Line3 $m.Line3Short $fSmall ($w - 22) $m.Line3More
+            [System.Windows.Forms.TextRenderer]::DrawText($g, $l3, $fSmall, (New-Object System.Drawing.Rectangle(12, 56, ($w - 22), 18)), $m.Line3Ink, $m.Back, $tf)
+        }
         if ($lay.Sep -gt 0) {
             $g.DrawLine((Get-QualPen $edge 1), $lay.Sep, 8, $lay.Sep, [math]::Min(($h - 8), $lay.SepBottom))
             $tx = $lay.StX

@@ -340,7 +340,7 @@ function Build-LevelValues($u, [int]$d, $e, [int]$Hard = 0) {
     # Noms distincts de la reference ($ref) et de sa valeur ($rv) : PowerShell ignore la casse ($V et $v seraient une
     # seule variable)
     # 12.8 (F3R, decision 2) : Hard (> 0) : plafond des valeurs et de Sat (courbe de la forme d une marque dont le besoin
-    # depasse CalHardNs : jusqu a CalHardMaxNs) ; Clip reste decide contre CalHardNs (un reglage, pas un besoin), et la zone
+    # depasse CalHardNs : jusqu au plafond de la disquette) ; Clip reste decide contre CalHardNs (un reglage), et la zone
     # du temoin du plafond reste a CalHardNs (G6). RawMax : besoin le plus fort hors Clip (reference ou V' + niveau)
     $base = [int]$script:CalHardNs; $max = if ($Hard -gt 0) { $Hard } else { $base }
     $rmax = Get-CurveMaxNs $u.Cv; $ref = @($u.V); $n = $ref.Count
@@ -402,7 +402,7 @@ function Build-LevelValues($u, [int]$d, $e, [int]$Hard = 0) {
     return @{ Values = $out; Sat = $sat; Floor = $floor; ProbeNote = $note; Clip = $clip; RawMax = $rawMax; Hard = $max }
 }
 
-function New-LevelCalUnits($lr, [string]$brand, [string]$drive) {
+function New-LevelCalUnits($lr, [string]$brand, [string]$drive, [int]$Bits = 0) {
     # Unites de la calibration rapide (Start-LevelCalib ; suite calib-lvl2, sans interface) : une par tete ou une pour la
     # courbe commune, cibles de la premiere passe. 12.8 (lot 1c) : etat de la calibration rapide adaptative ; V0 :
     # reference du lecteur (ShapeV), V : reference ou point de depart de la marque (V', Set-LevelBrandStart) ; cylindres
@@ -417,7 +417,7 @@ function New-LevelCalUnits($lr, [string]$brand, [string]$drive) {
         $u.Mode = 'lvl1'; $u.Raw = @{}; $u.V0 = [int[]]@($lu.V); $u.Memo = $null; $u.BrandEntry = $null; $u.AN = $null; $u.AV = $null; $u.VR = $null
         $u.Named = @{}; $u.Refus = ''; $u.Trig = $null; $u.Note = ''; $u.AdaptNote = ''; $u.AdaptLog = $null; $u.Ctl = [int[]]@()
         # 12.8 (F3R) : controles integres a l ajustement par une reprise e3 (CtlFit), reserve de controle e2 (motif, controles)
-        $u.CtlFit = [int[]]@(); $u.CtlReserve = ''; $u.CtlBad = @()
+        $u.CtlFit = [int[]]@(); $u.CtlReserve = ''; $u.CtlBad = @(); $u.ImgBits = $Bits   # 12.11 : ImgBits, cellules de la piste ecrite (Get-DiskCapBits : celles du motif, ou du format gw au-dela de 250 kbit/s ; 0 sans densite ou cellule inconnue) : plafond par disquette (Get-UnitCapNs)
         Set-LevelBrandStart @{ Drive = $drive; Family = [string]$lr.Family } $u $brand
         $u.ShapeV = New-LevelShape $u.V0
         foreach ($c in @(@($u.LCyls) + @($u.Wit) + @($(if ($null -ne $u.Probe) { $u.Probe })))) { $u.Results[[int]$c] = @{} }
@@ -439,6 +439,9 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     $noBrand = [bool]$script:LevelNoBrand; $script:LevelNoBrand = $false
     if ($script:GwProc -and -not $script:GwProc.HasExited) { return }
     $script:Cal = $null
+    # 12.11 (lot LN-b) : avec des lecteurs enregistres, lecteur branche confirme s il y a lieu (Confirm-DriveIdentity, 112) ;
+    # refus : calibration non lancee ($script:Cal vide, que lisent les appelants)
+    if ($script:DriveReg.Count -gt 0 -and -not (Confirm-DriveIdentity)) { return }
     $script:LevelPostForce = $false
     $chk = Test-CalibImage $Geom
     if (-not $chk) { return }
@@ -509,7 +512,7 @@ function Start-LevelCalib($lr, [switch]$NoConfirm, [switch]$NoFallback, $Geom = 
     try { $pat = New-CalibPattern $fam $img $lr.NCyl }
     catch { [void](Show-AppMessage ((T "Calibration : motif de test impossible à créer : {0}") -f "$($_.Exception.Message)") (T 'Calibration precomp') 'OK' 'Error'); return }
     Set-CalibScale $fam     # 12.7 : bareme double densite (pas de calibration rapide en haute densite, Get-LevelRef)
-    $units = New-LevelCalUnits $lr $brand ([string]$cmbDrive.Text)
+    $units = New-LevelCalUnits $lr $brand ([string]$cmbDrive.Text) $(if ($Geom) { 0 } else { Get-DiskCapBits ([int]$pat.CapBits) ([string]$cmbWFmt.Text) ([bool]$pat.Known) })   # 12.11 : cellules de la piste ecrite (Get-DiskCapBits, sur CapBits, la piste la plus longue de l image ; 0 si elle n est pas connue : format hors de la table, ou aucun format et densite non tiree de l image) ; carte de l Accueil (Geom : type de disquette, pas l image a ecrire) : sans densite, plafond de 470 ns comme en 12.10 (son profil peut etre place dans les champs d une image d une autre densite, Complete-LevelCalib)
     $cylList = Format-CylList $cyls
     $script:Cal = @{
         Mode = 'level'; Stage = 'level'; LPass = 1; Cyls = $cyls; MaxCyl = $lr.MaxCyl; Family = $fam; Slow = $slow
@@ -976,14 +979,14 @@ function Get-LevelUnitResults($cal, [string]$date) {
             $shape = Test-LevelShape $e $u 1.0; $u.Shape = $shape
             $bv = Build-LevelValues $u ([int]$u.Level) $e
             # 12.8 (F3R, decision 2) : courbe de la forme d une marque (V' + niveau, courbe adaptee, G1) dont le besoin depasse
-            # CalHardNs : plafond porte a CalHardMaxNs pour cette disquette ; la reference seule reste a CalHardNs. 12.8
-            # (F3R-FIX, constat 4) : seuil max(CalHardNsDefault, CalHardNs), comme Get-LevelAdaptHard. 12.8 (S3-FLUX,
-            # decision 3) : borne precompMaxNs reglee sous CalHardNsDefault : respectee, sans relevement par disquette
-            $memoExt = $false
+            # CalHardNs : plafond porte a celui de cette disquette (12.11 : Get-UnitCapNs, quart de la cellule de l image ; 470 ns
+            # avant) ; la reference seule reste a CalHardNs. 12.8 (F3R-FIX, constat 4) : seuil max(CalHardNsDefault, CalHardNs),
+            # comme Get-LevelAdaptHard. 12.8 (S3-FLUX, decision 3) : borne precompMaxNs reglee sous CalHardNsDefault : respectee
+            $memoExt = $false; $capD = Get-UnitCapNs $u
             $memoThr = [math]::Max([int]$script:CalHardNsDefault, [int]$script:CalHardNs)
-            if ($u.Memo -and [int]$script:CalHardMaxNs -gt [int]$script:CalHardNs -and [int]$script:CalHardNs -ge [int]$script:CalHardNsDefault -and $null -ne $bv.RawMax -and [double]$bv.RawMax -gt $memoThr) {
-                $bv = Build-LevelValues $u ([int]$u.Level) $e -Hard ([int]$script:CalHardMaxNs)
-                $memoExt = $true; $hard = [int]$script:CalHardMaxNs
+            if ($u.Memo -and $capD -gt [int]$script:CalHardNs -and [int]$script:CalHardNs -ge [int]$script:CalHardNsDefault -and $null -ne $bv.RawMax -and [double]$bv.RawMax -gt $memoThr) {
+                $bv = Build-LevelValues $u ([int]$u.Level) $e -Hard $capD
+                $memoExt = $true; $hard = $capD
                 $over = @(0..(@($bv.Values).Count - 1) | Where-Object { [int]$bv.Values[$_] -gt [int]$script:CalHardNs })
             }
             foreach ($c in @($e.Outliers)) { Append-Log ($pfx + ((T "Écart isolé à c{0} ({1} ns par rapport à la forme) : défaut ponctuel probable de cette disquette, écarté du niveau.") -f "$c", ('{0:+0;-0;0}' -f [math]::Round($e.Ds[[int]$c] - $e.Delta, 0)))) }
@@ -1004,14 +1007,17 @@ function Get-LevelUnitResults($cal, [string]$date) {
                 Append-Log ($pfx + $bt + '.'); $issues.Add($pfx + $bt); $info.Add($false)
             }
             # 12.8 (F3R) : plafond par disquette (memoExt) : lignes et reserves plus bas, apres celles de la zone plafonnee
-            if ($bv.Sat.Count -gt 0 -and $u.Memo -and -not $memoExt -and [int]$script:CalHardNs -ge [int]$script:CalHardMaxNs) {
-                # 12.8 (F3R-FIX, constat 9) : borne precompMaxNs deja a CalHardMaxNs : plus de conseil de la relever
+            # 12.11 (L12a) : borne la plus haute a conseiller, jamais au-dela du plafond de l image (Get-BoundAdviceNs, 265)
+            $adv = Get-BoundAdviceNs $u
+            if ($bv.Sat.Count -gt 0 -and $u.Memo -and -not $memoExt -and [int]$script:CalHardNs -ge $adv) {
+                # 12.8 (F3R-FIX, constat 9) : borne precompMaxNs deja a CalHardMaxNs : plus de conseil de la relever. 12.11
+                # (L12a) : ni au-dela du plafond de l image ($adv)
                 Append-Log ($pfx + ((T 'Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés.') -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat))))
                 $issues.Add($pfx + ((T 'plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés') -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)))); $info.Add($true)
             } elseif ($bv.Sat.Count -gt 0 -and $u.Memo -and -not $memoExt) {
                 # 12.8 (FIX1C, constat 5) : courbe de la marque (V', forme adaptee) : libelle neutre du plafond (§ 11.2)
-                Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs).") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat))))
-                $issues.Add($pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à 470 ns (precompMaxNs)") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)))); $info.Add($true)
+                Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs).") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)), "$adv"))
+                $issues.Add($pfx + ((T "plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés ; la borne se règle jusqu'à {2} ns (precompMaxNs)") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)), "$adv")); $info.Add($true)
             } elseif ($bv.Sat.Count -gt 0 -and -not $u.Memo -and [string]$shape.Verdict -eq 'mismatch') {
                 # 12.8 (F3R, decision du 21/10/2026) : forme non conforme : libelle neutre, autre type de disquette ou usure
                 Append-Log ($pfx + ((T "Plafond de {0} ns atteint aux cylindres {1} avec le niveau de cette disquette ({2} ns par rapport à la référence), de forme différente : autre type de disquette ou usure, non distingués ; ces cylindres resteront sous-compensés.") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$bv.Sat)), ('{0:+0;-0;0}' -f [int]$u.Level)))
@@ -1034,7 +1040,7 @@ function Get-LevelUnitResults($cal, [string]$date) {
             }
             elseif ($bv.ProbeNote -eq 'cap') { Append-Log ($pfx + ((T "Zone plafonnée de la référence (c{0} à c{1}) : le besoin dépasse encore {2} ns au témoin c{1} ; zone portée jusqu'à {2} ns.") -f "$($u.CapLo)", "$($u.Probe)", "$($script:CalHardNs)")) }
             if ($memoExt) {
-                # Plafond par disquette (forme d une marque) : plafond de CalHardMaxNs atteint, courbe au-dela de CalHardNs
+                # Plafond par disquette (forme d une marque) : plafond de la disquette ($hard) atteint, courbe au-dela de CalHardNs
                 if ($bv.Sat.Count -gt 0) {
                     Append-Log ($pfx + ((T 'Plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés.') -f "$hard", (Format-CylList ([int[]]$bv.Sat))))
                     $issues.Add($pfx + ((T 'plafond de {0} ns atteint aux cylindres {1} avec la courbe adaptée : ces cylindres resteront sous-compensés') -f "$hard", (Format-CylList ([int[]]$bv.Sat)))); $info.Add($true)
@@ -1042,6 +1048,7 @@ function Get-LevelUnitResults($cal, [string]$date) {
                 if ($over.Count -gt 0) {
                     $top = (@($bv.Values) | Measure-Object -Maximum).Maximum
                     Append-Log ($pfx + ((T "Courbe adaptée au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns) : le besoin de cette disquette dépasse la borne precompMaxNs ; plafond porté à {3} ns pour cette disquette seulement ; contrôle après écriture imposé.") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$over)), "$top", "$hard"))
+                    Append-Log ($pfx + (Get-DiskOverAdviceText ([int]$script:CalHardNs)))   # 12.11 : conseil d essai sur la machine cible
                     $issues.Add($pfx + ((T "courbe adaptée au-delà de {0} ns aux cylindres {1} (jusqu'à {2} ns, plafond porté à {3} ns pour cette disquette seulement) : contrôle après écriture imposé") -f "$($script:CalHardNs)", (Format-CylList ([int[]]$over)), "$top", "$hard")); $info.Add($true)
                 }
             }
@@ -1241,7 +1248,11 @@ function Complete-LevelCalib {
         if ($adCurve) { $lblWProfileInfo.Text = ((T "Profil {0} de cette disquette (calibration rapide du {1}, lecteur {2}) : référence du {3} adaptée à cette disquette ({4}){5}. À n'utiliser que pour cette disquette (bouton Courbe).") -f "$famTxt", "$date", "$($cal.Drive)", "$($recs[0].RefDate)", "$lvlTxt", $(if ($cal.Brand) { (T ', marque « {0} »') -f "$($cal.Brand)" } else { '' })) }
         else { $lblWProfileInfo.Text = ((T "Profil {0} de cette disquette (calibration rapide du {1}, lecteur {2}) : référence du {3} décalée de {4}. À n'utiliser que pour cette disquette (bouton Courbe).") -f "$famTxt", "$date", "$($cal.Drive)", "$($recs[0].RefDate)", "$lvlTxt") }
     }
-    elseif ($tgtL -and $tgtL.Applies -and (Get-WriteTabFamily) -eq $cal.Family) { Append-Log ((T "Calibration rapide depuis l'Accueil : lecteur cible {0} choisi pour le lecteur {1}, dont l'écriture n'utilise pas cette mesure (courbe croisée {1} → {0} telle quelle, ou refus sans elle) : le profil de cette disquette n'est pas placé dans les champs --precomp ; il reste affiché dans la fenêtre Courbe (dernière calibration rapide).") -f "$($tgtL.Tgt)", "$($tgtL.Src)") }
+    elseif ($tgtL -and $tgtL.Xfer -and (Get-WriteTabFamily) -eq $cal.Family) {
+        # 12.11 (rc2, relecture B4) : lecteur cible avec la courbe propre du lecteur (Xfer) : l ecriture reprend la mesure
+        # faite juste avant elle par « ECRIRE LA DISQUETTE » (Get-TargetDFields), pas celle-ci, non placee dans les champs
+        Append-Log ((T "Calibration rapide depuis l'Accueil : lecteur cible {0} choisi pour le lecteur {1} : le profil de cette disquette n'est pas placé dans les champs --precomp ; l'écriture pour le lecteur cible ne reprend que la mesure faite par « ÉCRIRE LA DISQUETTE » juste avant l'écriture. Il reste affiché dans la fenêtre Courbe (dernière calibration rapide).") -f "$($tgtL.Tgt)", "$($tgtL.Src)") }
+    elseif ($tgtL -and $tgtL.Applies -and -not $tgtL.Xfer -and (Get-WriteTabFamily) -eq $cal.Family) { Append-Log ((T "Calibration rapide depuis l'Accueil : lecteur cible {0} choisi pour le lecteur {1}, dont l'écriture n'utilise pas cette mesure (courbe croisée {1} → {0} telle quelle, ou refus sans elle) : le profil de cette disquette n'est pas placé dans les champs --precomp ; il reste affiché dans la fenêtre Courbe (dernière calibration rapide).") -f "$($tgtL.Tgt)", "$($tgtL.Src)") }
     else { Append-Log ((T "Calibration rapide depuis l'Accueil : l'image de l'onglet Écriture n'est pas de la famille {0}, le profil de cette disquette n'est pas placé dans ses champs --precomp ; il reste affiché dans la fenêtre Courbe (dernière calibration rapide).") -f "$famTxt") }
     Append-Log ((T "Calibration rapide terminée en {0} : {1} passe(s), {2} écritures de piste sur {3} cylindres (2 faces), aucune ailleurs.") -f (Format-CalDuration $elapsed), "$($cal.PassesDone)", "$($cal.TrackWrites)", "$(@($cal.Cyls).Count)")
     Append-Log ((T "Niveau retenu : {0}.") -f "$lvlTxt")
@@ -1432,9 +1443,6 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
     # la calibration existante, jamais refaite.
     # 12.7 point 5, Measure : mesure ajoutee a une ecriture lente par la case « Mesurer la disquette » (liste au test
     # standard ou fin) : sans reference utilisable, aucune calibration complete imposee, ecriture avec la courbe du lecteur
-    $img = $txtWFile.Text
-    $fam = Get-ImageFamily $img
-    $nfc = Get-CalibCylinders $img $cmbWFmt.Text      # image secteur sans geometrie : cylindres du format choisi
     # 12.8.1 (spec-1281.md § A.1) : liste « Mesure : sur l image a ecrire » (levelBeforeWriteMode = content), ecriture
     # lente avec la case « Mesurer la disquette » (Measure), hors restauration : mesure de la disquette sur le contenu de
     # l image (276) si l image et le contexte s y pretent (Test-ContentMeasurable) ; sinon ligne de journal, puis la suite
@@ -1442,20 +1450,20 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
     # au motif, ligne de journal plus bas
     $content = ((Get-Setting 'levelBeforeWriteMode') -eq 'content')
     # 12.10 (relecture de la RC) : mesure choisie par Get-LevelBeforeWriteKind, decision dont sont tires les textes qui
-    # l annoncent (regles et rapport de la restauration, case de la mesure au « Test rapide »)
-    $lk = Get-LevelBeforeWriteKind $mode ([bool]$Restore -or [bool]$script:Restore) ([bool]$Measure)
-    if ($lk -eq 'content') {
-        $cm = Test-ContentMeasurable $img $cmbWFmt.Text
-        if ($cm.Ok) { Start-ContentMeasure $cm; return }
-        Append-Log ((T "Mesure sur l'image non faite ({0}) : calibration rapide au motif avant cette écriture.") -f "$($cm.Why)")
-    }
-    $lr = Get-LevelRef $fam ($mode -eq 'slow') $cmbDrive.Text $img ([bool]$Restore) -NCyl $(if ($null -ne $nfc.NCyl) { [int]$nfc.NCyl } else { 0 })
+    # l annoncent (regles et rapport de la restauration, case de la mesure au « Test rapide »). 12.11 (L10, correction B1
+    # du plan) : mesure faite, repli et refus decides par Get-LevelBeforeWritePlan, dont la ligne « Ce qui va se passer »
+    # tire aussi son segment ; memes lignes de journal, dans le meme ordre, et memes appels
+    $lp = Get-LevelBeforeWritePlan $mode ([bool]$Restore) ([bool]$Measure)
+    $fam = $lp.Fam
+    if ($lp.Kind -eq 'content') { Start-ContentMeasure $lp.Cm; return }
+    if ($lp.Cm) { Append-Log ((T "Mesure sur l'image non faite ({0}) : calibration rapide au motif avant cette écriture.") -f "$($lp.Cm.Why)") }
+    $lr = $lp.Lr
     if ($lr.Ok) {
         # 12.8 (S3, decision du 21/10/2026) : liste « Mesure : complète » de l onglet Ecriture (levelBeforeWriteMode) : mesure
         # complete de cette disquette avant une ecriture lente (une courbe par tete) ; ecriture rapide : calibration rapide,
         # avec une ligne de journal. 12.8 (S3-FLUX, decision 2) : aussi en restauration, copie secteur (Restore : seul appel,
         # Start-PresetWrite -LevelOnly ; une copie de flux n est jamais mesuree), ecriture lente toujours
-        if ($lk -eq 'complete') {
+        if ($lp.Kind -eq 'complete') {
             if ($Restore) { Append-Log (T "Restauration : disquette de destination mesurée sur tous ses cylindres (mesure complète de cette disquette, liste « Mesure » de l'onglet Écriture), la calibration du lecteur n'est pas refaite.") }
             Start-DiskMeasure $lr ([string]$script:LevelBrand); return
         }
@@ -1485,8 +1493,9 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
         Start-ImageWrite; return
     }
     # Hors domaine : ecriture avec la courbe du lecteur, sauf si elle est plus courte que l image (gw appliquerait la valeur
-    # de son dernier cylindre a tous les suivants) : refus, comme sans reference
-    if ($lr.Class -eq 'domain' -and -not $lr.Short) {
+    # de son dernier cylindre a tous les suivants) : refus, comme sans reference (12.11, L10 : Refuse faux de
+    # Get-LevelBeforeWritePlan, reference hors domaine et non plus courte que l image)
+    if (-not $lp.Refuse) {
         Append-Log ((T "Calibration rapide non applicable à cette image : {0}. Écriture avec la courbe du lecteur, sans mesure du niveau.") -f "$($lr.Why)")
         Start-ImageWrite; return
     }
@@ -1502,6 +1511,38 @@ function Start-LevelBeforeWrite([string]$mode, [switch]$Restore, [switch]$Measur
     if ("$(Show-AppMessage $msg (T 'Calibration precomp') 'YesNo' 'Warning')" -eq 'Yes') { Show-Tab $tabH }
 }
 
+function Get-LevelBeforeWritePlan([string]$mode, [bool]$restore, [bool]$measure) {
+    # 12.11 (L10, correction B1 du plan ; extraite de Start-LevelBeforeWrite sans changement de comportement) : mesure de
+    # la disquette avant l ecriture de l image de l onglet, decision commune a Start-LevelBeforeWrite et a la ligne « Ce qui
+    # va se passer » (Get-WritePlan, 145) ; aucune ligne de journal, aucune fenetre. Arguments de Start-LevelBeforeWrite
+    # ($restore : son switch Restore ; restauration en cours lue en plus pour Get-LevelBeforeWriteKind, comme lui). Rend
+    # @{ Kind ; Refuse ; Why ; Lr ; Cm ; Fam ; Lk } :
+    #  - Kind 'content' (mesure sur l image, Cm de Test-ContentMeasurable), 'complete' (mesure complete de cette disquette),
+    #    'quick' (calibration rapide au motif ; apres un repli de la mesure sur l image, Cm non vide et Why sa raison),
+    #    'none' (ecriture sans mesure : restauration, case de la mesure cochee ou image hors domaine de la reference, Why
+    #    la raison de Get-LevelRef) ;
+    #  - Refuse : « Test rapide » sans reference utilisable (Kind 'none', Why) : ecriture refusee, rien n est ecrit ;
+    #  - Lr : reference de Get-LevelRef ; Fam : famille de l image ; Lk : Get-LevelBeforeWriteKind.
+    # Lit l image (Test-ContentMeasurable, Get-LevelRef) : la ligne la garde en memoire par signature (Get-WritePlanCached)
+    $img = $txtWFile.Text
+    $fam = Get-ImageFamily $img
+    $nfc = Get-CalibCylinders $img $cmbWFmt.Text      # image secteur sans geometrie : cylindres du format choisi
+    $r = @{ Kind = 'none'; Refuse = $false; Why = ''; Lr = $null; Cm = $null; Fam = $fam; Lk = '' }
+    $r.Lk = Get-LevelBeforeWriteKind $mode ($restore -or [bool]$script:Restore) $measure
+    if ($r.Lk -eq 'content') {
+        $r.Cm = Test-ContentMeasurable $img $cmbWFmt.Text
+        if ($r.Cm.Ok) { $r.Kind = 'content'; return $r }
+        $r.Why = [string]$r.Cm.Why
+    }
+    $r.Lr = Get-LevelRef $fam ($mode -eq 'slow') $cmbDrive.Text $img $restore -NCyl $(if ($null -ne $nfc.NCyl) { [int]$nfc.NCyl } else { 0 })
+    if ($r.Lr.Ok) { $r.Kind = $(if ($r.Lk -eq 'complete') { 'complete' } else { 'quick' }); return $r }
+    $r.Why = [string]$r.Lr.Why
+    if ($restore -or $measure) { return $r }
+    if ($r.Lr.Class -eq 'domain' -and -not $r.Lr.Short) { return $r }
+    $r.Refuse = $true
+    return $r
+}
+
 function Start-LevelCalibButton {
     # Bouton « Calibrer » avec « Test rapide » : niveau de la disquette inseree, sans ecriture d image
     $chk = Test-CalibImage
@@ -1510,7 +1551,10 @@ function Start-LevelCalibButton {
     # Start-ImageWrite) : calibration rapide refusee, comme la mesure avant l ecriture (Start-WriteTabWrite) : elle relirait
     # avec le lecteur du bandeau, et l ecriture remet la courbe croisee dans les champs --precomp (ou est refusee sans
     # elle). Avant : faite, et annoncee « a n utiliser que pour cette disquette »
+    # 12.11 (rc2, relecture B4) : avec la courbe propre du lecteur du bandeau (Xfer), l ecriture pour le lecteur cible reprend
+    # la mesure faite juste avant elle par « ECRIRE LA DISQUETTE » : refus maintenu (rc3), texte qui dit comment mesurer
     $tw = Get-TargetWriteInfo $chk.Img $cmbWFmt.Text ([bool]$chkWSlow.Checked)
+    if ($tw.Applies -and $tw.Xfer) { [void](Show-AppMessage ((T "Calibration rapide seule non proposée pour le lecteur cible {0}. Pour mesurer cette disquette avec le lecteur {1} avant de l'écrire pour le lecteur cible, gardez « Test rapide » (ou cochez « Mesurer la disquette avant l'écriture lente ») et cliquez « ÉCRIRE LA DISQUETTE » : la mesure est faite juste avant l'écriture, puis le facteur par cylindre de la calibration croisée {1} → {0} est appliqué.") -f "$($tw.Tgt)", "$($tw.Src)") (T 'Calibration precomp') 'OK' 'Information'); return }
     if ($tw.Applies) { [void](Show-AppMessage ((T "Calibration rapide non faite pour le lecteur cible {0} : elle relirait avec le lecteur {1}, et l'écriture pour le lecteur cible n'utilise pas sa mesure (courbe croisée telle quelle, ou refus sans elle). Pour mesurer cette disquette avec le lecteur {1}, choisissez « (même lecteur) » dans la liste « Lecteur cible ».") -f "$($tw.Tgt)", "$($tw.Src)") (T 'Calibration precomp') 'OK' 'Information'); return }
     $lr = Get-LevelRef $chk.Family ([bool]$chkWSlow.Checked) $cmbDrive.Text $chk.Img $false -NCyl ([int]$chk.NCyl)
     if ($lr.Ok) { $script:AfterCalib = ''; Start-LevelCalib $lr; return }

@@ -1,0 +1,49 @@
+# Contrôles de la source et tests logiques hors ligne (tests/Run-Tests.ps1) sous Windows PowerShell 5.1,
+# l'édition que vise l'application. Aucun gw, aucun matériel, aucune fenêtre, aucun secret.
+# Déclencheurs : push sur main ou sur une branche release-*, pull request, lancement manuel.
+# Ce workflow ne publie rien et ne conditionne pas la release (release.yml) : voir README, « Tests ».
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - 'release-*'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests hors ligne (Windows PowerShell 5.1)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Vérifier l'édition de PowerShell
+        shell: powershell
+        run: |
+          $PSVersionTable | Out-String
+          "Culture : $((Get-Culture).Name) ; interface : $((Get-UICulture).Name)"
+          if ($PSVersionTable.PSEdition -ne 'Desktop' -or $PSVersionTable.PSVersion.Major -ne 5) {
+            throw "Windows PowerShell 5.1 attendu, edition trouvee : $($PSVersionTable.PSEdition) $($PSVersionTable.PSVersion)"
+          }
+
+      - name: Contrôles de la source et tests logiques
+        shell: powershell
+        run: .\tests\Run-Tests.ps1 -Ci
+
+      - name: Publier les sorties des tests
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tests-${{ github.run_number }}
+          path: tests/out/
