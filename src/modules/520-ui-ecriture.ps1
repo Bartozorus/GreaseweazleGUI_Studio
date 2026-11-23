@@ -330,8 +330,8 @@ $lblWCal.AutoSize = $false; $lblWCal.AutoEllipsis = $true; $lblWCal.Anchor = 'To
 $lblWCal.Size = New-Object System.Drawing.Size(($grpWOpt.DisplayRectangle.Right - 320), $lblWCal.PreferredHeight)
 # 12.11 finale (finition) : hauteur d une ligne de texte, mesuree par un libelle de mesure de meme police qui porte un
 # texte, jamais affiche (comme Get-WPlanHeight, 145), et non PreferredHeight : vide, comme quand il recoit la police de son
-# cadre au demarrage, ce libelle mesure 2 px de moins qu une ligne de texte (20 au lieu de 22 en Segoe UI 9,75), et le bas
-# du texte etait coupe jusqu au changement de police suivant
+# cadre au demarrage, ce libelle mesure 2 px de moins qu une ligne de texte (20 au lieu de 22 en Segoe UI 9,75) ; aucun
+# changement a l ecran : a 20 px, le texte s affichait deja en entier (relecture du rendu a 96 ppp, jambages compris)
 $lblWCal.Add_FontChanged({ $wcMeas = New-Object System.Windows.Forms.Label; $wcMeas.Font = $lblWCal.Font; $wcMeas.Text = '0'; $lblWCal.Height = $wcMeas.GetPreferredSize((New-Object System.Drawing.Size($lblWCal.Width, 0))).Height; $wcMeas.Dispose(); Update-WCalTip })
 $lblWCal.Add_SizeChanged({ Update-WCalTip })
 $lblWCal.Add_PaddingChanged({ Update-WCalTip })

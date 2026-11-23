@@ -714,7 +714,7 @@ if ($wfOk) {
     "  R3W : lblWCal avant le parent : $fW0, hauteur $hW0 px ; apres : $($lblWCal.Font.Name) $($lblWCal.Font.SizeInPoints), $($lblWCal.Width) x $($lblWCal.Height) px (PreferredHeight $($lblWCal.PreferredHeight)) ; groupe $($grpWOpt.Width) px, DisplayRectangle.Right $drR"
     # 12.11 finale (finition) : hauteur d une ligne de texte des le rattachement, libelle encore vide (demarrage) : celle que
     # le libelle prefere quand il porte un texte d une ligne (court ou long), et non PreferredHeight du libelle vide, plus
-    # petite (20 au lieu de 22 px en Segoe UI 9,75 : le bas du texte etait coupe jusqu au changement de police suivant)
+    # petite (20 au lieu de 22 px en Segoe UI 9,75 ; sans changement a l ecran : a 20 px, le texte s affichait deja en entier)
     $hW1 = $lblWCal.Height; $hWE = $lblWCal.PreferredHeight
     $lblWCal.Text = 'Calibration'; $hWT = $lblWCal.PreferredHeight
     $lblWCal.Text = 'Calibration rapide terminée en 3 min : niveau +20 ns, forme conforme, une ligne plus longue que le libellé, coupée par ses points de suspension.'; $hWL = $lblWCal.GetPreferredSize([System.Drawing.Size]::Empty).Height

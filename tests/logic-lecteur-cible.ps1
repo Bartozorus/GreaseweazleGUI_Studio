@@ -611,7 +611,10 @@ if ($wfOk) {
     $script:Tips[$chkWLevel.Name] = 'infobulle d origine'; $script:WLevelTip = 'infobulle d origine'
     Update-TargetDriveUi
     $iu = @($cmbWTarget.Items | ForEach-Object { [string]$_ })
-    Chk 'U1' (($iu -join ',') -eq '(même lecteur),B,0,1,2,3' -and $cmbWTarget.SelectedIndex -eq 2 -and [string]$cmbWTarget.SelectedItem -eq '0' -and $script:Tips['cmbWTarget'] -like 'Lecteur qui relira la disquette écrite par le lecteur A, celui du bandeau.*' -and $lblWTarget.Left -gt $cmbWLevelMode.Right -and $cmbWTarget.Left -gt $lblWTarget.Left) "Update-TargetDriveUi (A) : elements, choix 0 memorise selectionne, infobulle, position apres la liste « Mesure : »"
+    # 12.11 finale (relecture de la finition) : courbe de la disquette (au motif) et facteur de la disquette (sur l image,
+    # sinon facteur de marque, applique aussi apres une mesure au motif) dits a part dans l infobulle
+    $u1Tip = [string]$script:Tips['cmbWTarget']
+    Chk 'U1' (($iu -join ',') -eq '(même lecteur),B,0,1,2,3' -and $cmbWTarget.SelectedIndex -eq 2 -and [string]$cmbWTarget.SelectedItem -eq '0' -and $u1Tip -like 'Lecteur qui relira la disquette écrite par le lecteur A, celui du bandeau.*' -and $u1Tip.Contains("Un autre lecteur : la courbe de cette disquette (mesurée au motif par le lecteur A si cette mesure est demandée, sinon la courbe du lecteur A), multipliée par le facteur de la disquette (mesuré sur l'image si cette mesure est demandée, sinon le facteur de marque), est ensuite multipliée, cylindre par cylindre,") -and -not $u1Tip.Contains('et son facteur de marque') -and $lblWTarget.Left -gt $cmbWLevelMode.Right -and $cmbWTarget.Left -gt $lblWTarget.Left) "Update-TargetDriveUi (A) : elements, choix 0 memorise selectionne, infobulle (courbe et facteur de la disquette dits a part), position apres la liste « Mesure : »"
     $cmbDrive.Text = 'B'; Update-TargetDriveUi
     Chk 'U2' ([string]$cmbWTarget.SelectedItem -eq '1' -and @($cmbWTarget.Items | ForEach-Object { [string]$_ })[1] -eq 'A') "changement de lecteur du bandeau (B) : liste sans B, choix memorise pour B (1)"
     $cmbDrive.Text = 'A'; Update-TargetDriveUi; Reset-Run
