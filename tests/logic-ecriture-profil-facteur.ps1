@@ -171,7 +171,6 @@ foreach ($p in @(
         @('265', @('Get-LevelBrandKey')),
         @('270', @('Update-CalibProgress')),
         @('172', @('Get-TargetWriteHowPhrase')),                           # 12.11 (relecture de la version finale) : geste de mesure du conseil
-        @('112', @('Get-DrvTextHeight')),                                  # 12.11 finale (finition) : hauteur de lblWCal (gestionnaire FontChanged de 520)
         @('274', @('Limit-WriteFactor', 'Get-DriveK')))) {
     foreach ($n in $p[1]) { $parts.Add((Get-FFn $p[0] $n)) }
 }

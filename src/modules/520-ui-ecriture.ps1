@@ -53,7 +53,7 @@ $tip.SetToolTip($btnWCurve, (T 'Affiche la courbe de précompensation calibrée 
 # propre du lecteur du bandeau (Xfer), l ecriture les multiplie par le facteur de la disquette par cylindre, hausse en ns,
 # recalage compris (Get-TargetTransferPlan, 140) : courbe ecrite absente de la fenetre, resumee au journal. Avant : « la
 # courbe croisee que l ecriture applique » (regle de la 12.10, courbe croisee telle quelle)
-$tip.SetToolTip($btnWCurve, $tip.GetToolTip($btnWCurve) + "`n" + (T "Lecteur cible choisi (liste « Lecteur cible »), avec effet sur l'écriture : la courbe croisée mesurée par « Calibrer pour un lecteur cible… ». Sans courbe du lecteur du bandeau pour la famille, l'écriture l'applique telle quelle ; sinon, elle écrit cette courbe multipliée, cylindre par cylindre, par le facteur de la disquette (courbe de la disquette rapportée à celle du lecteur du bandeau ; une hausse est ajoutée en ns), avec le recalage du lecteur cible s'il y en a un : cette courbe écrite n'est pas montrée ici, le journal de l'écriture la résume. Inactif quand cette écriture est refusée (le libellé du profil dit pourquoi)."))   # 12.10 (relecture de la RC, fix1) : inactif sur un refus (Get-WCurveSet, 230)
+$tip.SetToolTip($btnWCurve, $tip.GetToolTip($btnWCurve) + "`n" + (T "Lecteur cible choisi (liste « Lecteur cible »), avec effet sur l'écriture : la courbe croisée mesurée par « Calibrer pour un lecteur cible… ». Sans courbe du lecteur du bandeau pour la famille, l'écriture l'applique telle quelle ; sinon, elle écrit cette courbe multipliée, cylindre par cylindre, par le facteur de la disquette (courbe de la disquette rapportée à celle du lecteur du bandeau ; une hausse est ajoutée en ns), avec le recalage du lecteur cible quand il s'applique : cette courbe écrite n'est pas montrée ici, le journal de l'écriture la résume. Inactif quand cette écriture est refusée (le libellé du profil dit pourquoi)."))   # 12.10 (relecture de la RC, fix1) : inactif sur un refus (Get-WCurveSet, 230)
 # 12.10 (relecture de la RC) : profil Manuel : courbe calibree du lecteur montree, champ --precomp transmis tel quel ; image
 # FM, GCR, a codage propre ou haute densite non calibrable : courbe MFM de la famille de Get-WriteImageFamily (double
 # densite, ou hd pour un HFE de cellule 900 a 1 100 ns ; Update-CurveButton, 230) ; Start-ImageWrite (140) n avertit que
@@ -328,11 +328,11 @@ $lblWCal.Location = '320,139'; $lblWCal.ForeColor = 'DimGray'; $lblWCal.Visible 
 # d une ligne de la police heritee (FontChanged)
 $lblWCal.AutoSize = $false; $lblWCal.AutoEllipsis = $true; $lblWCal.Anchor = 'Top,Left,Right'
 $lblWCal.Size = New-Object System.Drawing.Size(($grpWOpt.DisplayRectangle.Right - 320), $lblWCal.PreferredHeight)
-# 12.11 finale (finition) : hauteur d une ligne de texte, mesuree par un libelle de meme police qui porte un texte
-# (Get-DrvTextHeight, 112), et non PreferredHeight : vide, comme quand il recoit la police de son cadre au demarrage, ce
-# libelle mesure 2 px de moins qu une ligne de texte (20 au lieu de 22 en Segoe UI 9,75), et le bas du texte etait coupe
-# jusqu au changement de police suivant
-$lblWCal.Add_FontChanged({ $lblWCal.Height = Get-DrvTextHeight @('0') $lblWCal.Font $lblWCal.Width; Update-WCalTip })
+# 12.11 finale (finition) : hauteur d une ligne de texte, mesuree par un libelle de mesure de meme police qui porte un
+# texte, jamais affiche (comme Get-WPlanHeight, 145), et non PreferredHeight : vide, comme quand il recoit la police de son
+# cadre au demarrage, ce libelle mesure 2 px de moins qu une ligne de texte (20 au lieu de 22 en Segoe UI 9,75), et le bas
+# du texte etait coupe jusqu au changement de police suivant
+$lblWCal.Add_FontChanged({ $wcMeas = New-Object System.Windows.Forms.Label; $wcMeas.Font = $lblWCal.Font; $wcMeas.Text = '0'; $lblWCal.Height = $wcMeas.GetPreferredSize((New-Object System.Drawing.Size($lblWCal.Width, 0))).Height; $wcMeas.Dispose(); Update-WCalTip })
 $lblWCal.Add_SizeChanged({ Update-WCalTip })
 $lblWCal.Add_PaddingChanged({ Update-WCalTip })
 # 12.8 (lot 3b) : verdict du controle apres ecriture avec son icone d etat de 16 px et son encre (Set-WCalVerdict) ; tout
