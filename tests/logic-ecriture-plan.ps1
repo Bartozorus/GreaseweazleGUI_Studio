@@ -736,14 +736,20 @@ foreach ($pr in $plRoots) {
         # ----------------------------------------------------------------- R12 (version finale) : facteur de la marque disperse
         # Marque fictive, trois mesures du lecteur A par tete (0,90, 1,00 et 1,20 : etendue 0,30), ecriture lente : segment
         # critique de la ligne, infobulle de la case de la mesure precedee de la ligne du journal de l ecriture ; mesures
-        # retirees, reglages inchanges : plan recalcule (signature), ni segment ni ligne ; case cochee (mesure demandee) : rien
-        $rkm = { param([bool]$chk)
+        # retirees, reglages inchanges : plan recalcule (signature), ni segment ni ligne ; case cochee (mesure sur l image
+        # demandee) : rien. Relecture de la version finale : ecriture rapide (case de la mesure grisee, son infobulle ne
+        # s affiche pas) : le segment dit le geste possible, ecrire en ecriture lente avec la mesure sur l image
+        $rkm = { param([bool]$chk, [bool]$slow = $true)
             $script:LevelBrand = 'Marque A'
             $script:ContentMeasures = @(foreach ($q in @(@(1, 0.90), @(2, 1.00), @(3, 1.20))) { foreach ($h in 0, 1) { @{ Drive = 'A'; Family = 'std'; Head = $h; K = [double]$q[1]; Etat = 'mesure'; Brand = 'Marque A'; Date = ('0{0}/11/2026 10:00' -f $q[0]); ContentCalc = $script:ContentCalc; Calc = $script:CalibCalc } } })
-            Set-PlCurves 'motif'; $chkWSlow.Checked = $true; $chkWLevel.Checked = $chk }
+            Set-PlCurves 'motif'; $chkWSlow.Checked = $slow; $chkWLevel.Checked = $chk }
         $rDet = ((T 'tête {0} : étendue {1} sur {2} mesures') -f '0', (Format-UiNum 0.30 '0.00'), '3') + (T ' ; ') + ((T 'tête {0} : étendue {1} sur {2} mesures') -f '1', (Format-UiNum 0.30 '0.00'), '3')
-        $rSeg = (T "médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : mesurez plutôt cette disquette sur l'image") -f 'Marque A', $rDet
-        $rShort = T 'mesures de la marque dispersées : mesurez plutôt cette disquette'
+        $rSeg = (T 'médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : {2}') -f 'Marque A', $rDet, (T "mesurez plutôt cette disquette sur l'image")
+        $rShort = (T 'mesures de la marque dispersées : {0}') -f (T "mesurez plutôt cette disquette sur l'image")
+        $rFastG = T "écrivez plutôt l'image en écriture lente, avec la mesure sur l'image"
+        $rFastSeg = (T 'médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : {2}') -f 'Marque A', ((T 'étendue {0} sur {1} mesures') -f (Format-UiNum 0.30 '0.00'), '3'), $rFastG
+        $r4 = Get-PlShown @{ Img = $imAdf; Fmt = 'amiga.amigados'; Do = { & $rkm $false $false } }
+        $r4Plan = $script:WPlanCur; $r4En = [bool]$chkWLevel.Enabled
         $r1 = Get-PlShown @{ Img = $imAdf; Fmt = 'amiga.amigados'; Do = { & $rkm $false } }
         $r1Tip = [string]$tip.GetToolTip($chkWLevel); $r1Base = [string]$script:WLevelTipCur; $r1Plan = $script:WPlanCur
         $r1Log = [string]@((Get-WriteFactorPlan $imAdf 'amiga.amigados' $true).Lines)[-1]
@@ -759,6 +765,7 @@ foreach ($pr in $plRoots) {
             'infobulle' = ($r1Base -and $r1Tip -ceq ($r1Log + "`n" + $r1Base))
             'mesures retirees' = ([string]$r3Plan.Spread -ceq '' -and -not ($r3Plan.Segs | Where-Object { [string]$_.T -ceq $rSeg }) -and $r3Tip -ceq [string]$script:WLevelTipCur -and -not $r3Tip.Contains($r1Log))
             'case cochee' = ([string]$r2Plan.Spread -ceq '' -and -not $r2.Full.Contains($rSeg) -and $r2Tip -ceq [string]$script:WLevelTipCur -and -not $r2Tip.Contains($r1Log))
+            'ecriture rapide' = (-not $r4En -and @(@($r4Plan.Segs) | Where-Object { [string]$_.T -ceq $rFastSeg -and $_.Crit -and [string]$_.S -ceq ((T 'mesures de la marque dispersées : {0}') -f $rFastG) }).Count -eq 1 -and $r4.Full.Contains($rFastSeg))
         }
         Chk "R12$L" (@($rOk.Keys | Where-Object { -not $rOk[$_] }).Count -eq 0) "($L) facteur de la marque disperse : « $rSeg » dans la ligne ; infobulle de la case : ligne du journal puis infobulle d avant ; mesures retirees, case cochee : rien ; ecarts : $(Get-List @($rOk.Keys | Where-Object { -not $rOk[$_] }))"
         Chk "N$L" ($script:PlSide -eq 0) "($L) calcul et affichage de la phrase, dans tous les cas ci-dessus : aucune ligne de journal, aucune fenetre, aucune commande ($($script:PlSide))"

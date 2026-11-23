@@ -38,7 +38,9 @@ $Wt = Get-TestRoot $Wt
 #           taille par defaut (ligne de la carte, en-tetes et cases des colonnes, polices lues dans 195 et 500) ; Y7 I18n ;
 #           Y8 (12.11 finale, affichage) ordre d affichage des colonnes (« Asym. », « Attendue », « Ecart » apres « Etat »),
 #           rangee du guide et ligne du guide ou des zones instables reservees seulement quand elles servent
-#           (Set-QualityRowsRoom reelle composee avec Set-QualityCardRoom, positions lues dans 530) ;
+#           (Set-QualityRowsRoom reelle composee avec Set-QualityCardRoom, positions lues dans 530) ; relecture : tableau
+#           dans un onglet fictif, marge du bas retrouvee apres une hauteur ramenee a 0 (Set-QualityTableHeight) ;
+#           Y9 (relecture) colonnes des nombres a leur plus longue case (Set-AlNumColumnWidths) ;
 #  Z1 a Z8  12.11 rc7 (R16) : correction par zones, jeu fictif de 160 pistes passe par la vraie Invoke-WriteCheckAnalysis.
 #           Z1 piste isolee, deux voisines, 9 cylindres : aucune zone ; 10 cylindres : une zone ; trou de pistes faibles
 #           (plus de 2 cylindres : suite coupee) ; Z2 zones, plafond, commandes de la passe 1 ; Z3 acceptation, repli,
@@ -48,8 +50,9 @@ $Wt = Get-TestRoot $Wt
 #           « Arreter » (pistes effacees non reecrites dites vierges) ; Z8 I18n ;
 #  Z9, Z10  12.11 (version finale) : conseil d une correction par zones qui couvre presque toute une tete
 #           (Get-WriteZoneHeadAdvice) : Z9 79 et 80 % (seuil WriteZoneHeadPct), zone en deux morceaux de meme sens (couverture
-#           totale de la tete) ou de sens contraires (non additionnes), une tete seule, consigne selon l origine du facteur
-#           (mesure, facteur de la marque et geste de mesure, aucune consigne), anglais ; Z10 vraie Invoke-WriteCheckAnalysis :
+#           totale de la tete) ou de sens contraires (non additionnes), une tete seule, consigne selon la mesure faite avant
+#           l ecriture (How : mesure, facteur de la marque et geste de mesure, aucune consigne ; KSrc, precaution, ne change
+#           pas le texte), perimetre de chaque tete et pourcentage tronque (relecture), anglais ; Z10 vraie Invoke-WriteCheckAnalysis :
 #           ligne juste apres celle des zones, zones et commandes de la passe 1 inchangees ;
 #  Q0 a Q7  equivalence avec la 12.10, avec -Before <racine d une copie de la source de la 12.10> (aucune dans le depot ;
 #           sans elle, une ligne « saute ») : les memes pistes factices passent par les fonctions des deux versions,
@@ -177,10 +180,13 @@ $defsX = @{}
 # ecriture pour un lecteur cible en memoire ici : sans effet
 $fnR = @('Invoke-TargetRecalOffer', 'Get-TargetWriteMemoryFor', 'Complete-TargetWriteMemory',
          'Get-TargetWriteHowPhrase')   # 12.11 (version finale) : geste de mesure du conseil des zones
-foreach ($pm in @(@('170-fn-controle-ecriture.ps1', $fnX), @('230-fn-calib-courbe.ps1', @('Get-SpecValue', 'Build-CurveProfile')), @('172-fn-recalage-cible.ps1', $fnR))) {
+# 12.11 (relecture de la version finale) : colonnes des nombres a leur plus longue case (195), appelee par les vraies
+# Invoke-AlignAnalysis et Show-WriteCheckTable ; sans $script:AlColMin (largeurs de 530), sans effet (cas Y9)
+$fnW = @('Set-AlNumColumnWidths')
+foreach ($pm in @(@('170-fn-controle-ecriture.ps1', $fnX), @('230-fn-calib-courbe.ps1', @('Get-SpecValue', 'Build-CurveProfile')), @('172-fn-recalage-cible.ps1', $fnR), @('195-fn-qualite-affichage.ps1', $fnW))) {
     foreach ($fd in @((Get-Ast (Join-Path $mods $pm[0])).FindAll({ param($x) $x -is $tFn }, $false))) { if (@($pm[1]) -contains $fd.Name) { $defsX[$fd.Name] = $fd.Extent.Text } }
 }
-$missX = @(@($fnX + @('Get-SpecValue', 'Build-CurveProfile') + $fnR) | Where-Object { -not $defsX.ContainsKey($_) })
+$missX = @(@($fnX + @('Get-SpecValue', 'Build-CurveProfile') + $fnR + $fnW) | Where-Object { -not $defsX.ContainsKey($_) })
 if ($missX.Count -gt 0) { throw "fonctions $($missX -join ', ') introuvables sous $Wt (lots R10 et R16 absents de cette source ?)" }
 $genX = Join-Path $here 'gen-r10.ps1'
 [System.IO.File]::WriteAllText($genX, ((@($defsX.Keys | Where-Object { @('Invoke-RepNextCmd', 'Complete-WriteCheck', 'Stop-WriteCheck') -notcontains $_ } | Sort-Object | ForEach-Object { $defsX[$_] }) -join "`r`n`r`n") + "`r`n"), $utf8Bom)
@@ -633,10 +639,11 @@ Chk 'X9' ($badX.Count -eq 0) "sept textes du lot dans la section « rc4 » de 01
 # ---------------------------------------------------------------- Y : asymetrie attendue dans l onglet (R14)
 "--- Y : asymetrie attendue dans l onglet (12.11 rc6, R14)"
 # Fonctions de la carte (195) absentes de la source de la 12.10 : chargees a part, comme Get-RepAsymExcess
-$fdY = @((Get-Ast (Join-Path $mods '195-fn-qualite-affichage.ps1')).FindAll({ param($x) $x -is $tFn -and @('Set-QualityCardRoom', 'Get-QualFitText', 'Update-QualityView', 'Render-QualityCard', 'Set-QualityRowsRoom') -contains $x.Name }, $false))
+$fdY = @((Get-Ast (Join-Path $mods '195-fn-qualite-affichage.ps1')).FindAll({ param($x) $x -is $tFn -and @('Set-QualityCardRoom', 'Get-QualFitText', 'Update-QualityView', 'Render-QualityCard', 'Set-QualityRowsRoom', 'Set-QualityTableHeight') -contains $x.Name }, $false))
 $defsY = @{}; foreach ($fd in $fdY) { $defsY[$fd.Name] = $fd.Extent.Text }
 $genY = Join-Path $here 'gen-r14.ps1'
-[System.IO.File]::WriteAllText($genY, (($defsY['Set-QualityCardRoom'], $defsY['Get-QualFitText'], $defsY['Set-QualityRowsRoom']) -join "`r`n`r`n") + "`r`n", $utf8Bom)   # 12.11 finale : Set-QualityRowsRoom (Y8)
+# 12.11 finale : Set-QualityRowsRoom (Y8) ; relecture : Set-QualityTableHeight (Y8, tableau dans un parent)
+[System.IO.File]::WriteAllText($genY, (($defsY['Set-QualityCardRoom'], $defsY['Get-QualFitText'], $defsY['Set-QualityRowsRoom'], $defsY['Set-QualityTableHeight']) -join "`r`n`r`n") + "`r`n", $utf8Bom)
 . $genY
 # Y1 : ecart median en ns (constante du modele) : X5 (ecart +0,004 partout, cellule 2000 ns) : 4 ns ; $repH (tete 0 +0,004,
 # tete 1 +0,024) : mediane de 4 et 24 = 14 ns ; exces de 60 ns (attendue 0,060, mesurees 0,034 et 0,044) : -21 ns
@@ -830,9 +837,63 @@ if ($posR.Count -eq 3 -and $mRow.Success -and $defsY['Set-QualityRowsRoom']) {
     $gaps = ($v0 -eq $c0 + $ch + 4 -and $r0 -ge $c0 + $ch + 3 -and $r0 + $posR.lblAlReco[1] + 4 -eq $v0 + $bR)
     $y8b = ($bad.Count -eq 0 -and $gaps -and $script:AlGuideRoom -eq 0 -and $script:AlBannerRoom -eq 0)
     $y8d = "sequence : $($r -join ' | ') ; ecarts a l attendu : $(if ($bad.Count) { $bad -join ' ; ' } else { 'aucun' }) ; ecarts de 530 ($gaps)"
+    # Relecture de la version finale : tableau dans un onglet fictif (parent de bas + marge, marge lue dans 530) et ancre en
+    # bas comme dans 530 : guide et ligne 3, onglet trop court (hauteur 0, jamais negative), guide decoche, onglet rendu
+    # (Set-QualityTableHeight, comme au changement de taille de l onglet), ligne 3 retiree : marge du bas toujours retrouvee
+    $mGap = [regex]::Match($s530, '\$script:AlTableBottomGap = (\d+)')
+    $y8c = $false
+    if ($mGap.Success -and $defsY['Set-QualityTableHeight'] -and $s530.Contains('$tabAl.Add_Resize({ Set-QualityTableHeight })')) {
+        $gap = [int]$mGap.Groups[1].Value; $script:AlTableBottomGap = $gap
+        $pnlQualCard.Top = $c0; $pnlQualCard.Height = $ch; $lblAlReco.Top = $r0; $lblAlReco.Visible = $false; $lvAl.Top = $v0; $lvAl.Height = $bot - $v0
+        $script:QualCardRoom = 0; $script:AlGuideRoom = 0; $script:AlBannerRoom = 0
+        $pR = New-Object System.Windows.Forms.Panel; $pR.Size = New-Object System.Drawing.Size(792, ($bot + $gap))
+        $lvAl.Anchor = 'Top,Bottom,Left,Right'; $pR.Controls.AddRange(@($pnlQualCard, $lblAlReco, $lvAl))
+        $snapP = { "$($lvAl.Top)/$($lvAl.Height)/$($pR.ClientSize.Height - $lvAl.Bottom)" }
+        $t1 = $v0 + $gR + $bR + 20
+        $q = @()
+        $chkAlGuide.Checked = $true; Set-QualityRowsRoom; Set-QualityCardRoom $true; $q += & $snapP                  # guide et ligne 3
+        $pR.Height = $t1 - 10; Set-QualityTableHeight; $q += & $snapP                                               # onglet trop court
+        $chkAlGuide.Checked = $false; Set-QualityRowsRoom; $q += & $snapP                                           # guide decoche
+        $pR.Height = $bot + $gap; Set-QualityTableHeight; $q += & $snapP                                            # onglet rendu
+        Set-QualityCardRoom $false; $q += & $snapP                                                                  # ligne 3 retiree
+        $wq = @("$t1/$($bot - $t1)/$gap", "$t1/0/-10", "$($v0 + 20)/$($t1 - 10 - $gap - $v0 - 20)/$gap", "$($v0 + 20)/$($bot - $v0 - 20)/$gap", "$v0/$($bot - $v0)/$gap")
+        $y8c = (($q -join ' | ') -ceq ($wq -join ' | '))
+        $y8d += " ; dans un onglet (marge $gap px) : $($q -join ' | ') (attendu $($wq -join ' | '))"
+        $pR.Controls.Clear(); $pR.Dispose()
+    } else { $y8d += ' ; marge du bas (AlTableBottomGap), Set-QualityTableHeight ou Resize de l onglet introuvables' }
+    $y8b = ($y8b -and $y8c)
     $lvAl = $lvKeep; $pnlQualCard = $null; $lblAlReco = $null; $chkAlGuide = $null; $script:QualCardRoom = 0; $script:AlGuideRoom = 0; $script:AlBannerRoom = 0
 }
 Chk 'Y8' ($y8a -and $y8b) "ordre d affichage : controle pour un lecteur cible « $o12 » (index « $i12 ») ; sans exces « $o10 » ($idx10) ($y8a) ; rangees reservees : $y8d"
+# Y9 (relecture de la version finale) : colonnes des nombres elargies a leur plus longue case (vraie Set-AlNumColumnWidths,
+# 195), au moins les largeurs de 530 ($script:AlColMin, pose par 530) ; police des cases lue dans 500. Score de 1 650 et
+# erreurs de 1 234,5 (separateur des milliers insecable), stabilite de 12345 : cases entieres (texte + 26 px pour « Score »,
+# son icone ; + 8 px sinon) ; colonne « Etat » inchangee ; valeurs ordinaires : largeurs de 530 de nouveau ; sans AlColMin :
+# rien. Largeurs fictives de 530 (celles du lot d affichage)
+$y9 = $false; $y9d = 'police du tableau (500), fonction (195) ou minimum (530) introuvable'
+if ($mF.Success -and $defsX['Set-AlNumColumnWidths'] -and $s530.Contains('$script:AlColMin = @(@($lvAl.Columns)')) {
+    $lvK9 = $lvAl
+    $lvAl = New-Object System.Windows.Forms.ListView; $lvAl.View = 'Details'
+    $lvAl.Font = New-Object System.Drawing.Font($mF.Groups[1].Value, [single][double]::Parse($mF.Groups[2].Value, $inv))
+    $min9 = @(50, 162, 56, 54, 46, 56, 56, 62, 64, 56)
+    foreach ($i in 0..9) { [void]$lvAl.Columns.Add("c$i", $min9[$i]) }
+    $nb9 = [string][char]0x00A0
+    $big = @('0.0', 'CRITIQUE', ('1' + $nb9 + '234,5'), '0,0', '12345', '45', ('1' + $nb9 + '650'), '-', '+0,012', ('2' + $nb9 + '000'))
+    $it9 = New-Object System.Windows.Forms.ListViewItem($big[0]); foreach ($v in $big[1..9]) { [void]$it9.SubItems.Add($v) }; [void]$lvAl.Items.Add($it9)
+    $script:AlColMin = $null; Set-AlNumColumnWidths; $w0 = @(@($lvAl.Columns) | ForEach-Object { $_.Width }) -join ','
+    $script:AlColMin = $min9; Set-AlNumColumnWidths; $w1 = @(@($lvAl.Columns) | ForEach-Object { $_.Width })
+    $bmp9 = New-Object System.Drawing.Bitmap(1, 1); $g9 = [System.Drawing.Graphics]::FromImage($bmp9)
+    $fit = @(foreach ($i in 2..9) { $pad = $(if ($i -eq 6) { 26 } else { 8 }); [bool]($g9.MeasureString($big[$i], $lvAl.Font, 10000, (Get-QualSf 'center')).Width -le $w1[$i] - $pad) })
+    $g9.Dispose(); $bmp9.Dispose()
+    $lvAl.Items.Clear()
+    $small = @('0.0', 'SAIN', '12,5', '0,0', '3', '45', '99', '-', '+0,012', ('2' + $nb9 + '000'))
+    $it9 = New-Object System.Windows.Forms.ListViewItem($small[0]); foreach ($v in $small[1..9]) { [void]$it9.SubItems.Add($v) }; [void]$lvAl.Items.Add($it9)
+    Set-AlNumColumnWidths; $w2 = @(@($lvAl.Columns) | ForEach-Object { $_.Width }) -join ','
+    $y9 = ($w0 -ceq ($min9 -join ',') -and @($fit | Where-Object { -not $_ }).Count -eq 0 -and $w1[6] -gt 56 -and $w1[2] -gt 56 -and $w1[4] -gt 46 -and $w1[1] -eq 162 -and $w2 -ceq ($min9 -join ','))
+    $y9d = "sans AlColMin : $w0 ; score 1 650, erreurs 1 234,5, stabilite 12345 : $($w1 -join ',') (cases entieres : $(@($fit | Where-Object { $_ }).Count) sur 8) ; valeurs ordinaires : $w2"
+    $lvAl.Dispose(); $lvAl = $lvK9; $script:AlColMin = $null
+}
+Chk 'Y9' $y9 "colonnes des nombres a leur plus longue case, au moins les largeurs de 530 : $y9d"
 
 # ---------------------------------------------------------------- Z : correction par zones (R16)
 "--- Z : correction par zones d une ecriture pour un lecteur cible (12.11 rc7, R16)"
@@ -1130,9 +1191,15 @@ $z9 = [ordered]@{
     'mesure faite sans determiner ce facteur' = (((Get-Z9 @((New-Z9 0 0 84 12.0)) @{ KSrc = @{ 0 = 'lecteur'; 1 = 'mesure' }; How = 'mesure' }) -join '|') -ceq (Get-Z9Want '85' '0' '85' ", refaites la mesure sur l'image."))
     'aucune consigne possible' = (((Get-Z9 @((New-Z9 0 0 84 12.0)) @{ KSrc = @{ 0 = 'lecteur'; 1 = 'lecteur' }; How = '' }) -join '|') -ceq (Get-Z9Want '85' '0' '85' '.') -and ((Get-Z9 @((New-Z9 0 0 84 12.0)) $null) -join '|') -ceq (Get-Z9Want '85' '0' '85' '.'))
 }
+# Relecture de la version finale : perimetre pris tete par tete (champ Pistes : tete 0 sur 100 cylindres, tete 1 sur 60) :
+# 48 cylindres de la tete 1 sur ses 60 font 80 % (sur 100, 48 %) ; pourcentage tronque : 85 sur 99 donne 85 % (85,9)
+$z9Sc2 = @{}; foreach ($c in 0..99) { $z9Sc2["$c.0"] = $true }; foreach ($c in 0..59) { $z9Sc2["$c.1"] = $true }
+$z9Sc3 = @{}; foreach ($c in 0..98) { $z9Sc3["$c.0"] = $true; $z9Sc3["$c.1"] = $true }
+$z9['perimetre par tete'] = ((@(Get-WriteZoneHeadAdvice @{ Scope = $z9Sc2; ZoneAdvice = $adM } @((New-Z9 1 0 47 12.0))) -join '|') -ceq (($z9Base -f '80', '1', '48', '60') + ", refaites la mesure sur l'image."))
+$z9['pourcentage tronque'] = ((@(Get-WriteZoneHeadAdvice @{ Scope = $z9Sc3; ZoneAdvice = $adM } @((New-Z9 0 0 84 12.0))) -join '|') -ceq (($z9Base -f '85', '0', '85', '99') + ", refaites la mesure sur l'image."))
 $script:Lang = 'en'; $z9En = @(Get-Z9 @((New-Z9 0 0 84 12.0)) @{ KSrc = @{ 0 = 'lecteur'; 1 = 'lecteur' }; How = 'slow' }) -join '|'; $script:Lang = 'fr'
 $z9['anglais'] = ($z9En -ceq 'Post-write check: zone(s) away from the expected value over 85% of the written cylinders of head 0 (85 of 100): disk factor to be reviewed; to measure it on the image before writing, check "Measure the disk before the slow write", with the "on the image to write" measure.')
-Chk 'Z9' ($script:WriteZoneHeadPct -eq 80 -and @($z9.Keys | Where-Object { -not $z9[$_] }).Count -eq 0) "seuil $($script:WriteZoneHeadPct) % : 79 % rien, 80 % une ligne ; morceaux de meme sens additionnes, de sens contraires non ; tete par tete ; consigne selon l origine du facteur ; anglais « $z9En » ; ecarts : $(@($z9.Keys | Where-Object { -not $z9[$_] }) -join ', ')"
+Chk 'Z9' ($script:WriteZoneHeadPct -eq 80 -and @($z9.Keys | Where-Object { -not $z9[$_] }).Count -eq 0) "seuil $($script:WriteZoneHeadPct) % : 79 % rien, 80 % une ligne ; morceaux de meme sens additionnes, de sens contraires non ; tete par tete, perimetre de chaque tete ; pourcentage tronque ; consigne selon la mesure qui a precede l ecriture (How) ; anglais « $z9En » ; ecarts : $(@($z9.Keys | Where-Object { -not $z9[$_] }) -join ', ')"
 
 # Z10 : vraie Invoke-WriteCheckAnalysis, ecart de +20 ns sur les cylindres 0 a 71 de la tete 0 (72 sur 80, 90 %) et
 # facteur mesure sur la disquette : la ligne du conseil suit celle des zones ; zones et commandes de la passe 1 comme sans

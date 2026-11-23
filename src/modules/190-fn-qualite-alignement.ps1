@@ -1302,6 +1302,7 @@ function Invoke-AlignAnalysis {
             Set-UnstableBanner @('')                      # 12.8 (FIX3) : bandeau d une mesure precedente retire
         }
     } finally { $lvAl.EndUpdate() }
+    Set-AlNumColumnWidths                                 # 12.11 (version finale) : colonnes des nombres a leur plus longue case (195)
     Set-QualityResult $res                                # 12.8 (lot 3a) : carte et tableau en couleurs (12.9 : sans graphique)
     # 12.11 rc8 (R17) : relecture par le lecteur cible d une ecriture gardee en memoire pour lui : recalage de la courbe
     # croisee propose (confirmation) ou refus dit au journal (Invoke-TargetRecalOffer, 172) ; rien pour une autre mesure

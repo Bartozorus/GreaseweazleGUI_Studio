@@ -27,6 +27,10 @@ $Wt = Get-TestRoot $Wt
 #      (0,15, 040) au lieu de 0,2 ou plus ; texte avec l etendue et le nombre de mesures, par tete en ecriture lente : F1,
 #      F3, F7, F10, F11 et S2 adaptes ; ajoutes : F12 a F16 (de part et d autre du seuil, une tete seule, ecriture rapide,
 #      conseil d avant le clic de Get-WriteFactorAdvice et ses gardes, anglais)
+#      Relecture de la version finale : mesure demandee qui ne determine pas le facteur (« Test rapide », mesure au motif
+#      ou complete) : conseil avec le geste possible (Get-TargetWriteHowPhrase, 172) : F5 et F14 adaptes ; segment et forme
+#      courte avec ce geste (F14 a F16) ; ajoutes a F12 (arrondi a 0,01 avant l etendue), F13 (tete la plus dispersee en
+#      ecriture rapide, pas la premiere) et F14 (long track sans mesure : rien avant le clic, ligne au journal)
 #  S : statique (cles i18n et traductions, README des modules, CHANGELOG)
 # Relecture de la finalisation (09/11/2026, v1210\finalisation\revue) : copie adaptee de logic-1210-final, qui la
 # remplace dans la campagne. Conseil de mesure : consigne selon l ecriture (lente : cocher la case ; rapide : ecrire en
@@ -163,9 +167,10 @@ foreach ($p in @(
                    'Test-CurveCalcBefore', 'Get-CurveMaxNs', 'Test-CurveAtMax')),
         @('240', @('Get-DriveCurveKey', 'Split-DriveCurveKey', 'Get-DriveCurve', 'Set-DriveCurve', 'Sync-PrecompCurves', 'Get-DriveCurveKeys', 'Split-CrossDrive', 'Get-CrossCalibTargets',
                    'Get-CurveKeyLabel', 'Get-DriveCurveLabel')),
-        @('260', @('Get-CalibCylinders')),
+        @('260', @('Get-CalibCylinders', 'Get-LevelBeforeWriteKind')),   # 12.11 (relecture de la version finale) : mesure qui determine le facteur
         @('265', @('Get-LevelBrandKey')),
         @('270', @('Update-CalibProgress')),
+        @('172', @('Get-TargetWriteHowPhrase')),                           # 12.11 (relecture de la version finale) : geste de mesure du conseil
         @('274', @('Limit-WriteFactor', 'Get-DriveK')))) {
     foreach ($n in $p[1]) { $parts.Add((Get-FFn $p[0] $n)) }
 }
@@ -236,7 +241,10 @@ $gen = Join-Path $here 'gen-1210-final-ac.ps1'
 [System.IO.File]::WriteAllText($gen, ((@($parts) -join "`r`n`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($true)))
 . $gen
 function Update-WLevelUi { }   # fixB (RC5) : case de la mesure (140), appelee en sortie d Update-PrecompForImage
-function Get-Setting([string]$k) { return $null }   # fixA (RC5) : format de la restauration (Get-RestoreFormat) : detection automatique
+function Get-Setting([string]$k) { if ($k -ceq 'levelBeforeWriteMode') { return $script:LbwMode }; return $null }   # fixA (RC5) : format de la restauration (Get-RestoreFormat) : detection automatique
+# 12.11 (relecture de la version finale) : liste « Mesure : » de l onglet Ecriture (Get-LevelBeforeWriteKind), defaut de 040
+# (« sur l image a ecrire ») ; « rapide, au motif » et « complete » dans F14
+$script:LbwMode = 'content'
 
 # ---------------------------------------------------------------- remplacants
 $script:I18n = Read-I18n '010'
@@ -1361,7 +1369,10 @@ $script:Restore = @{ Step = 4 }; $wf6 = Get-WriteFactorPlan $img['jeu.adf'] '(au
 $cmbWCalMode.SelectedIndex = 2; $wf7 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true; $cmbWCalMode.SelectedIndex = 1
 $script:CmOk = $false; $wf8 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true; $script:CmOk = $true
 $script:SkipWhy = @{ Why = 'une face' }; $wf9 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true; $script:SkipWhy = $null
-Chk 'F5' (@($wf5, $wf6, $wf7, $wf8, $wf9 | Where-Object { (Get-Hint $_).Count -gt 0 }).Count -eq 0 -and @($wf5, $wf6, $wf7, $wf8, $wf9 | Where-Object { -not $_.Apply }).Count -eq 0) "ecart 0,20 mais mesure cochee, restauration, test rapide, image non mesurable sur son contenu, image qui ne recouvre pas le motif : aucun conseil (facteur toujours applique)"
+# 12.11 (relecture de la version finale, adapte a dessein) : « Test rapide » : mesure au motif, la mediane s applique
+# quand meme : conseil, avec le geste du test standard ou fin (Get-TargetWriteHowPhrase 'quickslow')
+$hQs = "choisissez le test standard ou fin dans « Calibration précomp », avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »"
+Chk 'F5' (@($wf5, $wf6, $wf8, $wf9 | Where-Object { (Get-Hint $_).Count -gt 0 }).Count -eq 0 -and @($wf5, $wf6, $wf7, $wf8, $wf9 | Where-Object { -not $_.Apply }).Count -eq 0 -and (Get-Hint $wf7).Count -eq 1 -and (Get-Hint $wf7)[0] -ceq (Get-HSpread 'Sony' 'tête 0 : étendue 0,20 sur 3 mesures ; tête 1 : étendue 0,20 sur 3 mesures' $hQs)) "ecart 0,20 mais mesure sur l image cochee, restauration, image non mesurable sur son contenu, image qui ne recouvre pas le motif : aucun conseil (facteur toujours applique) ; test rapide : $((Get-Hint $wf7) -join '')"
 $next = @{ Drive = 'A'; Fam = 'std'; Img = $img['jeu.adf']; K = @{ 0 = 1.12; 1 = 1.08 }; Src = @{ 0 = 'mesure'; 1 = 'mesure' }; Brand = 'Sony' }
 $wf10 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true $next
 $cmN = $script:CmN; $wf11 = Get-WriteFactorPlan $img['jeu.adf'] '(auto)' $true $null -Peek
@@ -1416,40 +1427,69 @@ Set-Km 'Marque A' @(1.00, 1.05, 1.14); $f12a = Get-WriteFactorPlan $adf '(auto)'
 Set-Km 'Marque A' @(1.00, 1.05, 1.15); $f12b = Get-WriteFactorPlan $adf '(auto)' $true; $f12ba = Get-WriteFactorAdvice $adf '(auto)' $true
 Set-Km 'Marque A' @(1.00, 1.05, 1.16); $f12c = Get-WriteFactorPlan $adf '(auto)' $true; $f12ca = Get-WriteFactorAdvice $adf '(auto)' $true
 $h12 = Get-HSpread 'Marque A' 'tête 0 : étendue 0,16 sur 3 mesures ; tête 1 : étendue 0,16 sur 3 mesures' $hSlow
-Chk 'F12' ($script:WriteFactorSpreadMax -eq 0.15 -and (Get-Hint $f12a).Count -eq 0 -and $null -eq $f12aa -and (Get-Hint $f12b).Count -eq 0 -and $null -eq $f12ba -and (Get-Hint $f12c).Count -eq 1 -and @($f12c.Lines)[-1] -ceq $h12 -and $f12ca -and [string]$f12ca.Line -ceq $h12 -and $f12c.Apply -and [double]$f12c.F0 -eq 1.05 -and [double]$f12c.F1 -eq 1.05) "etendue 0,14 puis 0,15 (seuil, non compris) : aucun conseil, ni au journal ni avant le clic ; 0,16 : facteur toujours la mediane ($($f12c.F0)), conseil : $(@($f12c.Lines)[-1])"
+# Relecture de la version finale : mesures memorisees brutes (trois decimales), arrondies a 0,01 avant l etendue : 1,004,
+# 1,08 et 1,157 donnent 1,00 et 1,16, soit 0,16 (conseil) ; sans l arrondi, 0,153 arrondi a 0,15 : aucun conseil
+Set-Km 'Marque A' @(1.004, 1.08, 1.157); $f12d = Get-WriteFactorAdvice $adf '(auto)' $true
+Chk 'F12' ($script:WriteFactorSpreadMax -eq 0.15 -and (Get-Hint $f12a).Count -eq 0 -and $null -eq $f12aa -and (Get-Hint $f12b).Count -eq 0 -and $null -eq $f12ba -and (Get-Hint $f12c).Count -eq 1 -and @($f12c.Lines)[-1] -ceq $h12 -and $f12ca -and [string]$f12ca.Line -ceq $h12 -and $f12c.Apply -and [double]$f12c.F0 -eq 1.05 -and [double]$f12c.F1 -eq 1.05 -and $f12d -and [string]$f12d.Line -ceq $h12) "etendue 0,14 puis 0,15 (seuil, non compris) : aucun conseil, ni au journal ni avant le clic ; 0,16 : facteur toujours la mediane ($($f12c.F0)), conseil : $(@($f12c.Lines)[-1]) ; mesures 1,004 / 1,08 / 1,157 arrondies avant l etendue : $(if ($f12d) { 'conseil' } else { 'aucun conseil' })"
 # Par tete en ecriture lente (facteur par tete), plus grande etendue en ecriture rapide (facteur moyen des deux tetes)
 Set-Km2 'Marque A' @(1.00, 1.05, 1.10) @(0.80, 1.00, 1.20)
 $f13s = Get-WriteFactorPlan $adf '(auto)' $true; $f13f = Get-WriteFactorPlan $adf '(auto)' $false
 Set-Km2 'Marque A' @(0.90, 1.20) @(1.00, 1.10, 1.20)
 $f13s2 = Get-WriteFactorPlan $adf '(auto)' $true; $f13f2 = Get-WriteFactorPlan $adf '(auto)' $false
+# Relecture de la version finale : ecriture rapide, deux tetes au-dessus du seuil, la tete 1 plus dispersee que la tete 0 :
+# l etendue de la tete 1 (et non celle de la premiere tete retenue)
+Set-Km2 'Marque A' @(1.00, 1.20) @(0.80, 1.00, 1.20)
+$f13f3 = Get-WriteFactorPlan $adf '(auto)' $false
 $w13 = @((Get-HSpread 'Marque A' 'tête 1 : étendue 0,40 sur 3 mesures' $hSlow), (Get-HSpread 'Marque A' 'étendue 0,40 sur 3 mesures' $hFast),
-         (Get-HSpread 'Marque A' 'tête 0 : étendue 0,30 sur 2 mesures ; tête 1 : étendue 0,20 sur 3 mesures' $hSlow), (Get-HSpread 'Marque A' 'étendue 0,30 sur 2 mesures' $hFast))
-$g13 = @(@($f13s.Lines)[-1], @($f13f.Lines)[-1], @($f13s2.Lines)[-1], @($f13f2.Lines)[-1])
-Chk 'F13' ((($g13 -join "`n") -ceq ($w13 -join "`n"))) "tete 0 a 0,10 et tete 1 a 0,40 : lente « tete 1 » seule, rapide l etendue la plus grande ; tete 0 a 0,30 sur 2 mesures et tete 1 a 0,20 sur 3 : $($g13[2]) | $($g13[3])"
+         (Get-HSpread 'Marque A' 'tête 0 : étendue 0,30 sur 2 mesures ; tête 1 : étendue 0,20 sur 3 mesures' $hSlow), (Get-HSpread 'Marque A' 'étendue 0,30 sur 2 mesures' $hFast),
+         (Get-HSpread 'Marque A' 'étendue 0,40 sur 3 mesures' $hFast))
+$g13 = @(@($f13s.Lines)[-1], @($f13f.Lines)[-1], @($f13s2.Lines)[-1], @($f13f2.Lines)[-1], @($f13f3.Lines)[-1])
+Chk 'F13' ((($g13 -join "`n") -ceq ($w13 -join "`n"))) "tete 0 a 0,10 et tete 1 a 0,40 : lente « tete 1 » seule, rapide l etendue la plus grande ; tete 0 a 0,30 sur 2 mesures et tete 1 a 0,20 sur 3 : $($g13[2]) | $($g13[3]) ; rapide, tete 0 a 0,20 sur 2 et tete 1 a 0,40 sur 3 : $($g13[4])"
 # Une seule mesure ; facteur mesure sur la disquette ; gardes du conseil d avant le clic (case cochee, Test rapide,
 # restauration, image non mesurable, profil Manuel) ; ecriture rapide case cochee : conseil, consigne de l ecriture lente
 Set-Km 'Marque A' @(1.10); $f14a = Get-WriteFactorAdvice $adf '(auto)' $true
 Set-Km 'Marque A' @(0.90, 1.00, 1.20)
 $f14n = Get-WriteFactorPlan $adf '(auto)' $true @{ Drive = 'A'; Fam = 'std'; Img = $adf; K = @{ 0 = 1.12; 1 = 1.08 }; Src = @{ 0 = 'mesure'; 1 = 'mesure' }; Brand = 'Marque A' }
 $chkWLevel.Checked = $true; $f14c = Get-WriteFactorAdvice $adf '(auto)' $true; $f14d = Get-WriteFactorAdvice $adf '(auto)' $false; $chkWLevel.Checked = $false
-$cmbWCalMode.SelectedIndex = 2; $f14q = Get-WriteFactorAdvice $adf '(auto)' $true; $cmbWCalMode.SelectedIndex = 1
 $script:Restore = @{ Step = 4 }; $f14r = Get-WriteFactorAdvice $adf '(auto)' $true; $script:Restore = $null
 $script:CmOk = $false; $f14m = Get-WriteFactorAdvice $adf '(auto)' $true; $script:CmOk = $true
 Set-Ui 3 $true; $f14p = Get-WriteFactorAdvice $adf '(auto)' $true; Set-Ui 0 $true
-$f14g = @($f14c, $f14q, $f14r, $f14m, $f14p | Where-Object { $null -ne $_ }).Count
-Chk 'F14' ($null -eq $f14a -and (Get-Hint $f14n).Count -eq 0 -and [string]$f14n.Src[0] -ceq 'mesure' -and $f14g -eq 0 -and $f14d -and [string]$f14d.Line -ceq (Get-HSpread 'Marque A' 'étendue 0,30 sur 3 mesures' $hFast)) "une seule mesure : rien ; facteur mesure sur la disquette : aucun conseil ; case cochee (ecriture lente), Test rapide, restauration, image non mesurable, profil Manuel : rien avant le clic ($f14g) ; ecriture rapide case cochee : $($f14d.Line)"
+$f14g = @($f14c, $f14r, $f14m, $f14p | Where-Object { $null -ne $_ }).Count
+# Relecture de la version finale (adapte a dessein) : mesure demandee qui ne determine pas le facteur, la mediane
+# s applique quand meme : « Test rapide » (mesure au motif ; lente et rapide), case cochee avec la mesure au motif ou
+# complete (liste « Mesure : ») : conseil, avec le geste possible (Get-TargetWriteHowPhrase), dans la ligne et le segment
+$cmbWCalMode.SelectedIndex = 2; $f14q = Get-WriteFactorAdvice $adf '(auto)' $true; $f14qf = Get-WriteFactorAdvice $adf '(auto)' $false; $cmbWCalMode.SelectedIndex = 1
+$chkWLevel.Checked = $true; $script:LbwMode = 'quick'; $f14k = Get-WriteFactorAdvice $adf '(auto)' $true
+$script:LbwMode = 'complete'; $f14k2 = Get-WriteFactorAdvice $adf '(auto)' $true; $script:LbwMode = 'content'; $chkWLevel.Checked = $false
+# Image long track sans aucune mesure de la marque (origine 'defaut' aux deux tetes) : le conseil d avant le clic (-Spread)
+# n est jamais celui du long track ; le journal de l ecriture le garde
+$script:ContentMeasures = @(); $f14l = Get-WriteFactorAdvice $img['jeu-long.ipf'] '(auto)' $true; $f14lw = Get-WriteFactorPlan $img['jeu-long.ipf'] '(auto)' $true
+Set-Km 'Marque A' @(0.90, 1.00, 1.20)
+$d14 = 'tête 0 : étendue 0,30 sur 3 mesures ; tête 1 : étendue 0,30 sur 3 mesures'
+$hQf = "écrivez l'image en écriture lente, avec le test standard ou fin dans « Calibration précomp », « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »"
+$hMode = "choisissez la mesure « sur l'image à écrire »"
+$s14 = "médiane du facteur de la marque « Marque A » appliquée, mesures dispersées ({0}) : {1}"
+$f14ok = [ordered]@{
+    'ecriture rapide, case cochee' = ($f14d -and [string]$f14d.Line -ceq (Get-HSpread 'Marque A' 'étendue 0,30 sur 3 mesures' $hFast) -and [string]$f14d.Seg -ceq ($s14 -f 'étendue 0,30 sur 3 mesures', "écrivez plutôt l'image en écriture lente, avec la mesure sur l'image") -and [string]$f14d.Short -ceq "mesures de la marque dispersées : écrivez plutôt l'image en écriture lente, avec la mesure sur l'image")
+    'Test rapide, lente' = ($f14q -and [string]$f14q.Line -ceq (Get-HSpread 'Marque A' $d14 $hQs) -and [string]$f14q.Seg -ceq ($s14 -f $d14, "choisissez plutôt le test standard ou fin, avec la mesure sur l'image"))
+    'Test rapide, rapide' = ($f14qf -and [string]$f14qf.Line -ceq (Get-HSpread 'Marque A' 'étendue 0,30 sur 3 mesures' $hQf) -and [string]$f14qf.Short -ceq "mesures de la marque dispersées : écrivez plutôt l'image en écriture lente, au test standard ou fin, avec la mesure sur l'image")
+    'case cochee, mesure au motif' = ($f14k -and [string]$f14k.Line -ceq (Get-HSpread 'Marque A' $d14 $hMode) -and [string]$f14k.Seg -ceq ($s14 -f $d14, "choisissez plutôt la mesure sur l'image"))
+    'case cochee, mesure complete' = ($f14k2 -and [string]$f14k2.Line -ceq [string]$f14k.Line)
+    'long track sans mesure' = ($null -eq $f14l -and (Get-Hint $f14lw).Count -eq 1 -and (Get-Hint $f14lw)[0] -like 'Aucun facteur mesuré pour la marque « Marque A »*')
+}
+Chk 'F14' ($null -eq $f14a -and (Get-Hint $f14n).Count -eq 0 -and [string]$f14n.Src[0] -ceq 'mesure' -and $f14g -eq 0 -and @($f14ok.Keys | Where-Object { -not $f14ok[$_] }).Count -eq 0) "une seule mesure : rien ; facteur mesure sur la disquette : aucun conseil ; case cochee avec la mesure sur l image (ecriture lente), restauration, image non mesurable, profil Manuel : rien avant le clic ($f14g) ; conseil avec le geste possible : ecriture rapide case cochee « $($f14d.Seg) », Test rapide « $($f14q.Seg) », mesure au motif « $($f14k.Seg) » ; long track sans mesure : rien avant le clic, ligne au journal ; ecarts : $(@($f14ok.Keys | Where-Object { -not $f14ok[$_] }) -join ', ')"
 # Conseil d avant le clic : segment de la ligne « Ce qui va se passer » et sa forme courte ; ligne identique a celle du
 # journal de l ecriture (Get-WriteFactorPlan sans -Peek) ; lecteur cible avec la courbe propre de A : de meme (Hint)
 $f15 = Get-WriteFactorAdvice $adf '(auto)' $true; $f15w = Get-WriteFactorPlan $adf '(auto)' $true
 $script:TargetDrives = @{ A = '0' }; $f15t = Get-WriteFactorAdvice $adf '(auto)' $true; $f15tw = Get-WriteFactorPlan $adf '(auto)' $true; $script:TargetDrives = @{}
 $d15 = 'tête 0 : étendue 0,30 sur 3 mesures ; tête 1 : étendue 0,30 sur 3 mesures'
-Chk 'F15' ($f15 -and [string]$f15.Seg -ceq "médiane du facteur de la marque « Marque A » appliquée, mesures dispersées ($d15) : mesurez plutôt cette disquette sur l'image" -and [string]$f15.Short -ceq 'mesures de la marque dispersées : mesurez plutôt cette disquette' -and [string]$f15.Line -ceq @($f15w.Lines)[-1] -and [string]$f15.Line -ceq (Get-HSpread 'Marque A' $d15 $hSlow) -and $f15t -and [string]$f15t.Line -ceq [string]$f15tw.Hint) "segment « $($f15.Seg) » ; forme courte « $($f15.Short) » ; ligne = journal de l ecriture ; lecteur cible : ligne = conseil rendu a part"
+Chk 'F15' ($f15 -and [string]$f15.Seg -ceq "médiane du facteur de la marque « Marque A » appliquée, mesures dispersées ($d15) : mesurez plutôt cette disquette sur l'image" -and [string]$f15.Short -ceq "mesures de la marque dispersées : mesurez plutôt cette disquette sur l'image" -and [string]$f15.Line -ceq @($f15w.Lines)[-1] -and [string]$f15.Line -ceq (Get-HSpread 'Marque A' $d15 $hSlow) -and $f15t -and [string]$f15t.Line -ceq [string]$f15tw.Hint) "segment « $($f15.Seg) » ; forme courte « $($f15.Short) » ; ligne = journal de l ecriture ; lecteur cible : ligne = conseil rendu a part"
 # Anglais : separateurs de l anglais (« ; » sans espace avant), nombres au point
 $script:Lang = 'en'
 $f16 = Get-WriteFactorAdvice $adf '(auto)' $true; $f16f = Get-WriteFactorAdvice $adf '(auto)' $false
 $script:Lang = 'fr'
 $e16 = 'head 0: range 0.30 over 3 measurements; head 1: range 0.30 over 3 measurements'
-Chk 'F16' ($f16 -and [string]$f16.Line -ceq "Factor of brand `"Marque A`" spread out on this drive ($e16): the applied median may be far from the factor of this disk; to measure this disk instead of applying the median, check `"Measure the disk before the slow write`", with the `"on the image to write`" measure." -and [string]$f16.Seg -ceq "median factor of brand `"Marque A`" applied, measurements spread out ($e16): measure this disk on the image instead" -and [string]$f16.Short -ceq 'brand measurements spread out: measure this disk instead' -and $f16f -and ([string]$f16f.Line).Contains('(range 0.30 over 3 measurements)') -and ([string]$f16f.Line).Contains('write the image as a slow write') -and -not ([string]$f16.Line + [string]$f16.Seg).Contains(' ; ')) "anglais : $($f16.Line) | $($f16.Seg) | rapide : $($f16f.Line)"
+Chk 'F16' ($f16 -and [string]$f16.Line -ceq "Factor of brand `"Marque A`" spread out on this drive ($e16): the applied median may be far from the factor of this disk; to measure this disk instead of applying the median, check `"Measure the disk before the slow write`", with the `"on the image to write`" measure." -and [string]$f16.Seg -ceq "median factor of brand `"Marque A`" applied, measurements spread out ($e16): measure this disk on the image instead" -and [string]$f16.Short -ceq 'brand measurements spread out: measure this disk on the image instead' -and $f16f -and ([string]$f16f.Line).Contains('(range 0.30 over 3 measurements)') -and ([string]$f16f.Line).Contains('write the image as a slow write') -and ([string]$f16f.Seg).EndsWith('(range 0.30 over 3 measurements): write the image as a slow write instead, with the measure on the image') -and -not ([string]$f16.Line + [string]$f16.Seg).Contains(' ; ')) "anglais : $($f16.Line) | $($f16.Seg) | rapide : $($f16f.Line)"
 $script:ContentMeasures = @(); $script:LevelBrand = ''
 
 "--- S : statique"
@@ -1475,9 +1515,13 @@ foreach ($k in $newK) {
 # 12.11 (version finale, R12) : textes du facteur de la marque disperse dans 019 (memes {n}, traduits) ; ligne des mesures
 # qui varient retiree de 018
 $i019 = Read-I18n '019'
-foreach ($k in @('tête {0} : étendue {1} sur {2} mesures', 'étendue {0} sur {1} mesures', 'mesures de la marque dispersées : mesurez plutôt cette disquette',
+# Relecture de la version finale : segment et forme courte a geste variable (cinq gestes), a la place des deux cles a
+# geste unique, retirees de 019
+foreach ($k in @('tête {0} : étendue {1} sur {2} mesures', 'étendue {0} sur {1} mesures', 'mesures de la marque dispersées : {0}',
                  "Facteur de la marque « {0} » dispersé sur ce lecteur ({1}) : la médiane appliquée peut être loin du facteur de cette disquette ; pour mesurer celle-ci au lieu d'appliquer la médiane, {2}.",
-                 "médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : mesurez plutôt cette disquette sur l'image")) {
+                 'médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : {2}', "mesurez plutôt cette disquette sur l'image",
+                 "écrivez plutôt l'image en écriture lente, avec la mesure sur l'image", "choisissez plutôt la mesure sur l'image",
+                 "choisissez plutôt le test standard ou fin, avec la mesure sur l'image", "écrivez plutôt l'image en écriture lente, au test standard ou fin, avec la mesure sur l'image")) {
     $v = $i019[$k]
     if (-not $v) { $bad += "absente de 019 : $k"; continue }
     foreach ($m in [regex]::Matches($k, '\{\d\}')) { if (-not $v.Contains($m.Value)) { $bad += "$($m.Value) : $k" } }
@@ -1487,7 +1531,8 @@ $oldK = @(' ; lecteur cible {0} : courbes croisées {1} → {0} par tête du {2}
           "Les mesures de la marque « {0} » sur ce lecteur varient de {1} d'une disquette à l'autre : pour mesurer celle-ci avant l'écriture, {2}.",
           "Les mesures de la marque « {0} » sur ce lecteur varient de {1} d'une disquette à l'autre : cochez « Mesurer la disquette avant l'écriture lente » (écriture lente, mesure « sur l'image à écrire ») pour mesurer celle-ci avant l'écriture.",
           "Aucun facteur mesuré pour la marque « {0} » sur ce lecteur : en long track, le meilleur facteur s'écarte souvent de 1 ; cochez « Mesurer la disquette avant l'écriture lente » (écriture lente, mesure « sur l'image à écrire ») pour le mesurer.")
-$gone = @(@('80 cylindres par défaut (nombre non lisible dans l''image)', '{0} cylindres pour le format {1} ({2} dans la définition de gw, {0} au moins pour la calibration)') | Where-Object { $i010.ContainsKey($_) -or $i018.ContainsKey($_) }) + @($oldK | Where-Object { $i018.ContainsKey($_) })
+$gone = @(@('80 cylindres par défaut (nombre non lisible dans l''image)', '{0} cylindres pour le format {1} ({2} dans la définition de gw, {0} au moins pour la calibration)') | Where-Object { $i010.ContainsKey($_) -or $i018.ContainsKey($_) }) + @($oldK | Where-Object { $i018.ContainsKey($_) }) +
+        @(@("médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : mesurez plutôt cette disquette sur l'image", 'mesures de la marque dispersées : mesurez plutôt cette disquette') | Where-Object { $i019.ContainsKey($_) })
 Chk 'S2' ($bad.Count -eq 0 -and $gone.Count -eq 0) "$($newK.Count) nouvelles cles traduites dans 018 (memes {n}) ; anciennes cles retirees (010, 018)$(if ($bad.Count + $gone.Count) { ' ; ' + ((@($bad) + @($gone)) -join ' | ') })"
 $rd = [System.IO.File]::ReadAllText((Join-Path $mods 'README.md'))
 Chk 'S3' ($rd -match "300-fn-restauration\.ps1`` \| [^\n]*haute densité n'est reconnue qu'à la lecture de l'original") 'README des modules : refus de l etape 4 de la restauration (haute densite reconnue a la lecture) cite a la ligne du module 300'

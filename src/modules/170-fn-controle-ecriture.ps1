@@ -570,6 +570,10 @@ function Get-WriteZoneHeadAdvice($rep, $zs) {
     # faite avant l ecriture sans determiner ce facteur : la refaire ; facteur de la marque ou k = 1 : le geste de mesure de
     # Get-TargetWriteHowPhrase ; aucune consigne possible (restauration, image non mesurable, origine inconnue) : le fait
     # seul. Texte seulement : zones, profils et reecritures inchanges. Rend les lignes, tete 0 puis tete 1
+    # Relecture de la version finale : en pratique How seul decide du texte. Une origine 'mesure' (KSrc) ne nait que du
+    # facteur mesure sur l image juste avant l ecriture (Get-WriteFactorPlan, $next.K), qui donne aussi How 'mesure'
+    # (Get-TargetWriteLearnHow, 172) ; le test de KSrc reste par precaution (memoire d une autre origine), sans effet
+    # observable aujourd hui
     $out = @()
     if (-not $rep -or -not $rep.Scope) { return $out }
     $min = [double]$script:WriteZoneHeadPct
@@ -684,6 +688,7 @@ function Show-WriteCheckTable($rep) {
             $total += $m.Score; $count++
         }
     } finally { $lvAl.EndUpdate() }
+    Set-AlNumColumnWidths                                 # 12.11 (version finale) : colonnes des nombres a leur plus longue case (195)
     # Bandeau des zones instables d apres la derniere mesure du controle (efface celui d une mesure precedente)
     $inIgn = { param($k) $rep.Ignore -and $rep.Ignore.ContainsKey($k) }
     $defK = @($keys | Where-Object { $rep.State[$_].CopyDefect })

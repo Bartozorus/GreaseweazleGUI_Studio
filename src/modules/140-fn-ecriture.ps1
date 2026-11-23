@@ -1445,7 +1445,7 @@ function Get-WriteFactorHint([string]$img, [string]$fmt, [bool]$slow, [string]$d
     # liste Calibration precomp au Test rapide (mesure au motif, ligne de Start-LevelBeforeWrite), case Mesurer la disquette
     # non cochee pour cette ecriture (Test-WriteLevelWanted), image qui recouvre tout le motif (Get-LevelWriteSkip) et
     # mesurable sur son contenu (Test-ContentMeasurable : MFM double densite, champ Pistes vide, courbe du lecteur assez
-    # longue, 20 cylindres)
+    # longue, 20 cylindres) ; gardes du « Test rapide » et de la case cochee revues en version finale (plus bas)
     # 12.11 (version finale, R12) : mesures de la marque dispersees, etendue au-dessus de WriteFactorSpreadMax (040 ; avant :
     # 0,2 ou plus) : par tete dont le facteur vient de la memoire de la marque (Src lecteur), etendue (max - min, mesures
     # arrondies a 0,01 comme au journal) des mesures qui le donnent (Get-DriveK : les 3 dernieres, dont il est la mediane ;
@@ -1454,8 +1454,18 @@ function Get-WriteFactorHint([string]$img, [string]$fmt, [bool]$slow, [string]$d
     # d appliquer la mediane. Spread : ce conseil seul (pas celui du long track sans mesure), rendu @{ Line : ligne de
     # journal ; Seg, Short : segment de la ligne « Ce qui va se passer » et sa forme courte } apres les memes gardes, ''
     # sans conseil (Get-WriteFactorAdvice). Texte seulement : aucun facteur ni aucune ecriture ne change
-    if ($script:Restore -or $cmbWCalMode.SelectedIndex -eq 2) { return '' }
-    if (Test-WriteLevelWanted $(if ($slow) { 'slow' } else { 'fast' })) { return '' }
+    # 12.11 (version finale, relecture des decisions) : mesure deja demandee seulement quand elle determine le facteur :
+    # ecriture lente, case cochee, liste « Mesure » sur l image (Get-LevelBeforeWriteKind 'content'). « Test rapide », case
+    # cochee avec la mesure au motif ou complete, ecriture rapide : la mediane de la marque (ou k 1) s applique quand meme
+    # (Apply, origine 'lecteur' ou 'defaut') : conseil, avec le geste de mesure de la ligne de fin d une ecriture pour un
+    # lecteur cible (memes codes que Get-TargetWriteLearnHow, 172 ; phrase de Get-TargetWriteHowPhrase). Avant : aucun
+    # conseil au « Test rapide » ni case cochee, quelle que soit la mesure. Restauration : jamais
+    if ($script:Restore) { return '' }
+    if ($cmbWCalMode.SelectedIndex -eq 2) { $hc = $(if ($slow) { 'quickslow' } else { 'quickfast' }) }
+    elseif (-not $slow) { $hc = 'fast' }
+    elseif (-not (Test-WriteLevelWanted 'slow')) { $hc = 'slow' }
+    elseif ([string](Get-LevelBeforeWriteKind 'slow' $false $true) -cne 'content') { $hc = 'mode' }
+    else { return '' }
     $wide = @()
     foreach ($h in 0, 1) {
         if ([string]$src[$h] -ne 'lecteur') { continue }
@@ -1468,8 +1478,18 @@ function Get-WriteFactorHint([string]$img, [string]$fmt, [bool]$slow, [string]$d
     $bn = if ($brand.Trim()) { $brand.Trim() } else { (T '(non précisée)') }
     # Relecture de la finalisation : consigne selon l ecriture. Ecriture lente : case Mesurer la disquette decochee (sinon
     # Test-WriteLevelWanted ci-dessus) : la cocher. Ecriture rapide : jamais mesuree, case cochee ou non (Test-WriteLevelWanted
-    # rend faux hors ecriture lente) : ecrire en ecriture lente, sans demander de cocher une case peut-etre deja cochee
-    $how = if ($slow) { (T "cochez « Mesurer la disquette avant l'écriture lente », avec la mesure « sur l'image à écrire »") } else { (T "écrivez l'image en écriture lente, avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »") }
+    # rend faux hors ecriture lente) : ecrire en ecriture lente, sans demander de cocher une case peut-etre deja cochee.
+    # Version finale : phrase de Get-TargetWriteHowPhrase (172) pour chaque code (memes textes pour 'slow' et 'fast'), et
+    # geste court du segment de la ligne « Ce qui va se passer » : en ecriture rapide ou au « Test rapide », la case de la
+    # mesure est grisee et son infobulle ne s affiche pas : le segment dit seul le geste possible
+    $how = Get-TargetWriteHowPhrase $hc
+    $g = switch -CaseSensitive ($hc) {
+        'slow' { (T "mesurez plutôt cette disquette sur l'image") }
+        'fast' { (T "écrivez plutôt l'image en écriture lente, avec la mesure sur l'image") }
+        'mode' { (T "choisissez plutôt la mesure sur l'image") }
+        'quickslow' { (T "choisissez plutôt le test standard ou fin, avec la mesure sur l'image") }
+        default { (T "écrivez plutôt l'image en écriture lente, au test standard ou fin, avec la mesure sur l'image") }
+    }
     $line = ''; $det = ''
     if ($wide.Count -gt 0) {
         if ($slow) { $det = (@($wide | ForEach-Object { (T 'tête {0} : étendue {1} sur {2} mesures') -f "$($_.H)", (Format-UiNum ([double]$_.Sp) '0.00'), "$($_.N)" }) -join (T ' ; ')) }
@@ -1480,7 +1500,7 @@ function Get-WriteFactorHint([string]$img, [string]$fmt, [bool]$slow, [string]$d
     if (-not $line) { return '' }
     if (Get-LevelWriteSkip $img $fmt $txtWTracks.Text) { return '' }
     try { if (-not (Test-ContentMeasurable $img $fmt).Ok) { return '' } } catch { return '' }
-    if ($Spread) { return @{ Line = $line; Seg = ((T "médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : mesurez plutôt cette disquette sur l'image") -f "$bn", "$det"); Short = (T 'mesures de la marque dispersées : mesurez plutôt cette disquette') } }
+    if ($Spread) { return @{ Line = $line; Seg = ((T 'médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : {2}') -f "$bn", "$det", "$g"); Short = ((T 'mesures de la marque dispersées : {0}') -f "$g") } }
     return $line
 }
 

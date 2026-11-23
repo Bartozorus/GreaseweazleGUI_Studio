@@ -391,8 +391,11 @@ $rb = New-FkRead @{ 0 = 6.0; 1 = 4.0 } $G
 $script:ConfirmAns = $true
 $o1 = Invoke-TargetRecalOffer $res $rb
 $ct = [string]$script:ConfirmArgs.Text
+# 12.11 (version finale, rendu de la fenetre) : effet sur la courbe ecrite insecable : espace insecable avant « ns » et « % »,
+# signe moins U+2212 des valeurs (O2, O8 adaptes)
+$nbO = [string][char]0x00A0; $mnO = [string][char]0x2212
 Chk 'O1' ($o1 -eq 'stored' -and $script:ConfirmN -eq 1 -and (Near ([double]$script:TargetRecal['A>0|std_h0'].Ns) -4.5) -and (Near ([double]$script:TargetRecal['A>0|std_h1'].Ns) -3.0) -and $script:Saves -eq 1 -and (@($script:Log) -join ' ').Contains('Courbe croisée A → 0 recalée')) 'confirmee : magasin, journal, configuration enregistree'
-Chk 'O2' ([string]$script:ConfirmArgs.Check -eq 'Disquette écrite le 22/11/2026 10:00 pour le lecteur 0' -and $ct.Contains('« essai.adf »') -and $ct.Contains('Tête 0 : 80 pistes retenues, écart médian +6,0 ns (trop de précompensation pour le lecteur cible) ; recalage -4,5 ns, au lieu de aucun ; courbe écrite pour le lecteur 0 : -4 ns par rapport à cette écriture') -and $ct.Contains('g = 1,40')) "fenetre : ecriture (date, image), case de la disquette, recalage par tete (-4,5 ns) et effet sur la courbe ecrite (arrondi au pair : -4 ns)"
+Chk 'O2' ([string]$script:ConfirmArgs.Check -eq 'Disquette écrite le 22/11/2026 10:00 pour le lecteur 0' -and $ct.Contains('« essai.adf »') -and $ct.Contains("Tête 0 : 80 pistes retenues, écart médian +6,0 ns (trop de précompensation pour le lecteur cible) ; recalage -4,5 ns, au lieu de aucun ; courbe écrite pour le lecteur 0 : ${mnO}4${nbO}ns par rapport à cette écriture") -and $ct.Contains('g = 1,40')) "fenetre : ecriture (date, image), case de la disquette, recalage par tete (-4,5 ns) et effet sur la courbe ecrite (arrondi au pair : -4 ns)"
 Reset-Fk
 $script:LastTargetWrites['A>0'] = New-FkMem
 $script:ConfirmAns = $false
@@ -421,7 +424,8 @@ Chk 'O7' ($o6 -eq 'refused' -and $script:ConfirmN -eq 0 -and $lt.Contains('6 pis
 # recalage -3 : -2 et -1 ns, soit -25 % partout (et non -38 % et -75 %)
 $memw = New-FkMem; $memw.H['0'].W = '0=8:20=4:60=0'
 $ht = Get-TargetRecalHeadText $memw @{ Med = 6.0; N = 80; O = 0 } @{ Head = 0; Reset = $false; Old = $null; New = @{ Ns = -3.0 } } '0'
-Chk 'O8' ($ht.Contains('-3 ns par rapport à cette écriture (-25 % à -25 % selon le cylindre)')) "fenetre : effet limite a 25 % de la courbe ($ht)"
+$script:Lang = 'en'; $htEn = Get-TargetRecalHeadText $memw @{ Med = 6.0; N = 80; O = 0 } @{ Head = 0; Reset = $false; Old = $null; New = @{ Ns = -3.0 } } '0'; $script:Lang = 'fr'
+Chk 'O8' ($ht.Contains("${mnO}3${nbO}ns par rapport à cette écriture (${mnO}25$nbO% à ${mnO}25$nbO% selon le cylindre)") -and $htEn.Contains("${mnO}3${nbO}ns compared with this write (${mnO}25$nbO% to ${mnO}25$nbO% depending on the cylinder)")) "fenetre : effet limite a 25 % de la courbe, valeurs et unites insecables, signe moins U+2212 ($ht | $htEn)"
 # Relecture rc8 : la proposition passe le lecteur qui a ecrit : courbe croisee recalibree depuis l ecriture, rien n est propose
 $script:LastTargetWrites['A>0'] = New-FkMem; $script:Log.Clear(); $script:ConfirmN = 0
 $script:DriveCurves['A>0|std_h0'] = (New-FkCurve 'A' '0' 0 '0=61:40=45:70=37' '23/11/2026 09:00'); $script:DriveCurves['A>0|std_h1'] = (New-FkCurve 'A' '0' 1 '0=59:40=43:70=35' '23/11/2026 09:00')
@@ -443,6 +447,25 @@ $script:Lang = 'fr'; Reset-Fk
 $o10ok = ($o10['en-ok'].Contains(': head 0 -4.5 ns; head 1 -3.0 ns; added to the next writes') -and $o10['en-ref'].Contains('12.5 ns, beyond ± 12 ns') -and $o10['en-ref'].Contains('disk factor; head 1: median gap +12.5 ns') -and
           -not ($o10['en-ok'] + $o10['en-ref']).Contains(' ; ') -and $o10['fr-ok'].Contains(' : tête 0 -4,5 ns ; tête 1 -3,0 ns ; ajouté aux prochaines écritures') -and $o10['fr-ref'].Contains('facteur de la disquette ; tête 1 : écart médian +12,5 ns'))
 Chk 'O10' $o10ok "anglais : « $($o10['en-ok']) » ; « $($o10['en-ref']) » ; francais : « $($o10['fr-ok']) »"
+# O11 (12.11, relecture de la version finale) : controle statique (arbre syntaxique des modules fn) des listes passees a
+# T(' ; ') en 12.11, que O10 et R4d (logic-calib-retour) ne prouvent que pour trois des dix-sept : dans chaque fonction de
+# la table, autant de T(' ; ') qu attendu (les dix-sept et quatre voisines : 172 deux de la rc8, Get-WriteFactorHint,
+# Format-WritePlan) et aucun litteral ' ; ' ecrit en dur ; dans tout module fn, aucune fonction qui melange les deux. Les
+# jointures d avant la 12.11 (litteral en dur dans d autres fonctions) ne sont pas concernees
+$o11Want = [ordered]@{ 'Test-GwPortRetry' = 1; 'Restore-DriveRescueTargets' = 1; 'Get-TargetTransferPlan' = 3; 'Get-WriteFactorHint' = 1; 'Format-WritePlan' = 1
+                       'Get-AsymGainText' = 1; 'Start-WriteZonePass' = 1; 'Invoke-TargetRecalOffer' = 5; 'Get-QualityCardModel' = 1; 'Get-CalibBackInfo' = 4; 'Restore-CalibBack' = 2 }
+$o11T = @{}; $o11D = @{}
+foreach ($f in @(Get-ChildItem -LiteralPath $mods -Filter '*.ps1' -File | Where-Object { $_.Name -match '^[1-4]\d\d-fn-' })) {
+    foreach ($c in (Get-Ast $f.FullName).FindAll({ param($x) $x -is [System.Management.Automation.Language.StringConstantExpressionAst] -and $x.Value -ceq ' ; ' }, $true)) {
+        $q = $c.Parent; $fn = ''
+        while ($q) { if ($q -is [System.Management.Automation.Language.FunctionDefinitionAst]) { $fn = $q.Name; break }; $q = $q.Parent }
+        $inT = ($c.Parent -is [System.Management.Automation.Language.CommandAst] -and $c.Parent.GetCommandName() -ceq 'T')
+        if ($inT) { $o11T[$fn] = 1 + [int]$o11T[$fn] } else { $o11D[$fn] = 1 + [int]$o11D[$fn] }
+    }
+}
+$o11Bad = @(foreach ($k in $o11Want.Keys) { if ([int]$o11T[$k] -ne [int]$o11Want[$k] -or [int]$o11D[$k] -ne 0) { "$k (T $([int]$o11T[$k]) sur $($o11Want[$k]), en dur $([int]$o11D[$k]))" } })
+$o11Bad += @(foreach ($k in @($o11T.Keys)) { if ([int]$o11D[$k] -gt 0 -and -not $o11Want.Contains($k)) { "$k (melange : T $($o11T[$k]), en dur $($o11D[$k]))" } })
+Chk 'O11' ($o11Bad.Count -eq 0 -and @($o11Want.Values | Measure-Object -Sum).Sum -eq 21) "vingt et une listes (dix-sept de la 12.11, quatre voisines) passees a T(' ; ') dans $($o11Want.Count) fonctions, aucun « ; » en dur a cote ; ecarts : $(if ($o11Bad.Count) { $o11Bad -join ' | ' } else { 'aucun' })"
 
 # =====================================================================================================================
 # M : memoire de l ecriture

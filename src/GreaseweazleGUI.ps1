@@ -3357,8 +3357,15 @@ $script:I18n["Recalage de la courbe croisée {0} → {1} sur cette relecture non
 $script:I18n['tête {0} : étendue {1} sur {2} mesures'] = 'head {0}: range {1} over {2} measurements'
 $script:I18n['étendue {0} sur {1} mesures'] = 'range {0} over {1} measurements'
 $script:I18n["Facteur de la marque « {0} » dispersé sur ce lecteur ({1}) : la médiane appliquée peut être loin du facteur de cette disquette ; pour mesurer celle-ci au lieu d'appliquer la médiane, {2}."] = 'Factor of brand "{0}" spread out on this drive ({1}): the applied median may be far from the factor of this disk; to measure this disk instead of applying the median, {2}.'
-$script:I18n["médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : mesurez plutôt cette disquette sur l'image"] = 'median factor of brand "{0}" applied, measurements spread out ({1}): measure this disk on the image instead'
-$script:I18n['mesures de la marque dispersées : mesurez plutôt cette disquette'] = 'brand measurements spread out: measure this disk instead'
+# Relecture de la version finale : segment et forme courte avec le geste possible selon l ecriture (case de la mesure
+# grisee en ecriture rapide et au « Test rapide »), a la place des deux cles a geste unique
+$script:I18n['médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : {2}'] = 'median factor of brand "{0}" applied, measurements spread out ({1}): {2}'
+$script:I18n['mesures de la marque dispersées : {0}'] = 'brand measurements spread out: {0}'
+$script:I18n["mesurez plutôt cette disquette sur l'image"] = 'measure this disk on the image instead'
+$script:I18n["écrivez plutôt l'image en écriture lente, avec la mesure sur l'image"] = 'write the image as a slow write instead, with the measure on the image'
+$script:I18n["choisissez plutôt la mesure sur l'image"] = 'choose the measure on the image instead'
+$script:I18n["choisissez plutôt le test standard ou fin, avec la mesure sur l'image"] = 'choose the standard or fine test instead, with the measure on the image'
+$script:I18n["écrivez plutôt l'image en écriture lente, au test standard ou fin, avec la mesure sur l'image"] = 'write the image as a slow write instead, with the standard or fine test and the measure on the image'
 
 # --- Version finale : conseil d une correction par zones qui couvre presque toute une tete (Get-WriteZoneHeadAdvice, 170) :
 # journal du controle, consigne selon l origine du facteur de la disquette (gestes de Get-TargetWriteHowPhrase, 172)
@@ -3372,6 +3379,8 @@ $script:I18n["A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0
 
 # 12.11 finale, affichage : infobulle des boutons a icone seule de « Diskdefs : » (onglets Ecriture et Lecture, 520 et 530)
 $script:I18n['Choisir un fichier diskdefs (*.cfg) : définitions de formats personnalisées, passées à gw par --diskdefs.'] = 'Choose a diskdefs file (*.cfg): custom format definitions, passed to gw with --diskdefs.'
+# Relecture du rendu de la version finale : infobulle du champ de la pause de la mesure continue (530), sans libelle
+$script:I18n['Pause entre deux mesures en continu (s).'] = 'Pause between two measurements in continuous mode (s).'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 try { Add-Type -AssemblyName System.IO.Compression.FileSystem } catch { }
@@ -13053,7 +13062,7 @@ function Get-WriteFactorHint([string]$img, [string]$fmt, [bool]$slow, [string]$d
     # liste Calibration precomp au Test rapide (mesure au motif, ligne de Start-LevelBeforeWrite), case Mesurer la disquette
     # non cochee pour cette ecriture (Test-WriteLevelWanted), image qui recouvre tout le motif (Get-LevelWriteSkip) et
     # mesurable sur son contenu (Test-ContentMeasurable : MFM double densite, champ Pistes vide, courbe du lecteur assez
-    # longue, 20 cylindres)
+    # longue, 20 cylindres) ; gardes du « Test rapide » et de la case cochee revues en version finale (plus bas)
     # 12.11 (version finale, R12) : mesures de la marque dispersees, etendue au-dessus de WriteFactorSpreadMax (040 ; avant :
     # 0,2 ou plus) : par tete dont le facteur vient de la memoire de la marque (Src lecteur), etendue (max - min, mesures
     # arrondies a 0,01 comme au journal) des mesures qui le donnent (Get-DriveK : les 3 dernieres, dont il est la mediane ;
@@ -13062,8 +13071,18 @@ function Get-WriteFactorHint([string]$img, [string]$fmt, [bool]$slow, [string]$d
     # d appliquer la mediane. Spread : ce conseil seul (pas celui du long track sans mesure), rendu @{ Line : ligne de
     # journal ; Seg, Short : segment de la ligne « Ce qui va se passer » et sa forme courte } apres les memes gardes, ''
     # sans conseil (Get-WriteFactorAdvice). Texte seulement : aucun facteur ni aucune ecriture ne change
-    if ($script:Restore -or $cmbWCalMode.SelectedIndex -eq 2) { return '' }
-    if (Test-WriteLevelWanted $(if ($slow) { 'slow' } else { 'fast' })) { return '' }
+    # 12.11 (version finale, relecture des decisions) : mesure deja demandee seulement quand elle determine le facteur :
+    # ecriture lente, case cochee, liste « Mesure » sur l image (Get-LevelBeforeWriteKind 'content'). « Test rapide », case
+    # cochee avec la mesure au motif ou complete, ecriture rapide : la mediane de la marque (ou k 1) s applique quand meme
+    # (Apply, origine 'lecteur' ou 'defaut') : conseil, avec le geste de mesure de la ligne de fin d une ecriture pour un
+    # lecteur cible (memes codes que Get-TargetWriteLearnHow, 172 ; phrase de Get-TargetWriteHowPhrase). Avant : aucun
+    # conseil au « Test rapide » ni case cochee, quelle que soit la mesure. Restauration : jamais
+    if ($script:Restore) { return '' }
+    if ($cmbWCalMode.SelectedIndex -eq 2) { $hc = $(if ($slow) { 'quickslow' } else { 'quickfast' }) }
+    elseif (-not $slow) { $hc = 'fast' }
+    elseif (-not (Test-WriteLevelWanted 'slow')) { $hc = 'slow' }
+    elseif ([string](Get-LevelBeforeWriteKind 'slow' $false $true) -cne 'content') { $hc = 'mode' }
+    else { return '' }
     $wide = @()
     foreach ($h in 0, 1) {
         if ([string]$src[$h] -ne 'lecteur') { continue }
@@ -13076,8 +13095,18 @@ function Get-WriteFactorHint([string]$img, [string]$fmt, [bool]$slow, [string]$d
     $bn = if ($brand.Trim()) { $brand.Trim() } else { (T '(non précisée)') }
     # Relecture de la finalisation : consigne selon l ecriture. Ecriture lente : case Mesurer la disquette decochee (sinon
     # Test-WriteLevelWanted ci-dessus) : la cocher. Ecriture rapide : jamais mesuree, case cochee ou non (Test-WriteLevelWanted
-    # rend faux hors ecriture lente) : ecrire en ecriture lente, sans demander de cocher une case peut-etre deja cochee
-    $how = if ($slow) { (T "cochez « Mesurer la disquette avant l'écriture lente », avec la mesure « sur l'image à écrire »") } else { (T "écrivez l'image en écriture lente, avec « Mesurer la disquette avant l'écriture lente » cochée et la mesure « sur l'image à écrire »") }
+    # rend faux hors ecriture lente) : ecrire en ecriture lente, sans demander de cocher une case peut-etre deja cochee.
+    # Version finale : phrase de Get-TargetWriteHowPhrase (172) pour chaque code (memes textes pour 'slow' et 'fast'), et
+    # geste court du segment de la ligne « Ce qui va se passer » : en ecriture rapide ou au « Test rapide », la case de la
+    # mesure est grisee et son infobulle ne s affiche pas : le segment dit seul le geste possible
+    $how = Get-TargetWriteHowPhrase $hc
+    $g = switch -CaseSensitive ($hc) {
+        'slow' { (T "mesurez plutôt cette disquette sur l'image") }
+        'fast' { (T "écrivez plutôt l'image en écriture lente, avec la mesure sur l'image") }
+        'mode' { (T "choisissez plutôt la mesure sur l'image") }
+        'quickslow' { (T "choisissez plutôt le test standard ou fin, avec la mesure sur l'image") }
+        default { (T "écrivez plutôt l'image en écriture lente, au test standard ou fin, avec la mesure sur l'image") }
+    }
     $line = ''; $det = ''
     if ($wide.Count -gt 0) {
         if ($slow) { $det = (@($wide | ForEach-Object { (T 'tête {0} : étendue {1} sur {2} mesures') -f "$($_.H)", (Format-UiNum ([double]$_.Sp) '0.00'), "$($_.N)" }) -join (T ' ; ')) }
@@ -13088,7 +13117,7 @@ function Get-WriteFactorHint([string]$img, [string]$fmt, [bool]$slow, [string]$d
     if (-not $line) { return '' }
     if (Get-LevelWriteSkip $img $fmt $txtWTracks.Text) { return '' }
     try { if (-not (Test-ContentMeasurable $img $fmt).Ok) { return '' } } catch { return '' }
-    if ($Spread) { return @{ Line = $line; Seg = ((T "médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : mesurez plutôt cette disquette sur l'image") -f "$bn", "$det"); Short = (T 'mesures de la marque dispersées : mesurez plutôt cette disquette') } }
+    if ($Spread) { return @{ Line = $line; Seg = ((T 'médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : {2}') -f "$bn", "$det", "$g"); Short = ((T 'mesures de la marque dispersées : {0}') -f "$g") } }
     return $line
 }
 
@@ -15514,6 +15543,10 @@ function Get-WriteZoneHeadAdvice($rep, $zs) {
     # faite avant l ecriture sans determiner ce facteur : la refaire ; facteur de la marque ou k = 1 : le geste de mesure de
     # Get-TargetWriteHowPhrase ; aucune consigne possible (restauration, image non mesurable, origine inconnue) : le fait
     # seul. Texte seulement : zones, profils et reecritures inchanges. Rend les lignes, tete 0 puis tete 1
+    # Relecture de la version finale : en pratique How seul decide du texte. Une origine 'mesure' (KSrc) ne nait que du
+    # facteur mesure sur l image juste avant l ecriture (Get-WriteFactorPlan, $next.K), qui donne aussi How 'mesure'
+    # (Get-TargetWriteLearnHow, 172) ; le test de KSrc reste par precaution (memoire d une autre origine), sans effet
+    # observable aujourd hui
     $out = @()
     if (-not $rep -or -not $rep.Scope) { return $out }
     $min = [double]$script:WriteZoneHeadPct
@@ -15628,6 +15661,7 @@ function Show-WriteCheckTable($rep) {
             $total += $m.Score; $count++
         }
     } finally { $lvAl.EndUpdate() }
+    Set-AlNumColumnWidths                                 # 12.11 (version finale) : colonnes des nombres a leur plus longue case (195)
     # Bandeau des zones instables d apres la derniere mesure du controle (efface celui d une mesure precedente)
     $inIgn = { param($k) $rep.Ignore -and $rep.Ignore.ContainsKey($k) }
     $defK = @($keys | Where-Object { $rep.State[$_].CopyDefect })
@@ -16007,7 +16041,9 @@ function Get-TargetZoneAdvice($wf, [bool]$slow, [string]$userTs, [string]$img) {
     # de chaque tete logique relue ('mesure', 'lecteur', 'defaut' ; $wf : Get-WriteFactorPlan, par tete physique ; hswap
     # compris, Get-WriteHeadSpecs) ; ecriture rapide, facteur moyen des deux tetes : 'mesure' seulement si les deux le sont
     # (comme Test-TargetRecalKLearn). How : consigne de mesure de Get-TargetWriteLearnHow (jamais ce qui est deja fait ou
-    # sans effet ; '' : aucune, restauration ou image non mesurable par exemple)
+    # sans effet ; '' : aucune, restauration ou image non mesurable par exemple). Relecture de la version finale : KSrc est
+    # une precaution ; aujourd hui une origine 'mesure' implique How 'mesure' (facteur mesure sur l image juste avant
+    # l ecriture, Next), et le texte du conseil ne depend que de How
     $s = @{}
     foreach ($p in 0, 1) { $v = ''; if ($wf -and $wf.Src) { $v = [string]$wf.Src[$p]; if (-not $v) { $v = [string]$wf.Src["$p"] } }; $s[$p] = $v }
     if (-not $slow) {
@@ -16376,9 +16412,14 @@ function Get-TargetRecalHeadText($mem, $o, $u, [string]$tgt) {
     $hm = $mem.H["$lk"]
     $pc = @()
     if ($hm) { foreach ($m in [regex]::Matches([string]$hm.W, '(\d+)\s*=\s*(\d+)')) { $w = [int]$m.Groups[2].Value; if ($w -gt 0) { $lw = [int][math]::Floor([double]$script:TargetRecalWShare * $w); $pc += 100.0 * [math]::Max(-$lw, [math]::Min($lw, $dl)) / $w } } }
+    # 12.11 (version finale, rendu de la fenetre) : « (-3 % a -2 % selon le cylindre) » se coupait entre la valeur et « % » :
+    # valeurs et unites de l effet insecables, comme Get-TargetRecalSummaryText (espace insecable avant « % » et « ns » dans
+    # le modele traduit, signe moins U+2212 des seules valeurs) ; nom du lecteur cible et cles I18n inchanges
+    $nb = [string][char]0x00A0; $mn = [string][char]0x2212
+    $dlt = ('{0:+0;-0;0}' -f $dl).Replace('-', $mn)
     $eff = if ($dl -eq 0) { (T 'courbe écrite pour le lecteur {0} inchangée par rapport à cette écriture') -f $tgt }
-           elseif ($pc.Count -gt 0) { (T 'courbe écrite pour le lecteur {0} : {1} ns par rapport à cette écriture ({2} % à {3} % selon le cylindre)') -f $tgt, ('{0:+0;-0;0}' -f $dl), (Format-UiNum ([double]($pc | Measure-Object -Minimum).Minimum) '+0;-0;0'), (Format-UiNum ([double]($pc | Measure-Object -Maximum).Maximum) '+0;-0;0') }
-           else { (T 'courbe écrite pour le lecteur {0} : {1} ns par rapport à cette écriture') -f $tgt, ('{0:+0;-0;0}' -f $dl) }
+           elseif ($pc.Count -gt 0) { (T 'courbe écrite pour le lecteur {0} : {1} ns par rapport à cette écriture ({2} % à {3} % selon le cylindre)').Replace(' %', $nb + '%').Replace(' ns', $nb + 'ns') -f $tgt, $dlt, (Format-UiNum ([double]($pc | Measure-Object -Minimum).Minimum) '+0;-0;0').Replace('-', $mn), (Format-UiNum ([double]($pc | Measure-Object -Maximum).Maximum) '+0;-0;0').Replace('-', $mn) }
+           else { (T 'courbe écrite pour le lecteur {0} : {1} ns par rapport à cette écriture').Replace(' ns', $nb + 'ns') -f $tgt, $dlt }
     return ((T 'Tête {0} : {1} pistes retenues, écart médian {2} ns ({3}) ; recalage {4} ns, au lieu de {5} ; {6}.') -f "$lk", "$($o.N)", (Format-UiNum $med $sg), $sens, (Format-UiNum ([double]$u.New.Ns) $sg), $oldTxt, $eff)
 }
 
@@ -18761,6 +18802,7 @@ function Invoke-AlignAnalysis {
             Set-UnstableBanner @('')                      # 12.8 (FIX3) : bandeau d une mesure precedente retire
         }
     } finally { $lvAl.EndUpdate() }
+    Set-AlNumColumnWidths                                 # 12.11 (version finale) : colonnes des nombres a leur plus longue case (195)
     Set-QualityResult $res                                # 12.8 (lot 3a) : carte et tableau en couleurs (12.9 : sans graphique)
     # 12.11 rc8 (R17) : relecture par le lecteur cible d une ecriture gardee en memoire pour lui : recalage de la courbe
     # croisee propose (confirmation) ou refus dit au journal (Invoke-TargetRecalOffer, 172) ; rien pour une autre mesure
@@ -19409,7 +19451,21 @@ function Set-QualityCardRoom([bool]$extra) {
     $script:QualCardRoom = $want
     $pnlQualCard.Height += $d
     if ($lblAlReco) { $lblAlReco.Top += $d }
-    if ($lvAl) { $lvAl.Top += $d; $lvAl.Height -= $d }
+    # 12.11 (version finale, relecture du rendu) : hauteur du tableau tiree de son parent (Set-QualityTableHeight), et non
+    # plus par difference ; sans parent, comme avant
+    if ($lvAl) { $lvAl.Top += $d; if ($lvAl.Parent) { Set-QualityTableHeight } else { $lvAl.Height -= $d } }
+}
+
+function Set-QualityTableHeight {
+    # 12.11 (version finale, relecture du rendu) : bas du tableau a AlTableBottomGap px (530 : 6) du bas de l onglet, hauteur
+    # tiree de la zone cliente de son parent, 0 au moins. Avant, par differences : une hauteur negative demandee (onglet
+    # court : mode expert, journal au plus haut, ligne 3 de la carte puis guide) etait ramenee a 0 par Windows, l ancrage du
+    # bas se recalculait sur elle et le tableau gardait une marge basse fausse jusqu au redemarrage. Appels : Set-QualityCardRoom,
+    # Set-QualityRowsRoom et changement de taille de l onglet (530), qui retablit la marge apres une hauteur ramenee a 0.
+    # Sans parent (tableau hors fenetre) : rien
+    if (-not $lvAl -or -not $lvAl.Parent) { return }
+    $h = [math]::Max(0, [int]$lvAl.Parent.ClientSize.Height - [int]$script:AlTableBottomGap - [int]$lvAl.Top)
+    if ($lvAl.Height -ne $h) { $lvAl.Height = $h }
 }
 
 function Set-QualityRowsRoom {
@@ -19428,7 +19484,34 @@ function Set-QualityRowsRoom {
     $db = $(if ($guide -or ($txt -and $lblAlReco.Visible)) { [int]$script:AlBannerRowH } else { 0 }) - [int]$script:AlBannerRoom
     $script:AlGuideRoom += $dg; $script:AlBannerRoom += $db
     if ($dg -ne 0) { $pnlQualCard.Top += $dg; $lblAlReco.Top += $dg }
-    if ($dg + $db -ne 0) { $lvAl.Top += ($dg + $db); $lvAl.Height -= ($dg + $db) }
+    # 12.11 (version finale, relecture du rendu) : hauteur tiree du parent (Set-QualityTableHeight) ; sans parent, comme avant
+    if ($dg + $db -ne 0) { $lvAl.Top += ($dg + $db); if ($lvAl.Parent) { Set-QualityTableHeight } else { $lvAl.Height -= ($dg + $db) } }
+}
+
+function Set-AlNumColumnWidths {
+    # 12.11 (version finale, relecture du rendu) : colonnes des nombres du tableau (index 2 a 9, d « Erreurs » a « Cell ns »)
+    # elargies a leur plus longue case quand elle ne tient pas dans la largeur de 530 ($script:AlColMin : au moins l en-tete),
+    # ramenees a celle-ci sinon : un score ou des erreurs de 1 000 et plus se lisent entiers (cases dessinees sur une ligne,
+    # points de suspension, Draw-AlSubItem : texte dans la case moins 8 px, moins 26 px pour « Score » et son icone).
+    # Police des cases a chasse fixe : la case la plus longue en caracteres est mesuree (GDI+, format des cases). Appels :
+    # fin du remplissage du tableau (Invoke-AlignAnalysis, 190 ; Show-WriteCheckTable, 170). Affichage seulement
+    if (-not $lvAl -or -not $script:AlColMin) { return }
+    $n = [math]::Min([math]::Min(10, $lvAl.Columns.Count), @($script:AlColMin).Count)
+    $bmp = New-Object System.Drawing.Bitmap(1, 1)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    try {
+        for ($i = 2; $i -lt $n; $i++) {
+            $long = ''
+            foreach ($it in $lvAl.Items) { if ($it.SubItems.Count -gt $i) { $t = [string]$it.SubItems[$i].Text; if ($t.Length -gt $long.Length) { $long = $t } } }
+            $w = [int]@($script:AlColMin)[$i]
+            if ($long) {
+                $pad = $(if ($i -eq 6) { 26 } else { 8 })
+                $tw = [int][math]::Ceiling($g.MeasureString($long, $lvAl.Font, 10000, (Get-QualSf 'center')).Width) + $pad + 1
+                if ($tw -gt $w) { $w = $tw }
+            }
+            if ($lvAl.Columns[$i].Width -ne $w) { $lvAl.Columns[$i].Width = $w }
+        }
+    } finally { $g.Dispose(); $bmp.Dispose() }
 }
 
 function Get-QualFitText([string]$long, [string]$short, $font, [int]$w, [string[]]$more = @()) {
@@ -35803,6 +35886,9 @@ $script:AlNames = @{ 0='EXCELLENT'; 1=(T 'BON'); 2=(T 'MOYEN'); 3=(T 'MAUVAIS') 
 # ligne de 21 px, 3 px au-dessus et 4 px au-dessous, au lieu des 4 px entre carte et tableau), place reservee courante
 $script:AlGuideRowH = 30; $script:AlBannerRowH = 24
 $script:AlGuideRoom = 0; $script:AlBannerRoom = 0
+# 12.11 (version finale, relecture du rendu) : marge sous le tableau, fixe (Set-QualityTableHeight, 195 : bas a 334 pour
+# un onglet de 340 px)
+$script:AlTableBottomGap = 6
 
 # 12.11 finale (affichage) : rangee 1 : liste a 170 px (« Standard (0-70 pas 10) » entier), champ des cylindres a 160 px,
 # liste des tetes et suite decalees : aucun libelle ne touche son champ, en francais et en anglais
@@ -35839,6 +35925,8 @@ $tip.SetToolTip($chkAlLoop, (T 'Répète la mesure en boucle (réglage mécaniqu
 $numAlPause = New-Object System.Windows.Forms.NumericUpDown
 $numAlPause.Location = '703,36'; $numAlPause.Width = 45; $numAlPause.Visible = $false
 $numAlPause.Minimum = 0; $numAlPause.Maximum = 60
+# 12.11 (version finale, relecture du rendu) : champ sans libelle, affiche avec le guide : infobulle qui dit ce qu il regle
+$tip.SetToolTip($numAlPause, (T 'Pause entre deux mesures en continu (s).'))
 
 $btnAlStart = New-Object System.Windows.Forms.Button
 $btnAlStart.Text = (T 'MESURER LA DISQUETTE'); $btnAlStart.Location = '10,40'; $btnAlStart.Size = '220,40'; $btnAlStart.Font = $bold
@@ -35985,6 +36073,9 @@ $lvAl.SmallImageList = $imgRow
 foreach ($c in @(@((T 'Piste'),50),@((T 'État'),162),@((T 'Erreurs'),56),@((T 'Trous'),54),@('Stab',46),@((T 'Jitter ns'),56),@('Score',56),@((T 'vs réf'),62),@('Asym.',64),@((T 'Cell ns'),56))) {
     [void]$lvAl.Columns.Add($c[0], [int][math]::Max([int]$c[1], [System.Windows.Forms.TextRenderer]::MeasureText([string]$c[0], $bold).Width + 8))
 }
+# 12.11 (version finale, relecture du rendu) : largeurs ci-dessus gardees comme minimum des colonnes des nombres, elargies
+# a leur plus longue case apres chaque remplissage (Set-AlNumColumnWidths, 195 : score de 1 000 et plus entier)
+$script:AlColMin = @(@($lvAl.Columns) | ForEach-Object { [int]$_.Width })
 
 # 12.10 : clic droit et Ctrl+C sur le tableau : copie en tabulations (Copy-AlignTable, 190) ; export aussi au menu
 $mnuAl = New-Object System.Windows.Forms.ContextMenuStrip
@@ -36005,6 +36096,9 @@ $tabAl.Controls.AddRange(@((New-Label (T 'Mesure :') '10,14'), $cmbAlPreset, (Ne
     (New-Label (T 'Têtes :') '488,14'), $cmbAlHead, (New-Label (T 'Tours :') '600,14'), $numAlRevs, $chkAlLoop, $numAlPause,
     $btnAlStart, $btnAlRef, $btnAlReset, $chkAlGuide, $lblAlRef, $btnAlExport,
     $btnAlPos0, $btnAlPlus, $btnAlMinus, $lblAlPos, $pnlQualCard, $lblAlReco, $lvAl))
+# 12.11 (version finale, relecture du rendu) : marge sous le tableau retablie a chaque changement de taille de l onglet
+# (apres une hauteur ramenee a 0 dans un onglet trop court, l ancrage seul la gardait fausse)
+$tabAl.Add_Resize({ Set-QualityTableHeight })
 Update-QualityView                                        # 12.8 (lot 3) : carte vide (« Aucune mesure »)
 
 # ============================== OUTILS =========================================

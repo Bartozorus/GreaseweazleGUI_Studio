@@ -138,6 +138,12 @@ foreach ($n in @('Get-WriteLevelPlan')) {
     $fd = @((Get-TgAst (Get-TgMod '140')).FindAll({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq $n }, $false))
     if ($fd.Count -eq 1) { $parts.Add($fd[0].Extent.Text) }
 }
+# 12.11 (relecture de la version finale) : geste de mesure du conseil du facteur (Get-TargetWriteHowPhrase, 172, appelee
+# par Get-WriteFactorHint), charge quand la source l a (module 172 absent d une source d avant la 12.11)
+if (@(Get-ChildItem -LiteralPath $mods -Filter '172-*.ps1').Count -eq 1) {
+    $fd = @((Get-TgAst (Get-TgMod '172')).FindAll({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -eq 'Get-TargetWriteHowPhrase' }, $false))
+    if ($fd.Count -eq 1) { $parts.Add($fd[0].Extent.Text) }
+}
 # RC4 : vrai Update-PrecompForImage (220) renomme Update-PrecompForImageR (le remplacant Update-PrecompForImage, plus bas,
 # compte les appels des cas W, B et R) : libelle complet des cas P10, P12, P13
 $ixU = -1; for ($i = 0; $i -lt $parts.Count; $i++) { if ($parts[$i] -match '^function Update-PrecompForImage\(') { $ixU = $i } }

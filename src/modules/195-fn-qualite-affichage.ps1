@@ -487,7 +487,21 @@ function Set-QualityCardRoom([bool]$extra) {
     $script:QualCardRoom = $want
     $pnlQualCard.Height += $d
     if ($lblAlReco) { $lblAlReco.Top += $d }
-    if ($lvAl) { $lvAl.Top += $d; $lvAl.Height -= $d }
+    # 12.11 (version finale, relecture du rendu) : hauteur du tableau tiree de son parent (Set-QualityTableHeight), et non
+    # plus par difference ; sans parent, comme avant
+    if ($lvAl) { $lvAl.Top += $d; if ($lvAl.Parent) { Set-QualityTableHeight } else { $lvAl.Height -= $d } }
+}
+
+function Set-QualityTableHeight {
+    # 12.11 (version finale, relecture du rendu) : bas du tableau a AlTableBottomGap px (530 : 6) du bas de l onglet, hauteur
+    # tiree de la zone cliente de son parent, 0 au moins. Avant, par differences : une hauteur negative demandee (onglet
+    # court : mode expert, journal au plus haut, ligne 3 de la carte puis guide) etait ramenee a 0 par Windows, l ancrage du
+    # bas se recalculait sur elle et le tableau gardait une marge basse fausse jusqu au redemarrage. Appels : Set-QualityCardRoom,
+    # Set-QualityRowsRoom et changement de taille de l onglet (530), qui retablit la marge apres une hauteur ramenee a 0.
+    # Sans parent (tableau hors fenetre) : rien
+    if (-not $lvAl -or -not $lvAl.Parent) { return }
+    $h = [math]::Max(0, [int]$lvAl.Parent.ClientSize.Height - [int]$script:AlTableBottomGap - [int]$lvAl.Top)
+    if ($lvAl.Height -ne $h) { $lvAl.Height = $h }
 }
 
 function Set-QualityRowsRoom {
@@ -506,7 +520,34 @@ function Set-QualityRowsRoom {
     $db = $(if ($guide -or ($txt -and $lblAlReco.Visible)) { [int]$script:AlBannerRowH } else { 0 }) - [int]$script:AlBannerRoom
     $script:AlGuideRoom += $dg; $script:AlBannerRoom += $db
     if ($dg -ne 0) { $pnlQualCard.Top += $dg; $lblAlReco.Top += $dg }
-    if ($dg + $db -ne 0) { $lvAl.Top += ($dg + $db); $lvAl.Height -= ($dg + $db) }
+    # 12.11 (version finale, relecture du rendu) : hauteur tiree du parent (Set-QualityTableHeight) ; sans parent, comme avant
+    if ($dg + $db -ne 0) { $lvAl.Top += ($dg + $db); if ($lvAl.Parent) { Set-QualityTableHeight } else { $lvAl.Height -= ($dg + $db) } }
+}
+
+function Set-AlNumColumnWidths {
+    # 12.11 (version finale, relecture du rendu) : colonnes des nombres du tableau (index 2 a 9, d « Erreurs » a « Cell ns »)
+    # elargies a leur plus longue case quand elle ne tient pas dans la largeur de 530 ($script:AlColMin : au moins l en-tete),
+    # ramenees a celle-ci sinon : un score ou des erreurs de 1 000 et plus se lisent entiers (cases dessinees sur une ligne,
+    # points de suspension, Draw-AlSubItem : texte dans la case moins 8 px, moins 26 px pour « Score » et son icone).
+    # Police des cases a chasse fixe : la case la plus longue en caracteres est mesuree (GDI+, format des cases). Appels :
+    # fin du remplissage du tableau (Invoke-AlignAnalysis, 190 ; Show-WriteCheckTable, 170). Affichage seulement
+    if (-not $lvAl -or -not $script:AlColMin) { return }
+    $n = [math]::Min([math]::Min(10, $lvAl.Columns.Count), @($script:AlColMin).Count)
+    $bmp = New-Object System.Drawing.Bitmap(1, 1)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    try {
+        for ($i = 2; $i -lt $n; $i++) {
+            $long = ''
+            foreach ($it in $lvAl.Items) { if ($it.SubItems.Count -gt $i) { $t = [string]$it.SubItems[$i].Text; if ($t.Length -gt $long.Length) { $long = $t } } }
+            $w = [int]@($script:AlColMin)[$i]
+            if ($long) {
+                $pad = $(if ($i -eq 6) { 26 } else { 8 })
+                $tw = [int][math]::Ceiling($g.MeasureString($long, $lvAl.Font, 10000, (Get-QualSf 'center')).Width) + $pad + 1
+                if ($tw -gt $w) { $w = $tw }
+            }
+            if ($lvAl.Columns[$i].Width -ne $w) { $lvAl.Columns[$i].Width = $w }
+        }
+    } finally { $g.Dispose(); $bmp.Dispose() }
 }
 
 function Get-QualFitText([string]$long, [string]$short, $font, [int]$w, [string[]]$more = @()) {

@@ -212,7 +212,9 @@ function Get-TargetZoneAdvice($wf, [bool]$slow, [string]$userTs, [string]$img) {
     # de chaque tete logique relue ('mesure', 'lecteur', 'defaut' ; $wf : Get-WriteFactorPlan, par tete physique ; hswap
     # compris, Get-WriteHeadSpecs) ; ecriture rapide, facteur moyen des deux tetes : 'mesure' seulement si les deux le sont
     # (comme Test-TargetRecalKLearn). How : consigne de mesure de Get-TargetWriteLearnHow (jamais ce qui est deja fait ou
-    # sans effet ; '' : aucune, restauration ou image non mesurable par exemple)
+    # sans effet ; '' : aucune, restauration ou image non mesurable par exemple). Relecture de la version finale : KSrc est
+    # une precaution ; aujourd hui une origine 'mesure' implique How 'mesure' (facteur mesure sur l image juste avant
+    # l ecriture, Next), et le texte du conseil ne depend que de How
     $s = @{}
     foreach ($p in 0, 1) { $v = ''; if ($wf -and $wf.Src) { $v = [string]$wf.Src[$p]; if (-not $v) { $v = [string]$wf.Src["$p"] } }; $s[$p] = $v }
     if (-not $slow) {
@@ -581,9 +583,14 @@ function Get-TargetRecalHeadText($mem, $o, $u, [string]$tgt) {
     $hm = $mem.H["$lk"]
     $pc = @()
     if ($hm) { foreach ($m in [regex]::Matches([string]$hm.W, '(\d+)\s*=\s*(\d+)')) { $w = [int]$m.Groups[2].Value; if ($w -gt 0) { $lw = [int][math]::Floor([double]$script:TargetRecalWShare * $w); $pc += 100.0 * [math]::Max(-$lw, [math]::Min($lw, $dl)) / $w } } }
+    # 12.11 (version finale, rendu de la fenetre) : « (-3 % a -2 % selon le cylindre) » se coupait entre la valeur et « % » :
+    # valeurs et unites de l effet insecables, comme Get-TargetRecalSummaryText (espace insecable avant « % » et « ns » dans
+    # le modele traduit, signe moins U+2212 des seules valeurs) ; nom du lecteur cible et cles I18n inchanges
+    $nb = [string][char]0x00A0; $mn = [string][char]0x2212
+    $dlt = ('{0:+0;-0;0}' -f $dl).Replace('-', $mn)
     $eff = if ($dl -eq 0) { (T 'courbe écrite pour le lecteur {0} inchangée par rapport à cette écriture') -f $tgt }
-           elseif ($pc.Count -gt 0) { (T 'courbe écrite pour le lecteur {0} : {1} ns par rapport à cette écriture ({2} % à {3} % selon le cylindre)') -f $tgt, ('{0:+0;-0;0}' -f $dl), (Format-UiNum ([double]($pc | Measure-Object -Minimum).Minimum) '+0;-0;0'), (Format-UiNum ([double]($pc | Measure-Object -Maximum).Maximum) '+0;-0;0') }
-           else { (T 'courbe écrite pour le lecteur {0} : {1} ns par rapport à cette écriture') -f $tgt, ('{0:+0;-0;0}' -f $dl) }
+           elseif ($pc.Count -gt 0) { (T 'courbe écrite pour le lecteur {0} : {1} ns par rapport à cette écriture ({2} % à {3} % selon le cylindre)').Replace(' %', $nb + '%').Replace(' ns', $nb + 'ns') -f $tgt, $dlt, (Format-UiNum ([double]($pc | Measure-Object -Minimum).Minimum) '+0;-0;0').Replace('-', $mn), (Format-UiNum ([double]($pc | Measure-Object -Maximum).Maximum) '+0;-0;0').Replace('-', $mn) }
+           else { (T 'courbe écrite pour le lecteur {0} : {1} ns par rapport à cette écriture').Replace(' ns', $nb + 'ns') -f $tgt, $dlt }
     return ((T 'Tête {0} : {1} pistes retenues, écart médian {2} ns ({3}) ; recalage {4} ns, au lieu de {5} ; {6}.') -f "$lk", "$($o.N)", (Format-UiNum $med $sg), $sens, (Format-UiNum ([double]$u.New.Ns) $sg), $oldTxt, $eff)
 }
 

@@ -236,6 +236,9 @@ $script:AlNames = @{ 0='EXCELLENT'; 1=(T 'BON'); 2=(T 'MOYEN'); 3=(T 'MAUVAIS') 
 # ligne de 21 px, 3 px au-dessus et 4 px au-dessous, au lieu des 4 px entre carte et tableau), place reservee courante
 $script:AlGuideRowH = 30; $script:AlBannerRowH = 24
 $script:AlGuideRoom = 0; $script:AlBannerRoom = 0
+# 12.11 (version finale, relecture du rendu) : marge sous le tableau, fixe (Set-QualityTableHeight, 195 : bas a 334 pour
+# un onglet de 340 px)
+$script:AlTableBottomGap = 6
 
 # 12.11 finale (affichage) : rangee 1 : liste a 170 px (« Standard (0-70 pas 10) » entier), champ des cylindres a 160 px,
 # liste des tetes et suite decalees : aucun libelle ne touche son champ, en francais et en anglais
@@ -272,6 +275,8 @@ $tip.SetToolTip($chkAlLoop, (T 'Répète la mesure en boucle (réglage mécaniqu
 $numAlPause = New-Object System.Windows.Forms.NumericUpDown
 $numAlPause.Location = '703,36'; $numAlPause.Width = 45; $numAlPause.Visible = $false
 $numAlPause.Minimum = 0; $numAlPause.Maximum = 60
+# 12.11 (version finale, relecture du rendu) : champ sans libelle, affiche avec le guide : infobulle qui dit ce qu il regle
+$tip.SetToolTip($numAlPause, (T 'Pause entre deux mesures en continu (s).'))
 
 $btnAlStart = New-Object System.Windows.Forms.Button
 $btnAlStart.Text = (T 'MESURER LA DISQUETTE'); $btnAlStart.Location = '10,40'; $btnAlStart.Size = '220,40'; $btnAlStart.Font = $bold
@@ -418,6 +423,9 @@ $lvAl.SmallImageList = $imgRow
 foreach ($c in @(@((T 'Piste'),50),@((T 'État'),162),@((T 'Erreurs'),56),@((T 'Trous'),54),@('Stab',46),@((T 'Jitter ns'),56),@('Score',56),@((T 'vs réf'),62),@('Asym.',64),@((T 'Cell ns'),56))) {
     [void]$lvAl.Columns.Add($c[0], [int][math]::Max([int]$c[1], [System.Windows.Forms.TextRenderer]::MeasureText([string]$c[0], $bold).Width + 8))
 }
+# 12.11 (version finale, relecture du rendu) : largeurs ci-dessus gardees comme minimum des colonnes des nombres, elargies
+# a leur plus longue case apres chaque remplissage (Set-AlNumColumnWidths, 195 : score de 1 000 et plus entier)
+$script:AlColMin = @(@($lvAl.Columns) | ForEach-Object { [int]$_.Width })
 
 # 12.10 : clic droit et Ctrl+C sur le tableau : copie en tabulations (Copy-AlignTable, 190) ; export aussi au menu
 $mnuAl = New-Object System.Windows.Forms.ContextMenuStrip
@@ -438,6 +446,9 @@ $tabAl.Controls.AddRange(@((New-Label (T 'Mesure :') '10,14'), $cmbAlPreset, (Ne
     (New-Label (T 'Têtes :') '488,14'), $cmbAlHead, (New-Label (T 'Tours :') '600,14'), $numAlRevs, $chkAlLoop, $numAlPause,
     $btnAlStart, $btnAlRef, $btnAlReset, $chkAlGuide, $lblAlRef, $btnAlExport,
     $btnAlPos0, $btnAlPlus, $btnAlMinus, $lblAlPos, $pnlQualCard, $lblAlReco, $lvAl))
+# 12.11 (version finale, relecture du rendu) : marge sous le tableau retablie a chaque changement de taille de l onglet
+# (apres une hauteur ramenee a 0 dans un onglet trop court, l ancrage seul la gardait fausse)
+$tabAl.Add_Resize({ Set-QualityTableHeight })
 Update-QualityView                                        # 12.8 (lot 3) : carte vide (« Aucune mesure »)
 
 # ============================== OUTILS =========================================

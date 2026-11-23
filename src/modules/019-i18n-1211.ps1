@@ -677,8 +677,15 @@ $script:I18n["Recalage de la courbe croisée {0} → {1} sur cette relecture non
 $script:I18n['tête {0} : étendue {1} sur {2} mesures'] = 'head {0}: range {1} over {2} measurements'
 $script:I18n['étendue {0} sur {1} mesures'] = 'range {0} over {1} measurements'
 $script:I18n["Facteur de la marque « {0} » dispersé sur ce lecteur ({1}) : la médiane appliquée peut être loin du facteur de cette disquette ; pour mesurer celle-ci au lieu d'appliquer la médiane, {2}."] = 'Factor of brand "{0}" spread out on this drive ({1}): the applied median may be far from the factor of this disk; to measure this disk instead of applying the median, {2}.'
-$script:I18n["médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : mesurez plutôt cette disquette sur l'image"] = 'median factor of brand "{0}" applied, measurements spread out ({1}): measure this disk on the image instead'
-$script:I18n['mesures de la marque dispersées : mesurez plutôt cette disquette'] = 'brand measurements spread out: measure this disk instead'
+# Relecture de la version finale : segment et forme courte avec le geste possible selon l ecriture (case de la mesure
+# grisee en ecriture rapide et au « Test rapide »), a la place des deux cles a geste unique
+$script:I18n['médiane du facteur de la marque « {0} » appliquée, mesures dispersées ({1}) : {2}'] = 'median factor of brand "{0}" applied, measurements spread out ({1}): {2}'
+$script:I18n['mesures de la marque dispersées : {0}'] = 'brand measurements spread out: {0}'
+$script:I18n["mesurez plutôt cette disquette sur l'image"] = 'measure this disk on the image instead'
+$script:I18n["écrivez plutôt l'image en écriture lente, avec la mesure sur l'image"] = 'write the image as a slow write instead, with the measure on the image'
+$script:I18n["choisissez plutôt la mesure sur l'image"] = 'choose the measure on the image instead'
+$script:I18n["choisissez plutôt le test standard ou fin, avec la mesure sur l'image"] = 'choose the standard or fine test instead, with the measure on the image'
+$script:I18n["écrivez plutôt l'image en écriture lente, au test standard ou fin, avec la mesure sur l'image"] = 'write the image as a slow write instead, with the standard or fine test and the measure on the image'
 
 # --- Version finale : conseil d une correction par zones qui couvre presque toute une tete (Get-WriteZoneHeadAdvice, 170) :
 # journal du controle, consigne selon l origine du facteur de la disquette (gestes de Get-TargetWriteHowPhrase, 172)
@@ -692,3 +699,5 @@ $script:I18n["A/B = bus IBM-PC (nappe avec twist) - typiquement le lecteur PC`n0
 
 # 12.11 finale, affichage : infobulle des boutons a icone seule de « Diskdefs : » (onglets Ecriture et Lecture, 520 et 530)
 $script:I18n['Choisir un fichier diskdefs (*.cfg) : définitions de formats personnalisées, passées à gw par --diskdefs.'] = 'Choose a diskdefs file (*.cfg): custom format definitions, passed to gw with --diskdefs.'
+# Relecture du rendu de la version finale : infobulle du champ de la pause de la mesure continue (530), sans libelle
+$script:I18n['Pause entre deux mesures en continu (s).'] = 'Pause between two measurements in continuous mode (s).'
