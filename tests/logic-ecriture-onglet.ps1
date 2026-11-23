@@ -312,6 +312,8 @@ $eoAdvBox = @($eoAdv + @('txtWPrecomp', 'txtWPrecomp1', 'lblWPrecomp1', 'lblWRep
 # « Lecteur cible » et case de la mesure : 8a2256548cb05f21 devient 99b662051cb5b528
 # 12.11 rc2.2 (adapte a dessein) : gestionnaire du bandeau, lecteur traite note a sa fin ($script:DriveHandled, lu par le
 # gestionnaire de SelectedIndexChanged, nouveau, d un choix a la souris) : 99b662051cb5b528 devient 20a0686d9c612998
+# 12.11 finale, finition (adapte a dessein) : infobulle du bouton « Courbe » pour un lecteur cible, courbe croisee montree
+# et courbe ecrite (facteur de la disquette, recalage) resumee au journal : d70abf5f4d708d32 devient ca7e8dfdfc3db786
 $eoS2Ref = @(
     '01c072a1c29125c7', '02195b377e0acfb8', '05747bbd10720c85', '060245da3155cf99', '06a1300a283e3dc2', '06dfdcfd1de104ee', '09634c241a54bb89', '0aac5a9968a07ab7',
     '0bc5254e1262d859', '0c529a33f4fc7961', '0ddba44c89049bfb', '1313cf5ef60342be', '1459bd09170b53e6', '1a10b06a97740961', '1c09ca9f19d03288', '1c818c45c7beab6a',
@@ -328,7 +330,7 @@ $eoS2Ref = @(
     'ab898cf19eaf8129', 'ab9b7deb16c7cb32', 'b65380b930bbf3b1', 'b7161fffffd23d36', 'b757ed89c38965f9', 'bab16824807f1702', 'bd69141703b91d1d', 'bd93a81d65a3b185',
     'bee027d9d3d78281', 'c19e00f2612891ea', 'c2cdae63e37652f3', 'c3430af750c1018e', 'c61b8ac594da934f', 'c69785ba831ef49e', 'c7f2082ea1f0942d', 'c8f280b3b8743c04',
     'c984cdbb466b366c', 'c9ba61892158a303', 'cad950be3905eca3', 'caf77646684123ee', 'cd69cfe05dada7b2', 'ce916d77c54dd35f', 'cedc2092f60328a5', 'cf36d1123ee724d1',
-    'cfa5981d5bbda8bd', 'd3daab2376c0eda1', 'd6f87f036afddaa6', 'd70abf5f4d708d32', 'd99211a4bec48c53', 'dc055695c703105a', 'dc30f7360d9fee01', 'dc7eda570db8dd08',
+    'cfa5981d5bbda8bd', 'd3daab2376c0eda1', 'd6f87f036afddaa6', 'ca7e8dfdfc3db786', 'd99211a4bec48c53', 'dc055695c703105a', 'dc30f7360d9fee01', 'dc7eda570db8dd08',
     'dea6717d58e08b40', 'e0e763b8a342a6c7', 'e22cf66b040e2aa4', 'e4c8c9967820eff0', 'e605a144bf61fc82', 'e63486738541075c', 'e8231ea248e544a2', 'e89af2ce0b01e4b3',
     'ea8dd628b4c03599', 'ec7ca13be08f7cf5', 'efeb38e6e4309071', 'f02544e7fae3e30f', 'f142f281c864a686', 'f2490846621ea4ca', 'f4a51d7374fc88e2', 'f72afd3ba019557f',
     '18c8dc678d5acd61', 'f9ff0466d7980c4d', 'fb9807d984fae60e', 'fd55dbecb5b25d96'
