@@ -328,7 +328,11 @@ $lblWCal.Location = '320,139'; $lblWCal.ForeColor = 'DimGray'; $lblWCal.Visible 
 # d une ligne de la police heritee (FontChanged)
 $lblWCal.AutoSize = $false; $lblWCal.AutoEllipsis = $true; $lblWCal.Anchor = 'Top,Left,Right'
 $lblWCal.Size = New-Object System.Drawing.Size(($grpWOpt.DisplayRectangle.Right - 320), $lblWCal.PreferredHeight)
-$lblWCal.Add_FontChanged({ $lblWCal.Height = $lblWCal.PreferredHeight; Update-WCalTip })
+# 12.11 finale (finition) : hauteur d une ligne de texte, mesuree par un libelle de meme police qui porte un texte
+# (Get-DrvTextHeight, 112), et non PreferredHeight : vide, comme quand il recoit la police de son cadre au demarrage, ce
+# libelle mesure 2 px de moins qu une ligne de texte (20 au lieu de 22 en Segoe UI 9,75), et le bas du texte etait coupe
+# jusqu au changement de police suivant
+$lblWCal.Add_FontChanged({ $lblWCal.Height = Get-DrvTextHeight @('0') $lblWCal.Font $lblWCal.Width; Update-WCalTip })
 $lblWCal.Add_SizeChanged({ Update-WCalTip })
 $lblWCal.Add_PaddingChanged({ Update-WCalTip })
 # 12.8 (lot 3b) : verdict du controle apres ecriture avec son icone d etat de 16 px et son encre (Set-WCalVerdict) ; tout

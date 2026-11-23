@@ -2,8 +2,8 @@
   "format": 1,
   "note": "Genere par tools/Assemble-Source.ps1, ne pas modifier. Lignes de src/GreaseweazleGUI.ps1, bornes incluses.",
   "source": "src/GreaseweazleGUI.ps1",
-  "sha256": "412e97f5f917ad4ea81f798a257b5a95d694c00d4d8f937edf95741d15bf091e",
-  "lines": 37449,
+  "sha256": "605c37a6b6fec3701e9e0418fc967d0b238734397ab733983ca125b518cd984a",
+  "lines": 37453,
   "modules": [
     { "file": "000-entete.ps1", "first": 1, "last": 58 },
     { "file": "010-i18n.ps1", "first": 59, "last": 2151 },
@@ -52,15 +52,15 @@
     { "file": "300-fn-restauration.ps1", "first": 33561, "last": 34818 },
     { "file": "500-fenetre-theme.ps1", "first": 34819, "last": 34893 },
     { "file": "510-ui-bandeau-bibliotheque.ps1", "first": 34894, "last": 35189 },
-    { "file": "520-ui-ecriture.ps1", "first": 35190, "last": 35668 },
-    { "file": "530-ui-onglets-techniques.ps1", "first": 35669, "last": 36299 },
-    { "file": "540-ui-accueil-restauration-barre.ps1", "first": 36300, "last": 36775 },
-    { "file": "550-etat-nettoyage.ps1", "first": 36776, "last": 36789 },
-    { "file": "560-etat-calibration.ps1", "first": 36790, "last": 37116 },
-    { "file": "565-etat-contenu.ps1", "first": 37117, "last": 37151 },
-    { "file": "570-etat-controle-ecriture.ps1", "first": 37152, "last": 37168 },
-    { "file": "580-etat-restauration.ps1", "first": 37169, "last": 37197 },
-    { "file": "590-etat-detection.ps1", "first": 37198, "last": 37207 },
-    { "file": "600-minuteur-demarrage.ps1", "first": 37208, "last": 37449 }
+    { "file": "520-ui-ecriture.ps1", "first": 35190, "last": 35672 },
+    { "file": "530-ui-onglets-techniques.ps1", "first": 35673, "last": 36303 },
+    { "file": "540-ui-accueil-restauration-barre.ps1", "first": 36304, "last": 36779 },
+    { "file": "550-etat-nettoyage.ps1", "first": 36780, "last": 36793 },
+    { "file": "560-etat-calibration.ps1", "first": 36794, "last": 37120 },
+    { "file": "565-etat-contenu.ps1", "first": 37121, "last": 37155 },
+    { "file": "570-etat-controle-ecriture.ps1", "first": 37156, "last": 37172 },
+    { "file": "580-etat-restauration.ps1", "first": 37173, "last": 37201 },
+    { "file": "590-etat-detection.ps1", "first": 37202, "last": 37211 },
+    { "file": "600-minuteur-demarrage.ps1", "first": 37212, "last": 37453 }
   ]
 }

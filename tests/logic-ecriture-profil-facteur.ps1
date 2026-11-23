@@ -171,6 +171,7 @@ foreach ($p in @(
         @('265', @('Get-LevelBrandKey')),
         @('270', @('Update-CalibProgress')),
         @('172', @('Get-TargetWriteHowPhrase')),                           # 12.11 (relecture de la version finale) : geste de mesure du conseil
+        @('112', @('Get-DrvTextHeight')),                                  # 12.11 finale (finition) : hauteur de lblWCal (gestionnaire FontChanged de 520)
         @('274', @('Limit-WriteFactor', 'Get-DriveK')))) {
     foreach ($n in $p[1]) { $parts.Add((Get-FFn $p[0] $n)) }
 }
@@ -712,7 +713,15 @@ if ($wfOk) {
     $hostW.Controls.Add($grpWOpt)
     $drR = $grpWOpt.DisplayRectangle.Right
     "  R3W : lblWCal avant le parent : $fW0, hauteur $hW0 px ; apres : $($lblWCal.Font.Name) $($lblWCal.Font.SizeInPoints), $($lblWCal.Width) x $($lblWCal.Height) px (PreferredHeight $($lblWCal.PreferredHeight)) ; groupe $($grpWOpt.Width) px, DisplayRectangle.Right $drR"
-    Chk 'R3W1' (-not $lblWCal.AutoSize -and $lblWCal.AutoEllipsis -and $lblWCal.Anchor -eq [System.Windows.Forms.AnchorStyles]'Top, Left, Right' -and $lblWCal.Left -eq 320 -and $lblWCal.Width -eq ($drR - 320) -and $lblWCal.Right -eq $drR -and $lblWCal.Font.Name -eq 'Segoe UI' -and $lblWCal.Font.SizeInPoints -eq 9.75 -and $lblWCal.Height -eq $lblWCal.PreferredHeight -and $lblWCal.UseCompatibleTextRendering) "construit comme dans 520 : AutoSize faux, AutoEllipsis vrai, ancre Top, Left, Right, largeur $($lblWCal.Width) px = DisplayRectangle.Right - 320, hauteur $($lblWCal.Height) px = PreferredHeight apres rattachement (police heritee Segoe UI 9,75)"
+    # 12.11 finale (finition) : hauteur d une ligne de texte des le rattachement, libelle encore vide (demarrage) : celle que
+    # le libelle prefere quand il porte un texte d une ligne (court ou long), et non PreferredHeight du libelle vide, plus
+    # petite (20 au lieu de 22 px en Segoe UI 9,75 : le bas du texte etait coupe jusqu au changement de police suivant)
+    $hW1 = $lblWCal.Height; $hWE = $lblWCal.PreferredHeight
+    $lblWCal.Text = 'Calibration'; $hWT = $lblWCal.PreferredHeight
+    $lblWCal.Text = 'Calibration rapide terminée en 3 min : niveau +20 ns, forme conforme, une ligne plus longue que le libellé, coupée par ses points de suspension.'; $hWL = $lblWCal.GetPreferredSize([System.Drawing.Size]::Empty).Height
+    $lblWCal.Text = ''
+    "  R3W1 : hauteur au rattachement $hW1 px (libelle vide) ; hauteur preferee : vide $hWE px, texte court $hWT px, texte long sur une ligne $hWL px"
+    Chk 'R3W1' (-not $lblWCal.AutoSize -and $lblWCal.AutoEllipsis -and $lblWCal.Anchor -eq [System.Windows.Forms.AnchorStyles]'Top, Left, Right' -and $lblWCal.Left -eq 320 -and $lblWCal.Width -eq ($drR - 320) -and $lblWCal.Right -eq $drR -and $lblWCal.Font.Name -eq 'Segoe UI' -and $lblWCal.Font.SizeInPoints -eq 9.75 -and $hW1 -eq $hWT -and $hW1 -eq $hWL -and $lblWCal.Height -eq $hW1 -and $lblWCal.UseCompatibleTextRendering) "construit comme dans 520 : AutoSize faux, AutoEllipsis vrai, ancre Top, Left, Right, largeur $($lblWCal.Width) px = DisplayRectangle.Right - 320, hauteur $hW1 px des le rattachement, libelle vide = hauteur preferee d une ligne de texte ($hWT px ; libelle vide : $hWE px) (police heritee Segoe UI 9,75)"
     $v = ((T "CONTRÔLE APRÈS ÉCRITURE : {0}/{1} pistes saines") -f '160', '160') + ((T " (relu par le lecteur {0}, pas par le lecteur cible {1})") -f 'A', '0')
     Set-WCalVerdict $v 'h0'
     $tt1 = $tip.GetToolTip($lblWCal); $pd1 = $lblWCal.Padding.Left; $pw1 = $lblWCal.PreferredWidth; $wd1 = $lblWCal.Width
