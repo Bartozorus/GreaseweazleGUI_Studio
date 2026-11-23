@@ -92,7 +92,7 @@ Déplacer une fonction d'un module `fn` à un autre ne change rien à l'exécuti
    - Encodage : UTF-8 avec BOM, fins de ligne CRLF. `.editorconfig` et `.gitattributes` les imposent déjà.
    - Méfiez-vous des outils qui réécrivent le fichier, comme `sed` ou Python en mode texte : ils peuvent retirer le BOM ou les CR. L'assembleur le refuse, en donnant le module et la ligne.
    - Conventions inchangées : commentaires en français sans accents, et chaque texte de l'interface passe par `T`, avec son entrée anglaise dans la table I18n : `010-i18n.ps1` et ses suites, `019-i18n-1211.ps1` pour les textes de la 12.11. Le contrôle de la source (`tests/check-source.ps1`, cas I1) refuse une clé de `T` sans entrée, même quand le texte est identique dans les deux langues.
-   - La version de l'application est dans `000-entete.ps1` (`$script:Version`).
+   - La version de l'application est dans `000-entete.ps1` (`$script:Version`), avec la version montrée (`$script:VersionLabel`, la même pour une version publiée).
 2. Les messages de PowerShell, de PS2EXE et du banc de test donnent les lignes du fichier assemblé. Pour retrouver le module :
 
    ```powershell

@@ -134,7 +134,7 @@ Le workflow GitHub Actions [tests.yml](.github/workflows/tests.yml) lance ce mê
 
 Le workflow GitHub Actions [release.yml](.github/workflows/release.yml) compile l'exécutable sur un runner Windows et l'attache à une release GitHub à chaque tag `vX.Y`, avec pour notes la section correspondante du CHANGELOG.
 
-1. Mettre à jour `$script:Version` dans `src/modules/000-entete.ps1`, réassembler (`tools/Assemble-Source.ps1`), puis mettre à jour le [CHANGELOG](CHANGELOG.md).
+1. Mettre à jour `$script:Version` et `$script:VersionLabel` (la version montrée : titre de la fenêtre, journal, rapports ; la même que `$script:Version` pour une version publiée) dans `src/modules/000-entete.ps1`, réassembler (`tools/Assemble-Source.ps1`), puis mettre à jour le [CHANGELOG](CHANGELOG.md).
 2. Commit, puis push de `main`. Vérifier dans l'onglet Actions que le workflow « Tests » est vert sur ce commit : la release ne l'attend pas, cette vérification est manuelle.
 3. Tag et push :
 
