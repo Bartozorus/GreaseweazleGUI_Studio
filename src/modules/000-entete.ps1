@@ -32,7 +32,7 @@ $script:Version = '12.12'
 # exporte, rapport de restauration, export « Qualite & alignement ») ; $script:Version reste celle des donnees, des
 # calibrations, de la configuration et du controle du workflow de publication. Version publiee : egale a
 # $script:Version ; preversion : suivie de « rcN »
-$script:VersionLabel = '12.12 rc3'
+$script:VersionLabel = '12.12 rc4'
 # Version du calcul de calibration (motif de test, mesure du decalage, ajustement de la courbe, verification), enregistree
 # avec chaque courbe : a changer seulement quand ce calcul change. Une courbe faite avec ce calcul est reprise par les
 # versions suivantes de l application ; une courbe d un autre calcul n est reprise que si l utilisateur la conserve.
