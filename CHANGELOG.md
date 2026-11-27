@@ -5,6 +5,18 @@ Le numéro de version est celui de `$script:Version` dans `src/GreaseweazleGUI.p
 
 Chaque version s'ouvre sur un résumé de ce qu'elle apporte, puis classe ses changements en Nouveautés, Améliorations et Corrections. La rubrique « À savoir pour la mise à jour » indique ce qu'il faut faire en installant la version, par exemple recalibrer un lecteur. « Pour les développeurs » regroupe la compilation, la publication et le format de configuration. Le fonctionnement détaillé est décrit dans le [wiki](https://github.com/Bartozorus/GreaseweazleGUI_Studio/wiki).
 
+## [12.12] - 2026-??-??
+
+Version en préparation.
+
+### Corrections
+
+- **Recalage de la courbe croisée : une zone reprise compte de nouveau.** Au contrôle d'une écriture pour un lecteur cible, une zone dont la correction n'est pas gardée est réécrite avec la courbe d'origine. Ses pistes étaient pourtant écartées de la relecture par le lecteur cible, comme celles d'une zone gardée : sur une disquette à grandes zones reprises, une tête n'avait plus les 60 pistes exigées et son recalage n'apprenait rien. Seules les zones gardées restent écartées.
+
+### Pour les développeurs
+
+- Recalage (172, `tests/`) : `Get-TargetWriteZoneCyls` n'exclut plus une zone à l'état `back` quand une passe de réécriture a suivi son jugement (`Rep.Round` ≥ 2) ; zone gardée, non jugée, ou reprise sans passe ensuite : exclue comme avant. Test `logic-cible-recalage` (M2b).
+
 ## [12.11] - 2026-11-23
 
 Cette version rend l'écriture plus simple à préparer et plus facile à juger, rend plus juste l'écriture pour un lecteur cible, permet d'enregistrer plusieurs lecteurs de disquette et de revenir à une calibration précédente.

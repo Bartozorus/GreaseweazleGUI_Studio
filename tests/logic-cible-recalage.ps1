@@ -484,6 +484,13 @@ $rep = @{ State = $st0; Written = $wr; HeadPrecomp = @{ 0 = '0=50:20=45:30=40'; 
 Complete-TargetWriteMemory $true $rep
 $lm = $script:LastTargetWrites['A>0']
 Chk 'M2' ($null -eq $script:TargetWritePending -and $lm -and [string]$lm.Verdict -eq 'ok' -and [int]$lm.Tracks -eq 160 -and [string]$lm.H['0'].W -eq '0=50:20=45:30=40' -and (@($lm.H['0'].Zones) -join ',') -eq ((20..29) -join ',') -and (@($lm.H['1'].Zones) -join ',') -eq ((50..54) -join ',') -and $lm.Date -and $lm.At -and -not $lm.ContainsKey('Written') -and $script:Saves -eq 1 -and (@($script:Log) -join ' ').Contains('gardée en mémoire')) 'fin du controle : verdict R10, courbe finale avec zones, cylindres des zones, pistes, date ; enregistree'
+# 12.12 : zone reprise dont les pistes ont ete reecrites avec la courbe d origine (une passe a suivi son jugement,
+# Round >= 2) : ses cylindres comptent de nouveau pour la relecture ; zone gardee ou non jugee : toujours exclue ; zone
+# reprise sans passe ensuite (Round 1) : exclue
+$zr = @(@{ H = 0; C0 = 20; C1 = 29; State = 'ok' }, @{ H = 0; C0 = 40; C1 = 49; State = 'back' }, @{ H = 1; C0 = 50; C1 = 54; State = 'back' }, @{ H = 1; C0 = 60; C1 = 62; State = 'pending' })
+$z2h0 = ((Get-TargetWriteZoneCyls @{ Zones = $zr; Round = 2 } 0) -join ','); $z2h1 = ((Get-TargetWriteZoneCyls @{ Zones = $zr; Round = 3 } 1) -join ',')
+$z1h0 = ((Get-TargetWriteZoneCyls @{ Zones = $zr; Round = 1 } 0) -join ','); $z1h1 = ((Get-TargetWriteZoneCyls @{ Zones = $zr; Round = 1 } 1) -join ',')
+Chk 'M2b' ($z2h0 -eq ((20..29) -join ',') -and $z2h1 -eq '60,61,62' -and $z1h0 -eq ((@(20..29) + @(40..49)) -join ',') -and $z1h1 -eq ((@(50..54) + @(60..62)) -join ',') -and (Get-TargetWriteZoneCyls @{ Zones = @(); Round = 2 } 0).Count -eq 0) "12.12, zone reprise puis reecrite : comptee de nouveau (passe 2 et suivantes : tete 0 '$z2h0', tete 1 '$z2h1') ; sans passe ensuite : exclue (tete 0 '$z1h0', tete 1 '$z1h1')"
 $script:TargetWritePending = (New-TargetWriteMemory $tw $wfm $xp $rc $true '' 'C:\factice\essai.adf' @(0, 1) $true 0)
 Complete-TargetWriteMemory $false
 Chk 'M3' (-not $script:LastTargetWrites.ContainsKey('A>0') -and (@($script:Log) -join ' ').Contains('interrompue')) 'ecriture interrompue : memoire de la paire retiree'

@@ -317,10 +317,19 @@ function Set-TargetWritePending($p) {
 }
 
 function Get-TargetWriteZoneCyls($rep, [int]$lh) {
-    # Cylindres des zones de la correction R16 d une tete logique (Rep.Zones, 170 : gardees, reprises ou non jugees),
-    # tries ; aucun sans zone
+    # Cylindres d une tete logique que la relecture par le lecteur cible ne doit pas compter (Get-TargetRecalReadback) :
+    # ceux des zones de la correction R16 (Rep.Zones, 170) dont les pistes ne portent pas la courbe d origine, tries ; aucun
+    # sans zone. 12.12 : une zone reprise (State 'back') dont les pistes ont ete reecrites avec la courbe d origine n est
+    # plus exclue : c est le cas des qu une passe de reecriture a suivi son jugement (Rep.Round >= 2 : ses pistes
+    # rejoignent les pistes faibles de la passe 2, Complete-WriteZonePass, et une erreur de gw retire la memoire). Avant,
+    # toute zone etait exclue, meme reprise : une tete a grandes zones reprises n avait plus assez de pistes pour recaler.
+    # Zone gardee, non jugee, ou reprise sans passe de reecriture ensuite (Rep.Round < 2) : exclue comme avant
     $cs = @{}
-    foreach ($z in @(@($rep.Zones) | Where-Object { $_ -and [int]$_.H -eq $lh })) { for ($c = [int]$z.C0; $c -le [int]$z.C1; $c++) { $cs[$c] = $true } }
+    $rew = ([int]$rep.Round -ge 2)
+    foreach ($z in @(@($rep.Zones) | Where-Object { $_ -and [int]$_.H -eq $lh })) {
+        if ($rew -and [string]$z.State -ceq 'back') { continue }
+        for ($c = [int]$z.C0; $c -le [int]$z.C1; $c++) { $cs[$c] = $true }
+    }
     return ,[int[]]@($cs.Keys | ForEach-Object { [int]$_ } | Sort-Object)
 }
 
