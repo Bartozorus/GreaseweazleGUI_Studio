@@ -339,8 +339,9 @@ $wf = @{ Apply = $true; F0 = 0.74; F1 = 0.80; FMean = 0.77; Hard = 400; K = @{ 0
 $td = @{ P0 = $own[0].Spec; P1 = $own[1].Spec; Kind = @{ 0 = 'own'; 1 = 'own' } }
 $p0 = Get-TargetTransferPlan $tw $wf $td $true
 $d0 = ConvertTo-ScaledSpec $own[0].Spec 0.74 400; $d1 = ConvertTo-ScaledSpec $own[1].Spec 0.80 400
-$e0 = Get-TargetTransferSpec $d0 $own[0].Spec $xc[0].Spec 0 400; $e1 = Get-TargetTransferSpec $d1 $own[1].Spec $xc[1].Spec 0 400
-Chk 'A1' ([string]$p0.P0 -ceq [string]$e0.Spec -and [string]$p0.P1 -ceq [string]$e1.Spec -and -not ([string]$p0.Line).Contains('recalage') -and -not $p0.Recal.Used) 'sans recalage en memoire : profils de la regle rc7 et journal sans recalage'
+# 12.12 : le plan transmet la base et le facteur de chaque tete (facteur pris avant l arrondi au ns)
+$e0 = Get-TargetTransferSpec $d0 $own[0].Spec $xc[0].Spec 0 400 0 $own[0].Spec 0.74 400; $e1 = Get-TargetTransferSpec $d1 $own[1].Spec $xc[1].Spec 0 400 0 $own[1].Spec 0.80 400
+Chk 'A1' ([string]$p0.P0 -ceq [string]$e0.Spec -and [string]$p0.P1 -ceq [string]$e1.Spec -and -not ([string]$p0.Line).Contains('recalage') -and -not $p0.Recal.Used) 'sans recalage en memoire : profils de la regle (facteur de chaque tete pris avant l arrondi, 12.12) et journal sans recalage'
 $script:TargetRecal['A>0|std_h0'] = @{ Ns = -3.4; N = 1; Items = @(@{ WriteId = 'W1'; Date = '22/11/2026 10:00'; Est = -6.8; Tracks = 80; NR = 1; Read = '2026-11-22 11:00:00' }); XDate = $XD; XKey = 'std_h0'; Calc = $script:CalibCalc; At = '2026-11-22 11:00:00' }
 $script:TargetRecal['A>0|std_h1'] = @{ Ns = 2.6; N = 1; Items = @(@{ WriteId = 'W1'; Date = '22/11/2026 10:00'; Est = 5.2; Tracks = 80; NR = 1; Read = '2026-11-22 11:00:00' }); XDate = $XD; XKey = 'std_h1'; Calc = $script:CalibCalc; At = '2026-11-22 11:00:00' }
 $p1 = Get-TargetTransferPlan $tw $wf $td $true

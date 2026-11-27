@@ -13392,7 +13392,7 @@ function Get-TargetWriteInfo([string]$img, [string]$fmt, [bool]$slow) {
     return $r
 }
 
-function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec, [int]$cyls, [int]$cap, [double]$recalNs = 0) {
+function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec, [int]$cyls, [int]$cap, [double]$recalNs = 0, [string]$dBase = '', [double]$dF = 1.0, [int]$dHard = 0) {
     # 12.11 (rc2, spec-facteur-croise, regle 4) : courbe ecrite pour le lecteur cible T par le lecteur S, une tete, cylindre
     # par cylindre c de 0 a n - 1 : Sp(c) >= XferMinNs (040) : X(c) x D(c) / Sp(c), le facteur par cylindre de la
     # calibration croisee (X/Sp) applique a la courbe de cette disquette ; sinon (au bord, le besoin propre de S est de
@@ -13415,6 +13415,14 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
     # TargetRecalWShare de la valeur du cylindre (valeur nulle : inchangee), puis au moins 0 et au plus max($cap, X(c),
     # D(c)) ; Excess (courbe ecrite - D) et le cas « courbe ecrite = X » calcules ensuite. Recal : oc nominal (ns entiers) ;
     # RecalLimited : cylindres ou la limite de TargetRecalWShare a joue
+    # 12.12 : facteur de la disquette pris avant l arrondi au ns. D est le profil $dBase mis a l echelle par $dF
+    # (ConvertTo-ScaledSpec, borne $dHard) : D(c) = arrondi(dF x base(c)), et le rapport D(c)/Sp(c) portait cet arrondi
+    # (jusqu a 0,5 ns sur un besoin de quelques ns). Avec $dBase, le rapport et la hausse sont calcules sur De(c) =
+    # dF x base(c), au plus max(dHard, base(c)), au moins 0, la ou son arrondi est bien D(c) (sinon D(c), comme sans
+    # $dBase). La ou la base de D est Sp lui-meme (courbe propre mise a l echelle, base(c) = Sp(c) > 0), De/Sp est le
+    # facteur de la disquette sans bruit de mesure : il est applique aussi sous XferMinNs, sans reprise d un voisin
+    # (Exact : ces cylindres). Excess reste compte sur D arrondi : ce que le meme lecteur aurait ecrit. Sans $dBase
+    # (defaut) : courbe de la 12.11, a l octet
     $last = 0
     foreach ($s in @($dSpec, $spSpec, $xSpec)) {
         foreach ($m in [regex]::Matches([string]$s, '(\d+)\s*=\s*(\d+)')) { if ([int]$m.Groups[1].Value -gt $last) { $last = [int]$m.Groups[1].Value } }
@@ -13426,35 +13434,43 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
     $n = [math]::Max($cyls, $last + 1)
     $min = [double]$script:XferMinNs
     # Ratio : table simple (une table ordonnee lirait une cle entiere comme un rang)
-    $r = @{ Spec = $xSpec; Values = @(); Ratio = @{}; Added = @(); Borrow = @{}; Pooled = @(); PoolF = $null; Same = $true; Excess = @(); Capped = @(); Recal = 0; RecalLimited = @() }
+    $r = @{ Spec = $xSpec; Values = @(); Ratio = @{}; Added = @(); Borrow = @{}; Pooled = @(); PoolF = $null; Same = $true; Excess = @(); Capped = @(); Recal = 0; RecalLimited = @(); Exact = @() }
     $vals = New-Object int[] $n; $exc = New-Object int[] $n
     $asX = $true; $added = New-Object System.Collections.Generic.List[int]; $pooled = New-Object System.Collections.Generic.List[int]; $capped = New-Object System.Collections.Generic.List[int]
     $rcN = [int][math]::Round($recalNs); $rcLim = New-Object System.Collections.Generic.List[int]; $r.Recal = $rcN
     $dA = New-Object double[] $n; $spA = New-Object double[] $n; $xA = New-Object double[] $n; $sumD = 0.0; $sumSp = 0.0; $nOk = 0
+    $deA = New-Object double[] $n; $ownA = New-Object bool[] $n; $exact = New-Object System.Collections.Generic.List[int]
     for ($c = 0; $c -lt $n; $c++) {
         $dA[$c] = [double](Get-SpecValue $dSpec $c); $spA[$c] = [double](Get-SpecValue $spSpec $c); $xA[$c] = [double](Get-SpecValue $xSpec $c)
-        $sumD += $dA[$c]; $sumSp += $spA[$c]; if ($spA[$c] -ge $min) { $nOk++ }
+        $deA[$c] = $dA[$c]
+        if ($dBase) {
+            $bv = [double](Get-SpecValue $dBase $c)
+            $de = [math]::Max(0.0, [math]::Min($dF * $bv, [math]::Max([double]$dHard, $bv)))
+            if ([math]::Round($de) -eq $dA[$c]) { $deA[$c] = $de; $ownA[$c] = ($bv -eq $spA[$c] -and $spA[$c] -gt 0) }
+        }
+        $sumD += $deA[$c]; $sumSp += $spA[$c]; if ($spA[$c] -ge $min) { $nOk++ }
     }
     for ($c = 0; $c -lt $n; $c++) {
-        $d = $dA[$c]; $sp = $spA[$c]; $x = $xA[$c]
-        if ($d -ne $sp) { $r.Same = $false }
-        if ($sp -ge $min) { $w = $x * $d / $sp; $r.Ratio[$c] = $x / $sp }
+        $d = $dA[$c]; $de = $deA[$c]; $sp = $spA[$c]; $x = $xA[$c]
+        if ($de -ne $sp) { $r.Same = $false }
+        if ($sp -ge $min) { $w = $x * $de / $sp; $r.Ratio[$c] = $x / $sp }
+        elseif ($ownA[$c]) { $w = $x * $de / $sp; $exact.Add($c) }
         elseif ($nOk -gt 0) {
             $cs = -1
             for ($k = 1; $cs -lt 0; $k++) {
                 if ($c + $k -lt $n -and $spA[$c + $k] -ge $min) { $cs = $c + $k } elseif ($c - $k -ge 0 -and $spA[$c - $k] -ge $min) { $cs = $c - $k }
             }
-            $w = $x * $dA[$cs] / $spA[$cs]; $r.Borrow[$c] = $cs
+            $w = $x * $deA[$cs] / $spA[$cs]; $r.Borrow[$c] = $cs
         }
         elseif ($sumSp -gt 0) { $r.PoolF = $sumD / $sumSp; $w = $x * $r.PoolF; $pooled.Add($c) }
-        else { $w = $x + ($d - $sp); $added.Add($c) }
+        else { $w = $x + ($de - $sp); $added.Add($c) }
         # 12.11 rc6 (R15) : disquette qui demande plus que la courbe propre (D > Sp) : la hausse est reportee au plus en ns,
         # min(part en rapport, X + (D - Sp)) ; une baisse (D <= Sp) reste reportee en rapport. Avec X >= Sp, c est
         # min(X x D/Sp, X + D - Sp) en tout cylindre. Capped : cylindres ou la borne en ns a joue. Relecture de la rc6 : toute
         # hausse au-dessus de X est bornee a X + max(0, D - Sp), aussi sous XferMinNs quand le facteur repris d un voisin
         # (ou moyen) depasse 1 alors que D(c) <= Sp(c) (D = k x Sp arrondi egal a Sp aux faibles Sp, 1 < k < 1,5) : X, et non
         # X x k sans borne
-        if ($w -gt $x) { $lim = $x + [math]::Max(0.0, $d - $sp); if ($w -gt $lim) { $w = $lim; $capped.Add($c) } }
+        if ($w -gt $x) { $lim = $x + [math]::Max(0.0, $de - $sp); if ($w -gt $lim) { $w = $lim; $capped.Add($c) } }
         $vals[$c] = [int][math]::Max(0.0, [math]::Min([math]::Round($w), [math]::Max([double]$cap, [math]::Max($x, $d))))
         # 12.11 rc8 (R17) : recalage du lecteur cible, apres l arrondi et la borne
         if ($rcN -ne 0 -and $vals[$c] -gt 0) {
@@ -13466,7 +13482,7 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
         $exc[$c] = $vals[$c] - [int]$d
         if ($vals[$c] -ne [int]$x) { $asX = $false }
     }
-    $r.Values = $vals; $r.Added = [int[]]$added.ToArray(); $r.Pooled = [int[]]$pooled.ToArray(); $r.Excess = $exc; $r.Capped = [int[]]$capped.ToArray(); $r.RecalLimited = [int[]]$rcLim.ToArray()
+    $r.Values = $vals; $r.Added = [int[]]$added.ToArray(); $r.Pooled = [int[]]$pooled.ToArray(); $r.Excess = $exc; $r.Capped = [int[]]$capped.ToArray(); $r.RecalLimited = [int[]]$rcLim.ToArray(); $r.Exact = [int[]]$exact.ToArray()
     if (-not $asX) { $r.Spec = Build-CurveProfile $vals }
     return $r
 }
@@ -13537,15 +13553,18 @@ function Get-TargetTransferPlan($tw, $wf, $td, [bool]$slow) {
     # (D, Sp, X), meme borne. Rend @{ P0 ; P1 ; T = @{ 0 ; 1 } (Get-TargetTransferSpec) ; Line ; Recal (Get-TargetRecalPlan, rc8) }
     $own = @($tw.Own); $xc = @($tw.Curves); $cap = [int]$wf.Hard
     $d0 = [string]$td.P0; $d1 = [string]$td.P1
+    # 12.12 : profils avant le facteur et facteur de chaque tete, pour le rapport calcule avant l arrondi au ns
+    # (Get-TargetTransferSpec, $dBase) ; sans facteur applique : rien a transmettre (D = base)
+    $b0 = ''; $b1 = ''; $k0 = 1.0; $k1 = 1.0
     if ($wf.Apply) {
-        if ($slow) { $d0 = ConvertTo-ScaledSpec $d0 $wf.F0 $wf.Hard; $d1 = ConvertTo-ScaledSpec $d1 $wf.F1 $wf.Hard }
-        else { $d0 = ConvertTo-ScaledSpec $d0 $wf.FMean $wf.Hard; $d1 = $d0 }
+        if ($slow) { $b0 = $d0; $b1 = $d1; $k0 = [double]$wf.F0; $k1 = [double]$wf.F1; $d0 = ConvertTo-ScaledSpec $d0 $wf.F0 $wf.Hard; $d1 = ConvertTo-ScaledSpec $d1 $wf.F1 $wf.Hard }
+        else { $b0 = $d0; $k0 = [double]$wf.FMean; $d0 = ConvertTo-ScaledSpec $d0 $wf.FMean $wf.Hard; $d1 = $d0 }
     } elseif (-not $slow) { $d1 = $d0 }
     # 12.11 rc8 (R17) : recalage du lecteur cible de chaque tete (Get-TargetRecalPlan, 172 : entree valable pour la courbe
     # croisee employee, facteur k mesure, hors profil Manuel ; ecriture rapide : moyenne des deux tetes), 0 sans lui
     $rc = Get-TargetRecalPlan $tw $wf $xc $slow
-    $t0 = Get-TargetTransferSpec $d0 ([string]$own[0].Spec) ([string]$xc[0].Spec) 0 $cap ([double]$rc.O[0])
-    $t1 = if ($slow) { Get-TargetTransferSpec $d1 ([string]$own[$own.Count - 1].Spec) ([string]$xc[$xc.Count - 1].Spec) 0 $cap ([double]$rc.O[1]) } else { $t0 }
+    $t0 = Get-TargetTransferSpec $d0 ([string]$own[0].Spec) ([string]$xc[0].Spec) 0 $cap ([double]$rc.O[0]) $b0 $k0 $cap
+    $t1 = if ($slow) { Get-TargetTransferSpec $d1 ([string]$own[$own.Count - 1].Spec) ([string]$xc[$xc.Count - 1].Spec) 0 $cap ([double]$rc.O[1]) $b1 $k1 $cap } else { $t0 }
     $r = @{ P0 = $t0.Spec; P1 = $t1.Spec; T = @{ 0 = $t0; 1 = $t1 }; Line = ''; Recal = $rc }
     # Origine de D : mesure de cette disquette ou courbe propre, facteur de cette ecriture (texte de Get-WriteFactorSrcText)
     $kt = @{ own = (T 'courbe du lecteur'); quick = (T 'calibration rapide de cette disquette'); complete = (T 'mesure complète de cette disquette') }
