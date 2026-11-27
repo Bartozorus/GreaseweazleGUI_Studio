@@ -2178,6 +2178,18 @@ $script:I18n["Décochée par défaut depuis la 12.12 : les relectures par un lec
 $script:I18n["Case « Corriger les zones écartées de l'attendu (lecteur cible) » décochée, une seule fois : elle n'est plus cochée par défaut dans cette version. Les relectures par un lecteur cible n'ont pas confirmé les écarts vus par le lecteur qui écrit, et la correction éloignait la disquette de ce que lit le lecteur cible. La case reste dans les options avancées de l'onglet « Écriture »."] = '"Correct zones away from the expected value (target drive)" box unchecked, once only: it is no longer checked by default in this version. Read-backs by a target drive did not confirm the gaps seen by the writing drive, and the correction moved the disk away from what the target drive reads. The box remains in the advanced options of the "Write" tab.'
 $script:I18n['{0} : écart médian {1} ns'] = '{0}: median gap {1} ns'
 $script:I18n["Contrôle après écriture : {0} zone(s) écartée(s) de l'attendu à la relecture par le lecteur {1} ({2}), non corrigée(s) : seule une relecture par le lecteur {3} dit ce qu'il lira."] = 'Post-write check: {0} zone(s) away from the expected value when read back by drive {1} ({2}), not corrected: only a read-back by drive {3} tells what it will read.'
+# Verification du contenu par l application, etape 1 (170)
+$script:I18n['gw convert non lancé ({0})'] = 'gw convert not started ({0})'
+$script:I18n['gw convert non lancé'] = 'gw convert not started'
+$script:I18n['gw convert non terminé après {0} s'] = 'gw convert not finished after {0} s'
+$script:I18n['gw convert a rendu le code {0}'] = 'gw convert returned code {0}'
+$script:I18n['fichier de référence absent'] = 'reference file missing'
+$script:I18n['fichier de référence illisible'] = 'reference file unreadable'
+$script:I18n['vérification du contenu'] = 'content verification'
+$script:I18n[' ; {0} piste(s) non comparée(s)'] = '; {0} track(s) not compared'
+$script:I18n["Vérification du contenu (à l'essai) : non faite, {0}. La vérification de gw et le contrôle n'en dépendent pas."] = 'Content verification (on trial): not done, {0}. The gw verification and the check do not depend on it.'
+$script:I18n["Vérification du contenu (à l'essai) : {0} piste(s) comparée(s) au flux que gw tire de l'image, aucune différence{1}."] = 'Content verification (on trial): {0} track(s) compared with the flux gw derives from the image, no difference{1}.'
+$script:I18n["Vérification du contenu (à l'essai) : {0} piste(s) comparée(s) au flux que gw tire de l'image, {1} différente(s) : {2}{3}. Ce constat ne change ni l'état des pistes ni les réécritures."] = 'Content verification (on trial): {0} track(s) compared with the flux gw derives from the image, {1} different: {2}{3}. This finding changes neither the state of the tracks nor the rewrites.'
 # --- Textes de la mesure de la disquette sur l image (12.8.1, lot B) ------------
 # Entrees de la table I18n (010) des textes de 276 (deroule de la mesure), 260 (choix de la mesure avant l ecriture
 # lente), 270 (progression, prechauffage), 200 (zone de progression de l Accueil) et 110 : cle francaise, valeur anglaise ;
@@ -4200,6 +4212,14 @@ $script:AlignRefLabel = ''
 $script:ScpIdxZoneNs = 1000000
 $script:ScpIdxClusterNs = 60000
 $script:ScpIdxClusterMax = 12
+# 12.12 : verification du contenu par l application, a l essai (170 : Start-ContentRef, Add-ContentCheck) : flux de
+# reference de l image ecrite, produit par gw convert, compare aux relectures du controle par blocs (ScpStats.Instability
+# a deux tours, 030), dans les deux sens, hors de la zone de l index (ContentCheckZoneNs a chaque bout du tour) ; gw
+# convert est attendu ContentCheckWaitMs au plus a la premiere analyse. ContentCheckOn faux : rien n est lance. Une
+# ligne de journal seulement : ni l etat des pistes, ni les reecritures, ni la verification de gw n en dependent
+$script:ContentCheckOn = $true
+$script:ContentCheckZoneNs = 1000000
+$script:ContentCheckWaitMs = 15000
 # Garde par synchro (verification du 27/10/2026, Test-ScpZoneSync) : zone aussi jugee « avec donnees » si le tour 0
 # contient la double synchro MFM 0x4489 (classes ScpIdxSync : AmigaDOS, IBM et Atari MFM) qui commence a moins de
 # ScpIdxZoneNs apres l index, ou a moins de ScpIdxSyncBeforeNs avant la fin du tour 0 (secteur a cheval sur l index) : un
@@ -15373,6 +15393,7 @@ function Start-WriteCheck {
     else { Append-Log ((T "Contrôle après écriture : relecture en flux de {0} piste(s) de l'image (3 tours).") -f "$($set.Count)") }
     $rep.Pending.Clear()
     Enter-CheckTab                                        # 12.10 (lot 1, E11) : seulement si une relecture commence
+    Start-ContentRef $rep                                 # 12.12 : flux de reference de l image, a part (verification du contenu, a l essai)
     Add-RepReads $groups (Get-TSpecExtras $rep.UserTSpec)
     Start-RepPending
 }
@@ -15405,6 +15426,7 @@ function Invoke-WriteCheckAnalysis {
         if ($m.Bad -or $m.Level -ge 2) { $crit += $k } elseif ($m.Level -eq 1) { $watch += $k }
         elseif (-not $m.Unjudged -and -not ($m.Weak -and $rep.Ignore -and $rep.Ignore.ContainsKey($k))) { $healthy++ }
     }
+    Add-ContentCheck $rep $expected                       # 12.12 : contenu compare au flux de reference, sans effet sur la suite
     $unjK = @($expected | Where-Object { $rep.State[$_].Unjudged -and -not $rep.State[$_].Bad -and $rep.State[$_].Level -lt 1 })
     if ($unjK.Count -gt 0 -and $rep.Round -eq 0) { Append-Log ((T "Contrôle : zone instable sur {0} piste(s) non jugée(s) ({1}) : la source peut en contenir (protection) sans que l'application puisse le vérifier. Ni réécrites ni comptées comme saines.") -f "$($unjK.Count)", "$(Format-TrackList $unjK)") }
     $defK = @($expected | Where-Object { $rep.State[$_].CopyDefect })
@@ -15514,6 +15536,153 @@ function Invoke-WriteCheckAnalysis {
     }
     Add-RepReads $groups $extras
     Start-RepPending
+}
+
+# --- 12.12 : verification du contenu par l application, etape 1 (observation) ------------------------------------------
+# gw write ne verifie que les pistes qu il sait decoder (formats a secteurs, IPF : plages de donnees) et rien d une image en
+# flux. Ici, le flux que gw tire de l image (gw convert, sans materiel) sert de reference : chaque piste relue par le
+# controle lui est comparee, bloc par bloc. Etape 1 : le resultat va au journal, une ligne ; rien d autre n en depend.
+function Get-ContentRefArgs($rep) {
+    # Decision seule : arguments de gw convert pour le flux de reference de l image du controle, $null quand la comparaison
+    # ne s applique pas : constante ContentCheckOn fausse, restauration (flux relu, pistes non reproductibles), disquette
+    # qui n est pas en double densite (Rep.EraseMode autre que 'hfreq' : les classes de ScpStats ne valent que de 1,7 a
+    # 2,3 us), piste retournee, secteurs durs, TG43, index simule ou densite forcee (Rep.Base), elements du champ Pistes
+    # autres que c= et h= (hswap, pas, decalages : les pistes de l image ne sont plus celles de la disquette). --format et
+    # --diskdefs de l ecriture sont repris : gw convert decode l image comme gw write
+    if (-not $script:ContentCheckOn -or -not $rep -or -not [string]$rep.Image -or $script:Restore) { return $null }
+    if ([string]$rep.EraseMode -cne 'hfreq') { return $null }
+    $b = @(@($rep.Base) | ForEach-Object { [string]$_ })
+    if (@($b | Where-Object { $_ -ceq '--reverse' -or $_ -ceq '--hard-sectors' -or $_ -ceq '--gen-tg43' -or $_ -like '--fake-index=*' -or $_ -like '--densel=*' }).Count -gt 0) { return $null }
+    if (Get-TSpecExtras ([string]$rep.UserTSpec)) { return $null }
+    $ref = Join-Path $script:TempDir 'contenu-ref.scp'
+    return [string[]](@('convert') + @($b | Where-Object { $_ -like '--format=*' -or $_ -like '--diskdefs=*' }) + @("`"$($rep.Image)`"", "`"$ref`""))
+}
+
+function Start-ContentRef($rep) {
+    # Debut du controle complet : gw convert lance a part (aucun materiel : il tourne pendant la relecture), sans Start-Gw
+    # ni la chaine des commandes : son echec ne doit jamais arreter le controle. Rep.Content = @{ Path ; Proc ; Why (raison
+    # d une comparaison non faite) ; Ref (reference lue, Get-ContentRef) ; Done (cle de piste -> blocs differents) ;
+    # Skip (pistes non comparees) }. Rien quand la comparaison ne s applique pas (Get-ContentRefArgs)
+    if (-not $rep) { return }
+    $rep.Content = $null
+    $a = Get-ContentRefArgs $rep
+    if ($null -eq $a) { return }
+    $c = @{ Path = (Join-Path $script:TempDir 'contenu-ref.scp'); Proc = $null; Why = ''; Ref = $null; Done = @{}; Skip = @{} }
+    try {
+        if (-not (Test-Path -LiteralPath $script:TempDir)) { [void](New-Item -ItemType Directory -Path $script:TempDir -Force) }
+        if (Test-Path -LiteralPath $c.Path) { Remove-Item -LiteralPath $c.Path -Force }
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = $script:GwExe; $psi.Arguments = ($a -join ' '); $psi.WorkingDirectory = $script:AppDir
+        $psi.UseShellExecute = $false; $psi.CreateNoWindow = $true
+        $c.Proc = [System.Diagnostics.Process]::Start($psi)
+        # priorite basse : il tourne pendant la relecture de la disquette, qui doit garder la main ; sans effet si refuse
+        try { $c.Proc.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::BelowNormal } catch { }
+    } catch { $c.Why = ((T 'gw convert non lancé ({0})') -f "$($_.Exception.Message)") }
+    $rep.Content = $c
+}
+
+function Get-ContentRef($rep) {
+    # Reference lue une fois : fin de gw convert attendue ContentCheckWaitMs au plus (il est lance au debut de la relecture,
+    # bien plus longue que lui), puis lecture du SCP (Read-ScpTrackRevs, 192). $null et Rep.Content.Why pose : la
+    # comparaison n est pas faite, ni a cette passe ni aux suivantes
+    $c = $rep.Content
+    if (-not $c -or $c.Why) { return $null }
+    if ($c.Ref) { return $c.Ref }
+    try {
+        if (-not $c.Proc) { $c.Why = (T 'gw convert non lancé'); return $null }
+        if (-not $c.Proc.WaitForExit([int]$script:ContentCheckWaitMs)) { $c.Why = ((T 'gw convert non terminé après {0} s') -f "$([int]($script:ContentCheckWaitMs / 1000))"); return $null }
+        if ([int]$c.Proc.ExitCode -ne 0) { $c.Why = ((T 'gw convert a rendu le code {0}') -f "$($c.Proc.ExitCode)"); return $null }
+        if (-not (Test-Path -LiteralPath $c.Path)) { $c.Why = (T 'fichier de référence absent'); return $null }
+        $r = Read-ScpTrackRevs $c.Path
+        if ($null -eq $r -or $r.Tracks.Count -eq 0) { $c.Why = (T 'fichier de référence illisible'); return $null }
+        $c.Ref = $r
+        return $r
+    } catch { $c.Why = "$($_.Exception.Message)"; return $null }
+}
+
+function Get-FluxTrimmed([int[]]$f, [double]$durNs, [double]$zoneNs) {
+    # Tour sans la zone de l index : $zoneNs de chaque bout, comptes au prorata du nombre d intervalles (le raccord d ecriture
+    # de gw et la piste coupee a l index n ont pas a concorder avec l image). Tableau vide si rien ne reste
+    $n = if ($null -eq $f) { 0 } else { $f.Length }
+    $cut = if ($durNs -gt 0 -and $n -gt 0) { [int][math]::Ceiling($n * $zoneNs / $durNs) } else { 0 }
+    $o = New-Object 'int[]' ([math]::Max(0, $n - 2 * $cut))
+    if ($o.Length -gt 0) { [array]::Copy($f, $cut, $o, 0, $o.Length) }
+    return , $o
+}
+
+function Compare-TrackContent($ref, $revs, [double]$cell, [double]$zoneNs) {
+    # Un tour de reference ($ref : @{ Flux ; DurNs }) contre les tours relus d une piste ($revs : liste de @{ Flux ;
+    # DurNs }), classes d intervalles a la cellule relue $cell. Par tour relu : blocs de 32 intervalles de la reference
+    # absents du tour relu pres de leur place (ScpStats.Instability a deux tours : +/- 600 intervalles, decalage suivi), et
+    # blocs du tour relu absents de la reference (un ajout dans une zone de remplissage ne se voit que dans ce sens).
+    # Une erreur de lecture ne touche qu un tour : le compte de la piste est le plus petit des tours, dans chaque sens.
+    # Rend @{ Blocks ; AB ; BA ; Miss = max(AB, BA) } ; $null : cellule hors de la double densite (1 700 a 2 300 ns), tour
+    # de reference ou tours relus trop courts pour porter des blocs.
+    # Limite connue : une transition perdue dans une longue zone de remplissage uniforme peut ne pas se voir (le bloc
+    # modifie se retrouve ailleurs dans la zone)
+    if ($null -eq $ref -or $null -eq $revs -or [double]::IsNaN($cell) -or $cell -lt 1700 -or $cell -gt 2300) { return $null }
+    $a = Get-FluxTrimmed ([int[]]$ref.Flux) ([double]$ref.DurNs) $zoneNs
+    $ab = [int]::MaxValue; $ba = [int]::MaxValue; $nb = 0
+    foreach ($rv in $revs) {
+        $b = Get-FluxTrimmed ([int[]]$rv.Flux) ([double]$rv.DurNs) $zoneNs
+        $l1 = New-Object 'System.Collections.Generic.List[int[]]'; $l1.Add($a); $l1.Add($b)
+        $l2 = New-Object 'System.Collections.Generic.List[int[]]'; $l2.Add($b); $l2.Add($a)
+        $x = [ScpStats]::Instability($l1, $cell); $y = [ScpStats]::Instability($l2, $cell)
+        if ([int]$x[0] -eq 0 -or [int]$y[0] -eq 0) { continue }
+        $nb = [int]$x[0]
+        if ([int]$x[1] -lt $ab) { $ab = [int]$x[1] }
+        if ([int]$y[1] -lt $ba) { $ba = [int]$y[1] }
+    }
+    if ($nb -eq 0) { return $null }
+    return @{ Blocks = $nb; AB = $ab; BA = $ba; Miss = [math]::Max($ab, $ba) }
+}
+
+function Add-ContentCheck($rep, $expected) {
+    # Apres l analyse d une passe du controle : pistes attendues de cette passe ($expected) relues dans ses fichiers
+    # (Rep.Scps), comparees a la reference (Compare-TrackContent ; second tour de la reference essaye quand le premier
+    # donne une difference : image en flux dont un tour porte une erreur de lecture). La relecture d une piste reecrite
+    # remplace son resultat. Piste absente de la reference, illisible ou hors de la double densite : non comparee.
+    # Observation seule : toute erreur ici arrete la comparaison (Rep.Content.Why), jamais le controle
+    $c = $rep.Content
+    if (-not $c) { return }
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    try {
+        $ref = Get-ContentRef $rep
+        if ($null -eq $ref) { return }
+        $want = @{}; foreach ($k in @($expected)) { $want[[int](Get-TrackKeyOrder $k)] = [string]$k }
+        foreach ($scp in @($rep.Scps)) {
+            $rd = Read-ScpTrackRevs $scp
+            if ($null -eq $rd) { continue }
+            foreach ($tn in @($rd.Tracks.Keys)) {
+                if (-not $want.ContainsKey([int]$tn)) { continue }
+                $k = $want[[int]$tn]; $m = $rep.State[$k]
+                $c.Done.Remove($k); $c.Skip.Remove($k)
+                $rt = $ref.Tracks[[int]$tn]
+                if ($null -eq $rt -or $rt.Count -eq 0 -or -not $m -or $m.Missing) { $c.Skip[$k] = $true; continue }
+                $r = Compare-TrackContent $rt[0] $rd.Tracks[$tn] ([double]$m.Cell) ([double]$script:ContentCheckZoneNs)
+                if ($r -and [int]$r.Miss -gt 0 -and $rt.Count -gt 1) {
+                    $r2 = Compare-TrackContent $rt[1] $rd.Tracks[$tn] ([double]$m.Cell) ([double]$script:ContentCheckZoneNs)
+                    if ($r2 -and [int]$r2.Miss -lt [int]$r.Miss) { $r = $r2 }
+                }
+                if ($null -eq $r) { $c.Skip[$k] = $true } else { $c.Done[$k] = [int]$r.Miss }
+            }
+        }
+    } catch { $c.Why = "$($_.Exception.Message)" }
+    Add-UiTiming (T 'vérification du contenu') $sw.Elapsed.TotalMilliseconds
+}
+
+function Get-ContentCheckText($rep) {
+    # Ligne de journal de la fin du controle : '' sans comparaison lancee ; raison quand elle n a pas pu se faire ; sinon
+    # pistes comparees, pistes differentes (triees), pistes non comparees
+    $c = $rep.Content
+    if (-not $c) { return '' }
+    if ($c.Why) { return ((T "Vérification du contenu (à l'essai) : non faite, {0}. La vérification de gw et le contrôle n'en dépendent pas.") -f "$($c.Why)") }
+    $n = $c.Done.Count
+    if ($n -eq 0) { return '' }
+    $bad = Sort-TrackKeys @(@($c.Done.Keys) | Where-Object { [int]$c.Done[$_] -gt 0 })   # tableau, vide compris (pas de @() autour)
+    $sk = if ($c.Skip.Count -gt 0) { (T ' ; {0} piste(s) non comparée(s)') -f "$($c.Skip.Count)" } else { '' }
+    if ($bad.Count -eq 0) { return ((T "Vérification du contenu (à l'essai) : {0} piste(s) comparée(s) au flux que gw tire de l'image, aucune différence{1}.") -f "$n", $sk) }
+    return ((T "Vérification du contenu (à l'essai) : {0} piste(s) comparée(s) au flux que gw tire de l'image, {1} différente(s) : {2}{3}. Ce constat ne change ni l'état des pistes ni les réécritures.") -f "$n", "$($bad.Count)", "$(Format-TrackList $bad)", $sk)
 }
 
 function Get-RepAsymExcess($rep, [string]$k) {
@@ -15932,6 +16101,7 @@ function Complete-WriteCheck([switch]$GwError) {
     $rep = $script:Rep; $script:Rep = $null
     if (-not $rep) { return }
     Show-WriteCheckTable $rep
+    $ctl = Get-ContentCheckText $rep; if ($ctl) { Append-Log $ctl }   # 12.12 : verification du contenu, a l essai
     $n = $rep.State.Count
     $weak = @(@($rep.Weak) | Where-Object { $_ })
     $nRew = $rep.Rewrites.Count

@@ -181,7 +181,8 @@ $defsNew = New-Gen $Wt $genNew $fnNew $asgNew @('$script:CalHardMaxNs')
 $fnX = @('Get-RepAsymExcess', 'Get-RepAsymGain', 'Get-AsymGainText', 'Get-WriteZoneGap', 'Get-WriteZoneScan', 'Get-WriteZoneSpec', 'Get-RepHeadSpec', 'Find-WriteZones', 'Format-WriteZone',
          'Start-WriteZonePass', 'Complete-WriteZonePass', 'Get-WriteZoneCount', 'Invoke-RepNextCmd', 'Complete-WriteCheck', 'Stop-WriteCheck',
          'Get-WriteZoneHeadAdvice',   # 12.11 (version finale) : conseil des zones qui couvrent presque toute une tete
-         'Add-WriteZoneNote')         # 12.12 : zones citees sans correction (case decochee, defaut)
+         'Add-WriteZoneNote',         # 12.12 : zones citees sans correction (case decochee, defaut)
+         'Add-ContentCheck', 'Get-ContentCheckText')   # 12.12 : verification du contenu (sans effet sans Rep.Content)
 $defsX = @{}
 # 12.11 rc8 (R17) : recalage du lecteur cible (172), appele par Invoke-AlignAnalysis et Complete-WriteCheck ; aucune
 # ecriture pour un lecteur cible en memoire ici : sans effet

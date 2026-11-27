@@ -240,6 +240,14 @@ $script:AlignRefLabel = ''
 $script:ScpIdxZoneNs = 1000000
 $script:ScpIdxClusterNs = 60000
 $script:ScpIdxClusterMax = 12
+# 12.12 : verification du contenu par l application, a l essai (170 : Start-ContentRef, Add-ContentCheck) : flux de
+# reference de l image ecrite, produit par gw convert, compare aux relectures du controle par blocs (ScpStats.Instability
+# a deux tours, 030), dans les deux sens, hors de la zone de l index (ContentCheckZoneNs a chaque bout du tour) ; gw
+# convert est attendu ContentCheckWaitMs au plus a la premiere analyse. ContentCheckOn faux : rien n est lance. Une
+# ligne de journal seulement : ni l etat des pistes, ni les reecritures, ni la verification de gw n en dependent
+$script:ContentCheckOn = $true
+$script:ContentCheckZoneNs = 1000000
+$script:ContentCheckWaitMs = 15000
 # Garde par synchro (verification du 27/10/2026, Test-ScpZoneSync) : zone aussi jugee « avec donnees » si le tour 0
 # contient la double synchro MFM 0x4489 (classes ScpIdxSync : AmigaDOS, IBM et Atari MFM) qui commence a moins de
 # ScpIdxZoneNs apres l index, ou a moins de ScpIdxSyncBeforeNs avant la fin du tour 0 (secteur a cheval sur l index) : un

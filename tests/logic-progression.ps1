@@ -88,7 +88,7 @@ $src = Get-ModuleSet $m
 $want = @('Get-SpecCount', 'Start-Progress', 'Update-Progress', 'Stop-Progress', 'Set-GwLaunchFailedStatus', 'Drain-GwReader', 'Read-GwOutput', 'Get-GwEndRule', 'Get-AppBusy',
           'Get-GwLineInfo', 'Get-GwProgress', 'Show-GwProgress', 'Get-EndRuleTotal', 'Get-GwCmdUnits', 'New-ProgPlan', 'Get-ProgPlanFrac', 'Set-SeqEnd', 'Clear-SeqEnd', 'Update-SeqEnd', 'Complete-DriveDetect',
           'Update-CalibProgress', 'Format-CalDuration', 'Get-WarmupLeft', 'Get-CalibDoneTitle', 'Set-HomeProgDone', 'Get-ContentWriteArgs', 'Format-CylRanges',
-          'Enter-RestoreWait', 'Close-Restore', 'Finish-Restore', 'Fail-Restore', 'Stop-Restore', 'Show-RestoreResult', 'Complete-WriteCheck',
+          'Enter-RestoreWait', 'Close-Restore', 'Finish-Restore', 'Fail-Restore', 'Stop-Restore', 'Show-RestoreResult', 'Complete-WriteCheck', 'Get-ContentCheckText',
           'Stop-PrecompCalib', 'Complete-DriveProbe',   # corrections de relecture : cas E23 a E25
           # 12.11 (lot L11) : barre de l onglet Ecriture pendant l ecriture et son controle (serie W)
           'Get-WriteProgUnits', 'Get-WriteProgText', 'Start-WriteProgress', 'Step-WriteProgress', 'Get-WriteProgPct', 'Update-WriteProgress', 'Get-WriteProgEnd', 'Complete-WriteProgress',
