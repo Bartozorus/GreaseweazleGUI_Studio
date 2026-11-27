@@ -2162,6 +2162,10 @@ $script:I18n['tête {0} {1} ns (facteur au-dessus de 1)'] = 'head {0} {1} ns (fa
 $script:I18n['(facteur au-dessus de 1)'] = '(factor above 1)'
 $script:I18n['Tête {0} : facteur de la disquette au-dessus de 1 ; ce recalage ne vaut que pour les écritures dont le facteur dépasse 1, tenu à part de celui des autres.'] = 'Head {0}: disk factor above 1; this adjustment only applies to writes whose factor is above 1, and is kept apart from the adjustment of the others.'
 $script:I18n['Recalage des courbes croisées : {0} écriture(s) relue(s) dont le facteur de la disquette dépassait 1 reclassée(s) ; leur recalage est désormais tenu à part.'] = 'Cross curve adjustments: {0} read-back write(s) whose disk factor was above 1 reclassified; their adjustment is now kept apart.'
+
+# Journal exporte apres une troncature : lignes de l application retirees de l affichage (110 : Export-LogFile)
+$script:I18n["[Lignes de l'application retirées du journal affiché, sans les commandes ni la sortie de gw : {0} ligne(s).]"] = '[Application lines removed from the displayed log, without gw commands and output: {0} line(s).]'
+$script:I18n['[Fin des lignes retirées. Suite : journal affiché.]'] = '[End of the removed lines. Next: displayed log.]'
 # --- Textes de la mesure de la disquette sur l image (12.8.1, lot B) ------------
 # Entrees de la table I18n (010) des textes de 276 (deroule de la mesure), 260 (choix de la mesure avant l ecriture
 # lente), 270 (progression, prechauffage), 200 (zone de progression de l Accueil) et 110 : cle francaise, valeur anglaise ;
@@ -5197,9 +5201,25 @@ function Get-LogColor([string]$line) {
     return $script:LogColors.std
 }
 
-function Append-Log([string]$text) {
+function Append-Log([string]$text, [bool]$raw = $false) {
+    # 12.12 : lignes de l application gardees a part pour l export ($script:LogKept, 540 : @{ P ; L }, les LogKeptMax
+    # dernieres ; P : position du debut de la ligne dans le journal entier, $script:LogPos, comptee comme les caracteres
+    # retires de Limit-LogText). $raw : sortie de gw et lignes « >>> » et « <<< » de ses commandes (Start-Gw,
+    # Read-GwOutput, fin d une commande), de loin les plus nombreuses, non gardees. Une ligne gardee dont la position est
+    # sous $script:LogCut.N a ete retiree de l affichage : Export-LogFile la reecrit en tete du fichier. Journal vide
+    # (« Vider », demarrage) : tout repart de zero. Sans $script:LogKept (tests qui ne chargent pas 540) : rien n est garde
+    $kp = $script:LogKept
+    if ($null -ne $kp -and $txtLog.TextLength -eq 0) { $kp.Clear(); $script:LogPos = [long]0; if ($script:LogCut) { $script:LogCut.N = 0; $script:LogCut.Mark = '' } }
     foreach ($line in ($text -split "`r?`n")) {
         $c = Get-LogColor $line
+        if ($null -ne $kp) {
+            if (-not $raw -and $line) {
+                $kp.Add(@{ P = [long]$script:LogPos; L = $line })
+                $over = $kp.Count - [int]$script:LogKeptMax
+                if ($over -gt 0) { $kp.RemoveRange(0, $over) }
+            }
+            $script:LogPos = [long]$script:LogPos + $line.Length + 1
+        }
         $txtLog.SelectionStart = $txtLog.TextLength; $txtLog.SelectionLength = 0
         $txtLog.SelectionColor = $c
         $txtLog.AppendText($line + "`n")
@@ -5353,7 +5373,7 @@ function Test-GwPortRetry([int]$code) {
         return $false
     }
     $el = if ($script:GwStart -is [datetime]) { [math]::Round(((Get-Date) - $script:GwStart).TotalSeconds, 1) } else { 0 }
-    Append-Log ((T "<<< Terminé (code retour : {0}, {1} s, {2} ligne(s) reçues)") -f "$code", "$el", "$($script:GwLines)")
+    Append-Log ((T "<<< Terminé (code retour : {0}, {1} s, {2} ligne(s) reçues)") -f "$code", "$el", "$($script:GwLines)") $true
     Append-Log ((T "gw n'a pas pu ouvrir le port du Greaseweazle (carte déconnectée ou réinitialisée ?) : rien n'a été lu ni écrit. Nouvelle tentative de la même commande dans {0} s.") -f "$([math]::Round([double]$script:GwPortRetryMs / 1000, 0))")
     # Suivi de la commande defait comme a une fin ordinaire, sans activite du lecteur (moteur arrete) ; commande decomptee
     # du plan de l etape, que Start-Progress recompte a la relance ; corrections de relecture : de meme du compte des
@@ -5508,7 +5528,7 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
     $driveKey = if ($script:Detect) { $null } else { Get-GwDriveKey $gwArgs }
     if ($chkTime.Checked) { $gwArgs = @('--time') + $gwArgs }
     $argLine = $gwArgs -join ' '
-    if (-not $script:Detect) { Append-Log ">>> gw $argLine" }
+    if (-not $script:Detect) { Append-Log ">>> gw $argLine" $true }
     $script:GwStart = Get-Date; $script:GwLines = 0
 
     # gw.exe est appele directement (aucun cmd.exe intermediaire) ; sa sortie est redirigee
@@ -5658,7 +5678,7 @@ function Read-GwOutput([bool]$flush) {
             elseif ($script:EraseLog -and $l -match '^T(\d+)\.(\d+)\b[^:]*: Erasing Track') { $script:EraseLog.Erased["$($Matches[1]).$($Matches[2])"] = $true }
         }
     }
-    if ($lines.Count -gt 0) { Append-Log ($lines -join [Environment]::NewLine) }
+    if ($lines.Count -gt 0) { Append-Log ($lines -join [Environment]::NewLine) $true }
 }
 
 function Get-GwEndRule([int]$code, [bool]$soft, [bool]$isWrite, [bool]$summary, [int]$progTotal, [int]$progSeen, $verifyFail, [string]$calMode, [bool]$cmdFailed = $false) {
@@ -5725,8 +5745,15 @@ function Get-LogExportHeader([datetime]$when = (Get-Date)) {
 function Export-LogFile([string]$path) {
     # 12.11 : export du journal (bouton « Exporter », 540) : les deux lignes de Get-LogExportHeader, puis le texte du
     # journal tel qu il est affiche (marque de troncature comprise, Limit-LogText), avec ses fins de ligne ; codage
-    # inchange (Set-Content -Encoding UTF8)
-    (((Get-LogExportHeader) -join "`n") + "`n" + $txtLog.Text) | Set-Content -LiteralPath $path -Encoding UTF8
+    # inchange (Set-Content -Encoding UTF8). 12.12 : journal tronque : entre l en-tete et le journal affiche, les lignes de
+    # l application retirees de l affichage ($script:LogKept, Append-Log : position sous $script:LogCut.N), entre deux
+    # lignes entre crochets ; resultats et raisons d une longue seance y restent lisibles, sans le trafic de gw. Journal
+    # non tronque, ou aucune ligne gardee retiree : fichier comme avant
+    $gone = @()
+    if ($null -ne $script:LogKept -and $script:LogCut -and [long]$script:LogCut.N -gt 0) { $gone = @($script:LogKept | Where-Object { [long]$_.P -lt [long]$script:LogCut.N } | ForEach-Object { [string]$_.L }) }
+    $mid = ''
+    if ($gone.Count -gt 0) { $mid = ((T "[Lignes de l'application retirées du journal affiché, sans les commandes ni la sortie de gw : {0} ligne(s).]") -f "$($gone.Count)") + "`n" + ($gone -join "`n") + "`n" + (T '[Fin des lignes retirées. Suite : journal affiché.]') + "`n" }
+    (((Get-LogExportHeader) -join "`n") + "`n" + $mid + $txtLog.Text) | Set-Content -LiteralPath $path -Encoding UTF8
 }
 
 # --- Progression par piste : ligne de gw, commande, plan d une etape, fin de sequence (12.11) ---
@@ -32376,7 +32403,13 @@ function ConvertFrom-ContentConfig($o) {
         if (-not [string]$o.drive -or -not [string]$o.family -or $null -eq $hd -or ($hd -ne 0 -and $hd -ne 1) -or $kBad) { return $null }
         $nan = [double]::NaN
         $kd = if ($null -ne $k) { [double]$k } else { $nan }
-        return @{ Model = $(if ($o.model) { [string]$o.model } else { 'contenu' }); Drive = [string]$o.drive; Family = [string]$o.family; Head = [int]$hd
+        # 12.12 : pente de l asymetrie hors de [ContentAsymSRelMin ; ContentAsymSRelMax] : ignoree (NaN), l enregistrement
+        # reste. La mesure refuse ces pentes avant de les enregistrer (Get-ContentAsymFit) : seul un fichier modifie a la main
+        # peut en porter une, et elle fixerait le gain de l asymetrie attendue d une ecriture pour un lecteur cible
+        # (Get-WriteFactorPlan, SRel ; 140), donc ses zones a corriger
+        $sra = Get-ConfigDouble $o.sRelAsym $nan
+        if (-not [double]::IsNaN($sra) -and ($sra -lt [double]$script:ContentAsymSRelMin -or $sra -gt [double]$script:ContentAsymSRelMax)) { $sra = $nan }
+        return @{ Model =$(if ($o.model) { [string]$o.model } else { 'contenu' }); Drive = [string]$o.drive; Family = [string]$o.family; Head = [int]$hd
                   Date = [string]$o.date; Image = [string]$o.image; K = $kd; KVertex = (ConvertTo-FiniteOrNull $o.kVertex); Bound = [string]$o.bound
                   Flat = ($o.flat -eq $true); SeK = (Get-ConfigDouble $o.seK $nan); B1 = (Get-ConfigDouble $o.b1 $nan); B2 = (Get-ConfigDouble $o.b2 $nan)
                   Gain = (Get-ConfigDouble $o.gain $nan); S = (Get-ConfigDouble $o.s $nan); NCyl = [int]$o.nCyl; NObs = [int]$o.nObs; NExcl = [int]$o.nExcl
@@ -32388,7 +32421,7 @@ function ConvertFrom-ContentConfig($o) {
                   Chi2Ddl = (Get-ConfigDouble $o.chi2Ddl $nan); NPass = [int]$o.nPass
                   Zones = @(@($o.zones) | Where-Object { $null -ne $_ } | ForEach-Object { @{ Z = [int]$_.z; K = (Get-ConfigDouble $_.k $nan) } })
                   Method = [string]$o.method; KAsym = (Get-ConfigDouble $o.kAsym $nan); SeKAsym = (Get-ConfigDouble $o.seKAsym $nan)
-                  SRelAsym = (Get-ConfigDouble $o.sRelAsym $nan); KMarge = (Get-ConfigDouble $o.kMarge $nan); EtatMarge = [string]$o.etatMarge }
+                  SRelAsym = $sra; KMarge =(Get-ConfigDouble $o.kMarge $nan); EtatMarge = [string]$o.etatMarge }
     } catch { return $null }
 }
 
@@ -36839,6 +36872,10 @@ $script:LogColors = @{
 # 12.11 : journal borne (Limit-LogText, 110) : au-dela de LogMaxChars caracteres, le debut est retire pour n en garder que
 # LogKeepChars, et une marque en premiere ligne le dit (LogCut : caracteres retires depuis le dernier « Vider », marque en place)
 $script:LogMaxChars = 400000; $script:LogKeepChars = 250000; $script:LogCut = @{ N = 0; Mark = '' }
+# 12.12 : lignes de l application gardees pour l export du journal tronque (Append-Log, Export-LogFile, 110) : les
+# LogKeptMax dernieres, chacune avec la position de son debut dans le journal entier (LogPos : caracteres ajoutes depuis
+# le dernier journal vide)
+$script:LogKept = New-Object System.Collections.Generic.List[object]; $script:LogKeptMax = 1500; $script:LogPos = [long]0
 $split.Panel2.Controls.Add($txtLog)
 
 # ============================== HABILLAGE (icones) =============================

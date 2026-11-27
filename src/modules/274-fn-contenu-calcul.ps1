@@ -791,7 +791,13 @@ function ConvertFrom-ContentConfig($o) {
         if (-not [string]$o.drive -or -not [string]$o.family -or $null -eq $hd -or ($hd -ne 0 -and $hd -ne 1) -or $kBad) { return $null }
         $nan = [double]::NaN
         $kd = if ($null -ne $k) { [double]$k } else { $nan }
-        return @{ Model = $(if ($o.model) { [string]$o.model } else { 'contenu' }); Drive = [string]$o.drive; Family = [string]$o.family; Head = [int]$hd
+        # 12.12 : pente de l asymetrie hors de [ContentAsymSRelMin ; ContentAsymSRelMax] : ignoree (NaN), l enregistrement
+        # reste. La mesure refuse ces pentes avant de les enregistrer (Get-ContentAsymFit) : seul un fichier modifie a la main
+        # peut en porter une, et elle fixerait le gain de l asymetrie attendue d une ecriture pour un lecteur cible
+        # (Get-WriteFactorPlan, SRel ; 140), donc ses zones a corriger
+        $sra = Get-ConfigDouble $o.sRelAsym $nan
+        if (-not [double]::IsNaN($sra) -and ($sra -lt [double]$script:ContentAsymSRelMin -or $sra -gt [double]$script:ContentAsymSRelMax)) { $sra = $nan }
+        return @{ Model =$(if ($o.model) { [string]$o.model } else { 'contenu' }); Drive = [string]$o.drive; Family = [string]$o.family; Head = [int]$hd
                   Date = [string]$o.date; Image = [string]$o.image; K = $kd; KVertex = (ConvertTo-FiniteOrNull $o.kVertex); Bound = [string]$o.bound
                   Flat = ($o.flat -eq $true); SeK = (Get-ConfigDouble $o.seK $nan); B1 = (Get-ConfigDouble $o.b1 $nan); B2 = (Get-ConfigDouble $o.b2 $nan)
                   Gain = (Get-ConfigDouble $o.gain $nan); S = (Get-ConfigDouble $o.s $nan); NCyl = [int]$o.nCyl; NObs = [int]$o.nObs; NExcl = [int]$o.nExcl
@@ -803,7 +809,7 @@ function ConvertFrom-ContentConfig($o) {
                   Chi2Ddl = (Get-ConfigDouble $o.chi2Ddl $nan); NPass = [int]$o.nPass
                   Zones = @(@($o.zones) | Where-Object { $null -ne $_ } | ForEach-Object { @{ Z = [int]$_.z; K = (Get-ConfigDouble $_.k $nan) } })
                   Method = [string]$o.method; KAsym = (Get-ConfigDouble $o.kAsym $nan); SeKAsym = (Get-ConfigDouble $o.seKAsym $nan)
-                  SRelAsym = (Get-ConfigDouble $o.sRelAsym $nan); KMarge = (Get-ConfigDouble $o.kMarge $nan); EtatMarge = [string]$o.etatMarge }
+                  SRelAsym = $sra; KMarge =(Get-ConfigDouble $o.kMarge $nan); EtatMarge = [string]$o.etatMarge }
     } catch { return $null }
 }
 

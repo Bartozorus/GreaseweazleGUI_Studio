@@ -12,6 +12,7 @@ Version en préparation.
 ### Améliorations
 
 - **Recalage de la courbe croisée tenu selon le facteur de la disquette.** Une écriture pour un lecteur cible ne suit pas la même règle selon que le facteur de la disquette dépasse 1 ou non, et les relectures par le lecteur cible ne donnent pas le même écart dans les deux cas. Le recalage est maintenant appris et appliqué à part pour les disquettes dont le facteur dépasse 1 : il ne décale plus les écritures des autres disquettes, et inversement. La ligne de l'écriture au journal, la fenêtre de confirmation et la fenêtre « Lecteurs » disent « facteur au-dessus de 1 » quand ce recalage est en jeu. Un recalage appris pour l'autre cas seulement n'est pas appliqué, et le journal le dit.
+- **Journal exporté : les résultats d'une longue séance restent lisibles.** Quand le journal a été coupé, au-delà de 400 000 caractères, le fichier exporté donne, après son en-tête, les lignes de l'application retirées de l'affichage : résultats, raisons et verdicts, sans les commandes ni la sortie de gw. Les 1 500 dernières lignes de l'application sont gardées pour cela ; « Vider » les oublie avec le journal.
 
 ### Corrections
 
@@ -24,6 +25,8 @@ Version en préparation.
 ### Pour les développeurs
 
 - Recalage par régime (172, 040, 120, 011, `tests/`) : la règle écrit `min(k × X, X + (k − 1) × Sp)` ; entrée du régime k > 1 sous la même clé suivie de « + » (`Test-TargetRecalUp` sur k arrondi à 0,001, `Get-TargetRecalK`, `Get-TargetRecalKey` et `Get-TargetRecalEntry` avec `$up`) ; `Get-TargetRecalPlan` prend l'entrée du régime de l'écriture et dit quand seul l'autre est appris ; `Get-TargetRecalUpdate` range l'écriture relue dans l'entrée de son régime et garde son k (`Items`, `K` ; champ `k` de `write.targetRecal`) ; `Remove-TargetRecal` et `Get-TargetRecalSummaryText` couvrent les deux régimes ; `Import-TargetRecal` admet la clé « + » et reclasse les écritures sans k dont la mesure sur l'image, terminée dans les `TargetRecalItemKMin` minutes avant le lancement, donnait k > 1 (`Get-TargetRecalItemK`) ; une 12.11 ignore les entrées « + ». Nouveau module `011-i18n-1212.ps1`. Tests `logic-cible-recalage` (R1 à R6). Hypothèse tirée de cinq écritures relues, à confirmer.
+- Journal (110, 540, 011, `tests/`) : `Append-Log` a un second paramètre `$raw` (sortie de gw et lignes « >>> » et « <<< » : `Start-Gw`, `Read-GwOutput`, fin d'une commande) ; les autres lignes vont dans `$script:LogKept` avec leur position dans le journal entier (`$script:LogPos`), les `LogKeptMax` dernières ; `Export-LogFile` écrit entre l'en-tête et le journal affiché celles dont la position est sous `$script:LogCut.N`. Sans cet état (tests qui ne chargent pas 540), rien n'est gardé. Test `logic-croisee-journal-echanges` (M1 à M3).
+- Mesure sur l'image (274, `tests/`) : `ConvertFrom-ContentConfig` ignore une pente de l'asymétrie hors de `ContentAsymSRelMin` à `ContentAsymSRelMax` (fichier modifié à la main ; la mesure refuse déjà ces pentes), l'enregistrement et son facteur restent. Test `logic-contenu-asymetrie` (K1b).
 - Recalage (172, `tests/`) : `Get-TargetWriteZoneCyls` n'exclut plus une zone à l'état `back` quand une passe de réécriture a suivi son jugement (`Rep.Round` ≥ 2) ; zone gardée, non jugée, ou reprise sans passe ensuite : exclue comme avant. Test `logic-cible-recalage` (M2b).
 
 ## [12.11] - 2026-11-23

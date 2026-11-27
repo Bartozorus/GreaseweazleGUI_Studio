@@ -458,6 +458,53 @@ if (Test-Path -LiteralPath $exp2) { Remove-Item -LiteralPath $exp2 -Force }
 Export-LogFile $exp2
 $rl2 = @([System.IO.File]::ReadAllText($exp2, [System.Text.Encoding]::UTF8) -split "`n")
 Chk 'L8' ($m8 -ceq ($eMk -f "$n1") -and $a8.StartsWith($m8 + "`n", $ord) -and $rl2.Count -gt 4 -and $rl2[0].StartsWith('Journal exporté le ', $ord) -and $rl2[2] -ceq $m8 -and $rl2[3].StartsWith('ligne ', $ord)) "interface en anglais : « $(if ($m8.Length -gt 60) { $m8.Substring(0, 60) + '...' } else { $m8 }) » ; journal tronque exporte : en-tete, puis la marque en troisieme ligne du fichier, puis le journal"
+"--- M. 12.12 : lignes de l application gardees pour l export d un journal tronque (Append-Log, Export-LogFile, 110)"
+# Etat de 540 pose ici seulement (les cas d avant tournent sans lui : rien n est garde) ; ses affectations existent dans 540
+$m540 = @('$script:LogKept', '$script:LogKeptMax', '$script:LogPos' | ForEach-Object { Get-TopAssign $f540 $_ })
+$txtLog.Clear(); $script:LogCut = @{ N = 0; Mark = '' }
+$script:LogKept = New-Object System.Collections.Generic.List[object]; $script:LogKeptMax = 1500; $script:LogPos = [long]0
+Append-Log "Résultat A : écriture réussie`nRésultat A2 : contrôle conforme"
+Append-Log '>>> gw write essai' $true
+Append-Log (@(1..3000 | ForEach-Object { "T$_.0: sortie de gw " + ('x' * 150) }) -join "`n") $true
+Append-Log 'Résultat B : relecture terminée'
+$nM = [long]$script:LogCut.N; $shown = [string]$txtLog.Text
+$expM = Join-Path $here 'export-journal-garde.txt'
+if (Test-Path -LiteralPath $expM) { Remove-Item -LiteralPath $expM -Force }
+Export-LogFile $expM
+$rawM = [System.IO.File]::ReadAllText($expM, [System.Text.Encoding]::UTF8)
+$lm = @($rawM -split "`r?`n")
+$iH = [array]::IndexOf($lm, "[Lignes de l'application retirées du journal affiché, sans les commandes ni la sortie de gw : 2 ligne(s).]")
+$iE = [array]::IndexOf($lm, '[Fin des lignes retirées. Suite : journal affiché.]')
+function Get-CountOf([string]$t, [string]$s) { return ([regex]::Matches($t, [regex]::Escape($s))).Count }
+$m1 = ($nM -gt 0 -and -not $shown.Contains('Résultat A') -and $shown.Contains('Résultat B') -and $script:LogKept.Count -eq 3 -and $iH -eq 2 -and $iE -eq 5 -and $lm[3] -ceq 'Résultat A : écriture réussie' -and $lm[4] -ceq 'Résultat A2 : contrôle conforme' -and $lm[6].StartsWith('[Journal tronqué', $ord))
+$m1 = ($m1 -and (Get-CountOf $rawM 'Résultat A :') -eq 1 -and (Get-CountOf $rawM 'Résultat B :') -eq 1 -and -not $rawM.Contains('>>> gw write essai') -and $m540.Count -eq 3)
+Chk 'M1' $m1 "journal tronque ($nM caracteres retires) : les 2 lignes de l application retirees sont reecrites entre l en-tete et le journal affiche (lignes $iH a $iE), une fois chacune ; la ligne encore affichee n y est pas ; aucune ligne de gw gardee"
+# Journal vide puis nouvelle ligne : rien d avant ne reste, fichier sans bloc ; plafond du nombre de lignes gardees
+$txtLog.Clear()
+Append-Log 'Résultat C : après Vider'
+Export-LogFile $expM
+$rawC = [System.IO.File]::ReadAllText($expM, [System.Text.Encoding]::UTF8)
+$m2a = ($script:LogKept.Count -eq 1 -and [long]$script:LogCut.N -eq 0 -and [string]$script:LogCut.Mark -ceq '' -and -not $rawC.Contains('[Lignes de l') -and -not $rawC.Contains('Résultat A') -and (Get-CountOf $rawC 'Résultat C') -eq 1)
+$script:LogKeptMax = 3
+1..5 | ForEach-Object { Append-Log "Résultat D$_" }
+$m2b = ((@($script:LogKept | ForEach-Object { [string]$_.L }) -join ',') -ceq 'Résultat D3,Résultat D4,Résultat D5')
+Chk 'M2' ($m2a -and $m2b) "journal vide puis nouvelle ligne : aucune ligne d avant, fichier sans bloc ($m2a) ; plafond : les 3 dernieres lignes gardees ($m2b)"
+# Anglais ; sans l etat de 540 (tests qui ne le chargent pas) : rien n est garde, fichier comme avant
+$txtLog.Clear(); $script:LogKeptMax = 1500
+Append-Log 'Résultat E'
+Append-Log (@(1..3000 | ForEach-Object { "T$_.0: sortie de gw " + ('x' * 150) }) -join "`n") $true
+$script:Lang = 'en'; Export-LogFile $expM; $script:Lang = 'fr'
+$rawE = [System.IO.File]::ReadAllText($expM, [System.Text.Encoding]::UTF8)
+$script:LogKept = $null
+$txtLog.Clear(); $script:LogCut = @{ N = 0; Mark = '' }
+Append-Log 'Résultat F'
+Append-Log (@(1..3000 | ForEach-Object { "T$_.0: sortie de gw " + ('x' * 150) }) -join "`n") $true
+Export-LogFile $expM
+$rawF = [System.IO.File]::ReadAllText($expM, [System.Text.Encoding]::UTF8)
+Chk 'M3' ($rawE.Contains('[Application lines removed from the displayed log, without gw commands and output: 1 line(s).]') -and $rawE.Contains('[End of the removed lines. Next: displayed log.]') -and [long]$script:LogCut.N -gt 0 -and -not $rawF.Contains('Résultat F') -and -not $rawF.Contains('[Lignes de l')) "anglais : bloc traduit ; sans l etat de 540 : rien n est garde, fichier comme en 12.11"
+if (Test-Path -LiteralPath $expM) { Remove-Item -LiteralPath $expM -Force }
+$txtLog.Clear(); $script:LogCut = @{ N = 0; Mark = '' }
+
 $txtLog.Dispose()
 
 # ================================================================ I. textes (019)

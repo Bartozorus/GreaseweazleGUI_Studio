@@ -366,6 +366,10 @@ $script:LogColors = @{
 # 12.11 : journal borne (Limit-LogText, 110) : au-dela de LogMaxChars caracteres, le debut est retire pour n en garder que
 # LogKeepChars, et une marque en premiere ligne le dit (LogCut : caracteres retires depuis le dernier « Vider », marque en place)
 $script:LogMaxChars = 400000; $script:LogKeepChars = 250000; $script:LogCut = @{ N = 0; Mark = '' }
+# 12.12 : lignes de l application gardees pour l export du journal tronque (Append-Log, Export-LogFile, 110) : les
+# LogKeptMax dernieres, chacune avec la position de son debut dans le journal entier (LogPos : caracteres ajoutes depuis
+# le dernier journal vide)
+$script:LogKept = New-Object System.Collections.Generic.List[object]; $script:LogKeptMax = 1500; $script:LogPos = [long]0
 $split.Panel2.Controls.Add($txtLog)
 
 # ============================== HABILLAGE (icones) =============================

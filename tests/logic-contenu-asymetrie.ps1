@@ -167,6 +167,10 @@ $recM = @{} + $recA; $recM.Method = 'marge'
 $ra = ConvertFrom-ContentConfig ((ConvertTo-ContentConfig $recA) | ConvertTo-Json -Depth 5 | ConvertFrom-Json)
 $rm = ConvertFrom-ContentConfig ((ConvertTo-ContentConfig $recM) | ConvertTo-Json -Depth 5 | ConvertFrom-Json)
 Chk 'K1' ($ra -and $ra.K -eq 3.1 -and $ra.Method -eq 'asym' -and $ra.KAsym -eq 3.1 -and $ra.KMarge -eq 2.35 -and $ra.EtatMarge -eq 'plate' -and $ra.SRelAsym -eq 0.85 -and $null -eq $rm) "configuration : methode $($ra.Method), k $($ra.K) par l asymetrie (marge $($ra.KMarge), $($ra.EtatMarge)) relus ; k 3,1 par la marge : rejete comme avant (au-dela de ContentKMax 2) : $($null -eq $rm)"
+# 12.12 : pente hors de [ContentAsymSRelMin ; ContentAsymSRelMax] (fichier modifie a la main) : ignoree au chargement,
+# l enregistrement et son k restent ; bornes comprises
+$k1b = @(foreach ($sv in 0.14, 0.39, 0.4, 1.5, 1.51, 2.6) { $rq = @{} + $recA; $rq.SRelAsym = $sv; $rr = ConvertFrom-ContentConfig ((ConvertTo-ContentConfig $rq) | ConvertTo-Json -Depth 5 | ConvertFrom-Json); if ($rr -and $rr.K -eq 3.1 -and $rr.Method -eq 'asym') { if ([double]::IsNaN([double]$rr.SRelAsym)) { 'x' } else { 'g' } } else { '?' } }) -join ''
+Chk 'K1b' ($k1b -ceq 'xxggxx') "pente hors plage ignoree au chargement, enregistrement garde : 0,14 0,39 0,4 1,5 1,51 2,6 -> $k1b (x : ignoree, g : gardee)"
 $txD = Get-ContentAsymText $p1; $txN = Get-ContentAsymText $n1; $txG = Get-ContentAppliedAsymText '[tête 0] ' $c1b 1.2
 Chk 'K2' ($script:ContentCalc -eq '12.11' -and $script:CalibCalc -eq '12.10' -and $txD.StartsWith("Facteur par l'asymétrie : k = 0,7") -and $txN -ceq "Facteur par l'asymétrie non déterminé (20 cylindres à 2 niveaux lisibles, il en faut 24) : la marge décide." -and $txG.Contains('la marge donnait k = 1,20, écart au-delà de 0,3')) "ContentCalc $($script:ContentCalc) (mesures 12.9 mises de cote), CalibCalc $($script:CalibCalc) (courbes gardees) ; journal : « $txD » ; « $txN » ; « $txG »"
 

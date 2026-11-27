@@ -100,9 +100,25 @@ function Get-LogColor([string]$line) {
     return $script:LogColors.std
 }
 
-function Append-Log([string]$text) {
+function Append-Log([string]$text, [bool]$raw = $false) {
+    # 12.12 : lignes de l application gardees a part pour l export ($script:LogKept, 540 : @{ P ; L }, les LogKeptMax
+    # dernieres ; P : position du debut de la ligne dans le journal entier, $script:LogPos, comptee comme les caracteres
+    # retires de Limit-LogText). $raw : sortie de gw et lignes « >>> » et « <<< » de ses commandes (Start-Gw,
+    # Read-GwOutput, fin d une commande), de loin les plus nombreuses, non gardees. Une ligne gardee dont la position est
+    # sous $script:LogCut.N a ete retiree de l affichage : Export-LogFile la reecrit en tete du fichier. Journal vide
+    # (« Vider », demarrage) : tout repart de zero. Sans $script:LogKept (tests qui ne chargent pas 540) : rien n est garde
+    $kp = $script:LogKept
+    if ($null -ne $kp -and $txtLog.TextLength -eq 0) { $kp.Clear(); $script:LogPos = [long]0; if ($script:LogCut) { $script:LogCut.N = 0; $script:LogCut.Mark = '' } }
     foreach ($line in ($text -split "`r?`n")) {
         $c = Get-LogColor $line
+        if ($null -ne $kp) {
+            if (-not $raw -and $line) {
+                $kp.Add(@{ P = [long]$script:LogPos; L = $line })
+                $over = $kp.Count - [int]$script:LogKeptMax
+                if ($over -gt 0) { $kp.RemoveRange(0, $over) }
+            }
+            $script:LogPos = [long]$script:LogPos + $line.Length + 1
+        }
         $txtLog.SelectionStart = $txtLog.TextLength; $txtLog.SelectionLength = 0
         $txtLog.SelectionColor = $c
         $txtLog.AppendText($line + "`n")
@@ -256,7 +272,7 @@ function Test-GwPortRetry([int]$code) {
         return $false
     }
     $el = if ($script:GwStart -is [datetime]) { [math]::Round(((Get-Date) - $script:GwStart).TotalSeconds, 1) } else { 0 }
-    Append-Log ((T "<<< Terminé (code retour : {0}, {1} s, {2} ligne(s) reçues)") -f "$code", "$el", "$($script:GwLines)")
+    Append-Log ((T "<<< Terminé (code retour : {0}, {1} s, {2} ligne(s) reçues)") -f "$code", "$el", "$($script:GwLines)") $true
     Append-Log ((T "gw n'a pas pu ouvrir le port du Greaseweazle (carte déconnectée ou réinitialisée ?) : rien n'a été lu ni écrit. Nouvelle tentative de la même commande dans {0} s.") -f "$([math]::Round([double]$script:GwPortRetryMs / 1000, 0))")
     # Suivi de la commande defait comme a une fin ordinaire, sans activite du lecteur (moteur arrete) ; commande decomptee
     # du plan de l etape, que Start-Progress recompte a la relance ; corrections de relecture : de meme du compte des
@@ -411,7 +427,7 @@ function Start-Gw([string[]]$gwArgs, [switch]$Soft) {
     $driveKey = if ($script:Detect) { $null } else { Get-GwDriveKey $gwArgs }
     if ($chkTime.Checked) { $gwArgs = @('--time') + $gwArgs }
     $argLine = $gwArgs -join ' '
-    if (-not $script:Detect) { Append-Log ">>> gw $argLine" }
+    if (-not $script:Detect) { Append-Log ">>> gw $argLine" $true }
     $script:GwStart = Get-Date; $script:GwLines = 0
 
     # gw.exe est appele directement (aucun cmd.exe intermediaire) ; sa sortie est redirigee
@@ -561,7 +577,7 @@ function Read-GwOutput([bool]$flush) {
             elseif ($script:EraseLog -and $l -match '^T(\d+)\.(\d+)\b[^:]*: Erasing Track') { $script:EraseLog.Erased["$($Matches[1]).$($Matches[2])"] = $true }
         }
     }
-    if ($lines.Count -gt 0) { Append-Log ($lines -join [Environment]::NewLine) }
+    if ($lines.Count -gt 0) { Append-Log ($lines -join [Environment]::NewLine) $true }
 }
 
 function Get-GwEndRule([int]$code, [bool]$soft, [bool]$isWrite, [bool]$summary, [int]$progTotal, [int]$progSeen, $verifyFail, [string]$calMode, [bool]$cmdFailed = $false) {
@@ -628,8 +644,15 @@ function Get-LogExportHeader([datetime]$when = (Get-Date)) {
 function Export-LogFile([string]$path) {
     # 12.11 : export du journal (bouton « Exporter », 540) : les deux lignes de Get-LogExportHeader, puis le texte du
     # journal tel qu il est affiche (marque de troncature comprise, Limit-LogText), avec ses fins de ligne ; codage
-    # inchange (Set-Content -Encoding UTF8)
-    (((Get-LogExportHeader) -join "`n") + "`n" + $txtLog.Text) | Set-Content -LiteralPath $path -Encoding UTF8
+    # inchange (Set-Content -Encoding UTF8). 12.12 : journal tronque : entre l en-tete et le journal affiche, les lignes de
+    # l application retirees de l affichage ($script:LogKept, Append-Log : position sous $script:LogCut.N), entre deux
+    # lignes entre crochets ; resultats et raisons d une longue seance y restent lisibles, sans le trafic de gw. Journal
+    # non tronque, ou aucune ligne gardee retiree : fichier comme avant
+    $gone = @()
+    if ($null -ne $script:LogKept -and $script:LogCut -and [long]$script:LogCut.N -gt 0) { $gone = @($script:LogKept | Where-Object { [long]$_.P -lt [long]$script:LogCut.N } | ForEach-Object { [string]$_.L }) }
+    $mid = ''
+    if ($gone.Count -gt 0) { $mid = ((T "[Lignes de l'application retirées du journal affiché, sans les commandes ni la sortie de gw : {0} ligne(s).]") -f "$($gone.Count)") + "`n" + ($gone -join "`n") + "`n" + (T '[Fin des lignes retirées. Suite : journal affiché.]') + "`n" }
+    (((Get-LogExportHeader) -join "`n") + "`n" + $mid + $txtLog.Text) | Set-Content -LiteralPath $path -Encoding UTF8
 }
 
 # --- Progression par piste : ligne de gw, commande, plan d une etape, fin de sequence (12.11) ---
