@@ -229,6 +229,7 @@ function Invoke-WriteCheckAnalysis {
         # Passe terminee : toutes ses ecritures et relectures ont rendu le code 0
         foreach ($k in @($rep.Weak)) { $rep.Rewrites[$k] = 1 + $(if ($rep.Rewrites.ContainsKey($k)) { [int]$rep.Rewrites[$k] } else { 0 }) }
     }
+    $swChk = [System.Diagnostics.Stopwatch]::StartNew()   # 12.12 (vitesse) : duree au journal, case « Chrono » (Add-UiTiming, 110)
     $tracks = @{}
     $fake = Test-RepFakeIndex $rep
     foreach ($scp in $rep.Scps) {
@@ -249,6 +250,7 @@ function Invoke-WriteCheckAnalysis {
         if ($m.Bad -or $m.Level -ge 2) { $crit += $k } elseif ($m.Level -eq 1) { $watch += $k }
         elseif (-not $m.Unjudged -and -not ($m.Weak -and $rep.Ignore -and $rep.Ignore.ContainsKey($k))) { $healthy++ }
     }
+    if ($chkTime -and $chkTime.Checked) { Add-UiTiming (T 'analyse des pistes relues au contrôle') $swChk.Elapsed.TotalMilliseconds }
     Add-ContentCheck $rep $expected                       # 12.12 : contenu compare au flux de reference, sans effet sur la suite
     $unjK = @($expected | Where-Object { $rep.State[$_].Unjudged -and -not $rep.State[$_].Bad -and $rep.State[$_].Level -lt 1 })
     if ($unjK.Count -gt 0 -and $rep.Round -eq 0) { Append-Log ((T "Contrôle : zone instable sur {0} piste(s) non jugée(s) ({1}) : la source peut en contenir (protection) sans que l'application puisse le vérifier. Ni réécrites ni comptées comme saines.") -f "$($unjK.Count)", "$(Format-TrackList $unjK)") }

@@ -38,3 +38,7 @@ $script:I18n[' ; {0} piste(s) non comparée(s)'] = '; {0} track(s) not compared'
 $script:I18n["Vérification du contenu (à l'essai) : non faite, {0}. La vérification de gw et le contrôle n'en dépendent pas."] = 'Content verification (on trial): not done, {0}. The gw verification and the check do not depend on it.'
 $script:I18n["Vérification du contenu (à l'essai) : {0} piste(s) comparée(s) au flux que gw tire de l'image, aucune différence{1}."] = 'Content verification (on trial): {0} track(s) compared with the flux gw derives from the image, no difference{1}.'
 $script:I18n["Vérification du contenu (à l'essai) : {0} piste(s) comparée(s) au flux que gw tire de l'image, {1} différente(s) : {2}{3}. Ce constat ne change ni l'état des pistes ni les réécritures."] = 'Content verification (on trial): {0} track(s) compared with the flux gw derives from the image, {1} different: {2}{3}. This finding changes neither the state of the tracks nor the rewrites.'
+# Vitesse : durees des analyses de flux (170, 190, 276)
+$script:I18n['analyse des pistes relues au contrôle'] = 'analysis of the tracks read back by the check'
+$script:I18n['analyse du flux de la mesure'] = 'analysis of the measurement flux'
+$script:I18n["analyse d'une passe de la mesure sur l'image"] = 'analysis of one pass of the measurement on the image'

@@ -43,6 +43,8 @@ public class ScpRev {
     public int RunPos = -1;                   // debut de cette suite, en pour mille du tour
     public string[] Finger; public int Rich;  // empreinte de la piste (reconnaissance de l original) et nombre de blocs riches
 }
+// 12.12 (vitesse) : une piste d un SCP analysee par ScpStats.AnalyzeFile : numero, tours decodes, tours analyses
+public class ScpTrack { public int Tn; public List<int[]> Flux; public ScpRev[] Revs; }
 public static class ScpStats {
     public static ScpRev Analyze(int[] flux, double indexNs) { return Analyze(flux, indexNs, 0); }
     // cellsPerRev > 0 : motif connu (calibration) -> cellule = duree du tour / nombre de cellules. La mediane des
@@ -233,6 +235,39 @@ public static class ScpStats {
             outp.Add((int)((v + carry) * resNs)); carry = 0;
         }
         return outp.ToArray();
+    }
+    // --- 12.12 (vitesse) : toutes les pistes d un SCP, en parallele ------------------------------------------------------
+    // Memes appels que la boucle de Read-ScpFile (190) jusqu a la 12.11, piste par piste : Decode et Analyze de chaque
+    // tour puis, hors calibration (cellsPerRev <= 0) et en double densite (cellule du premier tour de 1 700 a 2 300 ns),
+    // Instability et, sur demande, Fingerprint et RichCount. Une piste par tache, sans etat partage : resultats
+    // identiques a la boucle, rendus dans l ordre des emplacements de la table des pistes. L erreur d une piste (fichier
+    // tronque) ressort telle quelle, et non enveloppee par la bibliotheque de taches
+    public static ScpTrack[] AnalyzeFile(byte[] d, int cellsPerRev, bool finger) {
+        int revs = d[5]; int res = (d[11] + 1) * 25;
+        var slots = new List<int>();
+        for (int t = 0; t < 168; t++) { if (BitConverter.ToUInt32(d, 16 + 4 * t) != 0) slots.Add(t); }
+        var outp = new ScpTrack[slots.Count];
+        try {
+            System.Threading.Tasks.Parallel.For(0, slots.Count, i => {
+                long o = BitConverter.ToUInt32(d, 16 + 4 * slots[i]);
+                var tk = new ScpTrack(); tk.Tn = d[o + 3]; tk.Flux = new List<int[]>(revs); tk.Revs = new ScpRev[revs];
+                for (int r = 0; r < revs; r++) {
+                    uint idx = BitConverter.ToUInt32(d, checked((int)(o + 4 + 12 * r)));
+                    uint ln = BitConverter.ToUInt32(d, checked((int)(o + 8 + 12 * r)));
+                    uint doff = BitConverter.ToUInt32(d, checked((int)(o + 12 + 12 * r)));
+                    int[] flux = Decode(d, checked((int)(o + doff)), checked((int)ln), res);
+                    tk.Flux.Add(flux);
+                    tk.Revs[r] = Analyze(flux, (double)idx * res, cellsPerRev);
+                }
+                if (cellsPerRev <= 0 && revs > 0 && !double.IsNaN(tk.Revs[0].Cell) && tk.Revs[0].Cell >= 1700 && tk.Revs[0].Cell <= 2300) {
+                    int[] ins = Instability(tk.Flux, tk.Revs[0].Cell);
+                    tk.Revs[0].Blocks = ins[0]; tk.Revs[0].Unstable = ins[1]; tk.Revs[0].MaxRun = ins[2]; tk.Revs[0].RunPos = ins[3];
+                    if (finger) { tk.Revs[0].Finger = Fingerprint(tk.Flux[0], tk.Revs[0].Cell, 8); tk.Revs[0].Rich = RichCount(tk.Flux[0], tk.Revs[0].Cell); }
+                }
+                outp[i] = tk;
+            });
+        } catch (AggregateException ae) { throw ae.Flatten().InnerExceptions[0]; }
+        return outp;
     }
 }
 public static class CalibPattern {

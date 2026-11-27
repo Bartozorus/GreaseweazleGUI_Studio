@@ -13,34 +13,19 @@ function Read-ScpFile([string]$path, [int]$cellsPerRev = 0, [switch]$Finger, [sw
     # pour cette piste) : une ligne de journal par fichier, avec le premier message.
     $d = [System.IO.File]::ReadAllBytes($path)
     if ([System.Text.Encoding]::ASCII.GetString($d, 0, 3) -ne 'SCP') { throw (T 'Fichier SCP invalide') }
-    $revs = $d[5]; $res = ($d[11] + 1) * 25
+    $revs = $d[5]
     $zone = (-not $NoIndexZone) -and ((($d[8] -band 1) -eq 1) -or $revs -eq 1)
     $script:ScpPostFail = @{ N = 0; Msg = '' }
     $tracks = @{}
-    for ($t = 0; $t -lt 168; $t++) {
-        $o = [BitConverter]::ToUInt32($d, 16 + 4 * $t)
-        if ($o -eq 0) { continue }
-        $tn = $d[$o + 3]; $list = @()
-        $fl = New-Object 'System.Collections.Generic.List[int[]]'
-        for ($r = 0; $r -lt $revs; $r++) {
-            $idx  = [BitConverter]::ToUInt32($d, $o + 4 + 12 * $r)
-            $ln   = [BitConverter]::ToUInt32($d, $o + 8 + 12 * $r)
-            $doff = [BitConverter]::ToUInt32($d, $o + 12 + 12 * $r)
-            $flux = [ScpStats]::Decode($d, [int]($o + $doff), [int]$ln, $res)
-            $fl.Add($flux)
-            $list += [ScpStats]::Analyze($flux, [double]$idx * $res, $cellsPerRev)
-        }
-        # Stabilite d un tour a l autre (zones instables : bits faibles d une protection, defaut localise) et, sur
-        # demande, empreinte de la piste ; pas pour la calibration (motif connu, une passe par valeur de precomp)
-        # Double densite seulement (cellule de 1,7 a 2,3 us, long tracks compris) : en haute densite, la cellule estimee
-        # sur les intervalles de 3 a 5 us est fausse et les classes aussi
-        if ($cellsPerRev -le 0 -and $list.Count -gt 0 -and -not [double]::IsNaN($list[0].Cell) -and $list[0].Cell -ge 1700 -and $list[0].Cell -le 2300) {
-            $ins = [ScpStats]::Instability($fl, [double]$list[0].Cell)
-            $list[0].Blocks = $ins[0]; $list[0].Unstable = $ins[1]; $list[0].MaxRun = $ins[2]; $list[0].RunPos = $ins[3]
-            if ($Finger) { $list[0].Finger = [ScpStats]::Fingerprint($fl[0], [double]$list[0].Cell, 8); $list[0].Rich = [ScpStats]::RichCount($fl[0], [double]$list[0].Cell) }
-        }
-        if ($cellsPerRev -le 0 -and $list.Count -gt 0) { Set-ScpTrackPost $fl $list $zone }
-        $tracks[[int]$tn] = $list
+    # 12.12 (vitesse) : decodage et analyse de chaque tour, stabilite d un tour a l autre et, sur demande, empreinte :
+    # toutes les pistes en parallele (ScpStats.AnalyzeFile, 030 : memes appels que la boucle d avant, memes resultats,
+    # pistes rendues dans l ordre de la table). Stabilite et empreinte : hors calibration et en double densite seulement
+    # (cellule de 1,7 a 2,3 us, long tracks compris : en haute densite, la cellule estimee sur les intervalles de 3 a
+    # 5 us est fausse et les classes aussi). Le post-traitement de chaque piste reste ici, piste apres piste
+    foreach ($tk in [ScpStats]::AnalyzeFile($d, $cellsPerRev, [bool]$Finger)) {
+        $list = @(foreach ($rv in $tk.Revs) { $rv })   # tableau d objets, comme la liste construite tour par tour jusqu a la 12.11
+        if ($cellsPerRev -le 0 -and $list.Count -gt 0) { Set-ScpTrackPost $tk.Flux $list $zone }
+        $tracks[[int]$tk.Tn] = $list
     }
     if ($script:ScpPostFail.N -gt 0) {
         Append-Log ((T "Analyse SCP : calcul 12.8.2 des erreurs et de la stabilité en échec sur {0} piste(s), jugée(s) comme dans les versions précédentes : {1}") -f "$($script:ScpPostFail.N)", "$($script:ScpPostFail.Msg)")
@@ -1197,7 +1182,9 @@ function Invoke-AlignAnalysis {
     if (-not $script:AlignTmp -or -not (Test-Path -LiteralPath $script:AlignTmp)) {
         Append-Log (T 'Mesure : fichier SCP absent, analyse impossible.'); $script:AlignLoop = $false; Set-QualityStale 'noscp'; return
     }
+    $swAl = [System.Diagnostics.Stopwatch]::StartNew()   # 12.12 (vitesse) : duree au journal, case « Chrono » (Add-UiTiming, 110)
     try { $tracks = Read-ScpFile $script:AlignTmp } catch { Append-Log ((T "Mesure : {0}") -f "$($_.Exception.Message)"); $script:AlignLoop = $false; Set-QualityStale 'noscp'; return }
+    if ($chkTime -and $chkTime.Checked) { Add-UiTiming (T 'analyse du flux de la mesure') $swAl.Elapsed.TotalMilliseconds }
 
     $last = @{}; $watch = @(); $crit = @(); $weakL = @(); $critK = @(); $nBad = 0
     $res = @{ Kind = 'measure'; Score = $null; Lvl = 3; Count = 0; Bad = 0; Health = 0; NTracks = 0; WatchKeys = @(); CritKeys = @()

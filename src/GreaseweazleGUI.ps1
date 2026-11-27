@@ -2190,6 +2190,10 @@ $script:I18n[' ; {0} piste(s) non comparée(s)'] = '; {0} track(s) not compared'
 $script:I18n["Vérification du contenu (à l'essai) : non faite, {0}. La vérification de gw et le contrôle n'en dépendent pas."] = 'Content verification (on trial): not done, {0}. The gw verification and the check do not depend on it.'
 $script:I18n["Vérification du contenu (à l'essai) : {0} piste(s) comparée(s) au flux que gw tire de l'image, aucune différence{1}."] = 'Content verification (on trial): {0} track(s) compared with the flux gw derives from the image, no difference{1}.'
 $script:I18n["Vérification du contenu (à l'essai) : {0} piste(s) comparée(s) au flux que gw tire de l'image, {1} différente(s) : {2}{3}. Ce constat ne change ni l'état des pistes ni les réécritures."] = 'Content verification (on trial): {0} track(s) compared with the flux gw derives from the image, {1} different: {2}{3}. This finding changes neither the state of the tracks nor the rewrites.'
+# Vitesse : durees des analyses de flux (170, 190, 276)
+$script:I18n['analyse des pistes relues au contrôle'] = 'analysis of the tracks read back by the check'
+$script:I18n['analyse du flux de la mesure'] = 'analysis of the measurement flux'
+$script:I18n["analyse d'une passe de la mesure sur l'image"] = 'analysis of one pass of the measurement on the image'
 # --- Textes de la mesure de la disquette sur l image (12.8.1, lot B) ------------
 # Entrees de la table I18n (010) des textes de 276 (deroule de la mesure), 260 (choix de la mesure avant l ecriture
 # lente), 270 (progression, prechauffage), 200 (zone de progression de l Accueil) et 110 : cle francaise, valeur anglaise ;
@@ -3530,6 +3534,8 @@ public class ScpRev {
     public int RunPos = -1;                   // debut de cette suite, en pour mille du tour
     public string[] Finger; public int Rich;  // empreinte de la piste (reconnaissance de l original) et nombre de blocs riches
 }
+// 12.12 (vitesse) : une piste d un SCP analysee par ScpStats.AnalyzeFile : numero, tours decodes, tours analyses
+public class ScpTrack { public int Tn; public List<int[]> Flux; public ScpRev[] Revs; }
 public static class ScpStats {
     public static ScpRev Analyze(int[] flux, double indexNs) { return Analyze(flux, indexNs, 0); }
     // cellsPerRev > 0 : motif connu (calibration) -> cellule = duree du tour / nombre de cellules. La mediane des
@@ -3720,6 +3726,39 @@ public static class ScpStats {
             outp.Add((int)((v + carry) * resNs)); carry = 0;
         }
         return outp.ToArray();
+    }
+    // --- 12.12 (vitesse) : toutes les pistes d un SCP, en parallele ------------------------------------------------------
+    // Memes appels que la boucle de Read-ScpFile (190) jusqu a la 12.11, piste par piste : Decode et Analyze de chaque
+    // tour puis, hors calibration (cellsPerRev <= 0) et en double densite (cellule du premier tour de 1 700 a 2 300 ns),
+    // Instability et, sur demande, Fingerprint et RichCount. Une piste par tache, sans etat partage : resultats
+    // identiques a la boucle, rendus dans l ordre des emplacements de la table des pistes. L erreur d une piste (fichier
+    // tronque) ressort telle quelle, et non enveloppee par la bibliotheque de taches
+    public static ScpTrack[] AnalyzeFile(byte[] d, int cellsPerRev, bool finger) {
+        int revs = d[5]; int res = (d[11] + 1) * 25;
+        var slots = new List<int>();
+        for (int t = 0; t < 168; t++) { if (BitConverter.ToUInt32(d, 16 + 4 * t) != 0) slots.Add(t); }
+        var outp = new ScpTrack[slots.Count];
+        try {
+            System.Threading.Tasks.Parallel.For(0, slots.Count, i => {
+                long o = BitConverter.ToUInt32(d, 16 + 4 * slots[i]);
+                var tk = new ScpTrack(); tk.Tn = d[o + 3]; tk.Flux = new List<int[]>(revs); tk.Revs = new ScpRev[revs];
+                for (int r = 0; r < revs; r++) {
+                    uint idx = BitConverter.ToUInt32(d, checked((int)(o + 4 + 12 * r)));
+                    uint ln = BitConverter.ToUInt32(d, checked((int)(o + 8 + 12 * r)));
+                    uint doff = BitConverter.ToUInt32(d, checked((int)(o + 12 + 12 * r)));
+                    int[] flux = Decode(d, checked((int)(o + doff)), checked((int)ln), res);
+                    tk.Flux.Add(flux);
+                    tk.Revs[r] = Analyze(flux, (double)idx * res, cellsPerRev);
+                }
+                if (cellsPerRev <= 0 && revs > 0 && !double.IsNaN(tk.Revs[0].Cell) && tk.Revs[0].Cell >= 1700 && tk.Revs[0].Cell <= 2300) {
+                    int[] ins = Instability(tk.Flux, tk.Revs[0].Cell);
+                    tk.Revs[0].Blocks = ins[0]; tk.Revs[0].Unstable = ins[1]; tk.Revs[0].MaxRun = ins[2]; tk.Revs[0].RunPos = ins[3];
+                    if (finger) { tk.Revs[0].Finger = Fingerprint(tk.Flux[0], tk.Revs[0].Cell, 8); tk.Revs[0].Rich = RichCount(tk.Flux[0], tk.Revs[0].Cell); }
+                }
+                outp[i] = tk;
+            });
+        } catch (AggregateException ae) { throw ae.Flatten().InnerExceptions[0]; }
+        return outp;
     }
 }
 public static class CalibPattern {
@@ -15406,6 +15445,7 @@ function Invoke-WriteCheckAnalysis {
         # Passe terminee : toutes ses ecritures et relectures ont rendu le code 0
         foreach ($k in @($rep.Weak)) { $rep.Rewrites[$k] = 1 + $(if ($rep.Rewrites.ContainsKey($k)) { [int]$rep.Rewrites[$k] } else { 0 }) }
     }
+    $swChk = [System.Diagnostics.Stopwatch]::StartNew()   # 12.12 (vitesse) : duree au journal, case « Chrono » (Add-UiTiming, 110)
     $tracks = @{}
     $fake = Test-RepFakeIndex $rep
     foreach ($scp in $rep.Scps) {
@@ -15426,6 +15466,7 @@ function Invoke-WriteCheckAnalysis {
         if ($m.Bad -or $m.Level -ge 2) { $crit += $k } elseif ($m.Level -eq 1) { $watch += $k }
         elseif (-not $m.Unjudged -and -not ($m.Weak -and $rep.Ignore -and $rep.Ignore.ContainsKey($k))) { $healthy++ }
     }
+    if ($chkTime -and $chkTime.Checked) { Add-UiTiming (T 'analyse des pistes relues au contrôle') $swChk.Elapsed.TotalMilliseconds }
     Add-ContentCheck $rep $expected                       # 12.12 : contenu compare au flux de reference, sans effet sur la suite
     $unjK = @($expected | Where-Object { $rep.State[$_].Unjudged -and -not $rep.State[$_].Bad -and $rep.State[$_].Level -lt 1 })
     if ($unjK.Count -gt 0 -and $rep.Round -eq 0) { Append-Log ((T "Contrôle : zone instable sur {0} piste(s) non jugée(s) ({1}) : la source peut en contenir (protection) sans que l'application puisse le vérifier. Ni réécrites ni comptées comme saines.") -f "$($unjK.Count)", "$(Format-TrackList $unjK)") }
@@ -18031,34 +18072,19 @@ function Read-ScpFile([string]$path, [int]$cellsPerRev = 0, [switch]$Finger, [sw
     # pour cette piste) : une ligne de journal par fichier, avec le premier message.
     $d = [System.IO.File]::ReadAllBytes($path)
     if ([System.Text.Encoding]::ASCII.GetString($d, 0, 3) -ne 'SCP') { throw (T 'Fichier SCP invalide') }
-    $revs = $d[5]; $res = ($d[11] + 1) * 25
+    $revs = $d[5]
     $zone = (-not $NoIndexZone) -and ((($d[8] -band 1) -eq 1) -or $revs -eq 1)
     $script:ScpPostFail = @{ N = 0; Msg = '' }
     $tracks = @{}
-    for ($t = 0; $t -lt 168; $t++) {
-        $o = [BitConverter]::ToUInt32($d, 16 + 4 * $t)
-        if ($o -eq 0) { continue }
-        $tn = $d[$o + 3]; $list = @()
-        $fl = New-Object 'System.Collections.Generic.List[int[]]'
-        for ($r = 0; $r -lt $revs; $r++) {
-            $idx  = [BitConverter]::ToUInt32($d, $o + 4 + 12 * $r)
-            $ln   = [BitConverter]::ToUInt32($d, $o + 8 + 12 * $r)
-            $doff = [BitConverter]::ToUInt32($d, $o + 12 + 12 * $r)
-            $flux = [ScpStats]::Decode($d, [int]($o + $doff), [int]$ln, $res)
-            $fl.Add($flux)
-            $list += [ScpStats]::Analyze($flux, [double]$idx * $res, $cellsPerRev)
-        }
-        # Stabilite d un tour a l autre (zones instables : bits faibles d une protection, defaut localise) et, sur
-        # demande, empreinte de la piste ; pas pour la calibration (motif connu, une passe par valeur de precomp)
-        # Double densite seulement (cellule de 1,7 a 2,3 us, long tracks compris) : en haute densite, la cellule estimee
-        # sur les intervalles de 3 a 5 us est fausse et les classes aussi
-        if ($cellsPerRev -le 0 -and $list.Count -gt 0 -and -not [double]::IsNaN($list[0].Cell) -and $list[0].Cell -ge 1700 -and $list[0].Cell -le 2300) {
-            $ins = [ScpStats]::Instability($fl, [double]$list[0].Cell)
-            $list[0].Blocks = $ins[0]; $list[0].Unstable = $ins[1]; $list[0].MaxRun = $ins[2]; $list[0].RunPos = $ins[3]
-            if ($Finger) { $list[0].Finger = [ScpStats]::Fingerprint($fl[0], [double]$list[0].Cell, 8); $list[0].Rich = [ScpStats]::RichCount($fl[0], [double]$list[0].Cell) }
-        }
-        if ($cellsPerRev -le 0 -and $list.Count -gt 0) { Set-ScpTrackPost $fl $list $zone }
-        $tracks[[int]$tn] = $list
+    # 12.12 (vitesse) : decodage et analyse de chaque tour, stabilite d un tour a l autre et, sur demande, empreinte :
+    # toutes les pistes en parallele (ScpStats.AnalyzeFile, 030 : memes appels que la boucle d avant, memes resultats,
+    # pistes rendues dans l ordre de la table). Stabilite et empreinte : hors calibration et en double densite seulement
+    # (cellule de 1,7 a 2,3 us, long tracks compris : en haute densite, la cellule estimee sur les intervalles de 3 a
+    # 5 us est fausse et les classes aussi). Le post-traitement de chaque piste reste ici, piste apres piste
+    foreach ($tk in [ScpStats]::AnalyzeFile($d, $cellsPerRev, [bool]$Finger)) {
+        $list = @(foreach ($rv in $tk.Revs) { $rv })   # tableau d objets, comme la liste construite tour par tour jusqu a la 12.11
+        if ($cellsPerRev -le 0 -and $list.Count -gt 0) { Set-ScpTrackPost $tk.Flux $list $zone }
+        $tracks[[int]$tk.Tn] = $list
     }
     if ($script:ScpPostFail.N -gt 0) {
         Append-Log ((T "Analyse SCP : calcul 12.8.2 des erreurs et de la stabilité en échec sur {0} piste(s), jugée(s) comme dans les versions précédentes : {1}") -f "$($script:ScpPostFail.N)", "$($script:ScpPostFail.Msg)")
@@ -19215,7 +19241,9 @@ function Invoke-AlignAnalysis {
     if (-not $script:AlignTmp -or -not (Test-Path -LiteralPath $script:AlignTmp)) {
         Append-Log (T 'Mesure : fichier SCP absent, analyse impossible.'); $script:AlignLoop = $false; Set-QualityStale 'noscp'; return
     }
+    $swAl = [System.Diagnostics.Stopwatch]::StartNew()   # 12.12 (vitesse) : duree au journal, case « Chrono » (Add-UiTiming, 110)
     try { $tracks = Read-ScpFile $script:AlignTmp } catch { Append-Log ((T "Mesure : {0}") -f "$($_.Exception.Message)"); $script:AlignLoop = $false; Set-QualityStale 'noscp'; return }
+    if ($chkTime -and $chkTime.Checked) { Add-UiTiming (T 'analyse du flux de la mesure') $swAl.Elapsed.TotalMilliseconds }
 
     $last = @{}; $watch = @(); $crit = @(); $weakL = @(); $critK = @(); $nBad = 0
     $res = @{ Kind = 'measure'; Score = $null; Lvl = 3; Count = 0; Bad = 0; Health = 0; NTracks = 0; WatchKeys = @(); CritKeys = @()
@@ -33332,8 +33360,10 @@ function Invoke-ContentAnalysis {
     $cal.ReadDurs += ((Get-Date) - $cal.PhaseStart).TotalSeconds
     $fail = (T "Mesure sur l'image : relecture absente ou illisible ({0}) : mesure arrêtée.")
     if (-not (Test-Path -LiteralPath $cal.Scp)) { Append-Log ($fail -f (T 'fichier absent')); Stop-PrecompCalib -GwError; return }
+    $swPass = [System.Diagnostics.Stopwatch]::StartNew()   # 12.12 (vitesse) : duree au journal, case « Chrono » (Add-UiTiming, 110)
     try { $stats = @(Get-ContentPassStats ([string]$cal.Scp) $ct ([int]$ct.Pass)) }
     catch { Append-Log ($fail -f "$($_.Exception.Message)"); Stop-PrecompCalib -GwError; return }
+    if ($chkTime -and $chkTime.Checked) { Add-UiTiming (T "analyse d'une passe de la mesure sur l'image") $swPass.Elapsed.TotalMilliseconds }
     foreach ($s in $stats) { if ($null -ne $s) { $ct.Obs.Add($s) } }
     Write-ContentPassLog $cal $stats
     $cal.PassesDone++

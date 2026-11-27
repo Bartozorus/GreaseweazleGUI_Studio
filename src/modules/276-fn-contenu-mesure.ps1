@@ -466,8 +466,10 @@ function Invoke-ContentAnalysis {
     $cal.ReadDurs += ((Get-Date) - $cal.PhaseStart).TotalSeconds
     $fail = (T "Mesure sur l'image : relecture absente ou illisible ({0}) : mesure arrêtée.")
     if (-not (Test-Path -LiteralPath $cal.Scp)) { Append-Log ($fail -f (T 'fichier absent')); Stop-PrecompCalib -GwError; return }
+    $swPass = [System.Diagnostics.Stopwatch]::StartNew()   # 12.12 (vitesse) : duree au journal, case « Chrono » (Add-UiTiming, 110)
     try { $stats = @(Get-ContentPassStats ([string]$cal.Scp) $ct ([int]$ct.Pass)) }
     catch { Append-Log ($fail -f "$($_.Exception.Message)"); Stop-PrecompCalib -GwError; return }
+    if ($chkTime -and $chkTime.Checked) { Add-UiTiming (T "analyse d'une passe de la mesure sur l'image") $swPass.Elapsed.TotalMilliseconds }
     foreach ($s in $stats) { if ($null -ne $s) { $ct.Obs.Add($s) } }
     Write-ContentPassLog $cal $stats
     $cal.PassesDone++
