@@ -74,6 +74,13 @@ function Get-ContentPlan([int[]]$v0, [int[]]$v1, [int]$nCyl, [double[]]$levels, 
 }
 
 function Get-IpfTrackInfo([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-IpfTrackInfo|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # Enregistrements IMGE d un IPF (meme parcours que Get-ImageTrackSet, 150 ; lecture des champs seulement) :
     # 'c.h' -> @{ Bits (trkbits) ; Blocks (blkcnt, 0 = piste vide) ; Den (densite, offset 8 des donnees : 1 bruit, 2 auto,
     # 3 et plus protections Copylock, Speedlock... valeurs a confirmer, spec § H.13) } ; $null : illisible ou sans CAPS
@@ -96,6 +103,10 @@ function Get-IpfTrackInfo([string]$path) {
         }
         return $info
     } catch { return $null }
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 function Get-ContentImageSkip([string]$img, [int[]]$cyls) {

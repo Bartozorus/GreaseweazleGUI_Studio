@@ -77,6 +77,13 @@ function Get-CurveDevNs($cv) {
 }
 
 function Get-ImageCylinders([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-ImageCylinders|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # Nombre de cylindres de l image, $null si non determinable
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
     try {
@@ -110,6 +117,10 @@ function Get-ImageCylinders([string]$path) {
         }
     } catch { }
     return $null
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 function Get-ImageFamily([string]$path, [string]$fmt = '') {

@@ -7,6 +7,13 @@ function Get-BE32([byte[]]$b, [int]$o) {
 
 # IPF : mediane des bits par piste (enregistrements IMGE) -> cellule nominale a 300 tr/min
 function Get-IpfCellInfo([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-IpfCellInfo|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     $d = [System.IO.File]::ReadAllBytes($path)
     if ([System.Text.Encoding]::ASCII.GetString($d, 0, 4) -ne 'CAPS') { throw (T 'Signature IPF absente') }
     $bits = New-Object System.Collections.Generic.List[int64]; $dos = 0; $n = 0
@@ -29,10 +36,21 @@ function Get-IpfCellInfo([string]$path) {
     $med = [int64]$sorted[[int]($sorted.Count / 2)]
     # 12.11 : MaxBits, piste la plus longue (cellule la plus courte) : plafond par disquette (Get-PatternBits, 240)
     return @{ CellNs = [double](200000000.0 / $med); Bits = $med; MaxBits = [int64]($bits | Measure-Object -Maximum).Maximum; Tracks = $n; DosTracks = $dos; Source = (T 'IPF (bits par piste)') }
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 # SCP : cellule mesuree sur les premieres pistes presentes (revolution 0)
 function Get-ScpCellInfo([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-ScpCellInfo|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     $d = [System.IO.File]::ReadAllBytes($path)
     if ([System.Text.Encoding]::ASCII.GetString($d, 0, 3) -ne 'SCP') { throw (T 'Signature SCP absente') }
     $res = ($d[11] + 1) * 25; $cells = @(); $t = 0
@@ -47,10 +65,21 @@ function Get-ScpCellInfo([string]$path) {
     if ($cells.Count -eq 0) { throw (T 'Aucune piste analysable dans le SCP') }
     $avg = ($cells | Measure-Object -Average).Average
     return @{ CellNs = $avg; Bits = [int64](200000000.0 / $avg); Tracks = $cells.Count; DosTracks = -1; Source = (T 'SCP (flux mesuré)') }
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 # HFE : debit binaire declare dans l en-tete (kbit/s) -> cellule = 500 000 / debit
 function Get-HfeCellInfo([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-HfeCellInfo|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # Densite d un HFE telle que gw l ecrit (hfe.py) : par face, 8 x (longueur // 2) bits, la longueur (octets, deux
     # faces) etant lue dans la table des pistes (bloc ToUInt16(18), une entree de 4 octets par cylindre : bloc des
     # donnees, longueur) ; gw cale chaque piste sur un tour du lecteur, d ou une cellule de 200 ms / bits a 300 tr/min
@@ -99,6 +128,10 @@ function Get-HfeCellInfo([string]$path) {
     $cell = [double](200000000.0 / $bits)
     if ($dbl) { $cell *= 2; $bits = [int64][math]::Floor($bits / 2); $max = [int64][math]::Floor($max / 2) }   # 12.10 (lot 1, B1) : double debit (FM, Apple II)
     return @{ CellNs = $cell; Bits = $bits; MaxBits = $max; Tracks = -1; DosTracks = -1; Source = $src; EncByte = $eb; Enc = $enc; DoubleRate = $dbl }
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 function Get-CurveDate($cv) {
@@ -297,6 +330,10 @@ function Update-PrecompForImage([string]$path) {
     # $script:WTargetHead n est pas remis a vide : un corps interrompu avant le nouveau libelle laisse l ancien avec sa tete,
     # que Sync-WTargetHead remplace au lieu d en ajouter une seconde ; un libelle refait ne la porte pas (tete ignoree)
     $script:WProfileBuilding = $true
+    # 12.12 (vitesse) : duree au journal, case « Chrono » (Add-UiTiming, 110), prise par un bloc englobant apres la clause
+    # finally d origine (inchangee), donc avec Update-WLevelUi et la ligne « Ce qui va se passer »
+    $swPfi = [System.Diagnostics.Stopwatch]::StartNew()
+    try {
     try {
     $mode = $cmbWProfile.Text
     if ($mode -eq (T 'Manuel')) { $lblWProfileInfo.Text = (T 'Profil manuel : --precomp non modifié.'); return }
@@ -389,4 +426,5 @@ function Update-PrecompForImage([string]$path) {
     Append-Log ((T "Profil precomp : {0}") -f "$($lblWProfileInfo.Text)")
     # 12.10 (relecture de la RC) : case de la mesure accordee a l effet du lecteur cible sur cette image (Update-WLevelUi, 140)
     } finally { $script:WProfileBuilding = $false; Sync-WTargetHead; Update-WLevelUi; Update-CurveButton $path }
+    } finally { if ($chkTime -and $chkTime.Checked) { Add-UiTiming (T "profil de l'image et ligne « Ce qui va se passer »") $swPfi.ElapsedMilliseconds } }
 }

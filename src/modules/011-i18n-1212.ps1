@@ -15,3 +15,9 @@ $script:I18n['Recalage des courbes croisées : {0} écriture(s) relue(s) dont le
 # Journal exporte apres une troncature : lignes de l application retirees de l affichage (110 : Export-LogFile)
 $script:I18n["[Lignes de l'application retirées du journal affiché, sans les commandes ni la sortie de gw : {0} ligne(s).]"] = '[Application lines removed from the displayed log, without gw commands and output: {0} line(s).]'
 $script:I18n['[Fin des lignes retirées. Suite : journal affiché.]'] = '[End of the removed lines. Next: displayed log.]'
+
+# Vitesse : durees au journal quand « Chrono » est cochee (110 : Add-UiTiming ; 120, 220, 600)
+$script:I18n['Durée : {0}, {1} s{2}'] = 'Duration: {0}, {1} s{2}'
+$script:I18n['enregistrement de la configuration'] = 'saving the configuration'
+$script:I18n["profil de l'image et ligne « Ce qui va se passer »"] = 'image profile and "What will happen" line'
+$script:I18n['fenêtre sans réponse'] = 'window not responding'

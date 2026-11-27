@@ -131,6 +131,17 @@ function Append-Log([string]$text, [bool]$raw = $false) {
     $txtLog.ScrollToCaret()
 }
 
+function Add-UiTiming([string]$what, [double]$ms, [string]$detail = '') {
+    # 12.12 (vitesse) : duree d une action de l interface au journal, pour savoir ou part le temps quand la fenetre fige.
+    # Seulement quand la case « Chrono » du bandeau est cochee (elle ajoute deja --time aux commandes gw), et a partir de
+    # UiTimingMinMs (100 ms sans cette constante) : rien sinon, ni dans les tests (case absente)
+    if (-not $chkTime -or -not $chkTime.Checked) { return }
+    $min = if ([double]$script:UiTimingMinMs -gt 0) { [double]$script:UiTimingMinMs } else { 100.0 }
+    if ($ms -lt $min) { return }
+    $d = if ($detail) { ' (' + $detail + ')' } else { '' }
+    Append-Log ((T 'Durée : {0}, {1} s{2}') -f $what, (Format-UiNum ($ms / 1000.0) '0.00'), $d)
+}
+
 function Show-AppMessage([string]$text, [string]$title, [string]$buttons = 'OK', [string]$icon = 'Information') {
     # 12.7 : boite de message du code nouveau ou modifie depuis la 12.7 : message ecrit dans le journal, puis affiche. Point
     # unique que les fins de test redefinissent (message enregistre sans affichage : aucune boite modale sur le bureau

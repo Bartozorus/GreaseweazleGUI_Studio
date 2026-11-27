@@ -2166,6 +2166,12 @@ $script:I18n['Recalage des courbes croisées : {0} écriture(s) relue(s) dont le
 # Journal exporte apres une troncature : lignes de l application retirees de l affichage (110 : Export-LogFile)
 $script:I18n["[Lignes de l'application retirées du journal affiché, sans les commandes ni la sortie de gw : {0} ligne(s).]"] = '[Application lines removed from the displayed log, without gw commands and output: {0} line(s).]'
 $script:I18n['[Fin des lignes retirées. Suite : journal affiché.]'] = '[End of the removed lines. Next: displayed log.]'
+
+# Vitesse : durees au journal quand « Chrono » est cochee (110 : Add-UiTiming ; 120, 220, 600)
+$script:I18n['Durée : {0}, {1} s{2}'] = 'Duration: {0}, {1} s{2}'
+$script:I18n['enregistrement de la configuration'] = 'saving the configuration'
+$script:I18n["profil de l'image et ligne « Ce qui va se passer »"] = 'image profile and "What will happen" line'
+$script:I18n['fenêtre sans réponse'] = 'window not responding'
 # --- Textes de la mesure de la disquette sur l image (12.8.1, lot B) ------------
 # Entrees de la table I18n (010) des textes de 276 (deroule de la mesure), 260 (choix de la mesure avant l ecriture
 # lente), 270 (progression, prechauffage), 200 (zone de progression de l Accueil) et 110 : cle francaise, valeur anglaise ;
@@ -5230,6 +5236,17 @@ function Append-Log([string]$text, [bool]$raw = $false) {
     Limit-LogText
     $txtLog.SelectionStart = $txtLog.TextLength
     $txtLog.ScrollToCaret()
+}
+
+function Add-UiTiming([string]$what, [double]$ms, [string]$detail = '') {
+    # 12.12 (vitesse) : duree d une action de l interface au journal, pour savoir ou part le temps quand la fenetre fige.
+    # Seulement quand la case « Chrono » du bandeau est cochee (elle ajoute deja --time aux commandes gw), et a partir de
+    # UiTimingMinMs (100 ms sans cette constante) : rien sinon, ni dans les tests (case absente)
+    if (-not $chkTime -or -not $chkTime.Checked) { return }
+    $min = if ([double]$script:UiTimingMinMs -gt 0) { [double]$script:UiTimingMinMs } else { 100.0 }
+    if ($ms -lt $min) { return }
+    $d = if ($detail) { ' (' + $detail + ')' } else { '' }
+    Append-Log ((T 'Durée : {0}, {1} s{2}') -f $what, (Format-UiNum ($ms / 1000.0) '0.00'), $d)
 }
 
 function Show-AppMessage([string]$text, [string]$title, [string]$buttons = 'OK', [string]$icon = 'Information') {
@@ -8650,6 +8667,7 @@ function Import-TargetDrives($o) {
 }
 
 function Save-Config {
+    $swCfg = [System.Diagnostics.Stopwatch]::StartNew()   # 12.12 (vitesse) : duree au journal, case « Chrono » (Add-UiTiming, 110)
     $delays = @{}
     foreach ($k in $script:DelayCtrls.Keys) {
         $c = $script:DelayCtrls[$k]
@@ -8754,6 +8772,7 @@ function Save-Config {
     try {
         $cfg | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $script:ConfigFile -Encoding UTF8
         if ($drCfg) { [void](Save-DriveRescue $drCfg) }   # 12.11 : copie de secours du registre, si son contenu a change
+        if ($chkTime -and $chkTime.Checked) { Add-UiTiming (T 'enregistrement de la configuration') $swCfg.ElapsedMilliseconds }
         return $true
     } catch {
         Append-Log ((T "ERREUR sauvegarde configuration : {0}") -f "$($_.Exception.Message)")
@@ -14164,7 +14183,27 @@ function Format-TrackList($keys, [int]$max = 24) {
     return ((@($k[0..($max - 1)]) -join ', ') + ((T " ... (+{0})") -f "$($k.Count - $max)"))
 }
 
+# --- 12.12 (vitesse) : lectures d image gardees ------------------------------------------------------------------------
+# Dix fonctions lisent une image pour la decrire (cellule, pistes, cylindres, densite) : Get-ImageTrackSet,
+# Test-NeedsFormat, Test-ScpHighDensity et Get-ImageGeometryTrackSet (150), Get-IpfCellInfo, Get-ScpCellInfo et
+# Get-HfeCellInfo (220), Get-ImageCylinders (230), Get-IpfTrackInfo (274), Get-IpfFormattedCyls (185). Elles relisaient
+# le fichier entier a chaque appel, plusieurs fois par rafraichissement de l onglet Ecriture, et l image est souvent sur
+# un partage reseau : c est ce qui figeait la fenetre au changement de lecteur ou d image. Chacune ne depend que de son
+# fichier (aucun etat de l application, aucun controle : tests\logic-vitesse-memoire.ps1, V4) : son resultat est garde
+# dans $script:FileMemo sous une cle faite de son nom, de la langue (certains resultats portent un texte), de la taille,
+# de la date de modification et du chemin complet du fichier. Le corps d origine, inchange, est execute dans un bloc
+# « & { } » ; les objets qu il emet sont gardes dans l ordre puis reemis un par un (un tableau emis entier reste un seul
+# objet, une table est copiee : l appelant peut la modifier). Fichier absent ou illisible : cle vide, rien n est garde,
+# la fonction se comporte comme avant, erreurs comprises. Memoire videe au-dela de 256 resultats.
+
 function Get-ImageTrackSet([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-ImageTrackSet|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # Pistes presentes dans l image ('cyl.tete' -> $true), $null si non determinable
     $set = @{}
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
@@ -14218,6 +14257,10 @@ function Get-ImageTrackSet([string]$path) {
     } catch { $set = @{} }
     if ($set.Count -gt 0) { return $set }
     return $null
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 function Get-ImageFaces([string]$path) {
@@ -14371,6 +14414,13 @@ function Test-AdfHd([string]$path) {
 }
 
 function Test-NeedsFormat([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Test-NeedsFormat|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # Image secteur brute, sans geometrie : gw exige --format (classe IMG pour .img, .ima et .st ; .dsk sans signature
     # CPC, dsk.py : un DSK Apricot est lu par Apridisk, derive d IMG, qui exige aussi le format)
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
@@ -14383,6 +14433,10 @@ function Test-NeedsFormat([string]$path) {
         if ($s.StartsWith('MV - CPC') -or $s.StartsWith('EXTENDED CPC DSK')) { return $false }
     } catch { }
     return $true
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 function Test-HdFormat([string]$fmt) {
@@ -14532,6 +14586,13 @@ function Test-NonMfmWrite([string]$img, [string]$fmt) {
 }
 
 function Test-ScpHighDensity([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Test-ScpHighDensity|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # Flux MFM double densite : aucun intervalle sous 3 us (2T = 4 us). Haute densite : 2T = 2 us, donc
     # une large part d intervalles sous 2,6 us. Premier tour de la premiere piste presente.
     $d = [System.IO.File]::ReadAllBytes($path)
@@ -14547,6 +14608,10 @@ function Test-ScpHighDensity([string]$path) {
         return ($short -gt 0.2 * $flux.Count)
     }
     return $false
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 # --- Effacement avant l ecriture (12.8.2) ----------------------------------------------------------------------------
@@ -14669,6 +14734,13 @@ function Get-ImageDefaultGwFormat([string]$img) {
 }
 
 function Get-ImageGeometryTrackSet([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-ImageGeometryTrackSet|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # 12.8.2 (revue) : pistes d une image secteur double densite dont l en-tete donne la geometrie ('cyl.tete' -> $true),
     # pour l effacement avant l ecriture seulement (Get-WriteEraseKeys ; Get-ImageTrackSet et ses autres usages sont
     # inchanges) ; $null sinon. Lecture conforme a gw 1.23 (image/msa.py, edsk.py, dsk.py) :
@@ -14711,6 +14783,10 @@ function Get-ImageGeometryTrackSet([string]$path) {
     } catch { return $null }
     if ($set.Count -gt 0) { return $set }
     return $null
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 function Get-WriteEraseKeys([string]$img, [string]$fmt, [string]$userTs, [int[]]$heads) {
@@ -17304,6 +17380,13 @@ function Read-FileHead([string]$path, [int]$n = 512) {
 }
 
 function Get-IpfFormattedCyls([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-IpfFormattedCyls|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # Cylindres formates d un IPF : derniere piste IMGE ayant des blocs, plus un (Get-ImageCylinders compte aussi les
     # IMGE vides : 82 ou 84 pour un IPF de 80 cylindres formates, L2-DATA ecart 3) ; $null si illisible
     try {
@@ -17320,6 +17403,10 @@ function Get-IpfFormattedCyls([string]$path) {
         if ($max -ge 0) { return [int]($max + 1) }
     } catch { }
     return $null
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 function Get-RefImageFormat([string]$path) {
@@ -21050,6 +21137,13 @@ function Get-BE32([byte[]]$b, [int]$o) {
 
 # IPF : mediane des bits par piste (enregistrements IMGE) -> cellule nominale a 300 tr/min
 function Get-IpfCellInfo([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-IpfCellInfo|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     $d = [System.IO.File]::ReadAllBytes($path)
     if ([System.Text.Encoding]::ASCII.GetString($d, 0, 4) -ne 'CAPS') { throw (T 'Signature IPF absente') }
     $bits = New-Object System.Collections.Generic.List[int64]; $dos = 0; $n = 0
@@ -21072,10 +21166,21 @@ function Get-IpfCellInfo([string]$path) {
     $med = [int64]$sorted[[int]($sorted.Count / 2)]
     # 12.11 : MaxBits, piste la plus longue (cellule la plus courte) : plafond par disquette (Get-PatternBits, 240)
     return @{ CellNs = [double](200000000.0 / $med); Bits = $med; MaxBits = [int64]($bits | Measure-Object -Maximum).Maximum; Tracks = $n; DosTracks = $dos; Source = (T 'IPF (bits par piste)') }
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 # SCP : cellule mesuree sur les premieres pistes presentes (revolution 0)
 function Get-ScpCellInfo([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-ScpCellInfo|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     $d = [System.IO.File]::ReadAllBytes($path)
     if ([System.Text.Encoding]::ASCII.GetString($d, 0, 3) -ne 'SCP') { throw (T 'Signature SCP absente') }
     $res = ($d[11] + 1) * 25; $cells = @(); $t = 0
@@ -21090,10 +21195,21 @@ function Get-ScpCellInfo([string]$path) {
     if ($cells.Count -eq 0) { throw (T 'Aucune piste analysable dans le SCP') }
     $avg = ($cells | Measure-Object -Average).Average
     return @{ CellNs = $avg; Bits = [int64](200000000.0 / $avg); Tracks = $cells.Count; DosTracks = -1; Source = (T 'SCP (flux mesuré)') }
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 # HFE : debit binaire declare dans l en-tete (kbit/s) -> cellule = 500 000 / debit
 function Get-HfeCellInfo([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-HfeCellInfo|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # Densite d un HFE telle que gw l ecrit (hfe.py) : par face, 8 x (longueur // 2) bits, la longueur (octets, deux
     # faces) etant lue dans la table des pistes (bloc ToUInt16(18), une entree de 4 octets par cylindre : bloc des
     # donnees, longueur) ; gw cale chaque piste sur un tour du lecteur, d ou une cellule de 200 ms / bits a 300 tr/min
@@ -21142,6 +21258,10 @@ function Get-HfeCellInfo([string]$path) {
     $cell = [double](200000000.0 / $bits)
     if ($dbl) { $cell *= 2; $bits = [int64][math]::Floor($bits / 2); $max = [int64][math]::Floor($max / 2) }   # 12.10 (lot 1, B1) : double debit (FM, Apple II)
     return @{ CellNs = $cell; Bits = $bits; MaxBits = $max; Tracks = -1; DosTracks = -1; Source = $src; EncByte = $eb; Enc = $enc; DoubleRate = $dbl }
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 function Get-CurveDate($cv) {
@@ -21340,6 +21460,10 @@ function Update-PrecompForImage([string]$path) {
     # $script:WTargetHead n est pas remis a vide : un corps interrompu avant le nouveau libelle laisse l ancien avec sa tete,
     # que Sync-WTargetHead remplace au lieu d en ajouter une seconde ; un libelle refait ne la porte pas (tete ignoree)
     $script:WProfileBuilding = $true
+    # 12.12 (vitesse) : duree au journal, case « Chrono » (Add-UiTiming, 110), prise par un bloc englobant apres la clause
+    # finally d origine (inchangee), donc avec Update-WLevelUi et la ligne « Ce qui va se passer »
+    $swPfi = [System.Diagnostics.Stopwatch]::StartNew()
+    try {
     try {
     $mode = $cmbWProfile.Text
     if ($mode -eq (T 'Manuel')) { $lblWProfileInfo.Text = (T 'Profil manuel : --precomp non modifié.'); return }
@@ -21432,6 +21556,7 @@ function Update-PrecompForImage([string]$path) {
     Append-Log ((T "Profil precomp : {0}") -f "$($lblWProfileInfo.Text)")
     # 12.10 (relecture de la RC) : case de la mesure accordee a l effet du lecteur cible sur cette image (Update-WLevelUi, 140)
     } finally { $script:WProfileBuilding = $false; Sync-WTargetHead; Update-WLevelUi; Update-CurveButton $path }
+    } finally { if ($chkTime -and $chkTime.Checked) { Add-UiTiming (T "profil de l'image et ligne « Ce qui va se passer »") $swPfi.ElapsedMilliseconds } }
 }
 # ============================== FONCTIONS : CALIBRATION : COURBES ==============
 
@@ -21512,6 +21637,13 @@ function Get-CurveDevNs($cv) {
 }
 
 function Get-ImageCylinders([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-ImageCylinders|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # Nombre de cylindres de l image, $null si non determinable
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
     try {
@@ -21545,6 +21677,10 @@ function Get-ImageCylinders([string]$path) {
         }
     } catch { }
     return $null
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 function Get-ImageFamily([string]$path, [string]$fmt = '') {
@@ -31686,6 +31822,13 @@ function Get-ContentPlan([int[]]$v0, [int[]]$v1, [int]$nCyl, [double[]]$levels, 
 }
 
 function Get-IpfTrackInfo([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-IpfTrackInfo|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # Enregistrements IMGE d un IPF (meme parcours que Get-ImageTrackSet, 150 ; lecture des champs seulement) :
     # 'c.h' -> @{ Bits (trkbits) ; Blocks (blkcnt, 0 = piste vide) ; Den (densite, offset 8 des donnees : 1 bruit, 2 auto,
     # 3 et plus protections Copylock, Speedlock... valeurs a confirmer, spec § H.13) } ; $null : illisible ou sans CAPS
@@ -31708,6 +31851,10 @@ function Get-IpfTrackInfo([string]$path) {
         }
         return $info
     } catch { return $null }
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 function Get-ContentImageSkip([string]$img, [int[]]$cyls) {
@@ -37593,6 +37740,18 @@ $timer.Add_Tick({
     if ($script:LibWork.Count -gt 0) { Step-LibWork }
 })
 $timer.Start()
+# 12.12 (vitesse) : detecteur de blocage de la fenetre, pour savoir ou part le temps. Un minuteur de 250 ms mesure le
+# temps ecoule depuis son battement precedent : au-dela de 750 ms, le fil de l interface est reste occupe (lecture d une
+# image, calcul, analyse a la fin d une commande gw...) et la fenetre n a pas repondu. Une ligne au journal, seulement
+# quand la case « Chrono » du bandeau est cochee (Add-UiTiming, 110) ; rien n est mesure ni ecrit sinon
+$script:UiBeat = [System.Diagnostics.Stopwatch]::StartNew()
+$timerUi = New-Object System.Windows.Forms.Timer
+$timerUi.Interval = 250
+$timerUi.Add_Tick({
+    $msUi = $script:UiBeat.ElapsedMilliseconds; $script:UiBeat.Restart()
+    if ($msUi -ge 750 -and $chkTime.Checked) { Add-UiTiming (T 'fenêtre sans réponse') ($msUi - 250) }
+})
+$timerUi.Start()
 
 $form.KeyPreview = $true
 $form.Add_KeyDown({ if ($_.KeyCode -eq [System.Windows.Forms.Keys]::F1) { Open-HelpForTab; $_.Handled = $true } })

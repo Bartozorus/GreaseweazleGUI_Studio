@@ -175,6 +175,18 @@ $timer.Add_Tick({
     if ($script:LibWork.Count -gt 0) { Step-LibWork }
 })
 $timer.Start()
+# 12.12 (vitesse) : detecteur de blocage de la fenetre, pour savoir ou part le temps. Un minuteur de 250 ms mesure le
+# temps ecoule depuis son battement precedent : au-dela de 750 ms, le fil de l interface est reste occupe (lecture d une
+# image, calcul, analyse a la fin d une commande gw...) et la fenetre n a pas repondu. Une ligne au journal, seulement
+# quand la case « Chrono » du bandeau est cochee (Add-UiTiming, 110) ; rien n est mesure ni ecrit sinon
+$script:UiBeat = [System.Diagnostics.Stopwatch]::StartNew()
+$timerUi = New-Object System.Windows.Forms.Timer
+$timerUi.Interval = 250
+$timerUi.Add_Tick({
+    $msUi = $script:UiBeat.ElapsedMilliseconds; $script:UiBeat.Restart()
+    if ($msUi -ge 750 -and $chkTime.Checked) { Add-UiTiming (T 'fenêtre sans réponse') ($msUi - 250) }
+})
+$timerUi.Start()
 
 $form.KeyPreview = $true
 $form.Add_KeyDown({ if ($_.KeyCode -eq [System.Windows.Forms.Keys]::F1) { Open-HelpForTab; $_.Handled = $true } })

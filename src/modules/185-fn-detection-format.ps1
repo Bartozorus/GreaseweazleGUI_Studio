@@ -90,6 +90,13 @@ function Read-FileHead([string]$path, [int]$n = 512) {
 }
 
 function Get-IpfFormattedCyls([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-IpfFormattedCyls|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # Cylindres formates d un IPF : derniere piste IMGE ayant des blocs, plus un (Get-ImageCylinders compte aussi les
     # IMGE vides : 82 ou 84 pour un IPF de 80 cylindres formates, L2-DATA ecart 3) ; $null si illisible
     try {
@@ -106,6 +113,10 @@ function Get-IpfFormattedCyls([string]$path) {
         if ($max -ge 0) { return [int]($max + 1) }
     } catch { }
     return $null
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 function Get-RefImageFormat([string]$path) {

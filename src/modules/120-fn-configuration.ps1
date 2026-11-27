@@ -592,6 +592,7 @@ function Import-TargetDrives($o) {
 }
 
 function Save-Config {
+    $swCfg = [System.Diagnostics.Stopwatch]::StartNew()   # 12.12 (vitesse) : duree au journal, case « Chrono » (Add-UiTiming, 110)
     $delays = @{}
     foreach ($k in $script:DelayCtrls.Keys) {
         $c = $script:DelayCtrls[$k]
@@ -696,6 +697,7 @@ function Save-Config {
     try {
         $cfg | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $script:ConfigFile -Encoding UTF8
         if ($drCfg) { [void](Save-DriveRescue $drCfg) }   # 12.11 : copie de secours du registre, si son contenu a change
+        if ($chkTime -and $chkTime.Checked) { Add-UiTiming (T 'enregistrement de la configuration') $swCfg.ElapsedMilliseconds }
         return $true
     } catch {
         Append-Log ((T "ERREUR sauvegarde configuration : {0}") -f "$($_.Exception.Message)")

@@ -17,7 +17,27 @@ function Format-TrackList($keys, [int]$max = 24) {
     return ((@($k[0..($max - 1)]) -join ', ') + ((T " ... (+{0})") -f "$($k.Count - $max)"))
 }
 
+# --- 12.12 (vitesse) : lectures d image gardees ------------------------------------------------------------------------
+# Dix fonctions lisent une image pour la decrire (cellule, pistes, cylindres, densite) : Get-ImageTrackSet,
+# Test-NeedsFormat, Test-ScpHighDensity et Get-ImageGeometryTrackSet (150), Get-IpfCellInfo, Get-ScpCellInfo et
+# Get-HfeCellInfo (220), Get-ImageCylinders (230), Get-IpfTrackInfo (274), Get-IpfFormattedCyls (185). Elles relisaient
+# le fichier entier a chaque appel, plusieurs fois par rafraichissement de l onglet Ecriture, et l image est souvent sur
+# un partage reseau : c est ce qui figeait la fenetre au changement de lecteur ou d image. Chacune ne depend que de son
+# fichier (aucun etat de l application, aucun controle : tests\logic-vitesse-memoire.ps1, V4) : son resultat est garde
+# dans $script:FileMemo sous une cle faite de son nom, de la langue (certains resultats portent un texte), de la taille,
+# de la date de modification et du chemin complet du fichier. Le corps d origine, inchange, est execute dans un bloc
+# « & { } » ; les objets qu il emet sont gardes dans l ordre puis reemis un par un (un tableau emis entier reste un seul
+# objet, une table est copiee : l appelant peut la modifier). Fichier absent ou illisible : cle vide, rien n est garde,
+# la fonction se comporte comme avant, erreurs comprises. Memoire videe au-dela de 256 resultats.
+
 function Get-ImageTrackSet([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-ImageTrackSet|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # Pistes presentes dans l image ('cyl.tete' -> $true), $null si non determinable
     $set = @{}
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
@@ -71,6 +91,10 @@ function Get-ImageTrackSet([string]$path) {
     } catch { $set = @{} }
     if ($set.Count -gt 0) { return $set }
     return $null
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 function Get-ImageFaces([string]$path) {
@@ -224,6 +248,13 @@ function Test-AdfHd([string]$path) {
 }
 
 function Test-NeedsFormat([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Test-NeedsFormat|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # Image secteur brute, sans geometrie : gw exige --format (classe IMG pour .img, .ima et .st ; .dsk sans signature
     # CPC, dsk.py : un DSK Apricot est lu par Apridisk, derive d IMG, qui exige aussi le format)
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
@@ -236,6 +267,10 @@ function Test-NeedsFormat([string]$path) {
         if ($s.StartsWith('MV - CPC') -or $s.StartsWith('EXTENDED CPC DSK')) { return $false }
     } catch { }
     return $true
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 function Test-HdFormat([string]$fmt) {
@@ -385,6 +420,13 @@ function Test-NonMfmWrite([string]$img, [string]$fmt) {
 }
 
 function Test-ScpHighDensity([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Test-ScpHighDensity|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # Flux MFM double densite : aucun intervalle sous 3 us (2T = 4 us). Haute densite : 2T = 2 us, donc
     # une large part d intervalles sous 2,6 us. Premier tour de la premiere piste presente.
     $d = [System.IO.File]::ReadAllBytes($path)
@@ -400,6 +442,10 @@ function Test-ScpHighDensity([string]$path) {
         return ($short -gt 0.2 * $flux.Count)
     }
     return $false
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 # --- Effacement avant l ecriture (12.8.2) ----------------------------------------------------------------------------
@@ -522,6 +568,13 @@ function Get-ImageDefaultGwFormat([string]$img) {
 }
 
 function Get-ImageGeometryTrackSet([string]$path) {
+    # 12.12 (vitesse) : resultat garde tant que le fichier ne change pas (principe : en-tete de 150, « lectures d image
+    # gardees ») ; le corps d origine, inchange, est le bloc « & { } »
+    $mk = ''
+    try { if ($path) { $mf = New-Object System.IO.FileInfo($path); if ($mf.Exists) { $mk = 'Get-ImageGeometryTrackSet|' + [string]$script:Lang + '|' + $mf.Length + '|' + $mf.LastWriteTimeUtc.Ticks + '|' + $mf.FullName } } } catch { $mk = '' }
+    if ($mk -and $null -ne $script:FileMemo -and $script:FileMemo.ContainsKey($mk)) { $mo = $script:FileMemo[$mk] }
+    else {
+        $mo = @(& {
     # 12.8.2 (revue) : pistes d une image secteur double densite dont l en-tete donne la geometrie ('cyl.tete' -> $true),
     # pour l effacement avant l ecriture seulement (Get-WriteEraseKeys ; Get-ImageTrackSet et ses autres usages sont
     # inchanges) ; $null sinon. Lecture conforme a gw 1.23 (image/msa.py, edsk.py, dsk.py) :
@@ -564,6 +617,10 @@ function Get-ImageGeometryTrackSet([string]$path) {
     } catch { return $null }
     if ($set.Count -gt 0) { return $set }
     return $null
+        })
+        if ($mk) { if ($null -eq $script:FileMemo -or $script:FileMemo.Count -ge 256) { $script:FileMemo = @{} }; $script:FileMemo[$mk] = $mo }
+    }
+    foreach ($o in $mo) { if ($o -is [hashtable]) { , $o.Clone() } else { , $o } }
 }
 
 function Get-WriteEraseKeys([string]$img, [string]$fmt, [string]$userTs, [int[]]$heads) {

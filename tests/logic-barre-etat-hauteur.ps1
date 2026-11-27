@@ -205,9 +205,9 @@ function Get-Rub([string]$title) {
 $co = @((Get-Rub 'Corrections') -split "`n" | Where-Object { $_.Contains('ne bouge plus d''un pixel au début et à la fin d''une opération') })
 $dv = @((Get-Rub 'Pour les développeurs') -split "`n" | Where-Object { $_.StartsWith('- Barre d''état de hauteur constante') })
 Chk 'D1' ($co.Count -eq 1 -and $co[0] -notmatch 'matériel' -and $co[0] -notmatch 'MinimumSize') "CHANGELOG 12.11, « Corrections » : l onglet ne bouge plus d un pixel au debut et a la fin d une operation, sans detail interne ni mention du materiel"
-$nTests = @(Get-ChildItem -LiteralPath (Join-Path $Wt 'tests') -Filter 'logic-*.ps1' -File).Count
-$nWords = @{ 33 = 'trente-trois'; 34 = 'trente-quatre'; 35 = 'trente-cinq'; 36 = 'trente-six'; 37 = 'trente-sept'; 38 = 'trente-huit'; 39 = 'trente-neuf'; 40 = 'quarante' }
-$cnt = if ($nWords.ContainsKey($nTests)) { [string]$nWords[$nTests] + ' tests logiques' } else { "$nTests tests logiques" }
+# 12.12 : la section 12.11 est publiee : son compte de tests logiques reste celui de sa publication (quarante), il ne
+# suit plus le nombre de tests du depot (un test nouveau n y change rien)
+$cnt = 'quarante tests logiques'
 Chk 'D2' ($dv.Count -eq 1 -and $dv[0].Contains('`$status.MinimumSize`') -and $dv[0].Contains('`tests/logic-barre-etat-hauteur.ps1`') -and $sec.Contains($cnt)) "CHANGELOG 12.11, « Pour les développeurs » : hauteur minimale et test nouveau ; compte des tests logiques ($cnt)"
 $rm = Read-Doc 'src\modules\README.md'; $rt = Read-Doc 'tests\README.md'
 Chk 'D3' ($rm.Contains('`$status.MinimumSize`') -and $rt.Contains('| `logic-barre-etat-hauteur` |')) "README des modules : hauteur minimale de la barre d etat (540) ; README des tests : ligne de logic-barre-etat-hauteur"
