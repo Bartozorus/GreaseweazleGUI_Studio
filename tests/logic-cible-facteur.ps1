@@ -391,6 +391,9 @@ foreach ($pr in $fkRoots) {
     foreach ($sc in $scB) { $rr[$sc.Id] = Invoke-FkScenario $sc $true ([bool]$sc.Own) $pr.New }
     if ($pr.New) {
         foreach ($sc in $scA) { $rr['C' + $sc.Id.Substring(1)] = Invoke-FkScenario $sc $true $true $true }
+        # 12.12 (X4, X5) : memes ecritures que C1 a C6, case « Corriger les zones ecartees de l attendu (lecteur cible) »
+        # cochee apres la mise en place (elle est decochee par defaut)
+        foreach ($sc in $scA) { $rr['Z' + $sc.Id.Substring(1)] = Invoke-FkScenario $sc $true $true $true { $chkWZones.Checked = $true } }
         $rr['R1'] = Invoke-FkScenario $scR $true $true $false
         # 12.11 rc2.1 (cas G) : courbes propres de A au magasin, vue de travail vide (profil non calibre) ou portant les
         # courbes d un autre lecteur (memes valeurs, lecteur 0) ; G3 : vue accordee. Ecriture lente, mesure demandee (B3)
@@ -751,26 +754,29 @@ Chk 'X3' ($x3Bad.Count -eq 0 -and $x3Swap -and @($h1.Trace | Where-Object { $_ -
 # borne automatique (CalHardNsUser)
 function Get-FkGain($r) { if ($r -and $r.Rep -and $r.Rep.AsymGain) { return ('{0}/{1}' -f ([double]$r.Rep.AsymGain[0]).ToString('0.00', [Globalization.CultureInfo]::InvariantCulture), ([double]$r.Rep.AsymGain[1]).ToString('0.00', [Globalization.CultureInfo]::InvariantCulture)) }; return '-' }
 $gWant = @{ C1 = '1.63/1.53'; C2 = '1.70/1.70'; C3 = '1.70/1.70'; C4 = '1.70/1.70'; C5 = '1.70/1.70'; C6 = '1.63/1.53' }
-$x4Bad = @(foreach ($id in @($gWant.Keys | Sort-Object)) { $gv = Get-FkGain $cur[$id]; if ($gv -cne $gWant[$id] -or -not $cur[$id].Rep.ZoneFix -or [int]$cur[$id].Rep.ZoneHard -ne [int]$script:CalHardNsUser -or [int]$script:CalHardNsUser -le 0) { "$id : gain $gv, correction par zones $([bool]$cur[$id].Rep.ZoneFix), borne $($cur[$id].Rep.ZoneHard)" } })
+$x4Bad = @(foreach ($id in @($gWant.Keys | Sort-Object)) { $gv = Get-FkGain $cur[$id]; if ($gv -cne $gWant[$id] -or $cur[$id].Rep.ZoneFix -isnot [bool] -or $cur[$id].Rep.ZoneFix -or [int]$cur[$id].Rep.ZoneHard -ne [int]$script:CalHardNsUser -or [int]$script:CalHardNsUser -le 0) { "$id : gain $gv, correction par zones $([bool]$cur[$id].Rep.ZoneFix), borne $($cur[$id].Rep.ZoneHard)" } })
 foreach ($id in @($scA | ForEach-Object { $_.Id })) { if ($cur[$id].Rep -and ($cur[$id].Rep.ContainsKey('AsymGain') -or $cur[$id].Rep.ContainsKey('ZoneFix') -or $cur[$id].Rep.ContainsKey('ZoneHard'))) { $x4Bad += "$id : gain ou correction par zones pour le meme lecteur" } }
 $gLine = "Contrôle après écriture : asymétrie attendue = g × excès de précompensation / cellule ; tête 0 : g = 1,63, deux fois la pente mesurée sur l'image ; tête 1 : g = 1,53, deux fois la pente mesurée sur l'image."
 $gLine4 = "Contrôle après écriture : asymétrie attendue = g × excès de précompensation / cellule ; tête 0 : g = 1,70 par défaut, pente non mesurée ; tête 1 : g = 1,70 par défaut, pente non mesurée."
 $x4l = (@($cur['C1'].Log) -ccontains $gLine -and @($cur['C4'].Log) -ccontains $gLine4)
 $zSeg = "correction des zones écartées de l'attendu, d'après la relecture par le lecteur qui écrit"
-$x4p = (@($cur['C1'].Plan.Segs | Where-Object { [string]$_.T -ceq $zSeg }).Count -eq 1 -and $cur['B3'].Plan -and @($cur['B3'].Plan.Segs | Where-Object { [string]$_.T -ceq $zSeg }).Count -eq 0)
+$x4p = (@($cur['C1'].Plan.Segs | Where-Object { [string]$_.T -ceq $zSeg }).Count -eq 0 -and @($cur['Z1'].Plan.Segs | Where-Object { [string]$_.T -ceq $zSeg }).Count -eq 1 -and @(1..6 | Where-Object { $cur["Z$_"].Rep.ZoneFix -ne $true -or [int]$cur["Z$_"].Rep.ZoneHard -ne [int]$script:CalHardNsUser }).Count -eq 0 -and $cur['B3'].Plan -and @($cur['B3'].Plan.Segs | Where-Object { [string]$_.T -ceq $zSeg }).Count -eq 0)
 $cpOk = @{ Post = $true; Blocker = $null }
 $zKeep = $chkWZones.Checked
 $chkWZones.Checked = $true; $zp = @((Get-WriteZonePlan $true $cpOk 2).On, (Get-WriteZonePlan $true $cpOk 1).On, (Get-WriteZonePlan $false $cpOk 3).On, (Get-WriteZonePlan $true @{ Post = $false; Blocker = $null } 3).On, (Get-WriteZonePlan $true @{ Post = $true; Blocker = 'secteurs durs' } 3).On)
 $chkWZones.Checked = $false; $zp += @((Get-WriteZonePlan $true $cpOk 3).On, (Get-WriteZonePlan $true $cpOk 3).Asked)
 $chkWZones.Checked = $zKeep
 $x4z = (($zp | ForEach-Object { [int][bool]$_ }) -join '') -ceq '1000000'
-Chk 'X4' ($x4Bad.Count -eq 0 -and $x4l -and $x4p -and $x4z) "gain memorise par tete (vraie Start-ImageWrite) : C1 $(Get-FkGain $cur['C1']) (2 x pentes 0,815 et 0,765), C4 $(Get-FkGain $cur['C4']) (repli) ; aucun pour le meme lecteur ; ecarts : $(Get-List $x4Bad) ; ligne de journal du gain ($x4l) ; segment « correction des zones » de la ligne pour le lecteur cible seulement ($x4p) ; Get-WriteZonePlan : case cochee, 2 passes : oui ; 1 passe, sans facteur par cylindre, sans controle, controle non applicable, case decochee : non ($(($zp | ForEach-Object { [int][bool]$_ }) -join ''))"
+# 12.12 : case decochee par defaut (vraie Set-Defaults, Invoke-FkDefaults)
+$chkWZones.Checked = $true; Invoke-FkDefaults; $x4d = (-not $chkWZones.Checked)
+Chk 'X4' ($x4Bad.Count -eq 0 -and $x4l -and $x4p -and $x4z -and $x4d) "case de la correction par zones decochee par defaut ($x4d) : aucune correction demandee pour C1 a C6, demandee pour Z1 a Z6 (case cochee) et annoncee dans la ligne de Z1 ; gain memorise par tete (vraie Start-ImageWrite) : C1 $(Get-FkGain $cur['C1']) (2 x pentes 0,815 et 0,765), C4 $(Get-FkGain $cur['C4']) (repli) ; aucun pour le meme lecteur ; ecarts : $(Get-List $x4Bad) ; ligne de journal du gain ($x4l) ; segment « correction des zones » de la ligne pour le lecteur cible seulement ($x4p) ; Get-WriteZonePlan : case cochee, 2 passes : oui ; 1 passe, sans facteur par cylindre, sans controle, controle non applicable, case decochee : non ($(($zp | ForEach-Object { [int][bool]$_ }) -join ''))"
 # X5 (12.11, version finale) : conseil des zones qui couvrent presque toute une tete, decide au lancement par la vraie
 # Start-ImageWrite (Rep.ZoneAdvice) : C1 facteur mesure sur l image (consigne 'mesure' : la mesure a precede) ; C2 Test rapide ;
 # C3 mesure complete (case cochee, autre mesure que sur l image) ; C4 facteur de la marque, case decochee ; rien pour le
 # meme lecteur
 function Get-FkZoneAdv($r) { if ($r -and $r.Rep -and $r.Rep.ZoneAdvice) { $a = $r.Rep.ZoneAdvice; return "$($a.KSrc[0])/$($a.KSrc[1]) $($a.How)" }; return '-' }
-$x5Want = [ordered]@{ C1 = 'mesure/mesure mesure'; C2 = 'defaut/defaut quickslow'; C3 = 'defaut/defaut mode'; C4 = 'lecteur/lecteur slow' }
+# 12.12 : conseil decide seulement quand la correction est demandee (Z1 a Z4, case cochee) ; aucun par defaut (C1 a C4)
+$x5Want = [ordered]@{ Z1 = 'mesure/mesure mesure'; Z2 = 'defaut/defaut quickslow'; Z3 = 'defaut/defaut mode'; Z4 = 'lecteur/lecteur slow'; C1 = '-'; C2 = '-'; C3 = '-'; C4 = '-' }
 $x5Bad = @(foreach ($id in @($x5Want.Keys)) { $v = Get-FkZoneAdv $cur[$id]; if ($v -cne $x5Want[$id]) { "$id : $v" } })
 foreach ($id in @($scA | ForEach-Object { $_.Id })) { if ($cur[$id].Rep -and $cur[$id].Rep.ContainsKey('ZoneAdvice')) { $x5Bad += "$id : conseil des zones pour le meme lecteur" } }
 Chk 'X5' ($x5Bad.Count -eq 0) "origine du facteur par tete relue et consigne (vraie Start-ImageWrite) : $(@($x5Want.Keys | ForEach-Object { "$_ $(Get-FkZoneAdv $cur[$_])" }) -join ' ; ') ; ecarts : $(Get-List $x5Bad)"

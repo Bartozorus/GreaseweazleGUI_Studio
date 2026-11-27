@@ -244,6 +244,20 @@ function Update-LegacyEraseMode($cfg) {
     Append-Log (T "Case « Effacer avant d'écrire » (auparavant « Pré-effacer chaque piste ») recochée, une seule fois : son effet change dans cette version. Sur une disquette double densité, elle efface désormais les pistes en haute fréquence avant l'écriture, au lieu du pré-effacement en continu qui coûtait de la marge de lecture ; en haute densité, elle pré-efface comme avant. Décochez-la de nouveau si vous ne voulez aucun effacement avant l'écriture.")
 }
 
+function Update-LegacyZoneFix($cfg) {
+    # 12.12 : case « Corriger les zones ecartees de l attendu (lecteur cible) » (write.zoneFix), cochee par defaut en
+    # 12.11, decochee par defaut en 12.12 : les relectures par le lecteur cible n ont pas confirme les ecarts vus par le
+    # lecteur qui ecrit, et la correction eloignait la disquette de ce que lit le lecteur cible. Configuration d une
+    # version anterieure (section write sans le marqueur zoneFixDef = 'off') avec la case cochee : elle est decochee une
+    # fois, ligne de journal ; Save-Config ecrit le marqueur, le choix suivant de l utilisateur est garde. Load-Config,
+    # apres la lecture de la case
+    $w = Get-Cfg $cfg 'write' $null
+    if ($null -eq $w -or [string](Get-Cfg $w 'zoneFixDef' '') -eq 'off') { return }
+    if (-not $chkWZones.Checked) { return }
+    $chkWZones.Checked = $false
+    Append-Log (T "Case « Corriger les zones écartées de l'attendu (lecteur cible) » décochée, une seule fois : elle n'est plus cochée par défaut dans cette version. Les relectures par un lecteur cible n'ont pas confirmé les écarts vus par le lecteur qui écrit, et la correction éloignait la disquette de ce que lit le lecteur cible. La case reste dans les options avancées de l'onglet « Écriture ».")
+}
+
 function Test-ContentLevelSettings($cfg) {
     # 12.8.1 (spec-1281 § A.4) : niveaux moyen et bas de la mesure sur l image (contentKMid, contentKLow, configuration
     # seulement) controles ensemble au chargement : valeurs lisibles et dans les bornes de la table, et bas <= moyen - 0,2 ;
@@ -296,7 +310,7 @@ function Set-Defaults {
     $txtWPrecomp1.Text = $script:PrecompStd
     $chkWPostCheck.Checked = $true
     $numWRepair.Value = 3
-    $chkWZones.Checked = $true                 # 12.11 rc7 (R16) : correction par zones (lecteur cible)
+    $chkWZones.Checked = $false                # 12.11 rc7 (R16) : correction par zones (lecteur cible) ; 12.12 : decochee par defaut
     # 12.8 (point 7) : reglages de la table (lecteur, mode de calibration, ecriture lente, prechauffages et leur duree,
     # mesure de la disquette, profil precomp, seuil de famille, carte « Calibrer le lecteur », mesure de l onglet
     # Qualite, seuils de jitter, nettoyage de l onglet Outils) : defauts de la table, y compris le seuil precompThresholdNs
@@ -638,6 +652,7 @@ function Save-Config {
             precompOn = [bool]$chkWPrecomp.Checked; precomp = $txtWPrecomp.Text; precomp1 = $txtWPrecomp1.Text
             postCheck = [bool]$chkWPostCheck.Checked; repairMax = [int]$numWRepair.Value
             zoneFix = [bool]$chkWZones.Checked  # 12.11 rc7 (R16) : correction par zones au controle d une ecriture pour un lecteur cible ; une version anterieure ignore cette cle
+            zoneFixDef = 'off'                 # 12.12 : marqueur de migration de la case (Update-LegacyZoneFix)
             precompStd = $(if ($oc -and $oc.Std -and -not $script:PrecompCurves['std']) { $oc.Std } else { $script:PrecompStd })
             precompLong = $(if ($oc -and $oc.Long -and -not $script:PrecompCurves['long']) { $oc.Long } else { $script:PrecompLong })
             precompMaxNs = [int]$script:CalHardNsUser   # borne des valeurs calibrees (300 a 470 ns, 400 par defaut ; 12.7 : celle de la double densite, la haute densite en prend la moitie)
@@ -934,7 +949,8 @@ function Load-Config {
     $chkWPostCheck.Checked = [bool](Get-Cfg $w 'postCheck' $true)
     $rm = [int](Get-Cfg $w 'repairMax' 3); $numWRepair.Value = [math]::Max(0, [math]::Min(10, $rm))
     $numWRepair.Enabled = $chkWPostCheck.Checked; $lblWRepair.Enabled = $chkWPostCheck.Checked
-    $chkWZones.Checked = [bool](Get-Cfg $w 'zoneFix' $true)   # 12.11 rc7 (R16)
+    $chkWZones.Checked = [bool](Get-Cfg $w 'zoneFix' $false)  # 12.11 rc7 (R16) ; 12.12 : decochee par defaut
+    Update-LegacyZoneFix $cfg                  # 12.12 : case cochee d une version anterieure decochee une fois
     $txtWPrecomp.Text  = [string](Get-Cfg $w 'precomp' $script:PrecompStd)
     $txtWPrecomp1.Text = [string](Get-Cfg $w 'precomp1' $txtWPrecomp.Text)
     if ($script:OldCalib) { $script:OldCalib.P0 = $txtWPrecomp.Text; $script:OldCalib.P1 = $txtWPrecomp1.Text }   # retablis si conservees

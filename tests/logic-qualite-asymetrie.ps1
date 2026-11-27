@@ -180,7 +180,8 @@ $defsNew = New-Gen $Wt $genNew $fnNew $asgNew @('$script:CalHardMaxNs')
 # Complete-WriteCheck et (relecture rc7) Stop-WriteCheck reelles, gardees a part (cas Z7, dans une portee avec leurs bouchons)
 $fnX = @('Get-RepAsymExcess', 'Get-RepAsymGain', 'Get-AsymGainText', 'Get-WriteZoneGap', 'Get-WriteZoneScan', 'Get-WriteZoneSpec', 'Get-RepHeadSpec', 'Find-WriteZones', 'Format-WriteZone',
          'Start-WriteZonePass', 'Complete-WriteZonePass', 'Get-WriteZoneCount', 'Invoke-RepNextCmd', 'Complete-WriteCheck', 'Stop-WriteCheck',
-         'Get-WriteZoneHeadAdvice')   # 12.11 (version finale) : conseil des zones qui couvrent presque toute une tete
+         'Get-WriteZoneHeadAdvice',   # 12.11 (version finale) : conseil des zones qui couvrent presque toute une tete
+         'Add-WriteZoneNote')         # 12.12 : zones citees sans correction (case decochee, defaut)
 $defsX = @{}
 # 12.11 rc8 (R17) : recalage du lecteur cible (172), appele par Invoke-AlignAnalysis et Complete-WriteCheck ; aucune
 # ecriture pour un lecteur cible en memoire ici : sans effet
@@ -620,7 +621,8 @@ foreach ($f in @(Get-ChildItem -LiteralPath $mods -Filter '*.ps1' -File | Sort-O
 $callX = @($callX | Sort-Object -Unique); $useX = @($useX | Sort-Object -Unique)
 $measX = @(@('Invoke-AlignAnalysis', 'Get-TrackMetrics') | Where-Object { $defsNew[$_] -match 'AsymExp|AsymFor|AsymExcess|AsymDev|AsymGap' })
 # 12.11 rc7 (R16) : Find-WriteZones lit aussi la presence de l exces (correction par zones d une ecriture pour un lecteur cible)
-$x7b = (($callX -join ',') -ceq 'Show-WriteCheckTable' -and ($useX -join ',') -ceq 'Find-WriteZones,Get-RepAsymExcess,Show-WriteCheckTable,Start-ImageWrite' -and $measX.Count -eq 0)
+# 12.12 : Add-WriteZoneNote aussi (zones citees sans correction)
+$x7b = (($callX -join ',') -ceq 'Show-WriteCheckTable' -and ($useX -join ',') -ceq 'Add-WriteZoneNote,Find-WriteZones,Get-RepAsymExcess,Show-WriteCheckTable,Start-ImageWrite' -and $measX.Count -eq 0)
 Chk 'X7' ($x7a -and $x7b) "mesure simple de l onglet sur les memes pistes : score moyen $($resM.Score), cases de la couleur de la valeur mesuree, phrase de toujours, aucune asymetrie attendue ($x7a) ; Set-TrackAsymExpected appelee par : $($callX -join ', ') ; exces memorise ecrit ou lu par : $($useX -join ', ') ; la mesure et les metriques d une piste n en lisent rien ($x7b)"
 # Infobulle de la carte et couleur des lignes au journal
 $resX.At = [datetime]::new(2026, 11, 11, 10, 0, 0)
@@ -1047,10 +1049,15 @@ $want5 = @("erase --drive=0 --hfreq --tracks=c=25,45:h=0", "write --drive=0 --re
            "erase --drive=0 --hfreq --tracks=c=60:h=1", "write --drive=0 --retries=10 --precomp 0=0:10=60 --tracks=c=60:h=1 `"image-factice.adf`"",
            "read --drive=0 --revs=3 --tracks=c=25,45:h=0 check-r1-0.scp", "read --drive=0 --revs=3 --tracks=c=60:h=1 check-r1-1.scp")
 $o5 = @()
+$want5n = "Contrôle après écriture : 3 zone(s) écartée(s) de l'attendu à la relecture par le lecteur Banc 1 (tête 0 c20-39 : écart médian +14,0 ns ; tête 0 c50-69 : écart médian +40,0 ns ; tête 1 c0-19 : écart médian -20,0 ns), non corrigée(s) : seule une relecture par le lecteur Atelier 2 dit ce qu'il lira."
 foreach ($st in @(@{ ZoneFix = $false }, @{ AsymExcess = $null; AsymGain = $null; ZoneFix = $null; Target = $null; TargetSrc = $null }, @{ Max = 1 })) {
     $r = New-ZRep $zMain $zWeak $st
     $null = Invoke-WriteCheckAnalysis
-    $o5 += [bool]((@(Get-ZCmds $r) -join "`n") -ceq ($want5 -join "`n") -and (Get-ZZones $r) -ceq '' -and -not $r.ContainsKey('HeadPrecompOrig') -and @($script:RLog | Where-Object { $_ -like '*zone(s) écartée(s)*' }).Count -eq 0)
+    # 12.12 : case decochee, ecriture pour un lecteur cible : les zones sont citees, une ligne, sans rien changer
+    # (Add-WriteZoneNote) ; meme lecteur, ou correction demandee sans 2 passes : aucune ligne
+    $zl = @($script:RLog | Where-Object { $_ -like '*zone(s) écartée(s)*' })
+    $zOk = if ($st.ContainsKey('ZoneFix') -and $st.ZoneFix -eq $false) { $zl.Count -eq 1 -and $zl[0] -ceq $want5n } else { $zl.Count -eq 0 }
+    $o5 += [bool]((@(Get-ZCmds $r) -join "`n") -ceq ($want5 -join "`n") -and (Get-ZZones $r) -ceq '' -and -not $r.ContainsKey('HeadPrecompOrig') -and $zOk -and -not $r.ZonePass)
 }
 $weakMany = @(@(foreach ($c in 0..79) { "$c.1" }) + @('25.0', '45.0'))
 $r = New-ZRep $zMain $weakMany

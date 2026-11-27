@@ -155,12 +155,14 @@ $cmbWBound.Add_SelectedIndexChanged({ Set-PrecompBoundFromUi })
 # intention ; liste deroulee, la molette la fait defiler (meme garde que la liste du lecteur du bandeau, 510)
 $cmbWBound.Add_MouseWheel({ if (-not $this.DroppedDown -and $_ -is [System.Windows.Forms.HandledMouseEventArgs]) { $_.Handled = $true } })
 # 12.11 rc7 (R16) : correction par zones au controle d une ecriture pour un lecteur cible (Get-WriteZonePlan, 140 ;
-# Find-WriteZones, 170), sous la borne de precompensation, derniere rangee du cadre des options avancees ; cochee par
-# defaut (Set-Defaults), enregistree dans la configuration (write.zoneFix)
+# Find-WriteZones, 170), sous la borne de precompensation, derniere rangee du cadre des options avancees ; enregistree
+# dans la configuration (write.zoneFix). 12.12 : decochee par defaut (Set-Defaults ; Update-LegacyZoneFix, 120) : les
+# relectures par le lecteur cible n ont pas confirme les ecarts vus par le lecteur qui ecrit ; decochee, le controle
+# cite les zones sans les corriger (Add-WriteZoneNote, 170)
 $chkWZones = New-Object System.Windows.Forms.CheckBox
-$chkWZones.Name = 'chkWZones'; $chkWZones.Location = '12,272'; $chkWZones.AutoSize = $true; $chkWZones.Checked = $true
+$chkWZones.Name = 'chkWZones'; $chkWZones.Location = '12,272'; $chkWZones.AutoSize = $true; $chkWZones.Checked = $false
 $chkWZones.Text = (T "Corriger les zones écartées de l'attendu (lecteur cible)")
-$tip.SetToolTip($chkWZones, ((T "Écriture pour un lecteur cible avec le facteur par cylindre, contrôle de toutes les pistes et 2 passes de réécriture au moins : quand plusieurs cylindres voisins ({0} au moins) relus par le lecteur qui écrit s'écartent dans le même sens de l'asymétrie attendue, leurs pistes sont réécrites une fois avec la précompensation décalée de la moitié de l'écart ({1} ns au plus), puis relues. La correction est gardée si la zone se rapproche de l'attendu, sinon la zone reprend sa courbe d'origine. Une piste isolée n'est jamais corrigée.`nLa correction ne s'appuie que sur la relecture par le lecteur qui écrit : elle ne garantit pas la lecture par le lecteur cible.") -f "$($script:WriteZoneMinCyl)", "$($script:WriteZoneCapNs)"))
+$tip.SetToolTip($chkWZones, ((T "Écriture pour un lecteur cible avec le facteur par cylindre, contrôle de toutes les pistes et 2 passes de réécriture au moins : quand plusieurs cylindres voisins ({0} au moins) relus par le lecteur qui écrit s'écartent dans le même sens de l'asymétrie attendue, leurs pistes sont réécrites une fois avec la précompensation décalée de la moitié de l'écart ({1} ns au plus), puis relues. La correction est gardée si la zone se rapproche de l'attendu, sinon la zone reprend sa courbe d'origine. Une piste isolée n'est jamais corrigée.`nLa correction ne s'appuie que sur la relecture par le lecteur qui écrit : elle ne garantit pas la lecture par le lecteur cible.") -f "$($script:WriteZoneMinCyl)", "$($script:WriteZoneCapNs)") + "`n" + (T "Décochée par défaut depuis la 12.12 : les relectures par un lecteur cible n'ont pas confirmé ces écarts. Décochée, le contrôle cite les zones au journal sans les corriger."))
 # 12.9 (S1) : ecriture sans surveillance, case a la suite du champ de la duree du prechauffage (position apres l ajout a
 # l onglet). Etat $script:CalibUnattended, pour la session : ni reglage ni configuration, decochee au demarrage et a la fin
 # de la sequence d ecriture (Update-CalibUnattended). Seul effet : avertissement de calibration de la disquette a ecrire

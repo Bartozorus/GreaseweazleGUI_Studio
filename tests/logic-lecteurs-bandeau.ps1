@@ -97,7 +97,7 @@ $want = [ordered]@{
     '110' = @('Get-CommonArgs', 'Get-AppBusy', 'Complete-DriveDetect', 'Get-LogExportHeader')
     '112' = @('*')
     '120' = @('ConvertTo-SettingValue', 'Get-Setting', 'Set-SettingStore', 'Set-SettingCtlValue', 'Set-Setting', 'Register-SettingCtl', 'Update-SettingDependents', 'Get-SettingText', 'Reset-Settings', 'Import-Settings', 'Export-Settings',
-              'Update-LegacyCleanDefault', 'Update-LegacyLevelMode', 'Update-LegacyEraseMode', 'Test-ContentLevelSettings', 'Backup-ConfigBeforeRef', 'Export-CurveView', 'Export-DriveCurves', 'Import-DriveCurves',
+              'Update-LegacyCleanDefault', 'Update-LegacyLevelMode', 'Update-LegacyEraseMode', 'Update-LegacyZoneFix', 'Test-ContentLevelSettings', 'Backup-ConfigBeforeRef', 'Export-CurveView', 'Export-DriveCurves', 'Import-DriveCurves',
               'Export-TargetDrives', 'Import-TargetDrives', 'Save-Config', 'Get-Cfg', 'Set-Num', 'Set-Combo', 'Load-Config')
     '140' = @('Get-DriveIds', 'Get-TargetDrive', 'Set-TargetDrive', 'Get-TargetDriveItems', 'Get-TargetCurves', 'Update-TargetDriveUi', 'Start-ImageWrite', 'Get-TargetWriteInfo')
     # 12.11 rc8 (R17) : configuration des recalages et de la memoire des ecritures pour un lecteur cible (Save-Config,

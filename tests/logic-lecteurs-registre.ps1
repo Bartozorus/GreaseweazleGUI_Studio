@@ -83,7 +83,7 @@ $want = [ordered]@{
     '110' = @('Get-CommonArgs', 'Get-AppBusy')
     '112' = @('*')
     '120' = @('ConvertTo-SettingValue', 'Get-Setting', 'Set-SettingStore', 'Set-SettingCtlValue', 'Set-Setting', 'Register-SettingCtl', 'Update-SettingDependents', 'Get-SettingText', 'Import-Settings', 'Export-Settings',
-              'Update-LegacyCleanDefault', 'Update-LegacyLevelMode', 'Update-LegacyEraseMode', 'Test-ContentLevelSettings', 'Backup-ConfigBeforeRef', 'Export-CurveView', 'Export-DriveCurves', 'Import-DriveCurves',
+              'Update-LegacyCleanDefault', 'Update-LegacyLevelMode', 'Update-LegacyEraseMode', 'Update-LegacyZoneFix', 'Test-ContentLevelSettings', 'Backup-ConfigBeforeRef', 'Export-CurveView', 'Export-DriveCurves', 'Import-DriveCurves',
               'Export-TargetDrives', 'Import-TargetDrives', 'Save-Config', 'Get-Cfg', 'Set-Num', 'Set-Combo', 'Load-Config')
     '140' = @('Get-DriveIds', 'Get-TargetDrive', 'Set-TargetDrive', 'Get-TargetDriveItems', 'Get-TargetCurves', 'Get-TargetWriteInfo')
     # 12.11 rc8 (R17) : configuration des recalages et de la memoire des ecritures pour un lecteur cible (Save-Config, Load-Config)
@@ -589,6 +589,23 @@ $oldK2 = @($script:OldCalib.Curves.GetEnumerator() | ForEach-Object { [string]$_
 $kFile4 = Get-LnFileKeys $script:ConfigFile
 Chk 'M4' ($m4 -and $oldK -ceq 'Sony MPF920|long' -and @($dM4['Keys']).Count -eq 2 -and $r4.Ok -and $r4.N -eq 2 -and $oldK2 -ceq 'Sony MPF-920|long' -and [string]$script:OldCalib.Curves['Sony MPF-920|long'].Drive -ceq 'Sony MPF-920' -and $kFile4 -ceq "Sony MPF-920|long`nSony MPF-920|std") "courbe d un autre calcul en attente du choix : gardee sous son identite ($oldK), comptee parmi les courbes du lecteur, renommee avec lui ($oldK2) et reecrite sous son nom ($($kFile4 -replace "`n", ', '))"
 Chk-Inv 'M4b'
+
+# M5 (12.12) : case « Corriger les zones ecartees de l attendu (lecteur cible) », decochee par defaut. Configuration d une
+# version anterieure (sans le marqueur zoneFixDef) avec la case cochee : decochee une fois, une ligne de journal ; avec le
+# marqueur : choix garde ; case decochee ou cle absente : decochee, sans ligne ; Save-Config ecrit le marqueur
+$m5 = @()
+foreach ($w5 in @([ordered]@{ eraseMode = 'hfreq'; zoneFix = $true }, [ordered]@{ eraseMode = 'hfreq'; zoneFix = $true; zoneFixDef = 'off' },
+                  [ordered]@{ eraseMode = 'hfreq'; zoneFix = $false }, [ordered]@{ eraseMode = 'hfreq' })) {
+    Reset-LnWorld 'm5'
+    $script:Log.Clear(); $chkWZones.Checked = $true
+    $cfgM5 = [ordered]@{ global = [ordered]@{ drive = 'A' }; write = $w5; ui = [ordered]@{ homeCalHeads = $true } }
+    [System.IO.File]::WriteAllText($script:ConfigFile, ($cfgM5 | ConvertTo-Json -Depth 8), $utf8)
+    $l5 = [bool](Load-Config)
+    $m5 += "$([int]$l5)$([int][bool]$chkWZones.Checked)$(Get-LogN "Case « Corriger les zones écartées de l'attendu (lecteur cible) » décochée, une seule fois :*")"
+}
+[void](Save-Config)
+$m5f = [System.IO.File]::ReadAllText($script:ConfigFile, $utf8)
+Chk 'M5' (($m5 -join ' ') -ceq '101 110 100 100' -and $m5f -match '"zoneFixDef":\s*"off"') "correction par zones (lecteur cible), chargement, case, ligne de journal : cochee sans marqueur, cochee avec marqueur, decochee, cle absente -> $($m5 -join ' ') (101 110 100 100 attendu) ; marqueur ecrit par Save-Config ($($m5f -match '"zoneFixDef":\s*"off"')) ; defaut de Set-Defaults : cas X4 de logic-cible-facteur"
 
 # ================================================================ N. nommer, renommer, deplacer, retirer le nom
 '--- N. nommer, renommer, deplacer, retirer le nom (scenarios 2, 4, 7)'

@@ -823,8 +823,8 @@ foreach ($eoR in $eoRoots) {
             numWWarmMin = @({ $numWWarmMin.Value = 2.5 }, ((T 'Durée du préchauffage :') + ' 2 min 30 s'))
             # 12.11 rc4 (R2) : borne de precompensation, element de 450 ns choisi dans la liste
             cmbWBound = @({ $cmbWBound.SelectedIndex = [array]::IndexOf([int[]]@($cmbWBound.Tag), 450) }, ((T 'Borne de précompensation :') + ' 450 ns'))
-            # 12.11 rc7 (R16) : correction par zones, cochee par defaut
-            chkWZones = @({ $chkWZones.Checked = $false }, ((T '{0} : décochée') -f (T "Corriger les zones écartées de l'attendu (lecteur cible)")))
+            # 12.11 rc7 (R16) : correction par zones ; 12.12 : decochee par defaut, l ecart au defaut est la case cochee
+            chkWZones = @({ $chkWZones.Checked = $true }, (T "Corriger les zones écartées de l'attendu (lecteur cible)"))
         }
         $a2Bad = @(); $a2Ex = @()
         foreach ($k in @($chg.Keys)) {

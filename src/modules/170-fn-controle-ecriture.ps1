@@ -309,6 +309,8 @@ function Invoke-WriteCheckAnalysis {
     # 12.11 rc7 (R16) : zones a corriger, au controle complet d une ecriture pour un lecteur cible seulement (Find-WriteZones) :
     # leurs pistes sont reecrites a la passe 1 avec les pistes faibles, meme sans piste faible
     $zs = @(); if ($rep.Round -eq 0) { $zs = @(Find-WriteZones $rep) }
+    # 12.12 : correction par zones non demandee (defaut) : zones citees au journal, sans effet (Add-WriteZoneNote)
+    if ($rep.Round -eq 0 -and $zs.Count -eq 0) { $null = Add-WriteZoneNote $rep }
     if ($weak.Count -eq 0 -and $zs.Count -eq 0) { Complete-WriteCheck; return }
     if ($rep.Round -ge $rep.Max) { Complete-WriteCheck; return }
     # Passe de reecriture : pistes faibles seules, puis remesure de ces seules pistes. 12.8.2 : double densite
@@ -519,6 +521,20 @@ function Find-WriteZones($rep) {
         if (-not $sp -or (Get-WriteZoneSpec $sp @($z) ([int]$rep.ZoneHard)) -ceq $sp) { continue }
         $z
     }
+}
+
+function Add-WriteZoneNote($rep) {
+    # 12.12 : controle complet d une ecriture pour un lecteur cible avec asymetrie attendue (Rep.AsymExcess), correction
+    # par zones non demandee (Rep.ZoneFix faux : case decochee, defaut de la 12.12, ou conditions de Get-WriteZonePlan non
+    # reunies), garde-fou non declenche : les zones de Get-WriteZoneScan sont citees au journal, une ligne, sans rien
+    # changer (ni profil, ni piste a reecrire, ni Rep.Zones : la relecture par le lecteur cible compte tous les cylindres,
+    # Get-TargetWriteZoneCyls, 172). Rend le nombre de zones citees
+    if (-not $rep -or $rep.ZoneFix -or -not $rep.AsymExcess -or $rep.Safety) { return 0 }
+    $zs = @(Get-WriteZoneScan $rep)
+    if ($zs.Count -eq 0) { return 0 }
+    $it = @(foreach ($z in $zs) { (T '{0} : écart médian {1} ns') -f (Format-WriteZone $z), (Format-UiNum ([double]$z.E0) '+0.0;-0.0;0.0') })
+    Append-Log ((T "Contrôle après écriture : {0} zone(s) écartée(s) de l'attendu à la relecture par le lecteur {1} ({2}), non corrigée(s) : seule une relecture par le lecteur {3} dit ce qu'il lira.") -f "$($zs.Count)", "$($rep.TargetSrc)", ($it -join (T ' ; ')), "$($rep.Target)")
+    return $zs.Count
 }
 
 function Format-WriteZone($z) {

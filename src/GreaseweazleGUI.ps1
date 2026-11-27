@@ -2173,6 +2173,11 @@ $script:I18n['Durée : {0}, {1} s{2}'] = 'Duration: {0}, {1} s{2}'
 $script:I18n['enregistrement de la configuration'] = 'saving the configuration'
 $script:I18n["profil de l'image et ligne « Ce qui va se passer »"] = 'image profile and "What will happen" line'
 $script:I18n['fenêtre sans réponse'] = 'window not responding'
+# Correction par zones (lecteur cible) decochee par defaut : infobulle (520), migration (120), zones citees (170)
+$script:I18n["Décochée par défaut depuis la 12.12 : les relectures par un lecteur cible n'ont pas confirmé ces écarts. Décochée, le contrôle cite les zones au journal sans les corriger."] = 'Unchecked by default since 12.12: read-backs by a target drive did not confirm these gaps. When unchecked, the check lists the zones in the log without correcting them.'
+$script:I18n["Case « Corriger les zones écartées de l'attendu (lecteur cible) » décochée, une seule fois : elle n'est plus cochée par défaut dans cette version. Les relectures par un lecteur cible n'ont pas confirmé les écarts vus par le lecteur qui écrit, et la correction éloignait la disquette de ce que lit le lecteur cible. La case reste dans les options avancées de l'onglet « Écriture »."] = '"Correct zones away from the expected value (target drive)" box unchecked, once only: it is no longer checked by default in this version. Read-backs by a target drive did not confirm the gaps seen by the writing drive, and the correction moved the disk away from what the target drive reads. The box remains in the advanced options of the "Write" tab.'
+$script:I18n['{0} : écart médian {1} ns'] = '{0}: median gap {1} ns'
+$script:I18n["Contrôle après écriture : {0} zone(s) écartée(s) de l'attendu à la relecture par le lecteur {1} ({2}), non corrigée(s) : seule une relecture par le lecteur {3} dit ce qu'il lira."] = 'Post-write check: {0} zone(s) away from the expected value when read back by drive {1} ({2}), not corrected: only a read-back by drive {3} tells what it will read.'
 # --- Textes de la mesure de la disquette sur l image (12.8.1, lot B) ------------
 # Entrees de la table I18n (010) des textes de 276 (deroule de la mesure), 260 (choix de la mesure avant l ecriture
 # lente), 270 (progression, prechauffage), 200 (zone de progression de l Accueil) et 110 : cle francaise, valeur anglaise ;
@@ -8320,6 +8325,20 @@ function Update-LegacyEraseMode($cfg) {
     Append-Log (T "Case « Effacer avant d'écrire » (auparavant « Pré-effacer chaque piste ») recochée, une seule fois : son effet change dans cette version. Sur une disquette double densité, elle efface désormais les pistes en haute fréquence avant l'écriture, au lieu du pré-effacement en continu qui coûtait de la marge de lecture ; en haute densité, elle pré-efface comme avant. Décochez-la de nouveau si vous ne voulez aucun effacement avant l'écriture.")
 }
 
+function Update-LegacyZoneFix($cfg) {
+    # 12.12 : case « Corriger les zones ecartees de l attendu (lecteur cible) » (write.zoneFix), cochee par defaut en
+    # 12.11, decochee par defaut en 12.12 : les relectures par le lecteur cible n ont pas confirme les ecarts vus par le
+    # lecteur qui ecrit, et la correction eloignait la disquette de ce que lit le lecteur cible. Configuration d une
+    # version anterieure (section write sans le marqueur zoneFixDef = 'off') avec la case cochee : elle est decochee une
+    # fois, ligne de journal ; Save-Config ecrit le marqueur, le choix suivant de l utilisateur est garde. Load-Config,
+    # apres la lecture de la case
+    $w = Get-Cfg $cfg 'write' $null
+    if ($null -eq $w -or [string](Get-Cfg $w 'zoneFixDef' '') -eq 'off') { return }
+    if (-not $chkWZones.Checked) { return }
+    $chkWZones.Checked = $false
+    Append-Log (T "Case « Corriger les zones écartées de l'attendu (lecteur cible) » décochée, une seule fois : elle n'est plus cochée par défaut dans cette version. Les relectures par un lecteur cible n'ont pas confirmé les écarts vus par le lecteur qui écrit, et la correction éloignait la disquette de ce que lit le lecteur cible. La case reste dans les options avancées de l'onglet « Écriture ».")
+}
+
 function Test-ContentLevelSettings($cfg) {
     # 12.8.1 (spec-1281 § A.4) : niveaux moyen et bas de la mesure sur l image (contentKMid, contentKLow, configuration
     # seulement) controles ensemble au chargement : valeurs lisibles et dans les bornes de la table, et bas <= moyen - 0,2 ;
@@ -8372,7 +8391,7 @@ function Set-Defaults {
     $txtWPrecomp1.Text = $script:PrecompStd
     $chkWPostCheck.Checked = $true
     $numWRepair.Value = 3
-    $chkWZones.Checked = $true                 # 12.11 rc7 (R16) : correction par zones (lecteur cible)
+    $chkWZones.Checked = $false                # 12.11 rc7 (R16) : correction par zones (lecteur cible) ; 12.12 : decochee par defaut
     # 12.8 (point 7) : reglages de la table (lecteur, mode de calibration, ecriture lente, prechauffages et leur duree,
     # mesure de la disquette, profil precomp, seuil de famille, carte « Calibrer le lecteur », mesure de l onglet
     # Qualite, seuils de jitter, nettoyage de l onglet Outils) : defauts de la table, y compris le seuil precompThresholdNs
@@ -8714,6 +8733,7 @@ function Save-Config {
             precompOn = [bool]$chkWPrecomp.Checked; precomp = $txtWPrecomp.Text; precomp1 = $txtWPrecomp1.Text
             postCheck = [bool]$chkWPostCheck.Checked; repairMax = [int]$numWRepair.Value
             zoneFix = [bool]$chkWZones.Checked  # 12.11 rc7 (R16) : correction par zones au controle d une ecriture pour un lecteur cible ; une version anterieure ignore cette cle
+            zoneFixDef = 'off'                 # 12.12 : marqueur de migration de la case (Update-LegacyZoneFix)
             precompStd = $(if ($oc -and $oc.Std -and -not $script:PrecompCurves['std']) { $oc.Std } else { $script:PrecompStd })
             precompLong = $(if ($oc -and $oc.Long -and -not $script:PrecompCurves['long']) { $oc.Long } else { $script:PrecompLong })
             precompMaxNs = [int]$script:CalHardNsUser   # borne des valeurs calibrees (300 a 470 ns, 400 par defaut ; 12.7 : celle de la double densite, la haute densite en prend la moitie)
@@ -9010,7 +9030,8 @@ function Load-Config {
     $chkWPostCheck.Checked = [bool](Get-Cfg $w 'postCheck' $true)
     $rm = [int](Get-Cfg $w 'repairMax' 3); $numWRepair.Value = [math]::Max(0, [math]::Min(10, $rm))
     $numWRepair.Enabled = $chkWPostCheck.Checked; $lblWRepair.Enabled = $chkWPostCheck.Checked
-    $chkWZones.Checked = [bool](Get-Cfg $w 'zoneFix' $true)   # 12.11 rc7 (R16)
+    $chkWZones.Checked = [bool](Get-Cfg $w 'zoneFix' $false)  # 12.11 rc7 (R16) ; 12.12 : decochee par defaut
+    Update-LegacyZoneFix $cfg                  # 12.12 : case cochee d une version anterieure decochee une fois
     $txtWPrecomp.Text  = [string](Get-Cfg $w 'precomp' $script:PrecompStd)
     $txtWPrecomp1.Text = [string](Get-Cfg $w 'precomp1' $txtWPrecomp.Text)
     if ($script:OldCalib) { $script:OldCalib.P0 = $txtWPrecomp.Text; $script:OldCalib.P1 = $txtWPrecomp1.Text }   # retablis si conservees
@@ -13709,8 +13730,8 @@ function Get-WriteAdvDefs {
         @{ Ctl = $numWWarmMin; Def = [double]$script:SettingDefs['warmMinutes'].Def; Label = (T 'Durée du préchauffage :') }
         # 12.11 rc4 (R2) : borne de precompensation, element 0 : automatique (Set-Defaults : Set-PrecompBound $true, 230)
         @{ Ctl = $cmbWBound; Def = 0; Label = (T 'Borne de précompensation :') }
-        # 12.11 rc7 (R16) : correction par zones au controle d une ecriture pour un lecteur cible, cochee par defaut
-        @{ Ctl = $chkWZones; Def = $true; Label = '' }
+        # 12.11 rc7 (R16) : correction par zones au controle d une ecriture pour un lecteur cible ; 12.12 : decochee par defaut
+        @{ Ctl = $chkWZones; Def = $false; Label = '' }
     )
 }
 
@@ -15445,6 +15466,8 @@ function Invoke-WriteCheckAnalysis {
     # 12.11 rc7 (R16) : zones a corriger, au controle complet d une ecriture pour un lecteur cible seulement (Find-WriteZones) :
     # leurs pistes sont reecrites a la passe 1 avec les pistes faibles, meme sans piste faible
     $zs = @(); if ($rep.Round -eq 0) { $zs = @(Find-WriteZones $rep) }
+    # 12.12 : correction par zones non demandee (defaut) : zones citees au journal, sans effet (Add-WriteZoneNote)
+    if ($rep.Round -eq 0 -and $zs.Count -eq 0) { $null = Add-WriteZoneNote $rep }
     if ($weak.Count -eq 0 -and $zs.Count -eq 0) { Complete-WriteCheck; return }
     if ($rep.Round -ge $rep.Max) { Complete-WriteCheck; return }
     # Passe de reecriture : pistes faibles seules, puis remesure de ces seules pistes. 12.8.2 : double densite
@@ -15655,6 +15678,20 @@ function Find-WriteZones($rep) {
         if (-not $sp -or (Get-WriteZoneSpec $sp @($z) ([int]$rep.ZoneHard)) -ceq $sp) { continue }
         $z
     }
+}
+
+function Add-WriteZoneNote($rep) {
+    # 12.12 : controle complet d une ecriture pour un lecteur cible avec asymetrie attendue (Rep.AsymExcess), correction
+    # par zones non demandee (Rep.ZoneFix faux : case decochee, defaut de la 12.12, ou conditions de Get-WriteZonePlan non
+    # reunies), garde-fou non declenche : les zones de Get-WriteZoneScan sont citees au journal, une ligne, sans rien
+    # changer (ni profil, ni piste a reecrire, ni Rep.Zones : la relecture par le lecteur cible compte tous les cylindres,
+    # Get-TargetWriteZoneCyls, 172). Rend le nombre de zones citees
+    if (-not $rep -or $rep.ZoneFix -or -not $rep.AsymExcess -or $rep.Safety) { return 0 }
+    $zs = @(Get-WriteZoneScan $rep)
+    if ($zs.Count -eq 0) { return 0 }
+    $it = @(foreach ($z in $zs) { (T '{0} : écart médian {1} ns') -f (Format-WriteZone $z), (Format-UiNum ([double]$z.E0) '+0.0;-0.0;0.0') })
+    Append-Log ((T "Contrôle après écriture : {0} zone(s) écartée(s) de l'attendu à la relecture par le lecteur {1} ({2}), non corrigée(s) : seule une relecture par le lecteur {3} dit ce qu'il lira.") -f "$($zs.Count)", "$($rep.TargetSrc)", ($it -join (T ' ; ')), "$($rep.Target)")
+    return $zs.Count
 }
 
 function Format-WriteZone($z) {
@@ -35714,12 +35751,14 @@ $cmbWBound.Add_SelectedIndexChanged({ Set-PrecompBoundFromUi })
 # intention ; liste deroulee, la molette la fait defiler (meme garde que la liste du lecteur du bandeau, 510)
 $cmbWBound.Add_MouseWheel({ if (-not $this.DroppedDown -and $_ -is [System.Windows.Forms.HandledMouseEventArgs]) { $_.Handled = $true } })
 # 12.11 rc7 (R16) : correction par zones au controle d une ecriture pour un lecteur cible (Get-WriteZonePlan, 140 ;
-# Find-WriteZones, 170), sous la borne de precompensation, derniere rangee du cadre des options avancees ; cochee par
-# defaut (Set-Defaults), enregistree dans la configuration (write.zoneFix)
+# Find-WriteZones, 170), sous la borne de precompensation, derniere rangee du cadre des options avancees ; enregistree
+# dans la configuration (write.zoneFix). 12.12 : decochee par defaut (Set-Defaults ; Update-LegacyZoneFix, 120) : les
+# relectures par le lecteur cible n ont pas confirme les ecarts vus par le lecteur qui ecrit ; decochee, le controle
+# cite les zones sans les corriger (Add-WriteZoneNote, 170)
 $chkWZones = New-Object System.Windows.Forms.CheckBox
-$chkWZones.Name = 'chkWZones'; $chkWZones.Location = '12,272'; $chkWZones.AutoSize = $true; $chkWZones.Checked = $true
+$chkWZones.Name = 'chkWZones'; $chkWZones.Location = '12,272'; $chkWZones.AutoSize = $true; $chkWZones.Checked = $false
 $chkWZones.Text = (T "Corriger les zones écartées de l'attendu (lecteur cible)")
-$tip.SetToolTip($chkWZones, ((T "Écriture pour un lecteur cible avec le facteur par cylindre, contrôle de toutes les pistes et 2 passes de réécriture au moins : quand plusieurs cylindres voisins ({0} au moins) relus par le lecteur qui écrit s'écartent dans le même sens de l'asymétrie attendue, leurs pistes sont réécrites une fois avec la précompensation décalée de la moitié de l'écart ({1} ns au plus), puis relues. La correction est gardée si la zone se rapproche de l'attendu, sinon la zone reprend sa courbe d'origine. Une piste isolée n'est jamais corrigée.`nLa correction ne s'appuie que sur la relecture par le lecteur qui écrit : elle ne garantit pas la lecture par le lecteur cible.") -f "$($script:WriteZoneMinCyl)", "$($script:WriteZoneCapNs)"))
+$tip.SetToolTip($chkWZones, ((T "Écriture pour un lecteur cible avec le facteur par cylindre, contrôle de toutes les pistes et 2 passes de réécriture au moins : quand plusieurs cylindres voisins ({0} au moins) relus par le lecteur qui écrit s'écartent dans le même sens de l'asymétrie attendue, leurs pistes sont réécrites une fois avec la précompensation décalée de la moitié de l'écart ({1} ns au plus), puis relues. La correction est gardée si la zone se rapproche de l'attendu, sinon la zone reprend sa courbe d'origine. Une piste isolée n'est jamais corrigée.`nLa correction ne s'appuie que sur la relecture par le lecteur qui écrit : elle ne garantit pas la lecture par le lecteur cible.") -f "$($script:WriteZoneMinCyl)", "$($script:WriteZoneCapNs)") + "`n" + (T "Décochée par défaut depuis la 12.12 : les relectures par un lecteur cible n'ont pas confirmé ces écarts. Décochée, le contrôle cite les zones au journal sans les corriger."))
 # 12.9 (S1) : ecriture sans surveillance, case a la suite du champ de la duree du prechauffage (position apres l ajout a
 # l onglet). Etat $script:CalibUnattended, pour la session : ni reglage ni configuration, decochee au demarrage et a la fin
 # de la sequence d ecriture (Update-CalibUnattended). Seul effet : avertissement de calibration de la disquette a ecrire

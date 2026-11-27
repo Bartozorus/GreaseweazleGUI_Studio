@@ -36,8 +36,8 @@ function Get-WriteAdvDefs {
         @{ Ctl = $numWWarmMin; Def = [double]$script:SettingDefs['warmMinutes'].Def; Label = (T 'Durée du préchauffage :') }
         # 12.11 rc4 (R2) : borne de precompensation, element 0 : automatique (Set-Defaults : Set-PrecompBound $true, 230)
         @{ Ctl = $cmbWBound; Def = 0; Label = (T 'Borne de précompensation :') }
-        # 12.11 rc7 (R16) : correction par zones au controle d une ecriture pour un lecteur cible, cochee par defaut
-        @{ Ctl = $chkWZones; Def = $true; Label = '' }
+        # 12.11 rc7 (R16) : correction par zones au controle d une ecriture pour un lecteur cible ; 12.12 : decochee par defaut
+        @{ Ctl = $chkWZones; Def = $false; Label = '' }
     )
 }
 
