@@ -7,7 +7,11 @@ Chaque version s'ouvre sur un résumé de ce qu'elle apporte, puis classe ses ch
 
 ## [12.12] - 2026-??-??
 
-Version en préparation.
+Version en préparation. Cette première préversion porte sur l'écriture pour un lecteur cible, le journal exporté et la réactivité de la fenêtre.
+
+Le recalage de la courbe croisée, appris sur les relectures par le lecteur cible, est tenu à part pour les disquettes dont le facteur dépasse 1 : les deux cas ne se décalent plus l'un l'autre. Une zone reprise après une correction non gardée compte de nouveau dans ce recalage. Le journal exporté après une longue séance garde les résultats que la coupe retirait de l'affichage. Le changement de lecteur ou d'image ne relit plus le fichier de l'image à chaque rafraîchissement, et la case « Chrono » donne au journal les durées de l'application.
+
+Le reste de la 12.12, dont la refonte de l'interface, n'est pas encore dans cette préversion.
 
 ### Améliorations
 
@@ -23,6 +27,7 @@ Version en préparation.
 ### À savoir pour la mise à jour
 
 - **Recalages enregistrés par la 12.11.** Ils sont gardés. Les écritures relues dont la mesure sur l'image donnait un facteur au-dessus de 1 sont reclassées au premier démarrage, d'après les mesures encore en mémoire ; une ligne du journal en donne le nombre. Les autres restent où elles sont.
+- **Recalage des disquettes dont le facteur dépasse 1 : à confirmer.** Cette séparation s'appuie sur un petit nombre d'écritures relues par le lecteur cible. La fenêtre « Lecteurs » donne les deux recalages d'une tête ; son bouton « Annuler le recalage… » les retire ensemble.
 
 ### Pour les développeurs
 
