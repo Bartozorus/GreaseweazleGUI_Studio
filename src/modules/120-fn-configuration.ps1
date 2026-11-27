@@ -857,6 +857,8 @@ function Load-Config {
     # 12.11 rc8 (R17) : recalages des courbes croisees et derniere ecriture pour chaque lecteur cible (172) ; entree
     # illisible ignoree, une ligne
     $tri = Import-TargetRecal (Get-Cfg $w 'targetRecal' $null)
+    # 12.12 : ecritures relues par une 12.11 dont le facteur depassait 1, passees dans le recalage de ce regime : une ligne
+    if ([int]$tri.Moved -gt 0) { Append-Log ((T 'Recalage des courbes croisées : {0} écriture(s) relue(s) dont le facteur de la disquette dépassait 1 reclassée(s) ; leur recalage est désormais tenu à part.') -f "$($tri.Moved)") }
     $lwi = Import-LastTargetWrites (Get-Cfg $w 'lastTargetWrite' $null)
     if ([int]$tri.Bad + [int]$lwi.Bad -gt 0) { Append-Log ((T 'Configuration : {0} recalage(s) de courbe croisée et {1} mémoire(s) d''écriture pour un lecteur cible illisibles, ignorés.') -f "$($tri.Bad)", "$($lwi.Bad)") }
     # 12.11 : registre relu dans la copie de secours : lecteurs cibles des lecteurs enregistres retablis depuis elle (une

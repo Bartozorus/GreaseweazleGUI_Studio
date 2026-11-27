@@ -795,6 +795,103 @@ $ph14 += @((Get-TargetWriteHowPhrase 'mesure') -ceq '', (Get-TargetWriteHowPhras
 Chk 'L14' ($ks14 -ceq 'mesure/lecteur lecteur/mesure lecteur/lecteur mesure/mesure defaut/defaut' -and $hw14 -ceq 'slow fast mesure ' -and @($ph14 | Where-Object { -not $_ }).Count -eq 0) "origines par tete logique : $ks14 (lente, hswap, rapide mixte, rapide mesuree, rapide k = 1) ; consignes : « $hw14 » (lente case decochee, rapide, mesure faite avant, restauration) ; gestes communs a la ligne de fin d ecriture"
 
 # =====================================================================================================================
+# =====================================================================================================================
+# R : 12.12, recalage tenu par regime d ecriture (facteur de la disquette au-dessus de 1 ou non). Valeurs fictives
+Reset-Fk
+$rUp = (@((Test-TargetRecalUp 1.0), (Test-TargetRecalUp 1.0004), (Test-TargetRecalUp 1.0006), (Test-TargetRecalUp 0.74), (Test-TargetRecalUp 1.7)) | ForEach-Object { if ($_) { '1' } else { '0' } }) -join ''
+$wfK = @{ K = @{ 0 = 0.8; 1 = 1.6 }; FMean = 1.2 }
+$rKok = ((Near (Get-TargetRecalK $wfK 1 $true) 1.6) -and (Near (Get-TargetRecalK $wfK 0 $false) 1.2) -and (Near (Get-TargetRecalK $null 0 $true) 1.0) -and (Near (Get-TargetRecalK @{ K = @{ 0 = 0.8 } } 1 $true) 1.0))
+Chk 'R1' ($rUp -ceq '00101' -and (Get-TargetRecalKey 'A' '0' 'std' 1) -ceq 'A>0|std_h1' -and (Get-TargetRecalKey 'A' '0' 'std' 1 $true) -ceq 'A>0|std_h1+' -and $rKok -and (Get-DriveMovedKey 'A>0|std_h1+' 'A' 'Banc 2').Key -ceq 'Banc 2>0|std_h1+') "regime : k arrondi a 0,001 strictement au-dessus de 1 ($rUp) ; cle suivie de « + », gardee au renommage d un lecteur ; k de la tete en ecriture lente, facteur moyen en rapide, 1 sans lui"
+
+function New-FkRecal([double]$est, [string]$xKey, $k = $null, [string]$id = 'W20261003101500') {
+    $it = @{ WriteId = $id; Date = '03/10/2026 10:20'; Est = $est; Tracks = 80; NR = 1; Read = '2026-10-03 11:00:00'; K = $k }
+    return @{ Ns = (Get-TargetRecalNs @($it)); N = 1; Items = @($it); XDate = $XD; XKey = $xKey; Calc = $script:CalibCalc; At = '2026-10-03 11:00:00' }
+}
+$twR = @{ Src = 'A'; Tgt = '0'; Fam = 'std' }
+$xcR = @($script:DriveCurves['A>0|std_h0'], $script:DriveCurves['A>0|std_h1'])
+$script:TargetRecal['A>0|std_h0'] = New-FkRecal -4.4 'std_h0' 0.8      # -3,3
+$script:TargetRecal['A>0|std_h1'] = New-FkRecal -2.4 'std_h1' 0.8      # -1,8
+$script:TargetRecal['A>0|std_h1+'] = New-FkRecal 5.2 'std_h1' 1.6      # +3,9
+$wMix = @{ Apply = $true; K = @{ 0 = 0.80; 1 = 1.60 }; Src = @{ 0 = 'mesure'; 1 = 'mesure' }; FMean = 1.20 }
+$wLow = @{ Apply = $true; K = @{ 0 = 0.80; 1 = 0.78 }; Src = @{ 0 = 'mesure'; 1 = 'mesure' }; FMean = 0.79 }
+$pMix = Get-TargetRecalPlan $twR $wMix $xcR $true
+$pLow = Get-TargetRecalPlan $twR $wLow $xcR $true
+$r2a = ($pMix.Used -and (Near ([double]$pMix.O[0]) -3.3) -and (Near ([double]$pMix.O[1]) 3.9) -and ([string]$pMix.Text).Contains('tête 0 -3,3 ns, tête 1 +3,9 ns (facteur au-dessus de 1)') -and -not ([string]$pMix.Text).Contains('non appliqué'))
+$r2b = ($pLow.Used -and (Near ([double]$pLow.O[0]) -3.3) -and (Near ([double]$pLow.O[1]) -1.8) -and -not ([string]$pLow.Text).Contains('au-dessus de 1'))
+# Recalage appris pour l autre regime seulement : non applique, et dit
+$script:TargetRecal.Remove('A>0|std_h1')
+$pOth = Get-TargetRecalPlan $twR $wLow $xcR $true
+$r2c = ($pOth.Used -and (Near ([double]$pOth.O[1]) 0) -and (Near ([double]$pOth.O[0]) -3.3) -and ([string]$pOth.Text).Contains('tête 1 aucun') -and ([string]$pOth.Text).Contains('non appliqué : tête 1 : recalage appris pour un facteur de la disquette au-dessus de 1, celui de cette écriture est de 1 ou moins'))
+# Ecriture rapide : facteur moyen 1,20, regime au-dessus de 1 pour les deux tetes ; tete 0 sans entree de ce regime
+$pFast = Get-TargetRecalPlan $twR $wMix $xcR $false
+$r2d = ($pFast.Used -and (Near ([double]$pFast.O[0]) 1.95) -and (Near ([double]$pFast.O[1]) 1.95) -and ([string]$pFast.Text).Contains('tête 0 : recalage appris pour un facteur de la disquette de 1 ou moins, celui de cette écriture est au-dessus de 1'))
+$script:Manual = $true; $pMan = Get-TargetRecalPlan $twR $wLow $xcR $true; $script:Manual = $false
+Chk 'R2' ($r2a -and $r2b -and $r2c -and $r2d -and -not $pMan.Used -and ([string]$pMan.Text).Contains('profil Manuel')) "application par regime : lente melee $r2a (« $($pMix.Text) »), facteurs de 1 ou moins $r2b, autre regime seul $r2c (« $($pOth.Text) »), rapide $r2d (« $($pFast.Text) »), profil Manuel inchange"
+
+# Apprentissage : la tete dont le facteur depasse 1 alimente l entree « + », l autre l entree sans « + »
+Reset-Fk
+$script:TargetRecal['A>0|std_h1'] = New-FkRecal -2.4 'std_h1' 0.8
+$memR = New-FkMem -id 'W20261004090000' -at '2026-11-22 10:00:00'
+$memR.H['1'].K = 1.6
+$rbR = New-FkRead @{ 0 = 2.0; 1 = -4.0 } $G
+$evR = Get-TargetRecalReadback $memR $rbR 0 $AT '0' '0' 'A'
+$upR = Get-TargetRecalUpdate 'A' '0' $memR $evR $AT
+$kR = (@($upR | ForEach-Object { "$($_.Key)/$(if ($_.Up) { 1 } else { 0 })" }) -join ' ')
+$r3a = ($evR.Ok -and $kR -ceq 'A>0|std_h0/0 A>0|std_h1+/1' -and (Near ([double]$upR[0].New.Ns) -1.5) -and (Near ([double]$upR[1].New.Ns) 3.0) -and (Near ([double]$upR[0].New.Items[0].K) 0.74) -and (Near ([double]$upR[1].New.Items[0].K) 1.6) -and $null -eq $upR[1].Old)
+$script:LastTargetWrites['A>0'] = $memR
+$resR = @{ Kind = 'measure'; Health = 0; At = $AT; Ctx = @{ Drive = '0'; Heads = '0+1'; Revs = 3 } }
+$oR = Invoke-TargetRecalOffer $resR $rbR
+$logR = (@($script:Log) -join ' // ')
+$r3b = ($oR -ceq 'stored' -and $script:TargetRecal.ContainsKey('A>0|std_h1+') -and (Near ([double]$script:TargetRecal['A>0|std_h1'].Ns) -1.8) -and [int]$script:TargetRecal['A>0|std_h1'].N -eq 1 -and $logR.Contains('tête 0 -1,5 ns') -and $logR.Contains('tête 1 +3,0 ns (facteur au-dessus de 1)') -and ([string]$script:ConfirmArgs.Text).Contains('Tête 1 : facteur de la disquette au-dessus de 1') -and -not ([string]$script:ConfirmArgs.Text).Contains('Tête 0 : facteur de la disquette au-dessus de 1'))
+Chk 'R3' ($r3a -and $r3b) "apprentissage par regime : cles $kR, recalages $($upR[0].New.Ns) et $($upR[1].New.Ns), k garde par ecriture ($r3a) ; proposition confirmee : entree de l autre regime intacte, journal et fenetre disent le regime ($r3b)"
+
+# Fenetre « Lecteurs » : les deux regimes d une tete, annulation des deux
+$sumR = Get-TargetRecalSummaryText 'A' '0' 'std'
+$nb = [string][char]0x00A0; $mn = [string][char]0x2212
+$r4a = ($sumR.Contains("tête$($nb)0$($nb)$($mn)1,5$($nb)ns, tête$($nb)1$($nb)$($mn)1,8$($nb)ns, tête$($nb)1$($nb)+3,0$($nb)ns (facteur au-dessus de 1)"))
+$nRm = Remove-TargetRecal 'A' '0' 'std'
+Chk 'R4' ($r4a -and $nRm -eq 2 -and $script:TargetRecal.Count -eq 0 -and (Remove-TargetRecal 'A' '0' 'std') -eq 0) "fenetre « Lecteurs » : « $sumR » ; annulation : $nRm tete(s), magasin vide"
+
+# Configuration : cle « + » admise, k des ecritures ; ecritures relues par une 12.11 (sans k) reclassees d apres la
+# mesure sur l image terminee juste avant le lancement de l ecriture (identifiant) ; aller-retour stable
+Reset-Fk
+$script:ContentMeasures += @{ Drive = 'A'; Family = 'std'; Head = 1; Date = '03/10/2026 10:15'; K = 1.62; Method = 'asym' }     # ecriture lancee a 10:15:30
+$script:ContentMeasures += @{ Drive = 'A'; Family = 'std'; Head = 1; Date = '03/10/2026 11:41'; K = 1.71; Method = 'asym' }     # lancee a 11:40:20 (meme minute, mesure « apres »)
+$script:ContentMeasures += @{ Drive = 'A'; Family = 'std'; Head = 1; Date = '02/10/2026 09:50'; K = 1.90; Method = 'asym' }     # 10 min avant : pas celle de l ecriture
+$script:ContentMeasures += @{ Drive = 'A'; Family = 'std'; Head = 0; Date = '03/10/2026 10:15'; K = 1.80; Method = 'asym' }     # autre tete
+$script:ContentMeasures += @{ Drive = '0'; Family = 'std'; Head = 1; Date = '02/10/2026 10:00'; K = 1.50; Method = 'asym' }     # autre lecteur
+$script:ContentMeasures += @{ Drive = 'A'; Family = 'std'; Head = 1; Date = '04/10/2026 08:30'; K = 0.80; Method = 'asym' }     # facteur de 1 ou moins
+$script:ContentMeasures += @{ Drive = 'A'; Family = 'long'; Head = 0; Date = '05/10/2026 14:00'; K = 1.30; Method = 'asym' }
+$jsR = '{ "A>0|std_h1": { "ns": 1.1, "n": 5, "xDate": "' + $XD + '", "xKey": "std_h1", "calc": "' + $script:CalibCalc + '", "at": "2026-10-04 09:00:00", "items": [' +
+       '{ "writeId": "W20261002100000", "date": "02/10/2026 10:05", "est": -1.2, "pistes": 80, "nr": 1, "read": "2026-10-02 10:30:00" },' +
+       '{ "writeId": "W20261003101530", "date": "03/10/2026 10:20", "est": 3.0, "pistes": 62, "nr": 1, "read": "2026-10-03 10:40:00" },' +
+       '{ "writeId": "W20261003114020", "date": "03/10/2026 11:45", "est": 5.0, "pistes": 80, "nr": 1, "read": "2026-10-03 12:00:00" },' +
+       '{ "writeId": "W20261004083010", "date": "04/10/2026 08:35", "est": -2.0, "pistes": 80, "nr": 1, "read": "2026-10-04 09:00:00" } ] },' +
+       ' "A>0|std_h0": { "ns": -3.0, "n": 1, "xDate": "' + $XD + '", "xKey": "std_h0", "calc": "' + $script:CalibCalc + '", "at": "2026-10-03 10:40:00", "items": [' +
+       '{ "writeId": "W20261003101530", "date": "03/10/2026 10:20", "est": -4.0, "pistes": 80, "nr": 1, "read": "2026-10-03 10:40:00", "k": 0.8 } ] },' +
+       ' "A>0|long_h0": { "ns": 2.0, "n": 1, "xDate": "' + $XD + '", "xKey": "long_h0", "calc": "' + $script:CalibCalc + '", "at": "2026-10-05 15:00:00", "items": [' +
+       '{ "writeId": "W20261005140040", "date": "05/10/2026 14:10", "est": 4.0, "pistes": 80, "nr": 1, "read": "2026-10-05 15:00:00" } ] },' +
+       ' "A>0|std_h1++": { "ns": 1.0, "n": 1, "xDate": "' + $XD + '", "items": [ { "writeId": "W1", "est": 1.0 } ] } }'
+$imR = Import-TargetRecal ($jsR | ConvertFrom-Json)
+$eM = $script:TargetRecal['A>0|std_h1']; $eU = $script:TargetRecal['A>0|std_h1+']; $eL = $script:TargetRecal['A>0|long_h0+']
+$idM = (@($eM.Items | ForEach-Object { [string]$_.WriteId }) -join ','); $idU = (@($eU.Items | ForEach-Object { [string]$_.WriteId }) -join ',')
+$r5a = ([int]$imR.N -eq 4 -and [int]$imR.Bad -eq 1 -and [int]$imR.Moved -eq 3 -and $idM -ceq 'W20261002100000,W20261004083010' -and $idU -ceq 'W20261003101530,W20261003114020')
+$r5b = ((Near ([double]$eM.Ns) -1.4) -and (Near ([double]$eU.Ns) 3.4) -and (Near ([double]$eU.Items[0].K) 1.62) -and (Near ([double]$eU.Items[1].K) 1.71) -and $null -eq $eM.Items[0].K -and [string]$eU.XDate -ceq $XD -and [string]$eU.XKey -ceq 'std_h1')
+$r5c = (-not $script:TargetRecal.ContainsKey('A>0|long_h0') -and $eL -and (Near ([double]$eL.Ns) 3.0) -and (Near ([double]$script:TargetRecal['A>0|std_h0'].Items[0].K) 0.8) -and [int]$script:TargetRecal['A>0|std_h0'].N -eq 1)
+$exR = (Export-TargetRecal | ConvertTo-Json -Depth 6)
+$im2 = Import-TargetRecal ($exR | ConvertFrom-Json)
+$r5d = ([int]$im2.N -eq 4 -and [int]$im2.Bad -eq 0 -and [int]$im2.Moved -eq 0 -and $exR.Contains('"k"') -and $script:TargetRecal.ContainsKey('A>0|std_h1+') -and (Near ([double]$script:TargetRecal['A>0|std_h1+'].Ns) 3.4) -and (Near ([double]$script:TargetRecal['A>0|std_h1'].Ns) -1.4) -and $null -eq $script:TargetRecal['A>0|std_h1'].Items[0].K)
+Chk 'R5' ($r5a -and $r5b -and $r5c -and $r5d) "configuration : $($imR.N) entree(s), $($imR.Bad) illisible(s), $($imR.Moved) ecriture(s) reclassee(s) ($r5a) ; recalages $($eM.Ns) et $($eU.Ns), k retrouves ($r5b) ; entree videe retiree, k present garde ($r5c) ; aller-retour sans nouveau reclassement ($r5d)"
+
+# Anglais
+$script:Lang = 'en'
+$script:TargetRecal = @{ 'A>0|std_h0' = (New-FkRecal -4.4 'std_h0' 0.8); 'A>0|std_h1+' = (New-FkRecal 5.2 'std_h1' 1.6) }
+$pEn = Get-TargetRecalPlan $twR $wMix $xcR $true
+$pEn2 = Get-TargetRecalPlan $twR $wLow $xcR $true
+$sEn = Get-TargetRecalSummaryText 'A' '0' 'std'
+$script:Lang = 'fr'
+Chk 'R6' (([string]$pEn.Text).Contains('head 1 +3.9 ns (factor above 1)') -and ([string]$pEn2.Text).Contains('head 1: adjustment learned for a disk factor above 1, the factor of this write is 1 or less') -and $sEn.Contains('(factor above 1)')) "anglais : « $($pEn.Text) » ; « $($pEn2.Text) »"
+
 "=== bilan logic-cible-recalage : $($script:NChk - $script:Fail) conformes sur $($script:NChk)$(if ($script:Fail) { " ; NON CONFORMES : $($script:FailIds -join ', ')" }) ; $([int]$sw.Elapsed.TotalSeconds) s"
 if ($script:Fail -gt 0) { exit 1 }
 exit 0

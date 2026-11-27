@@ -103,7 +103,7 @@ $want = [ordered]@{
     # 12.11 rc8 (R17) : configuration des recalages et de la memoire des ecritures pour un lecteur cible (Save-Config,
     # Load-Config), recalage de la courbe choisie dans la fenetre « Lecteurs » (Set-DrivesDialogDetail)
     '172' = @('Export-TargetRecal', 'Export-LastTargetWrites', 'Import-TargetRecal', 'Import-LastTargetWrites', 'Get-TargetRecalNs', 'Get-TargetRecalSummaryText', 'Get-TargetRecalEntry', 'Get-TargetRecalKey',
-              'Get-TargetRecalReads', 'ConvertTo-RecalDate', 'Remove-TargetRecal')
+              'Get-TargetRecalReads', 'ConvertTo-RecalDate', 'Remove-TargetRecal', 'Test-TargetRecalUp', 'Get-TargetRecalItemK')
     '145' = @('Update-WSourceLabel')
     '210' = @('Draw-PictoFloppy', 'Draw-PictoDrive')
     '220' = @('Get-CurveDate', 'Get-DriveFamilyCurves')

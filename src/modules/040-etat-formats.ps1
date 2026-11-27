@@ -208,6 +208,11 @@ $script:TargetRecalMinTracks = 60
 $script:TargetRecalMinBlocks = 6
 $script:TargetRecalBlockTracks = 5
 $script:TargetRecalMaxGapNs = 12
+# 12.12 : recalage tenu par regime d ecriture (facteur de la disquette au-dessus de 1 ou non : Test-TargetRecalUp, 172).
+# TargetRecalItemKMin : minutes au plus entre la fin d une mesure sur l image et le lancement de l ecriture qui la suit,
+# pour retrouver le facteur d une ecriture relue par une 12.11 (Get-TargetRecalItemK ; la mesure precede l ecriture de
+# moins d une minute)
+$script:TargetRecalItemKMin = 3
 $script:AlignRefLabel = ''
 # 12.8.2 (S11) : zone de l index (Read-ScpFile, Set-ScpTrackPost). gw ecrit les images ADF et a secteurs d index a index
 # (« Terminate at index ») : la jonction d ecriture tombe sur l index, dans l espace entre le dernier et le premier

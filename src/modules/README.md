@@ -19,6 +19,7 @@ Dans tous les modules, aucune instruction n'est à cheval sur deux modules, et c
 |---|---|
 | `000-entete.ps1` | En-tête, `param()`, `$script:Version`, versions du calcul de calibration (`CalibCalc`, `CalibCalcHd`) et de la mesure de la disquette sur l'image (`ContentCalc`, 12.8.1) |
 | `010-i18n.ps1` | Table I18n (textes anglais), `T`, `Format-UiNum` |
+| `011-i18n-1212.ps1` | Table I18n, suite (12.12), une section par lot de la version : recalage de la courbe croisée par régime d'écriture |
 | `012-i18n-contenu.ps1` | Table I18n, suite (12.8.1, lot B) : textes de la mesure de la disquette sur l'image |
 | `013-i18n-facteur.ps1` | Table I18n, suite (12.8.1, lot C) : facteur de précompensation de l'écriture, liste « Mesure : » (12.10 : textes de la correction « lecteur cible » Δk retirés) |
 | `014-i18n-effacement.ps1` | Table I18n, suite (12.8.2) : effacement avant l'écriture, case « Effacer avant d'écrire », textes qui remplacent ceux du pré-effacement |
@@ -91,7 +92,7 @@ Déplacer une fonction d'un module `fn` à un autre ne change rien à l'exécuti
 1. Ouvrez le module et modifiez-le.
    - Encodage : UTF-8 avec BOM, fins de ligne CRLF. `.editorconfig` et `.gitattributes` les imposent déjà.
    - Méfiez-vous des outils qui réécrivent le fichier, comme `sed` ou Python en mode texte : ils peuvent retirer le BOM ou les CR. L'assembleur le refuse, en donnant le module et la ligne.
-   - Conventions inchangées : commentaires en français sans accents, et chaque texte de l'interface passe par `T`, avec son entrée anglaise dans la table I18n : `010-i18n.ps1` et ses suites, `019-i18n-1211.ps1` pour les textes de la 12.11. Le contrôle de la source (`tests/check-source.ps1`, cas I1) refuse une clé de `T` sans entrée, même quand le texte est identique dans les deux langues.
+   - Conventions inchangées : commentaires en français sans accents, et chaque texte de l'interface passe par `T`, avec son entrée anglaise dans la table I18n : `010-i18n.ps1` et ses suites, `019-i18n-1211.ps1` pour les textes de la 12.11, `011-i18n-1212.ps1` pour ceux de la 12.12. Le contrôle de la source (`tests/check-source.ps1`, cas I1) refuse une clé de `T` sans entrée, même quand le texte est identique dans les deux langues.
    - La version de l'application est dans `000-entete.ps1` (`$script:Version`), avec la version montrée (`$script:VersionLabel`, la même pour une version publiée).
 2. Les messages de PowerShell, de PS2EXE et du banc de test donnent les lignes du fichier assemblé. Pour retrouver le module :
 

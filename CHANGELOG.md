@@ -9,12 +9,21 @@ Chaque version s'ouvre sur un résumé de ce qu'elle apporte, puis classe ses ch
 
 Version en préparation.
 
+### Améliorations
+
+- **Recalage de la courbe croisée tenu selon le facteur de la disquette.** Une écriture pour un lecteur cible ne suit pas la même règle selon que le facteur de la disquette dépasse 1 ou non, et les relectures par le lecteur cible ne donnent pas le même écart dans les deux cas. Le recalage est maintenant appris et appliqué à part pour les disquettes dont le facteur dépasse 1 : il ne décale plus les écritures des autres disquettes, et inversement. La ligne de l'écriture au journal, la fenêtre de confirmation et la fenêtre « Lecteurs » disent « facteur au-dessus de 1 » quand ce recalage est en jeu. Un recalage appris pour l'autre cas seulement n'est pas appliqué, et le journal le dit.
+
 ### Corrections
 
 - **Recalage de la courbe croisée : une zone reprise compte de nouveau.** Au contrôle d'une écriture pour un lecteur cible, une zone dont la correction n'est pas gardée est réécrite avec la courbe d'origine. Ses pistes étaient pourtant écartées de la relecture par le lecteur cible, comme celles d'une zone gardée : sur une disquette à grandes zones reprises, une tête n'avait plus les 60 pistes exigées et son recalage n'apprenait rien. Seules les zones gardées restent écartées.
 
+### À savoir pour la mise à jour
+
+- **Recalages enregistrés par la 12.11.** Ils sont gardés. Les écritures relues dont la mesure sur l'image donnait un facteur au-dessus de 1 sont reclassées au premier démarrage, d'après les mesures encore en mémoire ; une ligne du journal en donne le nombre. Les autres restent où elles sont.
+
 ### Pour les développeurs
 
+- Recalage par régime (172, 040, 120, 011, `tests/`) : la règle écrit `min(k × X, X + (k − 1) × Sp)` ; entrée du régime k > 1 sous la même clé suivie de « + » (`Test-TargetRecalUp` sur k arrondi à 0,001, `Get-TargetRecalK`, `Get-TargetRecalKey` et `Get-TargetRecalEntry` avec `$up`) ; `Get-TargetRecalPlan` prend l'entrée du régime de l'écriture et dit quand seul l'autre est appris ; `Get-TargetRecalUpdate` range l'écriture relue dans l'entrée de son régime et garde son k (`Items`, `K` ; champ `k` de `write.targetRecal`) ; `Remove-TargetRecal` et `Get-TargetRecalSummaryText` couvrent les deux régimes ; `Import-TargetRecal` admet la clé « + » et reclasse les écritures sans k dont la mesure sur l'image, terminée dans les `TargetRecalItemKMin` minutes avant le lancement, donnait k > 1 (`Get-TargetRecalItemK`) ; une 12.11 ignore les entrées « + ». Nouveau module `011-i18n-1212.ps1`. Tests `logic-cible-recalage` (R1 à R6). Hypothèse tirée de cinq écritures relues, à confirmer.
 - Recalage (172, `tests/`) : `Get-TargetWriteZoneCyls` n'exclut plus une zone à l'état `back` quand une passe de réécriture a suivi son jugement (`Rep.Round` ≥ 2) ; zone gardée, non jugée, ou reprise sans passe ensuite : exclue comme avant. Test `logic-cible-recalage` (M2b).
 
 ## [12.11] - 2026-11-23
