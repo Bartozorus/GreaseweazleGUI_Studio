@@ -2,7 +2,7 @@
   "format": 1,
   "note": "Genere par tools/Assemble-Source.ps1, ne pas modifier. Lignes de src/GreaseweazleGUI.ps1, bornes incluses.",
   "source": "src/GreaseweazleGUI.ps1",
-  "sha256": "d1947eb1015ebbe65e5e6778da5efdc9665e5d82cbdfff8e29d8fb2afa942357",
+  "sha256": "7438b6abf2fd898853f9cac7e85a849c91f37a6a70c5c7f5b188c3679dab5583",
   "lines": 38048,
   "modules": [
     { "file": "000-entete.ps1", "first": 1, "last": 59 },
