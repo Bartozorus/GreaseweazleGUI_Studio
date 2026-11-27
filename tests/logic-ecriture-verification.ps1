@@ -609,7 +609,9 @@ $d1 = [ordered]@{
     'README 140' = ([regex]::Match($rd, '\| `140-fn-ecriture\.ps1` \|[^\n]*').Value.Contains('`Get-WriteVerifyPlan`'))
     'README 145' = ([regex]::Match($rd, '\| `145-fn-onglet-ecriture\.ps1` \|[^\n]*').Value.Contains('`Update-WVerifyUi`'))
     'README tests' = $trd.Contains('| `logic-ecriture-verification` |')
-    'version montree' = ($e000 -match "(?m)^\`$script:VersionLabel = '12\.11'\r?$" -and $e000 -match "(?m)^\`$script:Version = '12\.11'\r?$")   # 12.11 finale : version montree sans suffixe de preversion
+    # 12.11 finale : version montree sans suffixe de preversion ; 12.12 : la version montree est la version de
+    # l application, suivie de « rcN » (ou « rcN.M ») pendant une preversion seulement
+    'version montree' = ($e000 -match "(?m)^\`$script:Version = '(\d+\.\d+)'\r?$" -and $e000 -match ("(?m)^\`$script:VersionLabel = '" + [regex]::Escape([string]$Matches[1]) + "( rc\d+(\.\d+)?)?'\r?$"))
 }
 Chk 'D1' (@($d1.Keys | Where-Object { -not $d1[$_] }).Count -eq 0) "CHANGELOG 12.11 : $(@($d1.Keys | Where-Object { -not $d1[$_] }) -join ', ') ; R9 retire (entree d Ameliorations retiree ; l entree de la mesure sur l image ne dit plus que l ecriture de l image suit toujours la case), A savoir (piste mal ecrite reecrite par le controle, cas de 0 passe ; relecture : le controle ne compare pas les donnees relues a l image, l image flux ecrite telle quelle n est jamais verifiee par gw, la verification annoncee par la ligne peut etre retiree par une mesure), aucun texte ne dit un comportement verifie sur materiel ; README des modules (140, 145) et des tests ; version montree « 12.11 rc4 », version des donnees « 12.11 » ; ecarts : $(Get-List @($d1.Keys | Where-Object { -not $d1[$_] }))"
 

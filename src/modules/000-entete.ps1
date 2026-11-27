@@ -27,11 +27,12 @@ param(
 )
 
 # Version de l application (lue par Build-Exe.ps1 et par le workflow de release)
-$script:Version = '12.11'
+$script:Version = '12.12'
 # 12.11 rc2.1 : version montree a l utilisateur (titre de la fenetre, ligne de demarrage du journal, en-tete du journal
 # exporte, rapport de restauration, export « Qualite & alignement ») ; $script:Version reste celle des donnees, des
-# calibrations, de la configuration et du controle du workflow de publication. 12.11 finale : egale a $script:Version
-$script:VersionLabel = '12.11'
+# calibrations, de la configuration et du controle du workflow de publication. Version publiee : egale a
+# $script:Version ; preversion : suivie de « rcN »
+$script:VersionLabel = '12.12 rc1'
 # Version du calcul de calibration (motif de test, mesure du decalage, ajustement de la courbe, verification), enregistree
 # avec chaque courbe : a changer seulement quand ce calcul change. Une courbe faite avec ce calcul est reprise par les
 # versions suivantes de l application ; une courbe d un autre calcul n est reprise que si l utilisateur la conserve.
