@@ -949,33 +949,47 @@ $allSt = [string]@((Get-Ast (Get-EoMod $Wt '540')).EndBlock.Statements | Where-O
 $novSt = [string]@((Get-Ast (Get-EoMod $Wt '540')).EndBlock.Statements | Where-Object { $_.Extent.Text -match '^\$script:NoviceTabs = ' })[0].Extent.Text
 $allV = @([regex]::Matches($allSt, '\$(tab\w+)') | ForEach-Object { $_.Groups[1].Value })
 $novV = @([regex]::Matches($novSt, '\$(tab\w+)') | ForEach-Object { $_.Groups[1].Value })
+# 12.12 (interface, lot A) : les en-tetes des onglets ne sont plus affiches (instructions reelles de 540, rejouees ici
+# apres la creation des onglets) et une bande de titre (pnlPageBar, 540) prend le haut de la zone des pages ; place du
+# separateur posee a sa construction (510)
+$st540 = @((Get-Ast (Get-EoMod $Wt '540')).EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text })
+$hideSt = @($st540 | Where-Object { $_ -match '^\$tabs\.(Multiline = \$false|Appearance = |SizeMode = |ItemSize = )' })
+$hideGen = Join-Path $here 'gen-eo-540-entetes.ps1'; Write-EoGen $hideGen $hideSt
+$barH = [int](@($st540 | Where-Object { $_ -match '^\$pnlPageBar\.Height = (\d+)$' } | ForEach-Object { [regex]::Match($_, '(\d+)$').Value }) + @(0))[0]
+$st510 = @((Get-Ast (Get-EoMod $Wt '510')).EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text })
+$zone0 = [int](@($st510 | Where-Object { $_ -match '^\$split\.SplitterDistance = (\d+)$' } | ForEach-Object { [regex]::Match($_, '(\d+)$').Value }) + @(0))[0]
 $tRows = @(); $tH = @{}
 foreach ($lg in 'fr', 'en') {
     $script:Lang = $lg
-    foreach ($set in @(@{ N = 11; V = $allV }, @{ N = 6; V = $novV })) {
-        foreach ($h in @(546, 372)) {
+    foreach ($set in @(@{ N = $allV.Count; V = $allV; K = 'all' }, @{ N = $novV.Count; V = $novV; K = 'nov' })) {
+        foreach ($h in @(546, $zone0)) {
             . $eoG.Tabs
-            $tabs.Dock = 'None'; $tabs.Font = $form.Font; $tabs.Size = New-Object System.Drawing.Size(800, $h)
+            $tabs.Dock = 'None'; $tabs.Font = $form.Font; $tabs.Size = New-Object System.Drawing.Size(800, ($h - $barH))
             foreach ($tv in $tabVars) { Set-Variable -Name $tv.Var -Value (New-TabPage $(if ($tv.T) { T $tv.Key } else { $tv.Key })) }
             . $eoG.Ico
+            . $hideGen
             foreach ($v in $set.V) { $tabs.TabPages.Add((Get-Variable -Name $v -ValueOnly)) }
             # Poignee creee sans fenetre visible : le nombre de rangees et la page ne se lisent qu avec elle
             $tErr = ''
             try { $null = $tabs.Handle } catch { $tErr = $_.Exception.Message }
             $dr = $tabs.DisplayRectangle
-            $tRows += @{ L = $lg; N = $set.N; H = $h; Rows = $(if ($tErr) { -1 } else { $tabs.RowCount }); Multi = $tabs.Multiline; PageH = $dr.Height; PageW = $dr.Width; Err = $tErr }
+            $hid = (-not $tabs.Multiline -and [string]$tabs.Appearance -ceq 'FlatButtons' -and [string]$tabs.SizeMode -ceq 'Fixed' -and $tabs.ItemSize.Height -eq 1)
+            $tRows += @{ L = $lg; N = $set.N; K = $set.K; H = $h; Rows = $(if ($tErr) { -1 } else { $tabs.RowCount }); Multi = $tabs.Multiline; Hid = $hid; PageH = $dr.Height; PageW = $dr.Width; Err = $tErr }
             $tabs.Dispose()
         }
     }
 }
 $script:Lang = 'fr'
 foreach ($r in $tRows) { "  T $($r.L) : $($r.N) onglets, barre de $($r.H) px : $($r.Rows) rangee(s), page $($r.PageW) x $($r.PageH)$(if ($r.Err) { " ; poignee non creee : $($r.Err)" })" }
-$t1 = @($tRows | Where-Object { -not $_.Multi -or ($_.N -eq 11 -and $_.Rows -ne 2) -or ($_.N -eq 6 -and $_.Rows -ne 1) })
-Chk 'T1' ($tRows.Count -eq 8 -and $t1.Count -eq 0 -and $allV.Count -eq 11 -and $novV.Count -eq 6) "instructions reelles de 510 (Multiline) et de 540 (icones), fenetre de 800 px : mode expert, 11 onglets sur 2 rangees ; mode courant, 6 onglets sur 1 rangee, en francais et en anglais"
-$p6 = @($tRows | Where-Object { $_.N -eq 6 -and $_.H -eq 372 }); $p11 = @($tRows | Where-Object { $_.N -eq 11 -and $_.H -eq 372 })
+# 12.12 (interface, lot A) : plus de rangees d onglets : en-tetes masques, la page prend la zone a 10 px pres ; sans le mode
+# expert, seules les pages « Delais » et « Commande libre » manquent
+$t1 = @($tRows | Where-Object { -not $_.Hid -or $_.Err -or $_.PageH -lt ($_.H - $barH - 10) -or $_.PageH -gt ($_.H - $barH) })
+$novMiss = @($allV | Where-Object { $novV -notcontains $_ } | Sort-Object)
+Chk 'T1' ($tRows.Count -eq 8 -and $t1.Count -eq 0 -and $hideSt.Count -eq 4 -and $barH -gt 0 -and $zone0 -gt 0 -and $allV.Count -eq 14 -and $novV.Count -eq 12 -and ($novMiss -join ',') -ceq 'tabC,tabD') "instructions reelles de 510 et de 540 : en-tetes des onglets masques (onglets en boutons de hauteur nulle), bande de titre de $barH px ; la page prend la zone a 10 px pres, pour les $($allV.Count) pages du mode expert comme pour les $($novV.Count) pages courantes (absentes : $($novMiss -join ', ')), en francais et en anglais"
+$p6 = @($tRows | Where-Object { $_.K -eq 'nov' -and $_.H -eq $zone0 }); $p11 = @($tRows | Where-Object { $_.K -eq 'all' -and $_.H -eq $zone0 })
 $t2 = @($p6 | Where-Object { $_.PageH -lt $btnWrite.Bottom })
-"  T2 : journal affiche (zone des onglets de 372 px, place posee a la construction du separateur, 510) : page de $(@($p6 | ForEach-Object { $_.PageH }) -join '/') px en mode courant, $(@($p11 | ForEach-Object { $_.PageH }) -join '/') px en mode expert ; bas du bouton ECRIRE a $($btnWrite.Bottom) px"
-Chk 'T2' ($p6.Count -eq 2 -and $t2.Count -eq 0 -and $btnWrite.Bottom -eq 335) "journal affiche, mode courant : le bouton ECRIRE (bas a $($btnWrite.Bottom) px) tient sans defilement dans la page d une zone des onglets de 372 px, en francais et en anglais ; mode expert : l onglet defile (dit au CHANGELOG)"
+"  T2 : journal affiche (zone des pages de $zone0 px, place posee a la construction du separateur, 510) : page de $(@($p6 | ForEach-Object { $_.PageH }) -join '/') px en mode courant, $(@($p11 | ForEach-Object { $_.PageH }) -join '/') px en mode expert ; bas du bouton ECRIRE a $($btnWrite.Bottom) px"
+Chk 'T2' ($p6.Count -eq 2 -and $t2.Count -eq 0 -and $btnWrite.Bottom -eq 335) "journal affiche, mode courant : le bouton ECRIRE (bas a $($btnWrite.Bottom) px) tient sans defilement dans la page d une zone de $zone0 px (bande de titre comprise), en francais et en anglais, en mode courant comme en mode expert ($(@($p11 | Where-Object { $_.PageH -lt $btnWrite.Bottom }).Count -eq 0))"
 # T2b (lot L12b, banc write-level S3g3 ; revue M) : zone des onglets la plus basse ou le bouton tient encore journal
 # affiche (mesuree : bas du bouton + hauteur de la barre d onglets), un pixel de moins, et 366 px (place laissee par les
 # redimensionnements du banc). 372 px est la place posee a la construction du separateur (510), pas sa place reelle a la
@@ -985,16 +999,17 @@ Chk 'T2' ($p6.Count -eq 2 -and $t2.Count -eq 0 -and $btnWrite.Bottom -eq 335) "j
 $s510 = @((Get-Ast (Get-EoMod $Wt '510')).EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text })
 $splitDef = @($s510 | Where-Object { $_ -match '^\$split\.SplitterDistance = (\d+)$' } | ForEach-Object { [int]([regex]::Match($_, '(\d+)$').Value) })
 $splitMin = @($s510 | Where-Object { $_ -match '^\$split\.Panel1MinSize = (\d+)$' } | ForEach-Object { [int]([regex]::Match($_, '(\d+)$').Value) })
-$strip = if ($p6.Count -gt 0) { 372 - [int]$p6[0].PageH } else { 0 }
+$strip = if ($p6.Count -gt 0) { $zone0 - [int]$p6[0].PageH } else { 0 }
 $hMin = [int]$btnWrite.Bottom + $strip
 $t2b = @(); $t2bTxt = @()
 foreach ($lg in 'fr', 'en') {
     $script:Lang = $lg
     foreach ($h in @($hMin, ($hMin - 1), 366)) {
         . $eoG.Tabs
-        $tabs.Dock = 'None'; $tabs.Font = $form.Font; $tabs.Size = New-Object System.Drawing.Size(800, $h)
+        $tabs.Dock = 'None'; $tabs.Font = $form.Font; $tabs.Size = New-Object System.Drawing.Size(800, ($h - $barH))
         foreach ($tv in $tabVars) { Set-Variable -Name $tv.Var -Value (New-TabPage $(if ($tv.T) { T $tv.Key } else { $tv.Key })) }
         . $eoG.Ico
+        . $hideGen
         foreach ($v in $novV) { $tabs.TabPages.Add((Get-Variable -Name $v -ValueOnly)) }
         $null = $tabs.Handle
         $ph = $tabs.DisplayRectangle.Height; $tabs.Dispose()
@@ -1006,7 +1021,7 @@ foreach ($lg in 'fr', 'en') {
 $script:Lang = 'fr'
 $clT2 = [System.IO.File]::ReadAllText((Join-Path $Wt 'CHANGELOG.md'), [System.Text.Encoding]::UTF8)
 $enT2 = @($clT2 -split "`n" | Where-Object { $_.StartsWith('- **Bouton « ÉCRIRE LA DISQUETTE » plus haut dans l''onglet.**') })
-Chk 'T2b' ($t2b.Count -eq 0 -and $splitDef.Count -eq 1 -and $splitDef[0] -eq 372 -and $splitMin.Count -eq 1 -and $splitMin[0] -lt $hMin - 1 -and $hMin -le 372 -and $enT2.Count -eq 1 -and $enT2[0].Contains('il faut encore faire défiler l''onglet, ou descendre le séparateur') -and $enT2[0].Contains('suit les changements de taille de la fenêtre') -and -not $enT2[0].Contains('reste visible')) "place posee a la construction du separateur ($($splitDef -join ',') px, 510) : bouton visible ; au plus bas $hMin px ; $($t2bTxt -join ' ; ') ; le separateur peut monter jusqu a $($splitMin -join ',') px : le CHANGELOG dit le bouton plus haut qu en 12.10, ne le promet pas visible et dit quoi faire pour le voir (faire defiler l onglet, descendre le separateur) ; ecarts : $($t2b -join ' ; ')"
+Chk 'T2b' ($t2b.Count -eq 0 -and $splitDef.Count -eq 1 -and $splitDef[0] -eq 380 -and $splitMin.Count -eq 1 -and $splitMin[0] -lt $hMin - 1 -and $hMin -le 380 -and $enT2.Count -eq 1 -and $enT2[0].Contains('il faut encore faire défiler l''onglet, ou descendre le séparateur') -and $enT2[0].Contains('suit les changements de taille de la fenêtre') -and -not $enT2[0].Contains('reste visible')) "place posee a la construction du separateur ($($splitDef -join ',') px, 510) : bouton visible ; au plus bas $hMin px ; $($t2bTxt -join ' ; ') ; le separateur peut monter jusqu a $($splitMin -join ',') px : le CHANGELOG dit le bouton plus haut qu en 12.10, ne le promet pas visible et dit quoi faire pour le voir (faire defiler l onglet, descendre le separateur) ; ecarts : $($t2b -join ' ; ')"
 # T2c (revue M) : place reelle du separateur a la taille par defaut de la fenetre : instructions reelles de 500 (fenetre),
 # 510 (bandeau, separateur) et 540 (barre de boutons, barre d etat, ajout a la fenetre), fenetre jamais affichee. Sans
 # panneau fixe (FixedPanel), la place posee a la construction du separateur (372 px sur 644) suit en proportion la

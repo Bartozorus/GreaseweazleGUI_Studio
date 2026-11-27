@@ -239,6 +239,10 @@ Set-WriteTabLayout
 Set-Defaults
 $loaded = Load-Config
 Update-TabSet
+# 12.12 (interface, lot A) : l application s ouvre sur la Bibliotheque quand son dossier est regle, sinon sur l Accueil
+# (rubrique « Aide ») ; rail accorde a la page
+if ($txtLibRoot.Text.Trim()) { $tabs.SelectedTab = $tabL }
+Update-NavRail
 Update-CurveButton ''
 
 Append-Log "Greaseweazle Studio v$($script:VersionLabel)"

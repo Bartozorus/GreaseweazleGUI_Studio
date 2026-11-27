@@ -75,7 +75,9 @@ $split.Size = New-Object System.Drawing.Size(790, 644)
 $split.Panel1MinSize = 300
 $split.Panel2MinSize = 80
 $split.SplitterWidth = 6
-$split.SplitterDistance = 372
+# 12.12 (interface, lot A) : 380 px (372 auparavant) : la bande de titre des pages (34 px) remplace la rangee des
+# onglets ; le bouton « ECRIRE LA DISQUETTE » tient encore dans une zone de cette hauteur
+$split.SplitterDistance = 380
 $split.Dock = 'Fill'
 
 $tabs = New-Object System.Windows.Forms.TabControl

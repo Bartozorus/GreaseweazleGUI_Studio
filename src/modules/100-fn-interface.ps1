@@ -247,6 +247,99 @@ function New-HomeCard([string]$glyph, [string]$title, [string]$desc, [string]$lo
     return $p
 }
 
+# --- 12.12 (interface, lot A) : rail de navigation, bande de titre, cartes de tache --------------------------------------
+# Le rail de gauche mene aux rubriques (Bibliotheque, Disquettes, Lecteurs, Parametres, Aide) ; les pages restent celles
+# du controle a onglets, dont les en-tetes ne sont plus affiches (540). NavPages : pages de chaque rubrique, la premiere
+# etant sa page d entree ; la rubrique d une page se lit dans cette table (Get-NavKey)
+function Get-NavKey($page) {
+    foreach ($k in @($script:NavPages.Keys)) { foreach ($p in @($script:NavPages[$k])) { if ($p -eq $page) { return [string]$k } } }
+    return ''
+}
+
+function New-NavButton([string]$key, [string]$glyph, [string]$text) {
+    # Entree du rail : bouton plat, icone a gauche. Tag = @{ Key ; Glyph ; On } ; l etat choisi (fond, icone, graisse et
+    # barre a gauche) est pose par Update-NavRail
+    $b = New-Object System.Windows.Forms.Button
+    $b.Name = "btnNav$key"; $b.Text = ' ' + $text; $b.Tag = @{ Key = $key; Glyph = $glyph; On = $false }
+    $b.Size = New-Object System.Drawing.Size(148, 40); $b.Margin = New-Object System.Windows.Forms.Padding(0, 0, 0, 4)
+    $b.FlatStyle = 'Flat'; $b.FlatAppearance.BorderSize = 0; $b.UseVisualStyleBackColor = $false
+    $b.TextAlign = 'MiddleLeft'; $b.ImageAlign = 'MiddleLeft'; $b.TextImageRelation = 'ImageBeforeText'
+    $b.Padding = New-Object System.Windows.Forms.Padding(12, 0, 0, 0); $b.UseMnemonic = $false
+    $b.Font = New-Object System.Drawing.Font('Segoe UI', 10)
+    $b.BackColor = $script:NavBack; $b.ForeColor = [System.Drawing.Color]::FromArgb(50, 56, 68)
+    $b.FlatAppearance.MouseOverBackColor = $script:NavSel; $b.FlatAppearance.MouseDownBackColor = $script:NavSel
+    $b.Image = New-GlyphBitmap $glyph 20 $script:Theme.Muted
+    $b.Add_Click({ Show-NavPage ([string]$this.Tag.Key) })
+    $b.Add_Paint({
+        if (-not $this.Tag.On) { return }
+        $br = New-Object System.Drawing.SolidBrush($script:Theme.Accent); $_.Graphics.FillRectangle($br, 0, 0, 4, $this.Height); $br.Dispose()
+    })
+    return $b
+}
+
+function Show-NavPage([string]$key) {
+    # Rubrique du rail : sa page d entree ; 'Log' : journal affiche ou masque (comme le bouton de la barre du bas)
+    if ($key -ceq 'Log') { Set-LogVisible ($split.Panel2Collapsed); return }
+    $pg = @($script:NavPages[$key])
+    if ($pg.Count -gt 0 -and $pg[0]) { Show-Tab $pg[0] }
+    Update-NavRail
+}
+
+function Update-NavRail {
+    # Rail et bande de titre accordes a la page affichee : rubrique de la page en evidence, titre de la page, et lien de
+    # retour vers la page d entree de la rubrique quand la page affichee n est pas celle-ci
+    if (-not $script:NavButtons) { return }
+    $page = $tabs.SelectedTab
+    $key = Get-NavKey $page
+    foreach ($b in @($script:NavButtons)) {
+        $on = ([string]$b.Tag.Key -ceq $key)
+        if ([bool]$b.Tag.On -eq $on -and $b.Tag.Done) { continue }
+        $b.Tag.On = $on; $b.Tag.Done = $true
+        $b.BackColor = $(if ($on) { $script:NavSel } else { $script:NavBack })
+        $b.ForeColor = $(if ($on) { $script:Theme.Accent2 } else { [System.Drawing.Color]::FromArgb(50, 56, 68) })
+        $b.Font = New-Object System.Drawing.Font($(if ($on) { 'Segoe UI Semibold' } else { 'Segoe UI' }), 10)
+        $b.Image = New-GlyphBitmap ([string]$b.Tag.Glyph) 20 $(if ($on) { $script:Theme.Accent } else { $script:Theme.Muted })
+        $b.Invalidate()
+    }
+    if ($lblPageTitle) { $lblPageTitle.Text = $(if ($page) { [string]$page.Text } else { '' }) }
+    if ($lnkPageBack) {
+        $entry = if ($key) { @($script:NavPages[$key])[0] } else { $null }
+        $child = ($page -and $entry -and $page -ne $entry)
+        $lnkPageBack.Visible = [bool]$child
+        if ($child) { $lnkPageBack.Text = '‹ ' + [string]$entry.Text; $lnkPageBack.Tag = $key; $lblPageTitle.Left = $lnkPageBack.Right + 10 } else { $lblPageTitle.Left = 12 }
+    }
+}
+
+function New-TaskCard([string]$glyph, [string]$title, [string]$desc, [string]$loc, [scriptblock]$action) {
+    # Carte d une tache de la page « Disquettes » : icone et titre sur une rangee, description dessous. Meme nom et memes
+    # gestes que les cartes de l Accueil (Get-HomeCard : clic sur toute la carte, survol), autre disposition
+    $p = New-Object System.Windows.Forms.Panel
+    $p.Name = 'HomeCard'; $p.Location = $loc; $p.Size = '250,120'; $p.BackColor = [System.Drawing.Color]::White
+    $p.Tag = $action
+    $pic = New-Object System.Windows.Forms.PictureBox
+    $pic.Image = New-GlyphBitmap $glyph 28 $script:Theme.Accent; $pic.Location = '14,14'; $pic.Size = '32,32'; $pic.SizeMode = 'CenterImage'
+    $t = New-Object System.Windows.Forms.Label
+    $t.Text = $title; $t.Location = '54,16'; $t.Size = '186,26'; $t.UseMnemonic = $false
+    $t.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 12); $t.ForeColor = $script:Theme.Accent2
+    $d = New-Object System.Windows.Forms.Label
+    $d.Text = $desc; $d.Location = '14,56'; $d.Size = '224,58'; $d.ForeColor = $script:Theme.Muted; $d.UseMnemonic = $false
+    $p.Controls.AddRange(@($pic, $t, $d))
+    foreach ($c in @($p, $pic, $t, $d)) {
+        $c.Cursor = [System.Windows.Forms.Cursors]::Hand
+        $c.Add_Click({ $card = Get-HomeCard $this; if ($card -and $card.Tag) { Clear-HomeProgress; & $card.Tag } })
+        $c.Add_MouseEnter({ $card = Get-HomeCard $this; if ($card) { $card.BackColor = [System.Drawing.Color]::FromArgb(234, 241, 251) } })
+        $c.Add_MouseLeave({
+            $card = Get-HomeCard $this
+            if ($card -and -not $card.ClientRectangle.Contains($card.PointToClient([System.Windows.Forms.Cursor]::Position))) { $card.BackColor = [System.Drawing.Color]::White }
+        })
+    }
+    $p.Add_Paint({
+        $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(205, 212, 224))
+        $_.Graphics.DrawRectangle($pen, 0, 0, $this.Width - 1, $this.Height - 1); $pen.Dispose()
+    })
+    return $p
+}
+
 function Update-TabSet {
     $want = if ($chkExpert.Checked) { $script:AllTabs } else { $script:NoviceTabs }
     $sel = $tabs.SelectedTab

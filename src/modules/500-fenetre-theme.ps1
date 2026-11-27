@@ -3,8 +3,10 @@ $form = New-Object System.Windows.Forms.Form
 $form.Text = "Greaseweazle Studio v$($script:VersionLabel)"
 # Largeur : cartes de l Accueil (colonne de droite jusqu a 770 px) sans defilement horizontal avec la barre verticale,
 # a la taille par defaut comme a la taille minimale (12.6 : 790 et 800 px auparavant, 5 et 11 px de defilement)
-$form.ClientSize = New-Object System.Drawing.Size(800, 682)
-$form.MinimumSize = New-Object System.Drawing.Size(816, 620)
+# 12.12 (interface, lot A) : 1 000 x 700 par defaut, le rail de navigation (148 px) s ajoutant a gauche des pages ;
+# taille minimale elargie d autant (816 px auparavant)
+$form.ClientSize = New-Object System.Drawing.Size(1000, 700)
+$form.MinimumSize = New-Object System.Drawing.Size(964, 620)
 $form.StartPosition = 'CenterScreen'
 $form.Font = New-Object System.Drawing.Font('Segoe UI', 9.75)
 $form.BackColor = [System.Drawing.Color]::FromArgb(236, 239, 244)

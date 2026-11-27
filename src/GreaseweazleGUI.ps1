@@ -2194,6 +2194,36 @@ $script:I18n["Vérification du contenu (à l'essai) : {0} piste(s) comparée(s) 
 $script:I18n['analyse des pistes relues au contrôle'] = 'analysis of the tracks read back by the check'
 $script:I18n['analyse du flux de la mesure'] = 'analysis of the measurement flux'
 $script:I18n["analyse d'une passe de la mesure sur l'image"] = 'analysis of one pass of the measurement on the image'
+# Interface, lot A : rail, page « Disquettes », pages provisoires « Lecteurs » et « Parametres » (100, 540)
+$script:I18n['Disquettes'] = 'Disks'
+$script:I18n['Paramètres'] = 'Settings'
+$script:I18n['Journal'] = 'Log'
+$script:I18n['Affiche ou masque le journal.'] = 'Shows or hides the log.'
+$script:I18n['Sauvegarder'] = 'Back up'
+$script:I18n['Restaurer'] = 'Restore'
+$script:I18n['Vérifier'] = 'Check'
+$script:I18n['Comparer'] = 'Compare'
+$script:I18n['Convertir'] = 'Convert'
+$script:I18n['Nettoyer'] = 'Clean'
+$script:I18n["Lire une disquette et garder son image sur l'ordinateur."] = 'Read a disk and keep its image on the computer.'
+$script:I18n["Copier une disquette d'origine sur une disquette vierge, avec les contrôles les plus stricts."] = 'Copy an original disk to a blank disk, with the strictest checks.'
+$script:I18n["Mesurer la qualité d'une disquette, piste par piste."] = 'Measure the quality of a disk, track by track.'
+$script:I18n['Dire si une disquette est identique à une image.'] = 'Tell whether a disk is identical to an image.'
+$script:I18n["Changer le format d'une image de disquette."] = 'Change the format of a disk image.'
+$script:I18n['Nettoyer les têtes du lecteur. Disquette de nettoyage uniquement.'] = 'Clean the drive heads. Cleaning disk only.'
+$script:I18n['Écrire une image choisie dans un fichier…'] = 'Write an image chosen from a file…'
+$script:I18n['Que voulez-vous faire avec une disquette ?'] = 'What do you want to do with a disk?'
+$script:I18n['Pour écrire un jeu sur une disquette, passez par la Bibliothèque.'] = 'To write a game to a disk, go through the Library.'
+$script:I18n['Lecteurs enregistrés'] = 'Registered drives'
+$script:I18n['Noms, connexions et calibrations de chaque lecteur.'] = 'Names, connections and calibrations of each drive.'
+$script:I18n['Vos lecteurs'] = 'Your drives'
+$script:I18n["Le lecteur branché se choisit dans le bandeau ; le lecteur auquel une disquette est destinée, dans la page d'écriture."] = 'The connected drive is chosen in the banner; the drive a disk is intended for, in the write page.'
+$script:I18n['Outils de la carte et du lecteur'] = 'Board and drive tools'
+$script:I18n['Tester la carte, mesurer la vitesse du lecteur, effacer une disquette, mettre à jour le firmware.'] = 'Test the board, measure the drive speed, erase a disk, update the firmware.'
+$script:I18n['Délais du lecteur'] = 'Drive delays'
+$script:I18n['Régler les délais que le Greaseweazle applique au lecteur. Réservé au mode expert.'] = 'Set the delays the Greaseweazle applies to the drive. Expert mode only.'
+$script:I18n['Lancer une commande gw écrite à la main. Réservé au mode expert.'] = 'Run a hand-written gw command. Expert mode only.'
+$script:I18n["Les options de l'écriture se règlent dans la page d'écriture, lien « Options avancées… »."] = 'The write options are set in the write page, "Advanced options…" link.'
 # --- Textes de la mesure de la disquette sur l image (12.8.1, lot B) ------------
 # Entrees de la table I18n (010) des textes de 276 (deroule de la mesure), 260 (choix de la mesure avant l ecriture
 # lente), 270 (progression, prechauffage), 200 (zone de progression de l Accueil) et 110 : cle francaise, valeur anglaise ;
@@ -4754,6 +4784,99 @@ function New-HomeCard([string]$glyph, [string]$title, [string]$desc, [string]$lo
     foreach ($c in @($p, $bar, $pic, $t, $d)) {
         $c.Cursor = [System.Windows.Forms.Cursors]::Hand
         # 12.7 : ouvrir une carte efface le bilan de la zone de progression
+        $c.Add_Click({ $card = Get-HomeCard $this; if ($card -and $card.Tag) { Clear-HomeProgress; & $card.Tag } })
+        $c.Add_MouseEnter({ $card = Get-HomeCard $this; if ($card) { $card.BackColor = [System.Drawing.Color]::FromArgb(234, 241, 251) } })
+        $c.Add_MouseLeave({
+            $card = Get-HomeCard $this
+            if ($card -and -not $card.ClientRectangle.Contains($card.PointToClient([System.Windows.Forms.Cursor]::Position))) { $card.BackColor = [System.Drawing.Color]::White }
+        })
+    }
+    $p.Add_Paint({
+        $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(205, 212, 224))
+        $_.Graphics.DrawRectangle($pen, 0, 0, $this.Width - 1, $this.Height - 1); $pen.Dispose()
+    })
+    return $p
+}
+
+# --- 12.12 (interface, lot A) : rail de navigation, bande de titre, cartes de tache --------------------------------------
+# Le rail de gauche mene aux rubriques (Bibliotheque, Disquettes, Lecteurs, Parametres, Aide) ; les pages restent celles
+# du controle a onglets, dont les en-tetes ne sont plus affiches (540). NavPages : pages de chaque rubrique, la premiere
+# etant sa page d entree ; la rubrique d une page se lit dans cette table (Get-NavKey)
+function Get-NavKey($page) {
+    foreach ($k in @($script:NavPages.Keys)) { foreach ($p in @($script:NavPages[$k])) { if ($p -eq $page) { return [string]$k } } }
+    return ''
+}
+
+function New-NavButton([string]$key, [string]$glyph, [string]$text) {
+    # Entree du rail : bouton plat, icone a gauche. Tag = @{ Key ; Glyph ; On } ; l etat choisi (fond, icone, graisse et
+    # barre a gauche) est pose par Update-NavRail
+    $b = New-Object System.Windows.Forms.Button
+    $b.Name = "btnNav$key"; $b.Text = ' ' + $text; $b.Tag = @{ Key = $key; Glyph = $glyph; On = $false }
+    $b.Size = New-Object System.Drawing.Size(148, 40); $b.Margin = New-Object System.Windows.Forms.Padding(0, 0, 0, 4)
+    $b.FlatStyle = 'Flat'; $b.FlatAppearance.BorderSize = 0; $b.UseVisualStyleBackColor = $false
+    $b.TextAlign = 'MiddleLeft'; $b.ImageAlign = 'MiddleLeft'; $b.TextImageRelation = 'ImageBeforeText'
+    $b.Padding = New-Object System.Windows.Forms.Padding(12, 0, 0, 0); $b.UseMnemonic = $false
+    $b.Font = New-Object System.Drawing.Font('Segoe UI', 10)
+    $b.BackColor = $script:NavBack; $b.ForeColor = [System.Drawing.Color]::FromArgb(50, 56, 68)
+    $b.FlatAppearance.MouseOverBackColor = $script:NavSel; $b.FlatAppearance.MouseDownBackColor = $script:NavSel
+    $b.Image = New-GlyphBitmap $glyph 20 $script:Theme.Muted
+    $b.Add_Click({ Show-NavPage ([string]$this.Tag.Key) })
+    $b.Add_Paint({
+        if (-not $this.Tag.On) { return }
+        $br = New-Object System.Drawing.SolidBrush($script:Theme.Accent); $_.Graphics.FillRectangle($br, 0, 0, 4, $this.Height); $br.Dispose()
+    })
+    return $b
+}
+
+function Show-NavPage([string]$key) {
+    # Rubrique du rail : sa page d entree ; 'Log' : journal affiche ou masque (comme le bouton de la barre du bas)
+    if ($key -ceq 'Log') { Set-LogVisible ($split.Panel2Collapsed); return }
+    $pg = @($script:NavPages[$key])
+    if ($pg.Count -gt 0 -and $pg[0]) { Show-Tab $pg[0] }
+    Update-NavRail
+}
+
+function Update-NavRail {
+    # Rail et bande de titre accordes a la page affichee : rubrique de la page en evidence, titre de la page, et lien de
+    # retour vers la page d entree de la rubrique quand la page affichee n est pas celle-ci
+    if (-not $script:NavButtons) { return }
+    $page = $tabs.SelectedTab
+    $key = Get-NavKey $page
+    foreach ($b in @($script:NavButtons)) {
+        $on = ([string]$b.Tag.Key -ceq $key)
+        if ([bool]$b.Tag.On -eq $on -and $b.Tag.Done) { continue }
+        $b.Tag.On = $on; $b.Tag.Done = $true
+        $b.BackColor = $(if ($on) { $script:NavSel } else { $script:NavBack })
+        $b.ForeColor = $(if ($on) { $script:Theme.Accent2 } else { [System.Drawing.Color]::FromArgb(50, 56, 68) })
+        $b.Font = New-Object System.Drawing.Font($(if ($on) { 'Segoe UI Semibold' } else { 'Segoe UI' }), 10)
+        $b.Image = New-GlyphBitmap ([string]$b.Tag.Glyph) 20 $(if ($on) { $script:Theme.Accent } else { $script:Theme.Muted })
+        $b.Invalidate()
+    }
+    if ($lblPageTitle) { $lblPageTitle.Text = $(if ($page) { [string]$page.Text } else { '' }) }
+    if ($lnkPageBack) {
+        $entry = if ($key) { @($script:NavPages[$key])[0] } else { $null }
+        $child = ($page -and $entry -and $page -ne $entry)
+        $lnkPageBack.Visible = [bool]$child
+        if ($child) { $lnkPageBack.Text = '‹ ' + [string]$entry.Text; $lnkPageBack.Tag = $key; $lblPageTitle.Left = $lnkPageBack.Right + 10 } else { $lblPageTitle.Left = 12 }
+    }
+}
+
+function New-TaskCard([string]$glyph, [string]$title, [string]$desc, [string]$loc, [scriptblock]$action) {
+    # Carte d une tache de la page « Disquettes » : icone et titre sur une rangee, description dessous. Meme nom et memes
+    # gestes que les cartes de l Accueil (Get-HomeCard : clic sur toute la carte, survol), autre disposition
+    $p = New-Object System.Windows.Forms.Panel
+    $p.Name = 'HomeCard'; $p.Location = $loc; $p.Size = '250,120'; $p.BackColor = [System.Drawing.Color]::White
+    $p.Tag = $action
+    $pic = New-Object System.Windows.Forms.PictureBox
+    $pic.Image = New-GlyphBitmap $glyph 28 $script:Theme.Accent; $pic.Location = '14,14'; $pic.Size = '32,32'; $pic.SizeMode = 'CenterImage'
+    $t = New-Object System.Windows.Forms.Label
+    $t.Text = $title; $t.Location = '54,16'; $t.Size = '186,26'; $t.UseMnemonic = $false
+    $t.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 12); $t.ForeColor = $script:Theme.Accent2
+    $d = New-Object System.Windows.Forms.Label
+    $d.Text = $desc; $d.Location = '14,56'; $d.Size = '224,58'; $d.ForeColor = $script:Theme.Muted; $d.UseMnemonic = $false
+    $p.Controls.AddRange(@($pic, $t, $d))
+    foreach ($c in @($p, $pic, $t, $d)) {
+        $c.Cursor = [System.Windows.Forms.Cursors]::Hand
         $c.Add_Click({ $card = Get-HomeCard $this; if ($card -and $card.Tag) { Clear-HomeProgress; & $card.Tag } })
         $c.Add_MouseEnter({ $card = Get-HomeCard $this; if ($card) { $card.BackColor = [System.Drawing.Color]::FromArgb(234, 241, 251) } })
         $c.Add_MouseLeave({
@@ -35428,8 +35551,10 @@ $form = New-Object System.Windows.Forms.Form
 $form.Text = "Greaseweazle Studio v$($script:VersionLabel)"
 # Largeur : cartes de l Accueil (colonne de droite jusqu a 770 px) sans defilement horizontal avec la barre verticale,
 # a la taille par defaut comme a la taille minimale (12.6 : 790 et 800 px auparavant, 5 et 11 px de defilement)
-$form.ClientSize = New-Object System.Drawing.Size(800, 682)
-$form.MinimumSize = New-Object System.Drawing.Size(816, 620)
+# 12.12 (interface, lot A) : 1 000 x 700 par defaut, le rail de navigation (148 px) s ajoutant a gauche des pages ;
+# taille minimale elargie d autant (816 px auparavant)
+$form.ClientSize = New-Object System.Drawing.Size(1000, 700)
+$form.MinimumSize = New-Object System.Drawing.Size(964, 620)
 $form.StartPosition = 'CenterScreen'
 $form.Font = New-Object System.Drawing.Font('Segoe UI', 9.75)
 $form.BackColor = [System.Drawing.Color]::FromArgb(236, 239, 244)
@@ -35575,7 +35700,9 @@ $split.Size = New-Object System.Drawing.Size(790, 644)
 $split.Panel1MinSize = 300
 $split.Panel2MinSize = 80
 $split.SplitterWidth = 6
-$split.SplitterDistance = 372
+# 12.12 (interface, lot A) : 380 px (372 auparavant) : la bande de titre des pages (34 px) remplace la rangee des
+# onglets ; le bouton « ECRIRE LA DISQUETTE » tient encore dans une zone de cette hauteur
+$split.SplitterDistance = 380
 $split.Dock = 'Fill'
 
 $tabs = New-Object System.Windows.Forms.TabControl
@@ -37106,9 +37233,55 @@ $tabH.Tag = 'Premiers-pas'; $tabRs.Tag = 'Restaurer-une-disquette'; $tabL.Tag = 
 $tabR.Tag = 'Autres-onglets'; $tabCv.Tag = 'Autres-onglets'; $tabCmp.Tag = 'Autres-onglets'; $tabAl.Tag = 'Qualité-et-alignement'
 $tabT.Tag = 'Autres-onglets'; $tabD.Tag = 'Autres-onglets'; $tabC.Tag = 'Autres-onglets'
 
-# Onglets affiches : usage courant, ou tous en mode expert
-$script:AllTabs = @($tabH, $tabRs, $tabL, $tabW, $tabR, $tabCv, $tabCmp, $tabAl, $tabT, $tabD, $tabC)
-$script:NoviceTabs = @($tabH, $tabRs, $tabL, $tabW, $tabR, $tabAl)
+# ============================== 12.12 (interface, lot A) : RUBRIQUES ===========
+# Trois pages nouvelles, atteintes par le rail : « Disquettes » (six taches, qui ouvrent les pages existantes),
+# « Lecteurs » et « Parametres » (pages provisoires : les actions deja presentes sur l Accueil et dans les onglets
+# techniques, en attendant leurs pages definitives). Aide de ces pages : celle des premiers pas
+function New-PageTitle([string]$text, [string]$sub) {
+    $a = New-Object System.Windows.Forms.Label
+    $a.Text = $text; $a.Location = '14,8'; $a.AutoSize = $true; $a.UseMnemonic = $false
+    $a.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 13); $a.ForeColor = $script:Theme.Accent2
+    $b = New-Object System.Windows.Forms.Label
+    $b.Text = $sub; $b.Location = '16,38'; $b.AutoSize = $true; $b.ForeColor = $script:Theme.Muted; $b.UseMnemonic = $false
+    return @($a, $b)
+}
+$tabDk = New-TabPage (T 'Disquettes'); $tabDk.AutoScroll = $true; $tabDk.Tag = 'Premiers-pas'
+$cardDkRead    = New-TaskCard 'Download' (T 'Sauvegarder') (T "Lire une disquette et garder son image sur l'ordinateur.") '14,66' { Show-Tab $tabR }
+$cardDkRestore = New-TaskCard 'History' (T 'Restaurer') (T "Copier une disquette d'origine sur une disquette vierge, avec les contrôles les plus stricts.") '274,66' { Show-Tab $tabRs }
+$cardDkCheck   = New-TaskCard 'Diagnostic' (T 'Vérifier') (T "Mesurer la qualité d'une disquette, piste par piste.") '534,66' { Show-Tab $tabAl }
+$cardDkCompare = New-TaskCard 'Copy' (T 'Comparer') (T 'Dire si une disquette est identique à une image.') '14,196' { Show-Tab $tabCmp }
+$cardDkConvert = New-TaskCard 'Switch' (T 'Convertir') (T "Changer le format d'une image de disquette.") '274,196' { Show-Tab $tabCv }
+$cardDkClean   = New-TaskCard 'Repair' (T 'Nettoyer') (T 'Nettoyer les têtes du lecteur. Disquette de nettoyage uniquement.') '534,196' { Show-CleanDialog }
+$lnkDkWrite = New-Object System.Windows.Forms.LinkLabel
+$lnkDkWrite.Name = 'lnkDkWrite'; $lnkDkWrite.Text = (T 'Écrire une image choisie dans un fichier…'); $lnkDkWrite.Location = '16,330'; $lnkDkWrite.AutoSize = $true
+$lnkDkWrite.LinkColor = $script:Theme.Accent; $lnkDkWrite.ActiveLinkColor = $script:Theme.Accent2; $lnkDkWrite.UseMnemonic = $false
+$lnkDkWrite.Add_LinkClicked({ Show-Tab $tabW })
+$tabDk.Controls.AddRange(@((New-PageTitle (T 'Que voulez-vous faire avec une disquette ?') (T 'Pour écrire un jeu sur une disquette, passez par la Bibliothèque.')) + @($cardDkRead, $cardDkRestore, $cardDkCheck, $cardDkCompare, $cardDkConvert, $cardDkClean, $lnkDkWrite)))
+
+$tabDr = New-TabPage (T 'Lecteurs'); $tabDr.AutoScroll = $true; $tabDr.Tag = 'Premiers-pas'
+$cardDrList  = New-HomeCard 'Pin' (T 'Lecteurs enregistrés') (T 'Noms, connexions et calibrations de chaque lecteur.') '14,64' $cardDrives.Tag
+$cardDrCalib = New-HomeCard 'Stopwatch' (T 'Calibrer le lecteur') (T 'Choisir un type de disquette, voir sa courbe et calibrer le lecteur : complète ou rapide.') '397,64' $cardCalib.Tag
+$cardDrTest  = New-HomeCard 'Usb' (T 'Tester le Greaseweazle') (T 'Vérifier que la carte répond (gw info), puis détecter les lecteurs branchés (A, B, 0 à 3).') '14,156' $cardTest.Tag
+$cardDrClean = New-HomeCard 'Repair' (T 'Nettoyer les têtes du lecteur') (T 'Procédure en images. Disquette de nettoyage uniquement, jamais une vraie disquette.') '397,156' $cardClean.Tag
+$tabDr.Controls.AddRange(@((New-PageTitle (T 'Vos lecteurs') (T "Le lecteur branché se choisit dans le bandeau ; le lecteur auquel une disquette est destinée, dans la page d'écriture.")) + @($cardDrList, $cardDrCalib, $cardDrTest, $cardDrClean)))
+
+$tabSet = New-TabPage (T 'Paramètres'); $tabSet.AutoScroll = $true; $tabSet.Tag = 'Premiers-pas'
+$cardSetJitter = New-HomeCard 'Setting' (T 'Régler le jitter') (T "Choisir le jitter maximal d'une piste saine : plus il est strict, plus l'écriture lente réécrit de pistes.") '14,64' $cardJitter.Tag
+$cardSetTools  = New-HomeCard 'Repair' (T 'Outils de la carte et du lecteur') (T 'Tester la carte, mesurer la vitesse du lecteur, effacer une disquette, mettre à jour le firmware.') '397,64' { Show-Tab $tabT }
+$cardSetDelays = New-HomeCard 'Stopwatch' (T 'Délais du lecteur') (T 'Régler les délais que le Greaseweazle applique au lecteur. Réservé au mode expert.') '14,156' { Show-Tab $tabD }
+$cardSetCmd    = New-HomeCard 'Cmd' (T 'Commande libre') (T 'Lancer une commande gw écrite à la main. Réservé au mode expert.') '397,156' { Show-Tab $tabC }
+$tabSet.Controls.AddRange(@((New-PageTitle (T 'Paramètres') (T "Les options de l'écriture se règlent dans la page d'écriture, lien « Options avancées… ».")) + @($cardSetJitter, $cardSetTools, $cardSetDelays, $cardSetCmd)))
+
+# Pages attachees : toutes en mode expert. 12.12 (interface, lot A) : sans le mode expert, seules les pages « Delais »
+# et « Commande libre » manquent (les six taches de la page « Disquettes » sont pour tous) ; Show-Tab active le mode
+# expert pour montrer l une d elles
+$script:AllTabs = @($tabH, $tabRs, $tabL, $tabW, $tabR, $tabCv, $tabCmp, $tabAl, $tabT, $tabD, $tabC, $tabDk, $tabDr, $tabSet)
+$script:NoviceTabs = @($tabH, $tabRs, $tabL, $tabW, $tabR, $tabCv, $tabCmp, $tabAl, $tabT, $tabDk, $tabDr, $tabSet)
+# Rubriques du rail : pages de chacune, la premiere etant sa page d entree (Get-NavKey, Show-NavPage, 100)
+$script:NavPages = [ordered]@{
+    Lib = @($tabL, $tabW); Disk = @($tabDk, $tabR, $tabRs, $tabAl, $tabCmp, $tabCv); Drives = @($tabDr)
+    Set = @($tabSet, $tabT, $tabD, $tabC); Help = @($tabH)
+}
 $chkExpert.Add_CheckedChanged({ Update-TabSet })
 
 # Textes indicatifs des champs vides et infobulles des champs qui n en avaient pas
@@ -37138,7 +37311,39 @@ $tip.SetToolTip($txtRDiskdefs, (T 'Fichier de définitions de formats personnali
 $tip.SetToolTip($btnRead, (T 'Lit la disquette insérée et enregistre le fichier.'))
 $tip.SetToolTip($btnWrite, (T 'Écrit l''image sur la disquette insérée avec les options de cet onglet. Tout le contenu de la disquette est remplacé.'))
 $tabs.TabPages.AddRange([System.Windows.Forms.TabPage[]]$script:AllTabs)   # tous attaches : Fit-ControlText les ajuste ; Update-TabSet apres la configuration
-$split.Panel1.Controls.Add($tabs)
+# 12.12 (interface, lot A) : les en-tetes des onglets ne sont plus affiches (onglets en boutons de hauteur nulle) : le rail
+# de gauche mene aux rubriques, la bande de titre dit quelle page est affichee et ramene a la page d entree de sa rubrique
+$tabs.Multiline = $false; $tabs.Appearance = 'FlatButtons'; $tabs.SizeMode = 'Fixed'; $tabs.ItemSize = New-Object System.Drawing.Size(0, 1)
+$script:NavBack = [System.Drawing.Color]::FromArgb(243, 245, 249); $script:NavSel = [System.Drawing.Color]::FromArgb(226, 236, 250)
+$pnlRail = New-Object System.Windows.Forms.Panel
+$pnlRail.Name = 'pnlRail'; $pnlRail.Dock = 'Left'; $pnlRail.Width = 148; $pnlRail.BackColor = $script:NavBack
+$flowRail = New-Object System.Windows.Forms.FlowLayoutPanel
+$flowRail.Name = 'flowRail'; $flowRail.Dock = 'Fill'; $flowRail.FlowDirection = 'TopDown'; $flowRail.WrapContents = $false
+$flowRail.Padding = New-Object System.Windows.Forms.Padding(0, 10, 0, 0); $flowRail.BackColor = $script:NavBack
+$btnNavLib = New-NavButton 'Lib' 'Library' (T 'Bibliothèque'); $btnNavDisk = New-NavButton 'Disk' 'Save' (T 'Disquettes')
+$btnNavDrives = New-NavButton 'Drives' 'Usb' (T 'Lecteurs'); $btnNavSet = New-NavButton 'Set' 'Setting' (T 'Paramètres')
+$btnNavHelp = New-NavButton 'Help' 'Help' (T 'Aide')
+$btnNavLog = New-NavButton 'Log' 'Page' (T 'Journal'); $btnNavLog.Dock = 'Bottom'
+$tip.SetToolTip($btnNavLog, (T 'Affiche ou masque le journal.'))
+$script:NavButtons = @($btnNavLib, $btnNavDisk, $btnNavDrives, $btnNavSet, $btnNavHelp)
+$flowRail.Controls.AddRange($script:NavButtons)
+$pnlRail.Controls.Add($flowRail); $pnlRail.Controls.Add($btnNavLog)
+$pnlRail.Add_Paint({ $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(214, 219, 228)); $_.Graphics.DrawLine($pen, ($this.Width - 1), 0, ($this.Width - 1), $this.Height); $pen.Dispose() })
+$pnlPageBar = New-Object System.Windows.Forms.Panel
+$pnlPageBar.Name = 'pnlPageBar'; $pnlPageBar.Dock = 'Top'; $pnlPageBar.Height = 34; $pnlPageBar.BackColor = $script:Theme.Page
+$lnkPageBack = New-Object System.Windows.Forms.LinkLabel
+$lnkPageBack.Name = 'lnkPageBack'; $lnkPageBack.Location = '12,8'; $lnkPageBack.AutoSize = $true; $lnkPageBack.Visible = $false; $lnkPageBack.UseMnemonic = $false
+$lnkPageBack.LinkColor = $script:Theme.Accent; $lnkPageBack.ActiveLinkColor = $script:Theme.Accent2; $lnkPageBack.LinkBehavior = 'HoverUnderline'
+$lnkPageBack.Add_LinkClicked({ Show-NavPage ([string]$this.Tag) })
+$lblPageTitle = New-Object System.Windows.Forms.Label
+$lblPageTitle.Name = 'lblPageTitle'; $lblPageTitle.Location = '12,6'; $lblPageTitle.AutoSize = $true; $lblPageTitle.UseMnemonic = $false
+$lblPageTitle.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 11); $lblPageTitle.ForeColor = $script:Theme.Accent2
+$pnlPageBar.Controls.AddRange(@($lnkPageBack, $lblPageTitle))
+$pnlPageBar.Add_Paint({ $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(214, 219, 228)); $_.Graphics.DrawLine($pen, 0, ($this.Height - 1), $this.Width, ($this.Height - 1)); $pen.Dispose() })
+# Ordre des ancrages : la bande de titre prend le haut du volet, les pages le reste ; le rail est ancre a la fenetre
+# (plus bas), sur toute la hauteur entre le bandeau et la barre de boutons
+$split.Panel1.Controls.Add($tabs); $split.Panel1.Controls.Add($pnlPageBar)
+$tabs.Add_SelectedIndexChanged({ Update-NavRail })
 # 12.8 (lot 2) : onglet Restauration : cadre « 2. Calibration du lecteur » a jour a l entree dans l onglet
 $tabs.Add_SelectedIndexChanged({ if ($tabs.SelectedTab -eq $tabRs) { Update-RsCalib } })
 # Onglet Ecriture defilant (fenetre basse) : il s ouvre en haut, sur l image. Selectionne par le code (bibliotheque),
@@ -37385,6 +37590,7 @@ $script:StIcons = @{
 }
 $stOp.Image = $script:StIcons.idle
 
+$form.Controls.Add($pnlRail)       # 12.12 (interface, lot A) : ajoute en premier : ancre apres le bandeau et les barres du bas, a gauche des pages
 $form.Controls.Add($flowButtons)
 $form.Controls.Add($status)
 $form.Controls.Add($pnlTop)
@@ -38063,6 +38269,10 @@ Set-WriteTabLayout
 Set-Defaults
 $loaded = Load-Config
 Update-TabSet
+# 12.12 (interface, lot A) : l application s ouvre sur la Bibliotheque quand son dossier est regle, sinon sur l Accueil
+# (rubrique « Aide ») ; rail accorde a la page
+if ($txtLibRoot.Text.Trim()) { $tabs.SelectedTab = $tabL }
+Update-NavRail
 Update-CurveButton ''
 
 Append-Log "Greaseweazle Studio v$($script:VersionLabel)"
