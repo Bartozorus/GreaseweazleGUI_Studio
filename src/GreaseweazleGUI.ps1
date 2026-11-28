@@ -37380,6 +37380,13 @@ $tip.SetToolTip($cmbRDensel, (T 'Force le signal de densité du lecteur (H = hau
 $tip.SetToolTip($txtRDiskdefs, (T 'Fichier de définitions de formats personnalisés. Vide : formats intégrés à gw.'))
 $tip.SetToolTip($btnRead, (T 'Lit la disquette insérée et enregistre le fichier.'))
 $tip.SetToolTip($btnWrite, (T 'Écrit l''image sur la disquette insérée avec les options de cet onglet. Tout le contenu de la disquette est remplacé.'))
+# 12.12 (interface, lot A, rc6) : taille du controle d onglets avant que ses pages lui soient attachees. Il n a pas encore
+# de parent (il rejoint son panneau hote plus bas) et vaudrait 200 x 100 : les instructions qui masquent ses en-tetes, puis
+# Update-PageHost, lui font creer sa poignee et ramener chaque page a cette taille. Un controle ancre a gauche et a
+# droite (ou en haut et en bas) y tombe a une taille nulle, puis reste trop grand de ce qui lui a manque quand la page
+# retrouve sa place (rc4 et rc5 : champ « Racine » sur ses boutons, liste de la Bibliotheque sur le panneau de detail).
+# Avec la taille de conception des pages et de la marge pour les en-tetes, aucune page ne passe sous cette taille
+$tabs.Size = New-Object System.Drawing.Size(($script:PageW + 40), ($script:PageH + 120))
 $tabs.TabPages.AddRange([System.Windows.Forms.TabPage[]]$script:AllTabs)   # tous attaches : Fit-ControlText les ajuste ; Update-TabSet apres la configuration
 # 12.12 (interface, lot A) : les en-tetes des onglets ne sont plus affiches (onglets en boutons de hauteur nulle) : le rail
 # de gauche mene aux rubriques, la bande de titre dit quelle page est affichee et ramene a la page d entree de sa rubrique

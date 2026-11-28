@@ -16,6 +16,11 @@ $Wt = Get-TestRoot $Wt
 #      affiches : la zone de page du controle d onglets prend exactement le panneau hote et ses en-tetes restent
 #      au-dessus de la zone visible, a plusieurs tailles, pages du mode expert comme pages courantes, en-tetes masques
 #      comme en-tetes de hauteur normale ; deuxieme appel sans effet ; panneau de taille nulle sans effet.
+#  N7  (rc6) taille des pages a la construction : instructions reelles de 510 et de 540 rejouees dans leur ordre
+#      (creation du controle d onglets, taille, attache des pages, en-tetes masques, panneau hote) : une page a la
+#      taille de conception garde ses controles ancres a leur place (champ ancre a gauche et a droite, liste ancree
+#      des quatre cotes, bouton ancre a droite) a la taille par defaut, en grande fenetre et au retour ; sans
+#      l instruction de taille, le defaut des rc4 et rc5 reparait (champ et liste trop grands).
 # Fonctions reelles extraites par l arbre syntaxique ; aucun gw, aucune fenetre affichee.
 # Non couvert ici : le rendu de la fenetre entiere (controle hors depot, image par image).
 function Chk([string]$id, [bool]$ok, [string]$d) {
@@ -177,6 +182,54 @@ foreach ($mode in 'masques', 'normaux') {
 }
 "  N6 : $($n6Txt -join ' ; ')"
 Chk 'N6' ($n6.Count -eq 0 -and $n6N -eq 16 -and ($hostSt -join ' | ') -ceq $hostExp) "hote des pages (instructions reelles de 540 : $($hostSt.Count), Update-PageHost reelle) : la zone de page prend exactement le panneau et les en-tetes restent au-dessus de la zone visible, dans $n6N situations (4 tailles, pages du mode expert et pages courantes, en-tetes masques et en-tetes de hauteur normale) ; deuxieme appel et panneau de taille nulle sans effet ; en ecart : $(if ($n6.Count) { $n6 -join ' | ' } else { 'aucun' })"
+
+'--- taille des pages a la construction'
+# 12.12 rc6 : en rc4 et rc5, les pages etaient ramenees a la taille par defaut du controle d onglets (200 x 100) pendant la
+# construction : un controle ancre a gauche et a droite y tombait a une largeur nulle et restait ensuite trop large de ce
+# qui lui avait manque (champ « Racine » de la Bibliotheque sur ses boutons, liste sur le panneau de detail). Condition
+# eprouvee : aucune page, meme non affichee, ne passe sous sa taille de conception pendant la construction
+$st510 = @((Get-IcAst (Get-IcMod '510')).EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text })
+$tabs510 = @($st510 | Where-Object { $_ -match '^\$tabs = New-Object |^\$tabs\.(Dock|Padding|Multiline) = ' })
+$seq540 = @($st540 | Where-Object { $_ -match '^\$tabs\.Size = |^\$tabs\.TabPages\.AddRange\(|^\$tabs\.(Multiline = \$false|Appearance = |SizeMode = |ItemSize = )|^\$pnlPages( = |\.)' -or $_ -ceq '$tabs.Dock = ''None''' })
+$pwD = [int](@($st500 | Where-Object { $_ -match '^\$script:PageW = (\d+)$' } | ForEach-Object { [regex]::Match($_, '(\d+)$').Value }) + @(0))[0]
+$phD = [int](@($st500 | Where-Object { $_ -match '^\$script:PageH = (\d+)$' } | ForEach-Object { [regex]::Match($_, '(\d+)$').Value }) + @(0))[0]
+$gen510 = Join-Path $here 'gen-interface-510-onglets.ps1'; [System.IO.File]::WriteAllText($gen510, (($tabs510 -join "`r`n") + "`r`n"), $u8)
+function Invoke-IcBuild([string[]]$statements, [string]$tag) {
+    # Page a la taille de conception : champ comme le champ « Racine » (85, largeur 240, ancre a gauche et a droite), liste
+    # comme celle de la Bibliotheque (10,98, 448 x 214, ancree des quatre cotes), bouton ancre a droite
+    $g = Join-Path $here "gen-interface-540-ordre-$tag.ps1"; [System.IO.File]::WriteAllText($g, (($statements -join "`r`n") + "`r`n"), $u8)
+    $script:PageW = $pwD; $script:PageH = $phD
+    . $gen510
+    $pg = New-Object System.Windows.Forms.TabPage; $pg.Size = New-Object System.Drawing.Size($pwD, $phD)
+    $tb = New-Object System.Windows.Forms.TextBox; $tb.Location = '85,11'; $tb.Width = 240; $tb.Anchor = 'Top,Left,Right'
+    $lv = New-Object System.Windows.Forms.ListBox; $lv.IntegralHeight = $false; $lv.Location = '10,98'; $lv.Size = '448,214'; $lv.Anchor = 'Top,Bottom,Left,Right'
+    $bt = New-Object System.Windows.Forms.Button; $bt.Location = '330,10'; $bt.Width = 36; $bt.Anchor = 'Top,Right'
+    $pg.Controls.AddRange(@($tb, $lv, $bt))
+    # La page eprouvee n est pas la page choisie, comme la Bibliotheque derriere l Accueil : une page qui n est pas affichee
+    # garde la taille prise a la creation de la poignee du controle d onglets jusqu a ce qu on l ouvre
+    $script:AllTabs = @((New-Object System.Windows.Forms.TabPage), $pg)
+    . $g
+    # Place du panneau hote a son entree dans le volet des pages (790 x 346) : la poignee du controle d onglets est creee
+    # ici ; taille de la page avant qu on l ouvre
+    $pnlPages.Dock = 'None'; $pnlPages.Size = New-Object System.Drawing.Size(790, 346); Update-PageHost
+    $first = "$($pg.Width)x$($pg.Height)"; $firstOk = ($pg.Width -ge $pwD -and $pg.Height -ge $phD)
+    $tabs.SelectedTab = $pg
+    $o = @()
+    foreach ($sz in @(@(852, 301), @(1772, 484), @(852, 301))) {
+        $pnlPages.Size = New-Object System.Drawing.Size($sz[0], $sz[1]); Update-PageHost
+        $o += "$($pg.Width)x$($pg.Height):$($tb.Left)-$($tb.Right),$($lv.Width)x$($lv.Height),$($bt.Left)"
+    }
+    $pnlPages.Dispose(); Remove-Item -LiteralPath $g -Force
+    return @{ First = $first; FirstOk = $firstOk; Seq = ($o -join ' | ') }
+}
+# Attendu par les ancrages depuis la taille de conception (782 x 340) : champ de 85 a largeur de page - 457, liste de
+# 448 + (largeur - 782) sur 214 + (hauteur - 340), bouton a 330 + (largeur - 782)
+$want7 = '852x301:85-395,518x175,400 | 1772x484:85-1315,1438x358,1320 | 852x301:85-395,518x175,400'
+$got7 = Invoke-IcBuild $seq540 'reel'
+$bad7 = Invoke-IcBuild @($seq540 | Where-Object { $_ -notmatch '^\$tabs\.Size = ' }) 'sans-taille'
+$order7 = ((@($seq540 | ForEach-Object { if ($_ -match '^\$tabs\.Size = ') { 'S' } elseif ($_ -match 'AddRange') { 'A' } elseif ($_ -match '^\$tabs\.ItemSize') { 'I' } elseif ($_ -match '^\$pnlPages = ') { 'P' } }) -join ''))
+Chk 'N7' ($pwD -eq 782 -and $phD -eq 340 -and $tabs510.Count -eq 4 -and $order7 -ceq 'SAIP' -and $got7.FirstOk -and $got7.Seq -ceq $want7 -and -not $bad7.FirstOk) "instructions reelles de 510 et de 540 dans leur ordre ($order7 : taille, attache des pages, en-tetes masques, panneau hote) : une page de $pwD x $phD qui n est pas affichee garde au moins sa taille de conception ($($got7.First)) ; ouverte, ses controles ancres sont a leur place a la taille par defaut, en grande fenetre et au retour ($($got7.Seq)) ; sans l instruction de taille, la page tombe a $($bad7.First)"
+if (Test-Path -LiteralPath $gen510) { Remove-Item -LiteralPath $gen510 -Force }
 
 foreach ($c in @($card, $tabs, $split, $lblPageTitle, $lnkPageBack) + @($script:NavButtons)) { try { $c.Dispose() } catch { } }
 foreach ($g in @($gen, $hostGen, $hideGen)) { if (Test-Path -LiteralPath $g) { Remove-Item -LiteralPath $g -Force } }
