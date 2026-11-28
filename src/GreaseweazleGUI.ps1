@@ -4891,6 +4891,21 @@ function New-TaskCard([string]$glyph, [string]$title, [string]$desc, [string]$lo
     return $p
 }
 
+# 12.12 (interface, lot A, rc5) : en-tetes des onglets hors de la zone visible. Reduits a 1 px (540), ils restaient dessines
+# a l ecran sur les quelques pixels que le controle d onglets garde au-dessus de la page (hauts des icones, illisibles).
+# Le controle deborde donc de son panneau hote ($pnlPages) d autant que sa zone de page est en retrait sur chaque bord :
+# la page prend exactement le panneau, le reste est rogne par lui. Deux passes : c est un changement de taille qui fait
+# relire au controle sa zone de page, gardee en memoire.
+function Update-PageHost {
+    $w = [int]$pnlPages.ClientSize.Width; $h = [int]$pnlPages.ClientSize.Height
+    if ($w -le 0 -or $h -le 0) { return }
+    foreach ($pass in 1, 2) {
+        $dr = $tabs.DisplayRectangle
+        $l = [int]$dr.Left; $t = [int]$dr.Top; $r = [int]($tabs.Width - $dr.Right); $b = [int]($tabs.Height - $dr.Bottom)
+        $tabs.SetBounds((0 - $l), (0 - $t), ($w + $l + $r), ($h + $t + $b))
+    }
+}
+
 function Update-TabSet {
     $want = if ($chkExpert.Checked) { $script:AllTabs } else { $script:NoviceTabs }
     $sel = $tabs.SelectedTab
@@ -37340,9 +37355,15 @@ $lblPageTitle.Name = 'lblPageTitle'; $lblPageTitle.Location = '12,6'; $lblPageTi
 $lblPageTitle.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 11); $lblPageTitle.ForeColor = $script:Theme.Accent2
 $pnlPageBar.Controls.AddRange(@($lnkPageBack, $lblPageTitle))
 $pnlPageBar.Add_Paint({ $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(214, 219, 228)); $_.Graphics.DrawLine($pen, 0, ($this.Height - 1), $this.Width, ($this.Height - 1)); $pen.Dispose() })
+# 12.12 (interface, lot A, rc5) : panneau hote des pages. Le controle d onglets n y est plus ancre : Update-PageHost (100)
+# le fait deborder du panneau pour que ses en-tetes sortent de la zone visible, a chaque changement de taille
+$pnlPages = New-Object System.Windows.Forms.Panel
+$pnlPages.Name = 'pnlPages'; $pnlPages.Dock = 'Fill'; $pnlPages.BackColor = $script:Theme.Page
+$tabs.Dock = 'None'; $pnlPages.Controls.Add($tabs)
+$pnlPages.Add_Resize({ Update-PageHost })
 # Ordre des ancrages : la bande de titre prend le haut du volet, les pages le reste ; le rail est ancre a la fenetre
 # (plus bas), sur toute la hauteur entre le bandeau et la barre de boutons
-$split.Panel1.Controls.Add($tabs); $split.Panel1.Controls.Add($pnlPageBar)
+$split.Panel1.Controls.Add($pnlPages); $split.Panel1.Controls.Add($pnlPageBar)
 $tabs.Add_SelectedIndexChanged({ Update-NavRail })
 # 12.8 (lot 2) : onglet Restauration : cadre « 2. Calibration du lecteur » a jour a l entree dans l onglet
 $tabs.Add_SelectedIndexChanged({ if ($tabs.SelectedTab -eq $tabRs) { Update-RsCalib } })
@@ -38273,6 +38294,7 @@ Update-TabSet
 # (rubrique « Aide ») ; rail accorde a la page
 if ($txtLibRoot.Text.Trim()) { $tabs.SelectedTab = $tabL }
 Update-NavRail
+Update-PageHost
 Update-CurveButton ''
 
 Append-Log "Greaseweazle Studio v$($script:VersionLabel)"

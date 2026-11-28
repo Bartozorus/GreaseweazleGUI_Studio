@@ -12,6 +12,10 @@ $Wt = Get-TestRoot $Wt
 #      actions des cartes de l Accueil reprises telles quelles.
 #  N5  fenetre et assemblage (statique) : 1 000 x 700, taille minimale elargie du rail, en-tetes des onglets masques, rail
 #      ancre a la fenetre avant les barres du bas, bande de titre au-dessus des pages, page de demarrage.
+#  N6  (rc5) hote des pages : instructions reelles de 540 et Update-PageHost reelle, sur de vrais controles jamais
+#      affiches : la zone de page du controle d onglets prend exactement le panneau hote et ses en-tetes restent
+#      au-dessus de la zone visible, a plusieurs tailles, pages du mode expert comme pages courantes, en-tetes masques
+#      comme en-tetes de hauteur normale ; deuxieme appel sans effet ; panneau de taille nulle sans effet.
 # Fonctions reelles extraites par l arbre syntaxique ; aucun gw, aucune fenetre affichee.
 # Non couvert ici : le rendu de la fenetre entiere (controle hors depot, image par image).
 function Chk([string]$id, [bool]$ok, [string]$d) {
@@ -42,7 +46,7 @@ $st500 = @((Get-IcAst (Get-IcMod '500')).EndBlock.Statements | ForEach-Object { 
 $st600 = @((Get-IcAst (Get-IcMod '600')).EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text })
 $fn100 = @{}
 foreach ($fd in (Get-IcAst (Get-IcMod '100')).FindAll({ param($x) $x -is $tFn }, $false)) { $fn100[$fd.Name] = $fd.Extent.Text }
-$load = @('Get-NavKey', 'New-NavButton', 'Show-NavPage', 'Update-NavRail', 'New-TaskCard', 'Get-HomeCard', 'New-GlyphBitmap')
+$load = @('Get-NavKey', 'New-NavButton', 'Show-NavPage', 'Update-NavRail', 'Update-PageHost', 'New-TaskCard', 'Get-HomeCard', 'New-GlyphBitmap')
 $miss = @($load | Where-Object { -not $fn100.ContainsKey($_) })
 if ($miss.Count) { throw "fonctions introuvables : $($miss -join ', ')" }
 $gen = Join-Path $here 'gen-interface-cadre.ps1'
@@ -128,11 +132,54 @@ $rail = @($st540 | Where-Object { $_ -match '^\$pnlRail\.(Dock = ''Left''|Width 
 $bar = @($st540 | Where-Object { $_ -match '^\$pnlPageBar\.(Dock = ''Top''|Height = 34)$' })
 $ev = @($st540 | Where-Object { $_ -ceq '$tabs.Add_SelectedIndexChanged({ Update-NavRail })' })
 $i600 = [array]::IndexOf($st600, 'Update-TabSet')
-$start = ($i600 -ge 0 -and $i600 + 2 -lt $st600.Count -and $st600[$i600 + 1] -ceq 'if ($txtLibRoot.Text.Trim()) { $tabs.SelectedTab = $tabL }' -and $st600[$i600 + 2] -ceq 'Update-NavRail')
-Chk 'N5' (($i500 -join ' | ') -ceq '$form.ClientSize = New-Object System.Drawing.Size(1000, 700) | $form.MinimumSize = New-Object System.Drawing.Size(964, 620)' -and $iHide.Count -eq 4 -and ($adds -join ',') -ceq 'pnlRail,flowButtons,status,pnlTop,split' -and ($p1 -join ',') -ceq 'tabs,pnlPageBar' -and $rail.Count -eq 2 -and $bar.Count -eq 2 -and $ev.Count -eq 1 -and $start) "fenetre de 1 000 x 700, au moins 964 x 620 ; en-tetes des onglets masques ($($iHide.Count) instructions) ; rail de 148 px ancre a gauche de la fenetre, ajoute avant les barres du bas, le bandeau et le volet des pages ($($adds -join ', ')) ; volet des pages : $($p1 -join ', ') ; rail accorde a chaque changement de page ($($ev.Count)) ; demarrage sur la Bibliotheque quand son dossier est regle, rail accorde ($start)"
+$start = ($i600 -ge 0 -and $i600 + 3 -lt $st600.Count -and $st600[$i600 + 1] -ceq 'if ($txtLibRoot.Text.Trim()) { $tabs.SelectedTab = $tabL }' -and $st600[$i600 + 2] -ceq 'Update-NavRail' -and $st600[$i600 + 3] -ceq 'Update-PageHost')
+Chk 'N5' (($i500 -join ' | ') -ceq '$form.ClientSize = New-Object System.Drawing.Size(1000, 700) | $form.MinimumSize = New-Object System.Drawing.Size(964, 620)' -and $iHide.Count -eq 4 -and ($adds -join ',') -ceq 'pnlRail,flowButtons,status,pnlTop,split' -and ($p1 -join ',') -ceq 'pnlPages,pnlPageBar' -and $rail.Count -eq 2 -and $bar.Count -eq 2 -and $ev.Count -eq 1 -and $start) "fenetre de 1 000 x 700, au moins 964 x 620 ; en-tetes des onglets masques ($($iHide.Count) instructions) ; rail de 148 px ancre a gauche de la fenetre, ajoute avant les barres du bas, le bandeau et le volet des pages ($($adds -join ', ')) ; volet des pages : $($p1 -join ', ') ; rail accorde a chaque changement de page ($($ev.Count)) ; demarrage sur la Bibliotheque quand son dossier est regle, rail puis hote des pages accordes ($start)"
+
+'--- hote des pages'
+# 12.12 rc5 : a l ecran, les en-tetes reduits a 1 px restaient dessines au-dessus de la page (hauts des icones) ; le rendu
+# hors ecran ne les montre pas. C est donc la geometrie qui est verifiee : la zone de page prend tout le panneau hote, et
+# le panneau rogne tout ce que le controle d onglets dessine hors de cette zone, quelle que soit la hauteur des en-tetes
+$hostSt = @($st540 | Where-Object { $_ -match '^\$pnlPages( = |\.)' -or $_ -ceq '$tabs.Dock = ''None''' })
+$hostExp = '$pnlPages = New-Object System.Windows.Forms.Panel | $pnlPages.Name = ''pnlPages'' | $pnlPages.Dock = ''Fill'' | $pnlPages.BackColor = $script:Theme.Page | $tabs.Dock = ''None'' | $pnlPages.Controls.Add($tabs) | $pnlPages.Add_Resize({ Update-PageHost })'
+$u8 = New-Object System.Text.UTF8Encoding($true)
+$hostGen = Join-Path $here 'gen-interface-hote.ps1'; [System.IO.File]::WriteAllText($hostGen, (($hostSt -join "`r`n") + "`r`n"), $u8)
+$hideGen = Join-Path $here 'gen-interface-entetes.ps1'; [System.IO.File]::WriteAllText($hideGen, (($iHide -join "`r`n") + "`r`n"), $u8)
+$n6 = @(); $n6Txt = @(); $n6N = 0
+foreach ($mode in 'masques', 'normaux') {
+    foreach ($set in @(@{ K = 'expert'; V = $allV }, @{ K = 'courant'; V = $novV })) {
+        try { $tabs.Dispose() } catch { }
+        $tabs = New-Object System.Windows.Forms.TabControl
+        $img = New-Object System.Windows.Forms.ImageList; $img.ImageSize = New-Object System.Drawing.Size(16, 16)
+        $img.Images.Add('g', (New-Object System.Drawing.Bitmap(16, 16)))
+        $tabs.ImageList = $img
+        foreach ($v in $set.V) { $p = New-Object System.Windows.Forms.TabPage; $p.Text = "page $v"; $p.ImageKey = 'g'; $tabs.TabPages.Add($p) }
+        if ($mode -ceq 'masques') { . $hideGen }      # instructions reelles de 540
+        . $hostGen                                     # panneau hote reel et son gestionnaire de taille
+        $pnlPages.Dock = 'None'; $strip = 0
+        foreach ($sz in @(@(852, 301), @(816, 266), @(1624, 454), @(852, 600))) {
+            $pnlPages.Size = New-Object System.Drawing.Size($sz[0], $sz[1])      # le gestionnaire reel appelle Update-PageHost
+            $dr = $tabs.DisplayRectangle; $strip = [int]$dr.Top
+            $low = [int](@(for ($k = 0; $k -lt $tabs.TabCount; $k++) { $tabs.Top + $tabs.GetTabRect($k).Bottom }) | Measure-Object -Maximum).Maximum
+            $n6N++
+            if ($tabs.Parent -ne $pnlPages -or ($tabs.Left + $dr.Left) -ne 0 -or ($tabs.Top + $dr.Top) -ne 0 -or $dr.Width -ne $sz[0] -or $dr.Height -ne $sz[1] -or $low -gt 0) {
+                $n6 += "$mode $($set.K) $($sz[0]) x $($sz[1]) : page en $($tabs.Left + $dr.Left),$($tabs.Top + $dr.Top), $($dr.Width) x $($dr.Height), bas des en-tetes a $low"
+            }
+        }
+        $n6Txt += "en-tetes $mode, mode $($set.K) : $strip px au-dessus de la page"
+        # deuxieme appel sans changement de taille : rien ne bouge ; panneau de taille nulle (fenetre reduite) : sans effet
+        $b0 = [string]$tabs.Bounds; Update-PageHost
+        if ([string]$tabs.Bounds -cne $b0) { $n6 += "$mode $($set.K) : deuxieme appel, $b0 devient $($tabs.Bounds)" }
+        $zErr = ''
+        try { $pnlPages.Size = New-Object System.Drawing.Size(0, 0); Update-PageHost } catch { $zErr = $_.Exception.Message }
+        if ($zErr -or [string]$tabs.Bounds -cne $b0) { $n6 += "$mode $($set.K) : panneau de taille nulle : $zErr $($tabs.Bounds)" }
+        $pnlPages.Dispose(); $img.Dispose()
+    }
+}
+"  N6 : $($n6Txt -join ' ; ')"
+Chk 'N6' ($n6.Count -eq 0 -and $n6N -eq 16 -and ($hostSt -join ' | ') -ceq $hostExp) "hote des pages (instructions reelles de 540 : $($hostSt.Count), Update-PageHost reelle) : la zone de page prend exactement le panneau et les en-tetes restent au-dessus de la zone visible, dans $n6N situations (4 tailles, pages du mode expert et pages courantes, en-tetes masques et en-tetes de hauteur normale) ; deuxieme appel et panneau de taille nulle sans effet ; en ecart : $(if ($n6.Count) { $n6 -join ' | ' } else { 'aucun' })"
 
 foreach ($c in @($card, $tabs, $split, $lblPageTitle, $lnkPageBack) + @($script:NavButtons)) { try { $c.Dispose() } catch { } }
-if (Test-Path -LiteralPath $gen) { Remove-Item -LiteralPath $gen -Force }
+foreach ($g in @($gen, $hostGen, $hideGen)) { if (Test-Path -LiteralPath $g) { Remove-Item -LiteralPath $g -Force } }
 $nk = if ($script:Fail) { ' ; NON CONFORMES : ' + (@($script:FailIds) -join ', ') } else { '' }
 "=== bilan logic-interface-cadre : $($script:NChk - $script:Fail) conformes sur $($script:NChk)$nk ; $([int]$sw.Elapsed.TotalSeconds) s"
 if ($script:Fail) { exit 1 }

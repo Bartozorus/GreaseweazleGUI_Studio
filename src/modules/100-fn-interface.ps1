@@ -340,6 +340,21 @@ function New-TaskCard([string]$glyph, [string]$title, [string]$desc, [string]$lo
     return $p
 }
 
+# 12.12 (interface, lot A, rc5) : en-tetes des onglets hors de la zone visible. Reduits a 1 px (540), ils restaient dessines
+# a l ecran sur les quelques pixels que le controle d onglets garde au-dessus de la page (hauts des icones, illisibles).
+# Le controle deborde donc de son panneau hote ($pnlPages) d autant que sa zone de page est en retrait sur chaque bord :
+# la page prend exactement le panneau, le reste est rogne par lui. Deux passes : c est un changement de taille qui fait
+# relire au controle sa zone de page, gardee en memoire.
+function Update-PageHost {
+    $w = [int]$pnlPages.ClientSize.Width; $h = [int]$pnlPages.ClientSize.Height
+    if ($w -le 0 -or $h -le 0) { return }
+    foreach ($pass in 1, 2) {
+        $dr = $tabs.DisplayRectangle
+        $l = [int]$dr.Left; $t = [int]$dr.Top; $r = [int]($tabs.Width - $dr.Right); $b = [int]($tabs.Height - $dr.Bottom)
+        $tabs.SetBounds((0 - $l), (0 - $t), ($w + $l + $r), ($h + $t + $b))
+    }
+}
+
 function Update-TabSet {
     $want = if ($chkExpert.Checked) { $script:AllTabs } else { $script:NoviceTabs }
     $sel = $tabs.SelectedTab

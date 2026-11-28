@@ -955,6 +955,13 @@ $novV = @([regex]::Matches($novSt, '\$(tab\w+)') | ForEach-Object { $_.Groups[1]
 $st540 = @((Get-Ast (Get-EoMod $Wt '540')).EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text })
 $hideSt = @($st540 | Where-Object { $_ -match '^\$tabs\.(Multiline = \$false|Appearance = |SizeMode = |ItemSize = )' })
 $hideGen = Join-Path $here 'gen-eo-540-entetes.ps1'; Write-EoGen $hideGen $hideSt
+# 12.12 rc5 : panneau hote des pages (instructions reelles de 540) et Update-PageHost reelle (100) : les en-tetes sortent
+# de la zone visible, la page prend toute la zone sous la bande de titre
+$hostSt = @($st540 | Where-Object { $_ -match '^\$pnlPages( = |\.)' -or $_ -ceq '$tabs.Dock = ''None''' })
+$hostGen = Join-Path $here 'gen-eo-540-hote.ps1'; Write-EoGen $hostGen $hostSt
+$phFn = @((Get-Ast (Get-EoMod $Wt '100')).FindAll({ param($x) $x -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -ceq 'Update-PageHost' }, $false) | ForEach-Object { [string]$_.Extent.Text })
+$phGen = Join-Path $here 'gen-eo-100-hote.ps1'; Write-EoGen $phGen $phFn
+if ($phFn.Count -eq 1) { . $phGen }
 $barH = [int](@($st540 | Where-Object { $_ -match '^\$pnlPageBar\.Height = (\d+)$' } | ForEach-Object { [regex]::Match($_, '(\d+)$').Value }) + @(0))[0]
 $st510 = @((Get-Ast (Get-EoMod $Wt '510')).EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text })
 $zone0 = [int](@($st510 | Where-Object { $_ -match '^\$split\.SplitterDistance = (\d+)$' } | ForEach-Object { [regex]::Match($_, '(\d+)$').Value }) + @(0))[0]
@@ -969,23 +976,25 @@ foreach ($lg in 'fr', 'en') {
             . $eoG.Ico
             . $hideGen
             foreach ($v in $set.V) { $tabs.TabPages.Add((Get-Variable -Name $v -ValueOnly)) }
+            . $hostGen
+            $pnlPages.Dock = 'None'; $pnlPages.Size = New-Object System.Drawing.Size(800, ($h - $barH))
             # Poignee creee sans fenetre visible : le nombre de rangees et la page ne se lisent qu avec elle
             $tErr = ''
-            try { $null = $tabs.Handle } catch { $tErr = $_.Exception.Message }
+            try { $null = $tabs.Handle; Update-PageHost } catch { $tErr = $_.Exception.Message }
             $dr = $tabs.DisplayRectangle
             $hid = (-not $tabs.Multiline -and [string]$tabs.Appearance -ceq 'FlatButtons' -and [string]$tabs.SizeMode -ceq 'Fixed' -and $tabs.ItemSize.Height -eq 1)
-            $tRows += @{ L = $lg; N = $set.N; K = $set.K; H = $h; Rows = $(if ($tErr) { -1 } else { $tabs.RowCount }); Multi = $tabs.Multiline; Hid = $hid; PageH = $dr.Height; PageW = $dr.Width; Err = $tErr }
-            $tabs.Dispose()
+            $tRows += @{ L = $lg; N = $set.N; K = $set.K; H = $h; Rows = $(if ($tErr) { -1 } else { $tabs.RowCount }); Multi = $tabs.Multiline; Hid = $hid; PageH = $dr.Height; PageW = $dr.Width; X = ($tabs.Left + $dr.Left); Y = ($tabs.Top + $dr.Top); Err = $tErr }
+            $pnlPages.Dispose()
         }
     }
 }
 $script:Lang = 'fr'
 foreach ($r in $tRows) { "  T $($r.L) : $($r.N) onglets, barre de $($r.H) px : $($r.Rows) rangee(s), page $($r.PageW) x $($r.PageH)$(if ($r.Err) { " ; poignee non creee : $($r.Err)" })" }
-# 12.12 (interface, lot A) : plus de rangees d onglets : en-tetes masques, la page prend la zone a 10 px pres ; sans le mode
-# expert, seules les pages « Delais » et « Commande libre » manquent
-$t1 = @($tRows | Where-Object { -not $_.Hid -or $_.Err -or $_.PageH -lt ($_.H - $barH - 10) -or $_.PageH -gt ($_.H - $barH) })
+# 12.12 (interface, lot A ; rc5) : plus de rangees d onglets : en-tetes masques et hors de la zone visible, la page prend
+# exactement la zone sous la bande de titre ; sans le mode expert, seules les pages « Delais » et « Commande libre » manquent
+$t1 = @($tRows | Where-Object { -not $_.Hid -or $_.Err -or $_.PageH -ne ($_.H - $barH) -or $_.PageW -ne 800 -or $_.X -ne 0 -or $_.Y -ne 0 })
 $novMiss = @($allV | Where-Object { $novV -notcontains $_ } | Sort-Object)
-Chk 'T1' ($tRows.Count -eq 8 -and $t1.Count -eq 0 -and $hideSt.Count -eq 4 -and $barH -gt 0 -and $zone0 -gt 0 -and $allV.Count -eq 14 -and $novV.Count -eq 12 -and ($novMiss -join ',') -ceq 'tabC,tabD') "instructions reelles de 510 et de 540 : en-tetes des onglets masques (onglets en boutons de hauteur nulle), bande de titre de $barH px ; la page prend la zone a 10 px pres, pour les $($allV.Count) pages du mode expert comme pour les $($novV.Count) pages courantes (absentes : $($novMiss -join ', ')), en francais et en anglais"
+Chk 'T1' ($tRows.Count -eq 8 -and $t1.Count -eq 0 -and $hideSt.Count -eq 4 -and $hostSt.Count -eq 7 -and $phFn.Count -eq 1 -and $barH -gt 0 -and $zone0 -gt 0 -and $allV.Count -eq 14 -and $novV.Count -eq 12 -and ($novMiss -join ',') -ceq 'tabC,tabD') "instructions reelles de 510 et de 540 : en-tetes des onglets masques (onglets en boutons de hauteur nulle), bande de titre de $barH px ; dans le panneau hote reel (540, Update-PageHost), la page prend exactement la zone sous la bande de titre, pour les $($allV.Count) pages du mode expert comme pour les $($novV.Count) pages courantes (absentes : $($novMiss -join ', ')), en francais et en anglais"
 $p6 = @($tRows | Where-Object { $_.K -eq 'nov' -and $_.H -eq $zone0 }); $p11 = @($tRows | Where-Object { $_.K -eq 'all' -and $_.H -eq $zone0 })
 $t2 = @($p6 | Where-Object { $_.PageH -lt $btnWrite.Bottom })
 "  T2 : journal affiche (zone des pages de $zone0 px, place posee a la construction du separateur, 510) : page de $(@($p6 | ForEach-Object { $_.PageH }) -join '/') px en mode courant, $(@($p11 | ForEach-Object { $_.PageH }) -join '/') px en mode expert ; bas du bouton ECRIRE a $($btnWrite.Bottom) px"
@@ -1011,8 +1020,10 @@ foreach ($lg in 'fr', 'en') {
         . $eoG.Ico
         . $hideGen
         foreach ($v in $novV) { $tabs.TabPages.Add((Get-Variable -Name $v -ValueOnly)) }
-        $null = $tabs.Handle
-        $ph = $tabs.DisplayRectangle.Height; $tabs.Dispose()
+        . $hostGen
+        $pnlPages.Dock = 'None'; $pnlPages.Size = New-Object System.Drawing.Size(800, ($h - $barH))
+        $null = $tabs.Handle; Update-PageHost
+        $ph = $tabs.DisplayRectangle.Height; $pnlPages.Dispose()
         $vis = ($ph -ge $btnWrite.Bottom)
         $t2bTxt += "$lg $h px : page $ph, bouton $(if ($vis) { 'visible' } else { 'cache' })"
         if ($vis -ne ($h -eq $hMin)) { $t2b += "$lg $h px : page $ph" }

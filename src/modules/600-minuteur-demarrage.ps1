@@ -243,6 +243,7 @@ Update-TabSet
 # (rubrique « Aide ») ; rail accorde a la page
 if ($txtLibRoot.Text.Trim()) { $tabs.SelectedTab = $tabL }
 Update-NavRail
+Update-PageHost
 Update-CurveButton ''
 
 Append-Log "Greaseweazle Studio v$($script:VersionLabel)"

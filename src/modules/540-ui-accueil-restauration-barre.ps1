@@ -301,9 +301,15 @@ $lblPageTitle.Name = 'lblPageTitle'; $lblPageTitle.Location = '12,6'; $lblPageTi
 $lblPageTitle.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 11); $lblPageTitle.ForeColor = $script:Theme.Accent2
 $pnlPageBar.Controls.AddRange(@($lnkPageBack, $lblPageTitle))
 $pnlPageBar.Add_Paint({ $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(214, 219, 228)); $_.Graphics.DrawLine($pen, 0, ($this.Height - 1), $this.Width, ($this.Height - 1)); $pen.Dispose() })
+# 12.12 (interface, lot A, rc5) : panneau hote des pages. Le controle d onglets n y est plus ancre : Update-PageHost (100)
+# le fait deborder du panneau pour que ses en-tetes sortent de la zone visible, a chaque changement de taille
+$pnlPages = New-Object System.Windows.Forms.Panel
+$pnlPages.Name = 'pnlPages'; $pnlPages.Dock = 'Fill'; $pnlPages.BackColor = $script:Theme.Page
+$tabs.Dock = 'None'; $pnlPages.Controls.Add($tabs)
+$pnlPages.Add_Resize({ Update-PageHost })
 # Ordre des ancrages : la bande de titre prend le haut du volet, les pages le reste ; le rail est ancre a la fenetre
 # (plus bas), sur toute la hauteur entre le bandeau et la barre de boutons
-$split.Panel1.Controls.Add($tabs); $split.Panel1.Controls.Add($pnlPageBar)
+$split.Panel1.Controls.Add($pnlPages); $split.Panel1.Controls.Add($pnlPageBar)
 $tabs.Add_SelectedIndexChanged({ Update-NavRail })
 # 12.8 (lot 2) : onglet Restauration : cadre « 2. Calibration du lecteur » a jour a l entree dans l onglet
 $tabs.Add_SelectedIndexChanged({ if ($tabs.SelectedTab -eq $tabRs) { Update-RsCalib } })
