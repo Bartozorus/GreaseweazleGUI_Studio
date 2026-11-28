@@ -702,11 +702,15 @@ function Save-Config {
     # Ecriture d avant l operation
     if ($drCfg) { $cfg['drives'] = $drCfg }    # 12.11 : lecteurs enregistres
     # 12.11 rc8 (R17) : recalages des courbes croisees et derniere ecriture pour chaque lecteur cible (172), blocs
-    # write.targetRecal et write.lastTargetWrite ecrits seulement quand ils ont une entree (fichier de la rc7 sinon) ; une
-    # version anterieure les ignore
+    # write.targetRecal2 et write.lastTargetWrite2 (12.12 rc5 : regle unique de la courbe ecrite pour un lecteur cible)
+    # ecrits seulement quand ils ont une entree ; une version anterieure les ignore. Le bloc write.targetRecal d une
+    # version anterieure, lu au chargement (TargetRecalLegacy), est rendu tel quel : cette version y retrouve ses
+    # recalages, appris sous sa regle ; avec lui, write.targetRecal2 est ecrit meme vide (un recalage annule ici ne
+    # revient pas du bloc anterieur au chargement suivant)
     $trCfg = Export-TargetRecal; $lwCfg = Export-LastTargetWrites
-    if ($trCfg.Count -gt 0) { $cfg.write['targetRecal'] = $trCfg }
-    if ($lwCfg.Count -gt 0) { $cfg.write['lastTargetWrite'] = $lwCfg }
+    if ($null -ne $script:TargetRecalLegacy) { $cfg.write['targetRecal'] = $script:TargetRecalLegacy }
+    if ($trCfg.Count -gt 0 -or $null -ne $script:TargetRecalLegacy) { $cfg.write['targetRecal2'] = $trCfg }
+    if ($lwCfg.Count -gt 0) { $cfg.write['lastTargetWrite2'] = $lwCfg }
     Export-Settings $cfg
     if ($script:OpOverride) { Set-OpOverrideConfig $cfg }
     try {
@@ -873,10 +877,18 @@ function Load-Config {
     if ([int]$tdi.Bad -gt 0) { Append-Log ((T 'Configuration : {0} lecteur(s) cible illisible(s) ou inconnu(s), ignoré(s).') -f "$($tdi.Bad)") }
     # 12.11 rc8 (R17) : recalages des courbes croisees et derniere ecriture pour chaque lecteur cible (172) ; entree
     # illisible ignoree, une ligne
-    $tri = Import-TargetRecal (Get-Cfg $w 'targetRecal' $null)
-    # 12.12 : ecritures relues par une 12.11 dont le facteur depassait 1, passees dans le recalage de ce regime : une ligne
-    if ([int]$tri.Moved -gt 0) { Append-Log ((T 'Recalage des courbes croisées : {0} écriture(s) relue(s) dont le facteur de la disquette dépassait 1 reclassée(s) ; leur recalage est désormais tenu à part.') -f "$($tri.Moved)") }
-    $lwi = Import-LastTargetWrites (Get-Cfg $w 'lastTargetWrite' $null)
+    # 12.12 (rc5) : blocs de la regle unique (targetRecal2, lastTargetWrite2) ; sans eux, blocs d une version anterieure :
+    # recalages convertis a la regle unique (Import-TargetRecal -Legacy), une ligne ; memoire d ecriture gardee sans
+    # apprentissage (OldRule). Le bloc anterieur des recalages est garde tel quel pour l enregistrement (Save-Config)
+    $script:TargetRecalLegacy = Get-Cfg $w 'targetRecal' $null
+    $tr2 = Get-Cfg $w 'targetRecal2' $null
+    if ($null -ne $tr2) { $tri = Import-TargetRecal $tr2 }
+    else {
+        $tri = Import-TargetRecal $script:TargetRecalLegacy -Legacy
+        if ([int]$tri.Converted + [int]$tri.Dropped -gt 0) { Append-Log ((T "Recalage des courbes croisées : la règle d'écriture pour un lecteur cible change dans cette version. {0} écriture(s) relue(s) convertie(s) à la nouvelle règle, {1} oubliée(s) (facteur de la disquette inconnu, ou courbe croisée recalibrée depuis) ; le recalage se complète à la prochaine relecture par le lecteur cible.") -f "$($tri.Converted)", "$($tri.Dropped)") }
+    }
+    $lw2 = Get-Cfg $w 'lastTargetWrite2' $null
+    $lwi = if ($null -ne $lw2) { Import-LastTargetWrites $lw2 } else { Import-LastTargetWrites (Get-Cfg $w 'lastTargetWrite' $null) -Legacy }
     if ([int]$tri.Bad + [int]$lwi.Bad -gt 0) { Append-Log ((T 'Configuration : {0} recalage(s) de courbe croisée et {1} mémoire(s) d''écriture pour un lecteur cible illisibles, ignorés.') -f "$($tri.Bad)", "$($lwi.Bad)") }
     # 12.11 : registre relu dans la copie de secours : lecteurs cibles des lecteurs enregistres retablis depuis elle (une
     # version anterieure les retire), et ligne de journal qui dit ce qui a ete retrouve ; rien sinon

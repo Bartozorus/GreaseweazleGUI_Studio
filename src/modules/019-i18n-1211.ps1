@@ -551,7 +551,6 @@ $script:I18n["{0}Facteur appliqué : k = {1}, par l'asymétrie ; la marge donnai
 $script:I18n["k {0} mesuré par l'asymétrie"] = 'k {0} measured from asymmetry'
 $script:I18n["Mesure de la disquette sur l'image terminée en {0} : écriture de l'image (tête 0 : {1} ; tête 1 : {2})."] = 'Disk measurement on the image finished in {0}: writing the image (head 0: {1}; head 1: {2}).'
 $script:I18n["Facteurs mesurés sur l'image avant la 12.11 : le facteur se règle désormais par l'asymétrie de lecture, ils ne sont plus appliqués. Refaites une mesure sur l'image pour chaque marque."] = 'Factors measured on the image before 12.11: the factor is now set from the read asymmetry; they are no longer applied. Measure again on the image for each brand.'
-$script:I18n['c{0} : besoin de la disquette au-dessus de la courbe du lecteur, hausse reportée en ns'] = 'c{0}: disk need above the drive curve, increase carried over in ns'
 
 # --- rc6 : asymetrie attendue d une ecriture pour un lecteur cible dans l onglet Qualite (190, 195, 170, R14) ----------------
 $script:I18n["Lecteur cible {0} : asymétrie conforme à l'attendu (attendue {1}, mesurée {2})"] = 'Target drive {0}: asymmetry as expected (expected {1}, measured {2})'

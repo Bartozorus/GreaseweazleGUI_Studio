@@ -200,15 +200,24 @@ $script:WriteZoneHeadPct = 80
 # TargetRecalMinBlocks blocs de 10 cylindres a TargetRecalBlockTracks pistes au moins ; |ecart median| au plus
 # TargetRecalMaxGapNs (au-dela, l ecart ne vient pas de la courbe croisee). Valeurs de la validation (hors depot, quatre
 # ecritures, une paire de lecteurs, double densite standard), sauf TargetRecalFirstShare
-$script:TargetRecalCapNs = 8
+# 12.12 (rc5) : plafond porte de 8 a 16 ns et seuil de la relecture de 12 a 20 ns. Avec la regle unique de la courbe
+# ecrite (Get-TargetTransferSpec, 140), le recalage porte toute la part constante de l ecart entre la courbe croisee
+# et le besoin du lecteur cible : 9 a 16 ns releves selon la famille (double densite standard, long track) sur les
+# relectures du 22 au 28/11/2026, la ou la regle precedente en absorbait une partie sous k = 1
+$script:TargetRecalCapNs = 16
 $script:TargetRecalFirstShare = 0.75
 $script:TargetRecalMaxItems = 5
 $script:TargetRecalWShare = 0.25
 $script:TargetRecalMinTracks = 60
 $script:TargetRecalMinBlocks = 6
 $script:TargetRecalBlockTracks = 5
-$script:TargetRecalMaxGapNs = 12
-# 12.12 : recalage tenu par regime d ecriture (facteur de la disquette au-dessus de 1 ou non : Test-TargetRecalUp, 172).
+$script:TargetRecalMaxGapNs = 20
+# 12.12 (rc5) : TargetRule, identifiant de la regle de la courbe ecrite pour un lecteur cible (Get-TargetTransferSpec,
+# 140 ; '2' : regle unique, moyenne de la part en rapport et de la part en ns). Un recalage ne vaut que pour la regle
+# sous laquelle il a ete appris : blocs write.targetRecal2 et write.lastTargetWrite2 de la configuration (172, 120) ;
+# les blocs write.targetRecal et write.lastTargetWrite d une version anterieure sont convertis au chargement.
+$script:TargetRule = '2'
+# Le recalage n est plus tenu par regime d ecriture (rc1 a rc4 : entree « + » pour un facteur au-dessus de 1).
 # TargetRecalItemKMin : minutes au plus entre la fin d une mesure sur l image et le lancement de l ecriture qui la suit,
 # pour retrouver le facteur d une ecriture relue par une 12.11 (Get-TargetRecalItemK ; la mesure precede l ecriture de
 # moins d une minute)

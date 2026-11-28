@@ -2,15 +2,11 @@
 # Suite de la table $script:I18n (010-i18n) : cle francaise -> texte anglais, memes regles que 019-i18n-1211 (placeholders
 # {n} identiques, aucune cle de T() sans entree, aucune cle d un autre module redefinie). Une section par lot de la 12.12.
 
-# Recalage de la courbe croisee par regime d ecriture (172 : Get-TargetRecalPlan, Invoke-TargetRecalOffer,
-# Get-TargetRecalSummaryText ; 120 : Load-Config)
-$script:I18n['tête {0} : recalage appris pour un facteur de la disquette de 1 ou moins, celui de cette écriture est au-dessus de 1'] = 'head {0}: adjustment learned for a disk factor of 1 or less, the factor of this write is above 1'
-$script:I18n['tête {0} : recalage appris pour un facteur de la disquette au-dessus de 1, celui de cette écriture est de 1 ou moins'] = 'head {0}: adjustment learned for a disk factor above 1, the factor of this write is 1 or less'
-$script:I18n['{0} ns (facteur au-dessus de 1)'] = '{0} ns (factor above 1)'
-$script:I18n['tête {0} {1} ns (facteur au-dessus de 1)'] = 'head {0} {1} ns (factor above 1)'
-$script:I18n['(facteur au-dessus de 1)'] = '(factor above 1)'
-$script:I18n['Tête {0} : facteur de la disquette au-dessus de 1 ; ce recalage ne vaut que pour les écritures dont le facteur dépasse 1, tenu à part de celui des autres.'] = 'Head {0}: disk factor above 1; this adjustment only applies to writes whose factor is above 1, and is kept apart from the adjustment of the others.'
-$script:I18n['Recalage des courbes croisées : {0} écriture(s) relue(s) dont le facteur de la disquette dépassait 1 reclassée(s) ; leur recalage est désormais tenu à part.'] = 'Cross curve adjustments: {0} read-back write(s) whose disk factor was above 1 reclassified; their adjustment is now kept apart.'
+# Regle unique de la courbe ecrite pour un lecteur cible et recalage par tete (rc5 ; 140 : Get-TargetTransferSummary ;
+# 172 : Get-TargetWriteKLearnWhy ; 120 : Load-Config)
+$script:I18n['c{0} : écart de la disquette à la courbe du lecteur reporté pour moitié en proportion, pour moitié en ns'] = 'c{0}: gap between the disk and the drive curve carried over half in proportion, half in ns'
+$script:I18n["tête {0} : écriture faite avec la règle d'une version précédente, réécrivez la disquette avec cette version"] = 'head {0}: write made with the rule of an earlier version, write the disk again with this version'
+$script:I18n["Recalage des courbes croisées : la règle d'écriture pour un lecteur cible change dans cette version. {0} écriture(s) relue(s) convertie(s) à la nouvelle règle, {1} oubliée(s) (facteur de la disquette inconnu, ou courbe croisée recalibrée depuis) ; le recalage se complète à la prochaine relecture par le lecteur cible."] = 'Cross curve adjustments: the write rule for a target drive changes in this version. {0} read-back write(s) converted to the new rule, {1} dropped (disk factor unknown, or cross curve recalibrated since); the adjustment is completed by the next read-back by the target drive.'
 
 # Journal exporte apres une troncature : lignes de l application retirees de l affichage (110 : Export-LogFile)
 $script:I18n["[Lignes de l'application retirées du journal affiché, sans les commandes ni la sortie de gw : {0} ligne(s).]"] = '[Application lines removed from the displayed log, without gw commands and output: {0} line(s).]'

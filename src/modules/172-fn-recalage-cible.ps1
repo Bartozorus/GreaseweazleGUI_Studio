@@ -19,20 +19,41 @@
 # ('lecteur') applique le recalage sans l apprendre (Test-TargetRecalKMeasured), sa relecture n est pas proposee et le
 # journal dit pourquoi. Les ecritures deja relues du magasin (Items) ne portent pas l origine de leur k : elles restent.
 
-# 12.12 (essais du 25 et du 26/11/2026) : un recalage par regime d ecriture. La regle ecrit min(k x X, X + (k - 1) x Sp) :
-# pour k <= 1 la courbe croisee est multipliee par k, pour k > 1 la hausse (k - 1) x Sp est ajoutee en ns. Les relectures
-# par le lecteur cible donnent des estimations de signes opposes selon ce regime (quelques ns de trop pour k <= 1,
-# quelques ns de moins pour k > 1, meme tete, meme courbe croisee) : une seule moyenne par tete les melangeait et
-# decalait les ecritures de l autre regime. Entree du regime k > 1 : meme cle suivie de « + » (Test-TargetRecalUp ;
-# une 12.11 l ignore) ; entree sans « + » : regime k <= 1, inchangee. Chaque ecriture relue garde son k (Items, K) ;
-# une ecriture relue par une 12.11 (sans K) dont la mesure sur l image donnait k > 1 est reclassee au chargement
-# (Import-TargetRecal, Get-TargetRecalItemK). Hypothese tiree de cinq ecritures relues, a confirmer sur d autres
+# 12.12 (rc5, relectures du 22 au 28/11/2026, decision de l utilisateur) : regle unique de la courbe ecrite (moyenne de la
+# part en rapport et de la part en ns, Get-TargetTransferSpec) et un seul recalage par tete. Les rc1 a rc4 tenaient un
+# recalage par regime d ecriture (entree « + » pour un facteur de la disquette au-dessus de 1) : les estimations de
+# signes opposes selon le regime venaient de la regle elle-meme, qui suivait le facteur trop fort sous 1 et trop peu
+# au-dessus. Un recalage ne vaut que sous la regle ou il a ete appris ($script:TargetRule, 040) : blocs
+# write.targetRecal2 et write.lastTargetWrite2 ; un bloc write.targetRecal anterieur est converti au chargement
+# (Import-TargetRecal -Legacy, Get-TargetRuleShift) et garde tel quel pour une version anterieure (120) ; une memoire
+# d ecriture anterieure (write.lastTargetWrite) n apprend plus (OldRule, Get-TargetWriteKLearnWhy)
 
-function Test-TargetRecalUp([double]$k) {
-    # Regime d ecriture d une tete : vrai pour un facteur de la disquette au-dessus de 1 (hausse ajoutee en ns), sur k
-    # arrondi a 0,001 comme dans la memoire de l ecriture (New-TargetWriteMemory, K) : meme regime au lancement de
-    # l ecriture (Get-TargetRecalPlan) et a sa relecture (Get-TargetRecalUpdate)
-    return ([math]::Round($k, 3) -gt 1.0)
+function Get-TargetRuleShift([string]$src, [string]$tgt, [string]$fam, [int]$h, [string]$xKey, [string]$xDate, [double]$k) {
+    # Ecart median, en ns, entre la regle unique de la courbe ecrite pour le lecteur cible et la regle precedente (k <= 1 :
+    # k x X ; k > 1 : min(k x X, X + (k - 1) x Sp)), pour une disquette de facteur k : ce qu une estimation apprise sous la
+    # regle precedente doit perdre pour valoir sous la regle unique (meme besoin du lecteur cible : regle precedente +
+    # estimation = regle unique + estimation convertie). Courbes du magasin : croisee de la cle $xKey (a defaut par tete
+    # puis commune) a la date $xDate, propre du lecteur qui ecrit sous la meme cle, a defaut celle de la tete puis la
+    # commune (courbe croisee commune avec des courbes propres par tete seulement, en ecriture lente) ; cylindres 0 a 79
+    # ou la courbe croisee n est pas nulle. $null sans ces courbes ou pour un facteur illisible : rien a convertir
+    if ([double]::IsNaN($k) -or [double]::IsInfinity($k) -or -not ($k -gt 0)) { return $null }
+    $x = $null; $ck = ''
+    $cks = if ($xKey) { @($xKey) } else { @("$($fam)_h$h", $fam) }
+    foreach ($q in $cks) { $cv = Get-DriveCurve "$src>$tgt" $q; if ($cv -and [string]$cv.Date -ceq $xDate -and [string]$cv.Spec) { $x = $cv; $ck = [string]$q; break } }
+    if (-not $x) { return $null }
+    $own = $null
+    foreach ($q in @($ck, "$($fam)_h$h", $fam)) { $ov = Get-DriveCurve $src $q; if ($ov -and [string]$ov.Spec) { $own = $ov; break } }
+    if (-not $own) { return $null }
+    $d = New-Object System.Collections.Generic.List[double]
+    for ($c = 0; $c -lt 80; $c++) {
+        $xv = [double](Get-SpecValue ([string]$x.Spec) $c); $sp = [double](Get-SpecValue ([string]$own.Spec) $c)
+        if (-not ($xv -gt 0)) { continue }
+        $ratio = $k * $xv; $ns = $xv + ($k - 1) * $sp
+        if ($k -gt 1) { $old = [math]::Min($ratio, $ns); $alt = $old } else { $old = $ratio; $alt = [math]::Max($ratio, $ns) }
+        $d.Add((($ratio + $alt) / 2) - $old)
+    }
+    if ($d.Count -eq 0) { return $null }
+    return [double](Get-Median $d.ToArray())
 }
 
 function Get-TargetRecalK($wf, [int]$h, [bool]$slow) {
@@ -43,16 +64,15 @@ function Get-TargetRecalK($wf, [int]$h, [bool]$slow) {
     return $kv
 }
 
-function Get-TargetRecalKey([string]$src, [string]$tgt, [string]$fam, [int]$h, [bool]$up = $false) {
-    # Cle du magasin $script:TargetRecal : « source>cible|famille_hN » (N : tete physique du lecteur qui ecrit), suivie de
-    # « + » pour le regime k > 1 ($up, Test-TargetRecalUp)
-    return "$src>$tgt|$($fam)_h$h$(if ($up) { '+' } else { '' })"
+function Get-TargetRecalKey([string]$src, [string]$tgt, [string]$fam, [int]$h) {
+    # Cle du magasin $script:TargetRecal : « source>cible|famille_hN » (N : tete physique du lecteur qui ecrit)
+    return "$src>$tgt|$($fam)_h$h"
 }
 
-function Get-TargetRecalEntry([string]$src, [string]$tgt, [string]$fam, [int]$h, [bool]$up = $false) {
-    # Entree brute du magasin pour un regime, sans condition ; $null sans elle
+function Get-TargetRecalEntry([string]$src, [string]$tgt, [string]$fam, [int]$h) {
+    # Entree brute du magasin, sans condition ; $null sans elle
     if ($null -eq $script:TargetRecal) { return $null }
-    return $script:TargetRecal[(Get-TargetRecalKey $src $tgt $fam $h $up)]
+    return $script:TargetRecal[(Get-TargetRecalKey $src $tgt $fam $h)]
 }
 
 function Get-TargetRecalItemK([string]$drive, [string]$fam, [int]$h, [string]$writeId) {
@@ -159,6 +179,9 @@ function Get-TargetWriteKLearnWhy($mem, [string]$lk) {
     # aussi) ; memoire de la rc8, sans KLearn : KMeasured, et en ecriture rapide l origine 'mesure' des deux tetes ecrites
     # (une seule tete ecrite : origine de l autre inconnue, refus). Relecture : le fait seul, sans conclusion, comme les
     # raisons voisines (la fenetre de confirmation liste aussi la raison d une tete exclue quand l autre recale)
+    # 12.12 (rc5) : ecriture faite sous une regle anterieure de la courbe ecrite (memoire d une version precedente,
+    # Import-LastTargetWrites -Legacy) : son ecart relu ne vaut pas pour la regle actuelle
+    if ($mem -and $mem.OldRule -eq $true) { return ((T "tête {0} : écriture faite avec la règle d'une version précédente, réécrivez la disquette avec cette version") -f $lk) }
     $hm = $null
     if ($mem -and $mem.H) { $hm = $mem.H[$lk] }
     $ks = if ($hm) { [string]$hm.KSrc } else { '' }
@@ -284,23 +307,15 @@ function Get-TargetRecalPlan($tw, $wf, $xc, [bool]$slow) {
     $r = @{ O = @{ 0 = 0.0; 1 = 0.0 }; Used = $false; Text = ''; XDate = @{ 0 = ''; 1 = '' }; XKey = @{ 0 = ''; 1 = '' }; Reads = 0; Last = '' }
     if ($l.Count -eq 0) { return $r }
     $why = New-Object System.Collections.Generic.List[string]
-    $any = $false; $ap = @{ 0 = $false; 1 = $false }; $upH = @{ 0 = $false; 1 = $false }
+    $any = $false; $ap = @{ 0 = $false; 1 = $false }
     $man = [bool](Test-ManualPrecomp)
     foreach ($h in 0, 1) {
         $cv = if ($slow) { $l[$(if ($h -eq 0) { 0 } else { $l.Count - 1 })] } else { $l[0] }
         $r.XDate[$h] = [string]$cv.Date
         $r.XKey[$h] = $(if ($null -ne $cv.Head) { "$($fam)_h$([int]$cv.Head)" } else { $fam })
-        # 12.12 : entree du regime de cette ecriture (facteur de la disquette de cette tete au-dessus de 1 ou non) ; un
-        # recalage appris pour l autre regime seulement n est pas applique, et le journal le dit
-        $up = Test-TargetRecalUp (Get-TargetRecalK $wf $h $slow); $upH[$h] = $up
-        $e = Get-TargetRecalEntry $src $tgt $fam $h $up
-        if ($null -eq $e) {
-            if ($null -ne (Get-TargetRecalEntry $src $tgt $fam $h (-not $up))) {
-                $any = $true
-                if (-not $man) { $why.Add($(if ($up) { (T 'tête {0} : recalage appris pour un facteur de la disquette de 1 ou moins, celui de cette écriture est au-dessus de 1') -f "$h" } else { (T 'tête {0} : recalage appris pour un facteur de la disquette au-dessus de 1, celui de cette écriture est de 1 ou moins') -f "$h" })) }
-            }
-            continue
-        }
+        # 12.12 (rc5) : une entree par tete, quel que soit le facteur de la disquette (regle unique)
+        $e = Get-TargetRecalEntry $src $tgt $fam $h
+        if ($null -eq $e) { continue }
         $any = $true
         if ($man) { continue }
         if (-not (Test-TargetRecalValid $e $r.XDate[$h])) { $why.Add(((T 'tête {0} : courbe croisée recalibrée ou calcul changé depuis le recalage') -f "$h")); continue }
@@ -316,7 +331,7 @@ function Get-TargetRecalPlan($tw, $wf, $xc, [bool]$slow) {
     $sg = '+0.0;-0.0;0.0'
     $lastTxt = if ($r.Last) { (ConvertTo-RecalDate $r.Last).ToString('dd/MM/yyyy', [System.Globalization.CultureInfo]::InvariantCulture) } else { '?' }
     if ($r.Used) {
-        $hv = @{}; foreach ($h in 0, 1) { $hv[$h] = $(if ($ap[$h] -and $upH[$h]) { (T '{0} ns (facteur au-dessus de 1)') -f (Format-UiNum ([double]$r.O[$h]) $sg) } elseif ($ap[$h]) { (T '{0} ns') -f (Format-UiNum ([double]$r.O[$h]) $sg) } else { (T 'aucun') }) }
+        $hv = @{}; foreach ($h in 0, 1) { $hv[$h] = $(if ($ap[$h]) { (T '{0} ns') -f (Format-UiNum ([double]$r.O[$h]) $sg) } else { (T 'aucun') }) }
         $vals = if ($slow) { (T 'tête 0 {0}, tête 1 {1}') -f $hv[0], $hv[1] } else { (T '{0} ns, moyenne des deux têtes') -f (Format-UiNum ([double]$r.O[0]) $sg) }
         $r.Text = (T 'recalage du lecteur cible : {0} ({1} relecture(s), dernière le {2}), arrondi au ns et ajouté à la courbe écrite') -f $vals, "$($r.Reads)", $lastTxt
         if ($why.Count -gt 0) { $r.Text += ' (' + ((T 'non appliqué : {0}') -f ($why -join ', ')) + ')' }
@@ -357,7 +372,7 @@ function New-TargetWriteMemory($tw, $wf, $xp, $rc, [bool]$slow, [string]$userTs,
     $now = Get-Date
     return @{ Id = 'W' + $now.ToString('yyyyMMddHHmmss', [System.Globalization.CultureInfo]::InvariantCulture); Src = [string]$tw.Src; Tgt = [string]$tw.Tgt
               Fam = [string]$tw.Fam; Image = [System.IO.Path]::GetFileName($img); Slow = $slow; Heads = [int[]]@($hs.Keys | ForEach-Object { [int]$_ } | Sort-Object)
-              Check = $check; Written = @{}; PlanTracks = $planTracks; ImgPath = $img; How = $how; Tracks = 0; H = $hs; Verdict = ''; Calc = [string]$script:CalibCalc; Date = ''; At = '' }
+              Check = $check; Written = @{}; PlanTracks = $planTracks; ImgPath = $img; How = $how; Tracks = 0; H = $hs; Verdict = ''; Calc = [string]$script:CalibCalc; Rule = [string]$script:TargetRule; Date = ''; At = '' }
 }
 
 function Set-TargetWritePending($p) {
@@ -607,10 +622,9 @@ function Get-TargetRecalUpdate([string]$src, [string]$tgt, $mem, $ev, $now) {
         $o = $ev.Heads[$lk]
         if (-not $o.Ok) { continue }
         $hm = $mem.H[[string]$lk]
-        # 12.12 : entree du regime de l ecriture relue (k de la tete dans sa memoire) ; chaque ecriture garde son k
+        # 12.12 : chaque ecriture relue garde son k (rc5 : une seule entree par tete, regle unique)
         $kw = if ($hm -and $null -ne $hm.K) { [double]$hm.K } else { 1.0 }
-        $up = Test-TargetRecalUp $kw
-        $key = Get-TargetRecalKey $src $tgt ([string]$mem.Fam) ([int]$o.Phys) $up
+        $key = Get-TargetRecalKey $src $tgt ([string]$mem.Fam) ([int]$o.Phys)
         $old = $null; if ($script:TargetRecal) { $old = $script:TargetRecal[$key] }
         $xd = [string]$hm.XDate
         $reset = ($null -ne $old -and ([string]$old.XDate -cne $xd -or [string]$old.Calc -cne [string]$script:CalibCalc))
@@ -628,7 +642,7 @@ function Get-TargetRecalUpdate([string]$src, [string]$tgt, $mem, $ev, $now) {
         while ($items.Count -gt $max) { $items.RemoveAt(0) }
         $arr = $items.ToArray()
         $new = @{ Ns = (Get-TargetRecalNs $arr); N = $arr.Count; Items = $arr; XDate = $xd; XKey = [string]$hm.XKey; Calc = [string]$script:CalibCalc; At = $stamp }
-        $out.Add(@{ Key = $key; Head = [int]$lk; Phys = [int]$o.Phys; Old = $old; Reset = $reset; New = $new; Up = $up })
+        $out.Add(@{ Key = $key; Head = [int]$lk; Phys = [int]$o.Phys; Old = $old; Reset = $reset; New = $new })
     }
     return ,$out.ToArray()
 }
@@ -701,8 +715,6 @@ function Invoke-TargetRecalOffer($res, $tracks) {
     if ($hw.Count -gt 0) { Append-Log ((T 'Recalage de la courbe croisée {0} → {1} : {2}.') -f $src, $tgt, ($hw -join (T ' ; '))) }
     $up = Get-TargetRecalUpdate $src $tgt $mem $ev (Get-Date)
     $lines = @(foreach ($u in $up) { Get-TargetRecalHeadText $mem $ev.Heads["$($u.Head)"] $u $tgt })
-    # 12.12 : tete dont le facteur de la disquette depasse 1 : son recalage est tenu a part (Test-TargetRecalUp)
-    $lines += @(foreach ($u in $up) { if ($u.Up) { (T 'Tête {0} : facteur de la disquette au-dessus de 1 ; ce recalage ne vaut que pour les écritures dont le facteur dépasse 1, tenu à part de celui des autres.') -f "$($u.Head)" } })
     $lines += @($hw)
     # rc8 (rendu) : g des deux tetes separes par T(' ; ') comme les listes de Format-WritePlan (145) : « ; » en anglais
     $gt = @(foreach ($lk in @($ev.Heads.Keys | Sort-Object)) { $o = $ev.Heads[$lk]; if ($o.GMeasured) { (T "tête {0} : g = {1}, deux fois la pente mesurée sur l'image") -f "$lk", (Format-UiNum ([double]$o.G) '0.00') } else { (T 'tête {0} : g = {1} par défaut, pente non mesurée') -f "$lk", (Format-UiNum ([double]$o.G) '0.00') } })
@@ -711,21 +723,24 @@ function Invoke-TargetRecalOffer($res, $tracks) {
     if (-not $go) { Append-Log ((T 'Recalage de la courbe croisée {0} → {1} non enregistré : non confirmé.') -f $src, $tgt); return 'declined' }
     if ($null -eq $script:TargetRecal) { $script:TargetRecal = @{} }
     $sg = '+0.0;-0.0;0.0'
-    $it = @(foreach ($u in $up) { $script:TargetRecal[[string]$u.Key] = $u.New; if ($u.Up) { (T 'tête {0} {1} ns (facteur au-dessus de 1)') -f "$($u.Phys)", (Format-UiNum ([double]$u.New.Ns) $sg) } else { (T 'tête {0} {1} ns') -f "$($u.Phys)", (Format-UiNum ([double]$u.New.Ns) $sg) } })
+    $it = @(foreach ($u in $up) { $script:TargetRecal[[string]$u.Key] = $u.New; (T 'tête {0} {1} ns') -f "$($u.Phys)", (Format-UiNum ([double]$u.New.Ns) $sg) })
     Append-Log ((T "Courbe croisée {0} → {1} recalée sur la relecture de l'écriture du {2} : {3} ; ajouté aux prochaines écritures pour le lecteur {1} (courbe croisée inchangée).") -f $src, $tgt, "$($mem.Date)", ($it -join (T ' ; ')))
     [void](Save-Config)
     return 'stored'
 }
 
 function Remove-TargetRecal([string]$src, [string]$tgt, [string]$fam) {
-    # Recalages des deux tetes d une courbe croisee source>cible d une famille retires du magasin, pour les deux regimes
-    # (12.12 : k <= 1 et k > 1) ; rend le nombre de tetes dont un recalage au moins est retire
+    # Recalages des deux tetes d une courbe croisee source>cible d une famille retires du magasin ; rend le nombre de
+    # tetes dont le recalage est retire. 12.12 (rc5) : memes cles, suivies de « + » ou non, retirees aussi du bloc d une
+    # version anterieure garde pour elle (TargetRecalLegacy, 120) : un recalage annule ici ne revient pas, converti de
+    # ce bloc, apres le passage d une version anterieure
     $n = 0
-    if ($null -eq $script:TargetRecal) { return 0 }
     foreach ($h in 0, 1) {
-        $hit = $false
-        foreach ($up in $false, $true) { $k = Get-TargetRecalKey $src $tgt $fam $h $up; if ($script:TargetRecal.ContainsKey($k)) { $script:TargetRecal.Remove($k); $hit = $true } }
-        if ($hit) { $n++ }
+        $k = Get-TargetRecalKey $src $tgt $fam $h
+        if ($null -ne $script:TargetRecal -and $script:TargetRecal.ContainsKey($k)) { $script:TargetRecal.Remove($k); $n++ }
+        if ($null -ne $script:TargetRecalLegacy) {
+            foreach ($q in @($k, ($k + '+'))) { if ($script:TargetRecalLegacy.PSObject.Properties[$q]) { $script:TargetRecalLegacy.PSObject.Properties.Remove($q) } }
+        }
     }
     return $n
 }
@@ -738,13 +753,10 @@ function Get-TargetRecalSummaryText([string]$src, [string]$tgt, [string]$fam) {
     $sg = '+0.0;-0.0;0.0'
     $nb = [string][char]0x00A0
     $parts = @(); $reads = 0; $last = ''; $stale = $false
-    # 12.12 : les deux regimes de chaque tete (k <= 1, puis k > 1 suivi de « (facteur au-dessus de 1) », hors du bloc insecable)
-    foreach ($hu in @(@(0, $false), @(0, $true), @(1, $false), @(1, $true))) {
-        $h = [int]$hu[0]; $up = [bool]$hu[1]
-        $e = Get-TargetRecalEntry $src $tgt $fam $h $up
+    foreach ($h in 0, 1) {
+        $e = Get-TargetRecalEntry $src $tgt $fam $h
         if (-not $e) { continue }
         $pv = ((T 'tête {0} {1} ns') -f "$h", (Format-UiNum ([double]$e.Ns) $sg).Replace('-', [string][char]0x2212)).Replace(' ', $nb)
-        if ($up) { $pv += ' ' + (T '(facteur au-dessus de 1)') }
         $parts += $pv
         $rd = Get-TargetRecalReads $e
         if ([int]$rd.N -gt $reads) { $reads = [int]$rd.N }
@@ -764,8 +776,9 @@ function Get-TargetRecalSummaryText([string]$src, [string]$tgt, [string]$fam) {
 }
 
 function Export-TargetRecal {
-    # Bloc write.targetRecal de la configuration : cle -> { ns ; n ; xDate ; calc ; at ; items : [ { writeId ; date ; est ;
-    # pistes ; nr ; read } ] }, cles triees ; une version anterieure ignore ce bloc
+    # Bloc write.targetRecal2 de la configuration (12.12 rc5 : regle unique ; write.targetRecal jusqu a la rc4) : cle ->
+    # { ns ; n ; xDate ; calc ; rule ; at ; items : [ { writeId ; date ; est ; pistes ; nr ; read ; k } ] }, cles triees ;
+    # une version anterieure ignore ce bloc
     $o = [ordered]@{}
     if ($null -eq $script:TargetRecal) { return $o }
     foreach ($k in @($script:TargetRecal.Keys | Sort-Object)) {
@@ -773,29 +786,34 @@ function Export-TargetRecal {
         if (-not $e) { continue }
         # 12.12 : k de l ecriture relue (regime), absent d une ecriture relue par une 12.11 et non retrouvee
         $its = @(foreach ($it in @($e.Items | Where-Object { $_ })) { $d = [ordered]@{ writeId = [string]$it.WriteId; date = [string]$it.Date; est = [math]::Round([double]$it.Est, 2); pistes = [int]$it.Tracks; nr = [math]::Max(1, [int]$it.NR); read = [string]$it.Read }; if ($null -ne $it.K) { $d['k'] = [math]::Round([double]$it.K, 3) }; $d })
-        $o[[string]$k] = [ordered]@{ ns = [double]$e.Ns; n = $its.Count; xDate = [string]$e.XDate; xKey = [string]$e.XKey; calc = [string]$e.Calc; at = [string]$e.At; items = $its }
+        $o[[string]$k] = [ordered]@{ ns = [double]$e.Ns; n = $its.Count; xDate = [string]$e.XDate; xKey = [string]$e.XKey; calc = [string]$e.Calc; rule = [string]$script:TargetRule; at = [string]$e.At; items = $its }
     }
     return $o
 }
 
-function Import-TargetRecal($o) {
-    # Bloc write.targetRecal -> $script:TargetRecal (vide d abord). Cle « source>cible|famille_hN » et au moins une
+function Import-TargetRecal($o, [switch]$Legacy) {
+    # Bloc write.targetRecal2 -> $script:TargetRecal (vide d abord). Cle « source>cible|famille_hN » et au moins une
     # estimation finie exigees ; Ns et N recalcules sur les estimations (Get-TargetRecalNs), les TargetRecalMaxItems
-    # dernieres : la valeur ns enregistree n est jamais reprise, et une entree enregistree par la rc8 (f = n / (n + 1)) suit
-    # la regle courante des le demarrage suivant. Entree illisible : ignoree et comptee. 12.12 : cle suivie de « + » pour
-    # le regime k > 1 ; k de chaque ecriture relue (K, $null sans lui) ; ecritures relues par une 12.11 (sans k) dans une
-    # entree sans « + » : celles dont la mesure sur l image donnait k > 1 (Get-TargetRecalItemK, apres le chargement des
-    # mesures : Load-Config) passent dans l entree « + », creee au besoin avec la meme courbe croisee ; les autres restent
-    # (k <= 1 ou mesure introuvable). Rend @{ N ; Bad ; Moved (ecritures reclassees) }
+    # dernieres : la valeur ns enregistree n est jamais reprise. Entree illisible : ignoree et comptee.
+    # -Legacy (12.12 rc5) : bloc write.targetRecal d une version anterieure, appris sous la regle precedente de la courbe
+    # ecrite (cle suivie de « + » pour un facteur au-dessus de 1, rc1 a rc4). Chaque ecriture relue est convertie a la
+    # regle unique par son facteur k (Get-TargetRuleShift : estimation - ecart median entre les deux regles ; k de
+    # l ecriture, sinon celui de la mesure sur l image qui la precede, Get-TargetRecalItemK, apres le chargement des
+    # courbes et des mesures : Load-Config) ; sans k retrouve, elle est oubliee (son estimation ne vaut que sous
+    # l ancienne regle) ; sans les courbes de l entree (courbe croisee recalibree depuis), elle est oubliee aussi : la
+    # garder telle quelle la rendrait valable, non convertie, au retour a la calibration precedente (relecture de la
+    # rc5). Les deux entrees d une tete (avec et sans « + ») n en font qu une : memes ecritures reunies
+    # quand elles viennent de la meme courbe croisee, sinon la plus recente. Rend @{ N ; Bad ; Converted ; Dropped }
     $script:TargetRecal = @{}
-    $n = 0; $bad = 0; $moved = 0
-    if ($null -eq $o -or $o -is [array] -or $o -is [string] -or $o -is [ValueType]) { return @{ N = 0; Bad = 0; Moved = 0 } }
+    $n = 0; $bad = 0; $conv = 0; $drop = 0
+    if ($null -eq $o -or $o -is [array] -or $o -is [string] -or $o -is [ValueType]) { return @{ N = 0; Bad = 0; Converted = 0; Dropped = 0 } }
     $max = [math]::Max(1, [int]$script:TargetRecalMaxItems)
+    $pat = if ($Legacy) { '^[^>|]+>[^>|]+\|(std|long|hd)_h[01]\+?$' } else { '^[^>|]+>[^>|]+\|(std|long|hd)_h[01]$' }
     $raw = @{}
     foreach ($p in @($o.PSObject.Properties)) {
         $k = [string]$p.Name; $v = $p.Value
         try {
-            if ($k -notmatch '^[^>|]+>[^>|]+\|(std|long|hd)_h[01]\+?$' -or $null -eq $v) { $bad++; continue }
+            if ($k -notmatch $pat -or $null -eq $v) { $bad++; continue }
             $its = New-Object System.Collections.Generic.List[object]
             foreach ($it in @($v.items)) {
                 if ($null -eq $it) { continue }
@@ -807,31 +825,39 @@ function Import-TargetRecal($o) {
             $raw[$k] = @{ Items = $its; XDate = [string]$v.xDate; XKey = [string]$v.xKey; Calc = [string]$v.calc; At = [string]$v.at }
         } catch { $bad++ }
     }
-    # Reclassement des ecritures relues par une 12.11 dont le facteur depassait 1
-    foreach ($k in @($raw.Keys | Where-Object { -not ([string]$_).EndsWith('+') } | Sort-Object)) {
-        try {
-            $e = $raw[$k]
-            if ($k -notmatch '^([^>|]+)>[^>|]+\|(std|long|hd)_h([01])$') { continue }
-            $drv = [string]$Matches[1]; $fam = [string]$Matches[2]; $h = [int]$Matches[3]
-            $keep = New-Object System.Collections.Generic.List[object]; $mv = New-Object System.Collections.Generic.List[object]
-            foreach ($it in $e.Items) {
-                if ($null -ne $it.K) { $keep.Add($it); continue }
-                $ik = Get-TargetRecalItemK $drv $fam $h ([string]$it.WriteId)
-                if ($null -ne $ik -and (Test-TargetRecalUp ([double]$ik))) { $it.K = [double]$ik; $mv.Add($it) } else { $keep.Add($it) }
-            }
-            if ($mv.Count -eq 0) { continue }
-            $moved += $mv.Count
-            $ku = $k + '+'
-            if (-not $raw.ContainsKey($ku)) { $raw[$ku] = @{ Items = (New-Object System.Collections.Generic.List[object]); XDate = [string]$e.XDate; XKey = [string]$e.XKey; Calc = [string]$e.Calc; At = [string]$e.At } }
-            # Meme courbe croisee seulement : une entree « + » d une autre date garde ses ecritures, les reclassees sont perdues
-            if ([string]$raw[$ku].XDate -ceq [string]$e.XDate) {
-                foreach ($it in $mv) { $raw[$ku].Items.Add($it) }
-                $srt = @($raw[$ku].Items | Sort-Object -Property @{ Expression = { [string]$_.WriteId } })
-                $raw[$ku].Items = New-Object System.Collections.Generic.List[object]; foreach ($it in $srt) { $raw[$ku].Items.Add($it) }
-            }
-            $e.Items = $keep
-            if ($keep.Count -eq 0) { $raw.Remove($k) }
-        } catch { }
+    if ($Legacy) {
+        $one = @{}
+        foreach ($k in @($raw.Keys | Sort-Object)) {
+            try {
+                $e = $raw[$k]
+                if ($k -notmatch '^([^>|]+)>([^>|]+)\|(std|long|hd)_h([01])(\+?)$') { continue }
+                $src = [string]$Matches[1]; $tgt = [string]$Matches[2]; $fam = [string]$Matches[3]; $h = [int]$Matches[4]
+                $keep = New-Object System.Collections.Generic.List[object]
+                foreach ($it in $e.Items) {
+                    $ik = $it.K
+                    if ($null -eq $ik) { $ik = Get-TargetRecalItemK $src $fam $h ([string]$it.WriteId) }
+                    if ($null -eq $ik) { $drop++; continue }
+                    $it.K = [double]$ik
+                    $sh = Get-TargetRuleShift $src $tgt $fam $h ([string]$e.XKey) ([string]$e.XDate) ([double]$ik)
+                    if ($null -eq $sh) { $drop++; continue }
+                    $it.Est = [math]::Round([double]$it.Est - [double]$sh, 2); $conv++
+                    $keep.Add($it)
+                }
+                if ($keep.Count -eq 0) { continue }
+                $e.Items = $keep
+                $bk = "$src>$tgt|$($fam)_h$h"
+                $cur = $one[$bk]
+                if ($null -eq $cur) { $one[$bk] = $e }
+                elseif ([string]$cur.XDate -ceq [string]$e.XDate) {
+                    foreach ($it in $keep) { $cur.Items.Add($it) }
+                    $srt = @($cur.Items | Sort-Object -Property @{ Expression = { [string]$_.WriteId } })
+                    $cur.Items = New-Object System.Collections.Generic.List[object]; foreach ($it in $srt) { $cur.Items.Add($it) }
+                    if ((ConvertTo-RecalDate ([string]$e.At)) -gt (ConvertTo-RecalDate ([string]$cur.At))) { $cur.At = [string]$e.At }
+                }
+                elseif ((ConvertTo-RecalDate ([string]$e.At)) -gt (ConvertTo-RecalDate ([string]$cur.At))) { $one[$bk] = $e }
+            } catch { $bad++ }
+        }
+        $raw = $one
     }
     foreach ($k in @($raw.Keys)) {
         $e = $raw[$k]
@@ -841,11 +867,13 @@ function Import-TargetRecal($o) {
         $script:TargetRecal[$k] = @{ Ns = (Get-TargetRecalNs $arr); N = $arr.Count; Items = $arr; XDate = [string]$e.XDate; XKey = [string]$e.XKey; Calc = [string]$e.Calc; At = [string]$e.At }
         $n++
     }
-    return @{ N = $n; Bad = $bad; Moved = $moved }
+    return @{ N = $n; Bad = $bad; Converted = $conv; Dropped = $drop }
 }
 
 function Export-LastTargetWrites {
-    # Bloc write.lastTargetWrite de la configuration : « source>cible » -> memoire de la derniere ecriture pour ce lecteur
+    # Bloc write.lastTargetWrite2 de la configuration (12.12 rc5 : ecritures de la regle unique ; write.lastTargetWrite
+    # jusqu a la rc4 ; une memoire anterieure, OldRule, y est gardee avec sa regle d origine, rule vide) :
+    # « source>cible » -> memoire de la derniere ecriture pour ce lecteur
     # cible (Complete-TargetWriteMemory), cles triees ; une version anterieure ignore ce bloc. Version finale : kLearn par
     # tete (Test-TargetRecalKLearn), null pour une memoire de la rc8 qui ne l a pas (Get-TargetWriteKLearnWhy decide alors
     # d apres kSrc ; un faux ecrit a sa place la priverait de l apprentissage)
@@ -862,15 +890,17 @@ function Export-LastTargetWrites {
                                           zones = @(@($h.Zones) | ForEach-Object { [int]$_ }) }
         }
         $o[[string]$k] = [ordered]@{ id = [string]$m.Id; date = [string]$m.Date; at = [string]$m.At; image = [string]$m.Image; fam = [string]$m.Fam; slow = [bool]$m.Slow
-                                     tracks = [int]$m.Tracks; heads = @(@($m.Heads) | ForEach-Object { [int]$_ }); verdict = [string]$m.Verdict; calc = [string]$m.Calc; h = $hs }
+                                     tracks = [int]$m.Tracks; heads = @(@($m.Heads) | ForEach-Object { [int]$_ }); verdict = [string]$m.Verdict; calc = [string]$m.Calc; rule = $(if ($m.OldRule -eq $true) { '' } else { [string]$script:TargetRule }); h = $hs }
     }
     return $o
 }
 
-function Import-LastTargetWrites($o) {
+function Import-LastTargetWrites($o, [switch]$Legacy) {
     # Bloc write.lastTargetWrite -> $script:LastTargetWrites (vide d abord) : cle « source>cible », identifiant, date,
     # famille et une tete au moins exiges ; entree illisible ignoree et comptee. kLearn absent ou null (memoire de la rc8) :
     # KLearn $null ; kSrc absent : KSrc vide, tete qui n apprend pas (Get-TargetWriteKLearnWhy). Rend @{ N ; Bad }
+    # 12.12 (rc5) : -Legacy (bloc write.lastTargetWrite d une version anterieure) ou regle autre que la regle courante :
+    # OldRule, l ecriture a ete faite sous une autre regle de la courbe ecrite et sa relecture n apprend pas
     $script:LastTargetWrites = @{}
     $n = 0; $bad = 0
     if ($null -eq $o -or $o -is [array] -or $o -is [string] -or $o -is [ValueType]) { return @{ N = 0; Bad = 0 } }
@@ -888,7 +918,8 @@ function Import-LastTargetWrites($o) {
             }
             if ($hs.Count -eq 0) { $bad++; continue }
             $script:LastTargetWrites[$k] = @{ Id = [string]$v.id; Date = [string]$v.date; At = [string]$v.at; Image = [string]$v.image; Fam = [string]$v.fam; Slow = ($v.slow -eq $true)
-                                              Tracks = [int]$v.tracks; Heads = [int[]]@(@($v.heads) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ }); Verdict = [string]$v.verdict; Calc = [string]$v.calc; H = $hs }
+                                              Tracks = [int]$v.tracks; Heads = [int[]]@(@($v.heads) | Where-Object { $null -ne $_ } | ForEach-Object { [int]$_ }); Verdict = [string]$v.verdict; Calc = [string]$v.calc; H = $hs
+                                              Rule = [string]$v.rule; OldRule = [bool]($Legacy -or [string]$v.rule -cne [string]$script:TargetRule) }
             $n++
         } catch { $bad++ }
     }

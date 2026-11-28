@@ -11,12 +11,12 @@ $Wt = Get-TestRoot $Wt
 #     arrondi au ns, limite a 25 % de la valeur du cylindre, valeur nulle inchangee, borne max(borne, X, D) ; exces apres ;
 #     courbe egale a X (D = Sp) : profil recalcule.
 #  N  cumul : somme des estimations / (n + p), p = (1 - F) / F, F = TargetRecalFirstShare = 0,75 (version finale : les trois
-#     quarts des la premiere ecriture relue ; rc8 : p = 1), plafond 8 ns, une decimale (arrondi au pair de .NET :
+#     quarts des la premiere ecriture relue ; rc8 : p = 1), plafond 16 ns (8 ns jusqu a la rc4 de la 12.12), une decimale (arrondi au pair de .NET :
 #     -3,75 -> -3,8) ; N2 f(1) a f(5) exacts (0,75 ; 6/7 ; 0,9 ; 12/13 ; 15/16) et plafond ; N3 la constante commande le
 #     resultat (0,5 : regle de la rc8 ; 1 : moyenne ; hors de ]0 ; 1] : 0).
 #  R  relecture par le lecteur cible (Get-TargetRecalReadback) : estimation exacte (g mesure, borne, repli 1,7 ; pistes en
 #     erreur et zones exclues) ; refus : pas « SUPPORT SAIN », famille, nombre de pistes, tetes, relecture anterieure, peu de
-#     pistes, peu de blocs, facteur non mesure, controle eloigne, ecart median > 12 ns, autre lecteur.
+#     pistes, peu de blocs, facteur non mesure, controle eloigne, ecart median > 20 ns (12 ns jusqu a la rc4 de la 12.12), autre lecteur.
 #  C  cumul dans le magasin (Get-TargetRecalUpdate) : premiere relecture, meme ecriture relue deux fois, ecritures suivantes,
 #     cinq au plus, remise a zero (autre courbe croisee, autre calcul).
 #  A  application (Get-TargetRecalPlan, Get-TargetTransferPlan) : courbe ecrite = regle + arrondi(o) cylindre par cylindre ;
@@ -195,24 +195,25 @@ Chk 'U5' ([string]$sx.Spec -ceq (Build-CurveProfile $sx.Values) -and [string]$sx
 # N : cumul
 $n1 = Get-TargetRecalNs @(@{ Est = -6.0 })
 $n2 = Get-TargetRecalNs @(@{ Est = -6.0 }, @{ Est = -3.0 })
-$n3 = Get-TargetRecalNs @(@{ Est = -20.0 })
+$n3 = Get-TargetRecalNs @(@{ Est = -30.0 })
 $n4 = Get-TargetRecalNs @(@{ Est = 30.0 }, @{ Est = 30.0 })
 $n5 = Get-TargetRecalNs @(@{ Est = -4.0 }, @{ Est = -4.0 }, @{ Est = -4.0 }, @{ Est = -4.0 }, @{ Est = -4.0 })
 $n6 = Get-TargetRecalNs @(@{ Est = -5.55 })
-# Attentes calculees a la main, somme / (n + 1/3) : -6 / (4/3) = -4,5 ; -9 / (7/3) = -3,857 -> -3,9 ; -20 / (4/3) = -15 et
-# 60 / (7/3) = 25,7 : plafond -8 et 8 ; -20 / (16/3) = -3,75 -> -3,8 (au pair) ; -5,55 / (4/3) = -4,1625 -> -4,2. La regle
-# de la rc8 (n + 1) donnait -3,0 ; -3,0 ; -8 ; 8 ; -3,3 ; -2,8
-Chk 'N1' ($script:TargetRecalFirstShare -eq 0.75 -and (Near $n1 -4.5) -and (Near $n2 -3.9) -and (Near $n3 -8.0) -and (Near $n4 8.0) -and (Near $n5 -3.8) -and (Near (Get-TargetRecalNs @()) 0) -and (Near $n6 -4.2)) "somme/(n+1/3) : $n1, $n2 ; plafond : $n3, $n4 ; cinq ecritures : $n5 ; une decimale : $n6"
+# Attentes calculees a la main, somme / (n + 1/3) : -6 / (4/3) = -4,5 ; -9 / (7/3) = -3,857 -> -3,9 ; -30 / (4/3) = -22,5 et
+# 60 / (7/3) = 25,7 : plafond -16 et 16 (12.12 rc5 ; 8 ns avant) ; -20 / (16/3) = -3,75 -> -3,8 (au pair) ; -5,55 / (4/3) =
+# -4,1625 -> -4,2. La regle de la rc8 (n + 1) donnait -3,0 ; -3,0 ; plafond ; plafond ; -3,3 ; -2,8
+Chk 'N1' ($script:TargetRecalFirstShare -eq 0.75 -and (Near $n1 -4.5) -and (Near $n2 -3.9) -and $script:TargetRecalCapNs -eq 16 -and (Near $n3 -16.0) -and (Near $n4 16.0) -and (Near $n5 -3.8) -and (Near (Get-TargetRecalNs @()) 0) -and (Near $n6 -4.2)) "somme/(n+1/3) : $n1, $n2 ; plafond : $n3, $n4 ; cinq ecritures : $n5 ; une decimale : $n6"
 # Part f(n) de l ecart moyen m retenue, avec des moyennes dont le produit est exact : f(1) = 3/4 (m -4 : -3) ; f(2) = 6/7
 # (m -7 : -6) ; f(3) = 9/10 (m -5 : -4,5) ; f(4) = 12/13 (m -6,5 : -6) ; f(5) = 15/16 (m -3,2 : -3) ; plafond des deux
-# cotes : m +12 et -12 donneraient +9 et -9
+# cotes : m +24 et -24 donneraient +18 et -18 ; sous le plafond, m +12 et -12 donnent +9 et -9
 $f1 = Get-TargetRecalNs @(@{ Est = -4.0 })
 $f2 = Get-TargetRecalNs @(@{ Est = -7.0 }, @{ Est = -7.0 })
 $f3 = Get-TargetRecalNs @(1..3 | ForEach-Object { @{ Est = -5.0 } })
 $f4 = Get-TargetRecalNs @(1..4 | ForEach-Object { @{ Est = -6.5 } })
 $f5 = Get-TargetRecalNs @(1..5 | ForEach-Object { @{ Est = -3.2 } })
-$cp = Get-TargetRecalNs @(@{ Est = 12.0 }); $cm = Get-TargetRecalNs @(@{ Est = -12.0 })
-Chk 'N2' ((Near $f1 -3.0) -and (Near ($f1 / -4.0) 0.75) -and (Near $f2 -6.0) -and (Near ($f2 / -7.0) (6.0 / 7)) -and (Near $f3 -4.5) -and (Near $f4 -6.0) -and (Near $f5 -3.0) -and (Near $cp 8.0) -and (Near $cm -8.0)) "f(1) = $($f1 / -4.0), f(2) = $($f2 / -7.0) ; f(3) a f(5) : $f3, $f4, $f5 ; plafond : $cp, $cm"
+$cp = Get-TargetRecalNs @(@{ Est = 24.0 }); $cm = Get-TargetRecalNs @(@{ Est = -24.0 })
+$cu = Get-TargetRecalNs @(@{ Est = 12.0 }); $cd = Get-TargetRecalNs @(@{ Est = -12.0 })
+Chk 'N2' ((Near $f1 -3.0) -and (Near ($f1 / -4.0) 0.75) -and (Near $f2 -6.0) -and (Near ($f2 / -7.0) (6.0 / 7)) -and (Near $f3 -4.5) -and (Near $f4 -6.0) -and (Near $f5 -3.0) -and (Near $cp 16.0) -and (Near $cm -16.0) -and (Near $cu 9.0) -and (Near $cd -9.0)) "f(1) = $($f1 / -4.0), f(2) = $($f2 / -7.0) ; f(3) a f(5) : $f3, $f4, $f5 ; plafond : $cp, $cm"
 # La constante de 040 commande le resultat : 0,5 redonne la regle de la rc8 (-6 : -3) ; 1, la moyenne (-6 et -3 : -4,5) ;
 # 0 ou 1,5 : aucun recalage
 $fs = $script:TargetRecalFirstShare
@@ -276,11 +277,11 @@ Chk 'R12' ($ev.Ok -and -not $ev.Heads['0'].Ok -and $ev.Heads['1'].Ok -and -not $
 $memo = New-FkMem -verdict 'off'
 $ev = Get-TargetRecalReadback $memo $rb 0 $AT '0' '0'
 Chk 'R13' (-not $ev.Ok -and (Test-FkWhy $ev 'verdict')) 'controle « eloigne de l attendu » : refusee'
-$rb = New-FkRead @{ 0 = 12.5; 1 = 3.0 } $G
+$rb = New-FkRead @{ 0 = 20.5; 1 = 3.0 } $G
 $ev = Get-TargetRecalReadback $mem $rb 0 $AT '0' '0'
-$rb2 = New-FkRead @{ 0 = 11.5; 1 = 3.0 } $G
+$rb2 = New-FkRead @{ 0 = 19.5; 1 = 3.0 } $G
 $ev2 = Get-TargetRecalReadback $mem $rb2 0 $AT '0' '0'
-Chk 'R14' (-not $ev.Heads['0'].Ok -and $ev.Heads['1'].Ok -and $ev2.Heads['0'].Ok -and (@($ev.Heads['0'].Why) -join ' ').Contains('12')) 'ecart median 12,5 ns : tete refusee ; 11,5 ns : retenue'
+Chk 'R14' (-not $ev.Heads['0'].Ok -and $ev.Heads['1'].Ok -and $ev2.Heads['0'].Ok -and $script:TargetRecalMaxGapNs -eq 20 -and (@($ev.Heads['0'].Why) -join ' ').Contains('± 20 ns')) 'ecart median 20,5 ns : tete refusee ; 19,5 ns : retenue (seuil de 20 ns, 12.12 rc5 ; 12 ns avant)'
 $ev = Get-TargetRecalReadback $mem $rb2 0 $AT 'B' '0'
 Chk 'R15' (-not $ev.Ok -and (Test-FkWhy $ev 'notarget')) 'relu par un autre lecteur que le lecteur cible : refusee'
 # Relecture rc8 : lecteur qui a ecrit connu ($src) : courbe croisee de la tete recalibree depuis l ecriture, ou calcul de
@@ -434,8 +435,8 @@ $o9 = Invoke-TargetRecalOffer $res $rb
 Chk 'O9' ($o9 -eq 'refused' -and $script:ConfirmN -eq 0 -and $script:TargetRecal.Count -eq 0 -and (@($script:Log) -join ' ').Contains('recalibrée ou calcul changé depuis cette écriture')) 'courbe croisee recalibree depuis l ecriture : aucune fenetre, raison au journal'
 # O10 (12.11, version finale) : lignes de journal de la proposition, listes separees par T(' ; ') comme les voisines : en
 # anglais « ; » sans espace avant, jamais le « ; » francais ; en francais, « ; » inchange. Recalage enregistre (deux
-# tetes) ; relecture refusee pour les deux tetes (ecart median de 12,5 ns, au-dela de 12)
-$rbF = New-FkRead @{ 0 = 12.5; 1 = 12.5 } $G
+# tetes) ; relecture refusee pour les deux tetes (ecart median de 20,5 ns, au-dela de 20)
+$rbF = New-FkRead @{ 0 = 20.5; 1 = 20.5 } $G
 $o10 = @{}
 foreach ($lg in 'fr', 'en') {
     $script:Lang = $lg
@@ -445,8 +446,8 @@ foreach ($lg in 'fr', 'en') {
     [void](Invoke-TargetRecalOffer $res $rbF); $o10["$lg-ref"] = [string]@($script:Log)[-1]
 }
 $script:Lang = 'fr'; Reset-Fk
-$o10ok = ($o10['en-ok'].Contains(': head 0 -4.5 ns; head 1 -3.0 ns; added to the next writes') -and $o10['en-ref'].Contains('12.5 ns, beyond ± 12 ns') -and $o10['en-ref'].Contains('disk factor; head 1: median gap +12.5 ns') -and
-          -not ($o10['en-ok'] + $o10['en-ref']).Contains(' ; ') -and $o10['fr-ok'].Contains(' : tête 0 -4,5 ns ; tête 1 -3,0 ns ; ajouté aux prochaines écritures') -and $o10['fr-ref'].Contains('facteur de la disquette ; tête 1 : écart médian +12,5 ns'))
+$o10ok = ($o10['en-ok'].Contains(': head 0 -4.5 ns; head 1 -3.0 ns; added to the next writes') -and $o10['en-ref'].Contains('20.5 ns, beyond ± 20 ns') -and $o10['en-ref'].Contains('disk factor; head 1: median gap +20.5 ns') -and
+          -not ($o10['en-ok'] + $o10['en-ref']).Contains(' ; ') -and $o10['fr-ok'].Contains(' : tête 0 -4,5 ns ; tête 1 -3,0 ns ; ajouté aux prochaines écritures') -and $o10['fr-ref'].Contains('facteur de la disquette ; tête 1 : écart médian +20,5 ns'))
 Chk 'O10' $o10ok "anglais : « $($o10['en-ok']) » ; « $($o10['en-ref']) » ; francais : « $($o10['fr-ok']) »"
 # O11 (12.11, relecture de la version finale) : controle statique (arbre syntaxique des modules fn) des listes passees a
 # T(' ; ') en 12.11, que O10 et R4d (logic-calib-retour) ne prouvent que pour trois des dix-sept : dans chaque fonction de
@@ -552,10 +553,11 @@ Chk 'D3' ($keep -and $g2.Ok -and $script:TargetRecal.Count -eq 0 -and $script:Pr
 Reset-Fk
 $script:TargetRecal['A>0|std_h0'] = @{ Ns = -3.7; N = 1; Items = @(@{ WriteId = 'W1'; Est = -7.4; NR = 1 }); XDate = $XD; Calc = $script:CalibCalc; At = '' }
 $script:LastTargetWrites['A>0'] = New-FkMem
+$script:TargetRecalLegacy = ('{ "A>0|std_h0": { "xDate": "x" } }' | ConvertFrom-Json)
 $script:PrecompStd = '0=140'; $script:PrecompStdDefault = '0=140'; $script:PrecompLong = '0=140'; $script:PrecompLongDefault = '0=140'
 function Get-CalibResetAfterText { return 'ensuite' }
 Reset-CalibProfiles
-Chk 'E1' ($script:TargetRecal.Count -eq 0 -and $script:LastTargetWrites.Count -eq 0 -and $script:MsgText.Contains('Les recalages des courbes croisées (1) et la mémoire des dernières écritures pour un lecteur cible (1) sont effacés aussi.') -and (@($script:Log) -join ' ').Contains('Recalages des courbes croisées (1)')) 'Effacer les calibrations : recalages et memoire des ecritures effaces, message et journal'
+Chk 'E1' ($script:TargetRecal.Count -eq 0 -and $script:LastTargetWrites.Count -eq 0 -and $null -eq $script:TargetRecalLegacy -and $script:MsgText.Contains('Les recalages des courbes croisées (1) et la mémoire des dernières écritures pour un lecteur cible (1) sont effacés aussi.') -and (@($script:Log) -join ' ').Contains('Recalages des courbes croisées (1)')) 'Effacer les calibrations : recalages et memoire des ecritures effaces, message et journal'
 
 # =====================================================================================================================
 # J : configuration
@@ -663,7 +665,7 @@ $lD = (@($script:Log) -join ' ')
 $evD = Get-TargetRecalReadback $mD $rbL 0 $AT '0' '0' 'A'
 Chk 'L6' ($mD.H['0'].KLearn -eq $false -and $mD.H['0'].KMeasured -eq $false -and $lD.Contains('elle ne pourra pas recaler') -and -not $evD.Ok -and (@($evD.Heads['0'].Why) -join ' ').Contains("tête 0 : facteur de la disquette non mesuré à l'écriture (k = 1 par défaut)")) 'k = 1 : ligne de fin d ecriture sans promesse, relecture refusee (k = 1 par defaut)'
 # L7 : origine du facteur absente (memoire sans kSrc, relue de la configuration) : tete qui n apprend pas, raison claire
-$js7 = '{ "A>0": { "id": "W20261122100000", "date": "22/11/2026 10:00", "at": "2026-11-22 10:00:00", "image": "essai.adf", "fam": "std", "slow": true, "tracks": 160, "heads": [0, 1], "verdict": "ok", "calc": "' + $script:CalibCalc + '",' +
+$js7 = '{ "A>0": { "id": "W20261122100000", "date": "22/11/2026 10:00", "at": "2026-11-22 10:00:00", "image": "essai.adf", "fam": "std", "slow": true, "tracks": 160, "heads": [0, 1], "verdict": "ok", "calc": "' + $script:CalibCalc + '", "rule": "' + $script:TargetRule + '",' +
        ' "h": { "0": { "phys": 0, "w": "0=40:40=32:70=24", "o": 0, "xDate": "' + $XD + '", "xKey": "std_h0", "k": 0.74, "kMeasured": true }, "1": { "phys": 1, "w": "0=38:40=30:70=22", "o": 0, "xDate": "' + $XD + '", "xKey": "std_h1", "k": 0.74, "kSrc": "autre", "kMeasured": true } } } }'
 $i7 = Import-LastTargetWrites ($js7 | ConvertFrom-Json)
 $m7 = $script:LastTargetWrites['A>0']
@@ -797,39 +799,55 @@ Chk 'L14' ($ks14 -ceq 'mesure/lecteur lecteur/mesure lecteur/lecteur mesure/mesu
 
 # =====================================================================================================================
 # =====================================================================================================================
-# R : 12.12, recalage tenu par regime d ecriture (facteur de la disquette au-dessus de 1 ou non). Valeurs fictives
+# S : 12.12 rc5, regle unique de la courbe ecrite pour un lecteur cible et un seul recalage par tete (les rc1 a rc4 tenaient
+# un recalage par regime d ecriture, cle suivie de « + » pour un facteur de la disquette au-dessus de 1). Valeurs fictives
 Reset-Fk
-$rUp = (@((Test-TargetRecalUp 1.0), (Test-TargetRecalUp 1.0004), (Test-TargetRecalUp 1.0006), (Test-TargetRecalUp 0.74), (Test-TargetRecalUp 1.7)) | ForEach-Object { if ($_) { '1' } else { '0' } }) -join ''
 $wfK = @{ K = @{ 0 = 0.8; 1 = 1.6 }; FMean = 1.2 }
 $rKok = ((Near (Get-TargetRecalK $wfK 1 $true) 1.6) -and (Near (Get-TargetRecalK $wfK 0 $false) 1.2) -and (Near (Get-TargetRecalK $null 0 $true) 1.0) -and (Near (Get-TargetRecalK @{ K = @{ 0 = 0.8 } } 1 $true) 1.0))
-Chk 'R1' ($rUp -ceq '00101' -and (Get-TargetRecalKey 'A' '0' 'std' 1) -ceq 'A>0|std_h1' -and (Get-TargetRecalKey 'A' '0' 'std' 1 $true) -ceq 'A>0|std_h1+' -and $rKok -and (Get-DriveMovedKey 'A>0|std_h1+' 'A' 'Banc 2').Key -ceq 'Banc 2>0|std_h1+') "regime : k arrondi a 0,001 strictement au-dessus de 1 ($rUp) ; cle suivie de « + », gardee au renommage d un lecteur ; k de la tete en ecriture lente, facteur moyen en rapide, 1 sans lui"
+# Ecart median entre la regle unique et la regle precedente (Get-TargetRuleShift). Courbes du test, tete 0 : X - Sp vaut
+# 20 ns (c0-39), 14 ns (c40-69) et 10 ns (c70-79), mediane 17 ns ; ecart = |k - 1| x 17 / 2 des deux cotes de 1 (k <= 1 :
+# moyenne de k X et de X + (k - 1) Sp, moins k X ; k > 1 : la meme moyenne moins X + (k - 1) Sp)
+$shV = @(foreach ($kq in 1.0, 0.8, 1.6, 0.5) { [double](Get-TargetRuleShift 'A' '0' 'std' 0 'std_h0' $XD $kq) })
+$shOk = ((Near $shV[0] 0) -and (Near $shV[1] 1.7) -and (Near $shV[2] 5.1) -and (Near $shV[3] 4.25) -and (Near ([double](Get-TargetRuleShift 'A' '0' 'std' 0 '' $XD 0.8)) 1.7))
+# Rien a convertir : courbe croisee d une autre date, facteur illisible, courbe propre absente ; X sous Sp : les deux regles
+# sont le rapport seul, ecart nul
+$shNull = ($null -eq (Get-TargetRuleShift 'A' '0' 'std' 0 'std_h0' '01/01/2026 00:00' 0.8) -and $null -eq (Get-TargetRuleShift 'A' '0' 'std' 0 'std_h0' $XD 0) -and $null -eq (Get-TargetRuleShift 'A' '0' 'std' 0 'std_h0' $XD ([double]::NaN)) -and $null -eq (Get-TargetRuleShift 'A' '0' 'long' 0 'long_h0' $XD 0.8))
+# Courbe croisee commune (cle « std ») et courbes propres par tete seulement : courbe propre de la tete, comme a
+# l ecriture lente (X - Sp : 19, 13 et 9 ns, mediane 16 pour la tete 0 ; 21, 15 et 11 ns, mediane 18 pour la tete 1)
+$shCom = @([double](Get-TargetRuleShift 'A' '0' 'std' 0 'std' '16/11/2026 17:30' 0.8), [double](Get-TargetRuleShift 'A' '0' 'std' 1 'std' '16/11/2026 17:30' 0.8))
+$script:DriveCurves.Remove('A|std_h0'); $shNoOwn = ($null -eq (Get-TargetRuleShift 'A' '0' 'std' 0 'std_h0' $XD 0.8))
+Reset-Fk
+$script:DriveCurves['A>0|std_h0'] = (New-FkCurve 'A' '0' 0 '0=20')
+$shLow = @(foreach ($kq in 0.8, 1.6) { [double](Get-TargetRuleShift 'A' '0' 'std' 0 'std_h0' $XD $kq) })
+Reset-Fk
+Chk 'S1' ((Get-TargetRecalKey 'A' '0' 'std' 1) -ceq 'A>0|std_h1' -and $rKok -and [string]$script:TargetRule -ceq '2' -and -not (Get-Command Test-TargetRecalUp -ErrorAction SilentlyContinue) -and $shOk -and $shNull -and $shNoOwn -and (Near $shCom[0] 1.6) -and (Near $shCom[1] 1.8) -and (Near $shLow[0] 0) -and (Near $shLow[1] 0)) "cle d une tete sans regime ; k de la tete en ecriture lente, facteur moyen en rapide, 1 sans lui ; ecart median entre la regle unique et la regle precedente : $(@($shV | ForEach-Object { $_.ToString('0.00', [System.Globalization.CultureInfo]::InvariantCulture) }) -join ' / ') ns pour k 1 / 0,8 / 1,6 / 0,5 (0 / 1,70 / 5,10 / 4,25 attendus) ; rien sans les courbes ou le facteur ($shNull, $shNoOwn) ; courbe croisee commune et courbes propres par tete : $($shCom -join ' / ') ns (1,6 / 1,8 attendus) ; X sous Sp : $($shLow -join ' / ')"
 
 function New-FkRecal([double]$est, [string]$xKey, $k = $null, [string]$id = 'W20261003101500') {
     $it = @{ WriteId = $id; Date = '03/10/2026 10:20'; Est = $est; Tracks = 80; NR = 1; Read = '2026-10-03 11:00:00'; K = $k }
     return @{ Ns = (Get-TargetRecalNs @($it)); N = 1; Items = @($it); XDate = $XD; XKey = $xKey; Calc = $script:CalibCalc; At = '2026-10-03 11:00:00' }
 }
+# Application : l entree de la tete, quel que soit le facteur de la disquette de l ecriture
 $twR = @{ Src = 'A'; Tgt = '0'; Fam = 'std' }
 $xcR = @($script:DriveCurves['A>0|std_h0'], $script:DriveCurves['A>0|std_h1'])
 $script:TargetRecal['A>0|std_h0'] = New-FkRecal -4.4 'std_h0' 0.8      # -3,3
-$script:TargetRecal['A>0|std_h1'] = New-FkRecal -2.4 'std_h1' 0.8      # -1,8
-$script:TargetRecal['A>0|std_h1+'] = New-FkRecal 5.2 'std_h1' 1.6      # +3,9
+$script:TargetRecal['A>0|std_h1'] = New-FkRecal -2.4 'std_h1' 1.6      # -1,8
 $wMix = @{ Apply = $true; K = @{ 0 = 0.80; 1 = 1.60 }; Src = @{ 0 = 'mesure'; 1 = 'mesure' }; FMean = 1.20 }
 $wLow = @{ Apply = $true; K = @{ 0 = 0.80; 1 = 0.78 }; Src = @{ 0 = 'mesure'; 1 = 'mesure' }; FMean = 0.79 }
 $pMix = Get-TargetRecalPlan $twR $wMix $xcR $true
 $pLow = Get-TargetRecalPlan $twR $wLow $xcR $true
-$r2a = ($pMix.Used -and (Near ([double]$pMix.O[0]) -3.3) -and (Near ([double]$pMix.O[1]) 3.9) -and ([string]$pMix.Text).Contains('tête 0 -3,3 ns, tête 1 +3,9 ns (facteur au-dessus de 1)') -and -not ([string]$pMix.Text).Contains('non appliqué'))
-$r2b = ($pLow.Used -and (Near ([double]$pLow.O[0]) -3.3) -and (Near ([double]$pLow.O[1]) -1.8) -and -not ([string]$pLow.Text).Contains('au-dessus de 1'))
-# Recalage appris pour l autre regime seulement : non applique, et dit
+$s2a = ($pMix.Used -and (Near ([double]$pMix.O[0]) -3.3) -and (Near ([double]$pMix.O[1]) -1.8) -and ([string]$pMix.Text).Contains('tête 0 -3,3 ns, tête 1 -1,8 ns') -and -not ([string]$pMix.Text).Contains('au-dessus de 1') -and -not ([string]$pMix.Text).Contains('non appliqué'))
+$s2b = ($pLow.Used -and (Near ([double]$pLow.O[0]) -3.3) -and (Near ([double]$pLow.O[1]) -1.8) -and [string]$pLow.Text -ceq [string]$pMix.Text)
+# Tete sans entree : aucun recalage pour elle, sans raison a donner
 $script:TargetRecal.Remove('A>0|std_h1')
-$pOth = Get-TargetRecalPlan $twR $wLow $xcR $true
-$r2c = ($pOth.Used -and (Near ([double]$pOth.O[1]) 0) -and (Near ([double]$pOth.O[0]) -3.3) -and ([string]$pOth.Text).Contains('tête 1 aucun') -and ([string]$pOth.Text).Contains('non appliqué : tête 1 : recalage appris pour un facteur de la disquette au-dessus de 1, celui de cette écriture est de 1 ou moins'))
-# Ecriture rapide : facteur moyen 1,20, regime au-dessus de 1 pour les deux tetes ; tete 0 sans entree de ce regime
+$pOne = Get-TargetRecalPlan $twR $wMix $xcR $true
+$s2c = ($pOne.Used -and (Near ([double]$pOne.O[1]) 0) -and (Near ([double]$pOne.O[0]) -3.3) -and ([string]$pOne.Text).Contains('tête 1 aucun') -and -not ([string]$pOne.Text).Contains('non appliqué'))
+# Ecriture rapide : moyenne des deux tetes, 0 pour la tete sans entree
 $pFast = Get-TargetRecalPlan $twR $wMix $xcR $false
-$r2d = ($pFast.Used -and (Near ([double]$pFast.O[0]) 1.95) -and (Near ([double]$pFast.O[1]) 1.95) -and ([string]$pFast.Text).Contains('tête 0 : recalage appris pour un facteur de la disquette de 1 ou moins, celui de cette écriture est au-dessus de 1'))
+$s2d = ($pFast.Used -and (Near ([double]$pFast.O[0]) -1.65) -and (Near ([double]$pFast.O[1]) -1.65))
 $script:Manual = $true; $pMan = Get-TargetRecalPlan $twR $wLow $xcR $true; $script:Manual = $false
-Chk 'R2' ($r2a -and $r2b -and $r2c -and $r2d -and -not $pMan.Used -and ([string]$pMan.Text).Contains('profil Manuel')) "application par regime : lente melee $r2a (« $($pMix.Text) »), facteurs de 1 ou moins $r2b, autre regime seul $r2c (« $($pOth.Text) »), rapide $r2d (« $($pFast.Text) »), profil Manuel inchange"
+Chk 'S2' ($s2a -and $s2b -and $s2c -and $s2d -and -not $pMan.Used -and ([string]$pMan.Text).Contains('profil Manuel')) "application sans regime : facteurs 0,80 et 1,60 $s2a (« $($pMix.Text) »), facteurs de 1 ou moins : meme recalage $s2b, tete sans entree $s2c (« $($pOne.Text) »), rapide $s2d, profil Manuel inchange"
 
-# Apprentissage : la tete dont le facteur depasse 1 alimente l entree « + », l autre l entree sans « + »
+# Apprentissage : chaque tete alimente son entree, quel que soit son facteur ; chaque ecriture garde son k
 Reset-Fk
 $script:TargetRecal['A>0|std_h1'] = New-FkRecal -2.4 'std_h1' 0.8
 $memR = New-FkMem -id 'W20261004090000' -at '2026-11-22 10:00:00'
@@ -837,61 +855,109 @@ $memR.H['1'].K = 1.6
 $rbR = New-FkRead @{ 0 = 2.0; 1 = -4.0 } $G
 $evR = Get-TargetRecalReadback $memR $rbR 0 $AT '0' '0' 'A'
 $upR = Get-TargetRecalUpdate 'A' '0' $memR $evR $AT
-$kR = (@($upR | ForEach-Object { "$($_.Key)/$(if ($_.Up) { 1 } else { 0 })" }) -join ' ')
-$r3a = ($evR.Ok -and $kR -ceq 'A>0|std_h0/0 A>0|std_h1+/1' -and (Near ([double]$upR[0].New.Ns) -1.5) -and (Near ([double]$upR[1].New.Ns) 3.0) -and (Near ([double]$upR[0].New.Items[0].K) 0.74) -and (Near ([double]$upR[1].New.Items[0].K) 1.6) -and $null -eq $upR[1].Old)
+$kR = (@($upR | ForEach-Object { [string]$_.Key }) -join ' ')
+# tete 1 : -2,4 deja la et +4,0 : 1,6 x 0,75 / 1,75 = 0,686 -> 0,7
+$s3a = ($evR.Ok -and $kR -ceq 'A>0|std_h0 A>0|std_h1' -and (Near ([double]$upR[0].New.Ns) -1.5) -and (Near ([double]$upR[1].New.Ns) 0.7) -and [int]$upR[1].New.N -eq 2 -and (Near ([double]$upR[0].New.Items[0].K) 0.74) -and (Near ([double]$upR[1].New.Items[0].K) 0.8) -and (Near ([double]$upR[1].New.Items[1].K) 1.6) -and $null -ne $upR[1].Old -and -not $upR[1].ContainsKey('Up'))
 $script:LastTargetWrites['A>0'] = $memR
 $resR = @{ Kind = 'measure'; Health = 0; At = $AT; Ctx = @{ Drive = '0'; Heads = '0+1'; Revs = 3 } }
 $oR = Invoke-TargetRecalOffer $resR $rbR
 $logR = (@($script:Log) -join ' // ')
-$r3b = ($oR -ceq 'stored' -and $script:TargetRecal.ContainsKey('A>0|std_h1+') -and (Near ([double]$script:TargetRecal['A>0|std_h1'].Ns) -1.8) -and [int]$script:TargetRecal['A>0|std_h1'].N -eq 1 -and $logR.Contains('tête 0 -1,5 ns') -and $logR.Contains('tête 1 +3,0 ns (facteur au-dessus de 1)') -and ([string]$script:ConfirmArgs.Text).Contains('Tête 1 : facteur de la disquette au-dessus de 1') -and -not ([string]$script:ConfirmArgs.Text).Contains('Tête 0 : facteur de la disquette au-dessus de 1'))
-Chk 'R3' ($r3a -and $r3b) "apprentissage par regime : cles $kR, recalages $($upR[0].New.Ns) et $($upR[1].New.Ns), k garde par ecriture ($r3a) ; proposition confirmee : entree de l autre regime intacte, journal et fenetre disent le regime ($r3b)"
+$s3b = ($oR -ceq 'stored' -and (@($script:TargetRecal.Keys | Sort-Object) -join ' ') -ceq 'A>0|std_h0 A>0|std_h1' -and (Near ([double]$script:TargetRecal['A>0|std_h1'].Ns) 0.7) -and [int]$script:TargetRecal['A>0|std_h1'].N -eq 2 -and $logR.Contains('tête 0 -1,5 ns') -and $logR.Contains('tête 1 +0,7 ns') -and -not $logR.Contains('au-dessus de 1') -and -not ([string]$script:ConfirmArgs.Text).Contains('au-dessus de 1'))
+# Memoire d une ecriture faite sous une regle anterieure (OldRule) : aucune tete n apprend, la raison est dite, rien n est demande
+Reset-Fk
+$memO = New-FkMem; $memO.OldRule = $true
+$evO = Get-TargetRecalReadback $memO $rbR 0 $AT '0' '0' 'A'
+$script:LastTargetWrites['A>0'] = $memO
+$oO = Invoke-TargetRecalOffer $resR $rbR
+$logO = (@($script:Log) -join ' // ')
+$s3c = (-not $evO.Ok -and (@($evO.Heads['0'].Why) -join ' ').Contains("tête 0 : écriture faite avec la règle d'une version précédente") -and (@($evO.Heads['1'].Why) -join ' ').Contains("tête 1 : écriture faite avec la règle d'une version précédente") -and $oO -ceq 'refused' -and $script:ConfirmN -eq 0 -and $script:TargetRecal.Count -eq 0 -and $logO.Contains("ne peut pas recaler la courbe croisée (tête 0 : écriture faite avec la règle d'une version précédente"))
+# Regle gardee avec la memoire : ecriture de cette version (regle courante), memoire anterieure (regle vide) ; relue du
+# bloc courant sans regle, ou du bloc anterieur : OldRule
+$script:LastTargetWrites['A>0'] = New-FkMem
+$exN = (Export-LastTargetWrites)['A>0']; $script:LastTargetWrites['A>0'] = $memO; $exO = (Export-LastTargetWrites)['A>0']
+$script:LastTargetWrites['A>0'] = New-FkMem
+$jsN = (@{ w = (Export-LastTargetWrites) } | ConvertTo-Json -Depth 8)
+[void](Import-LastTargetWrites ($jsN | ConvertFrom-Json).w); $rN = $script:LastTargetWrites['A>0'].OldRule
+[void](Import-LastTargetWrites ($jsN | ConvertFrom-Json).w -Legacy); $rL = $script:LastTargetWrites['A>0'].OldRule
+[void](Import-LastTargetWrites ($jsN.Replace('"rule":', '"regle":') | ConvertFrom-Json).w); $rM = $script:LastTargetWrites['A>0'].OldRule
+$s3d = ([string]$exN.rule -ceq '2' -and [string]$exO.rule -ceq '' -and $rN -eq $false -and $rL -eq $true -and $rM -eq $true)
+Chk 'S3' ($s3a -and $s3b -and $s3c -and $s3d) "apprentissage sans regime : cles $kR, recalages $($upR[0].New.Ns) et $($upR[1].New.Ns), k garde par ecriture ($s3a) ; proposition confirmee : une entree par tete, ni journal ni fenetre ne parlent de regime ($s3b) ; ecriture d une regle anterieure : refusee avec sa raison ($s3c) ; regle gardee avec la memoire, relue du bloc courant ou anterieur ($s3d)"
 
-# Fenetre « Lecteurs » : les deux regimes d une tete, annulation des deux
+# Fenetre « Lecteurs » : une valeur par tete, annulation
+Reset-Fk
+$script:TargetRecal = @{ 'A>0|std_h0' = (New-FkRecal -2.0 'std_h0' 0.8); 'A>0|std_h1' = (New-FkRecal -2.4 'std_h1' 1.6) }
 $sumR = Get-TargetRecalSummaryText 'A' '0' 'std'
 $nb = [string][char]0x00A0; $mn = [string][char]0x2212
-$r4a = ($sumR.Contains("tête$($nb)0$($nb)$($mn)1,5$($nb)ns, tête$($nb)1$($nb)$($mn)1,8$($nb)ns, tête$($nb)1$($nb)+3,0$($nb)ns (facteur au-dessus de 1)"))
+$s4a = ($sumR.Contains("tête$($nb)0$($nb)$($mn)1,5$($nb)ns, tête$($nb)1$($nb)$($mn)1,8$($nb)ns ;") -and -not $sumR.Contains('au-dessus de 1'))
+# Bloc d une version anterieure garde pour elle : les cles annulees, suivies de « + » ou non, en sortent aussi
+$script:TargetRecalLegacy = ('{ "A>0|std_h0": { "xDate": "x" }, "A>0|std_h0+": { "xDate": "x" }, "A>0|std_h1+": { "xDate": "x" }, "A>0|long_h0": { "xDate": "x" }, "B>0|std_h0": { "xDate": "x" } }' | ConvertFrom-Json)
 $nRm = Remove-TargetRecal 'A' '0' 'std'
-Chk 'R4' ($r4a -and $nRm -eq 2 -and $script:TargetRecal.Count -eq 0 -and (Remove-TargetRecal 'A' '0' 'std') -eq 0) "fenetre « Lecteurs » : « $sumR » ; annulation : $nRm tete(s), magasin vide"
+$lgR = (@($script:TargetRecalLegacy.PSObject.Properties | ForEach-Object { [string]$_.Name }) -join ' ')
+$nRm2 = Remove-TargetRecal 'A' '0' 'std'
+$script:TargetRecal = $null; $nRm3 = Remove-TargetRecal 'A' '0' 'long'; $lgR3 = (@($script:TargetRecalLegacy.PSObject.Properties | ForEach-Object { [string]$_.Name }) -join ' ')
+$script:TargetRecalLegacy = $null; $script:TargetRecal = @{}
+Chk 'S4' ($s4a -and $nRm -eq 2 -and $nRm2 -eq 0 -and $lgR -ceq 'A>0|long_h0 B>0|std_h0' -and $nRm3 -eq 0 -and $lgR3 -ceq 'B>0|std_h0' -and (Remove-TargetRecal 'A' '0' 'std') -eq 0) "fenetre « Lecteurs » : « $sumR » ; annulation : $nRm tete(s), magasin vide ; bloc d une version anterieure : restent $lgR, puis $lgR3"
 
-# Configuration : cle « + » admise, k des ecritures ; ecritures relues par une 12.11 (sans k) reclassees d apres la
-# mesure sur l image terminee juste avant le lancement de l ecriture (identifiant) ; aller-retour stable
+# Configuration. Bloc d une version anterieure (-Legacy) : chaque ecriture relue est convertie par son k (ecart median
+# entre les deux regles : 8,5 x |k - 1| ns avec les courbes du test) ; k absent (12.11) : celui de la mesure sur l image
+# terminee juste avant le lancement de l ecriture, sinon l ecriture est oubliee ; entree « + » reunie a celle de la tete
+# quand elle vient de la meme courbe croisee ; sans les courbes de l entree (long track ici, entree « + » d une autre
+# courbe croisee) : ecriture oubliee aussi, jamais gardee non convertie ; cle illisible comptee. Bloc courant : cle
+# « + » refusee, rien n est converti
 Reset-Fk
-$script:ContentMeasures += @{ Drive = 'A'; Family = 'std'; Head = 1; Date = '03/10/2026 10:15'; K = 1.62; Method = 'asym' }     # ecriture lancee a 10:15:30
-$script:ContentMeasures += @{ Drive = 'A'; Family = 'std'; Head = 1; Date = '03/10/2026 11:41'; K = 1.71; Method = 'asym' }     # lancee a 11:40:20 (meme minute, mesure « apres »)
+$script:ContentMeasures += @{ Drive = 'A'; Family = 'std'; Head = 1; Date = '03/10/2026 10:15'; K = 1.60; Method = 'asym' }     # ecriture lancee a 10:15:30
+$script:ContentMeasures += @{ Drive = 'A'; Family = 'std'; Head = 1; Date = '03/10/2026 11:41'; K = 1.80; Method = 'asym' }     # lancee a 11:40:20 (meme minute, mesure « apres »)
 $script:ContentMeasures += @{ Drive = 'A'; Family = 'std'; Head = 1; Date = '02/10/2026 09:50'; K = 1.90; Method = 'asym' }     # 10 min avant : pas celle de l ecriture
-$script:ContentMeasures += @{ Drive = 'A'; Family = 'std'; Head = 0; Date = '03/10/2026 10:15'; K = 1.80; Method = 'asym' }     # autre tete
+$script:ContentMeasures += @{ Drive = 'A'; Family = 'std'; Head = 0; Date = '03/10/2026 10:15'; K = 1.30; Method = 'asym' }     # autre tete
 $script:ContentMeasures += @{ Drive = '0'; Family = 'std'; Head = 1; Date = '02/10/2026 10:00'; K = 1.50; Method = 'asym' }     # autre lecteur
-$script:ContentMeasures += @{ Drive = 'A'; Family = 'std'; Head = 1; Date = '04/10/2026 08:30'; K = 0.80; Method = 'asym' }     # facteur de 1 ou moins
+$script:ContentMeasures += @{ Drive = 'A'; Family = 'std'; Head = 1; Date = '04/10/2026 08:30'; K = 0.80; Method = 'asym' }
 $script:ContentMeasures += @{ Drive = 'A'; Family = 'long'; Head = 0; Date = '05/10/2026 14:00'; K = 1.30; Method = 'asym' }
 $jsR = '{ "A>0|std_h1": { "ns": 1.1, "n": 5, "xDate": "' + $XD + '", "xKey": "std_h1", "calc": "' + $script:CalibCalc + '", "at": "2026-10-04 09:00:00", "items": [' +
        '{ "writeId": "W20261002100000", "date": "02/10/2026 10:05", "est": -1.2, "pistes": 80, "nr": 1, "read": "2026-10-02 10:30:00" },' +
        '{ "writeId": "W20261003101530", "date": "03/10/2026 10:20", "est": 3.0, "pistes": 62, "nr": 1, "read": "2026-10-03 10:40:00" },' +
        '{ "writeId": "W20261003114020", "date": "03/10/2026 11:45", "est": 5.0, "pistes": 80, "nr": 1, "read": "2026-10-03 12:00:00" },' +
        '{ "writeId": "W20261004083010", "date": "04/10/2026 08:35", "est": -2.0, "pistes": 80, "nr": 1, "read": "2026-10-04 09:00:00" } ] },' +
+       ' "A>0|std_h1+": { "ns": 3.9, "n": 1, "xDate": "' + $XD + '", "xKey": "std_h1", "calc": "' + $script:CalibCalc + '", "at": "2026-10-03 13:00:00", "items": [' +
+       '{ "writeId": "W20261003120000", "date": "03/10/2026 12:05", "est": 5.2, "pistes": 80, "nr": 1, "read": "2026-10-03 13:00:00", "k": 1.6 } ] },' +
        ' "A>0|std_h0": { "ns": -3.0, "n": 1, "xDate": "' + $XD + '", "xKey": "std_h0", "calc": "' + $script:CalibCalc + '", "at": "2026-10-03 10:40:00", "items": [' +
        '{ "writeId": "W20261003101530", "date": "03/10/2026 10:20", "est": -4.0, "pistes": 80, "nr": 1, "read": "2026-10-03 10:40:00", "k": 0.8 } ] },' +
+       ' "A>0|std_h0+": { "ns": 6.8, "n": 1, "xDate": "01/01/2026 00:00", "xKey": "std_h0", "calc": "' + $script:CalibCalc + '", "at": "2026-09-01 09:00:00", "items": [' +
+       '{ "writeId": "W20260901080000", "date": "01/09/2026 08:05", "est": 9.0, "pistes": 80, "nr": 1, "read": "2026-09-01 09:00:00", "k": 1.2 } ] },' +
        ' "A>0|long_h0": { "ns": 2.0, "n": 1, "xDate": "' + $XD + '", "xKey": "long_h0", "calc": "' + $script:CalibCalc + '", "at": "2026-10-05 15:00:00", "items": [' +
        '{ "writeId": "W20261005140040", "date": "05/10/2026 14:10", "est": 4.0, "pistes": 80, "nr": 1, "read": "2026-10-05 15:00:00" } ] },' +
        ' "A>0|std_h1++": { "ns": 1.0, "n": 1, "xDate": "' + $XD + '", "items": [ { "writeId": "W1", "est": 1.0 } ] } }'
-$imR = Import-TargetRecal ($jsR | ConvertFrom-Json)
-$eM = $script:TargetRecal['A>0|std_h1']; $eU = $script:TargetRecal['A>0|std_h1+']; $eL = $script:TargetRecal['A>0|long_h0+']
-$idM = (@($eM.Items | ForEach-Object { [string]$_.WriteId }) -join ','); $idU = (@($eU.Items | ForEach-Object { [string]$_.WriteId }) -join ',')
-$r5a = ([int]$imR.N -eq 4 -and [int]$imR.Bad -eq 1 -and [int]$imR.Moved -eq 3 -and $idM -ceq 'W20261002100000,W20261004083010' -and $idU -ceq 'W20261003101530,W20261003114020')
-$r5b = ((Near ([double]$eM.Ns) -1.4) -and (Near ([double]$eU.Ns) 3.4) -and (Near ([double]$eU.Items[0].K) 1.62) -and (Near ([double]$eU.Items[1].K) 1.71) -and $null -eq $eM.Items[0].K -and [string]$eU.XDate -ceq $XD -and [string]$eU.XKey -ceq 'std_h1')
-$r5c = (-not $script:TargetRecal.ContainsKey('A>0|long_h0') -and $eL -and (Near ([double]$eL.Ns) 3.0) -and (Near ([double]$script:TargetRecal['A>0|std_h0'].Items[0].K) 0.8) -and [int]$script:TargetRecal['A>0|std_h0'].N -eq 1)
+$imR = Import-TargetRecal ($jsR | ConvertFrom-Json) -Legacy
+$eM = $script:TargetRecal['A>0|std_h1']; $eH = $script:TargetRecal['A>0|std_h0']; $eL = $script:TargetRecal['A>0|long_h0']
+$idM = (@($eM.Items | ForEach-Object { [string]$_.WriteId }) -join ','); $esM = (@($eM.Items | ForEach-Object { ([double]$_.Est).ToString('0.00', [System.Globalization.CultureInfo]::InvariantCulture) }) -join ',')
+$kM = (@($eM.Items | ForEach-Object { ([double]$_.K).ToString('0.0', [System.Globalization.CultureInfo]::InvariantCulture) }) -join ',')
+# tete 1 : 3,0 - 5,1 ; 5,0 - 6,8 ; 5,2 - 5,1 (entree « + ») ; -2,0 - 1,7 ; somme -7,5 x 0,75 / 3,25 = -1,73 -> -1,7 ; tete 0 :
+# (-4,0 - 1,7) x 0,75 = -4,275 -> -4,3 ; long track et entree « + » d une autre courbe croisee : oubliees
+$s5a = ([int]$imR.N -eq 2 -and [int]$imR.Bad -eq 1 -and [int]$imR.Converted -eq 5 -and [int]$imR.Dropped -eq 3 -and (@($script:TargetRecal.Keys | Sort-Object) -join ' ') -ceq 'A>0|std_h0 A>0|std_h1')
+$s5b = ($idM -ceq 'W20261003101530,W20261003114020,W20261003120000,W20261004083010' -and $esM -ceq '-2.10,-1.80,0.10,-3.70' -and $kM -ceq '1.6,1.8,1.6,0.8' -and (Near ([double]$eM.Ns) -1.7) -and [string]$eM.XDate -ceq $XD -and [string]$eM.At -ceq '2026-10-04 09:00:00')
+$s5c = ([int]$eH.N -eq 1 -and (Near ([double]$eH.Items[0].Est) -5.7) -and (Near ([double]$eH.Ns) -4.3) -and [string]$eH.XDate -ceq $XD -and $null -eq $eL)
+# Aller-retour par le bloc courant : regle ecrite, aucune cle « + », rien de converti a la relecture
 $exR = (Export-TargetRecal | ConvertTo-Json -Depth 6)
 $im2 = Import-TargetRecal ($exR | ConvertFrom-Json)
-$r5d = ([int]$im2.N -eq 4 -and [int]$im2.Bad -eq 0 -and [int]$im2.Moved -eq 0 -and $exR.Contains('"k"') -and $script:TargetRecal.ContainsKey('A>0|std_h1+') -and (Near ([double]$script:TargetRecal['A>0|std_h1+'].Ns) 3.4) -and (Near ([double]$script:TargetRecal['A>0|std_h1'].Ns) -1.4) -and $null -eq $script:TargetRecal['A>0|std_h1'].Items[0].K)
-Chk 'R5' ($r5a -and $r5b -and $r5c -and $r5d) "configuration : $($imR.N) entree(s), $($imR.Bad) illisible(s), $($imR.Moved) ecriture(s) reclassee(s) ($r5a) ; recalages $($eM.Ns) et $($eU.Ns), k retrouves ($r5b) ; entree videe retiree, k present garde ($r5c) ; aller-retour sans nouveau reclassement ($r5d)"
+$s5d = ([int]$im2.N -eq 2 -and [int]$im2.Bad -eq 0 -and [int]$im2.Converted -eq 0 -and [int]$im2.Dropped -eq 0 -and $exR -match '"rule":\s*"2"' -and -not $exR.Contains('_h1+') -and $exR.Contains('"k"') -and (Near ([double]$script:TargetRecal['A>0|std_h1'].Ns) -1.7) -and (Near ([double]$script:TargetRecal['A>0|std_h0'].Ns) -4.3))
+# Le meme bloc anterieur lu comme un bloc courant : cles « + » illisibles, estimations telles quelles (aucune conversion)
+$im3 = Import-TargetRecal ($jsR | ConvertFrom-Json)
+$s5e = ([int]$im3.N -eq 3 -and [int]$im3.Bad -eq 3 -and [int]$im3.Converted -eq 0 -and [int]$script:TargetRecal['A>0|std_h1'].N -eq 4 -and (Near ([double]$script:TargetRecal['A>0|std_h0'].Items[0].Est) -4.0))
+# Bloc anterieur relu deux fois de suite : meme resultat (la conversion part toujours des valeurs d origine)
+$im4 = Import-TargetRecal ($jsR | ConvertFrom-Json) -Legacy
+$s5f = ([int]$im4.Converted -eq 5 -and (Near ([double]$script:TargetRecal['A>0|std_h1'].Ns) -1.7) -and (Near ([double]$script:TargetRecal['A>0|std_h0'].Ns) -4.3))
+Chk 'S5' ($s5a -and $s5b -and $s5c -and $s5d -and $s5e -and $s5f) "configuration d une version anterieure : $($imR.N) entree(s), $($imR.Bad) illisible(s), $($imR.Converted) ecriture(s) convertie(s), $($imR.Dropped) oubliee(s) ($s5a) ; tete 1 : $idM, estimations $esM, recalage $($eM.Ns) ($s5b) ; tete 0, long track oublie ($s5c) ; aller-retour par le bloc courant ($s5d) ; bloc anterieur lu sans conversion ($s5e) ; relu deux fois ($s5f)"
 
-# Anglais
+# Anglais ; textes du regime retires de la table
 $script:Lang = 'en'
-$script:TargetRecal = @{ 'A>0|std_h0' = (New-FkRecal -4.4 'std_h0' 0.8); 'A>0|std_h1+' = (New-FkRecal 5.2 'std_h1' 1.6) }
+$script:TargetRecal = @{ 'A>0|std_h0' = (New-FkRecal -4.4 'std_h0' 0.8); 'A>0|std_h1' = (New-FkRecal 5.2 'std_h1' 1.6) }
 $pEn = Get-TargetRecalPlan $twR $wMix $xcR $true
-$pEn2 = Get-TargetRecalPlan $twR $wLow $xcR $true
 $sEn = Get-TargetRecalSummaryText 'A' '0' 'std'
+$whyEn = Get-TargetWriteKLearnWhy $memO '0'
 $script:Lang = 'fr'
-Chk 'R6' (([string]$pEn.Text).Contains('head 1 +3.9 ns (factor above 1)') -and ([string]$pEn2.Text).Contains('head 1: adjustment learned for a disk factor above 1, the factor of this write is 1 or less') -and $sEn.Contains('(factor above 1)')) "anglais : « $($pEn.Text) » ; « $($pEn2.Text) »"
+$keysNew = @('c{0} : écart de la disquette à la courbe du lecteur reporté pour moitié en proportion, pour moitié en ns', "tête {0} : écriture faite avec la règle d'une version précédente, réécrivez la disquette avec cette version",
+             "Recalage des courbes croisées : la règle d'écriture pour un lecteur cible change dans cette version. {0} écriture(s) relue(s) convertie(s) à la nouvelle règle, {1} oubliée(s) (facteur de la disquette inconnu, ou courbe croisée recalibrée depuis) ; le recalage se complète à la prochaine relecture par le lecteur cible.")
+$keysOld = @('(facteur au-dessus de 1)', '{0} ns (facteur au-dessus de 1)', 'c{0} : besoin de la disquette au-dessus de la courbe du lecteur, hausse reportée en ns')
+Chk 'S6' (([string]$pEn.Text).Contains('head 0 -3.3 ns, head 1 +3.9 ns') -and -not (([string]$pEn.Text) + $sEn).Contains('factor above 1') -and $whyEn.Contains('head 0: write made with the rule of an earlier version') -and @($keysNew | Where-Object { -not $script:I18n.ContainsKey($_) }).Count -eq 0 -and @($keysOld | Where-Object { $script:I18n.ContainsKey($_) }).Count -eq 0) "anglais : « $($pEn.Text) » ; « $whyEn »"
 
 "=== bilan logic-cible-recalage : $($script:NChk - $script:Fail) conformes sur $($script:NChk)$(if ($script:Fail) { " ; NON CONFORMES : $($script:FailIds -join ', ')" }) ; $([int]$sw.Elapsed.TotalSeconds) s"
 if ($script:Fail -gt 0) { exit 1 }

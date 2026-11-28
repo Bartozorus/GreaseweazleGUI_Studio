@@ -199,6 +199,9 @@ $script:DriveCurves = @{}
 # de l ecriture en cours (172) ; blocs write.targetRecal et write.lastTargetWrite (120)
 $script:TargetRecal = @{}
 $script:LastTargetWrites = @{}
+# 12.12 (rc5) : bloc write.targetRecal d une version anterieure (recalages appris sous la regle precedente de la courbe
+# ecrite), garde tel quel du chargement a l enregistrement pour cette version (120) ; $null sans lui
+$script:TargetRecalLegacy = $null
 $script:TargetWritePending = $null
 $script:PrecompCurves = @{ std = $null; long = $null; std_h0 = $null; std_h1 = $null; long_h0 = $null; long_h1 = $null; hd = $null; hd_h0 = $null; hd_h1 = $null }   # vue du lecteur courant : derniere courbe calibree par famille d image (et par tete : ecriture lente)
 # 12.7 : cles de la haute densite (hd) apres les six cles double densite, dans le meme ordre qu avant

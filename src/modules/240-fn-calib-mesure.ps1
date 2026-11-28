@@ -359,6 +359,7 @@ function Reset-CalibProfiles {
     $script:LevelBrands = @()
     $script:ContentMeasures = @()                                     # 12.8.1 : facteurs mesures
     $script:TargetRecal = @{}; $script:LastTargetWrites = @{}         # 12.11 rc8 (R17) : recalages et memoire des ecritures pour un lecteur cible
+    $script:TargetRecalLegacy = $null                                 # 12.12 (rc5) : et le bloc des recalages d une version anterieure
     $script:PrecompStd = $script:PrecompStdDefault; $script:PrecompLong = $script:PrecompLongDefault
     if ($script:CurveForm -and -not $script:CurveForm.IsDisposed) { $script:CurveForm.Close() }
     Update-PrecompForImage $txtWFile.Text

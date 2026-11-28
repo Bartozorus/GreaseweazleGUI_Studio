@@ -87,9 +87,10 @@ $want = [ordered]@{
               'Export-TargetDrives', 'Import-TargetDrives', 'Save-Config', 'Get-Cfg', 'Set-Num', 'Set-Combo', 'Load-Config')
     '140' = @('Get-DriveIds', 'Get-TargetDrive', 'Set-TargetDrive', 'Get-TargetDriveItems', 'Get-TargetCurves', 'Get-TargetWriteInfo')
     # 12.11 rc8 (R17) : configuration des recalages et de la memoire des ecritures pour un lecteur cible (Save-Config, Load-Config)
-    '172' = @('Export-TargetRecal', 'Export-LastTargetWrites', 'Import-TargetRecal', 'Import-LastTargetWrites', 'Get-TargetRecalNs')
+    '172' = @('Export-TargetRecal', 'Export-LastTargetWrites', 'Import-TargetRecal', 'Import-LastTargetWrites', 'Get-TargetRecalNs',
+              'Get-TargetRuleShift', 'Get-TargetRecalItemK', 'ConvertTo-RecalDate', 'Get-TargetRecalKey', 'Remove-TargetRecal')
     '220' = @('Get-CurveDate', 'Get-DriveFamilyCurves')
-    '230' = @('Set-PrecompBound', 'Test-CurveHd', 'Get-CalibFamilyName', 'Get-Median', 'Get-CurveCalc', 'Get-CurveCalcRef', 'Test-CurveCalcOk', 'Get-CurveCalcText', 'ConvertTo-CurveConfig', 'ConvertTo-LevelConfig', 'ConvertTo-LevelBrandConfig',
+    '230' = @('Set-PrecompBound', 'Test-CurveHd', 'Get-CalibFamilyName', 'Get-Median', 'Get-SpecValue', 'Get-CurveCalc', 'Get-CurveCalcRef', 'Test-CurveCalcOk', 'Get-CurveCalcText', 'ConvertTo-CurveConfig', 'ConvertTo-LevelConfig', 'ConvertTo-LevelBrandConfig',
               'ConvertFrom-LevelBrandConfig', 'ConvertFrom-LevelConfig', 'ConvertFrom-CurveConfig')
     '240' = @('Get-CalibDriveArgsFor', 'Get-CalibStoreDrive', 'Split-CrossDrive', 'Get-CrossCalibTargets', 'Get-CurveKeyLabel', 'Get-DriveCurveKey', 'Split-DriveCurveKey', 'Get-DriveCurve', 'Set-DriveCurve', 'Sync-PrecompCurves',
               'Get-DriveCurveKeys', 'Get-DriveCurveLabel')
@@ -606,6 +607,66 @@ foreach ($w5 in @([ordered]@{ eraseMode = 'hfreq'; zoneFix = $true }, [ordered]@
 [void](Save-Config)
 $m5f = [System.IO.File]::ReadAllText($script:ConfigFile, $utf8)
 Chk 'M5' (($m5 -join ' ') -ceq '101 110 100 100' -and $m5f -match '"zoneFixDef":\s*"off"') "correction par zones (lecteur cible), chargement, case, ligne de journal : cochee sans marqueur, cochee avec marqueur, decochee, cle absente -> $($m5 -join ' ') (101 110 100 100 attendu) ; marqueur ecrit par Save-Config ($($m5f -match '"zoneFixDef":\s*"off"')) ; defaut de Set-Defaults : cas X4 de logic-cible-facteur"
+
+# M6 (12.12 rc5) : regle unique de la courbe ecrite pour un lecteur cible. Configuration d une version anterieure (blocs
+# write.targetRecal, avec une entree « + », et write.lastTargetWrite) chargee par la vraie Load-Config : recalages
+# convertis (une ligne de journal), les deux entrees de la tete reunies, memoire d ecriture gardee sans apprentissage ;
+# la vraie Save-Config ecrit write.targetRecal2 et write.lastTargetWrite2 et rend le bloc anterieur tel quel ; au
+# chargement suivant rien n est converti de nouveau ; apres le passage d une version anterieure (blocs « 2 » disparus) la
+# conversion repart du bloc anterieur, meme resultat ; un recalage annule ici sort aussi du bloc anterieur : il ne
+# revient ni au chargement suivant, ni apres le passage d une version anterieure.
+# Courbes : X - Sp de mediane 17 ns ; -4,0 a k 0,8 -> -5,7 ; +5,2 a k 1,6 -> +0,1 ; (-5,6) x 0,75 / 1,75 = -2,4
+# Constantes du recalage et regle courante : instructions reelles de 040, rejouees ici (le harnais ne charge pas 040)
+$tk6 = $null; $er6 = $null
+$a040 = [System.Management.Automation.Language.Parser]::ParseFile((@(Get-ChildItem -LiteralPath $mods -Filter '040-*.ps1' -File)[0].FullName), [ref]$tk6, [ref]$er6)
+$st040 = @($a040.EndBlock.Statements | ForEach-Object { [string]$_.Extent.Text } | Where-Object { $_ -match '^\$script:(TargetRecal\w+|TargetRule) = ' })
+$gen040 = Join-Path $here 'gen-registre-040-recalage.ps1'
+[System.IO.File]::WriteAllText($gen040, (($st040 -join "`r`n") + "`r`n"), (New-Object System.Text.UTF8Encoding($true)))
+. $gen040
+Reset-LnWorld 'm6'
+Set-DriveCurve 'A' 'std_h0' (New-Cv 'A' 'std' 0 '01/11/2026 17:49' '0=40:40=30:70=26')
+Set-DriveCurve 'A>0' 'std_h0' (New-Cv 'A' 'std' 0 '05/11/2026 10:00' '0=60:40=44:70=36' '0')
+$dcM6 = Export-DriveCurves $null
+$cc6 = [string]$script:CalibCalc
+$trM6 = [ordered]@{
+    'A>0|std_h0'  = [ordered]@{ ns = -3.0; n = 1; xDate = '05/11/2026 10:00'; xKey = 'std_h0'; calc = $cc6; at = '2026-11-22 11:00:00'; items = @([ordered]@{ writeId = 'W20261122100000'; date = '22/11/2026 10:00'; est = -4.0; pistes = 80; nr = 1; read = '2026-11-22 11:00:00'; k = 0.8 }) }
+    'A>0|std_h0+' = [ordered]@{ ns = 3.9; n = 1; xDate = '05/11/2026 10:00'; xKey = 'std_h0'; calc = $cc6; at = '2026-11-25 11:00:00'; items = @([ordered]@{ writeId = 'W20261125100000'; date = '25/11/2026 10:00'; est = 5.2; pistes = 80; nr = 1; read = '2026-11-25 11:00:00'; k = 1.6 }) }
+}
+$lwM6 = [ordered]@{ 'A>0' = [ordered]@{ id = 'W20261125100000'; date = '25/11/2026 10:00'; at = '2026-11-25 10:00:00'; image = 'essai.adf'; fam = 'std'; slow = $true; tracks = 80; heads = @(0); verdict = 'ok'; calc = $cc6
+                                        h = [ordered]@{ '0' = [ordered]@{ phys = 0; w = '0=60:40=44:70=36'; o = 0; oRecal = 0.0; xDate = '05/11/2026 10:00'; xKey = 'std_h0'; k = 1.6; kSrc = 'mesure'; kMeasured = $true; kLearn = $true; zones = @() } } } }
+$cfgM6 = [ordered]@{ global = [ordered]@{ drive = 'A' }; write = [ordered]@{ eraseMode = 'hfreq'; calibWarmup = $true; calibCalc = $cc6; calibVersion = '12.11'; driveCurves = $dcM6; targetRecal = $trM6; lastTargetWrite = $lwM6 }; ui = [ordered]@{ homeCalHeads = $true } }
+[System.IO.File]::WriteAllText($script:ConfigFile, ($cfgM6 | ConvertTo-Json -Depth 8), $utf8)
+$likeM6 = "Recalage des courbes croisées : la règle d'écriture pour un lecteur cible change dans cette version. 2 écriture(s) relue(s) convertie(s) à la nouvelle règle, 0 oubliée(s)*"
+function Get-M6State { $e = $script:TargetRecal['A>0|std_h0']; $m = $script:LastTargetWrites['A>0']; return "$(@($script:TargetRecal.Keys | Sort-Object) -join ',') n=$(if ($e) { $e.N }) ns=$(if ($e) { ([double]$e.Ns).ToString('0.0', [System.Globalization.CultureInfo]::InvariantCulture) }) old=$(if ($m) { [int][bool]$m.OldRule }) log=$(Get-LogN $likeM6)" }
+$m6 = @()
+Clear-LnMemory; $script:Log.Clear(); $l6 = [bool](Load-Config); $m6 += Get-M6State
+[void](Save-Config)
+$f6 = [System.IO.File]::ReadAllText($script:ConfigFile, $utf8); $j6 = $f6 | ConvertFrom-Json
+$w6 = $j6.write
+$n6 = @($w6.PSObject.Properties | ForEach-Object { $_.Name })
+$file6 = ($n6 -contains 'targetRecal' -and $n6 -contains 'targetRecal2' -and $n6 -contains 'lastTargetWrite2' -and $n6 -notcontains 'lastTargetWrite' -and
+          (@($w6.targetRecal.PSObject.Properties | ForEach-Object { $_.Name }) -join ',') -ceq 'A>0|std_h0,A>0|std_h0+' -and [double]$w6.targetRecal.'A>0|std_h0'.items[0].est -eq -4.0 -and [double]$w6.targetRecal.'A>0|std_h0+'.items[0].est -eq 5.2 -and
+          (@($w6.targetRecal2.PSObject.Properties | ForEach-Object { $_.Name }) -join ',') -ceq 'A>0|std_h0' -and [string]$w6.targetRecal2.'A>0|std_h0'.rule -ceq '2' -and @($w6.targetRecal2.'A>0|std_h0'.items).Count -eq 2 -and
+          [double]$w6.targetRecal2.'A>0|std_h0'.items[0].est -eq -5.7 -and [double]$w6.targetRecal2.'A>0|std_h0'.items[1].est -eq 0.1 -and [string]$w6.lastTargetWrite2.'A>0'.rule -ceq '')
+# chargement suivant : blocs « 2 », rien n est converti de nouveau
+Clear-LnMemory; $script:Log.Clear(); [void](Load-Config); $m6 += Get-M6State
+# passage d une version anterieure : elle n ecrit pas les blocs « 2 » ; la conversion repart du bloc anterieur
+$w6.PSObject.Properties.Remove('targetRecal2'); $w6.PSObject.Properties.Remove('lastTargetWrite2')
+[System.IO.File]::WriteAllText($script:ConfigFile, ($j6 | ConvertTo-Json -Depth 8), $utf8)
+Clear-LnMemory; $script:Log.Clear(); [void](Load-Config); $m6 += Get-M6State
+# recalage annule dans cette version : le bloc « 2 » est ecrit vide et le bloc anterieur perd ces cles (avec et sans « + »)
+$rm6 = Remove-TargetRecal 'A' '0' 'std'
+[void](Save-Config)
+$j6b = ([System.IO.File]::ReadAllText($script:ConfigFile, $utf8) | ConvertFrom-Json); $w6b = $j6b.write
+$n6b = @($w6b.PSObject.Properties | ForEach-Object { $_.Name })
+$lg6b = @($w6b.targetRecal.PSObject.Properties).Count
+Clear-LnMemory; $script:Log.Clear(); [void](Load-Config); $m6 += Get-M6State
+# puis passage d une version anterieure : rien ne revient du bloc anterieur
+$w6b.PSObject.Properties.Remove('targetRecal2')
+[System.IO.File]::WriteAllText($script:ConfigFile, ($j6b | ConvertTo-Json -Depth 8), $utf8)
+Clear-LnMemory; $script:Log.Clear(); [void](Load-Config); $m6 += Get-M6State
+$wantM6 = 'A>0|std_h0 n=2 ns=-2.4 old=1 log=1 | A>0|std_h0 n=2 ns=-2.4 old=1 log=0 | A>0|std_h0 n=2 ns=-2.4 old= log=1 |  n= ns= old= log=0 |  n= ns= old= log=0'
+Chk 'M6' ($l6 -and [string]$script:TargetRule -ceq '2' -and $st040.Count -ge 10 -and ($m6 -join ' | ') -ceq $wantM6 -and $file6 -and $rm6 -eq 1 -and $n6b -contains 'targetRecal2' -and $n6b -contains 'targetRecal' -and $lg6b -eq 0) "regle unique, configuration d une version anterieure : chargee et convertie une fois, rechargee sans nouvelle conversion, reconvertie du bloc anterieur apres une version anterieure, recalage annule qui ne revient pas, meme apres une version anterieure -> $($m6 -join ' | ') ; fichier enregistre : blocs $(@($n6 | Where-Object { $_ -like '*arget*' }) -join ', '), bloc anterieur intact et bloc « 2 » converti ($file6)"
 
 # ================================================================ N. nommer, renommer, deplacer, retirer le nom
 '--- N. nommer, renommer, deplacer, retirer le nom (scenarios 2, 4, 7)'

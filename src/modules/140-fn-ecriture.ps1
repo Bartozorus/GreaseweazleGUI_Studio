@@ -1720,7 +1720,15 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
     # $dBase). La ou la base de D est Sp lui-meme (courbe propre mise a l echelle, base(c) = Sp(c) > 0), De/Sp est le
     # facteur de la disquette sans bruit de mesure : il est applique aussi sous XferMinNs, sans reprise d un voisin
     # (Exact : ces cylindres). Excess reste compte sur D arrondi : ce que le meme lecteur aurait ecrit. Sans $dBase
-    # (defaut) : courbe de la 12.11, a l octet
+    # (defaut) : D arrondi, comme en 12.11
+    # 12.12 (rc5, relectures par le lecteur cible du 22 au 28/11/2026, decision de l utilisateur) : regle unique des
+    # deux cotes de D = Sp. La 12.11 reportait une baisse en rapport (X x D/Sp) et une hausse en ns (X + D - Sp, R15) :
+    # relue par le lecteur cible, la courbe ecrite suivait le facteur de la disquette trop fort sous 1 et trop peu
+    # au-dessus, erreur de signe oppose selon le facteur qu un recalage constant ne pouvait pas suivre. La courbe
+    # ecrite est la moyenne de la part en rapport et de la part en ns : X + (k - 1) x (X + Sp) / 2 pour D = k x Sp.
+    # La part en ns ne s ecarte jamais de X plus que la part en rapport (hausse : au plus X + max(0, D - Sp) ; baisse :
+    # au moins X + min(0, D - Sp)) : avec X <= Sp, la regle reste le rapport seul. D = Sp donne toujours X. Mixed :
+    # cylindres ou les deux parts different (remplace Capped)
     $last = 0
     foreach ($s in @($dSpec, $spSpec, $xSpec)) {
         foreach ($m in [regex]::Matches([string]$s, '(\d+)\s*=\s*(\d+)')) { if ([int]$m.Groups[1].Value -gt $last) { $last = [int]$m.Groups[1].Value } }
@@ -1732,9 +1740,9 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
     $n = [math]::Max($cyls, $last + 1)
     $min = [double]$script:XferMinNs
     # Ratio : table simple (une table ordonnee lirait une cle entiere comme un rang)
-    $r = @{ Spec = $xSpec; Values = @(); Ratio = @{}; Added = @(); Borrow = @{}; Pooled = @(); PoolF = $null; Same = $true; Excess = @(); Capped = @(); Recal = 0; RecalLimited = @(); Exact = @() }
+    $r = @{ Spec = $xSpec; Values = @(); Ratio = @{}; Added = @(); Borrow = @{}; Pooled = @(); PoolF = $null; Same = $true; Excess = @(); Mixed = @(); Recal = 0; RecalLimited = @(); Exact = @() }
     $vals = New-Object int[] $n; $exc = New-Object int[] $n
-    $asX = $true; $added = New-Object System.Collections.Generic.List[int]; $pooled = New-Object System.Collections.Generic.List[int]; $capped = New-Object System.Collections.Generic.List[int]
+    $asX = $true; $added = New-Object System.Collections.Generic.List[int]; $pooled = New-Object System.Collections.Generic.List[int]; $mixed = New-Object System.Collections.Generic.List[int]
     $rcN = [int][math]::Round($recalNs); $rcLim = New-Object System.Collections.Generic.List[int]; $r.Recal = $rcN
     $dA = New-Object double[] $n; $spA = New-Object double[] $n; $xA = New-Object double[] $n; $sumD = 0.0; $sumSp = 0.0; $nOk = 0
     $deA = New-Object double[] $n; $ownA = New-Object bool[] $n; $exact = New-Object System.Collections.Generic.List[int]
@@ -1762,13 +1770,12 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
         }
         elseif ($sumSp -gt 0) { $r.PoolF = $sumD / $sumSp; $w = $x * $r.PoolF; $pooled.Add($c) }
         else { $w = $x + ($de - $sp); $added.Add($c) }
-        # 12.11 rc6 (R15) : disquette qui demande plus que la courbe propre (D > Sp) : la hausse est reportee au plus en ns,
-        # min(part en rapport, X + (D - Sp)) ; une baisse (D <= Sp) reste reportee en rapport. Avec X >= Sp, c est
-        # min(X x D/Sp, X + D - Sp) en tout cylindre. Capped : cylindres ou la borne en ns a joue. Relecture de la rc6 : toute
-        # hausse au-dessus de X est bornee a X + max(0, D - Sp), aussi sous XferMinNs quand le facteur repris d un voisin
-        # (ou moyen) depasse 1 alors que D(c) <= Sp(c) (D = k x Sp arrondi egal a Sp aux faibles Sp, 1 < k < 1,5) : X, et non
-        # X x k sans borne
-        if ($w -gt $x) { $lim = $x + [math]::Max(0.0, $de - $sp); if ($w -gt $lim) { $w = $lim; $capped.Add($c) } }
+        # 12.12 (rc5) : regle unique. $w est la part en rapport (facteur de la disquette de ce cylindre, repris d un
+        # voisin ou moyen sous XferMinNs) ; la part en ns est X + (D - Sp), tenue du meme cote de X que la part en
+        # rapport et jamais plus loin de X qu elle : hausse, au plus X + max(0, D - Sp) (aussi quand le facteur repris
+        # depasse 1 alors que D = Sp apres arrondi) ; baisse, au moins X + min(0, D - Sp). Courbe ecrite : leur moyenne
+        if ($w -gt $x) { $alt = $x + [math]::Max(0.0, $de - $sp); if ($alt -lt $w) { $w = ($w + $alt) / 2; $mixed.Add($c) } }
+        elseif ($w -lt $x) { $alt = $x + [math]::Min(0.0, $de - $sp); if ($alt -gt $w) { $w = ($w + $alt) / 2; $mixed.Add($c) } }
         $vals[$c] = [int][math]::Max(0.0, [math]::Min([math]::Round($w), [math]::Max([double]$cap, [math]::Max($x, $d))))
         # 12.11 rc8 (R17) : recalage du lecteur cible, apres l arrondi et la borne
         if ($rcN -ne 0 -and $vals[$c] -gt 0) {
@@ -1780,7 +1787,7 @@ function Get-TargetTransferSpec([string]$dSpec, [string]$spSpec, [string]$xSpec,
         $exc[$c] = $vals[$c] - [int]$d
         if ($vals[$c] -ne [int]$x) { $asX = $false }
     }
-    $r.Values = $vals; $r.Added = [int[]]$added.ToArray(); $r.Pooled = [int[]]$pooled.ToArray(); $r.Excess = $exc; $r.Capped = [int[]]$capped.ToArray(); $r.RecalLimited = [int[]]$rcLim.ToArray(); $r.Exact = [int[]]$exact.ToArray()
+    $r.Values = $vals; $r.Added = [int[]]$added.ToArray(); $r.Pooled = [int[]]$pooled.ToArray(); $r.Excess = $exc; $r.Mixed = [int[]]$mixed.ToArray(); $r.RecalLimited = [int[]]$rcLim.ToArray(); $r.Exact = [int[]]$exact.ToArray()
     if (-not $asX) { $r.Spec = Build-CurveProfile $vals }
     return $r
 }
@@ -1803,8 +1810,8 @@ function Get-TargetTransferSummary($t) {
     }
     if (@($t.Pooled).Count) { $u += (T 'c{0} sous {1} ns : facteur moyen de la disquette repris ({2})') -f (Format-CylList ([int[]]@($t.Pooled))), $mn, (Format-UiNum $t.PoolF '0.00') }
     if (@($t.Added).Count) { $u += (T 'c{0} sous {1} ns : écart reporté en ns') -f (Format-CylList ([int[]]@($t.Added))), $mn }
-    # 12.11 rc6 (R15) : cylindres ou la disquette demande plus que la courbe propre et ou la hausse est reportee en ns
-    if (@($t.Capped).Count) { $u += (T 'c{0} : besoin de la disquette au-dessus de la courbe du lecteur, hausse reportée en ns') -f (Format-CylList ([int[]]@($t.Capped))) }
+    # 12.12 (rc5) : cylindres ou l ecart de la disquette a la courbe propre est reporte par la regle unique (Mixed)
+    if (@($t.Mixed).Count) { $u += (T 'c{0} : écart de la disquette à la courbe du lecteur reporté pour moitié en proportion, pour moitié en ns') -f (Format-CylList ([int[]]@($t.Mixed))) }
     $tail = if ($u.Count) { ' (' + ($u -join ', ') + ')' } else { '' }
     if ($v.Count -eq 0) { $s.Text = ((T 'aucun cylindre où le besoin propre atteint {0} ns') -f $mn) + $tail; return $s }
     $s.Min = [double]($v | Measure-Object -Minimum).Minimum; $s.Max = [double]($v | Measure-Object -Maximum).Maximum; $s.Med = [double](Get-Median $v)
